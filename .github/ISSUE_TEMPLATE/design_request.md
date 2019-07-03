@@ -1,6 +1,6 @@
 ---
 name: Design
-about: Create ssue about design
+about: Create issue about design
 title: 'Design: '
 labels: documentation
 assignees: ''

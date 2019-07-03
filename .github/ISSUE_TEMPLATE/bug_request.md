@@ -1,13 +1,13 @@
 ---
 name: Bug report
-about: Create Issue Abbout new bug
+about: Create issue about new bug
 title: 'Bug: '
 labels: bug
 assignees: ''
 
 ---
 
-## Bug Description
+## Description
 A brief description of the bug.
 
 ## Steps to reproduce
