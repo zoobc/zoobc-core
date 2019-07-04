@@ -1,0 +1,14 @@
+vendor
+
+*.zip
+*.tar
+*.rar
+*.gz
+*.7zip
+.env
+zoobc
+*.log
+.vscode
+.idea
+*.db
+
