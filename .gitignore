@@ -13,3 +13,4 @@ zoobc
 *.db
 *.pb.go
 *.pb.gw.go
+cover.out
