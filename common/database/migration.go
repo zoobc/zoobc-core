@@ -41,7 +41,7 @@ func (m *Migration) Init(query *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "mempool" (
-				"transaction_id"	BLOB,
+				"id"	BLOB,
 				"sender_account_type"	INTEGER,
 				"sender_account"	TEXT,
 				"recipient_account_type"	INTEGER,
@@ -53,11 +53,11 @@ func (m *Migration) Init(query *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
-				PRIMARY KEY("transaction_id")
+				PRIMARY KEY("id")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "transaction" (
-				"transaction_id"	BLOB,
+				"id"	BLOB,
 				"block_id"	INTEGER,
 				"block_height"	INTEGER,
 				"sender_account_id"	BLOB,
@@ -68,14 +68,25 @@ func (m *Migration) Init(query *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
-				PRIMARY KEY("transaction_id")
+				PRIMARY KEY("id")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account" (
-				"account_id"	BLOB,
+				"id"	BLOB,
 				"account_type"	INTEGER,
-				"account"	TEXT,
-				PRIMARY KEY("account_id")
+				"address"	TEXT,
+				PRIMARY KEY("id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "account_balance" (
+				"id"	BLOB,
+				"block_height"	INTEGER,
+				"spendable_balance"	INTEGER,
+				"balance"	INTEGER,
+				"pop_revenue"	INTEGER,
+				"latest"	INTEGER,
+				PRIMARY KEY("id","block_height"),
+				FOREIGN KEY("id") REFERENCES account(id)
 			);`,
 		}
 		return nil
