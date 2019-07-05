@@ -3,6 +3,14 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/database"
@@ -48,4 +56,22 @@ func main() {
 	if err := migration.Apply(); err != nil {
 		fmt.Println(err)
 	}
+	mainchain := &chaintype.Mainchain{}
+	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
+	blockchainProcessor := smith.NewBlockchainProcessor(&chaintype.Mainchain{}, smith.NewBlocksmith(), service.NewBlockService(mainchain))
+	blockchainProcessor.AddGenesis()
+	go startSmith(sleepPeriod, blockchainProcessor)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	// When we receive a signal from the OS, shut down everything
+	<-sigs
+
+}
+
+func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
+	for {
+		_ = processor.StartForging()
+		time.Sleep(time.Duration(sleepPeriod) * time.Second)
+	}
+
 }

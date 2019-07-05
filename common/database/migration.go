@@ -77,6 +77,25 @@ func (m *Migration) Init(query *query.Executor) error {
 				"account"	TEXT,
 				PRIMARY KEY("account_id")
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "main_block" (
+				"id" INTEGER,
+				"previous_block_hash" TEXT,
+				"height" INTEGER,
+				"timestamp" INTEGER,
+				"block_seed" BLOB,
+				"block_signature" BLOB,
+				"cumulative_difficulty" BLOB,
+				"smith_scale" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" TEXT,
+				"blocksmith_id" BLOB,
+				"total_amount" INTEGER,
+				"total_fee" INTEGER,
+				"total_coinbase" INTEGER,
+				"version" INTEGER
+			)
+			`,
 		}
 		return nil
 	}
