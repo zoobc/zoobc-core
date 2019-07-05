@@ -57,6 +57,55 @@ func (m *Migration) Init(query *query.Executor) error {
 				payload_hash BLOB,
 				version INTEGER
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "mempool" (
+				"id"	BLOB,
+				"sender_account_type"	INTEGER,
+				"sender_account"	TEXT,
+				"recipient_account_type"	INTEGER,
+				"recipient_account"	TEXT,
+				"transaction_type"	INTEGER,
+				"fee"	INTEGER,
+				"timestamp"	INTEGER,
+				"transaction_hash"	BLOB,
+				"transaction_body_length"	INTEGER,
+				"transaction_body_bytes"	BLOB,
+				"signature"	BLOB,
+				PRIMARY KEY("id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "transaction" (
+				"id"	BLOB,
+				"block_id"	INTEGER,
+				"block_height"	INTEGER,
+				"sender_account_id"	BLOB,
+				"recipient_account_id"	BLOB,
+				"transaction_type"	INTEGER,
+				"fee"	INTEGER,
+				"transaction_hash"	BLOB,
+				"transaction_body_length"	INTEGER,
+				"transaction_body_bytes"	BLOB,
+				"signature"	BLOB,
+				PRIMARY KEY("id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "account" (
+				"id"	BLOB,
+				"account_type"	INTEGER,
+				"address"	TEXT,
+				PRIMARY KEY("id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "account_balance" (
+				"id"	BLOB,
+				"block_height"	INTEGER,
+				"spendable_balance"	INTEGER,
+				"balance"	INTEGER,
+				"pop_revenue"	INTEGER,
+				"latest"	INTEGER,
+				PRIMARY KEY("id","block_height"),
+				FOREIGN KEY("id") REFERENCES account(id)
+			);`,
 		}
 		return nil
 	}

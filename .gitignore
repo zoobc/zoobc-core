@@ -11,4 +11,6 @@ zoobc
 .vscode
 .idea
 *.db
-
+*.pb.go
+*.pb.gw.go
+cover.out

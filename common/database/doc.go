@@ -1,5 +1,4 @@
-package database
-
 /*
-Database package contain database implementation codes.
+Package database contain database implementation codes.
 */
+package database
