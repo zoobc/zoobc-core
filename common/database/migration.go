@@ -40,7 +40,7 @@ func (m *Migration) Init(query *query.Executor) error {
 				"created_date" TIMESTAMP NOT NULL
 			);`,
 			`
-			CREATE TABLE "mempool" (
+			CREATE TABLE IF NOT EXISTS "mempool" (
 				"transaction_id"	BLOB,
 				"sender_account_type"	INTEGER,
 				"sender_account"	TEXT,
@@ -54,8 +54,9 @@ func (m *Migration) Init(query *query.Executor) error {
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
 				PRIMARY KEY("transaction_id")
-			);
-			CREATE TABLE "transaction" (
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "transaction" (
 				"transaction_id"	BLOB,
 				"block_id"	INTEGER,
 				"block_height"	INTEGER,
@@ -67,16 +68,15 @@ func (m *Migration) Init(query *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
-				PRIMARY KEY("transaction_id"),
-				/* FOREIGN KEY("transactionblock") REFERENCES block(block_id) */
-			);
-			CREATE TABLE "account" (
+				PRIMARY KEY("transaction_id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "account" (
 				"account_id"	BLOB,
 				"account_type"	INTEGER,
 				"account"	TEXT,
 				PRIMARY KEY("account_id")
-			);						
-			`,
+			);`,
 		}
 		return nil
 	}
