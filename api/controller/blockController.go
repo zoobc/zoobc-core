@@ -5,8 +5,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant/blocker"
-	"github.com/zoobc/zoobc-core/common/schema/model"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 // BlockController to handle request related to Blocks from client
@@ -26,7 +25,7 @@ func (bs *BlockController) GetBlock(ctx context.Context, req *model.GetBlockRequ
 		blockResponse, err = bs.Service.GetBlockByHeight(chainType, req.BlockHeight)
 	}
 	if err != nil {
-		return nil, blocker.err
+		return nil, err
 	}
 
 	return blockResponse, nil
@@ -37,7 +36,7 @@ func (bs *BlockController) GetBlocks(ctx context.Context, req *model.GetBlocksRe
 	chainType := chaintype.GetChainType(req.ChainType)
 	blocksResponse, err := bs.Service.GetBlocks(chainType, req.BlockSize, req.BlockHeight)
 	if err != nil {
-		return nil, blocker.ErrRpcResourceFetchFail
+		return nil, err
 	}
 
 	return blocksResponse, nil

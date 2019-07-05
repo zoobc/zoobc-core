@@ -39,6 +39,24 @@ func (m *Migration) Init(query *query.Executor) error {
 				"version" INTEGER DEFAULT 0 NOT NULL,
 				"created_date" TIMESTAMP NOT NULL
 			);`,
+			`CREATE TABLE IF NOT EXISTS main_blocks (
+				id INTEGER,
+				hash VARCHAR(255),
+				previous_block_hash VARCHAR(255),
+				previous_block_id INTEGER,
+				height INTEGER,
+				timestamp INTEGER,
+				block_seed BLOB,
+				block_signature BLOB,
+				cumulative_difficulty BLOB,
+				base_target INTEGER,
+				generator_public_key BLOB,
+				total_amount INTEGER,
+				total_fee INTEGER,
+				payload_length INTEGER, 
+				payload_hash BLOB,
+				version INTEGER
+			);`,
 		}
 		return nil
 	}

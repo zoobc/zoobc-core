@@ -7,10 +7,10 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/schema/model"
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
 func TestNewBlockervice(t *testing.T) {
@@ -41,8 +41,8 @@ func TestNewBlockervice(t *testing.T) {
 
 func Test_BlockService_GetBlocks(t *testing.T) {
 	mockData := struct {
-		BlockSize   int32
-		BlockHeight int32
+		BlockSize   uint32
+		BlockHeight uint32
 		Blocks      []*model.Block
 	}{
 		BlockSize:   0,
@@ -69,7 +69,7 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 			want: &model.GetBlocksResponse{
 				Blocks:      mockData.Blocks,
 				BlockHeight: mockData.BlockHeight,
-				BlockSize:   int32(len(mockData.Blocks)),
+				BlockSize:   uint32(len(mockData.Blocks)),
 			},
 			wantErr: false,
 		},
