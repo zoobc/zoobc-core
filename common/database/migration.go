@@ -39,6 +39,44 @@ func (m *Migration) Init(query *query.Executor) error {
 				"version" INTEGER DEFAULT 0 NOT NULL,
 				"created_date" TIMESTAMP NOT NULL
 			);`,
+			`
+			CREATE TABLE "mempool" (
+				"transaction_id"	BLOB,
+				"sender_account_type"	INTEGER,
+				"sender_account"	TEXT,
+				"recipient_account_type"	INTEGER,
+				"recipient_account"	TEXT,
+				"transaction_type"	INTEGER,
+				"fee"	INTEGER,
+				"timestamp"	INTEGER,
+				"transaction_hash"	BLOB,
+				"transaction_body_length"	INTEGER,
+				"transaction_body_bytes"	BLOB,
+				"signature"	BLOB,
+				PRIMARY KEY("transaction_id")
+			);
+			CREATE TABLE "transaction" (
+				"transaction_id"	BLOB,
+				"block_id"	INTEGER,
+				"block_height"	INTEGER,
+				"sender_account_id"	BLOB,
+				"recipient_account_id"	BLOB,
+				"transaction_type"	INTEGER,
+				"fee"	INTEGER,
+				"transaction_hash"	BLOB,
+				"transaction_body_length"	INTEGER,
+				"transaction_body_bytes"	BLOB,
+				"signature"	BLOB,
+				PRIMARY KEY("transaction_id"),
+				/* FOREIGN KEY("transactionblock") REFERENCES block(block_id) */
+			);
+			CREATE TABLE "account" (
+				"account_id"	BLOB,
+				"account_type"	INTEGER,
+				"account"	TEXT,
+				PRIMARY KEY("account_id")
+			);						
+			`,
 		}
 		return nil
 	}
