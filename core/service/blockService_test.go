@@ -320,6 +320,7 @@ func (*mockQueryExecutorSuccess) Execute(string) (sql.Result, error) {
 }
 func (*mockQueryExecutorSuccess) ExecuteSelect(query string) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
+	defer db.Close()
 	if query == `SELECT (id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version) FROM main_block ORDER BY height DESC LIMIT 1` {
 		mock.ExpectQuery(regexp.QuoteMeta(`
 		SELECT (id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version)
@@ -378,6 +379,19 @@ func (*mockQueryExecutorFail) ExecuteTransactions(queries []string) ([]sql.Resul
 }
 func (*mockQueryExecutorFail) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
+}
+
+type mockQueryExecutorSqlFail struct {
+	mockQueryExecutorSuccess
+}
+
+func (*mockQueryExecutorSqlFail) ExecuteSelect(query string) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}))
+	rows, _ := db.Query(query)
+	return rows, nil
 }
 
 func TestBlockService_PushBlock(t *testing.T) {
@@ -466,7 +480,7 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetLastBlock:success",
+			name: "GetLastBlock:success", // All is good
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorSuccess{},
@@ -492,10 +506,22 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "GetLastBlock:fail",
+			name: "GetLastBlock:fail", // ExecuteSelect return error != nil
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorFail{},
+				BlockQuery:    &MockBlockQuery{},
+			},
+			want: model.Block{
+				ID: -1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "GetLastBlock:fail-{sql.rows.Next = false}", // block not found | rows.Next() -> false
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				QueryExecutor: &mockQueryExecutorSqlFail{},
 				BlockQuery:    &MockBlockQuery{},
 			},
 			want: model.Block{
@@ -567,6 +593,18 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorFail{},
+				BlockQuery:    &MockBlockQuery{},
+			},
+			want: model.Block{
+				ID: -1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "GetGenesis:fail-{sql.rows.Next = false}", // genesis not found | rows.Next() -> false
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				QueryExecutor: &mockQueryExecutorSqlFail{},
 				BlockQuery:    &MockBlockQuery{},
 			},
 			want: model.Block{
