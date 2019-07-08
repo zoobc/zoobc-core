@@ -13,6 +13,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+// ResetBlockService resets the singleton back to nil, used in test case teardown
+func ResetBlockService() {
+	blockServiceInstance = nil
+}
+
 func TestNewBlockervice(t *testing.T) {
 	db, _, err := sqlmock.New()
 	if err != nil {

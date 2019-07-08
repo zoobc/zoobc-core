@@ -35,11 +35,6 @@ func NewBlockService(queryExecutor *query.Executor) *BlockService {
 	return blockServiceInstance
 }
 
-// ResetBlockService resets the singleton back to nil, used in test case teardown
-func ResetBlockService() {
-	blockServiceInstance = nil
-}
-
 // GetBlockByID fetch a single block from Blockchain by providing block ID
 func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*model.Block, error) {
 	var err error
