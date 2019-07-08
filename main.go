@@ -82,7 +82,7 @@ func main() {
 
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
-		_ = processor.StartForging()
+		_ = processor.StartSmithing()
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)
 	}
 

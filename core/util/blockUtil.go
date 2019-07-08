@@ -40,20 +40,20 @@ func GetBlockSeed(publicKey []byte, block model.Block) (*big.Int, error) {
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(balance *big.Int, hit *big.Int, block model.Block) int64 {
+func GetSmithTime(balance *big.Int, seed *big.Int, block model.Block) int64 {
 	if balance.Cmp(big.NewInt(0)) == 0 {
 		return 0
 	}
 	staticTarget := new(big.Int).Mul(big.NewInt(block.SmithScale), balance)
-	elapsedFromLastBlock := new(big.Int).Div(hit, staticTarget).Int64()
+	elapsedFromLastBlock := new(big.Int).Div(seed, staticTarget).Int64()
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
 // CalculateSmithScale base target of block and return modified block
-func CalculateSmithScale(previousBlock model.Block, block model.Block, forgingDelayTime int64) model.Block {
+func CalculateSmithScale(previousBlock model.Block, block model.Block, smithingDelayTime int64) model.Block {
 	prevSmithScale := previousBlock.GetSmithScale()
 	smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
-	block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(forgingDelayTime)).Int64()
+	block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingDelayTime)).Int64()
 	if big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(0)) < 0 || big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(constant.MaxSmithScale)) > 0 {
 		block.SmithScale = constant.MaxSmithScale
 	}

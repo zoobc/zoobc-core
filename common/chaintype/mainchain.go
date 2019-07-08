@@ -7,7 +7,7 @@ func (*MainChain) GetTablePrefix() string {
 	return "main"
 }
 
-// GetChainSmithingDelayTime return the value of chain forging delay in second
+// GetChainSmithingDelayTime return the value of chain smithing delay in second
 func (*MainChain) GetChainSmithingDelayTime() int64 {
 	return 6
 }

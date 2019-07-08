@@ -59,7 +59,7 @@ func NewBlocksmith() Blocksmith {
 	return blocksmith
 }
 
-// CalculateSmith calculate hit, hittime, and deadline
+// CalculateSmith calculate seed, smithTime, and deadline
 func (*BlockchainProcessor) CalculateSmith(lastBlock model.Block, generator Blocksmith) Blocksmith {
 	account := model.AccountBalance{
 		ID:               []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111, 241, 130, 176, 116, 63, 35, 232, 241, 210, 172},
@@ -83,8 +83,8 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock model.Block, generator Bloc
 	return generator
 }
 
-// StartForging start forging loop
-func (bp *BlockchainProcessor) StartForging() error {
+// StartSmithing start smithing loop
+func (bp *BlockchainProcessor) StartSmithing() error {
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return errors.New("Genesis:notAddedYet")
@@ -183,11 +183,11 @@ func (bp *BlockchainProcessor) CheckGenesis() bool {
 }
 
 // GetTimestamp max timestamp allowed block to be smithed
-func (forger *Blocksmith) GetTimestamp(smithMax int64) int64 {
-	elapsed := smithMax - forger.SmithTime
+func (blocksmith *Blocksmith) GetTimestamp(smithMax int64) int64 {
+	elapsed := smithMax - blocksmith.SmithTime
 	if elapsed > 3600 {
 		return smithMax
 
 	}
-	return forger.SmithTime + 1
+	return blocksmith.SmithTime + 1
 }

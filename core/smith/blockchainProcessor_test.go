@@ -1,0 +1,422 @@
+package smith
+
+import (
+	"errors"
+	"math/big"
+	"reflect"
+	"testing"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
+	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/core/service"
+)
+
+var mockBlocksmith = Blocksmith{
+	AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+	Balance:          big.NewInt(1000000000),
+	SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+	NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+}
+
+// Mockchain
+type mockChain struct {
+}
+
+func (*mockChain) GetTablePrefix() string           { return "mock" }
+func (*mockChain) GetChainSmithingDelayTime() int64 { return 10 }
+func (*mockChain) GetName() string                  { return "mockchain" }
+func (*mockChain) GetGenesisBlockID() int64         { return 1 }
+
+// BlockService mock success
+type mockBlockServiceSuccess struct {
+}
+
+func (*mockBlockServiceSuccess) VerifySeed(seed *big.Int, balance *big.Int, previousBlock model.Block, timestamp int64) bool {
+	return true
+}
+func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
+	hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+	transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block {
+	return &model.Block{
+		Version:           1,
+		PreviousBlockHash: []byte{},
+		BlockSeed:         []byte{},
+		BlocksmithID:      []byte{},
+		Timestamp:         15875392,
+		TotalAmount:       0,
+		TotalFee:          0,
+		TotalCoinBase:     0,
+		Transactions:      []*model.Transaction{},
+		PayloadHash:       []byte{},
+	}
+}
+func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
+	hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block {
+	return &model.Block{
+		Version:              1,
+		PreviousBlockHash:    []byte{},
+		BlockSeed:            []byte{},
+		BlocksmithID:         []byte{},
+		Timestamp:            15875392,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Transactions:         []*model.Transaction{},
+		PayloadHash:          []byte{},
+		SmithScale:           0,
+		CumulativeDifficulty: "1",
+		BlockSignature:       []byte{},
+	}
+}
+func (*mockBlockServiceSuccess) PushBlock(previousBlock, block model.Block) error { return nil }
+func (*mockBlockServiceSuccess) GetLastBlock() (model.Block, error)               { return model.Block{}, nil }
+func (*mockBlockServiceSuccess) GetBlocks() ([]model.Block, error)                { return []model.Block{}, nil }
+func (*mockBlockServiceSuccess) GetGenesisBlock() (model.Block, error) {
+	return model.Block{
+		ID:                   1,
+		Version:              1,
+		PreviousBlockHash:    []byte{},
+		BlockSeed:            []byte{},
+		BlocksmithID:         []byte{},
+		Timestamp:            15875392,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Transactions:         []*model.Transaction{},
+		PayloadHash:          []byte{},
+		SmithScale:           0,
+		CumulativeDifficulty: "1",
+		BlockSignature:       []byte{},
+	}, nil
+}
+
+// BlockService mock fail
+type mockBlockServiceFail struct {
+	mockBlockServiceSuccess
+}
+
+func (*mockBlockServiceFail) GetGenesisBlock() (model.Block, error) {
+	return model.Block{}, errors.New("mockError")
+}
+
+func TestNewBlockchainProcessor(t *testing.T) {
+	type args struct {
+		chaintype    contract.ChainType
+		blocksmith   Blocksmith
+		blockService service.BlockServiceInterface
+	}
+	test := struct {
+		name string
+		args args
+		want *BlockchainProcessor
+	}{
+		name: "NewBlockchainProcessor:success",
+		args: args{
+			chaintype:    &chaintype.MainChain{},
+			blocksmith:   Blocksmith{},
+			blockService: nil,
+		},
+		want: &BlockchainProcessor{
+			Chaintype:    &chaintype.MainChain{},
+			Generator:    Blocksmith{},
+			BlockService: nil,
+			LastBlockID:  0,
+		},
+	}
+	if got := NewBlockchainProcessor(test.args.chaintype, test.args.blocksmith, test.args.blockService); !reflect.DeepEqual(got, test.want) {
+		t.Errorf("NewBlockchainProcessor() = %v, want %v", got, test.want)
+	}
+}
+
+func TestNewBlocksmith(t *testing.T) {
+	test := struct {
+		name string
+		want Blocksmith
+	}{
+		name: "NewBlocksmith:success",
+		want: mockBlocksmith,
+	}
+	if got := NewBlocksmith(); !reflect.DeepEqual(got, test.want) {
+		t.Errorf("NewBlocksmith() = %v, want %v", got, test.want)
+	}
+}
+
+func TestBlockchainProcessor_CalculateSmith(t *testing.T) { // todo: test can be written once account_balance is integrated.
+	type fields struct {
+		Chaintype    contract.ChainType
+		Generator    Blocksmith
+		BlockService service.BlockServiceInterface
+		LastBlockID  int64
+	}
+	type args struct {
+		lastBlock model.Block
+		generator Blocksmith
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   Blocksmith
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := &BlockchainProcessor{
+				Chaintype:    tt.fields.Chaintype,
+				Generator:    tt.fields.Generator,
+				BlockService: tt.fields.BlockService,
+				LastBlockID:  tt.fields.LastBlockID,
+			}
+			if got := b.CalculateSmith(tt.args.lastBlock, tt.args.generator); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockchainProcessor.CalculateSmith() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test when transaction and pop implemented.
+	type fields struct {
+		Chaintype    contract.ChainType
+		Generator    Blocksmith
+		BlockService service.BlockServiceInterface
+		LastBlockID  int64
+	}
+	type args struct {
+		previousBlock model.Block
+		secretPhrase  string
+		timestamp     int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.Block
+		wantErr bool
+	}{
+		{
+			name: "GenerateBlock:success-{}",
+			fields: fields{
+				Chaintype:    &chaintype.MainChain{},
+				Generator:    Blocksmith{},
+				BlockService: &mockBlockServiceSuccess{},
+				LastBlockID:  0,
+			},
+			args: args{
+				previousBlock: model.Block{},
+				secretPhrase:  "",
+				timestamp:     1562585975339,
+			},
+			want: &model.Block{
+				Version:           1,
+				PreviousBlockHash: []byte{},
+				BlockSeed:         []byte{},
+				BlocksmithID:      []byte{},
+				Timestamp:         15875392,
+				TotalAmount:       0,
+				TotalFee:          0,
+				TotalCoinBase:     0,
+				Transactions:      []*model.Transaction{},
+				PayloadHash:       []byte{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &BlockchainProcessor{
+				Chaintype:    tt.fields.Chaintype,
+				Generator:    tt.fields.Generator,
+				BlockService: tt.fields.BlockService,
+				LastBlockID:  tt.fields.LastBlockID,
+			}
+			got, err := bp.GenerateBlock(tt.args.previousBlock, tt.args.secretPhrase, tt.args.timestamp)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockchainProcessor.GenerateBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockchainProcessor.GenerateBlock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockchainProcessor_AddGenesis(t *testing.T) { //todo: update test when genesis transaction added
+	type fields struct {
+		Chaintype    contract.ChainType
+		Generator    Blocksmith
+		BlockService service.BlockServiceInterface
+		LastBlockID  int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "AddGenesis:success-{BlockService.PushBlock:success}",
+			fields: fields{
+				Chaintype:    &mockChain{},
+				Generator:    Blocksmith{},
+				BlockService: &mockBlockServiceSuccess{},
+				LastBlockID:  0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "AddGenesis:success-{BlockService.PushBlock:fail}",
+			fields: fields{
+				Chaintype:    &mockChain{},
+				Generator:    Blocksmith{},
+				BlockService: &mockBlockServiceFail{},
+				LastBlockID:  0,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &BlockchainProcessor{
+				Chaintype:    tt.fields.Chaintype,
+				Generator:    tt.fields.Generator,
+				BlockService: tt.fields.BlockService,
+				LastBlockID:  tt.fields.LastBlockID,
+			}
+			if err := bp.AddGenesis(); (err != nil) != tt.wantErr {
+				t.Errorf("BlockchainProcessor.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBlockchainProcessor_CheckGenesis(t *testing.T) {
+	type fields struct {
+		Chaintype    contract.ChainType
+		Generator    Blocksmith
+		BlockService service.BlockServiceInterface
+		LastBlockID  int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "CheckGenesis:success-{}",
+			fields: fields{
+				Chaintype:    &mockChain{},
+				Generator:    mockBlocksmith,
+				BlockService: &mockBlockServiceSuccess{},
+				LastBlockID:  0,
+			},
+			want: true,
+		},
+		{
+			name: "CheckGenesis:fail-{}",
+			fields: fields{
+				Chaintype:    &mockChain{},
+				Generator:    mockBlocksmith,
+				BlockService: &mockBlockServiceFail{},
+				LastBlockID:  0,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bp := &BlockchainProcessor{
+				Chaintype:    tt.fields.Chaintype,
+				Generator:    tt.fields.Generator,
+				BlockService: tt.fields.BlockService,
+				LastBlockID:  tt.fields.LastBlockID,
+			}
+			if got := bp.CheckGenesis(); got != tt.want {
+				t.Errorf("BlockchainProcessor.CheckGenesis() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlocksmith_GetTimestamp(t *testing.T) {
+	type fields struct {
+		NodePublicKey    []byte
+		AccountPublicKey []byte
+		Balance          *big.Int
+		SmithTime        int64
+		BlockSeed        *big.Int
+		SecretPhrase     string
+		deadline         uint32
+	}
+	type args struct {
+		smithMax int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   int64
+	}{
+		{
+			name: "GetTimestamp:success-{elapsed<=3600}",
+			fields: fields{
+				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Balance:          big.NewInt(1000000000),
+				SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				SmithTime:        10000,
+			},
+			args: args{
+				smithMax: 13300,
+			},
+			want: 10001, // return blocksmith smithTime+1 if elapsed < 3600
+		},
+		{
+			name: "GetTimestamp:success-{elapsed=3600}",
+			fields: fields{
+				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Balance:          big.NewInt(1000000000),
+				SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				SmithTime:        10000,
+			},
+			args: args{
+				smithMax: 13600,
+			},
+			want: 10001, // return blocksmith smithTime+1 if elapsed < 3600
+		},
+		{
+			name: "GetTimestamp:success-{elapsed>3600}",
+			fields: fields{
+				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Balance:          big.NewInt(1000000000),
+				SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				SmithTime:        10000,
+			},
+			args: args{
+				smithMax: 14000,
+			},
+			want: 14000, // return smithMax if elapsed > 3600
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			blocksmith := &Blocksmith{
+				NodePublicKey:    tt.fields.NodePublicKey,
+				AccountPublicKey: tt.fields.AccountPublicKey,
+				Balance:          tt.fields.Balance,
+				SmithTime:        tt.fields.SmithTime,
+				BlockSeed:        tt.fields.BlockSeed,
+				SecretPhrase:     tt.fields.SecretPhrase,
+				deadline:         tt.fields.deadline,
+			}
+			if got := blocksmith.GetTimestamp(tt.args.smithMax); got != tt.want {
+				t.Errorf("Blocksmith.GetTimestamp() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

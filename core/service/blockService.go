@@ -32,7 +32,6 @@ type (
 		Chaintype     contract.ChainType
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
-		Blocks        []model.Block
 	}
 )
 
@@ -41,7 +40,6 @@ func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorI
 		Chaintype:     chaintype,
 		QueryExecutor: queryExecutor,
 		BlockQuery:    blockQuery,
-		Blocks:        []model.Block{},
 	}
 }
 
@@ -123,7 +121,9 @@ func (bs *BlockService) PushBlock(previousBlock, block model.Block) error {
 func (bs *BlockService) GetLastBlock() (model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock())
 	defer func() {
-		_ = rows.Close()
+		if rows != nil {
+			_ = rows.Close()
+		}
 	}()
 	if err != nil {
 		return model.Block{
@@ -152,7 +152,9 @@ func (bs *BlockService) GetLastBlock() (model.Block, error) {
 func (bs *BlockService) GetGenesisBlock() (model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock())
 	defer func() {
-		_ = rows.Close()
+		if rows != nil {
+			_ = rows.Close()
+		}
 	}()
 	if err != nil {
 		return model.Block{
@@ -182,7 +184,9 @@ func (bs *BlockService) GetBlocks() ([]model.Block, error) {
 	var blocks []model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100))
 	defer func() {
-		rows.Close()
+		if rows != nil {
+			_ = rows.Close()
+		}
 	}()
 	if err != nil {
 		return nil, err
