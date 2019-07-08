@@ -43,7 +43,8 @@ func ResetBlockService() {
 // GetBlockByID fetch a single block from Blockchain by providing block ID
 func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*model.Block, error) {
 	var err error
-	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery().GetBlockByID(chainType, ID))
+	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByID(ID))
+	defer rows.Close()
 	if err != nil {
 		fmt.Printf("GetBlockByID fails %v\n", err)
 		return nil, err
@@ -51,7 +52,23 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*m
 
 	var bl model.Block
 	if rows.Next() {
-		err = rows.Scan(&bl.ID, &bl.Timestamp, &bl.TotalAmount, &bl.TotalFee, &bl.PayloadLength, &bl.PayloadHash, &bl.PreviousBlockHash, &bl.Height, &bl.BlocksmithID, &bl.BlockSeed, &bl.BlockSignature, &bl.Version)
+		err = rows.Scan(
+			&bl.ID,
+			&bl.PreviousBlockHash,
+			&bl.Height,
+			&bl.Timestamp,
+			&bl.BlockSeed,
+			&bl.BlockSignature,
+			&bl.CumulativeDifficulty,
+			&bl.SmithScale,
+			&bl.PayloadLength,
+			&bl.PayloadHash,
+			&bl.BlocksmithID,
+			&bl.TotalAmount,
+			&bl.TotalFee,
+			&bl.TotalCoinBase,
+			&bl.Version,
+		)
 		if err != nil {
 			fmt.Printf("GetBlockByID fails scan %v\n", err)
 			return nil, err
@@ -65,7 +82,8 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*m
 // GetBlockByHeight fetches a single block from Blockchain by providing block size
 func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, BlockHeight uint32) (*model.Block, error) {
 	var err error
-	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery().GetBlockByHeight(chainType, BlockHeight))
+	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByHeight(BlockHeight))
+	defer rows.Close()
 	if err != nil {
 		fmt.Printf("GetBlockByHeight fails %v\n", err)
 		return nil, err
@@ -73,7 +91,23 @@ func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, BlockHeig
 
 	var bl model.Block
 	if rows.Next() {
-		err = rows.Scan(&bl.ID, &bl.Timestamp, &bl.TotalAmount, &bl.TotalFee, &bl.PayloadLength, &bl.PayloadHash, &bl.PreviousBlockHash, &bl.Height, &bl.BlocksmithID, &bl.BlockSeed, &bl.BlockSignature, &bl.Version)
+		err = rows.Scan(
+			&bl.ID,
+			&bl.PreviousBlockHash,
+			&bl.Height,
+			&bl.Timestamp,
+			&bl.BlockSeed,
+			&bl.BlockSignature,
+			&bl.CumulativeDifficulty,
+			&bl.SmithScale,
+			&bl.PayloadLength,
+			&bl.PayloadHash,
+			&bl.BlocksmithID,
+			&bl.TotalAmount,
+			&bl.TotalFee,
+			&bl.TotalCoinBase,
+			&bl.Version,
+		)
 		if err != nil {
 			fmt.Printf("GetBlockByHeight fails scan %v\n", err)
 			return nil, err
@@ -87,7 +121,8 @@ func (bs *BlockService) GetBlocks(chainType contract.ChainType, BlockSize uint32
 	var rows *sql.Rows
 	var err error
 	blocks := []*model.Block{}
-	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery().GetBlocks(chainType, BlockHeight))
+	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(BlockHeight))
+	defer rows.Close()
 	if err != nil {
 		fmt.Printf("GetBlocks fails %v\n", err)
 		return nil, err
@@ -95,7 +130,23 @@ func (bs *BlockService) GetBlocks(chainType contract.ChainType, BlockSize uint32
 
 	for rows.Next() {
 		var bl model.Block
-		err = rows.Scan(&bl.ID, &bl.Timestamp, &bl.TotalAmount, &bl.TotalFee, &bl.PayloadLength, &bl.PayloadHash, &bl.PreviousBlockHash, &bl.Height, &bl.BlocksmithID, &bl.BlockSeed, &bl.BlockSignature, &bl.Version)
+		err = rows.Scan(
+			&bl.ID,
+			&bl.PreviousBlockHash,
+			&bl.Height,
+			&bl.Timestamp,
+			&bl.BlockSeed,
+			&bl.BlockSignature,
+			&bl.CumulativeDifficulty,
+			&bl.SmithScale,
+			&bl.PayloadLength,
+			&bl.PayloadHash,
+			&bl.BlocksmithID,
+			&bl.TotalAmount,
+			&bl.TotalFee,
+			&bl.TotalCoinBase,
+			&bl.Version,
+		)
 		if err != nil {
 			fmt.Printf("GetBlocks fails scan %v\n", err)
 			return nil, err

@@ -224,9 +224,10 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3565a93b7692277a5dea355bc47bd6315754f3246ed07a224be6aec28972a805"
+  digest = "1:1233ed1b527b0ff66c3df5879f7e80b1d8631e030cc45821b77fc25acd0d72a6"
   name = "google.golang.org/genproto"
   packages = [
+    "googleapis/api/annotations",
     "googleapis/api/httpbody",
     "googleapis/rpc/status",
     "protobuf/field_mask",
@@ -289,13 +290,17 @@
   analyzer-version = 1
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
+    "github.com/golang/protobuf/proto",
     "github.com/google/go-cmp/cmp",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
+    "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/mattn/go-sqlite3",
     "github.com/sirupsen/logrus",
     "github.com/spf13/viper",
+    "google.golang.org/genproto/googleapis/api/annotations",
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",
+    "google.golang.org/grpc/grpclog",
     "google.golang.org/grpc/status",
   ]
   solver-name = "gps-cdcl"

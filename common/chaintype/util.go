@@ -6,8 +6,8 @@ import "github.com/zoobc/zoobc-core/common/contract"
 func GetChainType(ctNum int32) contract.ChainType {
 	switch ctNum {
 	case 0:
-		return MainChain{}
+		return &MainChain{}
 	default:
-		return MainChain{}
+		return &MainChain{}
 	}
 }

@@ -39,24 +39,6 @@ func (m *Migration) Init(query *query.Executor) error {
 				"version" INTEGER DEFAULT 0 NOT NULL,
 				"created_date" TIMESTAMP NOT NULL
 			);`,
-			`CREATE TABLE IF NOT EXISTS main_blocks (
-				id INTEGER,
-				hash VARCHAR(255),
-				previous_block_hash VARCHAR(255),
-				previous_block_id INTEGER,
-				height INTEGER,
-				timestamp INTEGER,
-				block_seed BLOB,
-				block_signature BLOB,
-				cumulative_difficulty BLOB,
-				base_target INTEGER,
-				generator_public_key BLOB,
-				total_amount INTEGER,
-				total_fee INTEGER,
-				payload_length INTEGER, 
-				payload_hash BLOB,
-				version INTEGER
-			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "mempool" (
 				"id"	BLOB,
@@ -105,6 +87,25 @@ func (m *Migration) Init(query *query.Executor) error {
 				"latest"	INTEGER,
 				PRIMARY KEY("id","block_height"),
 				FOREIGN KEY("id") REFERENCES account(id)
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "main_block" (
+				"id" INTEGER,
+				"previous_block_hash" TEXT,
+				"height" INTEGER,
+				"timestamp" INTEGER,
+				"block_seed" BLOB,
+				"block_signature" BLOB,
+				"cumulative_difficulty" TEXT,
+				"smith_scale" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" TEXT,
+				"blocksmith_id" BLOB,
+				"total_amount" INTEGER,
+				"total_fee" INTEGER,
+				"total_coinbase" INTEGER,
+				"version" INTEGER,
+				PRIMARY KEY("id")
 			);`,
 		}
 		return nil

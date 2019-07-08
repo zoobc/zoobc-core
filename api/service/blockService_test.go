@@ -76,8 +76,8 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 	}
 
 	chainType := chaintype.GetChainType(0)
-	blockQuery := query.NewBlockQuery()
-	queryStr := blockQuery.GetBlocks(chainType, 0)
+	blockQuery := query.NewBlockQuery(chainType)
+	queryStr := blockQuery.GetBlocks(0)
 	mock.ExpectQuery(queryStr).
 		WillReturnRows(sqlmock.NewRows(blockQuery.Fields))
 
@@ -127,8 +127,8 @@ func Test_BlockService_GetBlockByID(t *testing.T) {
 	}
 
 	chainType := chaintype.GetChainType(0)
-	blockQuery := query.NewBlockQuery()
-	queryStr := blockQuery.GetBlockByID(chainType, 0)
+	blockQuery := query.NewBlockQuery(chainType)
+	queryStr := blockQuery.GetBlockByID(0)
 	mock.ExpectQuery(regexp.QuoteMeta(queryStr)).
 		WillReturnRows(sqlmock.NewRows(blockQuery.Fields))
 
@@ -174,8 +174,8 @@ func Test_BlockService_GetBlockByHeight(t *testing.T) {
 	}
 
 	chainType := chaintype.GetChainType(0)
-	blockQuery := query.NewBlockQuery()
-	queryStr := blockQuery.GetBlockByHeight(chainType, 0)
+	blockQuery := query.NewBlockQuery(chainType)
+	queryStr := blockQuery.GetBlockByHeight(0)
 	mock.ExpectQuery(regexp.QuoteMeta(queryStr)).
 		WillReturnRows(sqlmock.NewRows(blockQuery.Fields))
 

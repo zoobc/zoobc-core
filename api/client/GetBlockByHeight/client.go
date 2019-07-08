@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
 
-	// log "github.com/sirupsen/logrus"
-
+	log "github.com/sirupsen/logrus"
 	rpc_model "github.com/zoobc/zoobc-core/common/model"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"google.golang.org/grpc"

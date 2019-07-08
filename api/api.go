@@ -9,7 +9,7 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/api/controller"
+	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/internal"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -61,11 +61,11 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 	}
 
 	// Set GRPC handler for Block requests
-	rpc_service.RegisterBlockServiceServer(grpcServer, &controller.BlockController{
+	rpc_service.RegisterBlockServiceServer(grpcServer, &handler.BlockHandler{
 		Service: service.NewBlockService(queryExecutor),
 	})
 
-	// run grpc-gateway controller
+	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
 			panic(err)
