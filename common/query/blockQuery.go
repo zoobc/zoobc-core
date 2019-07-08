@@ -11,34 +11,40 @@ import (
 
 type (
 	BlockQueryInterface interface {
-		GetBlocks() string
+		GetBlocks(height, size uint32) string
 		GetLastBlock() string
 		GetGenesisBlock() string
+		GetBlockByID(int64) string
+		GetBlockByHeight(uint32) string
 		InsertBlock() string
 		ExtractModel(block model.Block) []interface{}
 	}
 
 	BlockQuery struct {
 		Fields    []string
-		Chaintype contract.ChainType
+		TableName string
+		ChainType contract.ChainType
 	}
 )
 
+// NewBlockQuery returns BlockQuery instance
 func NewBlockQuery(chaintype contract.ChainType) *BlockQuery {
 	return &BlockQuery{
 		Fields: []string{"id", "previous_block_hash", "height", "timestamp", "block_seed", "block_signature", "cumulative_difficulty",
 			"smith_scale", "payload_length", "payload_hash", "blocksmith_id", "total_amount", "total_fee", "total_coinbase", "version",
 		},
-		Chaintype: chaintype,
+		TableName: "block",
+		ChainType: chaintype,
 	}
 }
 
 func (bq *BlockQuery) getTableName() string {
-	return bq.Chaintype.GetTablePrefix() + "_block"
+	return bq.ChainType.GetTablePrefix() + "_" + bq.TableName
 }
 
-func (bq *BlockQuery) GetBlocks() string {
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(bq.Fields, ", "), bq.getTableName())
+// GetBlocks returns query string to get multiple blocks
+func (bq *BlockQuery) GetBlocks(height, size uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d LIMIT %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height, size)
 }
 
 func (bq *BlockQuery) GetLastBlock() string {
@@ -58,6 +64,16 @@ func (bq *BlockQuery) InsertBlock() string {
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
 		bq.getTableName(), strings.Join(bq.Fields, ", "), value)
 	return query
+}
+
+// GetBlockByID returns query string to get block by ID
+func (bq *BlockQuery) GetBlockByID(ID int64) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), ID)
+}
+
+// GetBlockByHeight returns query string to get block by height
+func (bq *BlockQuery) GetBlockByHeight(height uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height)
 }
 
 // ExtractModel extract the model struct fields to the order of BlockQuery.Fields

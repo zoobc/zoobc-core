@@ -180,7 +180,7 @@ func (bs *BlockService) GetGenesisBlock() (model.Block, error) {
 // GetBlocks return all pushed blocks
 func (bs *BlockService) GetBlocks() ([]model.Block, error) {
 	var blocks []model.Block
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks())
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100))
 	defer func() {
 		rows.Close()
 	}()

@@ -62,11 +62,11 @@ func NewBlocksmith() Blocksmith {
 // CalculateSmith calculate hit, hittime, and deadline
 func (*BlockchainProcessor) CalculateSmith(lastBlock model.Block, generator Blocksmith) Blocksmith {
 	account := model.AccountBalance{
-		AccountID:        []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111, 241, 130, 176, 116, 63, 35, 232, 241, 210, 172},
+		ID:               []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111, 241, 130, 176, 116, 63, 35, 232, 241, 210, 172},
 		Balance:          1000000000,
 		SpendableBalance: 1000000000,
 	}
-	if len(account.AccountID) <= 0 {
+	if len(account.ID) <= 0 {
 		generator.Balance = big.NewInt(0)
 	} else {
 		accountEffectiveBalance := account.GetBalance()

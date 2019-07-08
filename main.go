@@ -14,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -44,6 +45,10 @@ func init() {
 	}
 }
 
+func startServices(queryExecutor *query.Executor) {
+	api.Start(8000, 8080, queryExecutor)
+}
+
 func main() {
 	fmt.Println("run")
 
@@ -65,6 +70,9 @@ func main() {
 	}
 
 	go startSmith(sleepPeriod, blockchainProcessor)
+
+	startServices(queryExecutor)
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything
