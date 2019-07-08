@@ -39,7 +39,11 @@ func NewBlockService(queryExecutor *query.Executor) *BlockService {
 func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*model.Block, error) {
 	var err error
 	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByID(ID))
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 	if err != nil {
 		fmt.Printf("GetBlockByID fails %v\n", err)
 		return nil, err
@@ -78,7 +82,11 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*m
 func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, BlockHeight uint32) (*model.Block, error) {
 	var err error
 	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByHeight(BlockHeight))
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 	if err != nil {
 		fmt.Printf("GetBlockByHeight fails %v\n", err)
 		return nil, err
@@ -117,7 +125,11 @@ func (bs *BlockService) GetBlocks(chainType contract.ChainType, BlockSize uint32
 	var err error
 	var blocks []*model.Block
 	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(BlockHeight, BlockSize))
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 	if err != nil {
 		fmt.Printf("GetBlocks fails %v\n", err)
 		return nil, err
