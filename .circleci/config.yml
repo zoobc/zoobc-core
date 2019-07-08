@@ -1,0 +1,69 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/zoobc/zoobc-core
+    docker:
+      - image: circleci/golang:1.12.0
+    environment:
+      - DEP_VERSION: 0.5.1
+      - PROTOC_VERSION: 3.7.1
+      - PROTOC_ZIP: protoc-3.7.1-linux-x86_64.zip
+    steps:
+      - run:
+          name: Switch to SSH
+          command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
+      - checkout
+      - add_ssh_keys
+      - run:
+          name: Install PROTOC
+          command: |
+            if [ ! -d protoc ]; then
+              curl -OL https://github.com/google/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}
+              sudo unzip -o ${PROTOC_ZIP} -d /usr/local bin/protoc
+              sudo unzip -o ${PROTOC_ZIP} -d /usr/local include/*
+              rm -f ${PROTOC_ZIP}
+              go get -u github.com/golang/protobuf/protoc-gen-go
+              go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+              go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+              git -C "$(go env GOPATH)"/src/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway checkout v1.9.0
+              cd "$(go env GOPATH)"/src/github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway && go install
+            fi
+      - run:
+          name: Install go-swagger
+          command: go get -u github.com/go-swagger/go-swagger/cmd/swagger
+      - restore_cache:
+          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          paths:
+            - /go/src/github.com/zoobc/zoobc-core/vendor
+      - run:
+          name: Download Vendor
+          command: |
+            if [ ! -d /go/src/github.com/zoobc/zoobc-core/vendor ]; then
+              curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o /go/bin/dep
+              chmod +x /go/bin/dep
+              /go/bin/dep ensure -v
+            fi
+      - save_cache:
+          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          paths:
+            - /go/src/github.com/zoobc/zoobc-core/vendor
+      - restore_cache:
+          key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
+          paths:
+            - ./common/schema
+            - ./common/model
+            - ./common/service
+      - run:
+          name: Build GRPC Schema
+          command: cd ./common/schema && ./compile-go.sh
+      - run:
+          name: Build & Test
+          command: |
+            go test `go list ./... | egrep -v service|model` --short
+            go build -o zoobc
+      - save_cache:
+          key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - ./common/schema
+            - ./common/model
+            - ./common/service
