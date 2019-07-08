@@ -91,20 +91,20 @@ func (m *Migration) Init(query *query.Executor) error {
 			`
 			CREATE TABLE IF NOT EXISTS "main_block" (
 				"id" INTEGER,
-				"previous_block_hash" TEXT,
+				"previous_block_hash" BLOB,
 				"height" INTEGER,
 				"timestamp" INTEGER,
 				"block_seed" BLOB,
 				"block_signature" BLOB,
 				"cumulative_difficulty" TEXT,
 				"smith_scale" INTEGER,
-				"payload_length" INTEGER,
-				"payload_hash" TEXT,
 				"blocksmith_id" BLOB,
 				"total_amount" INTEGER,
 				"total_fee" INTEGER,
 				"total_coinbase" INTEGER,
 				"version" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" BLOB,
 				PRIMARY KEY("id")
 			);`,
 		}
