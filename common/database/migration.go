@@ -88,6 +88,25 @@ func (m *Migration) Init(query *query.Executor) error {
 				PRIMARY KEY("id","block_height"),
 				FOREIGN KEY("id") REFERENCES account(id)
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "main_block" (
+				"id" INTEGER,
+				"previous_block_hash" BLOB,
+				"height" INTEGER,
+				"timestamp" INTEGER,
+				"block_seed" BLOB,
+				"block_signature" BLOB,
+				"cumulative_difficulty" TEXT,
+				"smith_scale" INTEGER,
+				"blocksmith_id" BLOB,
+				"total_amount" INTEGER,
+				"total_fee" INTEGER,
+				"total_coinbase" INTEGER,
+				"version" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" BLOB,
+				PRIMARY KEY("id")
+			);`,
 		}
 		return nil
 	}
