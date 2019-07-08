@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/contract"
+
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	core_util "github.com/zoobc/zoobc-core/core/util"
 )
@@ -22,18 +25,23 @@ type (
 		PushBlock(previousBlock, block model.Block) error
 		GetLastBlock() (model.Block, error)
 		GetBlocks() ([]model.Block, error)
+		GetGenesisBlock() (model.Block, error)
 	}
 
 	BlockService struct {
-		Chaintype chaintype.Chaintype
-		Blocks    []model.Block
+		Chaintype     contract.ChainType
+		QueryExecutor query.ExecutorInterface
+		BlockQuery    query.BlockQueryInterface
+		Blocks        []model.Block
 	}
 )
 
-func NewBlockService(chaintype chaintype.Chaintype) *BlockService {
+func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) *BlockService {
 	return &BlockService{
-		Chaintype: chaintype,
-		Blocks:    []model.Block{},
+		Chaintype:     chaintype,
+		QueryExecutor: queryExecutor,
+		BlockQuery:    blockQuery,
+		Blocks:        []model.Block{},
 	}
 }
 
@@ -99,17 +107,13 @@ func (bs *BlockService) PushBlock(previousBlock, block model.Block) error {
 	if previousBlock.GetID() != -1 {
 		block.Height = previousBlock.GetHeight() + 1
 		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
-		bs.Blocks = append(bs.Blocks, block)
-		fmt.Print("got new block")
-		return nil
-
-	} else {
-		bs.Blocks = append(bs.Blocks, block)
-		return nil
 	}
-
-	// log.Printf("\npushing block to in memory block list\n%v\n", block.GetBaseTarget())
-
+	result, err := bs.QueryExecutor.ExecuteStatement(bs.BlockQuery.InsertBlock(), bs.BlockQuery.ExtractModel(block)...)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("got new block, %v", result)
+	return nil
 	// apply transactions
 
 	// broadcast block
@@ -117,15 +121,80 @@ func (bs *BlockService) PushBlock(previousBlock, block model.Block) error {
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (model.Block, error) {
-	if len(bs.Blocks) > 0 {
-		return bs.Blocks[len(bs.Blocks)-1], nil
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock())
+	defer func() {
+		_ = rows.Close()
+	}()
+	if err != nil {
+		return model.Block{
+			ID: -1,
+		}, err
 	}
-	return model.Block{
-		ID: -1,
-	}, errors.New("No Block Yet")
+	var lastBlock model.Block
+	if rows.Next() {
+		err = rows.Scan(&lastBlock.ID, &lastBlock.PreviousBlockHash, &lastBlock.Height, &lastBlock.Timestamp, &lastBlock.BlockSeed, &lastBlock.BlockSignature, &lastBlock.CumulativeDifficulty,
+			&lastBlock.SmithScale, &lastBlock.PayloadLength, &lastBlock.PayloadHash, &lastBlock.BlocksmithID, &lastBlock.TotalAmount, &lastBlock.TotalFee, &lastBlock.TotalCoinBase, &lastBlock.Version)
+		if err != nil {
+			return model.Block{
+				ID: -1,
+			}, err
+		}
+		return lastBlock, nil
+	} else {
+		return model.Block{
+			ID: -1,
+		}, errors.New("BlockNotFound")
+	}
+
+}
+
+// GetGenesis return the last pushed block
+func (bs *BlockService) GetGenesisBlock() (model.Block, error) {
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock())
+	defer func() {
+		_ = rows.Close()
+	}()
+	if err != nil {
+		return model.Block{
+			ID: -1,
+		}, err
+	}
+	var lastBlock model.Block
+	if rows.Next() {
+		err = rows.Scan(&lastBlock.ID, &lastBlock.PreviousBlockHash, &lastBlock.Height, &lastBlock.Timestamp, &lastBlock.BlockSeed, &lastBlock.BlockSignature, &lastBlock.CumulativeDifficulty,
+			&lastBlock.SmithScale, &lastBlock.PayloadLength, &lastBlock.PayloadHash, &lastBlock.BlocksmithID, &lastBlock.TotalAmount, &lastBlock.TotalFee, &lastBlock.TotalCoinBase, &lastBlock.Version)
+		if err != nil {
+			return model.Block{
+				ID: -1,
+			}, err
+		}
+		return lastBlock, nil
+	} else {
+		return model.Block{
+			ID: -1,
+		}, errors.New("BlockNotFound")
+	}
+
 }
 
 // GetBlocks return all pushed blocks
 func (bs *BlockService) GetBlocks() ([]model.Block, error) {
-	return bs.Blocks, nil
+	var blocks []model.Block
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks())
+	defer func() {
+		rows.Close()
+	}()
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var block model.Block
+		err = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed, &block.BlockSignature, &block.CumulativeDifficulty,
+			&block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithID, &block.TotalAmount, &block.TotalFee, &block.TotalCoinBase, &block.Version)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, block)
+	}
+	return blocks, nil
 }

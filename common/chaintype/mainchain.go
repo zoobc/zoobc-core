@@ -1,11 +1,23 @@
 package chaintype
 
-type Mainchain struct{}
+type MainChain struct{}
 
-func (*Mainchain) GetChaintypeName() string {
-	return "MAINCHAIN"
+// GetTablePrefix return the value of current chain table prefix in the database
+func (*MainChain) GetTablePrefix() string {
+	return "main"
 }
 
-func (*Mainchain) GetChainSmithingDelayTime() int64 {
+// GetChainSmithingDelayTime return the value of chain forging delay in second
+func (*MainChain) GetChainSmithingDelayTime() int64 {
 	return 6
+}
+
+// GetName return the name of the chain : used in parsing chaintype across node
+func (*MainChain) GetName() string {
+	return ""
+}
+
+// GetGenesisBlockID return the block ID of genesis block in the chain
+func (*MainChain) GetGenesisBlockID() int64 {
+	return 8326926047637383911
 }

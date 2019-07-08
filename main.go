@@ -10,6 +10,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/core/service"
+
 	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
@@ -56,10 +57,13 @@ func main() {
 	if err := migration.Apply(); err != nil {
 		fmt.Println(err)
 	}
-	mainchain := &chaintype.Mainchain{}
+	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-	blockchainProcessor := smith.NewBlockchainProcessor(&chaintype.Mainchain{}, smith.NewBlocksmith(), service.NewBlockService(mainchain))
-	blockchainProcessor.AddGenesis()
+	blockchainProcessor := smith.NewBlockchainProcessor(mainchain, smith.NewBlocksmith(), service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain)))
+	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
+		blockchainProcessor.AddGenesis()
+	}
+
 	go startSmith(sleepPeriod, blockchainProcessor)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

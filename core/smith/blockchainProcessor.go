@@ -2,15 +2,15 @@ package smith
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"math/big"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/contract"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -32,7 +32,7 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype    chaintype.Chaintype
+		Chaintype    contract.ChainType
 		Generator    Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
@@ -40,7 +40,7 @@ type (
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
-func NewBlockchainProcessor(chaintype chaintype.Chaintype, blocksmith Blocksmith, blockService service.BlockServiceInterface) *BlockchainProcessor {
+func NewBlockchainProcessor(chaintype contract.ChainType, blocksmith Blocksmith, blockService service.BlockServiceInterface) *BlockchainProcessor {
 	return &BlockchainProcessor{
 		Chaintype:    chaintype,
 		Generator:    blocksmith,
@@ -89,17 +89,14 @@ func (bp *BlockchainProcessor) StartForging() error {
 	if err != nil {
 		return errors.New("Genesis:notAddedYet")
 	}
-	generationLimit := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
+	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountPublicKey != nil {
-		fmt.Printf("smithTime : generation limit\n%d : %d\n", bp.Generator.SmithTime, generationLimit)
-		if bp.Generator.SmithTime > generationLimit {
+		if bp.Generator.SmithTime > smithMax {
 			log.Printf("skip forge\n")
 		} else {
-			timestamp := bp.Generator.GetTimestamp(generationLimit)
-			fmt.Printf("passed: %d\n", timestamp)
+			timestamp := bp.Generator.GetTimestamp(smithMax)
 			if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Balance, lastBlock, timestamp) {
-				fmt.Printf("VerifySeed:false")
 				return errors.New("VerifySeed:false")
 			}
 			for {
@@ -108,7 +105,6 @@ func (bp *BlockchainProcessor) StartForging() error {
 					return err
 				}
 
-				// todo: decouple this generate block
 				block, err := bp.GenerateBlock(previousBlock, bp.Generator.SecretPhrase, timestamp)
 
 				if err != nil {
@@ -124,9 +120,8 @@ func (bp *BlockchainProcessor) StartForging() error {
 					return err
 				}
 				allBlocks, _ := bp.BlockService.GetBlocks()
-				fmt.Printf("block pushed: %d\n", len(allBlocks))
+				log.Printf("block pushed: %d\n", len(allBlocks))
 				return nil
-
 			}
 		}
 	}
@@ -147,7 +142,6 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock model.Block, secretPh
 	blocksmith := bp.Generator.AccountPublicKey
 	_, _ = digest.Write(blocksmith)
 	blockSeed := digest.Sum([]byte{})
-
 	digest.Reset()                                                         // reset the digest
 	previousBlockHash := sha3.Sum512(coreUtil.GetBlockByte(previousBlock)) // PreviousBlock.Byte
 	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash),
@@ -157,28 +151,43 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock model.Block, secretPh
 }
 
 // AddGenesis add genesis block of chain to the chain
-func (bp BlockchainProcessor) AddGenesis() error {
+func (bp *BlockchainProcessor) AddGenesis() error {
 	digest := sha3.New512()
 	var totalAmount int64
 	var totalFee int64
-	var totalCoinbase int64
+	var totalCoinBase int64
 	var blockTransactions []*model.Transaction
-
 	payloadHash := digest.Sum([]byte{})
-	// todo: add these to constant
 	block := bp.BlockService.NewGenesisBlock(1, nil, make([]byte, 64), []byte{}, "",
-		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinbase, blockTransactions, payloadHash, constant.InitialSmithScale,
+		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinBase, blockTransactions, payloadHash, constant.InitialSmithScale,
 		big.NewInt(0), constant.GenesisBlockSignature)
-	bp.BlockService.PushBlock(model.Block{ID: -1, Height: 0}, *block)
-	log.Printf("block forged: fee %d\n\n", totalFee)
+	// assign genesis block id
+	block.ID = coreUtil.GetBlockID(block)
+	err := bp.BlockService.PushBlock(model.Block{ID: -1, Height: 0}, *block)
+	if err != nil {
+		panic("PushGenesisBlock:fail")
+	}
 	return nil
 }
 
+// CheckGenesis check if genesis has been added
+func (bp *BlockchainProcessor) CheckGenesis() bool {
+	genesisBlock, err := bp.BlockService.GetGenesisBlock()
+	if err != nil { // Genesis is not in the blockchain yet
+		return false
+	}
+	if genesisBlock.ID != bp.Chaintype.GetGenesisBlockID() {
+		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bp.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+	}
+	return true
+}
+
 // GetTimestamp max timestamp allowed block to be smithed
-func (forger *Blocksmith) GetTimestamp(generationLimit int64) int64 {
-	elapsed := generationLimit - forger.SmithTime
+func (forger *Blocksmith) GetTimestamp(smithMax int64) int64 {
+	elapsed := smithMax - forger.SmithTime
 	if elapsed > 3600 {
-		return generationLimit
+		return smithMax
+
 	}
 	return forger.SmithTime + 1
 }

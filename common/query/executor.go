@@ -10,7 +10,8 @@ type (
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(string) (*sql.Rows, error)
-		ExecuteTransactions(queries []string) (sql.Result, error)
+		ExecuteTransactions(queries []string) ([]sql.Result, error)
+		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 	}
 
 	// Executor struct
@@ -42,6 +43,25 @@ func (qe *Executor) Execute(query string) (sql.Result, error) {
 }
 
 /*
+Execute execute a single query string
+return error if query not executed successfully
+error will be nil otherwise.
+*/
+func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
+	stmt, err := qe.Db.Prepare(query)
+
+	if err != nil {
+		return nil, err
+	}
+	result, err := stmt.Exec(args...)
+
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+/*
 ExecuteSelect execute with select method that if you want to get `sql.Rows`.
 
 And ***need to `Close()` the rows***.
@@ -59,7 +79,7 @@ func (qe *Executor) ExecuteSelect(query string) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	//defer rows.Close()
 
 	return rows, nil
 }
