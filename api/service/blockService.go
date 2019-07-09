@@ -36,20 +36,20 @@ func NewBlockService(queryExecutor *query.Executor) *BlockService {
 }
 
 // GetBlockByID fetch a single block from Blockchain by providing block ID
-func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*model.Block, error) {
-	var err error
-	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByID(ID))
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
+func (bs *BlockService) GetBlockByID(chainType contract.ChainType, id int64) (*model.Block, error) {
+	var (
+		err  error
+		bl   model.Block
+		rows *sql.Rows
+	)
+
+	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByID(id))
 	if err != nil {
 		fmt.Printf("GetBlockByID fails %v\n", err)
 		return nil, err
 	}
+	defer rows.Close()
 
-	var bl model.Block
 	if rows.Next() {
 		err = rows.Scan(
 			&bl.ID,
@@ -79,20 +79,20 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, ID int64) (*m
 }
 
 // GetBlockByHeight fetches a single block from Blockchain by providing block size
-func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, BlockHeight uint32) (*model.Block, error) {
-	var err error
-	rows, err := bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByHeight(BlockHeight))
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
+func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, blockHeight uint32) (*model.Block, error) {
+	var (
+		err  error
+		bl   model.Block
+		rows *sql.Rows
+	)
+
+	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByHeight(blockHeight))
 	if err != nil {
 		fmt.Printf("GetBlockByHeight fails %v\n", err)
 		return nil, err
 	}
+	defer rows.Close()
 
-	var bl model.Block
 	if rows.Next() {
 		err = rows.Scan(
 			&bl.ID,
@@ -120,20 +120,17 @@ func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, BlockHeig
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system
-func (bs *BlockService) GetBlocks(chainType contract.ChainType, BlockSize uint32, BlockHeight uint32) (*model.GetBlocksResponse, error) {
+func (bs *BlockService) GetBlocks(chainType contract.ChainType, blockSize, blockHeight uint32) (*model.GetBlocksResponse, error) {
 	var rows *sql.Rows
 	var err error
-	var blocks []*model.Block
-	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(BlockHeight, BlockSize))
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
+	blocks := []*model.Block{}
+	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(blockHeight, blockSize))
+
 	if err != nil {
 		fmt.Printf("GetBlocks fails %v\n", err)
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var bl model.Block
@@ -163,7 +160,7 @@ func (bs *BlockService) GetBlocks(chainType contract.ChainType, BlockSize uint32
 
 	blocksResponse := &model.GetBlocksResponse{
 		Blocks:      blocks,
-		BlockHeight: BlockHeight,
+		BlockHeight: blockHeight,
 		BlockSize:   uint32(len(blocks)),
 	}
 	return blocksResponse, nil

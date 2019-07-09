@@ -23,7 +23,7 @@ func TestNewBlockervice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error while opening database connection")
 	}
-	// defer db.Close()
+	defer db.Close()
 
 	tests := []struct {
 		name string
@@ -119,9 +119,12 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 	blockQuery := query.NewBlockQuery(chainType)
 	queryStr := blockQuery.GetBlocks(mockData.BlockHeight, mockData.BlockSize)
 
-	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version",
-	}).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(1, []byte{}, 2, 11000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}).AddRow(
+		1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(
+		1, []byte{}, 2, 11000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := instance.GetBlocks(chainType, mockData.BlockSize, mockData.BlockHeight)

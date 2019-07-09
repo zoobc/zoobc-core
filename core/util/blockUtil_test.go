@@ -14,7 +14,7 @@ func TestGetBlockSeed(t *testing.T) {
 	resulTwo, _ := new(big.Int).SetString("12040414258978844097", 10)
 	type args struct {
 		publicKey []byte
-		block     model.Block
+		block     *model.Block
 	}
 	tests := []struct {
 		name    string
@@ -26,7 +26,7 @@ func TestGetBlockSeed(t *testing.T) {
 			name: "GetBlockSeed:one",
 			args: args{
 				publicKey: []byte{1, 2, 3, 4},
-				block: model.Block{
+				block: &model.Block{
 					BlockSeed: []byte{1, 3, 4, 5},
 				},
 			},
@@ -36,8 +36,9 @@ func TestGetBlockSeed(t *testing.T) {
 		{
 			name: "GetBlockSeed:two",
 			args: args{
-				publicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				block: model.Block{
+				publicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+					255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				block: &model.Block{
 					BlockSeed: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229},
 				},
 			},
@@ -63,7 +64,7 @@ func TestGetSmithTime(t *testing.T) {
 	type args struct {
 		balance *big.Int
 		seed    *big.Int
-		block   model.Block
+		block   *model.Block
 	}
 	tests := []struct {
 		name string
@@ -83,7 +84,7 @@ func TestGetSmithTime(t *testing.T) {
 			args: args{
 				balance: big.NewInt(10000),
 				seed:    big.NewInt(120000000),
-				block: model.Block{
+				block: &model.Block{
 					SmithScale: 100,
 					Timestamp:  120000,
 				},
@@ -102,19 +103,19 @@ func TestGetSmithTime(t *testing.T) {
 
 func TestCalculateSmithScale(t *testing.T) {
 	type args struct {
-		previousBlock     model.Block
-		block             model.Block
+		previousBlock     *model.Block
+		block             *model.Block
 		smithingDelayTime int64
 	}
 	tests := []struct {
 		name string
 		args args
-		want model.Block
+		want *model.Block
 	}{
 		{
 			name: "CalculateSmithScale",
 			args: args{
-				previousBlock: model.Block{
+				previousBlock: &model.Block{
 					Version:              1,
 					PreviousBlockHash:    []byte{},
 					BlockSeed:            []byte{},
@@ -128,7 +129,7 @@ func TestCalculateSmithScale(t *testing.T) {
 					CumulativeDifficulty: "100000",
 					SmithScale:           108080,
 				},
-				block: model.Block{
+				block: &model.Block{
 					Version:           1,
 					PreviousBlockHash: []byte{},
 					BlockSeed:         []byte{},
@@ -142,7 +143,7 @@ func TestCalculateSmithScale(t *testing.T) {
 				},
 				smithingDelayTime: 10,
 			},
-			want: model.Block{
+			want: &model.Block{
 				Version:              1,
 				PreviousBlockHash:    []byte{},
 				BlockSeed:            []byte{},
@@ -228,7 +229,7 @@ func TestGetBlockID(t *testing.T) {
 
 func TestGetBlockByte(t *testing.T) {
 	type args struct {
-		block model.Block
+		block *model.Block
 	}
 	tests := []struct {
 		name string
@@ -238,7 +239,7 @@ func TestGetBlockByte(t *testing.T) {
 		{
 			name: "GetBlockByte:one",
 			args: args{
-				block: model.Block{
+				block: &model.Block{
 					Version:              1,
 					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
 					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
@@ -253,12 +254,14 @@ func TestGetBlockByte(t *testing.T) {
 					SmithScale:           48985,
 				},
 			},
-			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 43, 65, 32, 56, 2, 65, 76, 32, 76, 12, 12, 34, 65, 76, 1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
+			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 43, 65, 32, 56, 2, 65, 76, 32, 76, 12, 12, 34, 65,
+				76, 1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
 		},
 		{
 			name: "GetBlockByte:withSignature",
 			args: args{
-				block: model.Block{
+				block: &model.Block{
 					Version:              1,
 					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
 					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
@@ -274,7 +277,9 @@ func TestGetBlockByte(t *testing.T) {
 					SmithScale:           48985,
 				},
 			},
-			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 43, 65, 32, 56, 2, 65, 76, 32, 76, 12, 12, 34, 65, 76, 1, 2, 4, 5, 67, 89, 86, 3, 6, 22, 1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21},
+			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 43, 65, 32, 56, 2, 65, 76, 32, 76, 12, 12, 34, 65, 76, 1, 2, 4,
+				5, 67, 89, 86, 3, 6, 22, 1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21},
 		},
 	}
 	for _, tt := range tests {
@@ -289,7 +294,7 @@ func TestGetBlockByte(t *testing.T) {
 func TestValidateBlock(t *testing.T) { //todo:update test after applying signature related functionalities
 	type args struct {
 		block             *model.Block
-		previousLastBlock model.Block
+		previousLastBlock *model.Block
 		curTime           int64
 	}
 	tests := []struct {

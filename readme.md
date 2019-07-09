@@ -1,4 +1,13 @@
-## ZooBC-Core
+<h1 align="center">
+  <a href="https://github.com/zoobc/zoobc-core">
+    ZooBC Core
+  </a>
+</h1>
+<p align="center">
+  <a href="https://circleci.com/gh/zoobc/zoobc-core">
+    <img src="https://circleci.com/gh/zoobc/zoobc-core.svg?style=svg" alt="CircleCI"/>
+  </a>
+</p>
 
 ### External Dependencies
 

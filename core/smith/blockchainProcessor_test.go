@@ -14,10 +14,12 @@ import (
 )
 
 var mockBlocksmith = Blocksmith{
-	AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-	Balance:          big.NewInt(1000000000),
-	SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-	NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+	AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+		81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+	Balance:      big.NewInt(1000000000),
+	SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+	NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80,
+		242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 }
 
 // Mockchain
@@ -33,11 +35,11 @@ type mockBlockServiceSuccess struct {
 	service.BlockService
 }
 
-func (*mockBlockServiceSuccess) VerifySeed(seed *big.Int, balance *big.Int, previousBlock model.Block, timestamp int64) bool {
+func (*mockBlockServiceSuccess) VerifySeed(seed, balance *big.Int, previousBlock *model.Block, timestamp int64) bool {
 	return true
 }
-func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
-	hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
+	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block {
 	return &model.Block{
 		Version:           1,
@@ -52,9 +54,10 @@ func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash []byt
 		PayloadHash:       []byte{},
 	}
 }
-func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
-	hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block {
+func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
+	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
+	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
+	genesisSignature []byte) *model.Block {
 	return &model.Block{
 		Version:              1,
 		PreviousBlockHash:    []byte{},
@@ -72,10 +75,10 @@ func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHas
 	}
 }
 
-func (*mockBlockServiceSuccess) PushBlock(previousBlock, block model.Block) error { return nil }
+func (*mockBlockServiceSuccess) PushBlock(previousBlock, block *model.Block) error { return nil }
 
-func (*mockBlockServiceSuccess) GetGenesisBlock() (model.Block, error) {
-	return model.Block{
+func (*mockBlockServiceSuccess) GetGenesisBlock() (*model.Block, error) {
+	return &model.Block{
 		ID:                   1,
 		Version:              1,
 		PreviousBlockHash:    []byte{},
@@ -98,14 +101,14 @@ type mockBlockServiceFail struct {
 	mockBlockServiceSuccess
 }
 
-func (*mockBlockServiceFail) GetGenesisBlock() (model.Block, error) {
-	return model.Block{}, errors.New("mockError")
+func (*mockBlockServiceFail) GetGenesisBlock() (*model.Block, error) {
+	return &model.Block{}, errors.New("mockError")
 }
 
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
 		chaintype    contract.ChainType
-		blocksmith   Blocksmith
+		blocksmith   *Blocksmith
 		blockService service.BlockServiceInterface
 	}
 	test := struct {
@@ -116,12 +119,12 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		name: "NewBlockchainProcessor:success",
 		args: args{
 			chaintype:    &chaintype.MainChain{},
-			blocksmith:   Blocksmith{},
+			blocksmith:   &Blocksmith{},
 			blockService: nil,
 		},
 		want: &BlockchainProcessor{
 			Chaintype:    &chaintype.MainChain{},
-			Generator:    Blocksmith{},
+			Generator:    &Blocksmith{},
 			BlockService: nil,
 			LastBlockID:  0,
 		},
@@ -134,10 +137,10 @@ func TestNewBlockchainProcessor(t *testing.T) {
 func TestNewBlocksmith(t *testing.T) {
 	test := struct {
 		name string
-		want Blocksmith
+		want *Blocksmith
 	}{
 		name: "NewBlocksmith:success",
-		want: mockBlocksmith,
+		want: &mockBlocksmith,
 	}
 	if got := NewBlocksmith(); !reflect.DeepEqual(got, test.want) {
 		t.Errorf("NewBlocksmith() = %v, want %v", got, test.want)
@@ -147,13 +150,13 @@ func TestNewBlocksmith(t *testing.T) {
 func TestBlockchainProcessor_CalculateSmith(t *testing.T) { // todo: test can be written once account_balance is integrated.
 	type fields struct {
 		Chaintype    contract.ChainType
-		Generator    Blocksmith
+		Generator    *Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
 	}
 	type args struct {
-		lastBlock model.Block
-		generator Blocksmith
+		lastBlock *model.Block
+		generator *Blocksmith
 	}
 	tests := []struct {
 		name   string
@@ -181,12 +184,12 @@ func TestBlockchainProcessor_CalculateSmith(t *testing.T) { // todo: test can be
 func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test when transaction and pop implemented.
 	type fields struct {
 		Chaintype    contract.ChainType
-		Generator    Blocksmith
+		Generator    *Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
 	}
 	type args struct {
-		previousBlock model.Block
+		previousBlock *model.Block
 		secretPhrase  string
 		timestamp     int64
 	}
@@ -201,12 +204,12 @@ func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test w
 			name: "GenerateBlock:success-{}",
 			fields: fields{
 				Chaintype:    &chaintype.MainChain{},
-				Generator:    Blocksmith{},
+				Generator:    &Blocksmith{},
 				BlockService: &mockBlockServiceSuccess{},
 				LastBlockID:  0,
 			},
 			args: args{
-				previousBlock: model.Block{},
+				previousBlock: &model.Block{},
 				secretPhrase:  "",
 				timestamp:     1562585975339,
 			},
@@ -248,7 +251,7 @@ func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test w
 func TestBlockchainProcessor_AddGenesis(t *testing.T) { //todo: update test when genesis transaction added
 	type fields struct {
 		Chaintype    contract.ChainType
-		Generator    Blocksmith
+		Generator    *Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
 	}
@@ -261,7 +264,7 @@ func TestBlockchainProcessor_AddGenesis(t *testing.T) { //todo: update test when
 			name: "AddGenesis:success-{BlockService.PushBlock:success}",
 			fields: fields{
 				Chaintype:    &mockChain{},
-				Generator:    Blocksmith{},
+				Generator:    &Blocksmith{},
 				BlockService: &mockBlockServiceSuccess{},
 				LastBlockID:  0,
 			},
@@ -271,7 +274,7 @@ func TestBlockchainProcessor_AddGenesis(t *testing.T) { //todo: update test when
 			name: "AddGenesis:success-{BlockService.PushBlock:fail}",
 			fields: fields{
 				Chaintype:    &mockChain{},
-				Generator:    Blocksmith{},
+				Generator:    &Blocksmith{},
 				BlockService: &mockBlockServiceFail{},
 				LastBlockID:  0,
 			},
@@ -296,7 +299,7 @@ func TestBlockchainProcessor_AddGenesis(t *testing.T) { //todo: update test when
 func TestBlockchainProcessor_CheckGenesis(t *testing.T) {
 	type fields struct {
 		Chaintype    contract.ChainType
-		Generator    Blocksmith
+		Generator    *Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
 	}
@@ -309,7 +312,7 @@ func TestBlockchainProcessor_CheckGenesis(t *testing.T) {
 			name: "CheckGenesis:success-{}",
 			fields: fields{
 				Chaintype:    &mockChain{},
-				Generator:    mockBlocksmith,
+				Generator:    &mockBlocksmith,
 				BlockService: &mockBlockServiceSuccess{},
 				LastBlockID:  0,
 			},
@@ -319,7 +322,7 @@ func TestBlockchainProcessor_CheckGenesis(t *testing.T) {
 			name: "CheckGenesis:fail-{}",
 			fields: fields{
 				Chaintype:    &mockChain{},
-				Generator:    mockBlocksmith,
+				Generator:    &mockBlocksmith,
 				BlockService: &mockBlockServiceFail{},
 				LastBlockID:  0,
 			},
@@ -363,11 +366,13 @@ func TestBlocksmith_GetTimestamp(t *testing.T) {
 		{
 			name: "GetTimestamp:success-{elapsed<=3600}",
 			fields: fields{
-				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				Balance:          big.NewInt(1000000000),
-				SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-				NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-				SmithTime:        10000,
+				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+					81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Balance:      big.NewInt(1000000000),
+				SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80,
+					242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				SmithTime: 10000,
 			},
 			args: args{
 				smithMax: 13300,
@@ -377,11 +382,13 @@ func TestBlocksmith_GetTimestamp(t *testing.T) {
 		{
 			name: "GetTimestamp:success-{elapsed=3600}",
 			fields: fields{
-				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				Balance:          big.NewInt(1000000000),
-				SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-				NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-				SmithTime:        10000,
+				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
+					229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Balance:      big.NewInt(1000000000),
+				SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80,
+					242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				SmithTime: 10000,
 			},
 			args: args{
 				smithMax: 13600,
@@ -391,11 +398,13 @@ func TestBlocksmith_GetTimestamp(t *testing.T) {
 		{
 			name: "GetTimestamp:success-{elapsed>3600}",
 			fields: fields{
-				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				Balance:          big.NewInt(1000000000),
-				SecretPhrase:     "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-				NodePublicKey:    []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-				SmithTime:        10000,
+				AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
+					229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Balance:      big.NewInt(1000000000),
+				SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242,
+					244, 100, 134, 144, 246, 37, 144, 213, 135},
+				SmithTime: 10000,
 			},
 			args: args{
 				smithMax: 14000,

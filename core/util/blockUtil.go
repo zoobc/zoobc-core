@@ -13,13 +13,13 @@ import (
 )
 
 // GetBlockSeed calculate seed value, the first 8 byte of the digest(previousBlockSeed, publicKey)
-func GetBlockSeed(publicKey []byte, block model.Block) (*big.Int, error) {
+func GetBlockSeed(publicKey []byte, block *model.Block) (*big.Int, error) {
 	digest := sha3.New512()
 	_, err := digest.Write(block.GetBlockSeed())
 	if err != nil {
 		return nil, err
 	}
-	_, err = digest.Write(publicKey[:])
+	_, err = digest.Write(publicKey)
 
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func GetBlockSeed(publicKey []byte, block model.Block) (*big.Int, error) {
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(balance *big.Int, seed *big.Int, block model.Block) int64 {
+func GetSmithTime(balance, seed *big.Int, block *model.Block) int64 {
 	if balance.Cmp(big.NewInt(0)) == 0 {
 		return 0
 	}
@@ -50,11 +50,12 @@ func GetSmithTime(balance *big.Int, seed *big.Int, block model.Block) int64 {
 }
 
 // CalculateSmithScale base target of block and return modified block
-func CalculateSmithScale(previousBlock model.Block, block model.Block, smithingDelayTime int64) model.Block {
+func CalculateSmithScale(previousBlock, block *model.Block, smithingDelayTime int64) *model.Block {
 	prevSmithScale := previousBlock.GetSmithScale()
 	smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
 	block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingDelayTime)).Int64()
-	if big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(0)) < 0 || big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(constant.MaxSmithScale)) > 0 {
+	if big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(0)) < 0 || big.NewInt(block.GetSmithScale()).Cmp(
+		big.NewInt(constant.MaxSmithScale)) > 0 {
 		block.SmithScale = constant.MaxSmithScale
 	}
 	if big.NewInt(block.GetSmithScale()).Cmp(new(big.Int).Div(big.NewInt(prevSmithScale), big.NewInt(2))) < 0 {
@@ -84,7 +85,7 @@ func CalculateSmithScale(previousBlock model.Block, block model.Block, smithingD
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
 		digest := sha3.New512()
-		_, _ = digest.Write(GetBlockByte(*block))
+		_, _ = digest.Write(GetBlockByte(block))
 		hash := digest.Sum([]byte{})
 		res := new(big.Int)
 		block.ID = res.SetBytes([]byte{
@@ -103,19 +104,19 @@ func GetBlockID(block *model.Block) int64 {
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
-func GetBlockByte(block model.Block) []byte {
+func GetBlockByte(block *model.Block) []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(block.GetVersion())))
+	buffer.Write(util.ConvertUint32ToBytes(block.GetVersion()))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTimestamp())))
 	buffer.Write(util.ConvertIntToBytes(len(block.GetTransactions())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalFee())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
-	buffer.Write([]byte(block.PayloadHash))
+	buffer.Write(block.PayloadHash)
 	buffer.Write(block.GetBlocksmithID())
 	buffer.Write(block.GetBlockSeed())
-	buffer.Write([]byte(block.GetPreviousBlockHash()))
+	buffer.Write(block.GetPreviousBlockHash())
 	if block.BlockSignature != nil {
 		buffer.Write(block.BlockSignature)
 	}
@@ -124,18 +125,12 @@ func GetBlockByte(block model.Block) []byte {
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
-func ValidateBlock(block *model.Block, previousLastBlock model.Block, curTime int64) error {
+func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	if block.GetTimestamp() > curTime+15 {
 		return errors.New("InvalidTimestamp")
 	}
 	if GetBlockID(block) == 0 {
 		return errors.New("duplicate block:TODO:conditionNotComplete")
 	}
-	//if !bs.VerifyGenerationSignature(block) {
-	//	return errors.New("block generation signature is invalid")
-	//}
-	//if !bs.VerifyBlockSignature(block) {
-	//	return errors.New("block signature is invalid")
-	//}
 	return nil
 }

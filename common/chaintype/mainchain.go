@@ -1,5 +1,6 @@
 package chaintype
 
+// MainChain is struct should has methods in below
 type MainChain struct{}
 
 // GetTablePrefix return the value of current chain table prefix in the database

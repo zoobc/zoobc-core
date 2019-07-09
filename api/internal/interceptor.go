@@ -41,10 +41,8 @@ func NewInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 				if logger != nil {
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				}
-			} else {
-				if logger != nil {
-					logger.WithFields(fields).Info("success")
-				}
+			} else if logger != nil {
+				logger.WithFields(fields).Info("success")
 			}
 		}()
 

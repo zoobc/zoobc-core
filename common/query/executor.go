@@ -6,7 +6,7 @@ import (
 
 type (
 
-	//ExecutorInterface interface
+	// ExecutorInterface interface
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(string) (*sql.Rows, error)
@@ -79,7 +79,6 @@ func (qe *Executor) ExecuteSelect(query string) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	//defer rows.Close()
 
 	return rows, nil
 }

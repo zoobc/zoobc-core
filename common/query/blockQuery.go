@@ -17,7 +17,7 @@ type (
 		GetBlockByID(int64) string
 		GetBlockByHeight(uint32) string
 		InsertBlock() string
-		ExtractModel(block model.Block) []interface{}
+		ExtractModel(block *model.Block) []interface{}
 	}
 
 	BlockQuery struct {
@@ -67,8 +67,8 @@ func (bq *BlockQuery) InsertBlock() string {
 }
 
 // GetBlockByID returns query string to get block by ID
-func (bq *BlockQuery) GetBlockByID(ID int64) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), ID)
+func (bq *BlockQuery) GetBlockByID(id int64) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), id)
 }
 
 // GetBlockByHeight returns query string to get block by height
@@ -77,7 +77,22 @@ func (bq *BlockQuery) GetBlockByHeight(height uint32) string {
 }
 
 // ExtractModel extract the model struct fields to the order of BlockQuery.Fields
-func (*BlockQuery) ExtractModel(block model.Block) []interface{} {
-	return []interface{}{block.ID, block.PreviousBlockHash, block.Height, block.Timestamp, block.BlockSeed, block.BlockSignature, block.CumulativeDifficulty,
-		block.SmithScale, block.PayloadLength, block.PayloadHash, block.BlocksmithID, block.TotalAmount, block.TotalFee, block.TotalCoinBase, block.Version}
+func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
+	return []interface{}{
+		block.ID,
+		block.PreviousBlockHash,
+		block.Height,
+		block.Timestamp,
+		block.BlockSeed,
+		block.BlockSignature,
+		block.CumulativeDifficulty,
+		block.SmithScale,
+		block.PayloadLength,
+		block.PayloadHash,
+		block.BlocksmithID,
+		block.TotalAmount,
+		block.TotalFee,
+		block.TotalCoinBase,
+		block.Version,
+	}
 }
