@@ -49,3 +49,10 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
 }
+
+// ResolvedPeer to
+func ResolvedPeer(host *model.Host, peer *model.Peer) (udpatedHost *model.Host) {
+	delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+	host.Peers[GetFullAddressPeer(peer)] = peer
+	return host
+}

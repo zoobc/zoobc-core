@@ -53,6 +53,9 @@ func p2pService() {
 
 	host, _ := p2p.InitHostService(myAddress, peerPort, wellknownPeers)
 	host.Start()
+
+	// p2p Thread
+	go p2p.NewHostService(new(chaintype.MainChain)).ResolvePeersThread()
 }
 
 func startServices(queryExecutor *query.Executor) {
