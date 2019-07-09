@@ -22,15 +22,15 @@ var mockBlocksmith = Blocksmith{
 
 // Mockchain
 type mockChain struct {
+	chaintype.MainChain
 }
 
-func (*mockChain) GetTablePrefix() string           { return "mock" }
 func (*mockChain) GetChainSmithingDelayTime() int64 { return 10 }
-func (*mockChain) GetName() string                  { return "mockchain" }
 func (*mockChain) GetGenesisBlockID() int64         { return 1 }
 
 // BlockService mock success
 type mockBlockServiceSuccess struct {
+	service.BlockService
 }
 
 func (*mockBlockServiceSuccess) VerifySeed(seed *big.Int, balance *big.Int, previousBlock model.Block, timestamp int64) bool {
@@ -71,9 +71,9 @@ func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHas
 		BlockSignature:       []byte{},
 	}
 }
+
 func (*mockBlockServiceSuccess) PushBlock(previousBlock, block model.Block) error { return nil }
-func (*mockBlockServiceSuccess) GetLastBlock() (model.Block, error)               { return model.Block{}, nil }
-func (*mockBlockServiceSuccess) GetBlocks() ([]model.Block, error)                { return []model.Block{}, nil }
+
 func (*mockBlockServiceSuccess) GetGenesisBlock() (model.Block, error) {
 	return model.Block{
 		ID:                   1,
