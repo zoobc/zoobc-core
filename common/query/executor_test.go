@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"errors"
 	"regexp"
 	"testing"
 
@@ -195,4 +196,40 @@ func TestExecutor_ExecuteSelect(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExecutor_ExecuteStatement(t *testing.T) {
+	t.Run("PrepareFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
+
+		// test error prepare
+		executor := Executor{db}
+		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
+		if err == nil {
+			t.Error("should return error if prepare fail")
+		}
+	})
+	t.Run("ExecFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1, []byte{1, 2, 34}).WillReturnError(errors.New("mockError"))
+		executor := Executor{db}
+		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
+		if err == nil {
+			t.Error("should return error if exec fail")
+		}
+	})
+	t.Run("Success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1, []byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
+		executor := Executor{db}
+		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
+		if err != nil {
+			t.Error("should return error if exec fail")
+		}
+	})
+
 }

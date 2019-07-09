@@ -2,7 +2,7 @@ package contract
 
 // ChainType interface define the different behavior of each chain
 type ChainType interface {
-	// GetChainTablePrefix return the value of current chain table prefix in the database
+	// GetTablePrefix return the value of current chain table prefix in the database
 	GetTablePrefix() string
 	// GetChainSmithingDelayTime return the value of chain smithing delay in second
 	GetChainSmithingDelayTime() int64
