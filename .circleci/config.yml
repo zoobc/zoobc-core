@@ -51,7 +51,7 @@ jobs:
           command: go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
       - run:
           name: Golangci Lint
-          command: golangci run
+          command: golangci-lint run
       - run:
           name: Go Official Lint
           command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
