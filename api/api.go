@@ -1,14 +1,10 @@
 package api
 
 import (
-	"context"
-	"flag"
 	"fmt"
 	"net"
-	"net/http"
 
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/internal"
 	"github.com/zoobc/zoobc-core/api/service"
@@ -19,8 +15,7 @@ import (
 )
 
 var (
-	echoEndpoint = flag.String("echo_endpoint", "localhost:8000", "endpoint of YourService")
-	apiLogger    *log.Logger
+	apiLogger *logrus.Logger
 )
 
 func init() {
@@ -30,25 +25,6 @@ func init() {
 	}
 }
 
-func startRestServer(port int) {
-	var err error
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	err = rpc_service.RegisterBlockServiceHandlerFromEndpoint(ctx, mux, *echoEndpoint, opts)
-
-	go func() {
-		err = http.ListenAndServe(fmt.Sprintf(":%d", port), mux)
-		if err != nil {
-			panic(fmt.Sprintf("Rest Api failure: %v\n", err))
-		}
-	}()
-
-	apiLogger.Info(fmt.Sprintf("Rest server listening to http:%d\n", port))
-}
 func startGrpcServer(port int, queryExecutor *query.Executor) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
@@ -75,9 +51,6 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort int, restPort int, queryExecutor *query.Executor) {
+func Start(grpcPort, restPort int, queryExecutor *query.Executor) {
 	startGrpcServer(grpcPort, queryExecutor)
-
-	// Rest server is disbled for now
-	// startRestServer(restPort)
 }

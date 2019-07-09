@@ -6,7 +6,7 @@ import (
 
 type (
 
-	//ExecutorInterface interface
+	// ExecutorInterface interface
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(string) (*sql.Rows, error)
