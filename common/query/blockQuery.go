@@ -48,11 +48,11 @@ func (bq *BlockQuery) GetBlocks(height, size uint32) string {
 }
 
 func (bq *BlockQuery) GetLastBlock() string {
-	return fmt.Sprintf("SELECT %s FROM %s ORDER BY HEIGHT DESC LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s ORDER BY height DESC LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
 }
 
 func (bq *BlockQuery) GetGenesisBlock() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE HEIGHT = 0 ORDER BY HEIGHT DESC LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height = 0 LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
 }
 
 func (bq *BlockQuery) InsertBlock() string {
