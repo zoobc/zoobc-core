@@ -1,6 +1,6 @@
 package contract
 
-// ChainType interface define the different behaviour of each chain
+// ChainType interface define the different behavior of each chain
 type ChainType interface {
 	// GetChainTablePrefix return the value of current chain table prefix in the database
 	GetTablePrefix() string

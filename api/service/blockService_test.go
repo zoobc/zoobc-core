@@ -23,7 +23,7 @@ func TestNewBlockervice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error while opening database connection")
 	}
-	// defer db.Close()
+	defer db.Close()
 
 	tests := []struct {
 		name string
