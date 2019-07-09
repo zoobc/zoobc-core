@@ -57,8 +57,7 @@ linters:
     - prealloc
     - gochecknoglobals
     - gochecknoinits
-    - goimports
-    - gosec
+#    - goimports
 
 run:
   skip-dirs:
@@ -67,14 +66,18 @@ run:
   skip-files:
     - common/model/*.pb.*.go
     - common/service/*.pb.*.go
-    - /*/*_test.go
 
 issues:
   exclude-rules:
-    - text: "weak cryptographic primitive"
+    - text: "G201: SQL string formatting"
       linters:
         - gosec
-
+    - path: "(.+)_test.go"
+      linters:
+        - scopelint
+    - text: "File is not `goimports`-ed"
+      linters:
+        - goimports
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:
