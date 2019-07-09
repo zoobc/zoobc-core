@@ -12,6 +12,9 @@ jobs:
           command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
       - checkout
       - add_ssh_keys
+      - run:
+          name: Download golangci-lint
+          command: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
       - restore_cache:
           key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
@@ -42,8 +45,11 @@ jobs:
           name: Test
           command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
       - run:
+          name: Go Fmt
+          command: go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
+      - run:
           name: GoLint
-          command: golint `go list ./... | egrep -v 'common/model|common/service|vendor'`
+          command: golangci run
   build:
     working_directory: /go/src/github.com/zoobc/zoobc-core
     docker:
@@ -76,6 +82,7 @@ workflows:
           requires:
             - prepare
             - test
+            - build
           filters:
             branches:
               only: develop
