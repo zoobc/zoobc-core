@@ -13,8 +13,10 @@ jobs:
       - checkout
       - add_ssh_keys
       - run:
-          name: Download golangci-lint
-          command: go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+          name: Download golang ci lint
+          command: |
+            go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+            go get -u golang.org/x/lint/golint
       - restore_cache:
           key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
@@ -48,8 +50,11 @@ jobs:
           name: Go Fmt
           command: go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
       - run:
-          name: GoLint
+          name: Golangci Lint
           command: golangci run
+      - run:
+          name: Go Official Lint
+          command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
   build:
     working_directory: /go/src/github.com/zoobc/zoobc-core
     docker:
