@@ -22,9 +22,9 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Account represent the transaction data structure stored in the database
 type Account struct {
-	AccountID            []byte   `protobuf:"bytes,1,opt,name=AccountID,proto3" json:"AccountID,omitempty"`
+	ID                   []byte   `protobuf:"bytes,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	AccountType          int32    `protobuf:"varint,2,opt,name=AccountType,proto3" json:"AccountType,omitempty"`
-	Account              string   `protobuf:"bytes,3,opt,name=Account,proto3" json:"Account,omitempty"`
+	Address              string   `protobuf:"bytes,3,opt,name=Address,proto3" json:"Address,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -55,9 +55,9 @@ func (m *Account) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Account proto.InternalMessageInfo
 
-func (m *Account) GetAccountID() []byte {
+func (m *Account) GetID() []byte {
 	if m != nil {
-		return m.AccountID
+		return m.ID
 	}
 	return nil
 }
@@ -69,18 +69,18 @@ func (m *Account) GetAccountType() int32 {
 	return 0
 }
 
-func (m *Account) GetAccount() string {
+func (m *Account) GetAddress() string {
 	if m != nil {
-		return m.Account
+		return m.Address
 	}
 	return ""
 }
 
 type GetAccountRequest struct {
 	// Fetch Account by its ID
-	AccountID uint32 `protobuf:"varint,1,opt,name=AccountID,proto3" json:"AccountID,omitempty"`
-	// Fetch Account by its account name (note: this in case of zoobc account type is the public key)
-	Account              uint32   `protobuf:"varint,2,opt,name=Account,proto3" json:"Account,omitempty"`
+	ID uint32 `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
+	// Fetch Account by its account address (note: this in case of zoobc account type is the public key)
+	Address              uint32   `protobuf:"varint,2,opt,name=Address,proto3" json:"Address,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -111,53 +111,103 @@ func (m *GetAccountRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetAccountRequest proto.InternalMessageInfo
 
-func (m *GetAccountRequest) GetAccountID() uint32 {
+func (m *GetAccountRequest) GetID() uint32 {
 	if m != nil {
-		return m.AccountID
+		return m.ID
 	}
 	return 0
 }
 
-func (m *GetAccountRequest) GetAccount() uint32 {
+func (m *GetAccountRequest) GetAddress() uint32 {
 	if m != nil {
-		return m.Account
+		return m.Address
 	}
 	return 0
 }
 
-type GetAccountResponse struct {
-	Account              []*Account `protobuf:"bytes,3,rep,name=Account,proto3" json:"Account,omitempty"`
+type GetAccountsRequest struct {
+	// Fetch Accounts by its account type
+	AccountType          uint32   `protobuf:"varint,2,opt,name=AccountType,proto3" json:"AccountType,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetAccountsRequest) Reset()         { *m = GetAccountsRequest{} }
+func (m *GetAccountsRequest) String() string { return proto.CompactTextString(m) }
+func (*GetAccountsRequest) ProtoMessage()    {}
+func (*GetAccountsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f61014d6ab0483e9, []int{2}
+}
+
+func (m *GetAccountsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetAccountsRequest.Unmarshal(m, b)
+}
+func (m *GetAccountsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetAccountsRequest.Marshal(b, m, deterministic)
+}
+func (m *GetAccountsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetAccountsRequest.Merge(m, src)
+}
+func (m *GetAccountsRequest) XXX_Size() int {
+	return xxx_messageInfo_GetAccountsRequest.Size(m)
+}
+func (m *GetAccountsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetAccountsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetAccountsRequest proto.InternalMessageInfo
+
+func (m *GetAccountsRequest) GetAccountType() uint32 {
+	if m != nil {
+		return m.AccountType
+	}
+	return 0
+}
+
+type GetAccountsResponse struct {
+	// Number of accounts returned
+	AccountSize uint32 `protobuf:"varint,1,opt,name=AccountSize,proto3" json:"AccountSize,omitempty"`
+	// Accounts returned
+	Account              []*Account `protobuf:"bytes,2,rep,name=Account,proto3" json:"Account,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
 	XXX_unrecognized     []byte     `json:"-"`
 	XXX_sizecache        int32      `json:"-"`
 }
 
-func (m *GetAccountResponse) Reset()         { *m = GetAccountResponse{} }
-func (m *GetAccountResponse) String() string { return proto.CompactTextString(m) }
-func (*GetAccountResponse) ProtoMessage()    {}
-func (*GetAccountResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_f61014d6ab0483e9, []int{2}
+func (m *GetAccountsResponse) Reset()         { *m = GetAccountsResponse{} }
+func (m *GetAccountsResponse) String() string { return proto.CompactTextString(m) }
+func (*GetAccountsResponse) ProtoMessage()    {}
+func (*GetAccountsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_f61014d6ab0483e9, []int{3}
 }
 
-func (m *GetAccountResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetAccountResponse.Unmarshal(m, b)
+func (m *GetAccountsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetAccountsResponse.Unmarshal(m, b)
 }
-func (m *GetAccountResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetAccountResponse.Marshal(b, m, deterministic)
+func (m *GetAccountsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetAccountsResponse.Marshal(b, m, deterministic)
 }
-func (m *GetAccountResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAccountResponse.Merge(m, src)
+func (m *GetAccountsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetAccountsResponse.Merge(m, src)
 }
-func (m *GetAccountResponse) XXX_Size() int {
-	return xxx_messageInfo_GetAccountResponse.Size(m)
+func (m *GetAccountsResponse) XXX_Size() int {
+	return xxx_messageInfo_GetAccountsResponse.Size(m)
 }
-func (m *GetAccountResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetAccountResponse.DiscardUnknown(m)
+func (m *GetAccountsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetAccountsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GetAccountResponse proto.InternalMessageInfo
+var xxx_messageInfo_GetAccountsResponse proto.InternalMessageInfo
 
-func (m *GetAccountResponse) GetAccount() []*Account {
+func (m *GetAccountsResponse) GetAccountSize() uint32 {
+	if m != nil {
+		return m.AccountSize
+	}
+	return 0
+}
+
+func (m *GetAccountsResponse) GetAccount() []*Account {
 	if m != nil {
 		return m.Account
 	}
@@ -167,24 +217,27 @@ func (m *GetAccountResponse) GetAccount() []*Account {
 func init() {
 	proto.RegisterType((*Account)(nil), "model.Account")
 	proto.RegisterType((*GetAccountRequest)(nil), "model.GetAccountRequest")
-	proto.RegisterType((*GetAccountResponse)(nil), "model.GetAccountResponse")
+	proto.RegisterType((*GetAccountsRequest)(nil), "model.GetAccountsRequest")
+	proto.RegisterType((*GetAccountsResponse)(nil), "model.GetAccountsResponse")
 }
 
 func init() { proto.RegisterFile("model/account.proto", fileDescriptor_f61014d6ab0483e9) }
 
 var fileDescriptor_f61014d6ab0483e9 = []byte{
-	// 202 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xce, 0xcd, 0x4f, 0x49,
-	0xcd, 0xd1, 0x4f, 0x4c, 0x4e, 0xce, 0x2f, 0xcd, 0x2b, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17,
-	0x62, 0x05, 0x0b, 0x2a, 0x25, 0x73, 0xb1, 0x3b, 0x42, 0xc4, 0x85, 0x64, 0xb8, 0x38, 0xa1, 0x4c,
-	0x4f, 0x17, 0x09, 0x46, 0x05, 0x46, 0x0d, 0x9e, 0x20, 0x84, 0x80, 0x90, 0x02, 0x17, 0x37, 0x94,
-	0x13, 0x52, 0x59, 0x90, 0x2a, 0xc1, 0xa4, 0xc0, 0xa8, 0xc1, 0x1a, 0x84, 0x2c, 0x24, 0x24, 0x01,
-	0x37, 0x4a, 0x82, 0x59, 0x81, 0x51, 0x83, 0x33, 0x08, 0xc6, 0x55, 0xf2, 0xe6, 0x12, 0x74, 0x4f,
-	0x2d, 0x81, 0xf2, 0x82, 0x52, 0x0b, 0x4b, 0x53, 0x8b, 0xb1, 0x58, 0xc7, 0x8b, 0x6c, 0x1d, 0x92,
-	0x61, 0x4c, 0x60, 0x39, 0xb8, 0x61, 0x76, 0x5c, 0x42, 0xc8, 0x86, 0x15, 0x17, 0xe4, 0xe7, 0x15,
-	0xa7, 0x0a, 0x69, 0x20, 0x5b, 0xce, 0xac, 0xc1, 0x6d, 0xc4, 0xa7, 0x07, 0xf6, 0xa0, 0x1e, 0x4c,
-	0x21, 0x4c, 0xda, 0x49, 0x2b, 0x4a, 0x23, 0x3d, 0xb3, 0x24, 0xa3, 0x34, 0x49, 0x2f, 0x39, 0x3f,
-	0x57, 0xbf, 0x2a, 0x3f, 0x3f, 0x29, 0x19, 0x42, 0xea, 0x26, 0xe7, 0x17, 0xa5, 0xea, 0x27, 0xe7,
-	0xe7, 0xe6, 0xe6, 0xe7, 0xe9, 0x83, 0x35, 0x27, 0xb1, 0x81, 0xc3, 0xca, 0x18, 0x10, 0x00, 0x00,
-	0xff, 0xff, 0xed, 0x8d, 0xe2, 0x82, 0x42, 0x01, 0x00, 0x00,
+	// 236 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0xb1, 0x4b, 0x03, 0x31,
+	0x14, 0xc6, 0xb9, 0x94, 0x5a, 0x7c, 0xb5, 0x05, 0xd3, 0x25, 0x63, 0xb8, 0x29, 0x08, 0x5e, 0x40,
+	0xc1, 0xcd, 0xa1, 0x52, 0x90, 0xae, 0x51, 0x17, 0xb7, 0x5e, 0xee, 0xa1, 0x05, 0x73, 0xef, 0xbc,
+	0xe4, 0x06, 0xfb, 0xd7, 0x0b, 0xe9, 0xa5, 0xa6, 0xe0, 0x12, 0xc8, 0xef, 0xe5, 0xc7, 0xfb, 0xf2,
+	0xc1, 0xca, 0x51, 0x83, 0x5f, 0x7a, 0x67, 0x2d, 0x0d, 0x6d, 0xa8, 0xba, 0x9e, 0x02, 0xf1, 0x69,
+	0x84, 0xe5, 0x1b, 0xcc, 0xd6, 0x47, 0xce, 0x97, 0xc0, 0xb6, 0x1b, 0x51, 0xc8, 0x42, 0x5d, 0x19,
+	0xb6, 0xdd, 0x70, 0x09, 0xf3, 0x71, 0xf4, 0xfa, 0xd3, 0xa1, 0x60, 0xb2, 0x50, 0x53, 0x93, 0x23,
+	0x2e, 0x60, 0xb6, 0x6e, 0x9a, 0x1e, 0xbd, 0x17, 0x13, 0x59, 0xa8, 0x4b, 0x93, 0xae, 0xe5, 0x23,
+	0x5c, 0x3f, 0x63, 0x18, 0xdf, 0x1a, 0xfc, 0x1e, 0xd0, 0xe7, 0x0b, 0x16, 0x71, 0x41, 0xa6, 0xb3,
+	0x08, 0x4f, 0xfa, 0x03, 0xf0, 0x3f, 0xdd, 0x27, 0xff, 0x9f, 0x40, 0x8b, 0xb3, 0x40, 0xe5, 0x0e,
+	0x56, 0x67, 0x9e, 0xef, 0xa8, 0xf5, 0x98, 0x89, 0x2f, 0xfb, 0x03, 0x8e, 0x09, 0x72, 0xc4, 0xd5,
+	0xa9, 0x06, 0xc1, 0xe4, 0x44, 0xcd, 0xef, 0x96, 0x55, 0xec, 0xa7, 0x4a, 0x5f, 0x48, 0xe3, 0xa7,
+	0x9b, 0x77, 0xf5, 0xb1, 0x0f, 0x9f, 0x43, 0x5d, 0x59, 0x72, 0xfa, 0x40, 0x54, 0xdb, 0xe3, 0x79,
+	0x6b, 0xa9, 0x47, 0x6d, 0xc9, 0x39, 0x6a, 0x75, 0x94, 0xeb, 0x8b, 0x58, 0xf5, 0xfd, 0x6f, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0x36, 0xeb, 0xf9, 0xaa, 0x81, 0x01, 0x00, 0x00,
 }
