@@ -56,15 +56,15 @@ func (bq *BlockQuery) getTableName() string {
 
 // GetBlocks returns query string to get multiple blocks
 func (bq *BlockQuery) GetBlocks(height uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(bq.Fields, ","), bq.getTableName())
 }
 
 // GetBlockByID returns query string to get block by ID
-func (bq *BlockQuery) GetBlockByID(ID int64) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), ID)
+func (bq *BlockQuery) GetBlockByID(id int64) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), id)
 }
 
 // GetBlockByHeight returns query string to get block by height
 func (bq *BlockQuery) GetBlockByHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height)
 }

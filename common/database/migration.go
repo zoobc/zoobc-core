@@ -23,17 +23,17 @@ Init function must be call at the first time before call `Apply()`.
 That just for make sure no error that caused by `query.Executor` not `nil`
 and initialize versions
 */
-func (m *Migration) Init(query *query.Executor) error {
+func (m *Migration) Init(qe *query.Executor) error {
 
-	if query != nil {
-		rows, _ := query.ExecuteSelect("SELECT version FROM migration;")
+	if qe != nil {
+		rows, _ := qe.ExecuteSelect("SELECT version FROM migration;")
 		if rows != nil {
 			var version int
 			_ = rows.Scan(&version)
 			m.CurrentVersion = &version
 		}
 
-		m.Query = query
+		m.Query = qe
 		m.Versions = []string{
 			`CREATE TABLE IF NOT EXISTS "migration" (
 				"version" INTEGER DEFAULT 0 NOT NULL,
@@ -122,6 +122,7 @@ func (m *Migration) Apply() error {
 	}
 
 	for version, query := range migrations {
+		version := version
 		queries := []string{
 			query,
 		}
