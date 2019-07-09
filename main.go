@@ -66,7 +66,7 @@ func main() {
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 	blockchainProcessor := smith.NewBlockchainProcessor(mainchain, smith.NewBlocksmith(), service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
-		blockchainProcessor.AddGenesis()
+		_ = blockchainProcessor.AddGenesis()
 	}
 
 	go startSmith(sleepPeriod, blockchainProcessor)
