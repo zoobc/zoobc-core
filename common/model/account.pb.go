@@ -133,27 +133,16 @@ func (m *GetAccountsRequest) Reset()         { *m = GetAccountsRequest{} }
 func (m *GetAccountsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetAccountsRequest) ProtoMessage()    {}
 func (*GetAccountsRequest) Descriptor() ([]byte, []int) {
-<<<<<<< HEAD
-	return fileDescriptor_f61014d6ab0483e9, []int{2}
-}
-
-=======
 	return fileDescriptor_account_5f0969b60a186594, []int{2}
 }
->>>>>>> develop
 func (m *GetAccountsRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAccountsRequest.Unmarshal(m, b)
 }
 func (m *GetAccountsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetAccountsRequest.Marshal(b, m, deterministic)
 }
-<<<<<<< HEAD
-func (m *GetAccountsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAccountsRequest.Merge(m, src)
-=======
 func (dst *GetAccountsRequest) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_GetAccountsRequest.Merge(dst, src)
->>>>>>> develop
 }
 func (m *GetAccountsRequest) XXX_Size() int {
 	return xxx_messageInfo_GetAccountsRequest.Size(m)
@@ -185,27 +174,16 @@ func (m *GetAccountsResponse) Reset()         { *m = GetAccountsResponse{} }
 func (m *GetAccountsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetAccountsResponse) ProtoMessage()    {}
 func (*GetAccountsResponse) Descriptor() ([]byte, []int) {
-<<<<<<< HEAD
-	return fileDescriptor_f61014d6ab0483e9, []int{3}
-}
-
-=======
 	return fileDescriptor_account_5f0969b60a186594, []int{3}
 }
->>>>>>> develop
 func (m *GetAccountsResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GetAccountsResponse.Unmarshal(m, b)
 }
 func (m *GetAccountsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GetAccountsResponse.Marshal(b, m, deterministic)
 }
-<<<<<<< HEAD
-func (m *GetAccountsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetAccountsResponse.Merge(m, src)
-=======
 func (dst *GetAccountsResponse) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_GetAccountsResponse.Merge(dst, src)
->>>>>>> develop
 }
 func (m *GetAccountsResponse) XXX_Size() int {
 	return xxx_messageInfo_GetAccountsResponse.Size(m)
@@ -237,15 +215,9 @@ func init() {
 	proto.RegisterType((*GetAccountsResponse)(nil), "model.GetAccountsResponse")
 }
 
-<<<<<<< HEAD
-func init() { proto.RegisterFile("model/account.proto", fileDescriptor_f61014d6ab0483e9) }
-
-var fileDescriptor_f61014d6ab0483e9 = []byte{
-=======
 func init() { proto.RegisterFile("model/account.proto", fileDescriptor_account_5f0969b60a186594) }
 
 var fileDescriptor_account_5f0969b60a186594 = []byte{
->>>>>>> develop
 	// 236 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0xb1, 0x4b, 0x03, 0x31,
 	0x14, 0xc6, 0xb9, 0x94, 0x5a, 0x7c, 0xb5, 0x05, 0xd3, 0x25, 0x63, 0xb8, 0x29, 0x08, 0x5e, 0x40,
