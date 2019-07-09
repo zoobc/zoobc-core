@@ -1,0 +1,83 @@
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+  govet:
+    check-shadowing: false
+    settings:
+      printf:
+        funcs:
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+  golint:
+    min-confidence: 0.8
+  gofmt:
+    simplify: true
+  gocyclo:
+    min-complexity: 10
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 200
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+    ignore-words:
+      - blocksmith
+      - smithing
+      - smith
+      - tx
+      - txs
+      - smithtime
+      - blockseed
+      - coinbase
+      - zoobc
+  lll:
+    line-length: 140
+  goimports:
+    local-prefixes: github.com/zoobc/zoobc-core
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - wrapperFunc
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - exitAfterDefer
+
+linters:
+  enable-all: true
+  disable:
+    - maligned
+    - prealloc
+    - gochecknoglobals
+    - gochecknoinits
+    - goimports
+    - gosec
+
+run:
+  skip-dirs:
+    - vendor
+    - common/schema
+  skip-files:
+    - common/model/*.pb.*.go
+    - common/service/*.pb.*.go
+    - /*/*_test.go
+
+issues:
+  exclude-rules:
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+# golangci.com configuration
+# https://github.com/golangci/golangci/wiki/Configuration
+service:
+  golangci-lint-version: 1.17.x # use the fixed version to not introduce new linters unexpectedly
+  prepare:
+    - echo "here I can run custom commands, but no preparation needed for this repo"
