@@ -40,7 +40,10 @@ jobs:
             - /go/src/github.com/zoobc/zoobc-core/vendor
       - run:
           name: Test
-          command: go test `go list ./... | egrep -v model|service` --short
+          command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
+      - run:
+          name: GoLint
+          command: golint `go list ./... | egrep -v 'common/model|common/service|vendor'`
   build:
     working_directory: /go/src/github.com/zoobc/zoobc-core
     docker:
