@@ -5,7 +5,7 @@
 </h1>
 <p align="center">
   <a href="https://circleci.com/gh/zoobc/zoobc-core">
-    <img src="https://circleci.com/gh/zoobc/zoobc-core.svg?style=svg" alt="CircleCI"/>
+    <img src="https://circleci.com/gh/zoobc/zoobc-core.svg?style=svg&circle-token=cdd770bcb30a201696bb10e76ed15504cf235a9f" alt="CircleCI"/>
   </a>
 </p>
 
