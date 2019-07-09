@@ -23,17 +23,17 @@ Init function must be call at the first time before call `Apply()`.
 That just for make sure no error that caused by `query.Executor` not `nil`
 and initialize versions
 */
-func (m *Migration) Init(query *query.Executor) error {
+func (m *Migration) Init(qe *query.Executor) error {
 
-	if query != nil {
-		rows, _ := query.ExecuteSelect("SELECT version FROM migration;")
+	if qe != nil {
+		rows, _ := qe.ExecuteSelect("SELECT version FROM migration;")
 		if rows != nil {
 			var version int
 			_ = rows.Scan(&version)
 			m.CurrentVersion = &version
 		}
 
-		m.Query = query
+		m.Query = qe
 		m.Versions = []string{
 			`CREATE TABLE IF NOT EXISTS "migration" (
 				"version" INTEGER DEFAULT 0 NOT NULL,
@@ -88,6 +88,55 @@ func (m *Migration) Init(query *query.Executor) error {
 				PRIMARY KEY("id","block_height"),
 				FOREIGN KEY("id") REFERENCES account(id)
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "main_block" (
+				"id" INTEGER,
+				"previous_block_hash" BLOB,
+				"height" INTEGER,
+				"timestamp" INTEGER,
+				"block_seed" BLOB,
+				"block_signature" BLOB,
+				"cumulative_difficulty" TEXT,
+				"smith_scale" INTEGER,
+				"blocksmith_id" BLOB,
+				"total_amount" INTEGER,
+				"total_fee" INTEGER,
+				"total_coinbase" INTEGER,
+				"version" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" BLOB,
+				PRIMARY KEY("id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "main_block" (
+				"id" INTEGER,
+				"previous_block_hash" BLOB,
+				"height" INTEGER,
+				"timestamp" INTEGER,
+				"block_seed" BLOB,
+				"block_signature" BLOB,
+				"cumulative_difficulty" VARCHAR,
+				"smith_scale" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" BLOB,
+				"blocksmith_id" BLOB,
+				"total_amount" INTEGER,
+				"total_fee" INTEGER,
+				"total_coinbase" INTEGER,
+				"version" INTEGER,
+				PRIMARY KEY("id")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "account_balance" (
+				"account_id"	BLOB,
+				"balance"	INTEGER,
+				"spendable_balance"	INTEGER,
+				"pop_revenue"	INTEGER,
+				"block_height"	INTEGER,
+				"latest"	INTEGER
+			);
+			`,
 		}
 		return nil
 	}
@@ -110,6 +159,7 @@ func (m *Migration) Apply() error {
 	}
 
 	for version, query := range migrations {
+		version := version
 		queries := []string{
 			query,
 		}

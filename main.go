@@ -3,8 +3,18 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/core/service"
+
+	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -35,6 +45,10 @@ func init() {
 	}
 }
 
+func startServices(queryExecutor *query.Executor) {
+	api.Start(8000, 8080, queryExecutor)
+}
+
 func main() {
 	fmt.Println("run")
 
@@ -46,6 +60,31 @@ func main() {
 	}
 
 	if err := migration.Apply(); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
+	mainchain := &chaintype.MainChain{}
+	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
+	blockchainProcessor := smith.NewBlockchainProcessor(mainchain, smith.NewBlocksmith(), service.NewBlockService(mainchain,
+		query.NewQueryExecutor(db), query.NewBlockQuery(mainchain)))
+	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
+		_ = blockchainProcessor.AddGenesis()
+	}
+
+	go startSmith(sleepPeriod, blockchainProcessor)
+
+	startServices(queryExecutor)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	// When we receive a signal from the OS, shut down everything
+	<-sigs
+
+}
+
+func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
+	for {
+		_ = processor.StartSmithing()
+		time.Sleep(time.Duration(sleepPeriod) * time.Second)
+	}
+
 }
