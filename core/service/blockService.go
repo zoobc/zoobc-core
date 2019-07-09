@@ -94,9 +94,9 @@ func (*BlockService) NewGenesisBlock(version uint32, previousBlockHash []byte, b
 // (previousBlock) is acceptable by the network (meaning has been smithed by a valid blocksmith).
 func (*BlockService) VerifySeed(seed *big.Int, balance *big.Int, previousBlock model.Block, timestamp int64) bool {
 	elapsedTime := timestamp - previousBlock.GetTimestamp()
-	effectiveBaseTarget := new(big.Int).Mul(balance, big.NewInt(previousBlock.GetSmithScale()))
-	prevTarget := new(big.Int).Mul(big.NewInt(int64(elapsedTime-1)), effectiveBaseTarget)
-	target := new(big.Int).Add(effectiveBaseTarget, prevTarget)
+	effectiveSmithScale := new(big.Int).Mul(balance, big.NewInt(previousBlock.GetSmithScale()))
+	prevTarget := new(big.Int).Mul(big.NewInt(int64(elapsedTime-1)), effectiveSmithScale)
+	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
 }
 
