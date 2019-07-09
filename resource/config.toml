@@ -1,2 +1,7 @@
 dbPath = "./resource/"
 dbName = "zoobc.db"
+
+# Peer
+peerPort=3002
+myAddress="127.0.0.1"
+wellknownPeers=["192.168.5.47:3000", "127.0.0.1:3002"]

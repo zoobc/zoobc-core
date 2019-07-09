@@ -18,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/p2p"
 )
 
 var (
@@ -45,8 +46,18 @@ func init() {
 	}
 }
 
+func p2pService() {
+	myAddress := viper.GetString("myAddress")
+	peerPort := viper.GetUint32("peerPort")
+	wellknownPeers := viper.GetStringSlice("wellknownPeers")
+
+	host, _ := p2p.InitHostService(myAddress, peerPort, wellknownPeers)
+	host.Start()
+}
+
 func startServices(queryExecutor *query.Executor) {
 	api.Start(8000, 8080, queryExecutor)
+	go p2pService()
 }
 
 func main() {
