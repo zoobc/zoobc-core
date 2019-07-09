@@ -22,7 +22,7 @@
 ### Run
 
 - run with `go run main.go`
-- build `go build main.go`
+- build `go build -o zoobc`
 
 ### Tests
 

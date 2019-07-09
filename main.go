@@ -60,7 +60,7 @@ func main() {
 	}
 
 	if err := migration.Apply(); err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
