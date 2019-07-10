@@ -37,14 +37,10 @@ func request_NodeRegistrationService_GetNodeRegistrations_0(ctx context.Context,
 	var protoReq model.GetNodeRegistrationsRequest
 	var metadata runtime.ServerMetadata
 
-<<<<<<< HEAD
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_NodeRegistrationService_GetNodeRegistrations_0); err != nil {
-=======
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_NodeRegistrationService_GetNodeRegistrations_0); err != nil {
->>>>>>> develop
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -61,14 +57,10 @@ func request_NodeRegistrationService_GetNodeRegistration_0(ctx context.Context, 
 	var protoReq model.GetNodeRegistrationRequest
 	var metadata runtime.ServerMetadata
 
-<<<<<<< HEAD
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_NodeRegistrationService_GetNodeRegistration_0); err != nil {
-=======
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_NodeRegistrationService_GetNodeRegistration_0); err != nil {
->>>>>>> develop
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -159,15 +151,9 @@ func RegisterNodeRegistrationServiceHandlerClient(ctx context.Context, mux *runt
 }
 
 var (
-<<<<<<< HEAD
 	pattern_NodeRegistrationService_GetNodeRegistrations_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "GetNodeRegistrations"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_NodeRegistrationService_GetNodeRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "GetNodeRegistration"}, "", runtime.AssumeColonVerbOpt(true)))
-=======
-	pattern_NodeRegistrationService_GetNodeRegistrations_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "GetNodeRegistrations"}, ""))
-
-	pattern_NodeRegistrationService_GetNodeRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "GetNodeRegistration"}, ""))
->>>>>>> develop
 )
 
 var (
