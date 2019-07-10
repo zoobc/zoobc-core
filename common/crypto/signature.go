@@ -3,6 +3,7 @@ package crypto
 import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"golang.org/x/crypto/ed25519"
 )
 
 type (
@@ -38,11 +39,11 @@ func (*Signature) Sign(payload, accountID []byte, seed string) []byte {
 	switch account.AccountType {
 	case 0: // zoobc
 		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
-		signature := ed25519Sign(payload, accountPrivateKey)
+		signature := ed25519.Sign(accountPrivateKey, payload)
 		return signature
 	default:
 		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
-		signature := ed25519Sign(payload, accountPrivateKey)
+		signature := ed25519.Sign(accountPrivateKey, payload)
 		return signature
 	}
 }
@@ -50,7 +51,7 @@ func (*Signature) Sign(payload, accountID []byte, seed string) []byte {
 // SignBlock special method for signing block only, there will be no multiple signature options
 func (*Signature) SignBlock(payload []byte, nodeSeed string) []byte {
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSeed)
-	return ed25519Sign(payload, nodePrivateKey)
+	return ed25519.Sign(nodePrivateKey, payload)
 }
 
 // VerifySignature accept payload (before without signature), signature and the account id
@@ -66,10 +67,10 @@ func (*Signature) VerifySignature(payload, signature, accountID []byte) bool {
 
 	switch account.AccountType {
 	case 0: // zoobc
-		result := ed25519VerifySignature(payload, signature, accountID)
+		result := ed25519.Verify(accountID, payload, signature)
 		return result
 	default:
-		result := ed25519VerifySignature(payload, signature, accountID)
+		result := ed25519.Verify(accountID, payload, signature)
 		return result
 	}
 }
