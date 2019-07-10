@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"sync"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -15,90 +17,75 @@ type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
 		InitMempool() error
-		GetTransactions() []*model.MempoolTransaction
+		GetTransactions(ctNum int32) ([]*model.MempoolTransaction, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		Query        *query.Executor
-		Transactions []*model.MempoolTransaction
-		MempoolMutex *sync.Mutex
+		MempoolMutex  *sync.Mutex
+		Chaintype     contract.ChainType
+		QueryExecutor query.ExecutorInterface
+		MempoolQuery  query.MempoolQueryInterface
 	}
 )
 
-var mempoolServiceInstance *MempoolService
-
-// NewMempoolService create a singleton instance of MempoolService
-func NewMempoolService(queryExecutor *query.Executor) *MempoolService {
-	if mempoolServiceInstance == nil {
-		mempoolServiceInstance = &MempoolService{Query: queryExecutor}
+// NewMempoolService returns an instance of mempool service
+func NewMempoolService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
+	mempoolQuery query.MempoolQueryInterface) *MempoolService {
+	return &MempoolService{
+		Chaintype:     chaintype,
+		QueryExecutor: queryExecutor,
+		MempoolQuery:  mempoolQuery,
 	}
-	return mempoolServiceInstance
 }
 
 // GetTransactions fetch transactions from mempool
-func (mp *MempoolService) GetTransactions() []*model.MempoolTransaction {
+func (mps *MempoolService) GetTransactions(ctNum int32) ([]*model.MempoolTransaction, error) {
 	cType := chaintype.GetChainType(ctNum)
 	var rows *sql.Rows
 	var err error
-	mempoolTransactions := []*model.MempoolTransaction{}
-	rows, err = bs.Query.ExecuteSelect(query.NewMempoolQuery(cType).GetMempoolTransactions())
+	rows, err = mps.QueryExecutor.ExecuteSelect(query.NewMempoolQuery(cType).GetMempoolTransactions())
 	defer rows.Close()
 	if err != nil {
-		fmt.Printf("GetMempoolTransactions fails %v\n", err)
+		log.Printf("GetMempoolTransactions fails %v\n", err)
 		return nil, err
 	}
 
+	mempoolTransactions := []*model.MempoolTransaction{}
 	for rows.Next() {
 		var bl model.MempoolTransaction
 		err = rows.Scan(
 			&bl.ID,
-			&bl.PreviousMempoolTransactionHash,
-			&bl.Height,
-			&bl.Timestamp,
-			&bl.MempoolTransactionSeed,
-			&bl.MempoolTransactionSignature,
-			&bl.CumulativeDifficulty,
-			&bl.SmithScale,
-			&bl.PayloadLength,
-			&bl.PayloadHash,
-			&bl.MempoolTransactionsmithID,
-			&bl.TotalAmount,
-			&bl.TotalFee,
-			&bl.TotalCoinBase,
-			&bl.Version,
+			&bl.FeePerByte,
+			&bl.ArrivalTimestamp,
+			&bl.TransactionBytes,
 		)
 		if err != nil {
-			fmt.Printf("GetMempoolTransactions fails scan %v\n", err)
+			log.Printf("GetMempoolTransactions fails scan %v\n", err)
 			return nil, err
 		}
 		mempoolTransactions = append(mempoolTransactions, &bl)
 	}
 
-	mempoolTransactionsResponse := &model.GetMempoolTransactionsResponse{
-		MempoolTransactions:      mempoolTransactions,
-		MempoolTransactionHeight: MempoolTransactionHeight,
-		MempoolTransactionSize:   uint32(len(mempoolTransactions)),
-	}
-	return mempoolTransactionsResponse, nil
+	return mempoolTransactions, nil
 
 }
 
 // ProcessPeerTransaction reference: processPeerTransactions()
-// func ProcessPeerTransaction(chaintype contract.ChainType, tx *model.Mempool) error {
+// func ProcessPeerTransaction(chaintype contract.ChainType, mpTx *model.Mempool) error {
 // 	// iterate the transactions
 
 // 	// check if the tranasction is already in mempool transaction
 
 // 	// validate the transaction
-// 	tx.GetTransaction().Validate()
+// 	mpTx.GetTransaction().Validate()
 
 // 	// create mempool transaction out of the received transaction
 
 // 	// process transaction
 
 // 	// add the mempool transaction
-// 	AddMempoolTransaction(chaintype, tx)
+// 	AddMempoolTransaction(chaintype, mpTx)
 
 // 	// notify the listener that there is a new mempool transactions received
 
@@ -106,41 +93,23 @@ func (mp *MempoolService) GetTransactions() []*model.MempoolTransaction {
 // }
 
 // AddMempoolTransaction add a transaction to mempool
-func AddMempoolTransaction(ctNum int32, tx model.Mempool) error {
-	mempool, _ := GetMempool(ctNum)
-	tcJSON, _ := json.MarshalIndent(tx, " ", "  ")
+func AddMempoolTransaction(ctNum int32, mpTx model.MempoolTransaction) error {
+	tcJSON, _ := json.MarshalIndent(mpTx, " ", "  ")
 	fmt.Printf("AddMempoolTransaction %s\n", tcJSON)
 
 	//FIXME:
-	// validationError := tx.GetTransaction().Validate()
+	// validationError := mpTx.GetTransaction().Validate()
 	// if validationError != nil {
 	// 	fmt.Printf("AddMempoolTransaction failure: %v", validationError)
 	// 	return validationError
 	// }
-	// // save to mempool tx table
-	// err := MempoolTransactionRepository(chaintype).Save(tx)
+	// // save to mempool mpTx table
+	// err := MempoolTransactionRepository(chaintype).Save(mpTx)
 	// if err != nil {
 	// 	return err
 	// }
-	// mempool.Transactions = append(mempool.Transactions, tx)
+	// mempool.Transactions = append(mempool.Transactions, mpTx)
 	// fmt.Printf("mempool length %d \n", len(mempool.Transactions))
-	return nil
-}
-
-// GetMempoolTransactions returns current mempool.transactions
-func GetMempoolTransactions(ctNum int32) []model.Mempool {
-	mempool, _ := GetMempool(ctNum)
-	return mempool.GetTransactions()
-}
-
-func GetMempoolTransaction(ctNum int32, transactionID int64) model.Mempool {
-	mempool, _ := GetMempool(ctNum)
-	for _, tx := range mempool.Transactions {
-		txID, _ := tx.GetTransaction().GetID(chaintype)
-		if txID == transactionID {
-			return tx
-		}
-	}
 	return nil
 }
 
@@ -148,8 +117,8 @@ func GetMempoolTransaction(ctNum int32, transactionID int64) model.Mempool {
 // func RemoveTransactionById(chaintype contract.ChainType, id int64) {
 // 	mempool := GetMempool(chaintype)
 // 	for i, utx := range mempool.GetTransactions() {
-// 		tx := utx.GetTransaction()
-// 		txID, _ := tx.GetID(chaintype)
+// 		mpTx := utx.GetTransaction()
+// 		txID, _ := mpTx.GetID(chaintype)
 // 		if txID == id {
 // 			mempool.Transactions[len(mempool.Transactions)-1], mempool.Transactions[i] = mempool.Transactions[i], mempool.Transactions[len(mempool.Transactions)-1]
 // 			mempool.Transactions = mempool.Transactions[:len(mempool.Transactions)-1]
@@ -166,29 +135,29 @@ func GetMempoolTransaction(ctNum int32, transactionID int64) model.Mempool {
 // }
 
 // // SelectTransactionsFromMempool Select transactions from mempool to be included in the block and return an ordered list.
-// // 1. get all unconfirmet tx from db (all tx already processed but still not included in a block)
-// // 2. filter out the ones that have referenced tx not confirmed yet (implements basic logic for chained transactions)
-// // 3. merge with mempool, untill it's full (payload <= MAX_PAYLOAD_LENGTH and max 255 tx) and do formal validation (timestamp <= MAX_TIMEDRIFT, tx is formally valid)
+// // 1. get all unconfirmet mpTx from db (all mpTx already processed but still not included in a block)
+// // 2. filter out the ones that have referenced mpTx not confirmed yet (implements basic logic for chained transactions)
+// // 3. merge with mempool, untill it's full (payload <= MAX_PAYLOAD_LENGTH and max 255 mpTx) and do formal validation (timestamp <= MAX_TIMEDRIFT, mpTx is formally valid)
 // // 4. sort new mempool by arrival time then height then ID (this last one sounds useless to me unless ids are sortable..)
 // // Note: Tx Order is important to allow every node with a same set of transactions to  build the block and always obtain the same block hash.
 // // This function is equivalent of selectMempoolTransactions in NXT
 // func SelectTransactionsFromMempool(chaintype contract.ChainType, blockTimestamp uint32, utxRepo contracts.MempoolTransactionRepository, txRepo contracts.TransactionRepository) []model.Mempool {
-// 	// unconfirmedTransactions are all tx in db still to be put in (note this method implements an interface signature, so can be mocked in unit tests)
+// 	// unconfirmedTransactions are all mpTx in db still to be put in (note this method implements an interface signature, so can be mocked in unit tests)
 // 	//STEF unconfirmedDbTransactions, err := utxRepo.FindAllMempoolTransactions(new(TransactionUtil))
 // 	// if err != nil {
 // 	// 	log.Fatal("Error finding mempool transactions")
 // 	// }
-// 	//merge mempool tx from db with tx already in mempool and remove duplicates
-// 	//TODO: this shouldn't be necessary, since mempool tx form db and mempool should always be in sync
+// 	//merge mempool mpTx from db with mpTx already in mempool and remove duplicates
+// 	//TODO: this shouldn't be necessary, since mempool mpTx form db and mempool should always be in sync
 // 	//STEF mempoolTx := GetMempoolTransactions(chaintype)
 // 	//STEF newMempoolTransactions := uniqueTransactions(append(mempoolTx, unconfirmedDbTransactions...), chaintype)
 // 	newMempoolTransactions := GetMempoolTransactions(chaintype)
 // 	// TODO: delete this if we don't use referenced transactions
 // 	// note: instead of removing elements from the slice we create a new slice with just the elements that we want to keep
 // 	// tmp := newMempoolTransactions[:0]
-// 	// for _, tx := range newMempoolTransactions {
-// 	// 	if tx.GetTransaction().HasAllReferencedTransactions(tx.GetTransaction().GetTimestamp(), 0, txRepo, chaintype) {
-// 	// 		tmp = append(tmp, tx)
+// 	// for _, mpTx := range newMempoolTransactions {
+// 	// 	if mpTx.GetTransaction().HasAllReferencedTransactions(mpTx.GetTransaction().GetTimestamp(), 0, txRepo, chaintype) {
+// 	// 		tmp = append(tmp, mpTx)
 // 	// 	}
 // 	// }
 // 	// newMempoolTransactions = tmp
@@ -227,9 +196,9 @@ func GetMempoolTransaction(ctNum int32, transactionID int64) model.Mempool {
 // 	return sortedTransactions
 // }
 
-// func IsTransactionAlreadyExist(chaintype contract.ChainType, tx model.Mempool) bool {
+// func IsTransactionAlreadyExist(chaintype contract.ChainType, mpTx model.Mempool) bool {
 // 	mempool := GetMempool(chaintype)
-// 	return transactionsContain(mempool.Transactions, tx, chaintype)
+// 	return transactionsContain(mempool.Transactions, mpTx, chaintype)
 // }
 
 // func transactionsContain(a []model.Mempool, x model.Mempool, chaintype contract.ChainType) bool {
@@ -256,7 +225,7 @@ func GetMempoolTransaction(ctNum int32, transactionID int64) model.Mempool {
 // 	return list
 // }
 
-// // SortByTimestampThenHeightThenID sort a slice of tx by timestamp, height, id DESC
+// // SortByTimestampThenHeightThenID sort a slice of mpTx by timestamp, height, id DESC
 // func sortByTimestampThenHeightThenID(members []model.Mempool, chaintype contract.ChainType) {
 // 	sort.SliceStable(members, func(i, j int) bool {
 // 		mi, mj := members[i].GetTransaction(), members[j].GetTransaction()
