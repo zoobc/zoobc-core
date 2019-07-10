@@ -56,6 +56,7 @@ func p2pService() {
 
 	// p2p Thread
 	go p2p.NewHostService(new(chaintype.MainChain)).ResolvePeersThread()
+	go p2p.NewHostService(new(chaintype.MainChain)).UpdateBlacklistedStatus()
 }
 
 func startServices(queryExecutor *query.Executor) {
