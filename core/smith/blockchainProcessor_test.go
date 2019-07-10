@@ -14,7 +14,7 @@ import (
 )
 
 var mockBlocksmith = Blocksmith{
-	AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+	AccountID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
 		81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	Balance:      big.NewInt(1000000000),
 	SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
@@ -38,9 +38,9 @@ type mockBlockServiceSuccess struct {
 func (*mockBlockServiceSuccess) VerifySeed(seed, balance *big.Int, previousBlock *model.Block, timestamp int64) bool {
 	return true
 }
-func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
-	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block {
+func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
+	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
+	payloadHash []byte, secretPhrase string) *model.Block {
 	return &model.Block{
 		Version:           1,
 		PreviousBlockHash: []byte{},
@@ -135,14 +135,21 @@ func TestNewBlockchainProcessor(t *testing.T) {
 }
 
 func TestNewBlocksmith(t *testing.T) {
+	type args struct {
+		secretPhrase string
+	}
 	test := struct {
 		name string
+		args args
 		want *Blocksmith
 	}{
 		name: "NewBlocksmith:success",
+		args: args{
+			secretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+		},
 		want: &mockBlocksmith,
 	}
-	if got := NewBlocksmith(); !reflect.DeepEqual(got, test.want) {
+	if got := NewBlocksmith(test.args.secretPhrase); !reflect.DeepEqual(got, test.want) {
 		t.Errorf("NewBlocksmith() = %v, want %v", got, test.want)
 	}
 }
@@ -415,13 +422,13 @@ func TestBlocksmith_GetTimestamp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			blocksmith := &Blocksmith{
-				NodePublicKey:    tt.fields.NodePublicKey,
-				AccountPublicKey: tt.fields.AccountPublicKey,
-				Balance:          tt.fields.Balance,
-				SmithTime:        tt.fields.SmithTime,
-				BlockSeed:        tt.fields.BlockSeed,
-				SecretPhrase:     tt.fields.SecretPhrase,
-				deadline:         tt.fields.deadline,
+				NodePublicKey: tt.fields.NodePublicKey,
+				AccountID:     tt.fields.AccountPublicKey,
+				Balance:       tt.fields.Balance,
+				SmithTime:     tt.fields.SmithTime,
+				BlockSeed:     tt.fields.BlockSeed,
+				SecretPhrase:  tt.fields.SecretPhrase,
+				deadline:      tt.fields.deadline,
 			}
 			if got := blocksmith.GetTimestamp(tt.args.smithMax); got != tt.want {
 				t.Errorf("Blocksmith.GetTimestamp() = %v, want %v", got, tt.want)
