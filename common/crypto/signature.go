@@ -1,0 +1,75 @@
+package crypto
+
+import (
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+)
+
+type (
+	SignatureInterface interface {
+		Sign(payload, accountID []byte, seed string) []byte
+		SignBlock(payload []byte, nodeSeed string) []byte
+		VerifySignature(payload, signature, accountID []byte) bool
+	}
+
+	// Signature object handle signing and verifying different signature
+	Signature struct {
+		Executor *query.Executor
+	}
+)
+
+// NewSignature create new instance of signature object
+func NewSignature(executor *query.Executor) *Signature {
+	return &Signature{
+		Executor: executor,
+	}
+}
+
+// Sign accept account ID and payload to be signed then return the signature byte based on the
+// signature method associated with account.Type
+func (*Signature) Sign(payload, accountID []byte, seed string) []byte {
+	// todo: Fetch account from accountID
+	account := &model.Account{
+		ID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+			255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		AccountType: 0,
+		Address:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	}
+	switch account.AccountType {
+	case 0: // zoobc
+		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
+		signature := ed25519Sign(payload, accountPrivateKey)
+		return signature
+	default:
+		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
+		signature := ed25519Sign(payload, accountPrivateKey)
+		return signature
+	}
+}
+
+// SignBlock special method for signing block only, there will be no multiple signature options
+func (*Signature) SignBlock(payload []byte, nodeSeed string) []byte {
+	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSeed)
+	return ed25519Sign(payload, nodePrivateKey)
+}
+
+// VerifySignature accept payload (before without signature), signature and the account id
+// then verify the signature + public key against the payload based on the
+func (*Signature) VerifySignature(payload, signature, accountID []byte) bool {
+	// todo: Fetch account from accountID
+	account := &model.Account{
+		ID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+			255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		AccountType: 0,
+		Address:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	}
+
+	switch account.AccountType {
+	case 0: // zoobc
+		result := ed25519VerifySignature(payload, signature, accountID)
+		return result
+	default:
+		result := ed25519VerifySignature(payload, signature, accountID)
+		return result
+	}
+}

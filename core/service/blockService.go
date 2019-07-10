@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	"github.com/zoobc/zoobc-core/common/contract"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -16,8 +18,8 @@ import (
 type (
 	BlockServiceInterface interface {
 		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
-		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
-			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte, hash string,
+			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
@@ -33,22 +35,24 @@ type (
 		Chaintype     contract.ChainType
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
+		Signature     crypto.SignatureInterface
 	}
 )
 
 func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface) *BlockService {
+	blockQuery query.BlockQueryInterface, signature crypto.SignatureInterface) *BlockService {
 	return &BlockService{
 		Chaintype:     chaintype,
 		QueryExecutor: queryExecutor,
 		BlockQuery:    blockQuery,
+		Signature:     signature,
 	}
 }
 
 // NewBlock generate new block
-func (*BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
-	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block {
+func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
+	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
+	payloadHash []byte, secretPhrase string) *model.Block {
 	block := &model.Block{
 		Version:           version,
 		PreviousBlockHash: previousBlockHash,
@@ -62,11 +66,13 @@ func (*BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, bloc
 		Transactions:      transactions,
 		PayloadHash:       payloadHash,
 	}
+	blockUnsignedByte, _ := core_util.GetBlockByte(block, false)
+	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
 	return block
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
-func (*BlockService) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
+func (bs *BlockService) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
 	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
 	genesisSignature []byte) *model.Block {

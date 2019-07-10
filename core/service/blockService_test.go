@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	"github.com/DATA-DOG/go-sqlmock"
 
 	"github.com/google/go-cmp/cmp"
@@ -19,11 +21,18 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+type mockSignature struct {
+	crypto.Signature
+}
+
+func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte { return []byte{} }
+
 func TestNewBlockService(t *testing.T) {
 	type args struct {
 		chaintype     contract.ChainType
 		queryExecutor query.ExecutorInterface
 		blockQuery    query.BlockQueryInterface
+		signature     crypto.SignatureInterface
 	}
 	test := struct {
 		name string
@@ -35,14 +44,16 @@ func TestNewBlockService(t *testing.T) {
 			chaintype:     &chaintype.MainChain{},
 			queryExecutor: nil,
 			blockQuery:    nil,
+			signature:     nil,
 		},
 		want: &BlockService{
 			Chaintype:     &chaintype.MainChain{},
 			QueryExecutor: nil,
 			BlockQuery:    nil,
+			Signature:     nil,
 		},
 	}
-	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery)
+	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery, test.args.signature)
 
 	if !cmp.Equal(got, test.want) {
 		t.Errorf("NewBlockService() = %v, want %v", got, test.want)
@@ -55,6 +66,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 		Chaintype     contract.ChainType
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
+		Signature     crypto.SignatureInterface
 	}
 	type args struct {
 		version             uint32
@@ -82,6 +94,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 			Chaintype:     &chaintype.MainChain{},
 			QueryExecutor: nil,
 			BlockQuery:    nil,
+			Signature:     &mockSignature{},
 		},
 		args: args{
 			version:             1,
@@ -109,12 +122,14 @@ func TestBlockService_NewBlock(t *testing.T) {
 			TotalCoinBase:     0,
 			Transactions:      []*model.Transaction{},
 			PayloadHash:       []byte{},
+			BlockSignature:    []byte{},
 		},
 	}
 	b := &BlockService{
 		Chaintype:     test.fields.Chaintype,
 		QueryExecutor: test.fields.QueryExecutor,
 		BlockQuery:    test.fields.BlockQuery,
+		Signature:     test.fields.Signature,
 	}
 	if got := b.NewBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID, test.args.hash,
 		test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee, test.args.totalCoinBase,
