@@ -124,7 +124,7 @@ func (bs *BlockService) GetBlocks(chainType contract.ChainType, blockSize, block
 	var rows *sql.Rows
 	var err error
 	blocks := []*model.Block{}
-	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(blockHeight))
+	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(blockHeight, blockSize))
 
 	if err != nil {
 		fmt.Printf("GetBlocks fails %v\n", err)

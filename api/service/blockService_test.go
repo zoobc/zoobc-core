@@ -50,9 +50,44 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 		BlockHeight uint32
 		Blocks      []*model.Block
 	}{
-		BlockSize:   0,
+		BlockSize:   2,
 		BlockHeight: 0,
-		Blocks:      []*model.Block{},
+		Blocks: []*model.Block{
+			{
+				ID:                   1,
+				PreviousBlockHash:    []byte{},
+				Height:               1,
+				Timestamp:            10000,
+				BlockSeed:            []byte{},
+				BlockSignature:       []byte{},
+				CumulativeDifficulty: "",
+				SmithScale:           1,
+				PayloadLength:        2,
+				PayloadHash:          []byte{},
+				BlocksmithID:         []byte{},
+				TotalAmount:          0,
+				TotalFee:             0,
+				TotalCoinBase:        0,
+				Version:              1,
+			},
+			{
+				ID:                   1,
+				PreviousBlockHash:    []byte{},
+				Height:               2,
+				Timestamp:            11000,
+				BlockSeed:            []byte{},
+				BlockSignature:       []byte{},
+				CumulativeDifficulty: "",
+				SmithScale:           1,
+				PayloadLength:        2,
+				PayloadHash:          []byte{},
+				BlocksmithID:         []byte{},
+				TotalAmount:          0,
+				TotalFee:             0,
+				TotalCoinBase:        0,
+				Version:              1,
+			},
+		},
 	}
 
 	db, mock, err := sqlmock.New()
@@ -74,7 +109,7 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 			want: &model.GetBlocksResponse{
 				Blocks:      mockData.Blocks,
 				BlockHeight: mockData.BlockHeight,
-				BlockSize:   uint32(len(mockData.Blocks)),
+				BlockSize:   2,
 			},
 			wantErr: false,
 		},
@@ -82,10 +117,14 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 
 	chainType := chaintype.GetChainType(0)
 	blockQuery := query.NewBlockQuery(chainType)
-	queryStr := blockQuery.GetBlocks(0)
-	mock.ExpectQuery(queryStr).
-		WillReturnRows(sqlmock.NewRows(blockQuery.Fields))
+	queryStr := blockQuery.GetBlocks(mockData.BlockHeight, mockData.BlockSize)
 
+	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version",
+	}).AddRow(
+		1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(
+		1, []byte{}, 2, 11000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := instance.GetBlocks(chainType, mockData.BlockSize, mockData.BlockHeight)
