@@ -176,9 +176,13 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9c4fed825c10231651e81bf0ab2c12e3a6cc349dcc62a78f8d3a9dfb6744855e"
+  digest = "1:fcce1a643dc47e06d586f09bee0c55f236435878f348b3ec3537ccfa347b1db0"
   name = "golang.org/x/crypto"
-  packages = ["sha3"]
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "sha3",
+  ]
   pruneopts = "UT"
   revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
 
@@ -309,6 +313,7 @@
     "github.com/mattn/go-sqlite3",
     "github.com/sirupsen/logrus",
     "github.com/spf13/viper",
+    "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/sha3",
     "golang.org/x/net/context",
     "google.golang.org/genproto/googleapis/api/annotations",

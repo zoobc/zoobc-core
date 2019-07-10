@@ -192,6 +192,7 @@ func TestGetBlockID(t *testing.T) {
 					Transactions:         []*model.Transaction{},
 					PayloadHash:          []byte{},
 					CumulativeDifficulty: "341353517378119",
+					BlockSignature:       []byte{},
 					SmithScale:           54040,
 				},
 			},
@@ -212,6 +213,7 @@ func TestGetBlockID(t *testing.T) {
 					Transactions:         []*model.Transaction{},
 					PayloadHash:          []byte{},
 					CumulativeDifficulty: "355353517378119",
+					BlockSignature:       []byte{},
 					SmithScale:           48985,
 				},
 			},
@@ -230,11 +232,13 @@ func TestGetBlockID(t *testing.T) {
 func TestGetBlockByte(t *testing.T) {
 	type args struct {
 		block *model.Block
+		sign  bool
 	}
 	tests := []struct {
-		name string
-		args args
-		want []byte
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
 	}{
 		{
 			name: "GetBlockByte:one",
@@ -253,10 +257,12 @@ func TestGetBlockByte(t *testing.T) {
 					CumulativeDifficulty: "355353517378119",
 					SmithScale:           48985,
 				},
+				sign: false,
 			},
 			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 43, 65, 32, 56, 2, 65, 76, 32, 76, 12, 12, 34, 65,
 				76, 1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
+			wantErr: false,
 		},
 		{
 			name: "GetBlockByte:withSignature",
@@ -276,15 +282,44 @@ func TestGetBlockByte(t *testing.T) {
 					BlockSignature:       []byte{1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21},
 					SmithScale:           48985,
 				},
+				sign: true,
 			},
 			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 43, 65, 32, 56, 2, 65, 76, 32, 76, 12, 12, 34, 65, 76, 1, 2, 4,
 				5, 67, 89, 86, 3, 6, 22, 1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21},
+			wantErr: false,
+		},
+		{
+			name: "GetBlockByte:error-{sign true without signature}",
+			args: args{
+				block: &model.Block{
+					Version:              1,
+					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
+					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
+					BlocksmithID:         []byte{12, 43, 65, 32, 56},
+					Timestamp:            15875592,
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					CumulativeDifficulty: "355353517378119",
+					SmithScale:           48985,
+				},
+				sign: true,
+			},
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetBlockByte(tt.args.block); !reflect.DeepEqual(got, tt.want) {
+			got, err := GetBlockByte(tt.args.block, tt.args.sign)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBlockByte() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlockByte() = %v, want %v", got, tt.want)
 			}
 		})
