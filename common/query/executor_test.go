@@ -233,3 +233,65 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 	})
 
 }
+
+func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
+	const insertBlockQuery = "insert into blocks(id, blocksmith_id) values(?, ?)"
+	t.Run("PrepareFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
+		queries := make(map[*string][]interface{})
+		insertBlock := "insert into blocks(id, blocksmith_id) values(?, ?)"
+		queries[&insertBlock] = []interface{}{1, []byte{1, 2, 34}}
+		// test error prepare
+		executor := Executor{db}
+		_, err := executor.ExecuteTransactionStatements(queries)
+		if err == nil {
+			t.Error("should return error if prepare fail")
+		}
+	})
+	t.Run("MultipleIdenticalQuery:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 14}).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		mock.ExpectClose()
+
+		queries := make(map[*string][]interface{})
+		insertBlock := insertBlockQuery
+		insertBlockAgain := insertBlockQuery
+		queries[&insertBlock] = []interface{}{1, []byte{1, 2, 34}}
+		queries[&insertBlockAgain] = []interface{}{1, []byte{1, 2, 14}}
+		// test error prepare
+		executor := Executor{db}
+		_, err := executor.ExecuteTransactionStatements(queries)
+		if err != nil {
+			t.Error("should return error if prepare fail")
+		}
+	})
+	t.Run("MultipleIdenticalQuery:execFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 14}).WillReturnError(errors.New("mockError"))
+
+		queries := make(map[*string][]interface{})
+		insertBlock := insertBlockQuery
+		insertBlockAgain := insertBlockQuery
+		queries[&insertBlock] = []interface{}{1, []byte{1, 2, 34}}
+		queries[&insertBlockAgain] = []interface{}{1, []byte{1, 2, 14}}
+		// test error prepare
+		executor := Executor{db}
+		_, err := executor.ExecuteTransactionStatements(queries)
+		if err == nil {
+			t.Error("should return error if exec fail")
+		}
+	})
+}
