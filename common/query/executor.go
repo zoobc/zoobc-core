@@ -75,7 +75,7 @@ func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows,
 		rows *sql.Rows
 	)
 
-	rows, err = qe.Db.Query(query, args)
+	rows, err = qe.Db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
