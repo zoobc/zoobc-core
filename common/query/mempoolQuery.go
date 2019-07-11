@@ -47,8 +47,8 @@ func (mpq *MempoolQuery) GetMempoolTransactions() string {
 }
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
-func (mpq *MempoolQuery) GetMempoolTransaction(ID []byte) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id=%v", strings.Join(mpq.Fields, ", "), mpq.getTableName())
+func (mpq *MempoolQuery) GetMempoolTransaction(id []byte) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id=%v", strings.Join(mpq.Fields, ", "), mpq.getTableName(), id)
 }
 
 func (mpq *MempoolQuery) InsertMempoolTransaction() string {
