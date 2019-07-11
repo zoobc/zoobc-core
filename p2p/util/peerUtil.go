@@ -56,3 +56,15 @@ func ResolvedPeer(host *model.Host, peer *model.Peer) (udpatedHost *model.Host) 
 	host.Peers[GetFullAddressPeer(peer)] = peer
 	return host
 }
+
+// PeerUnblacklist to
+func PeerUnblacklist(peer *model.Peer) *model.Peer {
+	peer.BlacklistingCause = ""
+	peer.BlacklistingTime = 0
+	if peer.State == model.PeerState_BLACKLISTED {
+		peer.State = model.PeerState_NON_CONNECTED
+		// observers.PeerNotifier().Notify(observers.PEER_UNBLACKLISTED, peer, new(struct{}))
+	}
+	return peer
+	// _ = updatePeer(peer)
+}

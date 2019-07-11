@@ -114,3 +114,27 @@ func (hs HostService) getMorePeers() {
 		go NewPeerService(0).GetMorePeers(peer)
 	}
 }
+
+// UpdateBlacklistedStatus go routine that checks, every 60sec if there are blacklisted peers to unblacklist
+func (hs HostService) UpdateBlacklistedStatus() {
+	ticker := time.NewTicker(60 * time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	BlacklistingPeriodSeconds := uint32(5) // ---> draft
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				curTime := uint32(time.Now().Unix())
+				for _, p := range hs.Host.GetKnownPeers() {
+					if p.GetState() == model.PeerState_BLACKLISTED && p.GetBlacklistingTime() > 0 && p.GetBlacklistingTime()+BlacklistingPeriodSeconds <= curTime {
+						p = util.PeerUnblacklist(p)
+					}
+				}
+			case <-sigs:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}
