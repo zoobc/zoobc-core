@@ -2,6 +2,7 @@ package util
 
 import (
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // NewHost to
@@ -26,4 +27,20 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 	host.KnownPeers = knownPeersMap
 	host.UnresolvedPeers = unresolvedPeersMap
 	return host
+}
+
+// GetAnyPeer Get any peer
+func GetAnyPeer(hs *model.Host) *model.Peer {
+	if len(hs.Peers) < 1 {
+		return nil
+	}
+	randomIdx := int(util.GetSecureRandom()) % len(hs.Peers)
+	idx := 0
+	for _, peer := range hs.Peers {
+		if idx == randomIdx {
+			return peer
+		}
+		idx++
+	}
+	return nil
 }

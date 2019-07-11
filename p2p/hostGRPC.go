@@ -60,6 +60,19 @@ func (hs HostService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoReq
 	return &model.Node{SharedAddress: hs.Host.GetInfo().GetSharedAddress(), Port: hs.Host.GetInfo().GetPort()}, nil
 }
 
+// GetMorePeers contains info other peers
+func (hs HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
+	peers := &model.GetMorePeersResponse{
+		Peers: []*model.Node{
+			&model.Node{
+				SharedAddress: hs.Host.GetInfo().GetSharedAddress(),
+				Port:          hs.Host.GetInfo().GetPort(),
+			},
+		},
+	}
+	return peers, nil
+}
+
 // func (hs hostService) AddPeers(ctx context.Context, req *model.PostAddPeersRequest) (*model.PostAddPeersResponse, error) {
 // 	hs.Chaintype = hs.getChaintype(ctx)
 // 	var peersInfo = []*pbMessages.NodeInfo{}

@@ -7,7 +7,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/BlockchainZoo/testForge/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/p2p/util"
@@ -24,6 +23,10 @@ type HostService struct {
 }
 
 var hostServiceInstance *HostService
+
+const (
+	resolvePeersGapSecond uint8 = 10
+)
 
 // InitHostService to start peer process
 func InitHostService(myAddress string, port uint32, wellknownPeers []string) (*HostService, error) {
@@ -56,7 +59,7 @@ func NewHostService(chaintype contract.ChainType) *HostService {
 // ResolvePeersThread to checking UnresolvedPeer
 func (hs HostService) ResolvePeersThread() {
 	go hs.resolvePeers()
-	ticker := time.NewTicker(time.Duration(constant.RESOLVE_PEERS_GAP_SECOND) * time.Second)
+	ticker := time.NewTicker(time.Duration(resolvePeersGapSecond) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
@@ -86,4 +89,28 @@ func (hs HostService) resolvePeer(destPeer *model.Peer) {
 	// hs.Host.Log(util.GetFullAddressPeer(destPeer) + " success")
 	updatedHost := util.ResolvedPeer(hs.Host, destPeer)
 	hs.Host = updatedHost
+}
+
+// GetMorePeersThread to Get More Peers
+func (hs HostService) GetMorePeersThread() {
+	go hs.getMorePeers()
+	ticker := time.NewTicker(time.Duration(resolvePeersGapSecond) * time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		select {
+		case <-ticker.C:
+			go hs.getMorePeers()
+		case <-sigs:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (hs HostService) getMorePeers() {
+	peer := util.GetAnyPeer(hs.Host)
+	if peer != nil {
+		go NewPeerService(0).GetMorePeers(peer)
+	}
 }
