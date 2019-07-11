@@ -12,6 +12,7 @@ type (
 		ExecuteSelect(string) (*sql.Rows, error)
 		ExecuteTransactions(queries []string) ([]sql.Result, error)
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
+		ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error)
 	}
 
 	// Executor struct
@@ -107,6 +108,42 @@ func (qe *Executor) ExecuteTransactions(queries []string) ([]sql.Result, error) 
 		defer stmt.Close()
 
 		result, err := stmt.Exec()
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// ExecuteTransactionStatements execute list of statement in transaction
+// will return error in case one or more of the query fail
+func (qe *Executor) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+	var (
+		stmt    *sql.Stmt
+		tx      *sql.Tx
+		err     error
+		results []sql.Result
+	)
+
+	tx, err = qe.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	for query, value := range queries {
+		stmt, err = tx.Prepare(*query)
+		if err != nil {
+			return nil, err
+		}
+		defer stmt.Close()
+
+		result, err := stmt.Exec(value...)
 		if err != nil {
 			_ = tx.Rollback()
 			return nil, err
