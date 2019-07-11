@@ -12,7 +12,7 @@ import (
 )
 
 // GetPeerInfo to get Peer info
-func (cs PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
+func (cs *PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
 	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
 	defer conn.Close()
 	if err != nil {
@@ -30,7 +30,7 @@ func (cs PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
 }
 
 // GetMorePeers to collect more peers available
-func (cs PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
+func (cs *PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
 	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
 	defer conn.Close()
 	if err != nil {
@@ -43,5 +43,8 @@ func (cs PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersRes
 		log.Printf("could not greet: %v\n", err)
 		return nil, err
 	}
+
+	udpatedHost := util.AddToUnresolvedPeers(hostServiceInstance.Host, res.GetPeers())
+	hostServiceInstance.Host = udpatedHost
 	return res, err
 }

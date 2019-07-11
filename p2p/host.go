@@ -87,7 +87,7 @@ func (hs HostService) resolvePeer(destPeer *model.Peer) {
 		return
 	}
 	// hs.Host.Log(util.GetFullAddressPeer(destPeer) + " success")
-	updatedHost := util.ResolvedPeer(hs.Host, destPeer)
+	updatedHost := util.AddToResolvedPeer(hs.Host, destPeer)
 	hs.Host = updatedHost
 }
 

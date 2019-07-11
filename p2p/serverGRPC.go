@@ -51,17 +51,17 @@ func (hs HostService) startListening() {
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
 	hs.GrpcServer = grpc.NewServer()
-	service.RegisterP2PCommunicationServer(hs.GrpcServer, hs)
+	service.RegisterP2PCommunicationServer(hs.GrpcServer, &hs)
 	hs.GrpcServer.Serve(serv)
 }
 
 // GetPeerInfo to
-func (hs HostService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+func (hs *HostService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
 	return &model.Node{SharedAddress: hs.Host.GetInfo().GetSharedAddress(), Port: hs.Host.GetInfo().GetPort()}, nil
 }
 
 // GetMorePeers contains info other peers
-func (hs HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
+func (hs *HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
 
 	var nodes []*model.Node
 	for _, hostPeer := range hs.Host.Peers {
@@ -75,13 +75,3 @@ func (hs HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*mode
 	}
 	return peers, nil
 }
-
-// func (hs hostService) AddPeers(ctx context.Context, req *model.PostAddPeersRequest) (*model.PostAddPeersResponse, error) {
-// 	hs.Chaintype = hs.getChaintype(ctx)
-// 	var peersInfo = []*pbMessages.NodeInfo{}
-// 	for _, knownPeer := range hs.Host.GetKnownPeers() {
-// 		peerInfo := &pbMessages.NodeInfo{Version: "v1.0.0", SharedAddress: knownPeer.GetFullAddress()}
-// 		peersInfo = append(peersInfo, peerInfo)
-// 	}
-// 	return &pbMessages.PeersInfo{Peers: peersInfo}, nil
-// }

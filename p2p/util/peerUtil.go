@@ -50,10 +50,27 @@ func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
 }
 
-// ResolvedPeer to
-func ResolvedPeer(host *model.Host, peer *model.Peer) (udpatedHost *model.Host) {
+// AddToResolvedPeer to
+func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
 	delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
 	host.Peers[GetFullAddressPeer(peer)] = peer
+	return host
+}
+
+// AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list in host
+func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host {
+	hostAddress := &model.Peer{
+		Info: host.Info,
+	}
+	for _, node := range newNodes {
+		peer := &model.Peer{
+			Info: node,
+		}
+		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil && host.Peers[GetFullAddressPeer(peer)] == nil && GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
+			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
+			// _ = updatePeer(peer)
+		}
+	}
 	return host
 }
 
