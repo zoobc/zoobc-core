@@ -85,7 +85,8 @@ func CalculateSmithScale(previousBlock, block *model.Block, smithingDelayTime in
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
 		digest := sha3.New512()
-		_, _ = digest.Write(GetBlockByte(block))
+		blockByte, _ := GetBlockByte(block, true)
+		_, _ = digest.Write(blockByte)
 		hash := digest.Sum([]byte{})
 		res := new(big.Int)
 		block.ID = res.SetBytes([]byte{
@@ -104,7 +105,7 @@ func GetBlockID(block *model.Block) int64 {
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
-func GetBlockByte(block *model.Block) []byte {
+func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(block.GetVersion()))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTimestamp())))
@@ -117,11 +118,13 @@ func GetBlockByte(block *model.Block) []byte {
 	buffer.Write(block.GetBlocksmithID())
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
-	if block.BlockSignature != nil {
+	if signed {
+		if block.BlockSignature == nil {
+			return nil, errors.New("BlockNotSigned")
+		}
 		buffer.Write(block.BlockSignature)
 	}
-
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // ValidateBlock validate block to be pushed into the blockchain

@@ -21,13 +21,13 @@ type (
 
 	// Blocksmith is wrapper for the account in smithing process
 	Blocksmith struct {
-		NodePublicKey    []byte
-		AccountPublicKey []byte
-		Balance          *big.Int
-		SmithTime        int64
-		BlockSeed        *big.Int
-		SecretPhrase     string
-		deadline         uint32
+		NodePublicKey []byte
+		AccountID     []byte
+		Balance       *big.Int
+		SmithTime     int64
+		BlockSeed     *big.Int
+		SecretPhrase  string
+		deadline      uint32
 	}
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
@@ -50,12 +50,13 @@ func NewBlockchainProcessor(chaintype contract.ChainType, blocksmith *Blocksmith
 }
 
 // InitGenerator initiate generator
-func NewBlocksmith() *Blocksmith {
+func NewBlocksmith(nodeSecretPhrase string) *Blocksmith {
+	// todo: get node[private + public key] + look up account [public key, ID]
 	blocksmith := &Blocksmith{
-		AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+		AccountID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
 			255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		Balance:      big.NewInt(1000000000),
-		SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+		SecretPhrase: nodeSecretPhrase,
 		NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219,
 			80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 	}
@@ -81,7 +82,7 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 		generator.SmithTime = 0
 		generator.BlockSeed = big.NewInt(0)
 	}
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.AccountPublicKey, lastBlock)
+	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.AccountID, lastBlock)
 	generator.SmithTime = coreUtil.GetSmithTime(generator.Balance, generator.BlockSeed, lastBlock)
 	generator.deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
@@ -95,7 +96,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
-	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountPublicKey != nil {
+	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountID != nil {
 		if bp.Generator.SmithTime > smithMax {
 			log.Printf("skip forge\n")
 			return errors.New("SmithSkip")
@@ -149,13 +150,14 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	blocksmith := bp.Generator.AccountPublicKey
+	blocksmith := bp.Generator.AccountID
 	_, _ = digest.Write(blocksmith)
 	blockSeed := digest.Sum([]byte{})
-	digest.Reset()                                                         // reset the digest
-	previousBlockHash := sha3.Sum512(coreUtil.GetBlockByte(previousBlock)) // PreviousBlock.Byte
-	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash),
-		newBlockHeight, timestamp, totalAmount, totalFee, totalCoinbase, []*model.Transaction{}, nil, secretPhrase)
+	digest.Reset() // reset the digest
+	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
+	previousBlockHash := sha3.Sum512(previousBlockByte)
+	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash), newBlockHeight, timestamp,
+		totalAmount, totalFee, totalCoinbase, []*model.Transaction{}, nil, secretPhrase)
 	log.Printf("block forged: fee %d\n", totalFee)
 	return block, nil
 }

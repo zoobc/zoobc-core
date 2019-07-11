@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/core/service"
 
@@ -64,8 +66,10 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-	blockchainProcessor := smith.NewBlockchainProcessor(mainchain, smith.NewBlocksmith(), service.NewBlockService(mainchain,
-		query.NewQueryExecutor(db), query.NewBlockQuery(mainchain)))
+	// todo: read secret phrase from config
+	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
+		smith.NewBlocksmith("concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"),
+		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain), crypto.NewSignature(queryExecutor)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
 		_ = blockchainProcessor.AddGenesis()
 	}
