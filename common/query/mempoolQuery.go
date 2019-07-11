@@ -12,7 +12,9 @@ import (
 type (
 	MempoolQueryInterface interface {
 		GetMempoolTransactions() string
+		GetMempoolTransaction(id []byte) string
 		InsertMempoolTransaction() string
+		DeleteMempoolTransaction(id []byte) string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 	}
 
@@ -60,6 +62,11 @@ func (mpq *MempoolQuery) InsertMempoolTransaction() string {
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
 		mpq.getTableName(), strings.Join(mpq.Fields, ", "), value)
 	return query
+}
+
+// DeleteMempoolTransaction delete one mempool transaction by id
+func (mpq *MempoolQuery) DeleteMempoolTransaction(id []byte) string {
+	return fmt.Sprintf("DELETE FROM %s WHERE id=%v", mpq.getTableName(), id)
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
