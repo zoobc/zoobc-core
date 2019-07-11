@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	dbPath, dbName string
-	dbInstance     *database.SqliteDB
-	db             *sql.DB
+	dbPath, dbName   string
+	dbInstance       *database.SqliteDB
+	db               *sql.DB
+	nodeSecretPhrase string
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
+		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -68,13 +70,14 @@ func main() {
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 	// todo: read secret phrase from config
 	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
-		smith.NewBlocksmith("concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"),
+		smith.NewBlocksmith(nodeSecretPhrase),
 		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain), crypto.NewSignature(queryExecutor)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
 		_ = blockchainProcessor.AddGenesis()
 	}
-
-	go startSmith(sleepPeriod, blockchainProcessor)
+	if len(nodeSecretPhrase) > 0 {
+		go startSmith(sleepPeriod, blockchainProcessor)
+	}
 
 	startServices(queryExecutor)
 
