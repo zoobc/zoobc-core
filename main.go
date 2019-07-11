@@ -23,10 +23,11 @@ import (
 )
 
 var (
-	dbPath, dbName   string
-	dbInstance       *database.SqliteDB
-	db               *sql.DB
-	nodeSecretPhrase string
+	dbPath, dbName          string
+	dbInstance              *database.SqliteDB
+	db                      *sql.DB
+	nodeSecretPhrase        string
+	apiRpcPort, apiHttpPort int
 )
 
 func init() {
@@ -37,6 +38,14 @@ func init() {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
 		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
+		apiRpcPort = viper.GetInt("apiRpcPort")
+		if apiRpcPort == 0 {
+			apiRpcPort = 8080
+		}
+		apiHttpPort = viper.GetInt("apiHttpPort")
+		if apiHttpPort == 0 {
+			apiHttpPort = 8000
+		}
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -50,7 +59,7 @@ func init() {
 }
 
 func startServices(queryExecutor *query.Executor) {
-	api.Start(8000, 8080, queryExecutor)
+	api.Start(apiRpcPort, apiHttpPort, queryExecutor)
 }
 
 func main() {
