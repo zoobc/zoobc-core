@@ -9,7 +9,7 @@ type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
-		ExecuteSelect(string) (*sql.Rows, error)
+		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
 		ExecuteTransactions(queries []string) ([]sql.Result, error)
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 	}
@@ -69,13 +69,13 @@ And ***need to `Close()` the rows***.
 This function is necessary if you want to processing the rows,
 otherwise you can use `Execute` or `ExecuteTransactions`
 */
-func (qe *Executor) ExecuteSelect(query string) (*sql.Rows, error) {
+func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error) {
 	var (
 		err  error
 		rows *sql.Rows
 	)
 
-	rows, err = qe.Db.Query(query)
+	rows, err = qe.Db.Query(query, args)
 	if err != nil {
 		return nil, err
 	}
