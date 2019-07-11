@@ -337,7 +337,7 @@ type mockQueryExecutorSuccess struct {
 	query.Executor
 }
 
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string) (*sql.Rows, error) {
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -377,7 +377,7 @@ type mockQueryExecutorFail struct {
 	query.Executor
 }
 
-func (*mockQueryExecutorFail) ExecuteSelect(string) (*sql.Rows, error) {
+func (*mockQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
@@ -389,7 +389,7 @@ type mockQueryExecutorSQLFail struct {
 	query.Executor
 }
 
-func (*mockQueryExecutorSQLFail) ExecuteSelect(qe string) (*sql.Rows, error) {
+func (*mockQueryExecutorSQLFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
