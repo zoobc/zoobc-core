@@ -13,7 +13,7 @@ type (
 	MempoolQueryInterface interface {
 		GetMempoolTransactions() string
 		InsertMempoolTransaction() string
-		ExtractModel(block model.MempoolTransaction) []interface{}
+		ExtractModel(block *model.MempoolTransaction) []interface{}
 	}
 
 	MempoolQuery struct {
@@ -37,27 +37,32 @@ func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 	}
 }
 
-func (bq *MempoolQuery) getTableName() string {
-	return bq.ChainType.GetTablePrefix() + "_" + bq.TableName
+func (mpq *MempoolQuery) getTableName() string {
+	return mpq.ChainType.GetTablePrefix() + "_" + mpq.TableName
 }
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
-func (bq *MempoolQuery) GetMempoolTransactions() string {
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(bq.Fields, ", "), bq.getTableName())
+func (mpq *MempoolQuery) GetMempoolTransactions() string {
+	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(mpq.Fields, ", "), mpq.getTableName())
 }
 
-func (bq *MempoolQuery) InsertMempoolTransaction() string {
-	var value = ":" + bq.Fields[0]
-	for _, field := range bq.Fields[1:] {
+// GetMempoolTransactions returns query string to get multiple mempool transactions
+func (mpq *MempoolQuery) GetMempoolTransaction(ID []byte) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id=%v", strings.Join(mpq.Fields, ", "), mpq.getTableName())
+}
+
+func (mpq *MempoolQuery) InsertMempoolTransaction() string {
+	var value = ":" + mpq.Fields[0]
+	for _, field := range mpq.Fields[1:] {
 		value += (", :" + field)
 
 	}
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
-		bq.getTableName(), strings.Join(bq.Fields, ", "), value)
+		mpq.getTableName(), strings.Join(mpq.Fields, ", "), value)
 	return query
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
-func (*MempoolQuery) ExtractModel(mempool model.MempoolTransaction) []interface{} {
+func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface{} {
 	return []interface{}{mempool.ID, mempool.FeePerByte, mempool.ArrivalTimestamp, mempool.TransactionBytes}
 }

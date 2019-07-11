@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -17,7 +16,8 @@ type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
 		InitMempool() error
-		GetTransactions(ctNum int32) ([]*model.MempoolTransaction, error)
+		GetTransactions() ([]*model.MempoolTransaction, error)
+		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -30,21 +30,20 @@ type (
 )
 
 // NewMempoolService returns an instance of mempool service
-func NewMempoolService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
+func NewMempoolService(ct contract.ChainType, queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface) *MempoolService {
 	return &MempoolService{
-		Chaintype:     chaintype,
+		Chaintype:     ct,
 		QueryExecutor: queryExecutor,
 		MempoolQuery:  mempoolQuery,
 	}
 }
 
 // GetTransactions fetch transactions from mempool
-func (mps *MempoolService) GetTransactions(ctNum int32) ([]*model.MempoolTransaction, error) {
-	cType := chaintype.GetChainType(ctNum)
+func (mps *MempoolService) GetTransactions() ([]*model.MempoolTransaction, error) {
 	var rows *sql.Rows
 	var err error
-	rows, err = mps.QueryExecutor.ExecuteSelect(query.NewMempoolQuery(cType).GetMempoolTransactions())
+	rows, err = mps.QueryExecutor.ExecuteSelect(query.NewMempoolQuery(mps.Chaintype).GetMempoolTransactions())
 	defer rows.Close()
 	if err != nil {
 		log.Printf("GetMempoolTransactions fails %v\n", err)
@@ -71,6 +70,18 @@ func (mps *MempoolService) GetTransactions(ctNum int32) ([]*model.MempoolTransac
 
 }
 
+func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	//check if already in db
+	// 	// validate the transaction
+	// 	mpTx.GetTransaction().Validate()
+	result, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("got new mempool transaction, %v", result)
+	return nil
+}
+
 // ProcessPeerTransaction reference: processPeerTransactions()
 // func ProcessPeerTransaction(chaintype contract.ChainType, mpTx *model.Mempool) error {
 // 	// iterate the transactions
@@ -93,7 +104,7 @@ func (mps *MempoolService) GetTransactions(ctNum int32) ([]*model.MempoolTransac
 // }
 
 // AddMempoolTransaction add a transaction to mempool
-func AddMempoolTransaction(ctNum int32, mpTx model.MempoolTransaction) error {
+func AddMempoolTransaction(ctNum int32, mpTx *model.MempoolTransaction) error {
 	tcJSON, _ := json.MarshalIndent(mpTx, " ", "  ")
 	fmt.Printf("AddMempoolTransaction %s\n", tcJSON)
 
