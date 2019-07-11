@@ -62,13 +62,16 @@ func (hs HostService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoReq
 
 // GetMorePeers contains info other peers
 func (hs HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
+
+	var nodes []*model.Node
+	for _, hostPeer := range hs.Host.Peers {
+		nodes = append(nodes, hostPeer.GetInfo())
+	}
+	for _, hostPeer := range hs.Host.UnresolvedPeers {
+		nodes = append(nodes, hostPeer.GetInfo())
+	}
 	peers := &model.GetMorePeersResponse{
-		Peers: []*model.Node{
-			&model.Node{
-				SharedAddress: hs.Host.GetInfo().GetSharedAddress(),
-				Port:          hs.Host.GetInfo().GetPort(),
-			},
-		},
+		Peers: nodes,
 	}
 	return peers, nil
 }
