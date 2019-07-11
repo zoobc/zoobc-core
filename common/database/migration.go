@@ -65,7 +65,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account" (
-				"id"	BLOB,
+				"account_id"	BLOB,
 				"account_type"	INTEGER,
 				"address"	TEXT,
 				PRIMARY KEY("id")
@@ -100,16 +100,6 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"payload_hash" BLOB,
 				PRIMARY KEY("id")
 			);`,
-			`
-			CREATE TABLE IF NOT EXISTS "account_balance" (
-				"account_id"	BLOB,
-				"balance"	INTEGER,
-				"spendable_balance"	INTEGER,
-				"pop_revenue"	INTEGER,
-				"block_height"	INTEGER,
-				"latest"	INTEGER
-			);
-			`,
 		}
 		return nil
 	}
