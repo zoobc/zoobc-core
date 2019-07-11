@@ -270,7 +270,7 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 		executor := Executor{db}
 		_, err := executor.ExecuteTransactionStatements(queries)
 		if err != nil {
-			t.Error("should return error if prepare fail")
+			t.Error("transaction should have been committed without error")
 		}
 	})
 	t.Run("MultipleIdenticalQuery:execFail", func(t *testing.T) {
