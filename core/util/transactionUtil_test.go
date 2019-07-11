@@ -85,6 +85,25 @@ func TestGetTransactionBytes(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "GetTransactionBytes:success-{without recipient}",
+			args: args{
+				transaction: &model.Transaction{
+					TransactionType: 2,
+					Timestamp:       1562806389280,
+					SenderAccountID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
+						77, 80, 80, 39, 254, 173, 28, 169},
+					Fee:                   1000000,
+					TransactionBodyLength: 8,
+					TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
+				},
+				sign: false,
+			},
+			want: []byte{2, 0, 32, 10, 133, 222, 107, 1, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239,
+				56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -16,7 +16,11 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionType)[:2])
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Timestamp)))
 	buffer.Write(transaction.SenderAccountID)
-	buffer.Write(transaction.RecipientAccountID)
+	if transaction.RecipientAccountID == nil {
+		buffer.Write(make([]byte, 32))
+	} else {
+		buffer.Write(transaction.RecipientAccountID)
+	}
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Fee)))
 	// transaction body length
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionBodyLength))
