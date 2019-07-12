@@ -18,7 +18,6 @@ func NewKnownPeer(address string, port int) *model.Peer {
 	nodeInfo.Address = address
 	nodeInfo.Port = uint32(port)
 	peer.Info = nodeInfo
-	// peer.State = NON_CONNECTED
 	return peer
 }
 
@@ -37,8 +36,7 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 
 		peerPort, err := strconv.Atoi(peerInfo[1])
 		if err != nil {
-			fmt.Println("Invalid port number in the passed knownPeers list")
-			return nil, errors.New("Invalid port number in the passed knownPeers list")
+			return nil, errors.New("invalid port number in the passed knownPeers list")
 		}
 		knownPeers = append(knownPeers, NewKnownPeer(peerAddress, peerPort))
 	}
@@ -66,9 +64,10 @@ func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host 
 		peer := &model.Peer{
 			Info: node,
 		}
-		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil && host.Peers[GetFullAddressPeer(peer)] == nil && GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
+		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil &&
+			host.Peers[GetFullAddressPeer(peer)] == nil &&
+			GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
 			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
-			// _ = updatePeer(peer)
 		}
 	}
 	return host
@@ -80,8 +79,6 @@ func PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingTime = 0
 	if peer.State == model.PeerState_BLACKLISTED {
 		peer.State = model.PeerState_NON_CONNECTED
-		// observers.PeerNotifier().Notify(observers.PEER_UNBLACKLISTED, peer, new(struct{}))
 	}
 	return peer
-	// _ = updatePeer(peer)
 }

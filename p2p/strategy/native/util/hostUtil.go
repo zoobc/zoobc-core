@@ -1,6 +1,8 @@
 package util
 
 import (
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -43,4 +45,8 @@ func GetAnyPeer(hs *model.Host) *model.Peer {
 		idx++
 	}
 	return nil
+}
+
+func GetTickerTime(duration uint32) *time.Ticker {
+	return time.NewTicker(time.Duration(duration) * time.Second)
 }

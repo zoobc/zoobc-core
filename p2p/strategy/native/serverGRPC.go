@@ -1,4 +1,4 @@
-package p2p
+package native
 
 import (
 	"context"
@@ -24,23 +24,23 @@ func init() {
 	}
 }
 
-// Start func to start host service in new goroutine
-func (hs HostService) Start() {
+// startServer to start server online
+func (hs *HostService) startServer() {
 	go hs.startListening()
 }
 
-// Stop function to stop current running host service
-func (hs HostService) Stop(gracefully bool) {
-	if hs.GrpcServer != nil {
-		if gracefully {
-			hs.GrpcServer.GracefulStop()
-		} else {
-			hs.GrpcServer.Stop()
-		}
-	}
-}
+// StopServer function to stop current running host service
+// func (hs *HostService) stopServer(gracefully bool) {
+// 	if hs.GrpcServer != nil {
+// 		if gracefully {
+// 			hs.GrpcServer.GracefulStop()
+// 		} else {
+// 			hs.GrpcServer.Stop()
+// 		}
+// 	}
+// }
 
-func (hs HostService) startListening() {
+func (hs *HostService) startListening() {
 	if hs.Host.GetInfo().GetAddress() == "" || hs.Host.GetInfo().GetPort() == 0 {
 		log.Fatalf("host is not setup")
 	}
@@ -51,8 +51,12 @@ func (hs HostService) startListening() {
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
 	hs.GrpcServer = grpc.NewServer()
-	service.RegisterP2PCommunicationServer(hs.GrpcServer, &hs)
-	hs.GrpcServer.Serve(serv)
+	service.RegisterP2PCommunicationServer(hs.GrpcServer, hs)
+	err2 := hs.GrpcServer.Serve(serv)
+
+	if err2 != nil {
+		log.Fatalf("GRPC failed to serve: %v", err)
+	}
 }
 
 // GetPeerInfo to
