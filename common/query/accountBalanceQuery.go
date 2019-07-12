@@ -1,25 +1,27 @@
 package query
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
-
-	"github.com/zoobc/zoobc-core/common/contract"
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
+	// AccountBalanceQuery is struct will implemented AccountBalanceInt
 	AccountBalanceQuery struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
 	}
+	// AccountBalanceInt interface that implemented by AccountBalanceQuery
 	AccountBalanceInt interface {
-		GetAccountBalanceByAccountID(accountID []byte) (*model.AccountBalance, error)
+		GetAccountBalanceByAccountID() string
+		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
+		InsertAccountBalance() string
 	}
 )
 
-func NewAccountBalanceQuery(chaintype contract.ChainType) *AccountBalanceQuery {
+// NewAccountBalanceQuery will create a new AccountBalanceQuery
+func NewAccountBalanceQuery() *AccountBalanceQuery {
 	return &AccountBalanceQuery{
 		Fields: []string{
 			"account_id",
@@ -29,7 +31,6 @@ func NewAccountBalanceQuery(chaintype contract.ChainType) *AccountBalanceQuery {
 			"pop_revenue",
 		},
 		TableName: "account_balance",
-		ChainType: chaintype,
 	}
 }
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
@@ -38,4 +39,46 @@ func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
 		FROM %s
 		WHERE account_id = ? 
 	`, strings.Join(q.Fields, ","), q.TableName)
+}
+
+func (q *AccountBalanceQuery) UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{}) {
+
+	var (
+		buff *bytes.Buffer
+		i, j int
+	)
+
+	buff = bytes.NewBufferString(fmt.Sprintf(`
+		UPDATE %s SET 
+	`, q.TableName))
+
+	for k, v := range fields {
+		buff.WriteString(fmt.Sprintf("%s = ?", k))
+		if i < len(fields) {
+			buff.WriteString(",")
+		}
+		args = append(args, v)
+		i++
+	}
+
+	buff.WriteString("WHERE")
+	for k, v := range causedFields {
+		buff.WriteString(fmt.Sprintf("%s = ?", k))
+		if j < len(causedFields) {
+			buff.WriteString(" AND")
+		}
+		j++
+		args = append(args, v)
+	}
+
+	return buff.String(), args
+}
+
+func (q *AccountBalanceQuery) InsertAccountBalance() string {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		q.TableName,
+		strings.Join(q.Fields, ","),
+		fmt.Sprintf("? %s", strings.Repeat(", ?", len(q.Fields)-1)),
+	)
 }
