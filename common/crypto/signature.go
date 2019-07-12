@@ -15,12 +15,12 @@ type (
 
 	// Signature object handle signing and verifying different signature
 	Signature struct {
-		Executor *query.Executor
+		Executor query.ExecutorInterface
 	}
 )
 
 // NewSignature create new instance of signature object
-func NewSignature(executor *query.Executor) *Signature {
+func NewSignature(executor query.ExecutorInterface) *Signature {
 	return &Signature{
 		Executor: executor,
 	}
@@ -28,15 +28,15 @@ func NewSignature(executor *query.Executor) *Signature {
 
 // Sign accept account ID and payload to be signed then return the signature byte based on the
 // signature method associated with account.Type
-func (*Signature) Sign(payload, accountID []byte, seed string) []byte {
-	// todo: Fetch account from accountID
-	account := &model.Account{
-		ID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
-			255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-		AccountType: 0,
-		Address:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+func (sig *Signature) Sign(payload, accountID []byte, seed string) []byte {
+	accountQuery := query.NewAccountQuery()
+	accountRows, _ := sig.Executor.ExecuteSelect(accountQuery.GetAccountByID(), accountID)
+	var accounts []*model.Account
+	account := accountQuery.BuildModel(accounts, accountRows)
+	if len(account) == 0 {
+		return nil
 	}
-	switch account.AccountType {
+	switch account[0].AccountType {
 	case 0: // zoobc
 		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
 		signature := ed25519.Sign(accountPrivateKey, payload)
