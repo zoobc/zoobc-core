@@ -14,6 +14,7 @@ import (
 func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionType)[:2])
+	buffer.Write(util.ConvertUint32ToBytes(transaction.Version)[:1])
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Timestamp)))
 	buffer.Write(util.ConvertUint32ToBytes(transaction.SenderAccountType)[:2])
 	buffer.Write([]byte(transaction.SenderAccountAddress))
@@ -39,8 +40,11 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 // ParseTransactionBytes build transaction from transaction bytes
 func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
 	buffer := bytes.NewBuffer(transactionBytes)
+
 	transactionTypeBytes := buffer.Next(2)
 	transactionType := util.ConvertBytesToUint32([]byte{transactionTypeBytes[0], transactionTypeBytes[1], 0, 0})
+	transactionVersionByte := buffer.Next(1)
+	transactionVersion := util.ConvertBytesToUint32([]byte{transactionVersionByte[0], 0, 0, 0})
 	timestamp := util.ConvertBytesToUint64(buffer.Next(8))
 	senderAccountType := buffer.Next(2)
 	senderAccountAddress := ReadAccountAddress(util.ConvertBytesToUint32([]byte{
@@ -62,6 +66,7 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	}
 	return &model.Transaction{
 		TransactionType: transactionType,
+		Version:         transactionVersion,
 		Timestamp:       int64(timestamp),
 		SenderAccountType: util.ConvertBytesToUint32([]byte{
 			senderAccountType[0], senderAccountType[1], 0, 0}),
