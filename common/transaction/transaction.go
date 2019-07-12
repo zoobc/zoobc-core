@@ -37,7 +37,7 @@ func GetTransactionType(tx *model.Transaction) interface{} {
 				Body:               tx.GetSendMoneyTransactionBody(),
 				SenderAccountID:    tx.GetSenderAccountID(),
 				RecipientAccountID: tx.GetRecipientAccountID(),
-				Heigh:              tx.GetHeight(),
+				Height:             tx.GetHeight(),
 			}
 		default:
 			return nil
