@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"reflect"
 	"regexp"
 	"testing"
@@ -25,9 +26,13 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interfa
 	defer db.Close()
 	switch qe {
 	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes"},
-		).AddRow(make([]byte, 32), 1, 1562893302, []byte{}))
+		mockedRows := sqlmock.NewRows([]string{"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes"})
+		mockedRows.AddRow(make([]byte, 32), 1, 1562893305, []byte{5, 5, 5, 5, 5})
+		mockedRows.AddRow(make([]byte, 32), 10, 1562893304, []byte{2, 2, 2, 2, 2})
+		mockedRows.AddRow(make([]byte, 32), 1, 1562893302, []byte{1, 1, 1, 1, 1})
+		mockedRows.AddRow(make([]byte, 32), 100, 1562893306, []byte{4, 4, 4, 4, 4})
+		mockedRows.AddRow(make([]byte, 32), 5, 1562893303, []byte{4, 4, 4, 4, 4})
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool WHERE id = :id":
 		return nil, errors.New("MempoolTransactionNotFound")
 	}
@@ -158,8 +163,32 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 				{
 					ID:               make([]byte, 32),
 					FeePerByte:       1,
+					ArrivalTimestamp: 1562893305,
+					TransactionBytes: []byte{5, 5, 5, 5, 5},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       10,
+					ArrivalTimestamp: 1562893304,
+					TransactionBytes: []byte{2, 2, 2, 2, 2},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       1,
 					ArrivalTimestamp: 1562893302,
-					TransactionBytes: []byte{},
+					TransactionBytes: []byte{1, 1, 1, 1, 1},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       100,
+					ArrivalTimestamp: 1562893306,
+					TransactionBytes: []byte{4, 4, 4, 4, 4},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       5,
+					ArrivalTimestamp: 1562893303,
+					TransactionBytes: []byte{4, 4, 4, 4, 4},
 				},
 			},
 			wantErr: false,
@@ -297,6 +326,80 @@ func TestMempoolService_RemoveMempoolTransaction(t *testing.T) {
 			}
 			if err := mps.RemoveMempoolTransaction(tt.args.id); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.RemoveMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
+	type fields struct {
+		Chaintype     contract.ChainType
+		QueryExecutor query.ExecutorInterface
+		MempoolQuery  query.MempoolQueryInterface
+	}
+	type args struct {
+		blockTimestamp int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.MempoolTransaction
+		wantErr bool
+	}{
+		{
+			name: "SelectTransactionsFromMempool:Success",
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor: &mockMempoolQueryExecutorSuccess{},
+			},
+			args: args{
+				blockTimestamp: math.MaxInt64,
+			},
+			want: []*model.MempoolTransaction{
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       100,
+					ArrivalTimestamp: 1562893306,
+					TransactionBytes: []byte{4, 4, 4, 4, 4},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       10,
+					ArrivalTimestamp: 1562893304,
+					TransactionBytes: []byte{2, 2, 2, 2, 2},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       1,
+					ArrivalTimestamp: 1562893302,
+					TransactionBytes: []byte{1, 1, 1, 1, 1},
+				},
+				{
+					ID:               make([]byte, 32),
+					FeePerByte:       1,
+					ArrivalTimestamp: 1562893305,
+					TransactionBytes: []byte{5, 5, 5, 5, 5},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				MempoolQuery:  tt.fields.MempoolQuery,
+			}
+			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MempoolService.SelectTransactionsFromMempool() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MempoolService.SelectTransactionsFromMempool() = %v, want %v", got, tt.want)
 			}
 		})
 	}

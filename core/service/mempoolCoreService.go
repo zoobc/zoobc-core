@@ -199,7 +199,7 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 		mi, mj := members[i], members[j]
 		switch {
 		case mi.FeePerByte != mj.FeePerByte:
-			return mi.FeePerByte < mj.FeePerByte
+			return mi.FeePerByte > mj.FeePerByte
 		case mi.ArrivalTimestamp != mj.ArrivalTimestamp:
 			return mi.ArrivalTimestamp < mj.ArrivalTimestamp
 		default:
