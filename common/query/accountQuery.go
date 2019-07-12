@@ -10,8 +10,8 @@ import (
 
 type (
 	AccountQueryInterface interface {
-		GetAccountByID() string
-		ExtractModel(accountBalance *model.AccountBalance) []interface{}
+		GetAccountByID(accountID []byte) (string, []interface{})
+		ExtractModel(account *model.Account) []interface{}
 		BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account
 	}
 
@@ -34,8 +34,9 @@ func (aq *AccountQuery) getTableName() string {
 }
 
 // GetAccountByID returns query string to get account by ID
-func (aq *AccountQuery) GetAccountByID() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = ?", strings.Join(aq.Fields, ", "), aq.getTableName())
+func (aq *AccountQuery) GetAccountByID(accountID []byte) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id = ?", strings.Join(aq.Fields, ", "), aq.getTableName()),
+		[]interface{}{accountID}
 }
 
 func (*AccountQuery) ExtractModel(account *model.Account) []interface{} {

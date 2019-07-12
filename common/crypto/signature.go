@@ -30,7 +30,8 @@ func NewSignature(executor query.ExecutorInterface) *Signature {
 // signature method associated with account.Type
 func (sig *Signature) Sign(payload, accountID []byte, seed string) []byte {
 	accountQuery := query.NewAccountQuery()
-	accountRows, _ := sig.Executor.ExecuteSelect(accountQuery.GetAccountByID(), accountID)
+	getQuery, condition := accountQuery.GetAccountByID(accountID)
+	accountRows, _ := sig.Executor.ExecuteSelect(getQuery, condition...)
 	var accounts []*model.Account
 	account := accountQuery.BuildModel(accounts, accountRows)
 	if len(account) == 0 {

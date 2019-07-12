@@ -112,7 +112,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		block.Height = previousBlock.GetHeight() + 1
 		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
-	result, err := bs.QueryExecutor.ExecuteStatement(bs.BlockQuery.InsertBlock(), bs.BlockQuery.ExtractModel(block)...)
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	result, err := bs.QueryExecutor.ExecuteStatement(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		return err
 	}
@@ -136,18 +137,10 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 			ID: -1,
 		}, err
 	}
-	var lastBlock model.Block
-	if rows.Next() {
-		err = rows.Scan(&lastBlock.ID, &lastBlock.PreviousBlockHash, &lastBlock.Height, &lastBlock.Timestamp,
-			&lastBlock.BlockSeed, &lastBlock.BlockSignature, &lastBlock.CumulativeDifficulty, &lastBlock.SmithScale,
-			&lastBlock.PayloadLength, &lastBlock.PayloadHash, &lastBlock.BlocksmithID, &lastBlock.TotalAmount,
-			&lastBlock.TotalFee, &lastBlock.TotalCoinBase, &lastBlock.Version)
-		if err != nil {
-			return &model.Block{
-				ID: -1,
-			}, err
-		}
-		return &lastBlock, nil
+	var blocks []*model.Block
+	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	if len(blocks) > 0 {
+		return blocks[0], nil
 	}
 	return &model.Block{
 		ID: -1,
