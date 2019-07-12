@@ -65,21 +65,21 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account" (
-				"account_id"	BLOB,
+				"id"	BLOB,
 				"account_type"	INTEGER,
 				"address"	TEXT,
 				PRIMARY KEY("id")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_balance" (
-				"id"	BLOB,
+				"account_id"	BLOB,
 				"block_height"	INTEGER,
 				"spendable_balance"	INTEGER,
 				"balance"	INTEGER,
 				"pop_revenue"	INTEGER,
 				"latest"	INTEGER,
-				PRIMARY KEY("id","block_height"),
-				FOREIGN KEY("id") REFERENCES account(id)
+				PRIMARY KEY("account_id","block_height"),
+				FOREIGN KEY("account_id") REFERENCES account(id)
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "main_block" (
