@@ -15,7 +15,10 @@ type PeerService struct {
 // NewPeerService to get instance of singleton peer service
 func NewPeerService(chaintypeNumber int32) *PeerService {
 	NewChainType := chaintype.GetChainType(chaintypeNumber)
-	return &PeerService{
+
+	res := &PeerService{
 		ChainType: NewChainType,
 	}
+
+	return res
 }
