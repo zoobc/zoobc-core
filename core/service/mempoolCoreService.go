@@ -6,7 +6,6 @@ import (
 	"errors"
 	"math"
 	"sort"
-	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -30,7 +29,6 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		MempoolMutex  *sync.Mutex
 		Chaintype     contract.ChainType
 		QueryExecutor query.ExecutorInterface
 		MempoolQuery  query.MempoolQueryInterface
@@ -51,46 +49,40 @@ func NewMempoolService(ct contract.ChainType, queryExecutor query.ExecutorInterf
 func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
 	var rows *sql.Rows
 	var err error
-	rows, err = mps.QueryExecutor.ExecuteSelect(query.NewMempoolQuery(mps.Chaintype).GetMempoolTransactions())
-	defer rows.Close()
+	sqlStr := query.NewMempoolQuery(mps.Chaintype).GetMempoolTransactions()
+	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr)
 	if err != nil {
-		log.Printf("GetMempoolTransactions fails %v\n", err)
+		log.Printf("GetMempoolTransactions fails %s\n", err)
 		return nil, err
 	}
-
+	defer rows.Close()
 	mempoolTransactions := []*model.MempoolTransaction{}
 	for rows.Next() {
-		var bl model.MempoolTransaction
+		var mpTx model.MempoolTransaction
 		err = rows.Scan(
-			&bl.ID,
-			&bl.FeePerByte,
-			&bl.ArrivalTimestamp,
-			&bl.TransactionBytes,
+			&mpTx.ID,
+			&mpTx.FeePerByte,
+			&mpTx.ArrivalTimestamp,
+			&mpTx.TransactionBytes,
 		)
 		if err != nil {
 			log.Printf("GetMempoolTransactions fails scan %v\n", err)
 			return nil, err
 		}
-		mempoolTransactions = append(mempoolTransactions, &bl)
+		mempoolTransactions = append(mempoolTransactions, &mpTx)
 	}
-
 	return mempoolTransactions, nil
-
 }
 
 // GetMempoolTransaction return a mempool transaction by its ID
 func (mps *MempoolService) GetMempoolTransaction(id []byte) (*model.MempoolTransaction, error) {
-	rows, err := mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(id))
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
+	rows, err := mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), id)
 	if err != nil {
 		return &model.MempoolTransaction{
 			ID: make([]byte, 0),
 		}, err
 	}
+	defer rows.Close()
 	var mpTx model.MempoolTransaction
 	if rows.Next() {
 		err = rows.Scan(&mpTx.ID, &mpTx.ArrivalTimestamp, &mpTx.FeePerByte, &mpTx.TransactionBytes)
@@ -113,11 +105,17 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	if err == nil {
 		return errors.New("DuplicateRecordAttempted")
 	}
+	if err.Error() != "MempoolTransactionNotFound" {
+		log.Println(err)
+		return errors.New("DatabaseError")
+	}
+
 	//TODO: validate the transaction
 	_, err = util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
 		return err
 	}
+	//TODO: add tx validation when method will be implemented
 	// 	mpTx.GetMempoolTransaction().Validate()
 
 	result, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
@@ -130,7 +128,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 
 // RemoveMempoolTransaction removes a tx from mempool
 func (mps *MempoolService) RemoveMempoolTransaction(id []byte) error {
-	_, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.DeleteMempoolTransaction(id))
+	_, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.DeleteMempoolTransaction(), id)
 	if err != nil {
 		return err
 	}

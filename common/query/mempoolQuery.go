@@ -12,9 +12,9 @@ import (
 type (
 	MempoolQueryInterface interface {
 		GetMempoolTransactions() string
-		GetMempoolTransaction(id []byte) string
+		GetMempoolTransaction() string
 		InsertMempoolTransaction() string
-		DeleteMempoolTransaction(id []byte) string
+		DeleteMempoolTransaction() string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 	}
 
@@ -29,10 +29,7 @@ type (
 func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
-			"ID",
-			"FeePerByte",
-			"ArrivalTimestamp",
-			"TransactionBytes",
+			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes",
 		},
 		TableName: "mempool",
 		ChainType: chaintype,
@@ -40,7 +37,9 @@ func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 }
 
 func (mpq *MempoolQuery) getTableName() string {
-	return mpq.ChainType.GetTablePrefix() + "_" + mpq.TableName
+	return mpq.TableName
+	// TODO: TO BE REVIEWED - remove this if we don't need to add a secondary mempool (for spinechain or future custom transaction tables)
+	// return mpq.ChainType.GetTablePrefix() + "_" + mpq.TableName
 }
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
@@ -49,8 +48,8 @@ func (mpq *MempoolQuery) GetMempoolTransactions() string {
 }
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
-func (mpq *MempoolQuery) GetMempoolTransaction(id []byte) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id=%v", strings.Join(mpq.Fields, ", "), mpq.getTableName(), id)
+func (mpq *MempoolQuery) GetMempoolTransaction() string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id = :id", strings.Join(mpq.Fields, ", "), mpq.getTableName())
 }
 
 func (mpq *MempoolQuery) InsertMempoolTransaction() string {
@@ -65,8 +64,8 @@ func (mpq *MempoolQuery) InsertMempoolTransaction() string {
 }
 
 // DeleteMempoolTransaction delete one mempool transaction by id
-func (mpq *MempoolQuery) DeleteMempoolTransaction(id []byte) string {
-	return fmt.Sprintf("DELETE FROM %s WHERE id=%v", mpq.getTableName(), id)
+func (mpq *MempoolQuery) DeleteMempoolTransaction() string {
+	return fmt.Sprintf("DELETE FROM %s WHERE id = :id", mpq.getTableName())
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
