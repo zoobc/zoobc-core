@@ -10,7 +10,7 @@ import (
 // CreateAccountIDFromAddress return the account ID byte which is the hash of
 // account type (int32) and the account address (default: base64(public key))
 // for type 0
-func CreateAccountIDFromAddress(accountType int32, address string) []byte {
+func CreateAccountIDFromAddress(accountType uint32, address string) []byte {
 	accountTypeByte := make([]byte, 4)
 	binary.LittleEndian.PutUint32(accountTypeByte, uint32(accountType))
 	digest := sha3.New256()
@@ -23,7 +23,7 @@ func CreateAccountIDFromAddress(accountType int32, address string) []byte {
 // GetAccountIDByPublicKey return the account ID byte which is the hash of
 // account type (int32) and the account address (default: base64(public key))
 // for type 0
-func GetAccountIDByPublicKey(accountType int32, publicKey []byte) []byte {
+func GetAccountIDByPublicKey(accountType uint32, publicKey []byte) []byte {
 	accountTypeByte := make([]byte, 4)
 	binary.LittleEndian.PutUint32(accountTypeByte, uint32(accountType))
 	var address string

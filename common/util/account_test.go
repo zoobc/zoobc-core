@@ -7,7 +7,7 @@ import (
 
 func TestGetAccountIDByPublicKey(t *testing.T) {
 	type args struct {
-		accountType int32
+		accountType uint32
 		publicKey   []byte
 	}
 	tests := []struct {
