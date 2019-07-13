@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
@@ -16,7 +18,7 @@ type (
 	AccountBalanceInt interface {
 		GetAccountBalanceByAccountID() string
 		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
-		InsertAccountBalance() string
+		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 	}
 )
 
@@ -74,11 +76,21 @@ func (q *AccountBalanceQuery) UpdateAccountBalance(fields, causedFields map[stri
 	return buff.String(), args
 }
 
-func (q *AccountBalanceQuery) InsertAccountBalance() string {
+func (q *AccountBalanceQuery) InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{}) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		q.TableName,
 		strings.Join(q.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(q.Fields)-1)),
-	)
+	), q.ExtractModel(accountBalance)
+}
+
+func (q *AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interface{} {
+	return []interface{}{
+		account.AccountID,
+		account.Balance,
+		account.SpendableBalance,
+		account.BlockHeight,
+		account.PopRevenue,
+	}
 }
