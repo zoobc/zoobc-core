@@ -29,7 +29,14 @@
 - run all tests `go test ./...`
 - run all test with coverage report `go test ./... -coverprofile=cover.out && go tool cover -html=cover.out`
 
+### Lint
+
+- run `golangci-lint ./...` to check any linting error in the changes.
+- remember to run tests, and lint before submitting PR.
+
 ### Swagger
 
 - install `go-swagger` `https://github.com/go-swagger/go-swagger`
 - pull newest `schema` and run `./compile-go.sh` to recompile the go file and produce swagger definition from it.
+
+
