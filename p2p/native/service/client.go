@@ -1,4 +1,4 @@
-package native
+package service
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
-	"github.com/zoobc/zoobc-core/p2p/strategy/native/util"
+	"github.com/zoobc/zoobc-core/p2p/native/util"
 	"google.golang.org/grpc"
 )
 
@@ -18,8 +18,8 @@ type PeerService struct {
 	ChainType contract.ChainType
 }
 
-// NewPeerService to get instance of singleton peer service
-func NewPeerService(chaintype contract.ChainType) *PeerService {
+// ClientPeerService to get instance of singleton peer service
+func ClientPeerService(chaintype contract.ChainType) *PeerService {
 	return &PeerService{
 		ChainType: chaintype,
 	}

@@ -19,7 +19,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/p2p"
-	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy/native"
+	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
 )
 
 var (
@@ -51,10 +51,10 @@ func p2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
-	service := p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pStrategy.HostService{})
+	p2pService := p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
 
 	// run P2P service with any chaintype
-	go service.StartP2P(new(chaintype.MainChain))
+	go p2pService.StartP2P(new(chaintype.MainChain))
 }
 
 func startServices(queryExecutor *query.Executor) {
