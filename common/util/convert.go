@@ -1,6 +1,9 @@
 package util
 
-import "encoding/binary"
+import (
+	"bytes"
+	"encoding/binary"
+)
 
 // ConvertBytesToUint64 takes array of bytes and return the uint64 representation of the given bytes
 func ConvertBytesToUint64(bytes []byte) uint64 {
@@ -43,4 +46,12 @@ func ConvertIntToBytes(number int) []byte {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, uint32(number))
 	return buf
+}
+
+// ConvertStringToBytes takes a string and return the byte array representation of the given string
+func ConvertStringToBytes(str string) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(ConvertUint32ToBytes(uint32(len(str))))
+	buffer.Write(bytes.NewBufferString(str).Bytes())
+	return buffer.Bytes()
 }

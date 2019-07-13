@@ -39,7 +39,6 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType, param
 		rows   *sql.Rows
 		txTemp model.Transaction
 	)
-	fmt.Printf("getTransaction: %v\n", query.NewTransactionQuery(chainType).GetTransaction(params.ID))
 	rows, err = ts.Query.ExecuteSelect(query.NewTransactionQuery(chainType).GetTransaction(params.ID))
 	if err != nil {
 		fmt.Printf("GetTransaction fails %v\n", err)
@@ -52,8 +51,10 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType, param
 			&txTemp.ID,
 			&txTemp.BlockID,
 			&txTemp.Height,
-			&txTemp.SenderAccountID,
-			&txTemp.RecipientAccountID,
+			&txTemp.SenderAccountType,
+			&txTemp.SenderAccountAddress,
+			&txTemp.RecipientAccountType,
+			&txTemp.RecipientAccountAddress,
 			&txTemp.TransactionType,
 			&txTemp.Fee,
 			&txTemp.Timestamp,
@@ -63,7 +64,7 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType, param
 			&txTemp.Signature,
 		)
 	}
-	return &model.Transaction{}, nil
+	return &txTemp, nil
 }
 
 // GetTransactions fetches a single transaction from DB
@@ -75,7 +76,7 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType, para
 		results      []*model.Transaction
 		totalRecords uint64
 	)
-	selectQuery := query.NewTransactionQuery(chainType).GetTransactions(params.Limit, params.Offset, 0, 0)
+	selectQuery := query.NewTransactionQuery(chainType).GetTransactions(params.Limit, params.Offset)
 	rows, err = ts.Query.ExecuteSelect(selectQuery)
 	if err != nil {
 		fmt.Printf("GetTransactions fails %v\n", err)
@@ -89,8 +90,10 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType, para
 			&txTemp.ID,
 			&txTemp.BlockID,
 			&txTemp.Height,
-			&txTemp.SenderAccountID,
-			&txTemp.RecipientAccountID,
+			&txTemp.SenderAccountType,
+			&txTemp.SenderAccountAddress,
+			&txTemp.RecipientAccountType,
+			&txTemp.RecipientAccountAddress,
 			&txTemp.TransactionType,
 			&txTemp.Fee,
 			&txTemp.Timestamp,
@@ -117,7 +120,7 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType, para
 	}
 
 	return &model.GetTransactionsResponse{
-		Total:        0,
+		Total:        totalRecords,
 		Count:        uint32(len(results)),
 		Transactions: results,
 	}, nil

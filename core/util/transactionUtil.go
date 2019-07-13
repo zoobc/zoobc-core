@@ -15,12 +15,10 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionType)[:2])
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Timestamp)))
-	buffer.Write(transaction.SenderAccountID)
-	if transaction.RecipientAccountID == nil {
-		buffer.Write(make([]byte, 32))
-	} else {
-		buffer.Write(transaction.RecipientAccountID)
-	}
+	buffer.Write(util.ConvertUint32ToBytes(transaction.SenderAccountType))
+	buffer.Write(util.ConvertStringToBytes(transaction.SenderAccountAddress))
+	buffer.Write(util.ConvertUint32ToBytes(transaction.RecipientAccountType))
+	buffer.Write(util.ConvertStringToBytes(transaction.RecipientAccountAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Fee)))
 	// transaction body length
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionBodyLength))
@@ -40,8 +38,16 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	transactionTypeBytes := buffer.Next(2)
 	transactionType := util.ConvertBytesToUint32([]byte{transactionTypeBytes[0], transactionTypeBytes[1], 0, 0})
 	timestamp := util.ConvertBytesToUint64(buffer.Next(8))
-	senderAccountID := buffer.Next(32)
-	recipientAccountID := buffer.Next(32)
+	senderAccountType := util.ConvertBytesToUint32(buffer.Next(4))
+
+	senderAccountAddressLength := util.ConvertBytesToUint32(buffer.Next(4))
+	senderAccountAddress := bytes.NewBuffer(buffer.Next(int(senderAccountAddressLength))).String()
+
+	recipientAccountType := util.ConvertBytesToUint32(buffer.Next(4))
+
+	recipientAccountAddressLength := util.ConvertBytesToUint32(buffer.Next(4))
+	recipientAccountAddress := bytes.NewBuffer(buffer.Next(int(recipientAccountAddressLength))).String()
+
 	fee := util.ConvertBytesToUint64(buffer.Next(8))
 	transactionBodyLength := util.ConvertBytesToUint32(buffer.Next(4))
 	transactionBodyBytes := buffer.Next(int(transactionBodyLength))
@@ -53,13 +59,15 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 		}
 	}
 	return &model.Transaction{
-		TransactionType:       transactionType,
-		Timestamp:             int64(timestamp),
-		SenderAccountID:       senderAccountID,
-		RecipientAccountID:    recipientAccountID,
-		Fee:                   int64(fee),
-		TransactionBodyLength: transactionBodyLength,
-		TransactionBodyBytes:  transactionBodyBytes,
-		Signature:             signature,
+		TransactionType:         transactionType,
+		Timestamp:               int64(timestamp),
+		SenderAccountType:       senderAccountType,
+		SenderAccountAddress:    senderAccountAddress,
+		RecipientAccountType:    recipientAccountType,
+		RecipientAccountAddress: recipientAccountAddress,
+		Fee:                     int64(fee),
+		TransactionBodyLength:   transactionBodyLength,
+		TransactionBodyBytes:    transactionBodyBytes,
+		Signature:               signature,
 	}, nil
 }

@@ -55,31 +55,39 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 		Transactions []*model.Transaction
 	}{
 		Total: 2,
-		Count: 0,
+		Count: 2,
 		Transactions: []*model.Transaction{
 			{
-				ID:                    1,
-				BlockID:               1,
-				Height:                1,
-				TransactionType:       1,
-				Fee:                   1,
-				Timestamp:             11000,
-				TransactionHash:       []byte{},
-				TransactionBodyLength: 1,
-				TransactionBodyBytes:  []byte{},
-				Signature:             []byte{},
+				ID:                      1,
+				BlockID:                 1,
+				Height:                  1,
+				SenderAccountType:       0,
+				SenderAccountAddress:    "abc",
+				RecipientAccountType:    0,
+				RecipientAccountAddress: "abc",
+				TransactionType:         1,
+				Fee:                     1,
+				Timestamp:               11000,
+				TransactionHash:         []byte{},
+				TransactionBodyLength:   1,
+				TransactionBodyBytes:    []byte{},
+				Signature:               []byte{},
 			},
 			{
-				ID:                    2,
-				BlockID:               2,
-				Height:                2,
-				TransactionType:       2,
-				Fee:                   2,
-				Timestamp:             21000,
-				TransactionHash:       []byte{},
-				TransactionBodyLength: 2,
-				TransactionBodyBytes:  []byte{},
-				Signature:             []byte{},
+				ID:                      2,
+				BlockID:                 2,
+				Height:                  2,
+				SenderAccountType:       1,
+				SenderAccountAddress:    "bcd",
+				RecipientAccountType:    1,
+				RecipientAccountAddress: "bcd",
+				TransactionType:         2,
+				Fee:                     2,
+				Timestamp:               21000,
+				TransactionHash:         []byte{},
+				TransactionBodyLength:   2,
+				TransactionBodyBytes:    []byte{},
+				Signature:               []byte{},
 			},
 		},
 	}
@@ -109,14 +117,17 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 
 	chainType := chaintype.GetChainType(0)
 	transactionQuery := query.NewTransactionQuery(chainType)
-	queryStr := transactionQuery.GetTransactions(params.Limit, params.Offset, 0, 0)
+	queryStr := transactionQuery.GetTransactions(params.Limit, params.Offset)
+	totalRecordQuery := query.GetTotalRecordOfSelect(queryStr)
 
 	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{
 		"id",
 		"block_id",
 		"block_height",
-		"sender_account_id",
-		"recipient_account_id",
+		"sender_account_type",
+		"sender_account_address",
+		"recipient_account_type",
+		"recipient_account_address",
 		"transaction_type",
 		"fee",
 		"timestamp",
@@ -124,9 +135,9 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 		"transaction_body_length",
 		"transaction_body_bytes",
 		"signature",
-	}).AddRow(
-		1, 1, 1, []byte{}, []byte{}, 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}).AddRow(
-		2, 2, 2, []byte{}, []byte{}, 2, 2, 21000, []byte{}, 2, []byte{}, []byte{}))
+	}).AddRow(1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}).AddRow(2, 2, 2, 1, "bcd", 1, "bcd", 2, 2, 21000, []byte{}, 2, []byte{}, []byte{}))
+
+	mock.ExpectQuery(totalRecordQuery).WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(2))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

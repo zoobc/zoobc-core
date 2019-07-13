@@ -21,14 +21,14 @@ func TestGetTransaction(t *testing.T) {
 		{
 			name:   "transaction query without condition",
 			params: &paramsStruct{},
-			want:   "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\"",
+			want:   "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\"",
 		},
 		{
 			name: "transaction query with ID param only",
 			params: &paramsStruct{
 				ID: 1,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" WHERE id = 1",
+			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" WHERE id = 1",
 		},
 	}
 	for _, tt := range tests {
@@ -58,21 +58,21 @@ func TestGetTransactions(t *testing.T) {
 		{
 			name:   "transactions query without condition",
 			params: &paramsStruct{},
-			want:   "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
+			want:   "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
 		},
 		{
 			name: "transactions query with limit",
 			params: &paramsStruct{
 				Limit: 10,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
+			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
 		},
 		{
 			name: "transactions query with offset",
 			params: &paramsStruct{
 				Offset: 20,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
+			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
 		},
 		{
 			name: "transactions query with all the params",
@@ -80,12 +80,12 @@ func TestGetTransactions(t *testing.T) {
 				Limit:  10,
 				Offset: 20,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
+			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := transactionQuery.GetTransactions(tt.params.Limit, tt.params.Offset, 0, 0)
+			query := transactionQuery.GetTransactions(tt.params.Limit, tt.params.Offset)
 			if query != tt.want {
 				t.Errorf("GetTransactionError() \ngot = %v \nwant = %v", query, tt.want)
 				return
