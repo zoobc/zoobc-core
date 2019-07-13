@@ -21,8 +21,8 @@ func (bs *BlockHandler) GetBlock(ctx context.Context, req *model.GetBlockRequest
 	if req.ID != 0 {
 		blockResponse, err = bs.Service.GetBlockByID(chainType, req.ID)
 	}
-	if req.BlockHeight != 0 {
-		blockResponse, err = bs.Service.GetBlockByHeight(chainType, req.BlockHeight)
+	if req.Height != 0 {
+		blockResponse, err = bs.Service.GetBlockByHeight(chainType, req.Height)
 	}
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (bs *BlockHandler) GetBlock(ctx context.Context, req *model.GetBlockRequest
 // GetBlocks handles request to get data of multiple blocks
 func (bs *BlockHandler) GetBlocks(ctx context.Context, req *model.GetBlocksRequest) (*model.GetBlocksResponse, error) {
 	chainType := chaintype.GetChainType(req.ChainType)
-	blocksResponse, err := bs.Service.GetBlocks(chainType, req.BlockSize, req.BlockHeight)
+	blocksResponse, err := bs.Service.GetBlocks(chainType, req.Limit, req.Height)
 	if err != nil {
 		return nil, err
 	}

@@ -46,12 +46,12 @@ func TestNewBlockervice(t *testing.T) {
 
 func Test_BlockService_GetBlocks(t *testing.T) {
 	mockData := struct {
-		BlockSize   uint32
-		BlockHeight uint32
-		Blocks      []*model.Block
+		Limit  uint32
+		Height uint32
+		Blocks []*model.Block
 	}{
-		BlockSize:   2,
-		BlockHeight: 0,
+		Limit:  2,
+		Height: 0,
 		Blocks: []*model.Block{
 			{
 				ID:                   1,
@@ -107,9 +107,9 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 			name: "GetBlocks:success",
 			bs:   instance,
 			want: &model.GetBlocksResponse{
-				Blocks:      mockData.Blocks,
-				BlockHeight: mockData.BlockHeight,
-				BlockSize:   2,
+				Blocks: mockData.Blocks,
+				Height: mockData.Height,
+				Count:  2,
 			},
 			wantErr: false,
 		},
@@ -117,7 +117,7 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 
 	chainType := chaintype.GetChainType(0)
 	blockQuery := query.NewBlockQuery(chainType)
-	queryStr := blockQuery.GetBlocks(mockData.BlockHeight, mockData.BlockSize)
+	queryStr := blockQuery.GetBlocks(mockData.Height, mockData.Limit)
 
 	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
@@ -127,7 +127,7 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 		1, []byte{}, 2, 11000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := instance.GetBlocks(chainType, mockData.BlockSize, mockData.BlockHeight)
+			got, err := instance.GetBlocks(chainType, mockData.Limit, mockData.Height)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlocks() error = %v, wantErr %v", err, tt.wantErr)
 				return
