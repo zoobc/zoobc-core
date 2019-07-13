@@ -64,9 +64,9 @@ func TestParseKnownPeers(t *testing.T) {
 		{
 			name: "ParseKnownPeersTest:true",
 			args: args{
-				peers: []string{"192.168.1.2:2001a", "192.168.5.123:3000a"},
+				peers: []string{"192.168.1.2:2001xa", "192.168.5.123:3000a"},
 			},
-			want:    []*model.Peer{},
+			want:    nil,
 			wantErr: true,
 		},
 	}

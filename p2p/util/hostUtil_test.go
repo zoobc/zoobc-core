@@ -126,6 +126,15 @@ func TestGetAnyPeer(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "GetANyPeersTest:Nil",
+			args: args{
+				hs: &model.Host{
+					Peers: map[string]*model.Peer{},
+				},
+			},
+			want: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
