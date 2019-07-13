@@ -9,15 +9,16 @@ import (
 )
 
 type (
-	AccountQueryInterface interface {
-		GetAccountByID(accountID []byte) (string, []interface{})
-		ExtractModel(account *model.Account) []interface{}
-		BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account
-	}
-
 	AccountQuery struct {
 		Fields    []string
 		TableName string
+	}
+
+	AccountQueryInterface interface {
+		GetAccountByID(accountID []byte) (str string, args []interface{})
+		InsertAccount(account *model.Account) (str string, args []interface{})
+		ExtractModel(account *model.Account) []interface{}
+		BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account
 	}
 )
 
@@ -29,17 +30,22 @@ func NewAccountQuery() *AccountQuery {
 	}
 }
 
-func (aq *AccountQuery) getTableName() string {
-	return aq.TableName
-}
-
 // GetAccountByID returns query string to get account by ID
 func (aq *AccountQuery) GetAccountByID(accountID []byte) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = ?", strings.Join(aq.Fields, ", "), aq.getTableName()),
+	return fmt.Sprintf("SELECT %s FROM %s WHERE id = ?", strings.Join(aq.Fields, ", "), aq.TableName),
 		[]interface{}{accountID}
 }
 
-func (*AccountQuery) ExtractModel(account *model.Account) []interface{} {
+func (aq *AccountQuery) InsertAccount(account *model.Account) (str string, args []interface{}) {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		aq.TableName,
+		strings.Join(aq.Fields, ","),
+		fmt.Sprintf("? %s", strings.Repeat(", ?", len(aq.Fields)-1)),
+	), aq.ExtractModel(account)
+}
+
+func (aq *AccountQuery) ExtractModel(account *model.Account) []interface{} {
 	return []interface{}{
 		account.ID,
 		account.AccountType,
@@ -49,7 +55,7 @@ func (*AccountQuery) ExtractModel(account *model.Account) []interface{} {
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*AccountQuery) BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account {
+func (aq *AccountQuery) BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account {
 	for rows.Next() {
 		var account model.Account
 		_ = rows.Scan(
