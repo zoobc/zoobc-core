@@ -49,7 +49,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "transaction" (
-				"id"	BLOB,
+				"id"	INTEGER,
 				"block_id"	INTEGER,
 				"block_height"	INTEGER,
 				"sender_account_id"	BLOB,
