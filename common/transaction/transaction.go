@@ -14,30 +14,29 @@ type (
 	}
 )
 
-func GetTransactionType(tx *model.Transaction) interface{} {
+func GetTransactionType(tx *model.Transaction) TypeAction {
 
-	var (
-		t []byte
-	)
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, tx.GetTransactionType())
 
-	binary.LittleEndian.PutUint32(t, tx.GetTransactionType())
-
-	switch t[0] {
+	switch buf[0] {
 	case 0:
-		switch t[1] {
+		switch buf[1] {
 		case 0:
 			return &TXEmpty{}
 		default:
 			return nil
 		}
 	case 1:
-		switch t[1] {
+		switch buf[1] {
 		case 0:
 			return &SendMoney{
-				Body:               tx.GetSendMoneyTransactionBody(),
-				SenderAccountID:    tx.GetSenderAccountID(),
-				RecipientAccountID: tx.GetRecipientAccountID(),
-				Height:             tx.GetHeight(),
+				Body:                 tx.GetSendMoneyTransactionBody(),
+				SenderAddress:        tx.GetSenderAccountAddress(),
+				SenderAccountType:    tx.GetSenderAccountType(),
+				RecipientAddress:     tx.GetRecipientAccountAddress(),
+				RecipientAccountType: tx.GetRecipientAccountType(),
+				Height:               tx.GetHeight(),
 			}
 		default:
 			return nil
