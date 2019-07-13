@@ -35,7 +35,7 @@ func NewTransactionQuery(chaintype contract.ChainType) *TransactionQuery {
 			"transaction_body_bytes",
 			"signature",
 		},
-		TableName: "transaction",
+		TableName: "\"transaction\"",
 		ChainType: chaintype,
 	}
 }
@@ -61,15 +61,15 @@ func (tq *TransactionQuery) GetTransaction(ID int64) string {
 }
 
 // GetTransactions get a set of transaction that satisfies the params from DB
-func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64, senderAccountID, recipientAccountID string) string {
+func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64, senderAccountID, recipientAccountID uint64) string {
 	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.TableName)
 
 	var queryParam []string
-	if senderAccountID != "" {
-		queryParam = append(queryParam, fmt.Sprintf("sender_account_id = \"%s\"", senderAccountID))
+	if senderAccountID != 0 {
+		queryParam = append(queryParam, fmt.Sprintf("sender_account_id = \"%d\"", senderAccountID))
 	}
-	if recipientAccountID != "" {
-		queryParam = append(queryParam, fmt.Sprintf("recipient_account_id = \"%s\"", recipientAccountID))
+	if recipientAccountID != 0 {
+		queryParam = append(queryParam, fmt.Sprintf("recipient_account_id = \"%d\"", recipientAccountID))
 	}
 
 	if len(queryParam) > 0 {

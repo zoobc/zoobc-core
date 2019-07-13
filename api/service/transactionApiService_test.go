@@ -4,7 +4,6 @@ package service
 
 import (
 	"reflect"
-	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -45,47 +44,42 @@ func TestNewTransactionervice(t *testing.T) {
 }
 
 func Test_TransactionService_GetTransactions(t *testing.T) {
+	params := &model.GetTransactionsRequest{
+		Limit:  2,
+		Offset: 0,
+	}
+
 	mockData := struct {
-		TransactionSize   uint32
-		TransactionHeight uint32
-		Transactions      []*model.Transaction
+		Total        uint64
+		Count        uint32
+		Transactions []*model.Transaction
 	}{
-		TransactionSize:   2,
-		TransactionHeight: 0,
+		Total: 2,
+		Count: 0,
 		Transactions: []*model.Transaction{
 			{
-				ID:                      1,
-				PreviousTransactionHash: []byte{},
-				Height:                  1,
-				Timestamp:               10000,
-				TransactionSeed:         []byte{},
-				TransactionSignature:    []byte{},
-				CumulativeDifficulty:    "",
-				SmithScale:              1,
-				PayloadLength:           2,
-				PayloadHash:             []byte{},
-				TransactionsmithID:      []byte{},
-				TotalAmount:             0,
-				TotalFee:                0,
-				TotalCoinBase:           0,
-				Version:                 1,
+				ID:                    1,
+				BlockID:               1,
+				Height:                1,
+				TransactionType:       1,
+				Fee:                   1,
+				Timestamp:             11000,
+				TransactionHash:       []byte{},
+				TransactionBodyLength: 1,
+				TransactionBodyBytes:  []byte{},
+				Signature:             []byte{},
 			},
 			{
-				ID:                      1,
-				PreviousTransactionHash: []byte{},
-				Height:                  2,
-				Timestamp:               11000,
-				TransactionSeed:         []byte{},
-				TransactionSignature:    []byte{},
-				CumulativeDifficulty:    "",
-				SmithScale:              1,
-				PayloadLength:           2,
-				PayloadHash:             []byte{},
-				TransactionsmithID:      []byte{},
-				TotalAmount:             0,
-				TotalFee:                0,
-				TotalCoinBase:           0,
-				Version:                 1,
+				ID:                    2,
+				BlockID:               2,
+				Height:                2,
+				TransactionType:       2,
+				Fee:                   2,
+				Timestamp:             21000,
+				TransactionHash:       []byte{},
+				TransactionBodyLength: 2,
+				TransactionBodyBytes:  []byte{},
+				Signature:             []byte{},
 			},
 		},
 	}
@@ -99,17 +93,15 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 	defer ResetTransactionService()
 	tests := []struct {
 		name    string
-		bs      *TransactionService
 		want    *model.GetTransactionsResponse
 		wantErr bool
 	}{
 		{
 			name: "GetTransactions:success",
-			bs:   instance,
 			want: &model.GetTransactionsResponse{
-				Transactions:      mockData.Transactions,
-				TransactionHeight: mockData.TransactionHeight,
-				TransactionSize:   2,
+				Transactions: mockData.Transactions,
+				Total:        mockData.Total,
+				Count:        mockData.Count,
 			},
 			wantErr: false,
 		},
@@ -117,70 +109,34 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 
 	chainType := chaintype.GetChainType(0)
 	transactionQuery := query.NewTransactionQuery(chainType)
-	queryStr := transactionQuery.GetTransactions(mockData.TransactionHeight, mockData.TransactionSize)
+	queryStr := transactionQuery.GetTransactions(params.Limit, params.Offset, 0, 0)
 
 	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "PreviousTransactionHash", "Height", "Timestamp", "TransactionSeed", "TransactionSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "TransactionsmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version",
+		"id",
+		"block_id",
+		"block_height",
+		"sender_account_id",
+		"recipient_account_id",
+		"transaction_type",
+		"fee",
+		"timestamp",
+		"transaction_hash",
+		"transaction_body_length",
+		"transaction_body_bytes",
+		"signature",
 	}).AddRow(
-		1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(
-		1, []byte{}, 2, 11000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+		1, 1, 1, []byte{}, []byte{}, 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}).AddRow(
+		2, 2, 2, []byte{}, []byte{}, 2, 2, 21000, []byte{}, 2, []byte{}, []byte{}))
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := instance.GetTransactions(chainType, mockData.TransactionSize, mockData.TransactionHeight)
+			got, err := instance.GetTransactions(chainType, params)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TransactionService.GetTransactions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TransactionService.GetTransactions() = %v, want %v", got, tt.want)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unfulfilled expectations: %s", err)
-			}
-		})
-	}
-}
-
-func Test_TransactionService_GetTransaction(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error while opening database connection")
-	}
-	defer db.Close()
-	var bl model.Transaction
-	instance := NewTransactionService(query.NewQueryExecutor(db))
-	defer ResetTransactionService()
-	tests := []struct {
-		name    string
-		bs      *TransactionService
-		want    *model.Transaction
-		wantErr bool
-	}{
-		{
-			name:    "GetTransactionByHeight:success",
-			bs:      instance,
-			want:    &bl,
-			wantErr: false,
-		},
-	}
-
-	chainType := chaintype.GetChainType(0)
-	transactionQuery := query.NewTransactionQuery(chainType)
-	queryStr := transactionQuery.GetTransactionByHeight(0)
-	mock.ExpectQuery(regexp.QuoteMeta(queryStr)).
-		WillReturnRows(sqlmock.NewRows(transactionQuery.Fields))
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := instance.GetTransactionByHeight(chainType, 0)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TransactionService.GetTransactionByHeight() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TransactionService.GetTransactionByHeight() = %v, want %v", got, tt.want)
 			}
 
 			if err := mock.ExpectationsWereMet(); err != nil {

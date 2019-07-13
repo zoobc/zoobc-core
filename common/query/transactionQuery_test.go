@@ -21,21 +21,21 @@ func TestGetTransaction(t *testing.T) {
 		{
 			name:   "transaction query without condition",
 			params: &paramsStruct{},
-			want:   "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction",
+			want:   "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\"",
 		},
 		{
 			name: "transaction query with ID param only",
 			params: &paramsStruct{
 				ID: 1,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction WHERE id = 1",
+			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" WHERE id = 1",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			query := transactionQuery.GetTransaction(tt.params.ID)
 			if query != tt.want {
-				t.Errorf("GetTransactionError() \ngot = %v, \nwant = %v", query, tt.want)
+				t.Errorf("GetTransactionError() \ngot = %v \nwant = %v", query, tt.want)
 				return
 			}
 		})
@@ -46,10 +46,8 @@ func TestGetTransactions(t *testing.T) {
 	transactionQuery := NewTransactionQuery(chaintype.GetChainType(0))
 
 	type paramsStruct struct {
-		Limit              uint32
-		Offset             uint64
-		SenderAccountID    string
-		RecipientAccountID string
+		Limit  uint32
+		Offset uint64
 	}
 
 	tests := []struct {
@@ -60,50 +58,34 @@ func TestGetTransactions(t *testing.T) {
 		{
 			name:   "transactions query without condition",
 			params: &paramsStruct{},
-			want:   "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction ORDER BY block_height, timestamp LIMIT 0,10",
+			want:   "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
 		},
 		{
 			name: "transactions query with limit",
 			params: &paramsStruct{
 				Limit: 10,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction ORDER BY block_height, timestamp LIMIT 0,10",
+			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
 		},
 		{
 			name: "transactions query with offset",
 			params: &paramsStruct{
 				Offset: 20,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction ORDER BY block_height, timestamp LIMIT 20,10",
-		},
-		{
-			name: "transactions query with SenderAccountID",
-			params: &paramsStruct{
-				SenderAccountID: "A",
-			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction WHERE sender_account_id = \"A\" ORDER BY block_height, timestamp LIMIT 0,10",
-		},
-		{
-			name: "transactions query with RecipientAccountID",
-			params: &paramsStruct{
-				RecipientAccountID: "B",
-			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction WHERE recipient_account_id = \"B\" ORDER BY block_height, timestamp LIMIT 0,10",
+			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
 		},
 		{
 			name: "transactions query with all the params",
 			params: &paramsStruct{
-				Limit:              10,
-				Offset:             20,
-				SenderAccountID:    "A",
-				RecipientAccountID: "B",
+				Limit:  10,
+				Offset: 20,
 			},
-			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from transaction WHERE sender_account_id = \"A\" AND recipient_account_id = \"B\" ORDER BY block_height, timestamp LIMIT 20,10",
+			want: "SELECT id, block_id, block_height, sender_account_id, recipient_account_id, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			query := transactionQuery.GetTransactions(tt.params.Limit, tt.params.Offset, tt.params.SenderAccountID, tt.params.RecipientAccountID)
+			query := transactionQuery.GetTransactions(tt.params.Limit, tt.params.Offset, 0, 0)
 			if query != tt.want {
 				t.Errorf("GetTransactionError() \ngot = %v \nwant = %v", query, tt.want)
 				return

@@ -69,11 +69,14 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType, param
 // GetTransactions fetches a single transaction from DB
 func (ts *TransactionService) GetTransactions(chainType contract.ChainType, params *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
 	var (
-		err     error
-		rows    *sql.Rows
-		results []*model.Transaction
+		err          error
+		rows         *sql.Rows
+		rows2        *sql.Rows
+		results      []*model.Transaction
+		totalRecords uint64
 	)
-	rows, err = ts.Query.ExecuteSelect(query.NewTransactionQuery(chainType).GetTransactions(params.Limit, params.Offset, params.SenderAccountID, params.RecipientAccountID))
+	selectQuery := query.NewTransactionQuery(chainType).GetTransactions(params.Limit, params.Offset, 0, 0)
+	rows, err = ts.Query.ExecuteSelect(selectQuery)
 	if err != nil {
 		fmt.Printf("GetTransactions fails %v\n", err)
 		return nil, err
@@ -97,6 +100,20 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType, para
 			&txTemp.Signature,
 		)
 		results = append(results, &txTemp)
+	}
+
+	rows2, err = ts.Query.ExecuteSelect(query.GetTotalRecordOfSelect(selectQuery))
+	if err != nil {
+		fmt.Printf("GetTransactions total records fails %v\n", err)
+		return nil, err
+	}
+	defer rows2.Close()
+
+	if rows2.Next() {
+		err = rows2.Scan(
+			&totalRecords,
+		)
+
 	}
 
 	return &model.GetTransactionsResponse{
