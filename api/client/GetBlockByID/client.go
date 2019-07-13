@@ -19,7 +19,7 @@ func main() {
 	c := rpc_service.NewBlockServiceClient(conn)
 
 	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		ID: 31234567888765,
+		ID: -7639577553511789811,
 	})
 
 	if err != nil {
