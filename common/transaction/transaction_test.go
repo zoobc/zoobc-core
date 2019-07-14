@@ -64,6 +64,60 @@ func TestGetTransactionType(t *testing.T) {
 			},
 			want: TypeAction(&TXEmpty{}),
 		},
+		{
+			name: "wantNil",
+			args: args{
+				tx: &model.Transaction{
+					Height:                  0,
+					SenderAccountType:       0,
+					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					RecipientAccountType:    0,
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+							Amount: 10,
+						},
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
+				},
+			},
+		},
+		{
+			name: "wantNil",
+			args: args{
+				tx: &model.Transaction{
+					Height:                  0,
+					SenderAccountType:       0,
+					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					RecipientAccountType:    0,
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+							Amount: 10,
+						},
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{1, 1, 0, 0}),
+				},
+			},
+		},
+		{
+			name: "wantNil",
+			args: args{
+				tx: &model.Transaction{
+					Height:                  0,
+					SenderAccountType:       0,
+					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					RecipientAccountType:    0,
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+							Amount: 10,
+						},
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{2, 1, 0, 0}),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

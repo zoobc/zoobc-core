@@ -41,6 +41,7 @@ func GetTransactionType(tx *model.Transaction) TypeAction {
 		default:
 			return nil
 		}
+	default:
+		return nil
 	}
-	return nil
 }
