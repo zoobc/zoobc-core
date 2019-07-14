@@ -15,7 +15,7 @@ import (
 // for type 0
 func CreateAccountIDFromAddress(accountType uint32, address string) []byte {
 	accountTypeByte := make([]byte, 4)
-	binary.LittleEndian.PutUint32(accountTypeByte, uint32(accountType))
+	binary.LittleEndian.PutUint32(accountTypeByte, accountType)
 	digest := sha3.New256()
 	_, _ = digest.Write(accountTypeByte)
 	_, _ = digest.Write([]byte(address))
