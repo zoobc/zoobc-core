@@ -185,26 +185,32 @@ func (tx *SendMoney) Validate() error {
 		return errors.New("transaction must have an amount more than 0")
 	}
 	if tx.Height != 0 {
-		if (tx.RecipientAddress == "") || (tx.RecipientAccountType == 0) {
+		if (tx.RecipientAddress == "") || (tx.RecipientAccountType <= 0) {
 			return errors.New("transaction must have a valid recipient account id")
 		}
 		if (tx.SenderAddress == "") || (tx.SenderAccountType <= 0) {
-			return errors.New("transaction must hav a valid sender account id")
+			return errors.New("transaction must have a valid sender account id")
 		}
 
-		rows, err = tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountID())
-		if err != nil {
-			return err
-		}
-		err = rows.Scan(
-			&accountBalance.AccountID,
-			&accountBalance.BlockHeight,
-			&accountBalance.SpendableBalance,
-			&accountBalance.Balance,
-			&accountBalance.PopRevenue,
+		rows, err = tx.QueryExecutor.ExecuteSelect(
+			tx.AccountBalanceQuery.GetAccountBalanceByAccountID(),
+			util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
 		)
 		if err != nil {
 			return err
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			_ = rows.Scan(
+				&accountBalance.AccountID,
+				&accountBalance.BlockHeight,
+				&accountBalance.SpendableBalance,
+				&accountBalance.Balance,
+				&accountBalance.PopRevenue,
+			)
+		} else {
+			return errors.New("account not exists")
 		}
 
 		if accountBalance.SpendableBalance < tx.Body.GetAmount() {
