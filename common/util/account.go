@@ -10,6 +10,17 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// CreateAccountIDFromAddress return the account ID byte which is the hash of
+// account type (int32) and the account address (default: base64(public key))
+// for type 0
+func CreateAccountIDFromAddress(accountType uint32, address string) []byte {
+	digest := sha3.New256()
+	_, _ = digest.Write(ConvertUint32ToBytes(accountType))
+	_, _ = digest.Write([]byte(address))
+	accountID := digest.Sum([]byte{})
+	return accountID
+}
+
 // GetAccountIDByPublicKey return the account ID byte which is the hash of
 // account type (uint32) and the account address (default: base64(public key))
 // for type 0
