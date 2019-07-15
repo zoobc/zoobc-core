@@ -7,12 +7,16 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/contract"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -146,6 +150,36 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	var totalAmount int64
 	var totalFee int64
 	var totalCoinbase int64
+
+	// only for mainchain
+	var sortedTx []*model.Transaction
+	var payloadHash []byte
+
+	if _, ok := bp.Chaintype.(*chaintype.MainChain); ok {
+		mempoolService := service.NewMempoolService(bp.Chaintype, query.NewQueryExecutor(db), query.NewMempoolQuery(bp.Chaintype))
+		sortedTransactions, err := mempoolService.SelectTransactionsFromMempool(timestamp)
+		if err != nil {
+			log.Println(err)
+			return nil, errors.New("MempoolReadError")
+		}
+		digest := sha3.New512()
+		var totalAmountNQT int64
+		var totalFeeNQT int64
+		var payloadLength uint32
+		for _, mpTx := range sortedTransactions {
+			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			if err != nil {
+				return nil, err
+			}
+			sortedTx = append(sortedTx, tx)
+			digest.Write(tx.Byte())
+			totalAmountNQT += tx.GetTransaction().GetAmount()
+			totalFeeNQT += tx.GetTransaction().GetFee()
+			payloadLength += uint32(tx.GetTransaction().GetSize())
+		}
+		payloadHash = digest.Sum([]byte{})
+	}
+
 	// loop through transaction to build block hash
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
@@ -157,7 +191,7 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
 	previousBlockHash := sha3.Sum512(previousBlockByte)
 	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash), newBlockHeight, timestamp,
-		totalAmount, totalFee, totalCoinbase, []*model.Transaction{}, nil, secretPhrase)
+		totalAmount, totalFee, totalCoinbase, sortedTx, payloadHash, secretPhrase)
 	log.Printf("block forged: fee %d\n", totalFee)
 	return block, nil
 }
