@@ -13,7 +13,6 @@ import (
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
-// NativeService is
 type Service struct{}
 
 var hostServiceInstance *service.HostService
@@ -22,7 +21,7 @@ const (
 	constantResolvePeersGapSecond uint32 = 10
 )
 
-// InitService to start peer process with
+// InitService to initialize hostServiceInstance if not set
 func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string) (contract.P2PType, error) {
 	if hostServiceInstance == nil {
 		knownPeersResult, err := nativeUtil.ParseKnownPeers(wellknownPeers)
@@ -38,7 +37,7 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 	return s, nil
 }
 
-// StartP2P Get instance of intialized host service
+// StartP2P to update  ChainType of hostServiceInstance and run all p2p Thread service
 func (s *Service) StartP2P(chaintype contract.ChainType) {
 	hostServiceInstance.ChainType = chaintype
 	startServer()
@@ -49,12 +48,12 @@ func (s *Service) StartP2P(chaintype contract.ChainType) {
 	go updateBlacklistedStatus()
 }
 
-// startServer to start server online
+// startServer to run p2p service as server
 func startServer() {
 	go hostServiceInstance.StartListening()
 }
 
-// ResolvePeersThread to checking UnresolvedPeer
+// ResolvePeersThread to periodically try get response from peers in UnresolvedPeer list
 func resolvePeersThread() {
 	go hostServiceInstance.ResolvePeers()
 	ticker := nativeUtil.GetTickerTime(constantResolvePeersGapSecond)
@@ -71,7 +70,7 @@ func resolvePeersThread() {
 	}
 }
 
-// getMorePeersThread to periodically request more peers from another node
+// getMorePeersThread to periodically request more peers from another node in Peers list
 func getMorePeersThread() {
 	go hostServiceInstance.GetMorePeersHandler()
 	ticker := nativeUtil.GetTickerTime(constantResolvePeersGapSecond)
@@ -88,7 +87,8 @@ func getMorePeersThread() {
 	}
 }
 
-// updateBlacklistedStatus go routine that checks, every 60sec if there are blacklisted peers to unblacklist
+// updateBlacklistedStatus to periodically check blacklisting time of black listed peer,
+// every 60sec if there are blacklisted peers to unblacklist
 func updateBlacklistedStatus() {
 	ticker := nativeUtil.GetTickerTime(60)
 	sigs := make(chan os.Signal, 1)

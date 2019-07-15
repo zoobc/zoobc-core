@@ -11,7 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-// NewHost to
+// NewHost to initialize new server node
 func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
 	host := new(model.Host)
 	nodeInfo := new(model.Node)
@@ -51,7 +51,7 @@ func GetAnyPeer(hs *model.Host) *model.Peer {
 	return nil
 }
 
-// NewKnownPeer to generate new peer model
+// NewKnownPeer to parse address & port into Peer structur
 func NewKnownPeer(address string, port int) *model.Peer {
 	peer := new(model.Peer)
 	nodeInfo := new(model.Node)
@@ -62,7 +62,7 @@ func NewKnownPeer(address string, port int) *model.Peer {
 	return peer
 }
 
-// ParseKnownPeers to
+// ParseKnownPeers to parse list of string peers into list of Peer structur
 func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	var (
 		knownPeers = []*model.Peer{}
@@ -84,19 +84,19 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	return knownPeers, nil
 }
 
-// GetFullAddressPeer is
+// GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
 }
 
-// AddToResolvedPeer to
+// AddToResolvedPeer to move unresolved peer into resolved peer
 func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
 	delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
 	host.Peers[GetFullAddressPeer(peer)] = peer
 	return host
 }
 
-// AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list in host
+// AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
 func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host {
 	hostAddress := &model.Peer{
 		Info: host.Info,
@@ -114,7 +114,7 @@ func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host 
 	return host
 }
 
-// PeerUnblacklist to
+// PeerUnblacklist to update Peer state of peer
 func PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
