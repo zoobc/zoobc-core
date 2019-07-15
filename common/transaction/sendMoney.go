@@ -43,10 +43,13 @@ func (tx *SendMoney) Apply() error {
 		tx.RecipientAccountType,
 		tx.RecipientAddress,
 	))
+
 	rows, err = tx.QueryExecutor.ExecuteSelect(accountQ, accountQArgs)
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
+
 	if rows.Next() {
 
 		err = rows.Scan(
@@ -112,7 +115,7 @@ func (tx *SendMoney) Unconfirmed() error {
 		account        model.Account
 		accountBalance model.AccountBalance
 		accountQ       string
-		accountQArgs   []interface{}
+		accountQArgs   interface{}
 	)
 
 	accountQ, accountQArgs = tx.AccountQuery.GetAccountByID(util.CreateAccountIDFromAddress(
@@ -123,6 +126,7 @@ func (tx *SendMoney) Unconfirmed() error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	if rows.Next() {
 		err = rows.Scan(&account.ID, &account.AccountType, &account.Address)
