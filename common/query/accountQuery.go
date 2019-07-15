@@ -55,7 +55,7 @@ func (aq *AccountQuery) ExtractModel(account *model.Account) []interface{} {
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (aq *AccountQuery) BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account {
+func (*AccountQuery) BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account {
 	for rows.Next() {
 		var account model.Account
 		_ = rows.Scan(
