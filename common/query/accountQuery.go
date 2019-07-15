@@ -19,11 +19,12 @@ type (
 		InsertAccount(account *model.Account) (str string, args []interface{})
 		ExtractModel(account *model.Account) []interface{}
 		BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account
+		NewAccountQuery() *AccountQuery
 	}
 )
 
 // NewAccountQuery returns AccountQuery instance
-func NewAccountQuery() *AccountQuery {
+func (aq *AccountQuery) NewAccountQuery() *AccountQuery {
 	return &AccountQuery{
 		Fields:    []string{"id", "account_type", "address"},
 		TableName: "account",
