@@ -85,7 +85,7 @@ func (q *AccountBalanceQuery) InsertAccountBalance(accountBalance *model.Account
 	), q.ExtractModel(accountBalance)
 }
 
-func (q *AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interface{} {
+func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interface{} {
 	return []interface{}{
 		account.AccountID,
 		account.Balance,
