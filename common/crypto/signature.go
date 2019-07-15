@@ -29,7 +29,8 @@ func NewSignature(executor query.ExecutorInterface) *Signature {
 // Sign accept account ID and payload to be signed then return the signature byte based on the
 // signature method associated with account.Type
 func (sig *Signature) Sign(payload, accountID []byte, seed string) []byte {
-	accountQuery := query.NewAccountQuery()
+
+	accountQuery := (&query.AccountQuery{}).NewAccountQuery()
 	getQuery, condition := accountQuery.GetAccountByID(accountID)
 	accountRows, _ := sig.Executor.ExecuteSelect(getQuery, condition...)
 	var accounts []*model.Account
