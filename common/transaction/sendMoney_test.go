@@ -20,7 +20,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceInterface
+		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
@@ -269,7 +269,7 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceInterface
+		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
@@ -352,7 +352,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceInterface
+		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}

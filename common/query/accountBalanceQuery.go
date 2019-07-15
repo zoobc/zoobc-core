@@ -14,8 +14,8 @@ type (
 		Fields    []string
 		TableName string
 	}
-	// AccountBalanceInterface interface that implemented by AccountBalanceQuery
-	AccountBalanceInterface interface {
+	// AccountBalanceQueryInterface interface that implemented by AccountBalanceQuery
+	AccountBalanceQueryInterface interface {
 		GetAccountBalanceByAccountID() string
 		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
