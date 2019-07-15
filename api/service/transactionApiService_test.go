@@ -12,8 +12,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
-// ResetTransactionService resets the singleton back to nil, used in test case teardown
-func ResetTransactionService() {
+// resetTransactionService resets the singleton back to nil, used in test case teardown
+func resetTransactionService() {
 	transactionServiceInstance = nil
 }
 
@@ -38,7 +38,7 @@ func TestNewTransactionervice(t *testing.T) {
 			if got := NewTransactionService(query.NewQueryExecutor(db)); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
-			defer ResetTransactionService()
+			defer resetTransactionService()
 		})
 	}
 }
@@ -98,7 +98,7 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 	}
 	defer db.Close()
 	instance := NewTransactionService(query.NewQueryExecutor(db))
-	defer ResetTransactionService()
+	defer resetTransactionService()
 	tests := []struct {
 		name    string
 		want    *model.GetTransactionsResponse
@@ -172,7 +172,7 @@ func Test_TransactionService_GetTransaction(t *testing.T) {
 	}
 	defer db.Close()
 	instance := NewTransactionService(query.NewQueryExecutor(db))
-	defer ResetTransactionService()
+	defer resetTransactionService()
 
 	tests := []struct {
 		name    string
