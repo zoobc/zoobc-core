@@ -47,12 +47,12 @@ func (tq *TransactionQuery) getTableName() string {
 }
 
 // GetTransaction get a single transaction from DB
-func (tq *TransactionQuery) GetTransaction(ID int64) string {
-	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.TableName)
+func (tq *TransactionQuery) GetTransaction(id int64) string {
+	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.getTableName())
 
 	var queryParam []string
-	if ID != 0 {
-		queryParam = append(queryParam, fmt.Sprintf("id = %d", ID))
+	if id != 0 {
+		queryParam = append(queryParam, fmt.Sprintf("id = %d", id))
 	}
 
 	if len(queryParam) > 0 {
@@ -64,7 +64,7 @@ func (tq *TransactionQuery) GetTransaction(ID int64) string {
 
 // GetTransactions get a set of transaction that satisfies the params from DB
 func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64) string {
-	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.TableName)
+	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.getTableName())
 
 	newLimit := limit
 	if limit == 0 {

@@ -134,7 +134,11 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 		"transaction_body_length",
 		"transaction_body_bytes",
 		"signature",
-	}).AddRow(1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}).AddRow(2, 2, 2, 1, "bcd", 1, "bcd", 2, 2, 21000, []byte{}, 2, []byte{}, []byte{}))
+	}).AddRow(
+		1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{},
+	).AddRow(
+		2, 2, 2, 1, "bcd", 1, "bcd", 2, 2, 21000, []byte{}, 2, []byte{}, []byte{},
+	))
 
 	// mocking record count query
 	mock.ExpectQuery("SELECT count").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(2))

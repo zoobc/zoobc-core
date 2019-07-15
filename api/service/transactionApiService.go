@@ -33,7 +33,8 @@ func NewTransactionService(queryExecutor *query.Executor) *TransactionService {
 }
 
 // GetTransaction fetches a single transaction from DB
-func (ts *TransactionService) GetTransaction(chainType contract.ChainType, params *model.GetTransactionRequest) (*model.Transaction, error) {
+func (ts *TransactionService) GetTransaction(chainType contract.ChainType,
+	params *model.GetTransactionRequest) (*model.Transaction, error) {
 	var (
 		err    error
 		rows   *sql.Rows
@@ -63,12 +64,17 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType, param
 			&txTemp.TransactionBodyBytes,
 			&txTemp.Signature,
 		)
+
+		if err != nil {
+			return &model.Transaction{}, err
+		}
 	}
 	return &txTemp, nil
 }
 
 // GetTransactions fetches a single transaction from DB
-func (ts *TransactionService) GetTransactions(chainType contract.ChainType, params *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
+func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
+	params *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
 	var (
 		err          error
 		rows         *sql.Rows
@@ -102,6 +108,11 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType, para
 			&txTemp.TransactionBodyBytes,
 			&txTemp.Signature,
 		)
+
+		if err != nil {
+			return &model.GetTransactionsResponse{}, err
+		}
+
 		results = append(results, &txTemp)
 	}
 
@@ -116,6 +127,10 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType, para
 		err = rows2.Scan(
 			&totalRecords,
 		)
+
+		if err != nil {
+			return &model.GetTransactionsResponse{}, err
+		}
 
 	}
 

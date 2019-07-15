@@ -27,7 +27,8 @@ func (th *TransactionHandler) GetTransaction(ctx context.Context, req *model.Get
 }
 
 // GetTransactions handles request to get data of a single Transaction
-func (th *TransactionHandler) GetTransactions(ctx context.Context, req *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
+func (th *TransactionHandler) GetTransactions(ctx context.Context,
+	req *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
 	var response *model.GetTransactionsResponse
 	var err error
 	chainType := chaintype.GetChainType(0)

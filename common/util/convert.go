@@ -6,18 +6,18 @@ import (
 )
 
 // ConvertBytesToUint64 takes array of bytes and return the uint64 representation of the given bytes
-func ConvertBytesToUint64(bytes []byte) uint64 {
-	return binary.LittleEndian.Uint64(bytes)
+func ConvertBytesToUint64(dataBytes []byte) uint64 {
+	return binary.LittleEndian.Uint64(dataBytes)
 }
 
 // ConvertBytesToUint32 takes array of bytes and return the uint32 representation of the given bytes
-func ConvertBytesToUint32(bytes []byte) uint32 {
-	return binary.LittleEndian.Uint32(bytes)
+func ConvertBytesToUint32(dataBytes []byte) uint32 {
+	return binary.LittleEndian.Uint32(dataBytes)
 }
 
 // ConvertBytesToUint16 takes array of bytes and return the uint16 representation of the given bytes
-func ConvertBytesToUint16(bytes []byte) uint16 {
-	return binary.LittleEndian.Uint16(bytes)
+func ConvertBytesToUint16(dataBytes []byte) uint16 {
+	return binary.LittleEndian.Uint16(dataBytes)
 }
 
 // ConvertUint64ToBytes takes the uint64 decimal number and return the byte array representation of the given number
