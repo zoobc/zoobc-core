@@ -41,6 +41,11 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 		Service: service.NewBlockService(queryExecutor),
 	})
 
+	// Set GRPC handler for Transactions requests
+	rpc_service.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
+		Service: service.NewTransactionService(queryExecutor),
+	})
+
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
