@@ -19,13 +19,13 @@ func main() {
 	c := rpc_service.NewBlockServiceClient(conn)
 
 	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		BlockHeight: 3,
+		Height: 3,
 	})
 
 	if err != nil {
-		log.Fatalf("error calling rpc_service.GetBlockBlockHeight: %s", err)
+		log.Fatalf("error calling rpc_service.GetBlockByHeight: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.GetBlockBlockHeight(): %s", response)
+	log.Printf("response from remote rpc_service.GetBlockByHeight(): %s", response)
 
 }

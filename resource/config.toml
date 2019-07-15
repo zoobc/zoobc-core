@@ -1,2 +1,5 @@
 dbPath = "./resource/"
 dbName = "zoobc.db"
+apiRPCPort=8000
+apiHTTPPort=8080
+nodeSecretPhrase = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
