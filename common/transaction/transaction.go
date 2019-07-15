@@ -1,9 +1,8 @@
 package transaction
 
 import (
-	"encoding/binary"
-
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -16,9 +15,7 @@ type (
 
 func GetTransactionType(tx *model.Transaction) TypeAction {
 
-	buf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(buf, tx.GetTransactionType())
-
+	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
 	switch buf[0] {
 	case 0:
 		switch buf[1] {
