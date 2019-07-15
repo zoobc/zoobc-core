@@ -17,3 +17,9 @@ func (tx *TXEmpty) ApplyUnconfirmed() error {
 func (tx *TXEmpty) Validate() error {
 	return nil
 }
+func (tx *TXEmpty) GetAmount() int64 {
+	return 0
+}
+func (tx *TXEmpty) GetSize() uint32 {
+	return 0
+}

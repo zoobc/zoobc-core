@@ -98,7 +98,7 @@ func main() {
 }
 
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
-	mempoolService := service.NewMempoolService(bp.Chaintype, query.NewQueryExecutor(db), query.NewMempoolQuery(processor.Chaintype))
+	mempoolService := service.NewMempoolService(&chaintype.MainChain{}, query.NewQueryExecutor(db), query.NewMempoolQuery(processor.Chaintype))
 	for {
 		_ = processor.StartSmithing(mempoolService)
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)

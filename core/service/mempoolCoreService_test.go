@@ -191,7 +191,7 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 					ID:               4,
 					FeePerByte:       100,
 					ArrivalTimestamp: 1562893306,
-					TransactionBytes: getTestSignedMempoolTransaction(4, 1562893305).TransactionBytes,
+					TransactionBytes: getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
 				},
 				{
 					ID:               5,
@@ -387,7 +387,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 					ID:               5,
 					FeePerByte:       5,
 					ArrivalTimestamp: 1562893303,
-					TransactionBytes: getTestSignedMempoolTransaction(5, 1562893305).TransactionBytes,
+					TransactionBytes: getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
 				},
 				{
 					ID:               3,

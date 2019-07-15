@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/transaction"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 
@@ -167,21 +168,21 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 
 	if _, ok := bp.Chaintype.(*chaintype.MainChain); ok {
 		digest := sha3.New512()
-		//TODO: when transaction service will be finalized
-		// var totalAmountNQT int64
-		// var totalFeeNQT int64
-		// var payloadLength uint32
+		var totalAmountNQT int64
+		var totalFeeNQT int64
+		var payloadLength uint32
 		for _, mpTx := range mempoolTransactions {
 			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
 				return nil, err
 			}
+
 			sortedTx = append(sortedTx, tx)
-			//TODO: when transaction service will be finalized
-			// digest.Write(tx.Byte())
-			// totalAmountNQT += tx.GetTransaction().GetAmount()
-			// totalFeeNQT += tx.GetTransaction().GetFee()
-			// payloadLength += uint32(tx.GetTransaction().GetSize())
+			_, _ = digest.Write(mpTx.TransactionBytes)
+			txType := transaction.GetTransactionType(tx)
+			totalAmountNQT += txType.GetAmount()
+			totalFeeNQT += tx.Fee
+			payloadLength += txType.GetSize()
 		}
 		payloadHash = digest.Sum([]byte{})
 	}
