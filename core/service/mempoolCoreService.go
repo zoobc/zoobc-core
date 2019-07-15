@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -25,7 +25,6 @@ type (
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
-		ValidateMempoolTrasnsaction(mpTx *model.MempoolTransaction) error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -111,13 +110,14 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return errors.New("DatabaseError")
 	}
 
-	//TODO: validate the transaction
-	_, err = util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+	tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
 		return err
 	}
-	//TODO: add tx validation when method will be implemented
-	// 	mpTx.GetMempoolTransaction().Validate()
+
+	if err := transaction.GetTransactionType(tx).Validate(); err != nil {
+		return err
+	}
 
 	result, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
 	if err != nil {
@@ -165,13 +165,15 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			if transactionsContain(sortedTransactions, mempoolTransaction) || payloadLength+transactionLength > constant.MaxPayloadLength {
 				continue
 			}
-			//TODO: compute transaction expiration date
-			txExpirationTime := int64(math.MaxInt64) // dummy data
-			if blockTimestamp > 0 && txExpirationTime < blockTimestamp {
+
+			tx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+			if err != nil {
+				log.Println(err)
 				continue
 			}
-			if err := mps.ValidateMempoolTrasnsaction(mempoolTransaction); err != nil {
-				log.Println(err)
+			// compute transaction expiration time
+			txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
+			if blockTimestamp == 0 || txExpirationTime > blockTimestamp {
 				continue
 			}
 
@@ -184,10 +186,6 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 	}
 	sortFeePerByteThenTimestampThenID(sortedTransactions)
 	return sortedTransactions, nil
-}
-
-func (mps *MempoolService) ValidateMempoolTrasnsaction(mpTx *model.MempoolTransaction) error {
-	return nil
 }
 
 func transactionsContain(a []*model.MempoolTransaction, x *model.MempoolTransaction) bool {

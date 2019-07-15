@@ -27,11 +27,11 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interfa
 	switch qe {
 	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool":
 		mockedRows := sqlmock.NewRows([]string{"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes"})
-		mockedRows.AddRow(1, 1, 1562893305, []byte{5, 5, 5, 5, 5})
-		mockedRows.AddRow(2, 10, 1562893304, []byte{2, 2, 2, 2, 2})
-		mockedRows.AddRow(3, 1, 1562893302, []byte{1, 1, 1, 1, 1})
-		mockedRows.AddRow(4, 100, 1562893306, []byte{4, 4, 4, 4, 4})
-		mockedRows.AddRow(5, 5, 1562893303, []byte{4, 4, 4, 4, 4})
+		mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes)
+		mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes)
+		mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes)
+		mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes)
+		mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool WHERE id = :id":
 		return nil, errors.New("MempoolTransactionNotFound")
@@ -85,7 +85,7 @@ func (*mockMempoolQueryExecutorSQLFail) ExecuteSelect(qe string, args ...interfa
 	return rows, nil
 }
 
-func buildTransaction(id int64, sender, recipient string) *model.Transaction {
+func buildTransaction(id, timestamp int64, sender, recipient string) *model.Transaction {
 	return &model.Transaction{
 		Version:                 1,
 		ID:                      id,
@@ -97,7 +97,7 @@ func buildTransaction(id int64, sender, recipient string) *model.Transaction {
 		RecipientAccountAddress: recipient,
 		TransactionType:         0,
 		Fee:                     1,
-		Timestamp:               1562893302,
+		Timestamp:               timestamp,
 		TransactionHash:         make([]byte, 32),
 		TransactionBodyLength:   0,
 		TransactionBodyBytes:    make([]byte, 0),
@@ -106,13 +106,13 @@ func buildTransaction(id int64, sender, recipient string) *model.Transaction {
 	}
 }
 
-func getTestSignedMempoolTransaction() *model.MempoolTransaction {
-	tx := buildTransaction(3, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
+func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
+	tx := buildTransaction(id, timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 	txBytes, _ := util.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
-		ID:               1,
+		ID:               id,
 		FeePerByte:       1,
-		ArrivalTimestamp: 1562893302,
+		ArrivalTimestamp: timestamp,
 		TransactionBytes: txBytes,
 	}
 }
@@ -173,31 +173,31 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 					ID:               1,
 					FeePerByte:       1,
 					ArrivalTimestamp: 1562893305,
-					TransactionBytes: []byte{5, 5, 5, 5, 5},
+					TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
 				},
 				{
 					ID:               2,
 					FeePerByte:       10,
 					ArrivalTimestamp: 1562893304,
-					TransactionBytes: []byte{2, 2, 2, 2, 2},
+					TransactionBytes: getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
 				},
 				{
 					ID:               3,
 					FeePerByte:       1,
 					ArrivalTimestamp: 1562893302,
-					TransactionBytes: []byte{1, 1, 1, 1, 1},
+					TransactionBytes: getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
 				},
 				{
 					ID:               4,
 					FeePerByte:       100,
 					ArrivalTimestamp: 1562893306,
-					TransactionBytes: []byte{4, 4, 4, 4, 4},
+					TransactionBytes: getTestSignedMempoolTransaction(4, 1562893305).TransactionBytes,
 				},
 				{
 					ID:               5,
 					FeePerByte:       5,
 					ArrivalTimestamp: 1562893303,
-					TransactionBytes: []byte{4, 4, 4, 4, 4},
+					TransactionBytes: getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
 				},
 			},
 			wantErr: false,
@@ -255,7 +255,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				QueryExecutor: &mockMempoolQueryExecutorSuccess{},
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(),
+				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
 			},
 			wantErr: false,
 		},
@@ -267,7 +267,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				QueryExecutor: &mockMempoolQueryExecutorFail{},
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(),
+				mpTx: getTestSignedMempoolTransaction(3, 1562893303),
 			},
 			wantErr: true,
 		},
@@ -310,7 +310,7 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 			},
 			args: args{
 				transactions: []*model.Transaction{
-					buildTransaction(3, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
 				},
 			},
 			wantErr: false,
@@ -324,7 +324,7 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 			},
 			args: args{
 				transactions: []*model.Transaction{
-					buildTransaction(3, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
 				},
 			},
 			wantErr: true,
@@ -375,25 +375,31 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 					ID:               4,
 					FeePerByte:       100,
 					ArrivalTimestamp: 1562893306,
-					TransactionBytes: []byte{4, 4, 4, 4, 4},
+					TransactionBytes: getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
 				},
 				{
 					ID:               2,
 					FeePerByte:       10,
 					ArrivalTimestamp: 1562893304,
-					TransactionBytes: []byte{2, 2, 2, 2, 2},
+					TransactionBytes: getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+				},
+				{
+					ID:               5,
+					FeePerByte:       5,
+					ArrivalTimestamp: 1562893303,
+					TransactionBytes: getTestSignedMempoolTransaction(5, 1562893305).TransactionBytes,
 				},
 				{
 					ID:               3,
 					FeePerByte:       1,
 					ArrivalTimestamp: 1562893302,
-					TransactionBytes: []byte{1, 1, 1, 1, 1},
+					TransactionBytes: getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
 				},
 				{
 					ID:               1,
 					FeePerByte:       1,
 					ArrivalTimestamp: 1562893305,
-					TransactionBytes: []byte{5, 5, 5, 5, 5},
+					TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
 				},
 			},
 			wantErr: false,
