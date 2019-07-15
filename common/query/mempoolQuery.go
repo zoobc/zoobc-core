@@ -15,6 +15,7 @@ type (
 		GetMempoolTransaction() string
 		InsertMempoolTransaction() string
 		DeleteMempoolTransaction() string
+		DeleteMempoolTransactions() string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 	}
 
@@ -66,6 +67,11 @@ func (mpq *MempoolQuery) InsertMempoolTransaction() string {
 // DeleteMempoolTransaction delete one mempool transaction by id
 func (mpq *MempoolQuery) DeleteMempoolTransaction() string {
 	return fmt.Sprintf("DELETE FROM %s WHERE id = :id", mpq.getTableName())
+}
+
+// DeleteMempoolTransaction delete one mempool transaction by id
+func (mpq *MempoolQuery) DeleteMempoolTransactions() string {
+	return fmt.Sprintf("DELETE FROM %s WHERE id IN (:ids)", mpq.getTableName())
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields

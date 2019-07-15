@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 
@@ -93,7 +92,7 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 }
 
 // StartSmithing start smithing loop
-func (bp *BlockchainProcessor) StartSmithing() error {
+func (bp *BlockchainProcessor) StartSmithing(mempoolService *service.MempoolService) error {
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return errors.New("Genesis:notAddedYet")
@@ -120,7 +119,12 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				return err
 			}
 
-			block, err := bp.GenerateBlock(previousBlock, bp.Generator.SecretPhrase, timestamp)
+			mempoolTransactions, err := mempoolService.SelectTransactionsFromMempool(timestamp)
+			if err != nil {
+				log.Println(err)
+				return errors.New("MempoolReadError")
+			}
+			block, err := bp.GenerateBlock(previousBlock, bp.Generator.SecretPhrase, timestamp, mempoolTransactions)
 
 			if err != nil {
 				return err
@@ -135,6 +139,12 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			if err != nil {
 				return err
 			}
+			// remove mempool transactions relative to this block
+			if len(block.GetTransactions()) > 0 {
+				if err := mempoolService.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+					log.Printf("Can't delete Mempool Transactions: %s\n", err)
+				}
+			}
 			allBlocks, _ := bp.BlockService.GetBlocks()
 			log.Printf("block pushed: %d\n", len(allBlocks))
 			stop = true
@@ -144,7 +154,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 }
 
 // GenerateBlock generate block from transactions in mempool
-func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretPhrase string, timestamp int64) (*model.Block, error) {
+func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretPhrase string, timestamp int64, mempoolTransactions []*model.MempoolTransaction) (*model.Block, error) {
 	newBlockHeight := previousBlock.Height + 1
 	digest := sha3.New512()
 	var totalAmount int64
@@ -156,26 +166,22 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	var payloadHash []byte
 
 	if _, ok := bp.Chaintype.(*chaintype.MainChain); ok {
-		mempoolService := service.NewMempoolService(bp.Chaintype, query.NewQueryExecutor(db), query.NewMempoolQuery(bp.Chaintype))
-		sortedTransactions, err := mempoolService.SelectTransactionsFromMempool(timestamp)
-		if err != nil {
-			log.Println(err)
-			return nil, errors.New("MempoolReadError")
-		}
 		digest := sha3.New512()
-		var totalAmountNQT int64
-		var totalFeeNQT int64
-		var payloadLength uint32
-		for _, mpTx := range sortedTransactions {
+		//TODO: when transaction service will be finalized
+		// var totalAmountNQT int64
+		// var totalFeeNQT int64
+		// var payloadLength uint32
+		for _, mpTx := range mempoolTransactions {
 			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
 				return nil, err
 			}
 			sortedTx = append(sortedTx, tx)
-			digest.Write(tx.Byte())
-			totalAmountNQT += tx.GetTransaction().GetAmount()
-			totalFeeNQT += tx.GetTransaction().GetFee()
-			payloadLength += uint32(tx.GetTransaction().GetSize())
+			//TODO: when transaction service will be finalized
+			// digest.Write(tx.Byte())
+			// totalAmountNQT += tx.GetTransaction().GetAmount()
+			// totalFeeNQT += tx.GetTransaction().GetFee()
+			// payloadLength += uint32(tx.GetTransaction().GetSize())
 		}
 		payloadHash = digest.Sum([]byte{})
 	}

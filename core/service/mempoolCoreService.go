@@ -6,13 +6,14 @@ import (
 	"errors"
 	"math"
 	"sort"
+	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -21,7 +22,7 @@ type (
 	MempoolServiceInterface interface {
 		InitMempool() error
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
-		GetMempoolTransaction(id []byte) (*model.MempoolTransaction, error)
+		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
 		ValidateMempoolTrasnsaction(mpTx *model.MempoolTransaction) error
@@ -75,11 +76,11 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 }
 
 // GetMempoolTransaction return a mempool transaction by its ID
-func (mps *MempoolService) GetMempoolTransaction(id []byte) (*model.MempoolTransaction, error) {
+func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransaction, error) {
 	rows, err := mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), id)
 	if err != nil {
 		return &model.MempoolTransaction{
-			ID: make([]byte, 0),
+			ID: -1,
 		}, err
 	}
 	defer rows.Close()
@@ -88,13 +89,13 @@ func (mps *MempoolService) GetMempoolTransaction(id []byte) (*model.MempoolTrans
 		err = rows.Scan(&mpTx.ID, &mpTx.ArrivalTimestamp, &mpTx.FeePerByte, &mpTx.TransactionBytes)
 		if err != nil {
 			return &model.MempoolTransaction{
-				ID: make([]byte, 0),
+				ID: -1,
 			}, err
 		}
 		return &mpTx, nil
 	}
 	return &model.MempoolTransaction{
-		ID: make([]byte, 0),
+		ID: -1,
 	}, errors.New("MempoolTransactionNotFound")
 }
 
@@ -126,13 +127,18 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	return nil
 }
 
-// RemoveMempoolTransaction removes a tx from mempool
-func (mps *MempoolService) RemoveMempoolTransaction(id []byte) error {
-	_, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.DeleteMempoolTransaction(), id)
+// TODO: write unit test
+// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
+func (mps *MempoolService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
+	idsStr := []string{}
+	for _, tx := range transactions {
+		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
+	}
+	_, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
 	if err != nil {
 		return err
 	}
-	log.Printf("mempool transaction with ID = %s deleted", id)
+	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
 	return nil
 }
 
@@ -203,9 +209,7 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 		case mi.ArrivalTimestamp != mj.ArrivalTimestamp:
 			return mi.ArrivalTimestamp < mj.ArrivalTimestamp
 		default:
-			miID := commonUtil.ConvertBytesToUint64(mi.ID)
-			mjID := commonUtil.ConvertBytesToUint64(mj.ID)
-			return miID < mjID
+			return mi.ID < mj.ID
 		}
 	})
 }

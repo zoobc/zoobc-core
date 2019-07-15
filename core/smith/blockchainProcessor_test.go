@@ -196,9 +196,10 @@ func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test w
 		LastBlockID  int64
 	}
 	type args struct {
-		previousBlock *model.Block
-		secretPhrase  string
-		timestamp     int64
+		previousBlock       *model.Block
+		secretPhrase        string
+		timestamp           int64
+		mempoolTransactions []*model.MempoolTransaction
 	}
 	tests := []struct {
 		name    string
@@ -216,9 +217,10 @@ func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test w
 				LastBlockID:  0,
 			},
 			args: args{
-				previousBlock: &model.Block{},
-				secretPhrase:  "",
-				timestamp:     1562585975339,
+				previousBlock:       &model.Block{},
+				secretPhrase:        "",
+				timestamp:           1562585975339,
+				mempoolTransactions: []*model.MempoolTransaction{},
 			},
 			want: &model.Block{
 				Version:           1,
@@ -243,7 +245,7 @@ func TestBlockchainProcessor_GenerateBlock(t *testing.T) { //todo: update test w
 				BlockService: tt.fields.BlockService,
 				LastBlockID:  tt.fields.LastBlockID,
 			}
-			got, err := bp.GenerateBlock(tt.args.previousBlock, tt.args.secretPhrase, tt.args.timestamp)
+			got, err := bp.GenerateBlock(tt.args.previousBlock, tt.args.secretPhrase, tt.args.timestamp, tt.args.mempoolTransactions)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockchainProcessor.GenerateBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
