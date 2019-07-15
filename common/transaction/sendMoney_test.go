@@ -20,7 +20,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceInt
+		AccountBalanceQuery  query.AccountBalanceInterface
 		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
@@ -120,7 +120,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		QueryExecutor: query.ExecutorInterface(&query.Executor{
 			Db: db,
 		}),
-		AccountBalanceQuery: (&query.AccountBalanceQuery{}).NewAccountBalanceQuery(),
+		AccountBalanceQuery: query.NewAccountBalanceQuery(),
 	}
 	mock.ExpectQuery(regexp.QuoteMeta(`
 		SELECT 
@@ -130,7 +130,7 @@ func TestSendMoney_Validate(t *testing.T) {
 	`)).WithArgs(util.CreateAccountIDFromAddress(
 		txAccountNotExists.RecipientAccountType,
 		txAccountNotExists.RecipientAddress,
-	)).WillReturnRows(sqlmock.NewRows((&query.AccountBalanceQuery{}).NewAccountBalanceQuery().Fields))
+	)).WillReturnRows(sqlmock.NewRows(query.NewAccountBalanceQuery().Fields))
 
 	if err := txAccountNotExists.Validate(); (err != nil) && strings.Compare(err.Error(), "account not exists") != 0 {
 		t.Error(err)
@@ -149,7 +149,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		QueryExecutor: query.ExecutorInterface(&query.Executor{
 			Db: db,
 		}),
-		AccountBalanceQuery: (&query.AccountBalanceQuery{}).NewAccountBalanceQuery(),
+		AccountBalanceQuery: query.NewAccountBalanceQuery(),
 	}
 	mock.ExpectQuery(regexp.QuoteMeta(`
 		SELECT 
@@ -160,7 +160,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		txBalanceNotEnough.RecipientAccountType,
 		txBalanceNotEnough.RecipientAddress,
 	)).WillReturnRows(
-		sqlmock.NewRows((&query.AccountBalanceQuery{}).NewAccountBalanceQuery().Fields).
+		sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).
 			AddRow(
 				util.CreateAccountIDFromAddress(
 					txBalanceNotEnough.RecipientAccountType,
@@ -198,7 +198,7 @@ func (e *executorAccountInsertSuccess) ExecuteSelect(qStr string, args ...interf
 	}
 	defer db.Close()
 
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows((&query.AccountQuery{}).NewAccountQuery().Fields))
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(query.NewAccountQuery().Fields))
 
 	rows, err := db.Query(qStr, 1)
 	return rows, err
@@ -234,7 +234,7 @@ func (e *executorAccountUpdateSuccess) ExecuteSelect(qStr string, args ...interf
 	defer db.Close()
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(
-		sqlmock.NewRows((&query.AccountQuery{}).NewAccountQuery().Fields).AddRow(
+		sqlmock.NewRows(query.NewAccountQuery().Fields).AddRow(
 			1, 1, 5,
 		),
 	)
@@ -261,7 +261,7 @@ func (e *executorAccountUpdateSuccess) ExecuteStatement(qStr string, args ...int
 	return result, nil
 }
 
-func TestSendMoney_Unconfirmed(t *testing.T) {
+func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                 *model.SendMoneyTransactionBody
 		SenderAddress        string
@@ -269,7 +269,7 @@ func TestSendMoney_Unconfirmed(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceInt
+		AccountBalanceQuery  query.AccountBalanceInterface
 		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
@@ -289,8 +289,8 @@ func TestSendMoney_Unconfirmed(t *testing.T) {
 				SenderAccountType:    1,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Height:               0,
-				AccountBalanceQuery:  (&query.AccountBalanceQuery{}).NewAccountBalanceQuery(),
-				AccountQuery:         (&query.AccountQuery{}).NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				AccountQuery:         query.NewAccountQuery(),
 				QueryExecutor: query.ExecutorInterface(&executorAccountInsertSuccess{
 					query.Executor{
 						Db: db,
@@ -310,8 +310,8 @@ func TestSendMoney_Unconfirmed(t *testing.T) {
 				SenderAccountType:    1,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Height:               0,
-				AccountBalanceQuery:  (&query.AccountBalanceQuery{}).NewAccountBalanceQuery(),
-				AccountQuery:         (&query.AccountQuery{}).NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				AccountQuery:         query.NewAccountQuery(),
 				QueryExecutor: query.ExecutorInterface(&executorAccountUpdateSuccess{
 					query.Executor{
 						Db: db,
@@ -334,8 +334,8 @@ func TestSendMoney_Unconfirmed(t *testing.T) {
 				AccountQuery:         tt.fields.AccountQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 			}
-			if err := tx.Unconfirmed(); (err != nil) != tt.wantErr {
-				t.Errorf("SendMoney.Unconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("SendMoney.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Error(err)
@@ -344,7 +344,7 @@ func TestSendMoney_Unconfirmed(t *testing.T) {
 	}
 }
 
-func TestSendMoney_Apply(t *testing.T) {
+func TestSendMoney_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		Body                 *model.SendMoneyTransactionBody
 		SenderAddress        string
@@ -352,7 +352,7 @@ func TestSendMoney_Apply(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceInt
+		AccountBalanceQuery  query.AccountBalanceInterface
 		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
@@ -372,8 +372,8 @@ func TestSendMoney_Apply(t *testing.T) {
 				SenderAccountType:    1,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Height:               0,
-				AccountBalanceQuery:  (&query.AccountBalanceQuery{}).NewAccountBalanceQuery(),
-				AccountQuery:         (&query.AccountQuery{}).NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				AccountQuery:         query.NewAccountQuery(),
 				QueryExecutor: query.ExecutorInterface(&executorAccountInsertSuccess{
 					query.Executor{
 						Db: db,
@@ -393,8 +393,8 @@ func TestSendMoney_Apply(t *testing.T) {
 				SenderAccountType:    1,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Height:               0,
-				AccountBalanceQuery:  (&query.AccountBalanceQuery{}).NewAccountBalanceQuery(),
-				AccountQuery:         (&query.AccountQuery{}).NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				AccountQuery:         query.NewAccountQuery(),
 				QueryExecutor: query.ExecutorInterface(&executorAccountUpdateSuccess{
 					query.Executor{
 						Db: db,
@@ -417,8 +417,8 @@ func TestSendMoney_Apply(t *testing.T) {
 				AccountQuery:         tt.fields.AccountQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 			}
-			if err := tx.Apply(); (err != nil) != tt.wantErr {
-				t.Errorf("SendMoney.Apply() error = %v, wantErr %v", err, tt.wantErr)
+			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("SendMoney.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Error(err)

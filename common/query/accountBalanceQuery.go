@@ -9,22 +9,21 @@ import (
 )
 
 type (
-	// AccountBalanceQuery is struct will implemented AccountBalanceInt
+	// AccountBalanceQuery is struct will implemented AccountBalanceInterface
 	AccountBalanceQuery struct {
 		Fields    []string
 		TableName string
 	}
-	// AccountBalanceInt interface that implemented by AccountBalanceQuery
-	AccountBalanceInt interface {
+	// AccountBalanceInterface interface that implemented by AccountBalanceQuery
+	AccountBalanceInterface interface {
 		GetAccountBalanceByAccountID() string
 		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
-		NewAccountBalanceQuery() *AccountBalanceQuery
 	}
 )
 
 // NewAccountBalanceQuery will create a new AccountBalanceQuery
-func (q *AccountBalanceQuery) NewAccountBalanceQuery() *AccountBalanceQuery {
+func NewAccountBalanceQuery() *AccountBalanceQuery {
 	return &AccountBalanceQuery{
 		Fields: []string{
 			"account_id",

@@ -8,8 +8,8 @@ import (
 
 type (
 	TypeAction interface {
-		Apply() error
-		Unconfirmed() error
+		ApplyConfirmed() error
+		ApplyUnconfirmed() error
 		Validate() error
 	}
 )

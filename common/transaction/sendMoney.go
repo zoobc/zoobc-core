@@ -19,18 +19,18 @@ type SendMoney struct {
 	RecipientAddress     string
 	RecipientAccountType uint32
 	Height               uint32
-	AccountBalanceQuery  query.AccountBalanceInt
+	AccountBalanceQuery  query.AccountBalanceInterface
 	AccountQuery         query.AccountQueryInterface
 	QueryExecutor        query.ExecutorInterface
 }
 
 /*
-Apply is func that for applying Transaction SendMoney type
+ApplyConfirmed is func that for applying Transaction SendMoney type
 update `AccountBalance.Balance` for affected `Account.ID`
 if account not exists would be created new.
 return error while query is failure
 */
-func (tx *SendMoney) Apply() error {
+func (tx *SendMoney) ApplyConfirmed() error {
 
 	var (
 		err            error
@@ -102,12 +102,12 @@ func (tx *SendMoney) Apply() error {
 }
 
 /*
-Unconfirmed is func that for applying to unconfirmed Transaction SendMoney type
+ApplyUnconfirmed is func that for applying to unconfirmed Transaction SendMoney type
 update `AccountBalance.SpendableBalance` for affected `Account.ID`
 if account not exists would be created new.
 return error while query is failure
 */
-func (tx *SendMoney) Unconfirmed() error {
+func (tx *SendMoney) ApplyUnconfirmed() error {
 
 	var (
 		err            error

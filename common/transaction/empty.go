@@ -8,10 +8,10 @@ type TXEmpty struct {
 	Body *model.EmptyTransactionBody
 }
 
-func (tx *TXEmpty) Apply() error {
+func (tx *TXEmpty) ApplyConfirmed() error {
 	return nil
 }
-func (tx *TXEmpty) Unconfirmed() error {
+func (tx *TXEmpty) ApplyUnconfirmed() error {
 	return nil
 }
 func (tx *TXEmpty) Validate() error {
