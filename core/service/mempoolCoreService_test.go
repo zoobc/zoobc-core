@@ -89,7 +89,7 @@ func buildTransaction(id, timestamp int64, sender, recipient string) *model.Tran
 		TransactionBodyLength:   0,
 		TransactionBodyBytes:    make([]byte, 0),
 		TransactionBody:         nil,
-		Signature:               make([]byte, 256),
+		Signature:               make([]byte, 64),
 	}
 }
 

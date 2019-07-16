@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -217,6 +219,55 @@ func TestParseTransactionBytes(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseTransactionBytes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTransactionID(t *testing.T) {
+	type args struct {
+		tx *model.Transaction
+		ct contract.ChainType
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "GetTransactionID:success",
+			args: args{
+				tx: &model.Transaction{
+					TransactionHash: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					Signature:       make([]byte, 64),
+				},
+				ct: &chaintype.MainChain{},
+			},
+			wantErr: false,
+			want:    16843009,
+		},
+		{
+			name: "GetTransactionID:fail - no signature",
+			args: args{
+				tx: &model.Transaction{
+					TransactionHash: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				},
+				ct: &chaintype.MainChain{},
+			},
+			wantErr: true,
+			want:    -1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTransactionID(tt.args.tx, tt.args.ct)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTransactionID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetTransactionID() = %v, want %v", got, tt.want)
 			}
 		})
 	}

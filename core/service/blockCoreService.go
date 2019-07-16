@@ -239,7 +239,6 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	return blocks, nil
 }
 
-// TODO: write unit test
 // RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
 func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
 	idsStr := []string{}
