@@ -20,7 +20,6 @@ import (
 type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
-		InitMempool() error
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
