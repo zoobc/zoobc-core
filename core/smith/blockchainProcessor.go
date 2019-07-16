@@ -44,10 +44,10 @@ type (
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
-func NewBlockchainProcessor(chaintype contract.ChainType, blocksmith *Blocksmith,
+func NewBlockchainProcessor(ct contract.ChainType, blocksmith *Blocksmith,
 	blockService service.BlockServiceInterface) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Chaintype:    chaintype,
+		Chaintype:    ct,
 		Generator:    blocksmith,
 		BlockService: blockService,
 	}
