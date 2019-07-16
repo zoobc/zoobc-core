@@ -8,15 +8,11 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -32,6 +28,7 @@ func TestNewBlockService(t *testing.T) {
 		chaintype     contract.ChainType
 		queryExecutor query.ExecutorInterface
 		blockQuery    query.BlockQueryInterface
+		mempoolQuery  query.MempoolQueryInterface
 		signature     crypto.SignatureInterface
 	}
 	test := struct {
@@ -44,16 +41,18 @@ func TestNewBlockService(t *testing.T) {
 			chaintype:     &chaintype.MainChain{},
 			queryExecutor: nil,
 			blockQuery:    nil,
+			mempoolQuery:  nil,
 			signature:     nil,
 		},
 		want: &BlockService{
 			Chaintype:     &chaintype.MainChain{},
 			QueryExecutor: nil,
 			BlockQuery:    nil,
+			MempoolQuery:  nil,
 			Signature:     nil,
 		},
 	}
-	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery, test.args.signature)
+	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery, test.args.mempoolQuery, test.args.signature)
 
 	if !cmp.Equal(got, test.want) {
 		t.Errorf("NewBlockService() = %v, want %v", got, test.want)
@@ -724,6 +723,68 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
+	type fields struct {
+		Chaintype     contract.ChainType
+		QueryExecutor query.ExecutorInterface
+		BlockQuery    query.BlockQueryInterface
+		MempoolQuery  query.MempoolQueryInterface
+		Signature     crypto.SignatureInterface
+	}
+	type args struct {
+		transactions []*model.Transaction
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "RemoveMempoolTransaction:Success",
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor: &mockQueryExecutorSuccess{},
+			},
+			args: args{
+				transactions: []*model.Transaction{
+					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "RemoveMempoolTransaction:Fail",
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor: &mockQueryExecutorFail{},
+			},
+			args: args{
+				transactions: []*model.Transaction{
+					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				MempoolQuery:  tt.fields.MempoolQuery,
+				Signature:     tt.fields.Signature,
+			}
+			if err := bs.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.RemoveMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

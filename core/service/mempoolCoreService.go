@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"sort"
-	"strconv"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -24,7 +22,6 @@ type (
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
-		RemoveMempoolTransactions(transactions []*model.Transaction) error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -124,21 +121,6 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return err
 	}
 	log.Printf("got new mempool transaction, %v", result)
-	return nil
-}
-
-// TODO: write unit test
-// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
-func (mps *MempoolService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
-	idsStr := []string{}
-	for _, tx := range transactions {
-		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
-	}
-	_, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
-	if err != nil {
-		return err
-	}
-	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
 	return nil
 }
 

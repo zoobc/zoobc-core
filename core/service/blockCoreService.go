@@ -4,14 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/transaction"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/core/util"
 	core_util "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -29,22 +34,25 @@ type (
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetGenesisBlock() (*model.Block, error)
+		RemoveMempoolTransactions(transactions []*model.Transaction) error
 	}
 
 	BlockService struct {
 		Chaintype     contract.ChainType
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
+		MempoolQuery  query.MempoolQueryInterface
 		Signature     crypto.SignatureInterface
 	}
 )
 
 func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface, signature crypto.SignatureInterface) *BlockService {
+	blockQuery query.BlockQueryInterface, mempoolQuery query.MempoolQueryInterface, signature crypto.SignatureInterface) *BlockService {
 	return &BlockService{
 		Chaintype:     chaintype,
 		QueryExecutor: queryExecutor,
 		BlockQuery:    blockQuery,
+		MempoolQuery:  mempoolQuery,
 		Signature:     signature,
 	}
 }
@@ -117,11 +125,37 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("got new block, %v", result)
-	return nil
-	// apply transactions
+
+	// apply transactions and remove them from mempool
+	transactions := block.GetTransactions()
+	if len(transactions) > 0 {
+		for _, tx := range block.GetTransactions() {
+			//TODO: not 100% sure if we need to call ApplyUnconfirmed or ApplyConfirmed
+			if err := transaction.GetTransactionType(tx).ApplyUnconfirmed(); err != nil {
+				tx.BlockID = block.ID
+				tx.Height = block.Height
+				//TODO: do we need to recompute txID (in previous prototype we used to do it)?
+				//		note the function also checks if tx is signed (only checks that signature field is !nil)
+				tx.ID, err = util.GetTransactionID(tx, bs.Chaintype)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				// TODO: save tx to db, in a (sql) database transaction (unless ApplyUnconfirmed already saves tx in db)
+			}
+		}
+		if err := bs.RemoveMempoolTransactions(transactions); err != nil {
+			log.Errorf("Can't delete Mempool Transactions: %s", err)
+			return err
+		}
+
+		//TODO: add db transaction commit here
+	}
 
 	// broadcast block
+
+	fmt.Printf("got new block, %v", result)
+	return nil
 }
 
 // GetLastBlock return the last pushed block
@@ -203,4 +237,19 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 		blocks = append(blocks, &block)
 	}
 	return blocks, nil
+}
+
+// TODO: write unit test
+// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
+func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
+	idsStr := []string{}
+	for _, tx := range transactions {
+		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
+	}
+	_, err := bs.QueryExecutor.ExecuteStatement(bs.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
+	if err != nil {
+		return err
+	}
+	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
+	return nil
 }

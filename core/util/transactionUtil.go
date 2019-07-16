@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/contract"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -89,4 +91,14 @@ func ReadAccountAddress(accountType uint32, buf *bytes.Buffer) []byte {
 	default:
 		return buf.Next(44) // default to zoobc account address
 	}
+}
+
+// GetTransactionID calculate and returns a transaction ID given a transaction model
+func GetTransactionID(tx *model.Transaction, ct contract.ChainType) (int64, error) {
+	if tx.Signature == nil && tx.BlockID != ct.GetGenesisBlockID() {
+		return -1, errors.New("TransactionNotSigned")
+	}
+	fullHash := tx.TransactionHash
+	ID := int64(util.ConvertBytesToUint32(fullHash))
+	return ID, nil
 }

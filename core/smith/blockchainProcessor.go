@@ -36,20 +36,22 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype    contract.ChainType
-		Generator    *Blocksmith
-		BlockService service.BlockServiceInterface
-		LastBlockID  int64
+		Chaintype      contract.ChainType
+		Generator      *Blocksmith
+		BlockService   service.BlockServiceInterface
+		MempoolService service.MempoolServiceInterface
+		LastBlockID    int64
 	}
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
 func NewBlockchainProcessor(ct contract.ChainType, blocksmith *Blocksmith,
-	blockService service.BlockServiceInterface) *BlockchainProcessor {
+	blockService service.BlockServiceInterface, mempoolService service.MempoolServiceInterface) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Chaintype:    ct,
-		Generator:    blocksmith,
-		BlockService: blockService,
+		Chaintype:      ct,
+		Generator:      blocksmith,
+		BlockService:   blockService,
+		MempoolService: mempoolService,
 	}
 }
 
@@ -93,7 +95,7 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 }
 
 // StartSmithing start smithing loop
-func (bp *BlockchainProcessor) StartSmithing(mempoolService *service.MempoolService) error {
+func (bp *BlockchainProcessor) StartSmithing() error {
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return errors.New("Genesis:notAddedYet")
@@ -120,13 +122,7 @@ func (bp *BlockchainProcessor) StartSmithing(mempoolService *service.MempoolServ
 				return err
 			}
 
-			mempoolTransactions, err := mempoolService.SelectTransactionsFromMempool(timestamp)
-			if err != nil {
-				log.Println(err)
-				return errors.New("MempoolReadError")
-			}
-			block, err := bp.GenerateBlock(previousBlock, bp.Generator.SecretPhrase, timestamp, mempoolTransactions)
-
+			block, err := bp.GenerateBlock(previousBlock, bp.Generator.SecretPhrase, timestamp)
 			if err != nil {
 				return err
 			}
@@ -140,12 +136,6 @@ func (bp *BlockchainProcessor) StartSmithing(mempoolService *service.MempoolServ
 			if err != nil {
 				return err
 			}
-			// remove mempool transactions relative to this block
-			if len(block.GetTransactions()) > 0 {
-				if err := mempoolService.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
-					log.Printf("Can't delete Mempool Transactions: %s\n", err)
-				}
-			}
 			allBlocks, _ := bp.BlockService.GetBlocks()
 			log.Printf("block pushed: %d\n", len(allBlocks))
 			stop = true
@@ -155,8 +145,7 @@ func (bp *BlockchainProcessor) StartSmithing(mempoolService *service.MempoolServ
 }
 
 // GenerateBlock generate block from transactions in mempool
-func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretPhrase string, timestamp int64,
-	mempoolTransactions []*model.MempoolTransaction) (*model.Block, error) {
+func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretPhrase string, timestamp int64) (*model.Block, error) {
 	newBlockHeight := previousBlock.Height + 1
 	digest := sha3.New512()
 	var totalAmount int64
@@ -169,6 +158,11 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	var payloadHash []byte
 
 	if _, ok := bp.Chaintype.(*chaintype.MainChain); ok {
+		mempoolTransactions, err := bp.MempoolService.SelectTransactionsFromMempool(timestamp)
+		if err != nil {
+			log.Println(err)
+			return nil, errors.New("MempoolReadError")
+		}
 		digest := sha3.New512()
 		var totalAmount int64
 		var totalFee int64

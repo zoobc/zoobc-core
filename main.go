@@ -80,7 +80,9 @@ func main() {
 	// todo: read secret phrase from config
 	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
-		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain), crypto.NewSignature(queryExecutor)))
+		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain),
+			query.NewMempoolQuery(mainchain), crypto.NewSignature(queryExecutor)),
+		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
 		_ = blockchainProcessor.AddGenesis()
 	}
@@ -98,9 +100,8 @@ func main() {
 }
 
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
-	mempoolService := service.NewMempoolService(&chaintype.MainChain{}, query.NewQueryExecutor(db), query.NewMempoolQuery(processor.Chaintype))
 	for {
-		_ = processor.StartSmithing(mempoolService)
+		_ = processor.StartSmithing()
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)
 	}
 

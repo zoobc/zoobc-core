@@ -273,64 +273,6 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	}
 }
 
-func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
-	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		MempoolQuery  query.MempoolQueryInterface
-	}
-	type args struct {
-		transactions []*model.Transaction
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "RemoveMempoolTransaction:Success",
-			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorSuccess{},
-			},
-			args: args{
-				transactions: []*model.Transaction{
-					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "RemoveMempoolTransaction:Fail",
-			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorFail{},
-			},
-			args: args{
-				transactions: []*model.Transaction{
-					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
-				},
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mps := &MempoolService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				MempoolQuery:  tt.fields.MempoolQuery,
-			}
-			if err := mps.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
-				t.Errorf("MempoolService.RemoveMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	type fields struct {
 		Chaintype     contract.ChainType
