@@ -177,6 +177,12 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 
+			//TODO: we could remove this, since tx has already been validated when added to the mempool,
+			//		but what if someone manually adds it to db?..
+			if err := transaction.GetTransactionType(tx).Validate(); err != nil {
+				continue
+			}
+
 			sortedTransactions = append(sortedTransactions, mempoolTransaction)
 			payloadLength += transactionLength
 		}
@@ -197,7 +203,7 @@ func transactionsContain(a []*model.MempoolTransaction, x *model.MempoolTransact
 	return false
 }
 
-// SortByTimestampThenHeightThenID sort a slice of mpTx by timestamp, height, id DESC
+// SortByTimestampThenHeightThenID sort a slice of mpTx by feePerByte, timestamp, id DESC
 func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 	sort.SliceStable(members, func(i, j int) bool {
 		mi, mj := members[i], members[j]
