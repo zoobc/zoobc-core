@@ -24,6 +24,7 @@ type (
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
+		RemoveMempoolTransactions(transactions []*model.Transaction) error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
