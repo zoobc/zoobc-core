@@ -160,6 +160,7 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	digest := sha3.New512()
 	var totalAmount int64
 	var totalFee int64
+	//TODO: missing coinbase calculation
 	var totalCoinbase int64
 
 	// only for mainchain
@@ -168,8 +169,8 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 
 	if _, ok := bp.Chaintype.(*chaintype.MainChain); ok {
 		digest := sha3.New512()
-		var totalAmountNQT int64
-		var totalFeeNQT int64
+		var totalAmount int64
+		var totalFee int64
 		var payloadLength uint32
 		for _, mpTx := range mempoolTransactions {
 			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
@@ -180,8 +181,10 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 			sortedTx = append(sortedTx, tx)
 			_, _ = digest.Write(mpTx.TransactionBytes)
 			txType := transaction.GetTransactionType(tx)
-			totalAmountNQT += txType.GetAmount()
-			totalFeeNQT += tx.Fee
+			totalAmount += txType.GetAmount()
+			totalFee += tx.Fee
+			//TODO: not sure if we need this. in block structure there's no payload length..
+			//		if not needed, remove relative interface signature and implementations
 			payloadLength += txType.GetSize()
 		}
 		payloadHash = digest.Sum([]byte{})

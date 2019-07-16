@@ -228,27 +228,6 @@ func (tx *SendMoney) GetAmount() int64 {
 	return tx.Body.Amount
 }
 func (tx *SendMoney) GetSize() uint32 {
-	//TODO: remove details once the tx structure is finalized and only put the total number of bytes, for the fixed header
-	// the only variable part in size of the transaction are sender and recipient addresses + body, compute from there
-	version := 8
-	id := 8
-	blockID := 8
-	height := 8
-	senderAccountType := 8
-	recipientAccountType := 8
-	transactionType := 8
-	fee := 8
-	timestamp := 8
-	transactionHash := 32
-	transactionBodyLength := 8
-	txFixedHeader := version + id + blockID + height + senderAccountType + recipientAccountType +
-		transactionType + fee + timestamp + transactionHash + transactionBodyLength
 	// only amount (int64)
-	txBody := 8
-	//TODO: tcFooter which only contains the signature, is 64 bytes for account type 0 (ZooBc), but could be different for other account types
-	//		option1: implement a helper function that computes the signature length given the account type
-	//		option2 (discussed during the last meetings): first (3?) bytes of the signature are the signature length. if that is the case we need
-	//		to have access to the tx signature here
-	txFooter := 64
-	return uint32(txFixedHeader + txBody + len(tx.SenderAddress) + len(tx.RecipientAddress) + txFooter)
+	return uint32(8)
 }
