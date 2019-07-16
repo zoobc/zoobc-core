@@ -155,7 +155,8 @@ func (bp *BlockchainProcessor) StartSmithing(mempoolService *service.MempoolServ
 }
 
 // GenerateBlock generate block from transactions in mempool
-func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretPhrase string, timestamp int64, mempoolTransactions []*model.MempoolTransaction) (*model.Block, error) {
+func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretPhrase string, timestamp int64,
+	mempoolTransactions []*model.MempoolTransaction) (*model.Block, error) {
 	newBlockHeight := previousBlock.Height + 1
 	digest := sha3.New512()
 	var totalAmount int64

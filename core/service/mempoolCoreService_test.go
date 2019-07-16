@@ -21,6 +21,8 @@ type mockMempoolQueryExecutorSuccess struct {
 	query.Executor
 }
 
+var getTxByIDQuery = "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool WHERE id = :id"
+
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -33,7 +35,7 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interfa
 		mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes)
 		mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool WHERE id = :id":
+	case getTxByIDQuery:
 		return nil, errors.New("MempoolTransactionNotFound")
 	}
 
@@ -54,7 +56,7 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{
 	defer db.Close()
 	switch qe {
 	// before adding mempool transactions to db we check for duplicate transactions
-	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool WHERE id = :id":
+	case getTxByIDQuery:
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes"},
 		).AddRow(3, 1, 1562893302, []byte{}))
@@ -68,21 +70,6 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{
 
 func (*mockMempoolQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
-}
-
-type mockMempoolQueryExecutorSQLFail struct {
-	query.Executor
-}
-
-func (*mockMempoolQueryExecutorSQLFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
-		"Version"}))
-	rows, _ := db.Query(qe)
-	return rows, nil
 }
 
 func buildTransaction(id, timestamp int64, sender, recipient string) *model.Transaction {
