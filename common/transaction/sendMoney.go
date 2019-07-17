@@ -213,3 +213,11 @@ func (tx *SendMoney) Validate() error {
 	}
 	return nil
 }
+
+func (tx *SendMoney) GetAmount() int64 {
+	return tx.Body.Amount
+}
+func (*SendMoney) GetSize() uint32 {
+	// only amount (int64)
+	return uint32(8)
+}

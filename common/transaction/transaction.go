@@ -10,6 +10,8 @@ type (
 		ApplyConfirmed() error
 		ApplyUnconfirmed() error
 		Validate() error
+		GetAmount() int64
+		GetSize() uint32
 	}
 )
 

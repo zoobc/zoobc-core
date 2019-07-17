@@ -1,14 +1,19 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
 	TransactionQueryInterface interface {
+		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
+		ExtractModel(tx *model.Transaction) []interface{}
+		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 	}
 
 	TransactionQuery struct {
@@ -74,4 +79,60 @@ func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64) string 
 	query = query + " ORDER BY block_height, timestamp" + fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
 
 	return query
+}
+
+// InsertTransaction inserts a new transaction into DB
+func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string, args []interface{}) {
+	var value = fmt.Sprintf("? %s", strings.Repeat(", ?", len(tq.Fields)-1))
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
+		tq.getTableName(), strings.Join(tq.Fields, ", "), value)
+	return query, tq.ExtractModel(tx)
+}
+
+// ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
+func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
+	return []interface{}{
+		tx.Version,
+		tx.ID,
+		tx.BlockID,
+		tx.Height,
+		tx.SenderAccountType,
+		tx.SenderAccountAddress,
+		tx.RecipientAccountType,
+		tx.RecipientAccountAddress,
+		tx.TransactionType,
+		tx.Fee,
+		tx.Timestamp,
+		tx.TransactionHash,
+		tx.TransactionBodyLength,
+		tx.TransactionBodyBytes,
+		tx.TransactionBody,
+		tx.Signature,
+	}
+}
+
+func (*TransactionQuery) BuildModel(blocks []*model.Transaction, rows *sql.Rows) []*model.Transaction {
+	for rows.Next() {
+		var tx model.Transaction
+		_ = rows.Scan(
+			&tx.Version,
+			&tx.ID,
+			&tx.BlockID,
+			&tx.Height,
+			&tx.SenderAccountType,
+			&tx.SenderAccountAddress,
+			&tx.RecipientAccountType,
+			&tx.RecipientAccountAddress,
+			&tx.TransactionType,
+			&tx.Fee,
+			&tx.Timestamp,
+			&tx.TransactionHash,
+			&tx.TransactionBodyLength,
+			&tx.TransactionBodyBytes,
+			&tx.TransactionBody,
+			&tx.Signature,
+		)
+		blocks = append(blocks, &tx)
+	}
+	return blocks
 }
