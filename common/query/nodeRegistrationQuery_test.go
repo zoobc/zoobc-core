@@ -20,9 +20,11 @@ func TestGetNodeRegistrationNodeByPublicKey(t *testing.T) {
 		{
 			name: "Get node registration by public key",
 			params: &paramsStruct{
-				publicKey: []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176},
+				publicKey: []byte{4, 38, 113, 185},
 			},
-			want: "SELECT node_public_key, account_id, registration_height, node_address, locked_balance, latest, height FROM node_registration WHERE node_public_key = [4 38 113 185 80 213 37 71 68 177 176]",
+			want: "SELECT node_public_key, account_id, registration_height, node_address, " +
+				"locked_balance, latest, height FROM node_registration " +
+				"WHERE node_public_key = [4 38 113 185]",
 		},
 	}
 	for _, tt := range tests {
