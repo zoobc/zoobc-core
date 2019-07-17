@@ -50,7 +50,7 @@ func (bq *NodeRegistrationQuery) GetNodeRegistrationNodeByPublicKey(nodePublicKe
 }
 
 // GetNodeRegistrationByAccountPublicKey returns query string to get Node Registration by account public key
-func (bq *NodeRegistrationQuery) GetNodeRegistrationByAccountId(accountPublicKey []byte) string {
+func (bq *NodeRegistrationQuery) GetNodeRegistrationByAccountID(accountPublicKey []byte) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), accountPublicKey)
 }
 
