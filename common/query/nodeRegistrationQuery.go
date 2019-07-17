@@ -49,7 +49,8 @@ func (bq *NodeRegistrationQuery) GetNodeRegistrationByAccountPublicKey(accountPu
 
 // GetNodeRegistrations returns query string to get multiple node registrations
 func (bq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d LIMIT %d", strings.Join(bq.Fields, ", "), bq.getTableName(), registrationHeight, size)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d LIMIT %d",
+		strings.Join(bq.Fields, ", "), bq.getTableName(), registrationHeight, size)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
