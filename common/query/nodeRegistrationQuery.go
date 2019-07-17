@@ -22,6 +22,13 @@ type (
 	}
 )
 
+func NewNodeRegistrationQuery() *NodeRegistrationQuery {
+	return &NodeRegistrationQuery{
+		Fields:    []string{"node_public_key", "account_id", "registration_height", "node_address", "locked_balance", "latest", "height"},
+		TableName: "node_registration",
+	}
+}
+
 func (bq *NodeRegistrationQuery) getTableName() string {
 	return bq.TableName
 }
@@ -39,12 +46,12 @@ func (bq *NodeRegistrationQuery) InsertNodeRegistration() string {
 
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
 func (bq *NodeRegistrationQuery) GetNodeRegistrationNodeByPublicKey(nodePublicKey []byte) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), nodePublicKey)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), nodePublicKey)
 }
 
 // GetNodeRegistrationByAccountPublicKey returns query string to get Node Registration by account public key
-func (bq *NodeRegistrationQuery) GetNodeRegistrationByAccountPublicKey(accountPublicKey []byte) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), accountPublicKey)
+func (bq *NodeRegistrationQuery) GetNodeRegistrationByAccountId(accountPublicKey []byte) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), accountPublicKey)
 }
 
 // GetNodeRegistrations returns query string to get multiple node registrations
