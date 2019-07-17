@@ -10,6 +10,7 @@ type (
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
+		ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 		ExecuteTransactions(queries []string) ([]sql.Result, error)
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 		ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error)
@@ -82,6 +83,15 @@ func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows,
 	}
 
 	return rows, nil
+}
+
+/*
+ExecuteSelectRow execute with select method that if you want to get `sql.Row` (single).
+This function is necessary if you want to processing the row,
+otherwise you can use `Execute` or `ExecuteTransactions`
+*/
+func (qe *Executor) ExecuteSelectRow(query string, args ...interface{}) *sql.Row {
+	return qe.Db.QueryRow(query, args...)
 }
 
 // ExecuteTransactions execute list of queries in transaction
