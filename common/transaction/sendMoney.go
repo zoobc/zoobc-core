@@ -234,5 +234,6 @@ func (tx *SendMoney) GetAmount() int64 {
 }
 
 func (*SendMoney) GetSize() uint32 {
+	// only amount (int64)
 	return 8
 }

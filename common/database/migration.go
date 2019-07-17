@@ -41,7 +41,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "mempool" (
-				"id"	BLOB,
+				"id"	INTEGER,
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
@@ -63,6 +63,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
+				"version" INTEGER,
 				PRIMARY KEY("id")
 			);`,
 			`
