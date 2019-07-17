@@ -101,7 +101,7 @@ func (*mockBlockServiceSuccess) VerifySeed(seed, balance *big.Int, previousBlock
 }
 func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
 	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
-	payloadHash []byte, secretPhrase string) *model.Block {
+	payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block {
 	return &model.Block{
 		Version:           1,
 		PreviousBlockHash: []byte{},
@@ -113,6 +113,7 @@ func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash, bloc
 		TotalCoinBase:     0,
 		Transactions:      []*model.Transaction{},
 		PayloadHash:       []byte{},
+		PayloadLength:     0,
 	}
 }
 func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
@@ -130,6 +131,7 @@ func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHas
 		TotalCoinBase:        0,
 		Transactions:         []*model.Transaction{},
 		PayloadHash:          []byte{},
+		PayloadLength:        0,
 		SmithScale:           0,
 		CumulativeDifficulty: "1",
 		BlockSignature:       []byte{},

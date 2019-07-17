@@ -83,6 +83,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 		totalCoinBase       int64
 		transactions        []*model.Transaction
 		payloadHash         []byte
+		payloadLength       uint32
 		secretPhrase        string
 	}
 	test := struct {
@@ -111,6 +112,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 			totalCoinBase:       0,
 			transactions:        []*model.Transaction{},
 			payloadHash:         []byte{},
+			payloadLength:       0,
 			secretPhrase:        "secretphrase",
 		},
 		want: &model.Block{
@@ -124,6 +126,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 			TotalCoinBase:     0,
 			Transactions:      []*model.Transaction{},
 			PayloadHash:       []byte{},
+			PayloadLength:     0,
 			BlockSignature:    []byte{},
 		},
 	}
@@ -135,7 +138,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 	}
 	if got := b.NewBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID, test.args.hash,
 		test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee, test.args.totalCoinBase,
-		test.args.transactions, test.args.payloadHash, test.args.secretPhrase); !reflect.DeepEqual(got, test.want) {
+		test.args.transactions, test.args.payloadHash, test.args.payloadLength, test.args.secretPhrase); !reflect.DeepEqual(got, test.want) {
 		t.Errorf("BlockService.NewBlock() = %v, want %v", got, test.want)
 	}
 

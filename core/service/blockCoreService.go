@@ -24,7 +24,7 @@ type (
 		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
 		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block
+			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
@@ -62,7 +62,7 @@ func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorI
 // NewBlock generate new block
 func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
 	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
-	payloadHash []byte, secretPhrase string) *model.Block {
+	payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block {
 	block := &model.Block{
 		Version:           version,
 		PreviousBlockHash: previousBlockHash,
@@ -75,6 +75,7 @@ func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, b
 		TotalCoinBase:     totalCoinBase,
 		Transactions:      transactions,
 		PayloadHash:       payloadHash,
+		PayloadLength:     payloadLength,
 	}
 	blockUnsignedByte, _ := core_util.GetBlockByte(block, false)
 	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)

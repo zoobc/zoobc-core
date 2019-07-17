@@ -182,8 +182,6 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 
-			//TODO: we could remove this, since tx has already been validated when added to the mempool,
-			//		but what if someone manually adds it to db?..
 			if err := transaction.GetTransactionType(tx).Validate(); err != nil {
 				continue
 			}

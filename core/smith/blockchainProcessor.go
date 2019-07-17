@@ -152,6 +152,7 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	var totalFee int64
 	//TODO: missing coinbase calculation
 	var totalCoinbase int64
+	var payloadLength uint32
 
 	// only for mainchain
 	var sortedTx []*model.Transaction
@@ -164,9 +165,6 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 			return nil, errors.New("MempoolReadError")
 		}
 		digest := sha3.New512()
-		var totalAmount int64
-		var totalFee int64
-		var payloadLength uint32
 		for _, mpTx := range mempoolTransactions {
 			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
@@ -178,8 +176,6 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 			txType := transaction.GetTransactionType(tx)
 			totalAmount += txType.GetAmount()
 			totalFee += tx.Fee
-			//TODO: not sure if we need this. in block structure there's no payload length..
-			//		if not needed, remove relative interface signature and implementations
 			payloadLength += txType.GetSize()
 		}
 		payloadHash = digest.Sum([]byte{})
@@ -196,7 +192,7 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
 	previousBlockHash := sha3.Sum512(previousBlockByte)
 	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash), newBlockHeight, timestamp,
-		totalAmount, totalFee, totalCoinbase, sortedTx, payloadHash, secretPhrase)
+		totalAmount, totalFee, totalCoinbase, sortedTx, payloadHash, payloadLength, secretPhrase)
 	log.Printf("block forged: fee %d\n", totalFee)
 	return block, nil
 }
