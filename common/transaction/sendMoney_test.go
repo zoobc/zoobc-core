@@ -65,7 +65,7 @@ func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) 
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
 		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 50, 50, 0))
+	).AddRow(1, 2, 50, 50, 0, 1))
 	return db.Query(qStr, 1)
 }
 func (*executorValidateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
@@ -149,7 +149,7 @@ func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
 		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 3, 4, 5))
+	).AddRow(1, 2, 3, 4, 5, 6))
 	return db.Query(qStr, 1)
 }
 
