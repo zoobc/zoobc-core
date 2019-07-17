@@ -295,3 +295,54 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 		}
 	})
 }
+
+func TestExecutor_ExecuteSelectRow(t *testing.T) {
+	type (
+		fields struct {
+			Db *sql.DB
+		}
+		args struct {
+			query string
+			args  []interface{}
+		}
+	)
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Error("failed while opening database connection")
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(`
+		ELECT () FROM account
+		WHERE id = ? AND name = ? limit 1
+	`)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
+		"field",
+	}).AddRow(1))
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Db: db,
+			},
+			args: args{
+				query: "SELECT () FROM account WHERE id = ? AND name = ? limit 1",
+				args: []interface{}{
+					1, 2,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			qe := &Executor{
+				Db: tt.fields.Db,
+			}
+			_ = qe.ExecuteSelectRow(tt.args.query, tt.args.args...)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("Executor.ExecuteSelectRow() = %v", err)
+			}
+		})
+	}
+}
