@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -16,8 +17,9 @@ type (
 		GetGenesisBlock() string
 		GetBlockByID(int64) string
 		GetBlockByHeight(uint32) string
-		InsertBlock() string
+		InsertBlock(block *model.Block) (str string, args []interface{})
 		ExtractModel(block *model.Block) []interface{}
+		BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block
 	}
 
 	BlockQuery struct {
@@ -55,15 +57,11 @@ func (bq *BlockQuery) GetGenesisBlock() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height = 0 LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
 }
 
-func (bq *BlockQuery) InsertBlock() string {
-	var value = ":" + bq.Fields[0]
-	for _, field := range bq.Fields[1:] {
-		value += (", :" + field)
-
-	}
+func (bq *BlockQuery) InsertBlock(block *model.Block) (str string, args []interface{}) {
+	var value = fmt.Sprintf("? %s", strings.Repeat(", ?", len(bq.Fields)-1))
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
 		bq.getTableName(), strings.Join(bq.Fields, ", "), value)
-	return query
+	return query, bq.ExtractModel(block)
 }
 
 // GetBlockByID returns query string to get block by ID
@@ -95,4 +93,16 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.TotalCoinBase,
 		block.Version,
 	}
+}
+
+func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block {
+	for rows.Next() {
+		var block model.Block
+		_ = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed,
+			&block.BlockSignature, &block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength,
+			&block.PayloadHash, &block.BlocksmithID, &block.TotalAmount, &block.TotalFee, &block.TotalCoinBase,
+			&block.Version)
+		blocks = append(blocks, &block)
+	}
+	return blocks
 }

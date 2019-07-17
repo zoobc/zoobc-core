@@ -16,16 +16,14 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := rpc_service.NewBlockServiceClient(conn)
+	c := rpc_service.NewTransactionServiceClient(conn)
 
-	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		Height: 3,
-	})
+	response, err := c.GetTransactions(context.Background(), &rpc_model.GetTransactionsRequest{})
 
 	if err != nil {
-		log.Fatalf("error calling rpc_service.GetBlockByHeight: %s", err)
+		log.Fatalf("error calling rpc_service.GetTransactions: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.GetBlockByHeight(): %s", response)
+	log.Printf("response from remote rpc_service.GetTransactions(): %s", response)
 
 }

@@ -18,7 +18,7 @@
   version = "v1.4.7"
 
 [[projects]]
-  digest = "1:489a99067cd08971bd9c1ee0055119ba8febc1429f9200ab0bec68d35e8c4833"
+  digest = "1:b532ee3f683c057e797694b5bfeb3827d89e6adf41c53dbc80e549bca76364ea"
   name = "github.com/golang/protobuf"
   packages = [
     "jsonpb",
@@ -35,8 +35,8 @@
     "ptypes/wrappers",
   ]
   pruneopts = "UT"
-  revision = "b5d812f8a3706043e23a9cd5babf2e5423744d30"
-  version = "v1.3.1"
+  revision = "6c65a5562fc06764971b7c5d05c76c75e84bdbf7"
+  version = "v1.3.2"
 
 [[projects]]
   digest = "1:bf40199583e5143d1472fc34d10d6f4b69d97572142acf343b3e43136da40823"
@@ -53,7 +53,7 @@
   version = "v0.3.0"
 
 [[projects]]
-  digest = "1:d5343c4f76b40152cd27dae5c8248714316ba255bcb05d9dd349809ec388f17a"
+  digest = "1:07ac748d2913b3c6d963aceec7fc4348c34a4ea58c0063779d08c2717380f7e9"
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
     "internal",
@@ -61,8 +61,8 @@
     "utilities",
   ]
   pruneopts = "UT"
-  revision = "d54b3615f714b03edde6d9206fa0476a9169c966"
-  version = "v1.9.3"
+  revision = "bebc7374a79e1105d786ef3468b474e47d652511"
+  version = "v1.9.4"
 
 [[projects]]
   digest = "1:c0d19ab64b32ce9fe5cf4ddceba78d5bc9807f0016db6b1183599da3dcc24d10"
@@ -82,6 +82,14 @@
   pruneopts = "UT"
   revision = "8cb6e5b959231cc1119e43259c4a608f9c51a241"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -151,6 +159,14 @@
   version = "v1.3.0"
 
 [[projects]]
+  digest = "1:e096613fb7cf34743d49af87d197663cfccd61876e2219853005a57baedfa562"
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f2b07da1e2c38d5f12845a4f607e2e1018cbb1f5"
+  version = "v0.0.5"
+
+[[projects]]
   digest = "1:1b753ec16506f5864d26a28b43703c58831255059644351bbcb019b843950900"
   name = "github.com/spf13/jwalterweatherman"
   packages = ["."]
@@ -176,9 +192,25 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9c4fed825c10231651e81bf0ab2c12e3a6cc349dcc62a78f8d3a9dfb6744855e"
+  digest = "1:6bae001f7c4cddc9ebf2b47bd5ff1bd3978a84b422c468d6037dad284c8c8e9d"
+  name = "github.com/tyler-smith/go-bip39"
+  packages = [
+    ".",
+    "wordlists",
+  ]
+  pruneopts = "UT"
+  revision = "dbb3b84ba2ef14e894f5e33d6c6e43641e665738"
+
+[[projects]]
+  branch = "master"
+  digest = "1:6bc5f992ed1dd4346d657b7467f7b3c61b3188607770ee20ab3ad75ab666e3c7"
   name = "golang.org/x/crypto"
-  packages = ["sha3"]
+  packages = [
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "pbkdf2",
+    "sha3",
+  ]
   pruneopts = "UT"
   revision = "4def268fd1a49955bfb3dda92fe3db4f924f2285"
 
@@ -200,14 +232,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6f7b102dfe61016b45aa051b96413e36cc2eff446b61249fdf723dd8e24d308b"
+  digest = "1:a0e4b2275e7939970d395eb6d03f409378eb586aab72e0a461d95e3435c6c5c4"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "04f50cda93cbb67f2afa353c52f342100e80e625"
+  revision = "fae7ac547cb717d141c433a2a173315e216b64c4"
 
 [[projects]]
   digest = "1:8d8faad6b12a3a4c819a3f9618cb6ee1fa1cfc33253abeeea8b55336721e3405"
@@ -308,7 +340,10 @@
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/mattn/go-sqlite3",
     "github.com/sirupsen/logrus",
+    "github.com/spf13/cobra",
     "github.com/spf13/viper",
+    "github.com/tyler-smith/go-bip39",
+    "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/sha3",
     "golang.org/x/net/context",
     "google.golang.org/genproto/googleapis/api/annotations",

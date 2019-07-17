@@ -19,8 +19,8 @@ func main() {
 	c := rpc_service.NewBlockServiceClient(conn)
 
 	response, err := c.GetBlocks(context.Background(), &rpc_model.GetBlocksRequest{
-		BlockSize:   3,
-		BlockHeight: 12,
+		Limit:  3,
+		Height: 12,
 	})
 
 	if err != nil {

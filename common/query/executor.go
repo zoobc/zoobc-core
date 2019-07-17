@@ -9,9 +9,11 @@ type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
-		ExecuteSelect(string) (*sql.Rows, error)
+		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
+		ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 		ExecuteTransactions(queries []string) ([]sql.Result, error)
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
+		ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error)
 	}
 
 	// Executor struct
@@ -69,18 +71,27 @@ And ***need to `Close()` the rows***.
 This function is necessary if you want to processing the rows,
 otherwise you can use `Execute` or `ExecuteTransactions`
 */
-func (qe *Executor) ExecuteSelect(query string) (*sql.Rows, error) {
+func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error) {
 	var (
 		err  error
 		rows *sql.Rows
 	)
 
-	rows, err = qe.Db.Query(query)
+	rows, err = qe.Db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 
 	return rows, nil
+}
+
+/*
+ExecuteSelectRow execute with select method that if you want to get `sql.Row` (single).
+This function is necessary if you want to processing the row,
+otherwise you can use `Execute` or `ExecuteTransactions`
+*/
+func (qe *Executor) ExecuteSelectRow(query string, args ...interface{}) *sql.Row {
+	return qe.Db.QueryRow(query, args...)
 }
 
 // ExecuteTransactions execute list of queries in transaction
@@ -107,6 +118,42 @@ func (qe *Executor) ExecuteTransactions(queries []string) ([]sql.Result, error) 
 		defer stmt.Close()
 
 		result, err := stmt.Exec()
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// ExecuteTransactionStatements execute list of statement in transaction
+// will return error in case one or more of the query fail
+func (qe *Executor) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+	var (
+		stmt    *sql.Stmt
+		tx      *sql.Tx
+		err     error
+		results []sql.Result
+	)
+
+	tx, err = qe.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	for query, value := range queries {
+		stmt, err = tx.Prepare(*query)
+		if err != nil {
+			return nil, err
+		}
+		defer stmt.Close()
+
+		result, err := stmt.Exec(value...)
 		if err != nil {
 			_ = tx.Rollback()
 			return nil, err

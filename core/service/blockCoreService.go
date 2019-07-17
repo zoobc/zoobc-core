@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	"github.com/zoobc/zoobc-core/common/contract"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -16,8 +18,8 @@ import (
 type (
 	BlockServiceInterface interface {
 		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
-		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
-			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte, hash string,
+			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
@@ -33,22 +35,24 @@ type (
 		Chaintype     contract.ChainType
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
+		Signature     crypto.SignatureInterface
 	}
 )
 
 func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface) *BlockService {
+	blockQuery query.BlockQueryInterface, signature crypto.SignatureInterface) *BlockService {
 	return &BlockService{
 		Chaintype:     chaintype,
 		QueryExecutor: queryExecutor,
 		BlockQuery:    blockQuery,
+		Signature:     signature,
 	}
 }
 
 // NewBlock generate new block
-func (*BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
-	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block {
+func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
+	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
+	payloadHash []byte, secretPhrase string) *model.Block {
 	block := &model.Block{
 		Version:           version,
 		PreviousBlockHash: previousBlockHash,
@@ -62,11 +66,13 @@ func (*BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, bloc
 		Transactions:      transactions,
 		PayloadHash:       payloadHash,
 	}
+	blockUnsignedByte, _ := core_util.GetBlockByte(block, false)
+	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
 	return block
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
-func (*BlockService) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
+func (bs *BlockService) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
 	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
 	genesisSignature []byte) *model.Block {
@@ -106,7 +112,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		block.Height = previousBlock.GetHeight() + 1
 		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
-	result, err := bs.QueryExecutor.ExecuteStatement(bs.BlockQuery.InsertBlock(), bs.BlockQuery.ExtractModel(block)...)
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	result, err := bs.QueryExecutor.ExecuteStatement(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		return err
 	}
@@ -130,18 +137,10 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 			ID: -1,
 		}, err
 	}
-	var lastBlock model.Block
-	if rows.Next() {
-		err = rows.Scan(&lastBlock.ID, &lastBlock.PreviousBlockHash, &lastBlock.Height, &lastBlock.Timestamp,
-			&lastBlock.BlockSeed, &lastBlock.BlockSignature, &lastBlock.CumulativeDifficulty, &lastBlock.SmithScale,
-			&lastBlock.PayloadLength, &lastBlock.PayloadHash, &lastBlock.BlocksmithID, &lastBlock.TotalAmount,
-			&lastBlock.TotalFee, &lastBlock.TotalCoinBase, &lastBlock.Version)
-		if err != nil {
-			return &model.Block{
-				ID: -1,
-			}, err
-		}
-		return &lastBlock, nil
+	var blocks []*model.Block
+	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	if len(blocks) > 0 {
+		return blocks[0], nil
 	}
 	return &model.Block{
 		ID: -1,
