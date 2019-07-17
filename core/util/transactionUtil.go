@@ -148,6 +148,6 @@ func GetTransactionID(transactionHash []byte) (int64, error) {
 	if len(transactionHash) == 0 {
 		return -1, errors.New("InvalidTransactionHash")
 	}
-	ID := int64(util.ConvertBytesToUint32(transactionHash))
+	ID := int64(util.ConvertBytesToUint64(transactionHash))
 	return ID, nil
 }

@@ -152,7 +152,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				sign: true,
 			},
 			want: &model.Transaction{
-				ID:                      2105283853,
+				ID:                      -5823673208263666419,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -184,7 +184,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				sign: false,
 			},
 			want: &model.Transaction{
-				ID:                      2133065652,
+				ID:                      -1706179853601734732,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -251,7 +251,7 @@ func TestGetTransactionID(t *testing.T) {
 				ct: &chaintype.MainChain{},
 			},
 			wantErr: false,
-			want:    16843009,
+			want:    72340172838076673,
 		},
 		{
 			name: "GetTransactionID:fail",
