@@ -100,7 +100,6 @@ func (tx *SendMoney) ApplyConfirmed() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -179,15 +178,12 @@ func (tx *SendMoney) Validate() error {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		countQ, countQArgs := query.GetTotalRecordOfSelect(tx.AccountQuery.GetTableName(), map[string]interface{}{
-			"id": fmt.Sprintf(
-				"in (%v, %v)",
-				util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
-				util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-			),
+		accounts, accountArgs := tx.AccountQuery.GetAccountByIDs([][]byte{
+			util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
+			util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
 		})
 
-		err = tx.QueryExecutor.ExecuteSelectRow(countQ, countQArgs).Scan(&count)
+		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs).Scan(&count)
 		if err != nil {
 			return err
 		}
