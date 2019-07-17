@@ -16,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/core/util"
 	core_util "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -38,22 +37,25 @@ type (
 	}
 
 	BlockService struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		MempoolQuery  query.MempoolQueryInterface
-		Signature     crypto.SignatureInterface
+		Chaintype        contract.ChainType
+		QueryExecutor    query.ExecutorInterface
+		BlockQuery       query.BlockQueryInterface
+		MempoolQuery     query.MempoolQueryInterface
+		TransactionQuery query.TransactionQueryInterface
+		Signature        crypto.SignatureInterface
 	}
 )
 
 func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface, mempoolQuery query.MempoolQueryInterface, signature crypto.SignatureInterface) *BlockService {
+	blockQuery query.BlockQueryInterface, mempoolQuery query.MempoolQueryInterface, transactionQuery query.TransactionQueryInterface,
+	signature crypto.SignatureInterface) *BlockService {
 	return &BlockService{
-		Chaintype:     chaintype,
-		QueryExecutor: queryExecutor,
-		BlockQuery:    blockQuery,
-		MempoolQuery:  mempoolQuery,
-		Signature:     signature,
+		Chaintype:        chaintype,
+		QueryExecutor:    queryExecutor,
+		BlockQuery:       blockQuery,
+		MempoolQuery:     mempoolQuery,
+		TransactionQuery: transactionQuery,
+		Signature:        signature,
 	}
 }
 
@@ -120,41 +122,38 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		block.Height = previousBlock.GetHeight() + 1
 		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
+	//TODO: start db transaction here
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	result, err := bs.QueryExecutor.ExecuteStatement(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		return err
 	}
+	fmt.Printf("got new block, %v", result)
 
 	// apply transactions and remove them from mempool
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
-			//TODO: not 100% sure if we need to call ApplyUnconfirmed or ApplyConfirmed
-			if err := transaction.GetTransactionType(tx).ApplyUnconfirmed(); err != nil {
+			err := transaction.GetTransactionType(tx).ApplyConfirmed()
+			if err != nil {
 				tx.BlockID = block.ID
 				tx.Height = block.Height
-				//TODO: do we need to recompute txID (in previous prototype we used to do it)?
-				//		note the function also checks if tx is signed (only checks that signature field is !nil)
-				tx.ID, err = util.GetTransactionID(tx.TransactionHash)
+				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
+				_, err := bs.QueryExecutor.ExecuteStatement(transactionInsertQuery, transactionInsertValue...)
 				if err != nil {
-					log.Error(err)
-					continue
+					return err
 				}
-				// TODO: save tx to db, in a (sql) database transaction (unless ApplyUnconfirmed already saves tx in db)
 			}
 		}
 		if err := bs.RemoveMempoolTransactions(transactions); err != nil {
 			log.Errorf("Can't delete Mempool Transactions: %s", err)
 			return err
 		}
-
-		//TODO: add db transaction commit here
 	}
+	//TODO: commit db transaction here
 
 	// broadcast block
 
-	fmt.Printf("got new block, %v", result)
 	return nil
 }
 

@@ -81,7 +81,7 @@ func main() {
 	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
 		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain),
-			query.NewMempoolQuery(mainchain), crypto.NewSignature(queryExecutor)),
+			query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature(queryExecutor)),
 		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
 		_ = blockchainProcessor.AddGenesis()

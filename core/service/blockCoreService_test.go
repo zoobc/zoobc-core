@@ -25,11 +25,12 @@ func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte { return
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		chaintype     contract.ChainType
-		queryExecutor query.ExecutorInterface
-		blockQuery    query.BlockQueryInterface
-		mempoolQuery  query.MempoolQueryInterface
-		signature     crypto.SignatureInterface
+		chaintype        contract.ChainType
+		queryExecutor    query.ExecutorInterface
+		blockQuery       query.BlockQueryInterface
+		mempoolQuery     query.MempoolQueryInterface
+		transactionQuery query.TransactionQueryInterface
+		signature        crypto.SignatureInterface
 	}
 	test := struct {
 		name string
@@ -38,11 +39,12 @@ func TestNewBlockService(t *testing.T) {
 	}{
 		name: "NewBlockService:success",
 		args: args{
-			chaintype:     &chaintype.MainChain{},
-			queryExecutor: nil,
-			blockQuery:    nil,
-			mempoolQuery:  nil,
-			signature:     nil,
+			chaintype:        &chaintype.MainChain{},
+			queryExecutor:    nil,
+			blockQuery:       nil,
+			mempoolQuery:     nil,
+			transactionQuery: nil,
+			signature:        nil,
 		},
 		want: &BlockService{
 			Chaintype:     &chaintype.MainChain{},
@@ -52,7 +54,8 @@ func TestNewBlockService(t *testing.T) {
 			Signature:     nil,
 		},
 	}
-	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery, test.args.mempoolQuery, test.args.signature)
+	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery,
+		test.args.mempoolQuery, test.args.transactionQuery, test.args.signature)
 
 	if !cmp.Equal(got, test.want) {
 		t.Errorf("NewBlockService() = %v, want %v", got, test.want)
