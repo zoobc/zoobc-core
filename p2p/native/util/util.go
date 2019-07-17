@@ -124,6 +124,6 @@ func PeerUnblacklist(peer *model.Peer) *model.Peer {
 	return peer
 }
 
-func GetTickerTime(duration uint32) *time.Ticker {
+func GetTickerTime(duration uint) *time.Ticker {
 	return time.NewTicker(time.Duration(duration) * time.Second)
 }
