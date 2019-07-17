@@ -20,9 +20,7 @@ type PeerService struct {
 
 // ClientPeerService to get instance of singleton peer service
 func ClientPeerService(chaintype contract.ChainType) *PeerService {
-	return &PeerService{
-		ChainType: chaintype,
-	}
+	return &PeerService{}
 }
 
 // GetPeerInfo to get Peer info
@@ -60,6 +58,25 @@ func (cs *PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersRe
 	res, err := p2pClient.GetMorePeers(context.Background(), &model.Empty{})
 	if err != nil {
 		log.Warnf("could not greet. %v\n", err)
+		return nil, err
+	}
+	return res, err
+}
+
+// SendPeers sends set of peers to other node (to populate the network)
+func (cs PeerService) SendPeers(destPeer model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
+	conn, err := grpc.Dial(util.GetFullAddressPeer(&destPeer), grpc.WithInsecure())
+	defer conn.Close()
+	if err != nil {
+		log.Printf("did not connect: %v\n", err)
+	}
+	p2pClient := service.NewP2PCommunicationClient(conn)
+	// ctx := cs.buildContext()
+	res, err := p2pClient.SendPeers(context.Background(), &model.SendPeersRequest{
+		Peers: peersInfo,
+	})
+	if err != nil {
+		log.Printf("could not greet: %v\n", err)
 		return nil, err
 	}
 	return res, err

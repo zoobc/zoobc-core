@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -35,7 +36,7 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 	return host
 }
 
-// GetAnyPeer Get any peer
+// GetAnyPeer Get any random peer
 func GetAnyPeer(hs *model.Host) *model.Peer {
 	if len(hs.Peers) < 1 {
 		return nil
@@ -43,6 +44,22 @@ func GetAnyPeer(hs *model.Host) *model.Peer {
 	randomIdx := int(util.GetSecureRandom()) % len(hs.Peers)
 	idx := 0
 	for _, peer := range hs.Peers {
+		if idx == randomIdx {
+			return peer
+		}
+		idx++
+	}
+	return nil
+}
+
+// GetAnyUnresolvedPeer Get any unresolved peer
+func GetAnyUnresolvedPeer(hs *model.Host) *model.Peer {
+	if len(hs.UnresolvedPeers) < 1 {
+		return nil
+	}
+	randomIdx := int(util.GetSecureRandom()) % len(hs.UnresolvedPeers)
+	idx := 0
+	for _, peer := range hs.UnresolvedPeers {
 		if idx == randomIdx {
 			return peer
 		}
@@ -98,6 +115,7 @@ func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
 
 // AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
 func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host {
+	isMaxUnresolvedPeers := HasMaxUnresolvedPeers(host)
 	hostAddress := &model.Peer{
 		Info: host.Info,
 	}
@@ -108,10 +126,29 @@ func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host 
 		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil &&
 			host.Peers[GetFullAddressPeer(peer)] == nil &&
 			GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
+			// removing a peer at random if the UnresolvedPeers has reached max
+			if isMaxUnresolvedPeers {
+				peer := GetAnyUnresolvedPeer(host)
+				delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+			}
 			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
+		}
+
+		if isMaxUnresolvedPeers {
+			break
 		}
 	}
 	return host
+}
+
+// HasMaxUnresolvedPeers checks whether the unresolved peers max has been reached
+func HasMaxUnresolvedPeers(host *model.Host) bool {
+	return len(host.GetPeers())+len(host.GetUnresolvedPeers()) >= constant.MaxUnresolvedPeers
+}
+
+// HasMaxConnectedPeers checks whether the connected peers max has been reached
+func HasMaxConnectedPeers(host *model.Host) bool {
+	return len(host.GetPeers()) >= constant.MaxConnectedPeers
 }
 
 // PeerUnblacklist to update Peer state of peer

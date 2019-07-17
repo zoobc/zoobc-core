@@ -4,9 +4,11 @@ import (
 	"context"
 	"net"
 	"strconv"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
@@ -92,8 +94,26 @@ func (hs *HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*mod
 
 // ResolvePeers looping unresolve peers and adding to (resolve) Peers if get response
 func (hs *HostService) ResolvePeers() {
+	isMaxConnectedPeers := nativeUtil.HasMaxConnectedPeers(hs.Host)
 	for _, peer := range hs.Host.GetUnresolvedPeers() {
+		if isMaxConnectedPeers {
+			peer := nativeUtil.GetAnyPeer(hs.Host)
+			delete(hs.Host.Peers, nativeUtil.GetFullAddressPeer(peer))
+		}
 		go hs.resolvePeer(peer)
+
+		if isMaxConnectedPeers {
+			break
+		}
+	}
+}
+
+func (hs *HostService) UpdateConnectedPeers() {
+	currentTime := time.Now().UTC()
+	for _, peer := range hs.Host.GetPeers() {
+		if peer.GetLastUpdated()-currentTime.Unix() >= constant.SecondsToUpdatePeersConnection {
+			go hs.resolvePeer(peer)
+		}
 	}
 }
 
@@ -103,6 +123,7 @@ func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 	if err != nil {
 		return
 	}
+	destPeer.LastUpdated = time.Now().Unix()
 	updatedHost := nativeUtil.AddToResolvedPeer(hs.Host, destPeer)
 	hs.Host = updatedHost
 
@@ -119,4 +140,10 @@ func (hs *HostService) GetMorePeersHandler() {
 		}
 		hs.Host = nativeUtil.AddToUnresolvedPeers(hs.Host, newPeers.GetPeers())
 	}
+}
+
+// SendPeers receives set of peers info from other node and put them into the unresolved peers
+func (hs HostService) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
+	hs.AddToUnresolvedPeers(req.Peers)
+	return &model.Empty{}, nil
 }

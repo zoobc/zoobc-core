@@ -63,6 +63,7 @@ func resolvePeersThread() {
 		select {
 		case <-ticker.C:
 			go hostServiceInstance.ResolvePeers()
+			go hostServiceInstance.UpdateConnectedPeers()
 		case <-sigs:
 			ticker.Stop()
 			return
