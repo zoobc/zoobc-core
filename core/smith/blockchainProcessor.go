@@ -7,6 +7,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/util"
+
 	"github.com/zoobc/zoobc-core/common/contract"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -169,6 +171,15 @@ func (bp *BlockchainProcessor) AddGenesis() error {
 	var totalFee int64
 	var totalCoinBase int64
 	var blockTransactions []*model.Transaction
+	for _, tx := range service.GetGenesisTransactions(bp.Chaintype) {
+		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
+		_, _ = digest.Write(txBytes)
+		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+			totalAmount += tx.GetSendMoneyTransactionBody().Amount
+		}
+		totalFee += tx.Fee
+		blockTransactions = append(blockTransactions, tx)
+	}
 	payloadHash := digest.Sum([]byte{})
 	block := bp.BlockService.NewGenesisBlock(1, nil, make([]byte, 64), []byte{}, "",
 		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinBase, blockTransactions, payloadHash, constant.InitialSmithScale,

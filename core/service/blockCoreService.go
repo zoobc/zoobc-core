@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/zoobc/zoobc-core/common/transaction"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -112,14 +114,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		block.Height = previousBlock.GetHeight() + 1
 		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
+	// begin transaction
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	result, err := bs.QueryExecutor.ExecuteStatement(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("got new block, %v", result)
-	return nil
 	// apply transactions
+	txs := block.GetTransactions()
+	for _, tx := range txs { // todo: this should be in a single `database transaction` as the block save function.
+		typedTx := transaction.GetTransactionType(tx, bs.QueryExecutor)
+		err = typedTx.ApplyConfirmed()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 
 	// broadcast block
 }
