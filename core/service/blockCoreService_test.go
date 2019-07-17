@@ -163,6 +163,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		totalCoinBase        int64
 		transactions         []*model.Transaction
 		payloadHash          []byte
+		payloadLength        uint32
 		smithScale           int64
 		cumulativeDifficulty *big.Int
 		genesisSignature     []byte
@@ -192,6 +193,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 			totalCoinBase:        0,
 			transactions:         []*model.Transaction{},
 			payloadHash:          []byte{},
+			payloadLength:        8,
 			smithScale:           0,
 			cumulativeDifficulty: big.NewInt(1),
 			genesisSignature:     []byte{},
@@ -207,6 +209,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 			TotalCoinBase:        0,
 			Transactions:         []*model.Transaction{},
 			PayloadHash:          []byte{},
+			PayloadLength:        8,
 			SmithScale:           0,
 			CumulativeDifficulty: "1",
 			BlockSignature:       []byte{},
@@ -219,8 +222,8 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 	}
 	if got := b.NewGenesisBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID,
 		test.args.hash, test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee,
-		test.args.totalCoinBase, test.args.transactions, test.args.payloadHash, test.args.smithScale, test.args.cumulativeDifficulty,
-		test.args.genesisSignature); !reflect.DeepEqual(got, test.want) {
+		test.args.totalCoinBase, test.args.transactions, test.args.payloadHash, test.args.payloadLength, test.args.smithScale,
+		test.args.cumulativeDifficulty, test.args.genesisSignature); !reflect.DeepEqual(got, test.want) {
 		t.Errorf("BlockService.NewGenesisBlock() = %v, want %v", got, test.want)
 	}
 }
