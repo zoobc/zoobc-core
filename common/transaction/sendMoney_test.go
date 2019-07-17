@@ -3,14 +3,155 @@ package transaction
 import (
 	"database/sql"
 	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 )
+
+var db, mock, _ = sqlmock.New()
+
+type (
+	executorAccountCreateSuccess struct {
+		query.Executor
+	}
+	executorAccountCountSuccess struct {
+		query.Executor
+	}
+	executorAccountCountFail struct {
+		query.Executor
+	}
+	executorValidateSuccess struct {
+		query.Executor
+	}
+	executorApplySuccess struct {
+		executorValidateSuccess
+	}
+)
+
+func (*executorApplySuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
+		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	tx, _ := db.Begin()
+	stmt, _ := tx.Prepare("")
+	result, _ := stmt.Exec("")
+	err = tx.Commit()
+	return []sql.Result{result}, err
+}
+
+func (*executorValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
+		"total_record",
+	}).AddRow(2))
+
+	return db.QueryRow(qStr, 1, 2)
+}
+func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
+		query.NewAccountBalanceQuery().Fields,
+	).AddRow(1, 2, 50, 50, 0))
+	return db.Query(qStr, 1)
+}
+func (*executorValidateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
+		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	tx, _ := db.Begin()
+	stmt, _ := tx.Prepare("")
+	result, _ := stmt.Exec("")
+	err = tx.Commit()
+	return []sql.Result{result}, err
+}
+
+func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
+		query.NewAccountQuery().Fields,
+	))
+	return db.Query(qStr, 1)
+}
+func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
+		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+
+	tx, _ := db.Begin()
+	stmt, _ := tx.Prepare("")
+	result, _ := stmt.Exec("")
+	err = tx.Commit()
+	return []sql.Result{result}, err
+}
+func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
+		"total_record",
+	}).AddRow(2))
+
+	return db.QueryRow(qStr, 1, 2)
+}
+
+func (*executorAccountCountFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
+		"total_record",
+	}).AddRow(1))
+
+	return db.QueryRow(qStr, 1, 2)
+}
+func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
+		"total_record",
+	}).AddRow(2))
+
+	return db.QueryRow(qStr, 1, 2)
+}
+func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
+		query.NewAccountBalanceQuery().Fields,
+	).AddRow(1, 2, 3, 4, 5))
+	return db.Query(qStr, 1)
+}
 
 func TestSendMoney_Validate(t *testing.T) {
 	type fields struct {
@@ -28,56 +169,124 @@ func TestSendMoney_Validate(t *testing.T) {
 		name    string
 		fields  fields
 		wantErr bool
-		errMsg  string
 	}{
 		{
-			name: "wantSuccess:ReturnNil",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height: 0,
-			},
-			wantErr: false,
-		},
-		{
-			name: "wantError:InvalidAmount",
+			name: "wantError:AmountNotEnough",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: -1,
 				},
-				Height: 1,
 			},
 			wantErr: true,
-			errMsg:  "transaction must have an amount more than 0",
 		},
 		{
-			name: "wantError:InvalidRecipient",
+			name: "wantError:RecipientInvalid",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				Height:            1,
-				SenderAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				SenderAccountType: 0,
+				RecipientAddress:     "",
+				RecipientAccountType: 0,
 			},
 			wantErr: true,
-			errMsg:  "transaction must have a valid recipient account id",
 		},
 		{
-			name: "wantError:InvalidSender",
+			name: "wantError:SenderInvalid",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
 				Height:               1,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				SenderAccountType:    0,
+				SenderAddress:        "",
+				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 1,
 			},
 			wantErr: true,
-			errMsg:  "transaction must have a valid sender account id",
+		},
+		{
+			name: "wantError:SenderNotExists",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCreateSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:CountAccountGot0",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCountFail{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:AmountNotEnough",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCountSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorValidateSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -93,172 +302,14 @@ func TestSendMoney_Validate(t *testing.T) {
 				AccountQuery:         tt.fields.AccountQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 			}
-
-			if err := tx.Validate(); err != nil {
-				if !tt.wantErr {
-					t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)
-					return
-				}
-				if ok := strings.Compare(err.Error(), tt.errMsg); ok != 0 {
-					t.Errorf("SendMoney.Validate() got errorMessage: %s, wantMessage: %s", err.Error(), tt.errMsg)
-					return
-				}
+			if err := tx.Validate(); (err != nil) != tt.wantErr {
+				t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Error(err)
 			}
 		})
 	}
-	// case account not exists
-	db, mock, _ := sqlmock.New()
-	txAccountNotExists := SendMoney{
-		Body: &model.SendMoneyTransactionBody{
-			Amount: 10,
-		},
-		Height:               1,
-		RecipientAccountType: 1,
-		RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		SenderAccountType:    1,
-		SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		QueryExecutor: query.ExecutorInterface(&query.Executor{
-			Db: db,
-		}),
-		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-	}
-	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT 
-			account_id,block_height,spendable_balance,balance,pop_revenue
-		FROM account_balance
-		WHERE account_id = ?
-	`)).WithArgs(util.CreateAccountIDFromAddress(
-		txAccountNotExists.RecipientAccountType,
-		txAccountNotExists.RecipientAddress,
-	)).WillReturnRows(sqlmock.NewRows(query.NewAccountBalanceQuery().Fields))
-
-	if err := txAccountNotExists.Validate(); (err != nil) && strings.Compare(err.Error(), "account not exists") != 0 {
-		t.Error(err)
-	}
-
-	// case balance != amount
-	txBalanceNotEnough := SendMoney{
-		Body: &model.SendMoneyTransactionBody{
-			Amount: 10,
-		},
-		Height:               1,
-		RecipientAccountType: 1,
-		RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		SenderAccountType:    1,
-		SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		QueryExecutor: query.ExecutorInterface(&query.Executor{
-			Db: db,
-		}),
-		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-	}
-	mock.ExpectQuery(regexp.QuoteMeta(`
-		SELECT 
-			account_id,block_height,spendable_balance,balance,pop_revenue
-		FROM account_balance
-		WHERE account_id = ?
-	`)).WithArgs(util.CreateAccountIDFromAddress(
-		txBalanceNotEnough.RecipientAccountType,
-		txBalanceNotEnough.RecipientAddress,
-	)).WillReturnRows(
-		sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).
-			AddRow(
-				util.CreateAccountIDFromAddress(
-					txBalanceNotEnough.RecipientAccountType,
-					txBalanceNotEnough.RecipientAddress,
-				),
-				1,
-				5,
-				10,
-				0,
-			),
-	)
-	if err := txBalanceNotEnough.Validate(); (err != nil) && strings.Compare(err.Error(), "transaction amount not enough") != 0 {
-		t.Error(err)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("upss: %v", err)
-	}
-}
-
-var db, mock, _ = sqlmock.New()
-
-type (
-	executorAccountInsertSuccess struct {
-		query.Executor
-	}
-	executorAccountUpdateSuccess struct {
-		query.Executor
-	}
-)
-
-func (e *executorAccountInsertSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(query.NewAccountQuery().Fields))
-
-	rows, err := db.Query(qStr, 1)
-	return rows, err
-
-}
-func (e *executorAccountInsertSuccess) ExecuteStatement(qStr string, args ...interface{}) (sql.Result, error) {
-
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectPrepare(regexp.QuoteMeta(qStr)).ExpectExec().WithArgs(1, 2, 3).WillReturnResult(sqlmock.NewResult(1, 1))
-	stmt, err := db.Prepare(qStr)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	result, err := stmt.Exec(1, 2, 3)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (e *executorAccountUpdateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(
-		sqlmock.NewRows(query.NewAccountQuery().Fields).AddRow(
-			1, 1, 5,
-		),
-	)
-	return db.Query(qStr, 1)
-}
-func (e *executorAccountUpdateSuccess) ExecuteStatement(qStr string, args ...interface{}) (sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectPrepare(regexp.QuoteMeta(qStr)).ExpectExec().WithArgs(1, 2).WillReturnResult(sqlmock.NewResult(1, 1))
-	stmt, err := db.Prepare(qStr)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
-	result, err := stmt.Exec(1, 2)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
@@ -279,46 +330,48 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantSuccess:NewAccount",
+			name: "wantError:ValidateInvalid",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				RecipientAccountType: 1,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				SenderAccountType:    1,
+				Height:               1,
+				SenderAccountType:    0,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:               0,
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
-				QueryExecutor: query.ExecutorInterface(&executorAccountInsertSuccess{
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCountSuccess{
 					query.Executor{
 						Db: db,
 					},
-				}),
+				},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
-			name: "wantSuccess:UpdateAccountSpendableBalance",
+			name: "wantSuccess:ApplySuccess",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				RecipientAccountType: 1,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				SenderAccountType:    1,
+				Height:               1,
+				SenderAccountType:    0,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:               0,
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
-				QueryExecutor: query.ExecutorInterface(&executorAccountUpdateSuccess{
-					query.Executor{
-						Db: db,
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorApplySuccess{
+					executorValidateSuccess{
+						query.Executor{
+							Db: db,
+						},
 					},
-				}),
+				},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -362,48 +415,95 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantSuccess:NewAccount",
+			name: "wantError:ValidateInvalid",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				RecipientAccountType: 1,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				SenderAccountType:    1,
+				Height:               1,
+				SenderAccountType:    0,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:               0,
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
-				QueryExecutor: query.ExecutorInterface(&executorAccountInsertSuccess{
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCountSuccess{
 					query.Executor{
 						Db: db,
 					},
-				}),
+				},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
-			name: "wantSuccess:UpdateAccountBalance",
+			name: "wantSuccess:CreateAccount",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				RecipientAccountType: 1,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				SenderAccountType:    1,
+				Height:               1,
+				SenderAccountType:    0,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:               0,
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
-				QueryExecutor: query.ExecutorInterface(&executorAccountUpdateSuccess{
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCreateSuccess{
 					query.Executor{
 						Db: db,
 					},
-				}),
+				},
 			},
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:Create",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorApplySuccess{
+					executorValidateSuccess{
+						query.Executor{
+							Db: db,
+						},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:Update",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorApplySuccess{
+					executorValidateSuccess{
+						query.Executor{
+							Db: db,
+						},
+					},
+				},
+			},
+			wantErr: true,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
@@ -419,9 +519,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Error(err)
 			}
 		})
 	}
