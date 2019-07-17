@@ -19,6 +19,7 @@ type (
 		InsertAccount(account *model.Account) (str string, args []interface{})
 		ExtractModel(account *model.Account) []interface{}
 		BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account
+		GetTableName() string
 	}
 )
 
@@ -65,4 +66,9 @@ func (*AccountQuery) BuildModel(accounts []*model.Account, rows *sql.Rows) []*mo
 		accounts = append(accounts, &account)
 	}
 	return accounts
+}
+
+// GetTableName is func to get account table name
+func (aq *AccountQuery) GetTableName() string {
+	return aq.TableName
 }
