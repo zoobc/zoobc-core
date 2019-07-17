@@ -39,8 +39,6 @@ func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 
 func (mpq *MempoolQuery) getTableName() string {
 	return mpq.TableName
-	// TODO: TO BE REVIEWED - remove this if we don't need to add a secondary mempool (for spinechain or future custom transaction tables)
-	// return mpq.ChainType.GetTablePrefix() + "_" + mpq.TableName
 }
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
