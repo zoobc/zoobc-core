@@ -82,6 +82,8 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	}, nil
 }
 
+// ReadAccountAddress support different way to read the sender or recipient address depending on
+// their types.
 func ReadAccountAddress(accountType uint32, buf *bytes.Buffer) []byte {
 	switch accountType {
 	case 0:
