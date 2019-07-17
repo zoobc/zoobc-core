@@ -107,12 +107,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return errors.New("DatabaseError")
 	}
 
-	tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
-	if err != nil {
-		return err
-	}
-
-	if err := transaction.GetTransactionType(tx).Validate(); err != nil {
+	if err := mps.ValidateMempoolTransaction(mpTx); err != nil {
 		return err
 	}
 
@@ -121,6 +116,34 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return err
 	}
 	log.Printf("got new mempool transaction, %v", result)
+	return nil
+}
+
+func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+	if err != nil {
+		return err
+	}
+
+	// formally validate tx fields
+	if len(tx.TransactionHash) == 0 {
+		return errors.New("InvalidTransactionHash")
+	}
+
+	txID, err := util.GetTransactionID(tx.TransactionHash)
+	if err != nil {
+		return err
+	}
+
+	// verify that transaction ID sent by client = transaction ID calculated from transaction bytes (TransactionHash)
+	if tx.ID != txID {
+		return errors.New("InvalidTransactionID")
+	}
+
+	if err := transaction.GetTransactionType(tx).Validate(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

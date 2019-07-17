@@ -136,7 +136,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 				tx.Height = block.Height
 				//TODO: do we need to recompute txID (in previous prototype we used to do it)?
 				//		note the function also checks if tx is signed (only checks that signature field is !nil)
-				tx.ID, err = util.GetTransactionID(tx, bs.Chaintype)
+				tx.ID, err = util.GetTransactionID(tx.TransactionHash)
 				if err != nil {
 					log.Error(err)
 					continue

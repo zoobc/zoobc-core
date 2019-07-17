@@ -3,8 +3,9 @@ package util
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -39,34 +40,82 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	return buffer.Bytes(), nil
 }
 
+func readTransactionBytes(buf *bytes.Buffer, nBytes int) ([]byte, error) {
+	nextBytes := buf.Next(nBytes)
+	if len(nextBytes) < nBytes {
+		return nil, errors.New("EndOfBufferReached")
+	}
+	return nextBytes, nil
+}
+
 // ParseTransactionBytes build transaction from transaction bytes
 func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
 	buffer := bytes.NewBuffer(transactionBytes)
 
-	transactionTypeBytes := buffer.Next(2)
+	transactionTypeBytes, err := readTransactionBytes(buffer, 2)
+	if err != nil {
+		return nil, err
+	}
 	transactionType := util.ConvertBytesToUint32([]byte{transactionTypeBytes[0], transactionTypeBytes[1], 0, 0})
-	transactionVersionByte := buffer.Next(1)
+	transactionVersionByte, err := readTransactionBytes(buffer, 1)
+	if err != nil {
+		return nil, err
+	}
 	transactionVersion := util.ConvertBytesToUint32([]byte{transactionVersionByte[0], 0, 0, 0})
-	timestamp := util.ConvertBytesToUint64(buffer.Next(8))
-	senderAccountType := buffer.Next(2)
+	timestampBytes, err := readTransactionBytes(buffer, 8)
+	if err != nil {
+		return nil, err
+	}
+	timestamp := util.ConvertBytesToUint64(timestampBytes)
+	senderAccountType, err := readTransactionBytes(buffer, 2)
+	if err != nil {
+		return nil, err
+	}
 	senderAccountAddress := ReadAccountAddress(util.ConvertBytesToUint32([]byte{
 		senderAccountType[0], senderAccountType[1], 0, 0,
 	}), buffer)
-	recipientAccountType := buffer.Next(2)
+	recipientAccountType, err := readTransactionBytes(buffer, 2)
+	if err != nil {
+		return nil, err
+	}
 	recipientAccountAddress := ReadAccountAddress(util.ConvertBytesToUint32([]byte{
 		recipientAccountType[0], recipientAccountType[1], 0, 0,
 	}), buffer)
-	fee := util.ConvertBytesToUint64(buffer.Next(8))
-	transactionBodyLength := util.ConvertBytesToUint32(buffer.Next(4))
-	transactionBodyBytes := buffer.Next(int(transactionBodyLength))
+	feeBytes, err := readTransactionBytes(buffer, 8)
+	if err != nil {
+		return nil, err
+	}
+	fee := util.ConvertBytesToUint64(feeBytes)
+	transactionBodyLengthBytes, err := readTransactionBytes(buffer, 4)
+	if err != nil {
+		return nil, err
+	}
+	transactionBodyLength := util.ConvertBytesToUint32(transactionBodyLengthBytes)
+	transactionBodyBytes, err := readTransactionBytes(buffer, int(transactionBodyLength))
+	if err != nil {
+		return nil, err
+	}
 	var signature []byte
 	if sign {
-		signature = buffer.Next(64)
-		if len(signature) < 64 { // signature is not there
-			return nil, errors.New("TransactionSignatureNotExist")
+		var err error
+		//TODO: implement below logic to allow multiple signature algorithm to work
+		// first 2 bytes of signature are the signature length
+		// signatureLengthBytes, err := readTransactionBytes(buffer, 2)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// signatureLength := int(util.ConvertBytesToUint32(signatureLengthBytes))
+		signature, err = readTransactionBytes(buffer, 64)
+		if err != nil {
+			return nil, errors.New("TrasnsactionSignatureNotExist")
 		}
 	}
+	// compute and return tx hash and ID too
+	transactionHash := sha3.Sum256(transactionBytes)
+	fmt.Printf("%v", transactionHash)
+	txID, _ := GetTransactionID(transactionHash[:])
 	return &model.Transaction{
+		ID:              txID,
 		TransactionType: transactionType,
 		Version:         transactionVersion,
 		Timestamp:       int64(timestamp),
@@ -80,6 +129,7 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 		Fee:                     int64(fee),
 		TransactionBodyLength:   transactionBodyLength,
 		TransactionBodyBytes:    transactionBodyBytes,
+		TransactionHash:         transactionHash[:],
 		Signature:               signature,
 	}, nil
 }
@@ -94,11 +144,10 @@ func ReadAccountAddress(accountType uint32, buf *bytes.Buffer) []byte {
 }
 
 // GetTransactionID calculate and returns a transaction ID given a transaction model
-func GetTransactionID(tx *model.Transaction, ct contract.ChainType) (int64, error) {
-	if tx.Signature == nil && tx.BlockID != ct.GetGenesisBlockID() {
-		return -1, errors.New("TransactionNotSigned")
+func GetTransactionID(transactionHash []byte) (int64, error) {
+	if len(transactionHash) == 0 {
+		return -1, errors.New("InvalidTransactionHash")
 	}
-	fullHash := tx.TransactionHash
-	ID := int64(util.ConvertBytesToUint32(fullHash))
+	ID := int64(util.ConvertBytesToUint32(transactionHash))
 	return ID, nil
 }

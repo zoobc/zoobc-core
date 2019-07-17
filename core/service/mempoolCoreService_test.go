@@ -72,10 +72,10 @@ func (*mockMempoolQueryExecutorFail) ExecuteStatement(qe string, args ...interfa
 	return nil, errors.New("MockedError")
 }
 
-func buildTransaction(id, timestamp int64, sender, recipient string) *model.Transaction {
+func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
 	return &model.Transaction{
 		Version:                 1,
-		ID:                      id,
+		ID:                      2774809487,
 		BlockID:                 1,
 		Height:                  1,
 		SenderAccountType:       0,
@@ -94,7 +94,7 @@ func buildTransaction(id, timestamp int64, sender, recipient string) *model.Tran
 }
 
 func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
-	tx := buildTransaction(id, timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
+	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 	txBytes, _ := util.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:               id,

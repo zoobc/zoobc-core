@@ -754,7 +754,7 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 			},
 			args: args{
 				transactions: []*model.Transaction{
-					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+					buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
 				},
 			},
 			wantErr: false,
@@ -768,7 +768,7 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 			},
 			args: args{
 				transactions: []*model.Transaction{
-					buildTransaction(3, 1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+					buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
 				},
 			},
 			wantErr: true,
