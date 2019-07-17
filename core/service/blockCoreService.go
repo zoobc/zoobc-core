@@ -4,8 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/transaction"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 
@@ -20,7 +24,7 @@ type (
 		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
 		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, secretPhrase string) *model.Block
+			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
@@ -29,30 +33,36 @@ type (
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetGenesisBlock() (*model.Block, error)
+		RemoveMempoolTransactions(transactions []*model.Transaction) error
 	}
 
 	BlockService struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		Signature     crypto.SignatureInterface
+		Chaintype        contract.ChainType
+		QueryExecutor    query.ExecutorInterface
+		BlockQuery       query.BlockQueryInterface
+		MempoolQuery     query.MempoolQueryInterface
+		TransactionQuery query.TransactionQueryInterface
+		Signature        crypto.SignatureInterface
 	}
 )
 
 func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface, signature crypto.SignatureInterface) *BlockService {
+	blockQuery query.BlockQueryInterface, mempoolQuery query.MempoolQueryInterface, transactionQuery query.TransactionQueryInterface,
+	signature crypto.SignatureInterface) *BlockService {
 	return &BlockService{
-		Chaintype:     chaintype,
-		QueryExecutor: queryExecutor,
-		BlockQuery:    blockQuery,
-		Signature:     signature,
+		Chaintype:        chaintype,
+		QueryExecutor:    queryExecutor,
+		BlockQuery:       blockQuery,
+		MempoolQuery:     mempoolQuery,
+		TransactionQuery: transactionQuery,
+		Signature:        signature,
 	}
 }
 
 // NewBlock generate new block
 func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
 	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
-	payloadHash []byte, secretPhrase string) *model.Block {
+	payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block {
 	block := &model.Block{
 		Version:           version,
 		PreviousBlockHash: previousBlockHash,
@@ -65,6 +75,7 @@ func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, b
 		TotalCoinBase:     totalCoinBase,
 		Transactions:      transactions,
 		PayloadHash:       payloadHash,
+		PayloadLength:     payloadLength,
 	}
 	blockUnsignedByte, _ := core_util.GetBlockByte(block, false)
 	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
@@ -112,16 +123,39 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		block.Height = previousBlock.GetHeight() + 1
 		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
+	//TODO: start db transaction here
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	result, err := bs.QueryExecutor.ExecuteStatement(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("got new block, %v", result)
-	return nil
-	// apply transactions
+
+	// apply transactions and remove them from mempool
+	transactions := block.GetTransactions()
+	if len(transactions) > 0 {
+		for _, tx := range block.GetTransactions() {
+			err := transaction.GetTransactionType(tx).ApplyConfirmed()
+			if err != nil {
+				tx.BlockID = block.ID
+				tx.Height = block.Height
+				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
+				_, err := bs.QueryExecutor.ExecuteStatement(transactionInsertQuery, transactionInsertValue...)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		if err := bs.RemoveMempoolTransactions(transactions); err != nil {
+			log.Errorf("Can't delete Mempool Transactions: %s", err)
+			return err
+		}
+	}
+	//TODO: commit db transaction here
 
 	// broadcast block
+
+	return nil
 }
 
 // GetLastBlock return the last pushed block
@@ -203,4 +237,18 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 		blocks = append(blocks, &block)
 	}
 	return blocks, nil
+}
+
+// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
+func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
+	idsStr := []string{}
+	for _, tx := range transactions {
+		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
+	}
+	_, err := bs.QueryExecutor.ExecuteStatement(bs.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
+	if err != nil {
+		return err
+	}
+	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
+	return nil
 }

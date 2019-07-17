@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -150,6 +152,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				sign: true,
 			},
 			want: &model.Transaction{
+				ID:                      -5823673208263666419,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -160,8 +163,10 @@ func TestParseTransactionBytes(t *testing.T) {
 				RecipientAccountType:    0,
 				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				Fee:                     1000000,
-				TransactionBodyLength:   8,
-				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
+				TransactionHash: []byte{13, 21, 124, 125, 18, 40, 46, 175, 66, 110, 127, 123, 56, 28, 40, 174, 50, 79, 147, 147, 233, 17,
+					75, 24, 116, 50, 19, 99, 21, 95, 255, 58},
+				TransactionBodyLength: 8,
+				TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
 				Signature: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190,
 					78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
 					229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
@@ -179,6 +184,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				sign: false,
 			},
 			want: &model.Transaction{
+				ID:                      -1706179853601734732,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -189,8 +195,10 @@ func TestParseTransactionBytes(t *testing.T) {
 				RecipientAccountType:    0,
 				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				Fee:                     1000000,
-				TransactionBodyLength:   8,
-				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
+				TransactionHash: []byte{180, 255, 35, 127, 118, 110, 82, 232, 77, 204, 15, 1, 18, 114, 55, 227, 234, 90, 203, 168, 35, 218, 121,
+					247, 191, 2, 3, 221, 181, 75, 148, 247},
+				TransactionBodyLength: 8,
+				TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
 			},
 			wantErr: false,
 		},
@@ -217,6 +225,55 @@ func TestParseTransactionBytes(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseTransactionBytes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTransactionID(t *testing.T) {
+	type args struct {
+		tx *model.Transaction
+		ct contract.ChainType
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "GetTransactionID:success",
+			args: args{
+				tx: &model.Transaction{
+					TransactionHash: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					Signature:       make([]byte, 64),
+				},
+				ct: &chaintype.MainChain{},
+			},
+			wantErr: false,
+			want:    72340172838076673,
+		},
+		{
+			name: "GetTransactionID:fail",
+			args: args{
+				tx: &model.Transaction{
+					TransactionHash: []byte{},
+				},
+				ct: &chaintype.MainChain{},
+			},
+			wantErr: true,
+			want:    -1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetTransactionID(tt.args.tx.TransactionHash)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetTransactionID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetTransactionID() = %v, want %v", got, tt.want)
 			}
 		})
 	}
