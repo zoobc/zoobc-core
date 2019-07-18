@@ -178,9 +178,9 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
-		queries := make([]map[string][]interface{}, 2)
-		queries = append(queries, map[string][]interface{}{
-			"insert into blocks(id, blocksmith_id) values(?, ?)": {1, []byte{1, 2, 34}},
+		queries := make([][]interface{}, 2)
+		queries = append(queries, []interface{}{
+			"insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34},
 		})
 		// test error prepare
 		executor := Executor{db}
@@ -199,12 +199,11 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 			[]byte{1, 2, 14}).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		mock.ExpectClose()
-
-		queries := make([]map[string][]interface{}, 2)
-		queries = append(queries, map[string][]interface{}{
-			insertBlockQuery: {1, []byte{1, 2, 34}},
-		}, map[string][]interface{}{
-			insertBlockQuery: {1, []byte{1, 2, 14}},
+		var queries [][]interface{}
+		queries = append(queries, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 34},
+		}, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 14},
 		})
 		// test error prepare
 		executor := Executor{db}
@@ -222,11 +221,11 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
 			[]byte{1, 2, 14}).WillReturnError(errors.New("mockError"))
 
-		queries := make([]map[string][]interface{}, 2)
-		queries = append(queries, map[string][]interface{}{
-			insertBlockQuery: {1, []byte{1, 2, 34}},
-		}, map[string][]interface{}{
-			insertBlockQuery: {1, []byte{1, 2, 14}},
+		var queries [][]interface{}
+		queries = append(queries, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 34},
+		}, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 14},
 		})
 		// test error prepare
 		executor := Executor{db}

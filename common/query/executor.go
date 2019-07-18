@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 )
 
 type (
@@ -11,7 +12,7 @@ type (
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
-		ExecuteTransactionStatements(queries []map[string][]interface{}) ([]sql.Result, error)
+		ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error)
 	}
 
 	// Executor struct
@@ -85,7 +86,7 @@ func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows,
 
 // ExecuteTransactionStatements execute list of statement in transaction
 // will return error in case one or more of the query fail
-func (qe *Executor) ExecuteTransactionStatements(queries []map[string][]interface{}) ([]sql.Result, error) {
+func (qe *Executor) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	var (
 		stmt    *sql.Stmt
 		tx      *sql.Tx
@@ -99,22 +100,18 @@ func (qe *Executor) ExecuteTransactionStatements(queries []map[string][]interfac
 	}
 
 	for _, query := range queries { // n x
-		for q, v := range query { // 1x
-			stmt, err = tx.Prepare(q)
-			if err != nil {
-				return nil, err
-			}
-			defer stmt.Close()
-
-			result, err := stmt.Exec(v...)
-			if err != nil {
-				_ = tx.Rollback()
-				return nil, err
-			}
-			results = append(results, result)
-
+		stmt, err = tx.Prepare(fmt.Sprintf("%v", query[0]))
+		if err != nil {
+			return nil, err
 		}
+		defer stmt.Close()
 
+		result, err := stmt.Exec(query[1:]...)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		results = append(results, result)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
