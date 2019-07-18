@@ -135,7 +135,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
-			err := transaction.GetTransactionType(tx, bs.QueryExecutor).ApplyConfirmed()
+			err := transaction.GetTransactionType(tx, bs.QueryExecutor).ApplyConfirmed() // todo: make this mockable
 			if err == nil {
 				tx.BlockID = block.ID
 				tx.Height = block.Height
