@@ -8,7 +8,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
-	"github.com/zoobc/zoobc-core/p2p/native/util"
 	"google.golang.org/grpc"
 )
 
@@ -26,35 +25,24 @@ func ClientPeerService(chaintype contract.ChainType) *PeerService {
 }
 
 // GetPeerInfo to get Peer info
-func (cs *PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
-	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
-	if err != nil {
-		log.Warnf("could not make dial connection: %v\n", err)
-		return nil, err
-	}
-	defer conn.Close()
-	p2pClient := service.NewP2PCommunicationClient(conn)
+func (cs *PeerService) GetPeerInfo(connection *grpc.ClientConn) (*model.Node, error) {
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	// context still not use ctx := cs.buildContext()
-	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{Version: "v1.0.1"})
+	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{Version: "v1,.0.1"})
 	if err != nil {
 		log.Warnf("GetPeerInfo could not greet. %v\n", err)
 		return nil, err
 	}
 
-	log.Infof("got GetPeerInfo response from %v = %v\n", util.GetFullAddressPeer(destPeer), res)
 	return res, err
 }
 
 // GetMorePeers to collect more peers available
-func (cs *PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
-	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
-	if err != nil {
-		log.Warnf("could not make dial connection. %v\n", err)
-		return nil, err
-	}
-	defer conn.Close()
-	p2pClient := service.NewP2PCommunicationClient(conn)
+func (cs *PeerService) GetMorePeers(connection *grpc.ClientConn) (*model.GetMorePeersResponse, error) {
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetMorePeers(context.Background(), &model.Empty{})

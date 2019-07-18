@@ -99,7 +99,8 @@ func (hs *HostService) ResolvePeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (hs *HostService) resolvePeer(destPeer *model.Peer) {
-	_, err := ClientPeerService(hs.ChainType).GetPeerInfo(destPeer)
+	conn, _ := nativeUtil.GrpcDialer(destPeer)
+	_, err := ClientPeerService(hs.ChainType).GetPeerInfo(conn)
 	if err != nil {
 		return
 	}
@@ -113,7 +114,8 @@ func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 func (hs *HostService) GetMorePeersHandler() {
 	peer := nativeUtil.GetAnyPeer(hs.Host)
 	if peer != nil {
-		newPeers, err := ClientPeerService(hs.ChainType).GetMorePeers(peer)
+		conn, _ := nativeUtil.GrpcDialer(peer)
+		newPeers, err := ClientPeerService(hs.ChainType).GetMorePeers(conn)
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 		}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
 // NewHost to initialize new server node
@@ -122,6 +123,14 @@ func PeerUnblacklist(peer *model.Peer) *model.Peer {
 		peer.State = model.PeerState_NON_CONNECTED
 	}
 	return peer
+}
+
+func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
+	conn, err := grpc.Dial(GetFullAddressPeer(destinationPeer), grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 func GetTickerTime(duration uint) *time.Ticker {
