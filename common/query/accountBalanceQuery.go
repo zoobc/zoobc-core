@@ -20,7 +20,7 @@ type (
 		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
-		AddAccountUnconfirmedBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
+		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
 	}
 )
 
@@ -51,7 +51,7 @@ func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[
 		q.TableName, balance, balance), []interface{}{causedFields["account_id"]}
 }
 
-func (q *AccountBalanceQuery) AddAccountUnconfirmedBalance(balance int64, causedFields map[string]interface{}) (
+func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (
 	str string, args []interface{}) {
 	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_id = ?",
 		q.TableName, balance), []interface{}{causedFields["account_id"]}

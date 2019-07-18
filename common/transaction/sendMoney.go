@@ -147,7 +147,7 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 	}
 
 	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountUnconfirmedBalance(
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-tx.Body.Amount,
 		map[string]interface{}{
 			"account_id": util.CreateAccountIDFromAddress(
