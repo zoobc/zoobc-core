@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/ed25519"
 
@@ -69,6 +70,20 @@ func GetAddressFromPublicKey(publicKey []byte) (string, error) {
 	address := base64.URLEncoding.EncodeToString(rawAddress)
 
 	return address, nil
+}
+
+// GetPublicKeyFromAddress Get the raw public key from a formatted address
+func GetPublicKeyFromAddress(address string) ([]byte, error) {
+	// decode base64 back to byte
+	publicKey, err := base64.URLEncoding.DecodeString(address)
+	if err != nil {
+		return nil, err
+	}
+	// Needs to check the checksum bit at the end, and if valid,
+	if publicKey[32] != GetChecksumByte(publicKey[:32]) {
+		return nil, fmt.Errorf("address checksum failed")
+	}
+	return publicKey[:32], nil
 }
 
 // GetChecksumByte Calculate a checksum byte from a collection of bytes

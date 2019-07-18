@@ -152,3 +152,82 @@ func TestGetAddressFromPublicKey(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPublicKeyFromAddress(t *testing.T) {
+	type args struct {
+		address string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "GetPublicKeyFromAddress:success",
+			args: args{
+				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			},
+			want: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242,
+				84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11},
+			wantErr: false,
+		},
+		{
+			name: "GetPublicKeyFromAddress:fail-{decode error, wrong address format/length}",
+			args: args{
+				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgt",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetPublicKeyFromAddress:fail-{checksum error, wrong address format}",
+			args: args{
+				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtM",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetPublicKeyFromAddress(tt.args.address)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPublicKeyFromAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetPublicKeyFromAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCreateAccountIDFromAddress(t *testing.T) {
+	type args struct {
+		accountType uint32
+		address     string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "CreateAccountIDFromAddress:success",
+			args: args{
+				accountType: 0,
+				address:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			},
+			want: []byte{136, 106, 141, 253, 44, 34, 145, 81, 166, 229, 33, 209, 150, 188, 204, 28, 239, 33, 152, 158, 4, 187,
+				13, 109, 173, 223, 169, 232, 50, 200, 169, 25},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CreateAccountIDFromAddress(tt.args.accountType, tt.args.address); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateAccountIDFromAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
