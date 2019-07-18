@@ -72,9 +72,9 @@ func (tx *SendMoney) ApplyConfirmed() error {
 			}
 			senderAccountInsertQ, senderAccountInsertArgs := tx.AccountQuery.InsertAccount(&senderAccount)
 			senderAccountBalanceInsertQ, senderAccountBalanceInsertArgs := tx.AccountBalanceQuery.InsertAccountBalance(&senderAccountBalance)
-			_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-				&senderAccountInsertQ:        senderAccountInsertArgs,
-				&senderAccountBalanceInsertQ: senderAccountBalanceInsertArgs,
+			_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+				append([]interface{}{senderAccountInsertQ}, senderAccountInsertArgs...),
+				append([]interface{}{senderAccountBalanceInsertQ}, senderAccountBalanceInsertArgs...),
 			})
 			if err != nil {
 				return err
@@ -98,10 +98,10 @@ func (tx *SendMoney) ApplyConfirmed() error {
 				"account_id": senderAccount.ID,
 			},
 		)
-		_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-			&accountQ:              accountQArgs,
-			&accountBalanceQ:       accountBalanceArgs,
-			&accountBalanceSenderQ: accountBalanceSenderQArgs,
+		_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+			append([]interface{}{accountQ}, accountQArgs...),
+			append([]interface{}{accountBalanceQ}, accountBalanceArgs...),
+			append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...),
 		})
 		if err != nil {
 			return err
@@ -121,9 +121,9 @@ func (tx *SendMoney) ApplyConfirmed() error {
 				"account_id": senderAccount.ID,
 			},
 		)
-		_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-			&accountBalanceSenderQ:    accountBalanceSenderQArgs,
-			&accountBalanceRecipientQ: accountBalanceRecipientQArgs,
+		_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+			append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...),
+			append([]interface{}{accountBalanceRecipientQ}, accountBalanceRecipientQArgs...),
 		})
 		if err != nil {
 			return err
@@ -156,8 +156,8 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 			),
 		},
 	)
-	_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-		&accountBalanceSenderQ: accountBalanceSenderQArgs,
+	_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+		{append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...)},
 	})
 	if err != nil {
 		return err

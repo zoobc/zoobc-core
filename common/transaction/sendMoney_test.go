@@ -47,7 +47,7 @@ type (
 	}
 )
 
-func (*executorApplySuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorApplySuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) 
 	).AddRow(1, 2, 50, 50, 0, 1))
 	return db.Query(qStr, 1)
 }
-func (*executorValidateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorValidateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interfac
 	))
 	return db.Query(qStr, 1)
 }
-func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func (*executorGenesisSuccess) ExecuteSelect(qStr string, args ...interface{}) (
 	return db.Query(qStr, args[0])
 }
 
-func (*executorGenesisSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorGenesisSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	return nil, nil
 }
 
@@ -200,11 +200,11 @@ func (*executorGenesisSuccessCreateAccount) ExecuteSelect(qStr string, args ...i
 	return db.Query(qStr, args[0])
 }
 
-func (*executorGenesisFail) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorGenesisFail) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	return nil, errors.New("mockedError")
 }
 
-func (*executorGenesisFailAddBalance) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorGenesisFailAddBalance) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	return nil, errors.New("mockedError")
 }
 
