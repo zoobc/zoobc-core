@@ -151,3 +151,99 @@ func TestHostService_GetMorePeers(t *testing.T) {
 		})
 	}
 }
+
+func TestHostService_ResolvePeers(t *testing.T) {
+	type fields struct {
+		Host       *model.Host
+		GrpcServer *grpc.Server
+		ChainType  contract.ChainType
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{
+		// TODO: Add test cases.
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host: &model.Host{
+					Info: &model.Node{
+						SharedAddress: "127.0.0.1",
+						Address:       "127.0.0.1",
+						Port:          8001,
+					},
+					Peers: map[string]*model.Peer{
+						"192.168.55.3:2001": {
+							Info: &model.Node{
+								SharedAddress: "192.168.55.3",
+								Address:       "192.168.55.3",
+								Port:          2001,
+							},
+						},
+					},
+					KnownPeers:      make(map[string]*model.Peer),
+					UnresolvedPeers: make(map[string]*model.Peer),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hs := &HostService{
+				Host:       tt.fields.Host,
+				GrpcServer: tt.fields.GrpcServer,
+				ChainType:  tt.fields.ChainType,
+			}
+			hs.ResolvePeers()
+		})
+	}
+}
+
+func TestHostService_GetMorePeersHandler(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+	type fields struct {
+		Host       *model.Host
+		GrpcServer *grpc.Server
+		ChainType  contract.ChainType
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host: &model.Host{
+					Info: &model.Node{
+						SharedAddress: "127.0.0.1",
+						Address:       "127.0.0.1",
+						Port:          8001,
+					},
+					Peers: map[string]*model.Peer{
+						"192.168.55.3:2001": {
+							Info: &model.Node{
+								SharedAddress: "192.168.55.3",
+								Address:       "192.168.55.3",
+								Port:          2001,
+							},
+						},
+					},
+					KnownPeers:      make(map[string]*model.Peer),
+					UnresolvedPeers: make(map[string]*model.Peer),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hs := &HostService{
+				Host:       tt.fields.Host,
+				GrpcServer: tt.fields.GrpcServer,
+				ChainType:  tt.fields.ChainType,
+			}
+			hs.GetMorePeersHandler()
+		})
+	}
+}
