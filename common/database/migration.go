@@ -63,6 +63,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
+				"version" INTEGER,
 				PRIMARY KEY("id")
 			);`,
 			`

@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -15,7 +16,7 @@ type (
 	}
 )
 
-func GetTransactionType(tx *model.Transaction) TypeAction {
+func GetTransactionType(tx *model.Transaction, executor query.ExecutorInterface) TypeAction {
 
 	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
 	switch buf[0] {
@@ -36,6 +37,9 @@ func GetTransactionType(tx *model.Transaction) TypeAction {
 				RecipientAddress:     tx.GetRecipientAccountAddress(),
 				RecipientAccountType: tx.GetRecipientAccountType(),
 				Height:               tx.GetHeight(),
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        executor,
 			}
 		default:
 			return nil

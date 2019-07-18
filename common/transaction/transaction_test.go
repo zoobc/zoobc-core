@@ -5,12 +5,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestGetTransactionType(t *testing.T) {
 	type args struct {
-		tx *model.Transaction
+		tx       *model.Transaction
+		executor query.ExecutorInterface
 	}
 	tests := []struct {
 		name string
@@ -33,6 +36,7 @@ func TestGetTransactionType(t *testing.T) {
 					},
 					TransactionType: binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}),
 				},
+				executor: nil,
 			},
 			want: TypeAction(&SendMoney{
 				Height:               0,
@@ -43,6 +47,9 @@ func TestGetTransactionType(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
+				QueryExecutor:       nil,
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountQuery:        query.NewAccountQuery(),
 			}),
 		},
 		{
@@ -61,6 +68,7 @@ func TestGetTransactionType(t *testing.T) {
 					},
 					TransactionType: binary.LittleEndian.Uint32([]byte{0, 0, 0, 0}),
 				},
+				executor: nil,
 			},
 			want: TypeAction(&TXEmpty{}),
 		},
@@ -80,6 +88,7 @@ func TestGetTransactionType(t *testing.T) {
 					},
 					TransactionType: binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
 				},
+				executor: nil,
 			},
 		},
 		{
@@ -98,6 +107,7 @@ func TestGetTransactionType(t *testing.T) {
 					},
 					TransactionType: binary.LittleEndian.Uint32([]byte{1, 1, 0, 0}),
 				},
+				executor: nil,
 			},
 		},
 		{
@@ -116,12 +126,13 @@ func TestGetTransactionType(t *testing.T) {
 					},
 					TransactionType: binary.LittleEndian.Uint32([]byte{2, 1, 0, 0}),
 				},
+				executor: nil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
+			if got := GetTransactionType(tt.args.tx, tt.args.executor); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetTransactionType() = %v, want %v", got, tt.want)
 			}
 		})

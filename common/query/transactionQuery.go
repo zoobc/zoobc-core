@@ -3,7 +3,11 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"math/big"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/core/util"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -41,6 +45,7 @@ func NewTransactionQuery(chaintype contract.ChainType) *TransactionQuery {
 			"transaction_body_length",
 			"transaction_body_bytes",
 			"signature",
+			"version",
 		},
 		TableName: "\"transaction\"",
 		ChainType: chaintype,
@@ -91,23 +96,37 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
 func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
+	digest := sha3.New512()
+	txBytes, _ := util.GetTransactionBytes(tx, true)
+	_, _ = digest.Write(txBytes)
+	hash := digest.Sum([]byte{})
+	res := new(big.Int)
+	txID := res.SetBytes([]byte{
+		hash[7],
+		hash[6],
+		hash[5],
+		hash[4],
+		hash[3],
+		hash[2],
+		hash[1],
+		hash[0],
+	}).Int64()
 	return []interface{}{
+		txID,
+		&tx.BlockID,
+		&tx.Height,
+		&tx.SenderAccountType,
+		&tx.SenderAccountAddress,
+		&tx.RecipientAccountType,
+		&tx.RecipientAccountAddress,
+		&tx.TransactionType,
+		&tx.Fee,
+		&tx.Timestamp,
+		&tx.TransactionHash,
+		&tx.TransactionBodyLength,
+		&tx.TransactionBodyBytes,
+		&tx.Signature,
 		tx.Version,
-		tx.ID,
-		tx.BlockID,
-		tx.Height,
-		tx.SenderAccountType,
-		tx.SenderAccountAddress,
-		tx.RecipientAccountType,
-		tx.RecipientAccountAddress,
-		tx.TransactionType,
-		tx.Fee,
-		tx.Timestamp,
-		tx.TransactionHash,
-		tx.TransactionBodyLength,
-		tx.TransactionBodyBytes,
-		tx.TransactionBody,
-		tx.Signature,
 	}
 }
 
@@ -115,7 +134,6 @@ func (*TransactionQuery) BuildModel(blocks []*model.Transaction, rows *sql.Rows)
 	for rows.Next() {
 		var tx model.Transaction
 		_ = rows.Scan(
-			&tx.Version,
 			&tx.ID,
 			&tx.BlockID,
 			&tx.Height,
@@ -129,8 +147,8 @@ func (*TransactionQuery) BuildModel(blocks []*model.Transaction, rows *sql.Rows)
 			&tx.TransactionHash,
 			&tx.TransactionBodyLength,
 			&tx.TransactionBodyBytes,
-			&tx.TransactionBody,
 			&tx.Signature,
+			&tx.Version,
 		)
 		blocks = append(blocks, &tx)
 	}

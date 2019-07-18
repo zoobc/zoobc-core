@@ -243,3 +243,30 @@ func TestConvertIntToBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertStringToBytes(t *testing.T) {
+	type args struct {
+		str string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "ConvertStringToBytes:success",
+			args: args{
+				str: "dummy random string here",
+			},
+			want: []byte{24, 0, 0, 0, 100, 117, 109, 109, 121, 32, 114, 97, 110, 100, 111, 109, 32, 115, 116, 114, 105, 110, 103, 32,
+				104, 101, 114, 101},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ConvertStringToBytes(tt.args.str); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ConvertStringToBytes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

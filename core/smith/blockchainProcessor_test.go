@@ -118,7 +118,7 @@ func (*mockBlockServiceSuccess) NewBlock(version uint32, previousBlockHash, bloc
 }
 func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
 	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
+	transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
 	genesisSignature []byte) *model.Block {
 	return &model.Block{
 		Version:              1,
@@ -131,7 +131,7 @@ func (*mockBlockServiceSuccess) NewGenesisBlock(version uint32, previousBlockHas
 		TotalCoinBase:        0,
 		Transactions:         []*model.Transaction{},
 		PayloadHash:          []byte{},
-		PayloadLength:        0,
+		PayloadLength:        payloadLength,
 		SmithScale:           0,
 		CumulativeDifficulty: "1",
 		BlockSignature:       []byte{},

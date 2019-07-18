@@ -15,8 +15,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
-	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -166,14 +166,14 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 		}
 		digest := sha3.New512()
 		for _, mpTx := range mempoolTransactions {
-			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			tx, err := coreUtil.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
 				return nil, err
 			}
 
 			sortedTx = append(sortedTx, tx)
 			_, _ = digest.Write(mpTx.TransactionBytes)
-			txType := transaction.GetTransactionType(tx)
+			txType := transaction.GetTransactionType(tx, nil)
 			totalAmount += txType.GetAmount()
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
@@ -203,11 +203,24 @@ func (bp *BlockchainProcessor) AddGenesis() error {
 	var totalAmount int64
 	var totalFee int64
 	var totalCoinBase int64
+	var payloadLength uint32
 	var blockTransactions []*model.Transaction
+	for _, tx := range service.GetGenesisTransactions(bp.Chaintype) {
+		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
+		_, _ = digest.Write(txBytes)
+		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+			totalAmount += tx.GetSendMoneyTransactionBody().Amount
+		}
+		txType := transaction.GetTransactionType(tx, nil)
+		totalAmount += txType.GetAmount()
+		totalFee += tx.Fee
+		payloadLength += txType.GetSize()
+		blockTransactions = append(blockTransactions, tx)
+	}
 	payloadHash := digest.Sum([]byte{})
 	block := bp.BlockService.NewGenesisBlock(1, nil, make([]byte, 64), []byte{}, "",
-		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinBase, blockTransactions, payloadHash, constant.InitialSmithScale,
-		big.NewInt(0), constant.GenesisBlockSignature)
+		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinBase, blockTransactions, payloadHash, payloadLength,
+		constant.InitialSmithScale, big.NewInt(0), constant.GenesisBlockSignature)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
 	err := bp.BlockService.PushBlock(&model.Block{ID: -1, Height: 0}, block)

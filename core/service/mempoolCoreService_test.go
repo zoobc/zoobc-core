@@ -21,14 +21,14 @@ type mockMempoolQueryExecutorSuccess struct {
 	query.Executor
 }
 
-var getTxByIDQuery = "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool WHERE id = :id"
+var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes FROM mempool WHERE id = :id"
 
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT ID, FeePerByte, ArrivalTimestamp, TransactionBytes FROM mempool":
-		mockedRows := sqlmock.NewRows([]string{"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes"})
+	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes FROM mempool":
+		mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes"})
 		mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes)
 		mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes)
 		mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes)
@@ -58,7 +58,7 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{
 	// before adding mempool transactions to db we check for duplicate transactions
 	case getTxByIDQuery:
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes"},
+			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes"},
 		).AddRow(3, 1, 1562893302, []byte{}))
 	default:
 		return nil, errors.New("MockedError")

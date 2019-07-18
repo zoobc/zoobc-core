@@ -140,7 +140,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return errors.New("InvalidTransactionID")
 	}
 
-	if err := transaction.GetTransactionType(tx).Validate(); err != nil {
+	if err := transaction.GetTransactionType(tx, mps.QueryExecutor).Validate(); err != nil {
 		return err
 	}
 
@@ -182,7 +182,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 
-			if err := transaction.GetTransactionType(tx).Validate(); err != nil {
+			if err := transaction.GetTransactionType(tx, mps.QueryExecutor).Validate(); err != nil {
 				continue
 			}
 

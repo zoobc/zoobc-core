@@ -27,7 +27,7 @@ type (
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
+			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
 			genesisSignature []byte) *model.Block
 		PushBlock(previousBlock, block *model.Block) error
 		GetLastBlock() (*model.Block, error)
@@ -85,7 +85,7 @@ func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, b
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
 func (bs *BlockService) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
 	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, smithScale int64, cumulativeDifficulty *big.Int,
+	transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
 	genesisSignature []byte) *model.Block {
 	block := &model.Block{
 		Version:              version,
@@ -98,6 +98,7 @@ func (bs *BlockService) NewGenesisBlock(version uint32, previousBlockHash, block
 		TotalFee:             totalFee,
 		TotalCoinBase:        totalCoinBase,
 		Transactions:         transactions,
+		PayloadLength:        payloadLength,
 		PayloadHash:          payloadHash,
 		SmithScale:           smithScale,
 		CumulativeDifficulty: cumulativeDifficulty.String(),
@@ -130,13 +131,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		return err
 	}
 	fmt.Printf("got new block, %v", result)
-
 	// apply transactions and remove them from mempool
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
-			err := transaction.GetTransactionType(tx).ApplyConfirmed()
-			if err != nil {
+			err := transaction.GetTransactionType(tx, bs.QueryExecutor).ApplyConfirmed() // todo: make this mockable
+			if err == nil {
 				tx.BlockID = block.ID
 				tx.Height = block.Height
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
@@ -146,9 +146,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 				}
 			}
 		}
-		if err := bs.RemoveMempoolTransactions(transactions); err != nil {
-			log.Errorf("Can't delete Mempool Transactions: %s", err)
-			return err
+		if block.Height != 0 {
+			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
+				log.Errorf("Can't delete Mempool Transactions: %s", err)
+				return err
+			}
 		}
 	}
 	//TODO: commit db transaction here
@@ -156,6 +158,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	// broadcast block
 
 	return nil
+
 }
 
 // GetLastBlock return the last pushed block
