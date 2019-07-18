@@ -12,7 +12,7 @@ func (hs HostService) sendMyPeers(peer model.Peer) {
 		myPeersInfo = append(myPeersInfo, peer.Info)
 	}
 
-	ClientPeerService(chaintype.GetChainType(0)).SendPeers(peer, myPeersInfo)
+	ClientPeerService(chaintype.GetChainType(0)).SendPeers(&peer, myPeersInfo)
 }
 
 func (hs HostService) AddToUnresolvedPeers(peersInfo []*model.Node) error {

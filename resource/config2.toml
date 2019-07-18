@@ -4,7 +4,7 @@ dbName = "zoobc.db"
 # Peer
 peerPort=8002
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:3003"]
+wellknownPeers=["127.0.0.1:8003"]
 
 apiRPCPort=3002
 apiHTTPPort=3032

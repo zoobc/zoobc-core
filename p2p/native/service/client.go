@@ -27,7 +27,7 @@ func ClientPeerService(chaintype contract.ChainType) *PeerService {
 func (cs *PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
 	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
 	if err != nil {
-		log.Warnf("could not make dial connection: %v\n", err)
+		log.Warnf("could not make dial connection %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	defer conn.Close()
@@ -36,7 +36,7 @@ func (cs *PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{Version: "v1.0.1"})
 	if err != nil {
-		log.Warnf("GetPeerInfo could not greet. %v\n", err)
+		log.Warnf("GetPeerInfo could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 
@@ -48,7 +48,7 @@ func (cs *PeerService) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
 func (cs *PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
 	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
 	if err != nil {
-		log.Warnf("could not make dial connection. %v\n", err)
+		log.Warnf("could not make dial connection %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	defer conn.Close()
@@ -57,18 +57,18 @@ func (cs *PeerService) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersRe
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetMorePeers(context.Background(), &model.Empty{})
 	if err != nil {
-		log.Warnf("could not greet. %v\n", err)
+		log.Warnf("could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
 }
 
 // SendPeers sends set of peers to other node (to populate the network)
-func (cs PeerService) SendPeers(destPeer model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
-	conn, err := grpc.Dial(util.GetFullAddressPeer(&destPeer), grpc.WithInsecure())
+func (cs PeerService) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
+	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
 	defer conn.Close()
 	if err != nil {
-		log.Printf("did not connect: %v\n", err)
+		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 	}
 	p2pClient := service.NewP2PCommunicationClient(conn)
 	// ctx := cs.buildContext()
@@ -76,7 +76,7 @@ func (cs PeerService) SendPeers(destPeer model.Peer, peersInfo []*model.Node) (*
 		Peers: peersInfo,
 	})
 	if err != nil {
-		log.Printf("could not greet: %v\n", err)
+		log.Printf("could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
