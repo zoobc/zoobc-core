@@ -9,68 +9,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
-func TestExecutor_ExecuteTransactions(t *testing.T) {
-
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error while opening database connection")
-	}
-	defer db.Close()
-
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta(`
-		CREATE TABLE IF NOT EXISTS "test" (
-			"version" INTEGER DEFAULT 0 NOT NULL,
-			"created_date" TIMESTAMP NOT NULL
-		);
-	`)).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-
-	type fields struct {
-		Db *sql.DB
-	}
-	type args struct {
-		queries []string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name:   "wantSuccess",
-			fields: fields{db},
-			args: args{
-				queries: []string{
-					`CREATE TABLE IF NOT EXISTS "test" (
-						"version" INTEGER DEFAULT 0 NOT NULL,
-						"created_date" TIMESTAMP NOT NULL
-					);`,
-				},
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			qe := &Executor{
-				Db: tt.fields.Db,
-			}
-			got, err := qe.ExecuteTransactions(tt.args.queries)
-			if (err != nil) != tt.wantErr {
-				t.Fatal(got, err)
-				t.Errorf("Executor.ExecuteTransactions() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if err = mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unfulfilled expectations: %s", err)
-			}
-		})
-	}
-}
-
 func TestExecutor_Execute(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -240,9 +178,10 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
-		queries := make(map[*string][]interface{})
-		insertBlock := "insert into blocks(id, blocksmith_id) values(?, ?)"
-		queries[&insertBlock] = []interface{}{1, []byte{1, 2, 34}}
+		queries := make([][]interface{}, 2)
+		queries = append(queries, []interface{}{
+			"insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34},
+		})
 		// test error prepare
 		executor := Executor{db}
 		_, err := executor.ExecuteTransactionStatements(queries)
@@ -260,17 +199,17 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 			[]byte{1, 2, 14}).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 		mock.ExpectClose()
-
-		queries := make(map[*string][]interface{})
-		insertBlock := insertBlockQuery
-		insertBlockAgain := insertBlockQuery
-		queries[&insertBlock] = []interface{}{1, []byte{1, 2, 34}}
-		queries[&insertBlockAgain] = []interface{}{1, []byte{1, 2, 14}}
+		var queries [][]interface{}
+		queries = append(queries, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 34},
+		}, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 14},
+		})
 		// test error prepare
 		executor := Executor{db}
 		_, err := executor.ExecuteTransactionStatements(queries)
 		if err != nil {
-			t.Error("transaction should have been committed without error")
+			t.Errorf("transaction should have been committed without error: %v", err)
 		}
 	})
 	t.Run("MultipleIdenticalQuery:execFail", func(t *testing.T) {
@@ -282,11 +221,12 @@ func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
 		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
 			[]byte{1, 2, 14}).WillReturnError(errors.New("mockError"))
 
-		queries := make(map[*string][]interface{})
-		insertBlock := insertBlockQuery
-		insertBlockAgain := insertBlockQuery
-		queries[&insertBlock] = []interface{}{1, []byte{1, 2, 34}}
-		queries[&insertBlockAgain] = []interface{}{1, []byte{1, 2, 14}}
+		var queries [][]interface{}
+		queries = append(queries, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 34},
+		}, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 14},
+		})
 		// test error prepare
 		executor := Executor{db}
 		_, err := executor.ExecuteTransactionStatements(queries)

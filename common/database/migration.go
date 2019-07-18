@@ -126,16 +126,20 @@ func (m *Migration) Apply() error {
 
 	for version, query := range migrations {
 		version := version
-		queries := []string{
-			query,
+		queries := [][]interface{}{
+			{
+				query,
+			},
 		}
+
 		if m.CurrentVersion != nil {
-			queries = append(queries, fmt.Sprintf(`
-				UPDATE "migration"
-				SET "version" = %d, "created_date" = datetime('now');
-			`, *m.CurrentVersion))
+			queries = append(queries, []interface{}{
+				`UPDATE "migration"
+				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion,
+			})
 		} else {
-			queries = append(queries, `
+			queries = append(queries, []interface{}{
+				`
 				INSERT INTO "migration" (
 					"version",
 					"created_date"
@@ -144,9 +148,10 @@ func (m *Migration) Apply() error {
 					0,
 					datetime('now')
 				);
-			`)
+				`,
+			})
 		}
-		_, err := m.Query.ExecuteTransactions(queries)
+		_, err := m.Query.ExecuteTransactionStatements(queries)
 		m.CurrentVersion = &version
 		if err != nil {
 			return err
