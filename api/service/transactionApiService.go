@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -38,38 +39,21 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType,
 	var (
 		err    error
 		rows   *sql.Rows
-		txTemp model.Transaction
+		txTemp []*model.Transaction
 	)
-	rows, err = ts.Query.ExecuteSelect(query.NewTransactionQuery(chainType).GetTransaction(params.ID))
+	txQuery := query.NewTransactionQuery(chainType)
+	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
 	if err != nil {
 		fmt.Printf("GetTransaction fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
 
-	if rows.Next() {
-		err = rows.Scan(
-			&txTemp.ID,
-			&txTemp.BlockID,
-			&txTemp.Height,
-			&txTemp.SenderAccountType,
-			&txTemp.SenderAccountAddress,
-			&txTemp.RecipientAccountType,
-			&txTemp.RecipientAccountAddress,
-			&txTemp.TransactionType,
-			&txTemp.Fee,
-			&txTemp.Timestamp,
-			&txTemp.TransactionHash,
-			&txTemp.TransactionBodyLength,
-			&txTemp.TransactionBodyBytes,
-			&txTemp.Signature,
-		)
-
-		if err != nil {
-			return &model.Transaction{}, err
-		}
+	txTemp = txQuery.BuildModel(txTemp, rows)
+	if len(txTemp) != 0 {
+		return txTemp[0], nil
 	}
-	return &txTemp, nil
+	return nil, errors.New("TransactionNotFound")
 }
 
 // GetTransactions fetches a single transaction from DB
@@ -79,42 +63,18 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 		err          error
 		rows         *sql.Rows
 		rows2        *sql.Rows
-		results      []*model.Transaction
+		txs          []*model.Transaction
 		totalRecords uint64
 	)
-	selectQuery := query.NewTransactionQuery(chainType).GetTransactions(params.Limit, params.Offset)
+	txQuery := query.NewTransactionQuery(chainType)
+	selectQuery := txQuery.GetTransactions(params.Limit, params.Offset)
 	rows, err = ts.Query.ExecuteSelect(selectQuery)
 	if err != nil {
 		fmt.Printf("GetTransactions fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
-
-	for rows.Next() {
-		var txTemp model.Transaction
-		err = rows.Scan(
-			&txTemp.ID,
-			&txTemp.BlockID,
-			&txTemp.Height,
-			&txTemp.SenderAccountType,
-			&txTemp.SenderAccountAddress,
-			&txTemp.RecipientAccountType,
-			&txTemp.RecipientAccountAddress,
-			&txTemp.TransactionType,
-			&txTemp.Fee,
-			&txTemp.Timestamp,
-			&txTemp.TransactionHash,
-			&txTemp.TransactionBodyLength,
-			&txTemp.TransactionBodyBytes,
-			&txTemp.Signature,
-		)
-
-		if err != nil {
-			return &model.GetTransactionsResponse{}, err
-		}
-
-		results = append(results, &txTemp)
-	}
+	txs = txQuery.BuildModel(txs, rows)
 
 	rows2, err = ts.Query.ExecuteSelect(query.GetTotalRecordOfSelect(selectQuery))
 	if err != nil {
@@ -136,7 +96,7 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 
 	return &model.GetTransactionsResponse{
 		Total:        totalRecords,
-		Count:        uint32(len(results)),
-		Transactions: results,
+		Count:        uint32(len(txs)),
+		Transactions: txs,
 	}, nil
 }

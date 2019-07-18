@@ -130,7 +130,7 @@ func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 	}
 }
 
-func (*TransactionQuery) BuildModel(blocks []*model.Transaction, rows *sql.Rows) []*model.Transaction {
+func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []*model.Transaction {
 	for rows.Next() {
 		var tx model.Transaction
 		_ = rows.Scan(
@@ -150,7 +150,7 @@ func (*TransactionQuery) BuildModel(blocks []*model.Transaction, rows *sql.Rows)
 			&tx.Signature,
 			&tx.Version,
 		)
-		blocks = append(blocks, &tx)
+		txs = append(txs, &tx)
 	}
-	return blocks
+	return txs
 }
