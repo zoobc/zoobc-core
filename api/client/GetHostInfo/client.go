@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 
 	log "github.com/sirupsen/logrus"
 	rpc_model "github.com/zoobc/zoobc-core/common/model"
@@ -10,7 +12,17 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial(":8000", grpc.WithInsecure())
+	var (
+		ip   string
+		conn *grpc.ClientConn
+		err  error
+	)
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		ip = ":3001"
+	}
+	conn, err = grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -24,6 +36,8 @@ func main() {
 		log.Fatalf("error calling rpc_service.GetHostInfo: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.GetHostInfo(): %s", response)
+	j, _ := json.MarshalIndent(response, "", "  ")
+
+	log.Printf("response from remote rpc_service.GetHostInfo(): %s", j)
 
 }

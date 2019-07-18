@@ -83,9 +83,9 @@ func (hs *HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*mod
 	for _, hostPeer := range hs.Host.Peers {
 		nodes = append(nodes, hostPeer.GetInfo())
 	}
-	for _, hostPeer := range hs.Host.UnresolvedPeers {
-		nodes = append(nodes, hostPeer.GetInfo())
-	}
+	// for _, hostPeer := range hs.Host.UnresolvedPeers {
+	// 	nodes = append(nodes, hostPeer.GetInfo())
+	// }
 	peers := &model.GetMorePeersResponse{
 		Peers: nodes,
 	}

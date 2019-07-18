@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -35,8 +36,12 @@ var (
 )
 
 func init() {
+	var configPostfix string
+	flag.StringVar(&configPostfix, "postfix", "", "Usage")
+	flag.Parse()
+
 	var err error
-	if err := util.LoadConfig("./resource", "config", "toml"); err != nil {
+	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
 		panic(err)
 	} else {
 		dbPath = viper.GetString("dbPath")

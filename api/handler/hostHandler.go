@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -15,6 +14,5 @@ type HostHandler struct {
 }
 
 func (hh *HostHandler) GetHostInfo(ctx context.Context, req *model.Empty) (*model.Host, error) {
-	fmt.Printf("\n\n\n%v\n", hh.P2pHostService)
 	return hh.P2pHostService.GetHostInstance(), nil
 }
