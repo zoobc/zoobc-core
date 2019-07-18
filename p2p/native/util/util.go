@@ -3,6 +3,8 @@ package util
 import (
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -131,6 +133,14 @@ func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
 		return nil, err
 	}
 	return conn, nil
+}
+
+func ServerListener(port int) net.Listener {
+	serv, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	return serv
 }
 
 func GetTickerTime(duration uint) *time.Ticker {

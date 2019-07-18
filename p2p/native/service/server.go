@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"net"
-	"strconv"
 
 	log "github.com/sirupsen/logrus"
 
@@ -46,21 +45,17 @@ func init() {
 // }
 
 // StartListening to
-func (hs *HostService) StartListening() {
+func (hs *HostService) StartListening(lister net.Listener) {
 	if hs.Host.GetInfo().GetAddress() == "" || hs.Host.GetInfo().GetPort() == 0 {
-		log.Fatalf("host is not setup")
-	}
-	serv, err := net.Listen("tcp", ":"+strconv.Itoa(int(hs.Host.GetInfo().GetPort())))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("Address or Port server is not available")
 	}
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
 	hs.GrpcServer = grpc.NewServer()
 	service.RegisterP2PCommunicationServer(hs.GrpcServer, hs)
-	err2 := hs.GrpcServer.Serve(serv)
+	err := hs.GrpcServer.Serve(lister)
 
-	if err2 != nil {
+	if err != nil {
 		log.Fatalf("GRPC failed to serve: %v", err)
 	}
 }

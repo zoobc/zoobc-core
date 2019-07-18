@@ -47,7 +47,9 @@ func (s *Service) StartP2P(chaintype contract.ChainType) {
 
 // startServer to run p2p service as server
 func startServer() {
-	go hostServiceInstance.StartListening()
+	port := hostServiceInstance.Host.GetInfo().GetPort()
+	listener := nativeUtil.ServerListener(int(port))
+	go hostServiceInstance.StartListening(listener)
 }
 
 // ResolvePeersThread to periodically try get response from peers in UnresolvedPeer list

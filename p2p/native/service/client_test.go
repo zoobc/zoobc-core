@@ -17,17 +17,16 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-const bufSize = 1024 * 1024
-
-var lis *bufconn.Listener
-
 type (
 	mockHostService struct {
 		HostService
 	}
 )
 
+var lis *bufconn.Listener
+
 func init() {
+	const bufSize = 1024 * 1024
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 	service.RegisterP2PCommunicationServer(s, &mockHostService{})
