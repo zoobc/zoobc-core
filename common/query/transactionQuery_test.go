@@ -23,7 +23,7 @@ func TestGetTransaction(t *testing.T) {
 			params: &paramsStruct{},
 			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, " +
 				"recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\"",
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from \"transaction\"",
 		},
 		{
 			name: "transaction query with ID param only",
@@ -32,7 +32,7 @@ func TestGetTransaction(t *testing.T) {
 			},
 			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, " +
 				"recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature from \"transaction\" " +
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from \"transaction\" " +
 				"WHERE id = 1",
 		},
 	}
@@ -65,7 +65,7 @@ func TestGetTransactions(t *testing.T) {
 			params: &paramsStruct{},
 			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, " +
 				"recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature from " +
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from " +
 				"\"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
 		},
 		{
@@ -75,7 +75,7 @@ func TestGetTransactions(t *testing.T) {
 			},
 			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, " +
 				"recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature from " +
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from " +
 				"\"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
 		},
 		{
@@ -85,7 +85,7 @@ func TestGetTransactions(t *testing.T) {
 			},
 			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, " +
 				"recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature from " +
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from " +
 				"\"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
 		},
 		{
@@ -96,7 +96,7 @@ func TestGetTransactions(t *testing.T) {
 			},
 			want: "SELECT id, block_id, block_height, sender_account_type, sender_account_address, " +
 				"recipient_account_type, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature from " +
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from " +
 				"\"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
 		},
 	}

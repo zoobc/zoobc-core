@@ -1,14 +1,23 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
+	"math/big"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/core/util"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
 	TransactionQueryInterface interface {
+		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
+		ExtractModel(tx *model.Transaction) []interface{}
+		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 	}
 
 	TransactionQuery struct {
@@ -36,6 +45,7 @@ func NewTransactionQuery(chaintype contract.ChainType) *TransactionQuery {
 			"transaction_body_length",
 			"transaction_body_bytes",
 			"signature",
+			"version",
 		},
 		TableName: "\"transaction\"",
 		ChainType: chaintype,
@@ -74,4 +84,73 @@ func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64) string 
 	query = query + " ORDER BY block_height, timestamp" + fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
 
 	return query
+}
+
+// InsertTransaction inserts a new transaction into DB
+func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string, args []interface{}) {
+	var value = fmt.Sprintf("? %s", strings.Repeat(", ?", len(tq.Fields)-1))
+	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
+		tq.getTableName(), strings.Join(tq.Fields, ", "), value)
+	return query, tq.ExtractModel(tx)
+}
+
+// ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
+func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
+	digest := sha3.New512()
+	txBytes, _ := util.GetTransactionBytes(tx, true)
+	_, _ = digest.Write(txBytes)
+	hash := digest.Sum([]byte{})
+	res := new(big.Int)
+	txID := res.SetBytes([]byte{
+		hash[7],
+		hash[6],
+		hash[5],
+		hash[4],
+		hash[3],
+		hash[2],
+		hash[1],
+		hash[0],
+	}).Int64()
+	return []interface{}{
+		txID,
+		&tx.BlockID,
+		&tx.Height,
+		&tx.SenderAccountType,
+		&tx.SenderAccountAddress,
+		&tx.RecipientAccountType,
+		&tx.RecipientAccountAddress,
+		&tx.TransactionType,
+		&tx.Fee,
+		&tx.Timestamp,
+		&tx.TransactionHash,
+		&tx.TransactionBodyLength,
+		&tx.TransactionBodyBytes,
+		&tx.Signature,
+		tx.Version,
+	}
+}
+
+func (*TransactionQuery) BuildModel(blocks []*model.Transaction, rows *sql.Rows) []*model.Transaction {
+	for rows.Next() {
+		var tx model.Transaction
+		_ = rows.Scan(
+			&tx.ID,
+			&tx.BlockID,
+			&tx.Height,
+			&tx.SenderAccountType,
+			&tx.SenderAccountAddress,
+			&tx.RecipientAccountType,
+			&tx.RecipientAccountAddress,
+			&tx.TransactionType,
+			&tx.Fee,
+			&tx.Timestamp,
+			&tx.TransactionHash,
+			&tx.TransactionBodyLength,
+			&tx.TransactionBodyBytes,
+			&tx.Signature,
+			&tx.Version,
+		)
+		blocks = append(blocks, &tx)
+	}
+	return blocks
 }

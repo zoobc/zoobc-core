@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 
@@ -25,75 +24,107 @@ type SendMoney struct {
 }
 
 /*
-ApplyConfirmed is func that for applying Transaction SendMoney type
-update `AccountBalance.Balance` for affected `Account.ID`
-if account not exists would be created new.
-return error while query is failure
+ApplyConfirmed is func that for applying Transaction SendMoney type,
+
+__If Genesis__:
+	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
+
+__If Not Genesis__:
+	- perhaps sender and recipient is exists, so update `account_balance`, `recipient.balance` = current + amount and
+	`sender.balance` = current - amount
 */
 func (tx *SendMoney) ApplyConfirmed() error {
-
+	// todo: undo apply unconfirmed for non-genesis transaction
 	var (
-		err            error
-		rows           *sql.Rows
-		account        model.Account
-		accountBalance model.AccountBalance
+		recipientAccountBalance model.AccountBalance
+		recipientAccount        model.Account
+		senderAccountBalance    model.AccountBalance
+		senderAccount           model.Account
+		err                     error
 	)
 
-	accountQ, accountQArgs := tx.AccountQuery.GetAccountByID(util.CreateAccountIDFromAddress(
-		tx.RecipientAccountType,
-		tx.RecipientAddress,
-	))
-
-	rows, err = tx.QueryExecutor.ExecuteSelect(accountQ, accountQArgs)
-	if err != nil {
+	if err := tx.Validate(); err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	if rows.Next() {
+	recipientAccount = model.Account{
+		ID:          util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
+		AccountType: tx.RecipientAccountType,
+		Address:     tx.RecipientAddress,
+	}
+	senderAccount = model.Account{
+		ID:          util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
+		AccountType: tx.SenderAccountType,
+		Address:     tx.SenderAddress,
+	}
 
-		err = rows.Scan(
-			&account.ID,
-			&account.Address,
-			&account.AccountType,
-		)
-		if err != nil {
-			return err
+	if tx.Height == 0 {
+		senderAccountQ, senderAccountArgs := tx.AccountQuery.GetAccountByID(senderAccount.ID)
+		senderAccountRows, _ := tx.QueryExecutor.ExecuteSelect(senderAccountQ, senderAccountArgs...)
+		if !senderAccountRows.Next() { // genesis account not created yet
+			senderAccountBalance = model.AccountBalance{
+				AccountID:        senderAccount.ID,
+				BlockHeight:      tx.Height,
+				SpendableBalance: 0,
+				Balance:          0,
+				PopRevenue:       0,
+				Latest:           true,
+			}
+			senderAccountInsertQ, senderAccountInsertArgs := tx.AccountQuery.InsertAccount(&senderAccount)
+			senderAccountBalanceInsertQ, senderAccountBalanceInsertArgs := tx.AccountBalanceQuery.InsertAccountBalance(&senderAccountBalance)
+			_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
+				&senderAccountInsertQ:        senderAccountInsertArgs,
+				&senderAccountBalanceInsertQ: senderAccountBalanceInsertArgs,
+			})
+			if err != nil {
+				return err
+			}
 		}
-
-		accountBalanceQ, accountBalanceQArgs := tx.AccountBalanceQuery.UpdateAccountBalance(
-			map[string]interface{}{
-				"balance": fmt.Sprintf("balance - %d", tx.Body.GetAmount()),
-			},
-			map[string]interface{}{
-				"account_id": account.ID,
-			},
-		)
-
-		_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceQ, accountBalanceQArgs)
-		if err != nil {
-			return err
-		}
-	} else {
-		account = model.Account{
-			ID:          util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-			AccountType: tx.RecipientAccountType,
-			Address:     tx.RecipientAddress,
-		}
-		accountQ, accountQArgs = tx.AccountQuery.InsertAccount(&account)
-		_, err = tx.QueryExecutor.ExecuteStatement(accountQ, accountQArgs)
-		if err != nil {
-			return err
-		}
-		accountBalance = model.AccountBalance{
-			AccountID:        account.ID,
+		_ = senderAccountRows.Close()
+		recipientAccountBalance = model.AccountBalance{
+			AccountID:        recipientAccount.ID,
 			BlockHeight:      tx.Height,
 			SpendableBalance: tx.Body.GetAmount(),
 			Balance:          tx.Body.GetAmount(),
 			PopRevenue:       0,
+			Latest:           true,
 		}
-		accountBalanceQ, accountBalanceArgs := tx.AccountBalanceQuery.InsertAccountBalance(&accountBalance)
-		_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceQ, accountBalanceArgs)
+		accountQ, accountQArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
+		accountBalanceQ, accountBalanceArgs := tx.AccountBalanceQuery.InsertAccountBalance(&recipientAccountBalance)
+		// update sender
+		accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+			-tx.Body.GetAmount(),
+			map[string]interface{}{
+				"account_id": senderAccount.ID,
+			},
+		)
+		_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
+			&accountQ:              accountQArgs,
+			&accountBalanceQ:       accountBalanceArgs,
+			&accountBalanceSenderQ: accountBalanceSenderQArgs,
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		// update recipient
+		accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Body.Amount,
+			map[string]interface{}{
+				"account_id": recipientAccount.ID,
+			},
+		)
+		// update sender
+		accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+			-tx.Body.Amount,
+			map[string]interface{}{
+				"account_id": senderAccount.ID,
+			},
+		)
+		_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
+			&accountBalanceSenderQ:    accountBalanceSenderQArgs,
+			&accountBalanceRecipientQ: accountBalanceRecipientQArgs,
+		})
 		if err != nil {
 			return err
 		}
@@ -102,119 +133,93 @@ func (tx *SendMoney) ApplyConfirmed() error {
 }
 
 /*
-ApplyUnconfirmed is func that for applying to unconfirmed Transaction SendMoney type
-update `AccountBalance.SpendableBalance` for affected `Account.ID`
-if account not exists would be created new.
-return error while query is failure
+ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SendMoney` type:
+	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *SendMoney) ApplyUnconfirmed() error {
 
 	var (
-		err            error
-		rows           *sql.Rows
-		account        model.Account
-		accountBalance model.AccountBalance
-		accountQ       string
-		accountQArgs   interface{}
+		err error
 	)
 
-	accountQ, accountQArgs = tx.AccountQuery.GetAccountByID(util.CreateAccountIDFromAddress(
-		tx.RecipientAccountType,
-		tx.RecipientAddress,
-	))
-	rows, err = tx.QueryExecutor.ExecuteSelect(accountQ, accountQArgs)
-	if err != nil {
+	if err := tx.Validate(); err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	if rows.Next() {
-		err = rows.Scan(&account.ID, &account.AccountType, &account.Address)
-		if err != nil {
-			return err
-		}
-		accountBalanceQ, accountBalanceQArgs := tx.AccountBalanceQuery.UpdateAccountBalance(
-			map[string]interface{}{
-				"spendable_balance": fmt.Sprintf("spendable_balance - %d", tx.Body.GetAmount()),
-			},
-			map[string]interface{}{
-				"account_id": account.ID,
-			},
-		)
-
-		_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceQ, accountBalanceQArgs)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		account = model.Account{
-			ID:          util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-			AccountType: tx.RecipientAccountType,
-			Address:     tx.RecipientAddress,
-		}
-		accountQ, accountQArgs = tx.AccountQuery.InsertAccount(&account)
-		_, err = tx.QueryExecutor.ExecuteStatement(accountQ, accountQArgs)
-		if err != nil {
-			return err
-		}
-		accountBalance = model.AccountBalance{
-			AccountID:        account.ID,
-			BlockHeight:      tx.Height,
-			SpendableBalance: tx.Body.GetAmount(),
-			Balance:          tx.Body.GetAmount(),
-			PopRevenue:       0,
-		}
-		accountBalanceQ, accountBalanceArgs := tx.AccountBalanceQuery.InsertAccountBalance(&accountBalance)
-		_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceQ, accountBalanceArgs)
-		if err != nil {
-			return err
-		}
-
+	// update sender
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		-tx.Body.Amount,
+		map[string]interface{}{
+			"account_id": util.CreateAccountIDFromAddress(
+				tx.SenderAccountType,
+				tx.SenderAddress,
+			),
+		},
+	)
+	_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
+		&accountBalanceSenderQ: accountBalanceSenderQArgs,
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// Validate is func that for validating to Transaction SendMoney type
+/*
+Validate is func that for validating to Transaction SendMoney type
+That specs:
+	- If Genesis, sender and recipient allowed not exists,
+	- If Not Genesis,  sender and recipient must be exists, `sender.spendable_balance` must bigger than amount
+*/
 func (tx *SendMoney) Validate() error {
 
 	var (
-		rows           *sql.Rows
 		err            error
 		accountBalance model.AccountBalance
+		count          int
 	)
 
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}
+	if tx.RecipientAddress == "" {
+		return errors.New("transaction must have a valid recipient account id")
+	}
+
 	if tx.Height != 0 {
-		if (tx.RecipientAddress == "") || (tx.RecipientAccountType <= 0) {
-			return errors.New("transaction must have a valid recipient account id")
-		}
-		if (tx.SenderAddress == "") || (tx.SenderAccountType <= 0) {
+		if tx.SenderAddress == "" {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		rows, err = tx.QueryExecutor.ExecuteSelect(
-			tx.AccountBalanceQuery.GetAccountBalanceByAccountID(),
+		accounts, accountArgs := tx.AccountQuery.GetAccountByIDs([][]byte{
+			util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
 			util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-		)
+		})
+
+		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs).Scan(&count)
 		if err != nil {
 			return err
 		}
-		defer rows.Close()
 
-		if rows.Next() {
+		if count <= 1 {
+			return fmt.Errorf("count recipient and sender got: %d", count)
+		}
+
+		if rows, err := tx.QueryExecutor.ExecuteSelect(
+			tx.AccountBalanceQuery.GetAccountBalanceByAccountID(),
+			util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
+		); err != nil {
+			return err
+		} else if rows.Next() {
 			_ = rows.Scan(
 				&accountBalance.AccountID,
 				&accountBalance.BlockHeight,
 				&accountBalance.SpendableBalance,
 				&accountBalance.Balance,
 				&accountBalance.PopRevenue,
+				&accountBalance.Latest,
 			)
-		} else {
-			return errors.New("account not exists")
 		}
 
 		if accountBalance.SpendableBalance < tx.Body.GetAmount() {
@@ -222,4 +227,13 @@ func (tx *SendMoney) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (tx *SendMoney) GetAmount() int64 {
+	return tx.Body.Amount
+}
+
+func (*SendMoney) GetSize() uint32 {
+	// only amount (int64)
+	return 8
 }
