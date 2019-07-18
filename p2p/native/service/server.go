@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 
+	"github.com/zoobc/zoobc-core/p2p/native/internal"
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 	"google.golang.org/grpc"
 )
@@ -33,31 +34,19 @@ func init() {
 	}
 }
 
-// StopServer function to stop current running host service
-// func (hs *HostService) stopServer(gracefully bool) {
-// 	if hs.GrpcServer != nil {
-// 		if gracefully {
-// 			hs.GrpcServer.GracefulStop()
-// 		} else {
-// 			hs.GrpcServer.Stop()
-// 		}
-// 	}
-// }
-
 // StartListening to
-func (hs *HostService) StartListening(lister net.Listener) {
+func (hs *HostService) StartListening(lister net.Listener) error {
 	if hs.Host.GetInfo().GetAddress() == "" || hs.Host.GetInfo().GetPort() == 0 {
 		log.Fatalf("Address or Port server is not available")
 	}
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
-	hs.GrpcServer = grpc.NewServer()
+	hs.GrpcServer = grpc.NewServer(
+		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
+	)
 	service.RegisterP2PCommunicationServer(hs.GrpcServer, hs)
-	err := hs.GrpcServer.Serve(lister)
+	return hs.GrpcServer.Serve(lister)
 
-	if err != nil {
-		log.Fatalf("GRPC failed to serve: %v", err)
-	}
 }
 
 // GetPeerInfo to
