@@ -202,6 +202,50 @@ func TestGetFullAddressPeer(t *testing.T) {
 	}
 }
 
+func TestParseKnownPeers(t *testing.T) {
+	type args struct {
+		peers []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []*model.Peer
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "ParseKnownPeersTest:success",
+			args: args{
+				peers: []string{"192.168.1.2:2001", "192.168.5.123:3000"},
+			},
+			want:    append([]*model.Peer{}, NewKnownPeer("192.168.1.2", 2001), NewKnownPeer("192.168.5.123", 3000)),
+			wantErr: false,
+		},
+		{
+			name: "ParseKnownPeersTest:true",
+			args: args{
+				peers: []string{"192.168.1.2:2001xa", "192.168.5.123:3000a"},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseKnownPeers(tt.args.peers)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseKnownPeers() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("ParseKnownPeers() = %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
 func TestAddToResolvedPeer(t *testing.T) {
 	type args struct {
 		host *model.Host
