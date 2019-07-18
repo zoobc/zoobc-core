@@ -13,7 +13,9 @@ import (
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
-type Service struct{}
+type Service struct {
+	HostService *service.HostService
+}
 
 var hostServiceInstance *service.HostService
 
@@ -33,8 +35,13 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 		hostServiceInstance = &service.HostService{
 			Host: host,
 		}
+		s.HostService = hostServiceInstance
 	}
 	return s, nil
+}
+
+func (s *Service) GetHostInstance() *model.Host {
+	return s.HostService.Host
 }
 
 // StartP2P to update  ChainType of hostServiceInstance and run all p2p Thread service

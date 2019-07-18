@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -30,6 +31,7 @@ var (
 	db                      *sql.DB
 	nodeSecretPhrase        string
 	apiRPCPort, apiHTTPPort int
+	p2pServiceInstance      contract.P2PType
 )
 
 func init() {
@@ -64,15 +66,15 @@ func p2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
-	p2pService := p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
+	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
 
 	// run P2P service with any chaintype
-	go p2pService.StartP2P(new(chaintype.MainChain))
+	go p2pServiceInstance.StartP2P(new(chaintype.MainChain))
 }
 
 func startServices(queryExecutor *query.Executor) {
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor)
 	p2pService()
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance)
 }
 
 func main() {
