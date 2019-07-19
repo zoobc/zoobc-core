@@ -113,7 +113,7 @@ func (hs *HostService) ResolvePeers() {
 func (hs *HostService) UpdateConnectedPeers() {
 	currentTime := time.Now().UTC()
 	for _, peer := range hs.Host.GetPeers() {
-		if peer.GetLastUpdated()-currentTime.Unix() >= constant.SecondsToUpdatePeersConnection {
+		if currentTime.Unix()-peer.GetLastUpdated() >= constant.SecondsToUpdatePeersConnection {
 			go hs.resolvePeer(peer)
 		}
 	}
@@ -123,9 +123,10 @@ func (hs *HostService) UpdateConnectedPeers() {
 func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 	_, err := ClientPeerService(hs.ChainType).GetPeerInfo(destPeer)
 	if err != nil {
+		nativeUtil.DisconnectPeer(hs.Host, destPeer)
 		return
 	}
-	destPeer.LastUpdated = time.Now().Unix()
+	destPeer.LastUpdated = time.Now().UTC().Unix()
 	updatedHost := nativeUtil.AddToResolvedPeer(hs.Host, destPeer)
 	hs.Host = updatedHost
 

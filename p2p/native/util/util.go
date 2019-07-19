@@ -41,7 +41,10 @@ func GetAnyPeer(hs *model.Host) *model.Peer {
 	if len(hs.Peers) < 1 {
 		return nil
 	}
-	randomIdx := int(util.GetSecureRandom()) % len(hs.Peers)
+	randomIdx := int(util.GetSecureRandom())
+	if randomIdx != 0 {
+		randomIdx %= len(hs.Peers)
+	}
 	idx := 0
 	for _, peer := range hs.Peers {
 		if idx == randomIdx {
@@ -169,7 +172,19 @@ func GetTickerTime(duration uint32) *time.Ticker {
 
 // DisconnectPeer moves connected peer to resolved peer
 // if the unresolved peer is full (maybe) it should not go to the unresolved peer
-func DisconnectPeer(peer *model.Peer) {}
+func DisconnectPeer(host *model.Host, peer *model.Peer) {
+	if peer != nil {
+		delete(host.Peers, GetFullAddressPeer(peer))
+	}
+
+	if !HasMaxUnresolvedPeers(host) {
+		host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
+	}
+}
 
 // RemovePeer removes peer from unresolved peer list
-func RemovePeer(peer *model.Peer) {}
+func RemoveUnresolvedPeer(host *model.Host, peer *model.Peer) {
+	if peer != nil {
+		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+	}
+}
