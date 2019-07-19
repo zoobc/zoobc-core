@@ -129,7 +129,9 @@ func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host 
 			// removing a peer at random if the UnresolvedPeers has reached max
 			if isMaxUnresolvedPeers {
 				peer := GetAnyUnresolvedPeer(host)
-				delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+				if peer != nil {
+					delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+				}
 			}
 			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
 		}
@@ -164,3 +166,10 @@ func PeerUnblacklist(peer *model.Peer) *model.Peer {
 func GetTickerTime(duration uint32) *time.Ticker {
 	return time.NewTicker(time.Duration(duration) * time.Second)
 }
+
+// DisconnectPeer moves connected peer to resolved peer
+// if the unresolved peer is full (maybe) it should not go to the unresolved peer
+func DisconnectPeer(peer *model.Peer) {}
+
+// RemovePeer removes peer from unresolved peer list
+func RemovePeer(peer *model.Peer) {}

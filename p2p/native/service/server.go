@@ -98,7 +98,9 @@ func (hs *HostService) ResolvePeers() {
 	for _, peer := range hs.Host.GetUnresolvedPeers() {
 		if isMaxConnectedPeers {
 			peer := nativeUtil.GetAnyPeer(hs.Host)
-			delete(hs.Host.Peers, nativeUtil.GetFullAddressPeer(peer))
+			if peer != nil {
+				delete(hs.Host.Peers, nativeUtil.GetFullAddressPeer(peer))
+			}
 		}
 		go hs.resolvePeer(peer)
 
@@ -139,11 +141,13 @@ func (hs *HostService) GetMorePeersHandler() {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 		}
 		hs.Host = nativeUtil.AddToUnresolvedPeers(hs.Host, newPeers.GetPeers())
+		hs.SendMyPeers(peer)
 	}
 }
 
 // SendPeers receives set of peers info from other node and put them into the unresolved peers
 func (hs HostService) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
-	hs.AddToUnresolvedPeers(req.Peers)
+	// TODO: only accept nodes that are already registered
+	nativeUtil.AddToUnresolvedPeers(hs.Host, req.Peers)
 	return &model.Empty{}, nil
 }

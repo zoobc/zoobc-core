@@ -1,7 +1,7 @@
 package constant
 
 const (
-	MaxUnresolvedPeers             = 1000
-	MaxConnectedPeers              = 100
+	MaxUnresolvedPeers             = 1 // 1000
+	MaxConnectedPeers              = 1 // 100
 	SecondsToUpdatePeersConnection = 3600
 )
