@@ -35,8 +35,7 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 }
 
 // StartP2P to update  ChainType of hostServiceInstance and run all p2p Thread service
-func (s *Service) StartP2P(chaintype contract.ChainType) {
-	hostServiceInstance.ChainType = chaintype
+func (s *Service) StartP2P() {
 	startServer()
 
 	// p2p thread

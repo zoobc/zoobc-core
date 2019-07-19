@@ -6,7 +6,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -22,9 +21,7 @@ var (
 
 // HostService represent data service node as server
 type HostService struct {
-	Host       *model.Host
-	GrpcServer *grpc.Server
-	ChainType  contract.ChainType
+	Host *model.Host
 }
 
 func init() {
@@ -35,17 +32,17 @@ func init() {
 }
 
 // StartListening to
-func (hs *HostService) StartListening(lister net.Listener) error {
+func (hs *HostService) StartListening(listener net.Listener) error {
 	if hs.Host.GetInfo().GetAddress() == "" || hs.Host.GetInfo().GetPort() == 0 {
 		log.Fatalf("Address or Port server is not available")
 	}
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
-	hs.GrpcServer = grpc.NewServer(
+	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
 	)
-	service.RegisterP2PCommunicationServer(hs.GrpcServer, hs)
-	return hs.GrpcServer.Serve(lister)
+	service.RegisterP2PCommunicationServer(grpcServer, hs)
+	return grpcServer.Serve(listener)
 
 }
 
@@ -77,14 +74,14 @@ func (hs *HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*mod
 // ResolvePeers looping unresolve peers and adding to (resolve) Peers if get response
 func (hs *HostService) ResolvePeers() {
 	for _, peer := range hs.Host.GetUnresolvedPeers() {
+
 		go hs.resolvePeer(peer)
 	}
 }
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (hs *HostService) resolvePeer(destPeer *model.Peer) {
-	conn, _ := nativeUtil.GrpcDialer(destPeer)
-	_, err := ClientPeerService(hs.ChainType).GetPeerInfo(conn)
+	_, err := NewPeerServiceClient().GetPeerInfo(destPeer)
 	if err != nil {
 		return
 	}
@@ -98,8 +95,7 @@ func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 func (hs *HostService) GetMorePeersHandler() {
 	peer := nativeUtil.GetAnyPeer(hs.Host)
 	if peer != nil {
-		conn, _ := nativeUtil.GrpcDialer(peer)
-		newPeers, err := ClientPeerService(hs.ChainType).GetMorePeers(conn)
+		newPeers, err := NewPeerServiceClient().GetMorePeers(peer)
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 		}

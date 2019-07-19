@@ -5,27 +5,22 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
-	"google.golang.org/grpc"
+	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
 // PeerService represent peer service
-type PeerService struct {
-	Peer      *model.Peer
-	ChainType contract.ChainType
-}
+type PeerServiceClient struct{}
 
 // ClientPeerService to get instance of singleton peer service
-func ClientPeerService(chaintype contract.ChainType) *PeerService {
-	return &PeerService{
-		ChainType: chaintype,
-	}
+func NewPeerServiceClient() *PeerServiceClient {
+	return &PeerServiceClient{}
 }
 
 // GetPeerInfo to get Peer info
-func (cs *PeerService) GetPeerInfo(connection *grpc.ClientConn) (*model.Node, error) {
+func (psc *PeerServiceClient) GetPeerInfo(destinationPeer *model.Peer) (*model.Node, error) {
+	connection, _ := nativeUtil.GrpcDialer(destinationPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
@@ -40,7 +35,8 @@ func (cs *PeerService) GetPeerInfo(connection *grpc.ClientConn) (*model.Node, er
 }
 
 // GetMorePeers to collect more peers available
-func (cs *PeerService) GetMorePeers(connection *grpc.ClientConn) (*model.GetMorePeersResponse, error) {
+func (psc *PeerServiceClient) GetMorePeers(destinationPeer *model.Peer) (*model.GetMorePeersResponse, error) {
+	connection, _ := nativeUtil.GrpcDialer(destinationPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 

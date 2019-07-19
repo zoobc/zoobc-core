@@ -54,7 +54,7 @@ func p2pService() {
 	p2pService := p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
 
 	// run P2P service with any chaintype
-	go p2pService.StartP2P(new(chaintype.MainChain))
+	go p2pService.StartP2P()
 }
 
 func startServices(queryExecutor *query.Executor) {

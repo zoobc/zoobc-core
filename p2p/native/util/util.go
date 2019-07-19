@@ -94,7 +94,9 @@ func GetFullAddressPeer(peer *model.Peer) string {
 
 // AddToResolvedPeer to move unresolved peer into resolved peer
 func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
-	delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+	if host.UnresolvedPeers[GetFullAddressPeer(peer)] != nil {
+		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+	}
 	host.Peers[GetFullAddressPeer(peer)] = peer
 	return host
 }
