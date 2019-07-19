@@ -23,7 +23,7 @@ var genesisSignature = []byte{
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
 func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
-	genesisTxs := []*model.Transaction{}
+	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
 		for receiver, amount := range genesisFundReceiver {
