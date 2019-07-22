@@ -41,7 +41,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "mempool" (
-				"id"	BLOB,
+				"id"	INTEGER,
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
@@ -63,6 +63,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
+				"version" INTEGER,
 				PRIMARY KEY("id")
 			);`,
 			`
@@ -125,16 +126,20 @@ func (m *Migration) Apply() error {
 
 	for version, query := range migrations {
 		version := version
-		queries := []string{
-			query,
+		queries := [][]interface{}{
+			{
+				query,
+			},
 		}
+
 		if m.CurrentVersion != nil {
-			queries = append(queries, fmt.Sprintf(`
-				UPDATE "migration"
-				SET "version" = %d, "created_date" = datetime('now');
-			`, *m.CurrentVersion))
+			queries = append(queries, []interface{}{
+				`UPDATE "migration"
+				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion,
+			})
 		} else {
-			queries = append(queries, `
+			queries = append(queries, []interface{}{
+				`
 				INSERT INTO "migration" (
 					"version",
 					"created_date"
@@ -143,9 +148,10 @@ func (m *Migration) Apply() error {
 					0,
 					datetime('now')
 				);
-			`)
+				`,
+			})
 		}
-		_, err := m.Query.ExecuteTransactions(queries)
+		_, err := m.Query.ExecuteTransactionStatements(queries)
 		m.CurrentVersion = &version
 		if err != nil {
 			return err

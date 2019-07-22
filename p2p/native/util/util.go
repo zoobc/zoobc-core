@@ -3,6 +3,8 @@ package util
 import (
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
 // NewHost to initialize new server node
@@ -111,7 +114,9 @@ func GetFullAddressPeer(peer *model.Peer) string {
 
 // AddToResolvedPeer to move unresolved peer into resolved peer
 func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
-	delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+	if host.UnresolvedPeers[GetFullAddressPeer(peer)] != nil {
+		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
+	}
 	host.Peers[GetFullAddressPeer(peer)] = peer
 	return host
 }
@@ -166,10 +171,6 @@ func PeerUnblacklist(peer *model.Peer) *model.Peer {
 	return peer
 }
 
-func GetTickerTime(duration uint32) *time.Ticker {
-	return time.NewTicker(time.Duration(duration) * time.Second)
-}
-
 // DisconnectPeer moves connected peer to resolved peer
 // if the unresolved peer is full (maybe) it should not go to the unresolved peer
 func DisconnectPeer(host *model.Host, peer *model.Peer) {
@@ -187,4 +188,24 @@ func RemoveUnresolvedPeer(host *model.Host, peer *model.Peer) {
 	if peer != nil {
 		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
 	}
+}
+
+func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
+	conn, err := grpc.Dial(GetFullAddressPeer(destinationPeer), grpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
+func ServerListener(port int) net.Listener {
+	serv, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	return serv
+}
+
+func GetTickerTime(duration uint) *time.Ticker {
+	return time.NewTicker(time.Duration(duration) * time.Second)
 }

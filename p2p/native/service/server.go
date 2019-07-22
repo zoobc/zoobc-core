@@ -3,17 +3,16 @@ package service
 import (
 	"context"
 	"net"
-	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 
+	"github.com/zoobc/zoobc-core/p2p/native/internal"
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 	"google.golang.org/grpc"
 )
@@ -24,9 +23,7 @@ var (
 
 // HostService represent data service node as server
 type HostService struct {
-	Host       *model.Host
-	GrpcServer *grpc.Server
-	ChainType  contract.ChainType
+	Host *model.Host
 }
 
 func init() {
@@ -36,35 +33,19 @@ func init() {
 	}
 }
 
-// StopServer function to stop current running host service
-// func (hs *HostService) stopServer(gracefully bool) {
-// 	if hs.GrpcServer != nil {
-// 		if gracefully {
-// 			hs.GrpcServer.GracefulStop()
-// 		} else {
-// 			hs.GrpcServer.Stop()
-// 		}
-// 	}
-// }
-
 // StartListening to
-func (hs *HostService) StartListening() {
+func (hs *HostService) StartListening(listener net.Listener) error {
 	if hs.Host.GetInfo().GetAddress() == "" || hs.Host.GetInfo().GetPort() == 0 {
-		log.Fatalf("host is not setup")
-	}
-	serv, err := net.Listen("tcp", ":"+strconv.Itoa(int(hs.Host.GetInfo().GetPort())))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("Address or Port server is not available")
 	}
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
-	hs.GrpcServer = grpc.NewServer()
-	service.RegisterP2PCommunicationServer(hs.GrpcServer, hs)
-	err2 := hs.GrpcServer.Serve(serv)
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
+	)
+	service.RegisterP2PCommunicationServer(grpcServer, hs)
+	return grpcServer.Serve(listener)
 
-	if err2 != nil {
-		log.Fatalf("GRPC failed to serve: %v", err)
-	}
 }
 
 // GetPeerInfo to
@@ -121,7 +102,7 @@ func (hs *HostService) UpdateConnectedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (hs *HostService) resolvePeer(destPeer *model.Peer) {
-	_, err := ClientPeerService(hs.ChainType).GetPeerInfo(destPeer)
+	_, err := NewPeerServiceClient().GetPeerInfo(destPeer)
 	if err != nil {
 		nativeUtil.DisconnectPeer(hs.Host, destPeer)
 		return
@@ -137,7 +118,7 @@ func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 func (hs *HostService) GetMorePeersHandler() {
 	peer := nativeUtil.GetAnyPeer(hs.Host)
 	if peer != nil {
-		newPeers, err := ClientPeerService(hs.ChainType).GetMorePeers(peer)
+		newPeers, err := NewPeerServiceClient().GetMorePeers(peer)
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 		}

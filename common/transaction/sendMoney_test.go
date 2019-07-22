@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"database/sql"
+	"errors"
 	"regexp"
 	"testing"
 
@@ -28,9 +29,25 @@ type (
 	executorApplySuccess struct {
 		executorValidateSuccess
 	}
+
+	executorGenesisSuccess struct {
+		query.Executor
+	}
+
+	executorGenesisSuccessCreateAccount struct {
+		executorGenesisSuccess
+	}
+
+	executorGenesisFail struct {
+		executorGenesisSuccessCreateAccount
+	}
+
+	executorGenesisFailAddBalance struct {
+		executorGenesisSuccess
+	}
 )
 
-func (*executorApplySuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorApplySuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -65,10 +82,10 @@ func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) 
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
 		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 50, 50, 0))
+	).AddRow(1, 2, 50, 50, 0, 1))
 	return db.Query(qStr, 1)
 }
-func (*executorValidateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorValidateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -97,7 +114,7 @@ func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interfac
 	))
 	return db.Query(qStr, 1)
 }
-func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries map[*string][]interface{}) ([]sql.Result, error) {
+func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -149,8 +166,46 @@ func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
 		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 3, 4, 5))
+	).AddRow(1, 2, 3, 4, 5, 6))
 	return db.Query(qStr, 1)
+}
+
+func (*executorGenesisSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(args[0]).WillReturnRows(sqlmock.NewRows([]string{
+		"AccountID", "AccountType", "AccountAddress"},
+	).AddRow([]byte{}, 0, ""))
+	return db.Query(qStr, args[0])
+}
+
+func (*executorGenesisSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
+	return nil, nil
+}
+
+func (*executorGenesisSuccessCreateAccount) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(args[0]).WillReturnRows(sqlmock.NewRows([]string{
+		"AccountID", "AccountType", "AccountAddress"},
+	))
+	return db.Query(qStr, args[0])
+}
+
+func (*executorGenesisFail) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*executorGenesisFailAddBalance) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
+	return nil, errors.New("mockedError")
 }
 
 func TestSendMoney_Validate(t *testing.T) {
@@ -453,6 +508,74 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 						Db: db,
 					},
 				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:genesis-{genesis-sender-exist}",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorGenesisSuccess{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantSuccess:genesis-{genesis-sender-not-exist, create genesis}",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorGenesisSuccessCreateAccount{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantFail:genesis-{genesis-sender-not-exist, create genesis fail}",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorGenesisFail{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantFail:genesis-{genesis add balance fail}",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorGenesisFailAddBalance{},
 			},
 			wantErr: true,
 		},

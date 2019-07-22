@@ -8,15 +8,11 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -29,10 +25,12 @@ func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte { return
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		chaintype     contract.ChainType
-		queryExecutor query.ExecutorInterface
-		blockQuery    query.BlockQueryInterface
-		signature     crypto.SignatureInterface
+		chaintype        contract.ChainType
+		queryExecutor    query.ExecutorInterface
+		blockQuery       query.BlockQueryInterface
+		mempoolQuery     query.MempoolQueryInterface
+		transactionQuery query.TransactionQueryInterface
+		signature        crypto.SignatureInterface
 	}
 	test := struct {
 		name string
@@ -41,19 +39,23 @@ func TestNewBlockService(t *testing.T) {
 	}{
 		name: "NewBlockService:success",
 		args: args{
-			chaintype:     &chaintype.MainChain{},
-			queryExecutor: nil,
-			blockQuery:    nil,
-			signature:     nil,
+			chaintype:        &chaintype.MainChain{},
+			queryExecutor:    nil,
+			blockQuery:       nil,
+			mempoolQuery:     nil,
+			transactionQuery: nil,
+			signature:        nil,
 		},
 		want: &BlockService{
 			Chaintype:     &chaintype.MainChain{},
 			QueryExecutor: nil,
 			BlockQuery:    nil,
+			MempoolQuery:  nil,
 			Signature:     nil,
 		},
 	}
-	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery, test.args.signature)
+	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery,
+		test.args.mempoolQuery, test.args.transactionQuery, test.args.signature)
 
 	if !cmp.Equal(got, test.want) {
 		t.Errorf("NewBlockService() = %v, want %v", got, test.want)
@@ -81,6 +83,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 		totalCoinBase       int64
 		transactions        []*model.Transaction
 		payloadHash         []byte
+		payloadLength       uint32
 		secretPhrase        string
 	}
 	test := struct {
@@ -109,6 +112,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 			totalCoinBase:       0,
 			transactions:        []*model.Transaction{},
 			payloadHash:         []byte{},
+			payloadLength:       0,
 			secretPhrase:        "secretphrase",
 		},
 		want: &model.Block{
@@ -122,6 +126,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 			TotalCoinBase:     0,
 			Transactions:      []*model.Transaction{},
 			PayloadHash:       []byte{},
+			PayloadLength:     0,
 			BlockSignature:    []byte{},
 		},
 	}
@@ -133,7 +138,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 	}
 	if got := b.NewBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID, test.args.hash,
 		test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee, test.args.totalCoinBase,
-		test.args.transactions, test.args.payloadHash, test.args.secretPhrase); !reflect.DeepEqual(got, test.want) {
+		test.args.transactions, test.args.payloadHash, test.args.payloadLength, test.args.secretPhrase); !reflect.DeepEqual(got, test.want) {
 		t.Errorf("BlockService.NewBlock() = %v, want %v", got, test.want)
 	}
 
@@ -158,6 +163,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		totalCoinBase        int64
 		transactions         []*model.Transaction
 		payloadHash          []byte
+		payloadLength        uint32
 		smithScale           int64
 		cumulativeDifficulty *big.Int
 		genesisSignature     []byte
@@ -187,6 +193,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 			totalCoinBase:        0,
 			transactions:         []*model.Transaction{},
 			payloadHash:          []byte{},
+			payloadLength:        8,
 			smithScale:           0,
 			cumulativeDifficulty: big.NewInt(1),
 			genesisSignature:     []byte{},
@@ -202,6 +209,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 			TotalCoinBase:        0,
 			Transactions:         []*model.Transaction{},
 			PayloadHash:          []byte{},
+			PayloadLength:        8,
 			SmithScale:           0,
 			CumulativeDifficulty: "1",
 			BlockSignature:       []byte{},
@@ -214,8 +222,8 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 	}
 	if got := b.NewGenesisBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID,
 		test.args.hash, test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee,
-		test.args.totalCoinBase, test.args.transactions, test.args.payloadHash, test.args.smithScale, test.args.cumulativeDifficulty,
-		test.args.genesisSignature); !reflect.DeepEqual(got, test.want) {
+		test.args.totalCoinBase, test.args.transactions, test.args.payloadHash, test.args.payloadLength, test.args.smithScale,
+		test.args.cumulativeDifficulty, test.args.genesisSignature); !reflect.DeepEqual(got, test.want) {
 		t.Errorf("BlockService.NewGenesisBlock() = %v, want %v", got, test.want)
 	}
 }
@@ -724,6 +732,68 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
+	type fields struct {
+		Chaintype     contract.ChainType
+		QueryExecutor query.ExecutorInterface
+		BlockQuery    query.BlockQueryInterface
+		MempoolQuery  query.MempoolQueryInterface
+		Signature     crypto.SignatureInterface
+	}
+	type args struct {
+		transactions []*model.Transaction
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "RemoveMempoolTransaction:Success",
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor: &mockQueryExecutorSuccess{},
+			},
+			args: args{
+				transactions: []*model.Transaction{
+					buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "RemoveMempoolTransaction:Fail",
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor: &mockQueryExecutorFail{},
+			},
+			args: args{
+				transactions: []*model.Transaction{
+					buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				MempoolQuery:  tt.fields.MempoolQuery,
+				Signature:     tt.fields.Signature,
+			}
+			if err := bs.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.RemoveMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

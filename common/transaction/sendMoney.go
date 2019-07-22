@@ -34,67 +34,96 @@ __If Not Genesis__:
 	`sender.balance` = current - amount
 */
 func (tx *SendMoney) ApplyConfirmed() error {
-
+	// todo: undo apply unconfirmed for non-genesis transaction
 	var (
-		accountBalance model.AccountBalance
-		account        model.Account
-		err            error
+		recipientAccountBalance model.AccountBalance
+		recipientAccount        model.Account
+		senderAccountBalance    model.AccountBalance
+		senderAccount           model.Account
+		err                     error
 	)
 
 	if err := tx.Validate(); err != nil {
 		return err
 	}
 
+	recipientAccount = model.Account{
+		ID:          util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
+		AccountType: tx.RecipientAccountType,
+		Address:     tx.RecipientAddress,
+	}
+	senderAccount = model.Account{
+		ID:          util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
+		AccountType: tx.SenderAccountType,
+		Address:     tx.SenderAddress,
+	}
+
 	if tx.Height == 0 {
-		account = model.Account{
-			ID:          util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-			AccountType: tx.RecipientAccountType,
-			Address:     tx.RecipientAddress,
+		senderAccountQ, senderAccountArgs := tx.AccountQuery.GetAccountByID(senderAccount.ID)
+		senderAccountRows, _ := tx.QueryExecutor.ExecuteSelect(senderAccountQ, senderAccountArgs...)
+		if !senderAccountRows.Next() { // genesis account not created yet
+			senderAccountBalance = model.AccountBalance{
+				AccountID:        senderAccount.ID,
+				BlockHeight:      tx.Height,
+				SpendableBalance: 0,
+				Balance:          0,
+				PopRevenue:       0,
+				Latest:           true,
+			}
+			senderAccountInsertQ, senderAccountInsertArgs := tx.AccountQuery.InsertAccount(&senderAccount)
+			senderAccountBalanceInsertQ, senderAccountBalanceInsertArgs := tx.AccountBalanceQuery.InsertAccountBalance(&senderAccountBalance)
+			_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+				append([]interface{}{senderAccountInsertQ}, senderAccountInsertArgs...),
+				append([]interface{}{senderAccountBalanceInsertQ}, senderAccountBalanceInsertArgs...),
+			})
+			if err != nil {
+				return err
+			}
 		}
-		accountBalance = model.AccountBalance{
-			AccountID:        account.ID,
+		_ = senderAccountRows.Close()
+		recipientAccountBalance = model.AccountBalance{
+			AccountID:        recipientAccount.ID,
 			BlockHeight:      tx.Height,
 			SpendableBalance: tx.Body.GetAmount(),
 			Balance:          tx.Body.GetAmount(),
 			PopRevenue:       0,
+			Latest:           true,
 		}
-		accountQ, accountQArgs := tx.AccountQuery.InsertAccount(&account)
-		accountBalanceQ, accountBalanceArgs := tx.AccountBalanceQuery.InsertAccountBalance(&accountBalance)
-		_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-			&accountQ:        accountQArgs,
-			&accountBalanceQ: accountBalanceArgs,
+		accountQ, accountQArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
+		accountBalanceQ, accountBalanceArgs := tx.AccountBalanceQuery.InsertAccountBalance(&recipientAccountBalance)
+		// update sender
+		accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+			-tx.Body.GetAmount(),
+			map[string]interface{}{
+				"account_id": senderAccount.ID,
+			},
+		)
+		_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+			append([]interface{}{accountQ}, accountQArgs...),
+			append([]interface{}{accountBalanceQ}, accountBalanceArgs...),
+			append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...),
 		})
 		if err != nil {
 			return err
 		}
 	} else {
 		// update recipient
-		accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.UpdateAccountBalance(
+		accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Body.Amount,
 			map[string]interface{}{
-				"balance": fmt.Sprintf("balance + %d", tx.Body.GetAmount()),
-			},
-			map[string]interface{}{
-				"account_id": util.CreateAccountIDFromAddress(
-					tx.RecipientAccountType,
-					tx.RecipientAddress,
-				),
+				"account_id": recipientAccount.ID,
 			},
 		)
 		// update sender
-		accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.UpdateAccountBalance(
+		accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+			-tx.Body.Amount,
 			map[string]interface{}{
-				"balance": fmt.Sprintf("balance - %d", tx.Body.GetAmount()),
-			},
-			map[string]interface{}{
-				"account_id": util.CreateAccountIDFromAddress(
-					tx.SenderAccountType,
-					tx.SenderAddress,
-				),
+				"account_id": senderAccount.ID,
 			},
 		)
-		_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-			&accountBalanceSenderQ:    accountBalanceSenderQArgs,
-			&accountBalanceRecipientQ: accountBalanceRecipientQArgs,
+		_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+			append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...),
+			append([]interface{}{accountBalanceRecipientQ}, accountBalanceRecipientQArgs...),
 		})
 		if err != nil {
 			return err
@@ -117,23 +146,9 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 		return err
 	}
 
-	// update recipient
-	accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.UpdateAccountBalance(
-		map[string]interface{}{
-			"account_balance": fmt.Sprintf("account_balance + %d", tx.Body.GetAmount()),
-		},
-		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.RecipientAccountType,
-				tx.RecipientAddress,
-			),
-		},
-	)
 	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.UpdateAccountBalance(
-		map[string]interface{}{
-			"account_balance": fmt.Sprintf("account_balance - %d", tx.Body.GetAmount()),
-		},
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		-tx.Body.Amount,
 		map[string]interface{}{
 			"account_id": util.CreateAccountIDFromAddress(
 				tx.SenderAccountType,
@@ -141,9 +156,8 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 			),
 		},
 	)
-	_, err = tx.QueryExecutor.ExecuteTransactionStatements(map[*string][]interface{}{
-		&accountBalanceSenderQ:    accountBalanceSenderQArgs,
-		&accountBalanceRecipientQ: accountBalanceRecipientQArgs,
+	_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
+		{append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...)},
 	})
 	if err != nil {
 		return err
@@ -204,6 +218,7 @@ func (tx *SendMoney) Validate() error {
 				&accountBalance.SpendableBalance,
 				&accountBalance.Balance,
 				&accountBalance.PopRevenue,
+				&accountBalance.Latest,
 			)
 		}
 
@@ -212,4 +227,13 @@ func (tx *SendMoney) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (tx *SendMoney) GetAmount() int64 {
+	return tx.Body.Amount
+}
+
+func (*SendMoney) GetSize() uint32 {
+	// only amount (int64)
+	return 8
 }

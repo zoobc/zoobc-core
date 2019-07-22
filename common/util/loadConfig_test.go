@@ -32,6 +32,15 @@ func TestLoadConfig(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "MustError:{len path, name, or extension < 1}",
+			args: args{
+				path:      "",
+				name:      "",
+				extension: "",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

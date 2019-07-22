@@ -72,6 +72,7 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 				TransactionBodyLength:   1,
 				TransactionBodyBytes:    []byte{},
 				Signature:               []byte{},
+				Version:                 1,
 			},
 			{
 				ID:                      2,
@@ -88,6 +89,7 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 				TransactionBodyLength:   2,
 				TransactionBodyBytes:    []byte{},
 				Signature:               []byte{},
+				Version:                 1,
 			},
 		},
 	}
@@ -134,10 +136,11 @@ func Test_TransactionService_GetTransactions(t *testing.T) {
 		"transaction_body_length",
 		"transaction_body_bytes",
 		"signature",
+		"version",
 	}).AddRow(
-		1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{},
+		1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}, 1,
 	).AddRow(
-		2, 2, 2, 1, "bcd", 1, "bcd", 2, 2, 21000, []byte{}, 2, []byte{}, []byte{},
+		2, 2, 2, 1, "bcd", 1, "bcd", 2, 2, 21000, []byte{}, 2, []byte{}, []byte{}, 1,
 	))
 
 	// mocking record count query
@@ -196,6 +199,7 @@ func Test_TransactionService_GetTransaction(t *testing.T) {
 				TransactionBodyLength:   1,
 				TransactionBodyBytes:    []byte{},
 				Signature:               []byte{},
+				Version:                 1,
 			},
 			wantErr: false,
 		},
@@ -220,7 +224,8 @@ func Test_TransactionService_GetTransaction(t *testing.T) {
 		"transaction_body_length",
 		"transaction_body_bytes",
 		"signature",
-	}).AddRow(1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}))
+		"version",
+	}).AddRow(1, 1, 1, 0, "abc", 0, "abc", 1, 1, 11000, []byte{}, 1, []byte{}, []byte{}, 1))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
