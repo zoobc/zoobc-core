@@ -4,6 +4,7 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -21,14 +22,14 @@ type (
 
 	// BlockService represents struct of BlockService
 	BlockService struct {
-		Query *query.Executor
+		Query query.ExecutorInterface
 	}
 )
 
 var blockServiceInstance *BlockService
 
 // NewBlockService create a singleton instance of BlockService
-func NewBlockService(queryExecutor *query.Executor) *BlockService {
+func NewBlockService(queryExecutor query.ExecutorInterface) *BlockService {
 	if blockServiceInstance == nil {
 		blockServiceInstance = &BlockService{Query: queryExecutor}
 	}
@@ -39,42 +40,22 @@ func NewBlockService(queryExecutor *query.Executor) *BlockService {
 func (bs *BlockService) GetBlockByID(chainType contract.ChainType, id int64) (*model.Block, error) {
 	var (
 		err  error
-		bl   model.Block
+		bl   []*model.Block
 		rows *sql.Rows
 	)
-
-	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByID(id))
+	blockQuery := query.NewBlockQuery(chainType)
+	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id))
 	if err != nil {
 		fmt.Printf("GetBlockByID fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&bl.ID,
-			&bl.PreviousBlockHash,
-			&bl.Height,
-			&bl.Timestamp,
-			&bl.BlockSeed,
-			&bl.BlockSignature,
-			&bl.CumulativeDifficulty,
-			&bl.SmithScale,
-			&bl.PayloadLength,
-			&bl.PayloadHash,
-			&bl.BlocksmithID,
-			&bl.TotalAmount,
-			&bl.TotalFee,
-			&bl.TotalCoinBase,
-			&bl.Version,
-		)
-		if err != nil {
-			fmt.Printf("GetBlockByID fails scan %v\n", err)
-			return nil, err
-		}
+	bl = blockQuery.BuildModel(bl, rows)
+	if len(bl) == 0 {
+		return nil, errors.New("BlockNotFound")
 	}
 
-	return &bl, nil
+	return bl[0], nil
 
 }
 
@@ -82,82 +63,39 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, id int64) (*m
 func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, height uint32) (*model.Block, error) {
 	var (
 		err  error
-		bl   model.Block
+		bl   []*model.Block
 		rows *sql.Rows
 	)
 
-	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlockByHeight(height))
+	blockQuery := query.NewBlockQuery(chainType)
+
+	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height))
 	if err != nil {
 		fmt.Printf("GetBlockByHeight fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&bl.ID,
-			&bl.PreviousBlockHash,
-			&bl.Height,
-			&bl.Timestamp,
-			&bl.BlockSeed,
-			&bl.BlockSignature,
-			&bl.CumulativeDifficulty,
-			&bl.SmithScale,
-			&bl.PayloadLength,
-			&bl.PayloadHash,
-			&bl.BlocksmithID,
-			&bl.TotalAmount,
-			&bl.TotalFee,
-			&bl.TotalCoinBase,
-			&bl.Version,
-		)
-		if err != nil {
-			fmt.Printf("GetBlockByHeight fails scan %v\n", err)
-			return nil, err
-		}
+	bl = blockQuery.BuildModel(bl, rows)
+	if len(bl) == 0 {
+		return nil, errors.New("BlockNotFound")
 	}
-	return &bl, nil
+	return bl[0], nil
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system
 func (bs *BlockService) GetBlocks(chainType contract.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
 	var rows *sql.Rows
 	var err error
-	blocks := []*model.Block{}
-	rows, err = bs.Query.ExecuteSelect(query.NewBlockQuery(chainType).GetBlocks(height, blockSize))
+	var blocks []*model.Block
+	blockQuery := query.NewBlockQuery(chainType)
+	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize))
 
 	if err != nil {
 		fmt.Printf("GetBlocks fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
-
-	for rows.Next() {
-		var bl model.Block
-		err = rows.Scan(
-			&bl.ID,
-			&bl.PreviousBlockHash,
-			&bl.Height,
-			&bl.Timestamp,
-			&bl.BlockSeed,
-			&bl.BlockSignature,
-			&bl.CumulativeDifficulty,
-			&bl.SmithScale,
-			&bl.PayloadLength,
-			&bl.PayloadHash,
-			&bl.BlocksmithID,
-			&bl.TotalAmount,
-			&bl.TotalFee,
-			&bl.TotalCoinBase,
-			&bl.Version,
-		)
-		if err != nil {
-			fmt.Printf("GetBlocks fails scan %v\n", err)
-			return nil, err
-		}
-		blocks = append(blocks, &bl)
-	}
-
+	blocks = blockQuery.BuildModel(blocks, rows)
 	blocksResponse := &model.GetBlocksResponse{
 		Blocks: blocks,
 		Height: height,
