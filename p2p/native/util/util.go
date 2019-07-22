@@ -123,7 +123,7 @@ func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
 
 // AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
 func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host {
-	isMaxUnresolvedPeers := HasMaxUnresolvedPeers(host)
+	exceedMaxUnresolvedPeers := GetExceedMaxUnresolvedPeers(host)
 	hostAddress := &model.Peer{
 		Info: host.Info,
 	}
@@ -134,8 +134,8 @@ func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host 
 		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil &&
 			host.Peers[GetFullAddressPeer(peer)] == nil &&
 			GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
-			// removing a peer at random if the UnresolvedPeers has reached max
-			if isMaxUnresolvedPeers {
+			for i := 0; i < exceedMaxUnresolvedPeers; i++ {
+				// removing a peer at random if the UnresolvedPeers has reached max
 				peer := GetAnyUnresolvedPeer(host)
 				if peer != nil {
 					delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
@@ -144,21 +144,21 @@ func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host 
 			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
 		}
 
-		if isMaxUnresolvedPeers {
+		if exceedMaxUnresolvedPeers > 0 {
 			break
 		}
 	}
 	return host
 }
 
-// HasMaxUnresolvedPeers checks whether the unresolved peers max has been reached
-func HasMaxUnresolvedPeers(host *model.Host) bool {
-	return len(host.GetPeers())+len(host.GetUnresolvedPeers()) >= constant.MaxUnresolvedPeers
+// GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
+func GetExceedMaxUnresolvedPeers(host *model.Host) int {
+	return len(host.GetUnresolvedPeers()) - constant.MaxUnresolvedPeers + 1
 }
 
-// HasMaxConnectedPeers checks whether the connected peers max has been reached
-func HasMaxConnectedPeers(host *model.Host) bool {
-	return len(host.GetPeers()) >= constant.MaxConnectedPeers
+// GetExceedMaxConnectedPeers returns number of peers exceeding max number of the connected peers
+func GetExceedMaxConnectedPeers(host *model.Host) int {
+	return len(host.GetPeers()) - constant.MaxConnectedPeers + 1
 }
 
 // PeerUnblacklist to update Peer state of peer
@@ -178,7 +178,7 @@ func DisconnectPeer(host *model.Host, peer *model.Peer) {
 		delete(host.Peers, GetFullAddressPeer(peer))
 	}
 
-	if !HasMaxUnresolvedPeers(host) {
+	if GetExceedMaxUnresolvedPeers(host) <= 0 {
 		host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
 	}
 }

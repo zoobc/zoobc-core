@@ -15,14 +15,19 @@ import (
 // PeerService represent peer service
 type PeerServiceClient struct{}
 
+var PeerServiceClientInstance *PeerServiceClient
+
 // ClientPeerService to get instance of singleton peer service
 func NewPeerServiceClient() *PeerServiceClient {
-	return &PeerServiceClient{}
+	if PeerServiceClientInstance == nil {
+		PeerServiceClientInstance = &PeerServiceClient{}
+	}
+	return PeerServiceClientInstance
 }
 
 // GetPeerInfo to get Peer info
-func (psc *PeerServiceClient) GetPeerInfo(destinationPeer *model.Peer) (*model.Node, error) {
-	connection, _ := nativeUtil.GrpcDialer(destinationPeer)
+func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
@@ -37,8 +42,8 @@ func (psc *PeerServiceClient) GetPeerInfo(destinationPeer *model.Peer) (*model.N
 }
 
 // GetMorePeers to collect more peers available
-func (psc *PeerServiceClient) GetMorePeers(destinationPeer *model.Peer) (*model.GetMorePeersResponse, error) {
-	connection, _ := nativeUtil.GrpcDialer(destinationPeer)
+func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
@@ -52,14 +57,14 @@ func (psc *PeerServiceClient) GetMorePeers(destinationPeer *model.Peer) (*model.
 }
 
 // SendPeers sends set of peers to other node (to populate the network)
-func (cs PeerService) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
+func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
 	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
 	defer conn.Close()
 	if err != nil {
 		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 	}
 	p2pClient := service.NewP2PCommunicationClient(conn)
-	// ctx := cs.buildContext()
+	// ctx := psc.buildContext()
 	res, err := p2pClient.SendPeers(context.Background(), &model.SendPeersRequest{
 		Peers: peersInfo,
 	})

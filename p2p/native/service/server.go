@@ -75,17 +75,19 @@ func (hs *HostService) GetMorePeers(ctx context.Context, req *model.Empty) (*mod
 
 // ResolvePeers looping unresolve peers and adding to (resolve) Peers if get response
 func (hs *HostService) ResolvePeers() {
-	isMaxConnectedPeers := nativeUtil.HasMaxConnectedPeers(hs.Host)
+	exceedMaxConnectedPeers := nativeUtil.GetExceedMaxConnectedPeers(hs.Host)
 	for _, peer := range hs.Host.GetUnresolvedPeers() {
-		if isMaxConnectedPeers {
+		// removing the connected peers at random until max - 1
+		for i := 0; i < exceedMaxConnectedPeers; i++ {
 			peer := nativeUtil.GetAnyPeer(hs.Host)
 			if peer != nil {
 				delete(hs.Host.Peers, nativeUtil.GetFullAddressPeer(peer))
 			}
 		}
+
 		go hs.resolvePeer(peer)
 
-		if isMaxConnectedPeers {
+		if exceedMaxConnectedPeers > 0 {
 			break
 		}
 	}

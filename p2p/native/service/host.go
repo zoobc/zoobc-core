@@ -1,7 +1,6 @@
 package service
 
 import (
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -13,5 +12,5 @@ func (hs HostService) SendMyPeers(peer *model.Peer) {
 		myPeersInfo = append(myPeersInfo, peer.Info)
 	}
 
-	ClientPeerService(chaintype.GetChainType(0)).SendPeers(peer, myPeersInfo)
+	NewPeerServiceClient().SendPeers(peer, myPeersInfo)
 }
