@@ -8,9 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -87,7 +84,10 @@ func main() {
 			query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature()),
 		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
-		addGenesis(queryExecutor) // genesis account will be inserted in the very beginning
+		err := service.AddGenesisAccount(queryExecutor) // genesis account will be inserted in the very beginning
+		if err != nil {
+			panic("Fail to add genesis account")
+		}
 		_ = blockchainProcessor.AddGenesis()
 	}
 	if len(nodeSecretPhrase) > 0 {
@@ -109,32 +109,4 @@ func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)
 	}
 
-}
-
-func addGenesis(executor query.ExecutorInterface) {
-	// add genesis account
-	genesisAccount := model.Account{
-		ID:          util.CreateAccountIDFromAddress(0, constant.GenesisAccountAddress),
-		AccountType: 0,
-		Address:     constant.GenesisAccountAddress,
-	}
-	genesisAccountBalance := model.AccountBalance{
-		AccountID:        genesisAccount.ID,
-		BlockHeight:      0,
-		SpendableBalance: 0,
-		Balance:          0,
-		PopRevenue:       0,
-		Latest:           true,
-	}
-	genesisAccountInsertQ, genesisAccountInsertArgs := query.NewAccountQuery().InsertAccount(&genesisAccount)
-	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
-		&genesisAccountBalance)
-	_, err := executor.ExecuteStatement(genesisAccountInsertQ, genesisAccountInsertArgs...)
-	if err != nil {
-		panic("fail to add genesis account")
-	}
-	_, err = executor.ExecuteStatement(genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs...)
-	if err != nil {
-		panic("fail to add genesis account balance")
-	}
 }

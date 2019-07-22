@@ -1,10 +1,13 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -50,5 +53,34 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 	default:
 		return nil
 	}
+}
 
+// AddGenesisAccount create genesis account into `account` and `account_balance` table
+func AddGenesisAccount(executor query.ExecutorInterface) error {
+	// add genesis account
+	genesisAccount := model.Account{
+		ID:          util.CreateAccountIDFromAddress(0, constant.GenesisAccountAddress),
+		AccountType: 0,
+		Address:     constant.GenesisAccountAddress,
+	}
+	genesisAccountBalance := model.AccountBalance{
+		AccountID:        genesisAccount.ID,
+		BlockHeight:      0,
+		SpendableBalance: 0,
+		Balance:          0,
+		PopRevenue:       0,
+		Latest:           true,
+	}
+	genesisAccountInsertQ, genesisAccountInsertArgs := query.NewAccountQuery().InsertAccount(&genesisAccount)
+	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
+		&genesisAccountBalance)
+	_, err := executor.ExecuteStatement(genesisAccountInsertQ, genesisAccountInsertArgs...)
+	if err != nil {
+		return errors.New("fail to add genesis account")
+	}
+	_, err = executor.ExecuteStatement(genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs...)
+	if err != nil {
+		return errors.New("fail to add genesis account balance")
+	}
+	return nil
 }

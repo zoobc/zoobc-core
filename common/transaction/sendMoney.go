@@ -68,7 +68,6 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		}
 		recipientAccountInsertQ, recipientAccountInsertArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
 		recipientAccountBalanceInsertQ, recipientAccountBalanceInsertArgs := tx.AccountBalanceQuery.InsertAccountBalance(&recipientAccountBalance)
-		// update sender
 		err = tx.QueryExecutor.ExecuteTransaction(recipientAccountInsertQ, recipientAccountInsertArgs...)
 		if err != nil {
 			return err
