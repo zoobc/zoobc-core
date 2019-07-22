@@ -17,13 +17,13 @@ type (
 		// ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
 		CommitTx() error
-		RollbackTx()
+		RollbackTx() error
 	}
 
 	// Executor struct
 	Executor struct {
-		sync.RWMutex // mutex should only lock tx
 		Db           *sql.DB
+		sync.RWMutex // mutex should only lock tx
 		Tx           *sql.Tx
 	}
 )
@@ -119,44 +119,8 @@ func (qe *Executor) ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 	return qe.Db.QueryRow(query, args...)
 }
 
-// ExecuteTransactionStatements execute list of statement in transaction
-// accept [][]interface{}, with each []interface representing [query, val1, val2]
-// will return error in case one or more of the query fail
-//func (qe *Executor) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-//	var (
-//		stmt    *sql.Stmt
-//		tx      *sql.Tx
-//		err     error
-//		results []sql.Result
-//	)
-//
-//	tx, err = qe.Db.Begin()
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	for _, query := range queries { // n x
-//		stmt, err = tx.Prepare(fmt.Sprintf("%v", query[0]))
-//		if err != nil {
-//			return nil, err
-//		}
-//		defer stmt.Close()
-//
-//		result, err := stmt.Exec(query[1:]...)
-//		if err != nil {
-//			_ = tx.Rollback()
-//			return nil, err
-//		}
-//		results = append(results, result)
-//	}
-//	if err := tx.Commit(); err != nil {
-//		return nil, err
-//	}
-//
-//	return results, nil
-//}
-
 // ExecuteTransaction execute a single transaction without committing it to database
+// ExecuteTransaction should only be called after BeginTx and before CommitTx
 func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	stmt, err := qe.Tx.Prepare(qStr)
 	if err != nil {
@@ -182,7 +146,8 @@ func (qe *Executor) CommitTx() error {
 }
 
 // RollbackTx rollback and unlock executor in case any single tx fail
-func (qe *Executor) RollbackTx() {
-	_ = qe.Tx.Rollback()
+func (qe *Executor) RollbackTx() error {
+	err := qe.Tx.Rollback()
 	defer qe.Unlock()
+	return err
 }

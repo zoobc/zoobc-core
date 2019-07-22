@@ -57,24 +57,18 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		Address:     tx.SenderAddress,
 	}
 
-	if tx.Height == 0 {
+	if tx.Height == 0 { // create recipient account if genesis
 		recipientAccountBalance = model.AccountBalance{
 			AccountID:        recipientAccount.ID,
 			BlockHeight:      tx.Height,
-			SpendableBalance: tx.Body.GetAmount(),
-			Balance:          tx.Body.GetAmount(),
+			SpendableBalance: 0,
+			Balance:          0,
 			PopRevenue:       0,
 			Latest:           true,
 		}
 		recipientAccountInsertQ, recipientAccountInsertArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
 		recipientAccountBalanceInsertQ, recipientAccountBalanceInsertArgs := tx.AccountBalanceQuery.InsertAccountBalance(&recipientAccountBalance)
 		// update sender
-		senderAccountBalanceQ, senderAccountBalanceArgs := tx.AccountBalanceQuery.AddAccountBalance(
-			-tx.Body.GetAmount(),
-			map[string]interface{}{
-				"account_id": senderAccount.ID,
-			},
-		)
 		err = tx.QueryExecutor.ExecuteTransaction(recipientAccountInsertQ, recipientAccountInsertArgs...)
 		if err != nil {
 			return err
@@ -83,34 +77,30 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		if err != nil {
 			return err
 		}
-		err = tx.QueryExecutor.ExecuteTransaction(senderAccountBalanceQ, senderAccountBalanceArgs...)
-		if err != nil {
-			return err
-		}
-	} else {
-		// update recipient
-		accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.AddAccountBalance(
-			tx.Body.Amount,
-			map[string]interface{}{
-				"account_id": recipientAccount.ID,
-			},
-		)
-		// update sender
-		accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
-			-tx.Body.Amount,
-			map[string]interface{}{
-				"account_id": senderAccount.ID,
-			},
-		)
-		err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
-		if err != nil {
-			return err
-		}
-		err = tx.QueryExecutor.ExecuteTransaction(accountBalanceRecipientQ, accountBalanceRecipientQArgs...)
-		if err != nil {
-			return err
-		}
 	}
+	// update recipient
+	accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+		tx.Body.Amount,
+		map[string]interface{}{
+			"account_id": recipientAccount.ID,
+		},
+	)
+	// update sender
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+		-tx.Body.Amount,
+		map[string]interface{}{
+			"account_id": senderAccount.ID,
+		},
+	)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceRecipientQ, accountBalanceRecipientQArgs...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

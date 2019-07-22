@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"errors"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -143,7 +144,7 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
 
 		// test error prepare
-		executor := Executor{db}
+		executor := Executor{Db: db}
 		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
 		if err == nil {
 			t.Error("should return error if prepare fail")
@@ -153,7 +154,7 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1, []byte{1, 2, 34}).WillReturnError(errors.New("mockError"))
-		executor := Executor{db}
+		executor := Executor{Db: db}
 		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
 		if err == nil {
 			t.Error("should return error if exec fail")
@@ -163,77 +164,13 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1, []byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
-		executor := Executor{db}
+		executor := Executor{Db: db}
 		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
 		if err != nil {
 			t.Error("should return error if exec fail")
 		}
 	})
 
-}
-
-func TestExecutor_ExecuteTransactionStatements(t *testing.T) {
-	const insertBlockQuery = "insert into blocks(id, blocksmith_id) values(?, ?)"
-	t.Run("PrepareFail", func(t *testing.T) {
-		db, mock, _ := sqlmock.New()
-		defer db.Close()
-		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
-		queries := make([][]interface{}, 2)
-		queries = append(queries, []interface{}{
-			"insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34},
-		})
-		// test error prepare
-		executor := Executor{db}
-		_, err := executor.ExecuteTransactionStatements(queries)
-		if err == nil {
-			t.Error("should return error if prepare fail")
-		}
-	})
-	t.Run("MultipleIdenticalQuery:success", func(t *testing.T) {
-		db, mock, _ := sqlmock.New()
-		defer db.Close()
-		mock.ExpectBegin()
-		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
-			[]byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
-			[]byte{1, 2, 14}).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectCommit()
-		mock.ExpectClose()
-		var queries [][]interface{}
-		queries = append(queries, []interface{}{
-			insertBlockQuery, 1, []byte{1, 2, 34},
-		}, []interface{}{
-			insertBlockQuery, 1, []byte{1, 2, 14},
-		})
-		// test error prepare
-		executor := Executor{db}
-		_, err := executor.ExecuteTransactionStatements(queries)
-		if err != nil {
-			t.Errorf("transaction should have been committed without error: %v", err)
-		}
-	})
-	t.Run("MultipleIdenticalQuery:execFail", func(t *testing.T) {
-		db, mock, _ := sqlmock.New()
-		defer db.Close()
-		mock.ExpectBegin()
-		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
-			[]byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
-		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
-			[]byte{1, 2, 14}).WillReturnError(errors.New("mockError"))
-
-		var queries [][]interface{}
-		queries = append(queries, []interface{}{
-			insertBlockQuery, 1, []byte{1, 2, 34},
-		}, []interface{}{
-			insertBlockQuery, 1, []byte{1, 2, 14},
-		})
-		// test error prepare
-		executor := Executor{db}
-		_, err := executor.ExecuteTransactionStatements(queries)
-		if err == nil {
-			t.Error("should return error if exec fail")
-		}
-	})
 }
 
 func TestExecutor_ExecuteSelectRow(t *testing.T) {
@@ -285,4 +222,156 @@ func TestExecutor_ExecuteSelectRow(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExecutor_BeginTx(t *testing.T) {
+	t.Run("fail:beginFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		mock.ExpectBegin().WillReturnError(errors.New("mockError:beginFail"))
+		executor := Executor{Db: db}
+		err := executor.BeginTx()
+		if err == nil {
+			t.Errorf("begin tx should fail:begin fail")
+		}
+	})
+	t.Run("success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		mock.ExpectBegin()
+		executor := Executor{Db: db}
+		err := executor.BeginTx()
+		if err != nil {
+			t.Errorf("begin tx should not fail")
+		}
+	})
+}
+
+func TestExecutor_CommitTx(t *testing.T) {
+	t.Run("fail:commitFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		mock.ExpectBegin()
+		mock.ExpectCommit().WillReturnError(errors.New("mockError:commitFail"))
+
+		executor := Executor{
+			Db: db,
+		}
+		_ = executor.BeginTx()
+		err := executor.CommitTx()
+		if err == nil {
+			t.Errorf("commit tx should fail : commit fail")
+		}
+	})
+	t.Run("success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		mock.ExpectBegin()
+		mock.ExpectCommit()
+
+		executor := Executor{
+			Db: db,
+		}
+		_ = executor.BeginTx()
+		err := executor.CommitTx()
+		if err != nil {
+			t.Errorf("commit tx should not return error")
+		}
+	})
+}
+
+func TestExecutor_RollbackTx(t *testing.T) {
+	t.Run("fail:rollbackError", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		mock.ExpectBegin()
+		mock.ExpectRollback().WillReturnError(errors.New("mockError:rollbackFail"))
+
+		executor := Executor{
+			Db: db,
+		}
+		_ = executor.BeginTx()
+		err := executor.RollbackTx()
+		if err == nil {
+			t.Errorf("rollback should return error")
+		}
+	})
+	t.Run("success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+
+		executor := Executor{
+			Db: db,
+		}
+		_ = executor.BeginTx()
+		err := executor.RollbackTx()
+		if err != nil {
+			t.Errorf("rollback should not return error")
+		}
+	})
+}
+
+func TestNewQueryExecutor(t *testing.T) {
+	type args struct {
+		db *sql.DB
+	}
+	tests := []struct {
+		name string
+		args args
+		want *Executor
+	}{
+		{
+			name: "NewQueryExecutor:success",
+			args: args{
+				db: nil,
+			},
+			want: &Executor{
+				Db: nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewQueryExecutor(tt.args.db); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewQueryExecutor() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExecutor_ExecuteTransaction(t *testing.T) {
+	t.Run("ExecuteTransaction:fail-{prepareFail}", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		executor := NewQueryExecutor(db)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("fail prepare").WillReturnError(errors.New("mockError:prepareFail"))
+		executor.BeginTx()
+		err := executor.ExecuteTransaction("fail prepare")
+		if err == nil {
+			t.Error("prepare should have failed the whole function")
+		}
+	})
+	t.Run("ExecuteTransaction:fail-{execFail}", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		executor := NewQueryExecutor(db)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("fail exec")
+		mock.ExpectExec("fail exec").WillReturnError(errors.New("mockError:execFail"))
+		executor.BeginTx()
+		err := executor.ExecuteTransaction("fail exec")
+		if err == nil {
+			t.Error("exec should have failed the whole function")
+		}
+	})
+	t.Run("ExecuteTransaction:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		executor := NewQueryExecutor(db)
+		mock.ExpectBegin()
+		mock.ExpectPrepare("success")
+		mock.ExpectExec("success").WillReturnResult(sqlmock.NewResult(1, 1))
+		executor.BeginTx()
+		err := executor.ExecuteTransaction("success")
+		if err != nil {
+			t.Errorf("function should return nil if prepare and exec success\nreturned: %v instead", err)
+		}
+	})
 }

@@ -70,8 +70,8 @@ func main() {
 
 	queryExecutor := query.NewQueryExecutor(db)
 
-	migration := database.Migration{}
-	if err := migration.Init(queryExecutor); err != nil {
+	migration := database.Migration{Query: queryExecutor}
+	if err := migration.Init(); err != nil {
 		panic(err)
 	}
 

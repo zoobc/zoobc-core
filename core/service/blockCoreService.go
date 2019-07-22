@@ -141,7 +141,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 				if err != nil {
-					bs.QueryExecutor.RollbackTx()
+					_ = bs.QueryExecutor.RollbackTx()
 					return err
 				}
 			}
