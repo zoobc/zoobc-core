@@ -117,13 +117,13 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		chaintype        contract.ChainType
-		queryExecutor    query.ExecutorInterface
-		blockQuery       query.BlockQueryInterface
-		mempoolQuery     query.MempoolQueryInterface
-		transactionQuery query.TransactionQueryInterface
-		signature        crypto.SignatureInterface
-		txTypeChosen     transaction.TypeActionSwitcher
+		chaintype          contract.ChainType
+		queryExecutor      query.ExecutorInterface
+		blockQuery         query.BlockQueryInterface
+		mempoolQuery       query.MempoolQueryInterface
+		transactionQuery   query.TransactionQueryInterface
+		signature          crypto.SignatureInterface
+		actionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name string
@@ -149,7 +149,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.mempoolQuery,
 				tt.args.transactionQuery,
 				tt.args.signature,
-				tt.args.txTypeChosen,
+				tt.args.actionTypeSwitcher,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
@@ -159,13 +159,13 @@ func TestNewBlockService(t *testing.T) {
 
 func TestBlockService_NewBlock(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
 		version             uint32
@@ -230,13 +230,13 @@ func TestBlockService_NewBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			if got := bs.NewBlock(
 				tt.args.version,
@@ -262,13 +262,13 @@ func TestBlockService_NewBlock(t *testing.T) {
 
 func TestBlockService_NewGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
 		version              uint32
@@ -339,13 +339,13 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			if got := bs.NewGenesisBlock(
 				tt.args.version,
@@ -373,13 +373,13 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 
 func TestBlockService_VerifySeed(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
 		seed          *big.Int
@@ -477,13 +477,13 @@ func TestBlockService_VerifySeed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			if got := b.VerifySeed(tt.args.seed, tt.args.balance, tt.args.previousBlock, tt.args.timestamp); got != tt.want {
 				t.Errorf("BlockService.VerifySeed() = %v, want %v", got, tt.want)
@@ -494,13 +494,13 @@ func TestBlockService_VerifySeed(t *testing.T) {
 
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -556,12 +556,12 @@ func TestBlockService_PushBlock(t *testing.T) {
 		{
 			name: "PushBlock:ApplyConfirmedFailed",
 			fields: fields{
-				Chaintype:             &chaintype.MainChain{},
-				QueryExecutor:         &mockQueryExecutorSuccess{},
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
-				MempoolQuery:          query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionTypeChosen: &transaction.TypeSwitcher{},
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockQueryExecutorSuccess{},
+				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -605,13 +605,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -622,13 +622,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 
 func TestBlockService_GetLastBlock(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -690,13 +690,13 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			got, err := bs.GetLastBlock()
 			if (err != nil) != tt.wantErr {
@@ -712,13 +712,13 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 
 func TestBlockService_GetGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -780,13 +780,13 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			got, err := bs.GetGenesisBlock()
 			if (err != nil) != tt.wantErr {
@@ -802,13 +802,13 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 
 func TestBlockService_GetBlocks(t *testing.T) {
 	type fields struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -858,13 +858,13 @@ func TestBlockService_GetBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				Signature:             tt.fields.Signature,
-				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				Signature:          tt.fields.Signature,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			got, err := bs.GetBlocks()
 			if (err != nil) != tt.wantErr {

@@ -8,10 +8,13 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
-
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/query"
 
@@ -29,41 +32,50 @@ type (
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
 			genesisSignature []byte) *model.Block
+		GenerateBlock(
+			previousBlock *model.Block,
+			secretPhrase string,
+			timestamp int64,
+			blockSmithAccountID []byte,
+		) (*model.Block, error)
 		PushBlock(previousBlock, block *model.Block) error
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
+		AddGenesis() error
+		CheckGenesis() bool
 	}
 
 	BlockService struct {
-		Chaintype             contract.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		TransactionTypeChosen transaction.TypeActionSwitcher
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		BlockQuery         query.BlockQueryInterface
+		MempoolQuery       query.MempoolQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		Signature          crypto.SignatureInterface
+		MempoolService     MempoolServiceInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 )
 
 func NewBlockService(
-	chaintype contract.ChainType,
+	ct contract.ChainType,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
 	signature crypto.SignatureInterface,
-	txTypeChosen transaction.TypeActionSwitcher,
+	txTypeSwitcher transaction.TypeActionSwitcher,
 ) *BlockService {
 	return &BlockService{
-		Chaintype:             chaintype,
-		QueryExecutor:         queryExecutor,
-		BlockQuery:            blockQuery,
-		MempoolQuery:          mempoolQuery,
-		TransactionQuery:      transactionQuery,
-		Signature:             signature,
-		TransactionTypeChosen: txTypeChosen,
+		Chaintype:          ct,
+		QueryExecutor:      queryExecutor,
+		BlockQuery:         blockQuery,
+		MempoolQuery:       mempoolQuery,
+		TransactionQuery:   transactionQuery,
+		Signature:          signature,
+		ActionTypeSwitcher: txTypeSwitcher,
 	}
 }
 
@@ -156,7 +168,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
-			err := bs.TransactionTypeChosen.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
+			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
 			if err == nil {
 				tx.BlockID = block.ID
 				tx.Height = block.Height
@@ -288,4 +300,133 @@ func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transact
 	}
 	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
 	return nil
+}
+
+// GenerateBlock generate block from transactions in mempool
+func (bs *BlockService) GenerateBlock(
+	previousBlock *model.Block,
+	secretPhrase string,
+	timestamp int64,
+	blockSmithAccountID []byte,
+) (*model.Block, error) {
+	var (
+		totalAmount, totalFee, totalCoinbase int64
+		//TODO: missing coinbase calculation
+		payloadLength uint32
+		// only for mainchain
+		sortedTx    []*model.Transaction
+		payloadHash []byte
+		digest      = sha3.New512()
+	)
+
+	newBlockHeight := previousBlock.Height + 1
+
+	if _, ok := bs.Chaintype.(*chaintype.MainChain); ok {
+		mempoolTransactions, err := bs.MempoolService.SelectTransactionsFromMempool(timestamp)
+		if err != nil {
+			return nil, errors.New("MempoolReadError")
+		}
+		for _, mpTx := range mempoolTransactions {
+			tx, err := coreUtil.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			if err != nil {
+				return nil, err
+			}
+
+			sortedTx = append(sortedTx, tx)
+			_, _ = digest.Write(mpTx.TransactionBytes)
+			txType := transaction.GetTransactionType(tx, nil)
+			totalAmount += txType.GetAmount()
+			totalFee += tx.Fee
+			payloadLength += txType.GetSize()
+		}
+		payloadHash = digest.Sum([]byte{})
+	}
+
+	// loop through transaction to build block hash
+	hash := digest.Sum([]byte{})
+	digest.Reset() // reset the digest
+	_, _ = digest.Write(previousBlock.GetBlockSeed())
+	_, _ = digest.Write(blockSmithAccountID)
+	blockSeed := digest.Sum([]byte{})
+	digest.Reset() // reset the digest
+	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
+	previousBlockHash := sha3.Sum512(previousBlockByte)
+	block := bs.NewBlock(
+		1,
+		previousBlockHash[:],
+		blockSeed,
+		blockSmithAccountID,
+		string(hash),
+		newBlockHeight,
+		timestamp,
+		totalAmount,
+		totalFee,
+		totalCoinbase,
+		sortedTx,
+		payloadHash,
+		payloadLength,
+		secretPhrase,
+	)
+	log.Printf("block forged: fee %d\n", totalFee)
+	return block, nil
+}
+
+// AddGenesis add genesis block of chain to the chain
+func (bs *BlockService) AddGenesis() error {
+	var (
+		totalAmount, totalFee, totalCoinBase int64
+		blockTransactions                    []*model.Transaction
+		payloadLength                        uint32
+		digest                               = sha3.New512()
+	)
+	for _, tx := range GetGenesisTransactions(bs.Chaintype) {
+		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
+		_, _ = digest.Write(txBytes)
+		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+			totalAmount += tx.GetSendMoneyTransactionBody().Amount
+		}
+		txType := transaction.GetTransactionType(tx, nil)
+		totalAmount += txType.GetAmount()
+		totalFee += tx.Fee
+		payloadLength += txType.GetSize()
+		blockTransactions = append(blockTransactions, tx)
+	}
+	payloadHash := digest.Sum([]byte{})
+	block := bs.NewGenesisBlock(
+		1,
+		nil,
+		make([]byte, 64),
+		[]byte{},
+		"",
+		0,
+		constant.GenesisBlockTimestamp,
+		totalAmount,
+		totalFee,
+		totalCoinBase,
+		blockTransactions,
+		payloadHash,
+		payloadLength,
+		constant.InitialSmithScale,
+		big.NewInt(0),
+		constant.GenesisBlockSignature,
+	)
+	// assign genesis block id
+	block.ID = coreUtil.GetBlockID(block)
+	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block)
+	if err != nil {
+		panic("PushGenesisBlock:fail")
+	}
+	return nil
+}
+
+// CheckGenesis check if genesis has been added
+func (bs *BlockService) CheckGenesis() bool {
+	genesisBlock, err := bs.GetGenesisBlock()
+	if err != nil { // Genesis is not in the blockchain yet
+		return false
+	}
+	if genesisBlock.ID != bs.Chaintype.GetGenesisBlockID() {
+		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+	}
+	return true
 }
