@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 	"sync"
 )
 
@@ -16,6 +17,7 @@ type (
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 		// ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
+		ExecuteTransactions(queries [][]interface{}) error
 		CommitTx() error
 		RollbackTx() error
 	}
@@ -131,6 +133,25 @@ func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	_, err = stmt.Exec(args...)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+// ExecuteTransactions execute multiple transactions without committing it to database
+// ExecuteTransactions should only be called after BeginTx and before CommitTx
+func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
+	for _, query := range queries {
+		stmt, err := qe.Tx.Prepare(fmt.Sprintf("%v", query[0]))
+		if err != nil {
+			return err
+		}
+		_, err = stmt.Exec(query[1:]...)
+		if err != nil {
+			_ = qe.Tx.Rollback()
+			stmt.Close()
+			return err
+		}
+		stmt.Close()
 	}
 	return nil
 }

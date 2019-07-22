@@ -375,3 +375,72 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		}
 	})
 }
+
+func TestExecutor_ExecuteTransactions(t *testing.T) {
+	const insertBlockQuery = "insert into blocks(id, blocksmith_id) values(?, ?)"
+	t.Run("PrepareFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
+		queries := [][]interface{}{
+			{
+				insertBlockQuery, 1, []byte{1, 2, 34},
+			},
+		}
+		// test error prepare
+		executor := Executor{Db: db}
+		_ = executor.BeginTx()
+		err := executor.ExecuteTransactions(queries)
+		if err == nil {
+			t.Error("should return error if prepare fail")
+		}
+	})
+	t.Run("MultipleIdenticalQuery:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 14}).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+		mock.ExpectClose()
+		var queries [][]interface{}
+		queries = append(queries, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 34},
+		}, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 14},
+		})
+		// test error prepare
+		executor := Executor{Db: db}
+		_ = executor.BeginTx()
+		err := executor.ExecuteTransactions(queries)
+		if err != nil {
+			t.Errorf("transaction should have been committed without error: %v", err)
+		}
+	})
+	t.Run("MultipleIdenticalQuery:execFail", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1,
+			[]byte{1, 2, 14}).WillReturnError(errors.New("mockError"))
+
+		var queries [][]interface{}
+		queries = append(queries, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 34},
+		}, []interface{}{
+			insertBlockQuery, 1, []byte{1, 2, 14},
+		})
+		// test error prepare
+		executor := Executor{Db: db}
+		_ = executor.BeginTx()
+		err := executor.ExecuteTransactions(queries)
+		if err == nil {
+			t.Error("should return error if exec fail")
+		}
+	})
+}
