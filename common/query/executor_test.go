@@ -342,7 +342,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		executor := NewQueryExecutor(db)
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail prepare").WillReturnError(errors.New("mockError:prepareFail"))
-		executor.BeginTx()
+		_ = executor.BeginTx()
 		err := executor.ExecuteTransaction("fail prepare")
 		if err == nil {
 			t.Error("prepare should have failed the whole function")
@@ -355,7 +355,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail exec")
 		mock.ExpectExec("fail exec").WillReturnError(errors.New("mockError:execFail"))
-		executor.BeginTx()
+		_ = executor.BeginTx()
 		err := executor.ExecuteTransaction("fail exec")
 		if err == nil {
 			t.Error("exec should have failed the whole function")
@@ -368,7 +368,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectPrepare("success")
 		mock.ExpectExec("success").WillReturnResult(sqlmock.NewResult(1, 1))
-		executor.BeginTx()
+		_ = executor.BeginTx()
 		err := executor.ExecuteTransaction("success")
 		if err != nil {
 			t.Errorf("function should return nil if prepare and exec success\nreturned: %v instead", err)
