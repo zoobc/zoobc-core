@@ -1,7 +1,11 @@
 dbPath = "./resource/"
 dbName = "zoobc.db"
+apiRPCPort=8000
+apiHTTPPort=8080
+nodeSecretPhrase = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 
 # Peer
 peerPort=8001
 myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8000", "118.99.96.66:3001", "192.168.5.2:3003"]
+

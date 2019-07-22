@@ -41,11 +41,21 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "mempool" (
-				"id"	BLOB,
+				"id"	INTEGER,
+				"fee_per_byte"	INTEGER,
+				"arrival_timestamp"	INTEGER,
+				"transaction_bytes"	BLOB,
+				PRIMARY KEY("id")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "transaction" (
+				"id"	INTEGER,
+				"block_id"	INTEGER,
+				"block_height"	INTEGER,
 				"sender_account_type"	INTEGER,
-				"sender_account"	TEXT,
+				"sender_account_address"	TEXT,
 				"recipient_account_type"	INTEGER,
-				"recipient_account"	TEXT,
+				"recipient_account_address"	TEXT,
 				"transaction_type"	INTEGER,
 				"fee"	INTEGER,
 				"timestamp"	INTEGER,
@@ -53,21 +63,7 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"transaction_body_length"	INTEGER,
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
-				PRIMARY KEY("id")
-			);`,
-			`
-			CREATE TABLE IF NOT EXISTS "transaction" (
-				"id"	BLOB,
-				"block_id"	INTEGER,
-				"block_height"	INTEGER,
-				"sender_account_id"	BLOB,
-				"recipient_account_id"	BLOB,
-				"transaction_type"	INTEGER,
-				"fee"	INTEGER,
-				"transaction_hash"	BLOB,
-				"transaction_body_length"	INTEGER,
-				"transaction_body_bytes"	BLOB,
-				"signature"	BLOB,
+				"version" INTEGER,
 				PRIMARY KEY("id")
 			);`,
 			`
@@ -79,14 +75,14 @@ func (m *Migration) Init(qe *query.Executor) error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_balance" (
-				"id"	BLOB,
+				"account_id"	BLOB,
 				"block_height"	INTEGER,
 				"spendable_balance"	INTEGER,
 				"balance"	INTEGER,
 				"pop_revenue"	INTEGER,
 				"latest"	INTEGER,
-				PRIMARY KEY("id","block_height"),
-				FOREIGN KEY("id") REFERENCES account(id)
+				PRIMARY KEY("account_id","block_height"),
+				FOREIGN KEY("account_id") REFERENCES account(id)
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "main_block" (
@@ -107,36 +103,6 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"payload_hash" BLOB,
 				PRIMARY KEY("id")
 			);`,
-			`
-			CREATE TABLE IF NOT EXISTS "main_block" (
-				"id" INTEGER,
-				"previous_block_hash" BLOB,
-				"height" INTEGER,
-				"timestamp" INTEGER,
-				"block_seed" BLOB,
-				"block_signature" BLOB,
-				"cumulative_difficulty" VARCHAR,
-				"smith_scale" INTEGER,
-				"payload_length" INTEGER,
-				"payload_hash" BLOB,
-				"blocksmith_id" BLOB,
-				"total_amount" INTEGER,
-				"total_fee" INTEGER,
-				"total_coinbase" INTEGER,
-				"version" INTEGER,
-				PRIMARY KEY("id")
-			)
-			`,
-			`
-			CREATE TABLE IF NOT EXISTS "account_balance" (
-				"account_id"	BLOB,
-				"balance"	INTEGER,
-				"spendable_balance"	INTEGER,
-				"pop_revenue"	INTEGER,
-				"block_height"	INTEGER,
-				"latest"	INTEGER
-			);
-			`,
 		}
 		return nil
 	}
@@ -160,16 +126,20 @@ func (m *Migration) Apply() error {
 
 	for version, query := range migrations {
 		version := version
-		queries := []string{
-			query,
+		queries := [][]interface{}{
+			{
+				query,
+			},
 		}
+
 		if m.CurrentVersion != nil {
-			queries = append(queries, fmt.Sprintf(`
-				UPDATE "migration"
-				SET "version" = %d, "created_date" = datetime('now');
-			`, *m.CurrentVersion))
+			queries = append(queries, []interface{}{
+				`UPDATE "migration"
+				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion,
+			})
 		} else {
-			queries = append(queries, `
+			queries = append(queries, []interface{}{
+				`
 				INSERT INTO "migration" (
 					"version",
 					"created_date"
@@ -178,9 +148,10 @@ func (m *Migration) Apply() error {
 					0,
 					datetime('now')
 				);
-			`)
+				`,
+			})
 		}
-		_, err := m.Query.ExecuteTransactions(queries)
+		_, err := m.Query.ExecuteTransactionStatements(queries)
 		m.CurrentVersion = &version
 		if err != nil {
 			return err

@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 )
 
 type (
@@ -9,9 +10,10 @@ type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
 		Execute(string) (sql.Result, error)
-		ExecuteSelect(string) (*sql.Rows, error)
-		ExecuteTransactions(queries []string) ([]sql.Result, error)
+		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
+		ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
+		ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error)
 	}
 
 	// Executor struct
@@ -69,13 +71,13 @@ And ***need to `Close()` the rows***.
 This function is necessary if you want to processing the rows,
 otherwise you can use `Execute` or `ExecuteTransactions`
 */
-func (qe *Executor) ExecuteSelect(query string) (*sql.Rows, error) {
+func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error) {
 	var (
 		err  error
 		rows *sql.Rows
 	)
 
-	rows, err = qe.Db.Query(query)
+	rows, err = qe.Db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +85,19 @@ func (qe *Executor) ExecuteSelect(query string) (*sql.Rows, error) {
 	return rows, nil
 }
 
-// ExecuteTransactions execute list of queries in transaction
-// will return error in case one or more of the query fail
-func (qe *Executor) ExecuteTransactions(queries []string) ([]sql.Result, error) {
+/*
+ExecuteSelectRow execute with select method that if you want to get `sql.Row` (single).
+This function is necessary if you want to processing the row,
+otherwise you can use `Execute` or `ExecuteTransactions`
+*/
+func (qe *Executor) ExecuteSelectRow(query string, args ...interface{}) *sql.Row {
+	return qe.Db.QueryRow(query, args...)
+}
 
+// ExecuteTransactionStatements execute list of statement in transaction
+// accept [][]interface{}, with each []interface representing [query, val1, val2]
+// will return error in case one or more of the query fail
+func (qe *Executor) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
 	var (
 		stmt    *sql.Stmt
 		tx      *sql.Tx
@@ -99,14 +110,14 @@ func (qe *Executor) ExecuteTransactions(queries []string) ([]sql.Result, error) 
 		return nil, err
 	}
 
-	for _, query := range queries {
-		stmt, err = tx.Prepare(query)
+	for _, query := range queries { // n x
+		stmt, err = tx.Prepare(fmt.Sprintf("%v", query[0]))
 		if err != nil {
 			return nil, err
 		}
 		defer stmt.Close()
 
-		result, err := stmt.Exec()
+		result, err := stmt.Exec(query[1:]...)
 		if err != nil {
 			_ = tx.Rollback()
 			return nil, err

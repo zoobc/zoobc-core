@@ -10,7 +10,7 @@ func (*MainChain) GetTablePrefix() string {
 
 // GetChainSmithingDelayTime return the value of chain smithing delay in second
 func (*MainChain) GetChainSmithingDelayTime() int64 {
-	return 6
+	return 60
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node
@@ -20,5 +20,5 @@ func (*MainChain) GetName() string {
 
 // GetGenesisBlockID return the block ID of genesis block in the chain
 func (*MainChain) GetGenesisBlockID() int64 {
-	return 8326926047637383911
+	return 4545420970999433273
 }

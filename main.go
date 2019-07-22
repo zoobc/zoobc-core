@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/core/service"
 
@@ -23,9 +25,11 @@ import (
 )
 
 var (
-	dbPath, dbName string
-	dbInstance     *database.SqliteDB
-	db             *sql.DB
+	dbPath, dbName          string
+	dbInstance              *database.SqliteDB
+	db                      *sql.DB
+	nodeSecretPhrase        string
+	apiRPCPort, apiHTTPPort int
 )
 
 func init() {
@@ -35,6 +39,15 @@ func init() {
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
+		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
+		apiRPCPort = viper.GetInt("apiRPCPort")
+		if apiRPCPort == 0 {
+			apiRPCPort = 8080
+		}
+		apiHTTPPort = viper.GetInt("apiHTTPPort")
+		if apiHTTPPort == 0 {
+			apiHTTPPort = 8000
+		}
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -58,7 +71,7 @@ func p2pService() {
 }
 
 func startServices(queryExecutor *query.Executor) {
-	api.Start(8000, 8080, queryExecutor)
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor)
 	go p2pService()
 }
 
@@ -77,13 +90,18 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-	blockchainProcessor := smith.NewBlockchainProcessor(mainchain, smith.NewBlocksmith(), service.NewBlockService(mainchain,
-		query.NewQueryExecutor(db), query.NewBlockQuery(mainchain)))
+	// todo: read secret phrase from config
+	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
+		smith.NewBlocksmith(nodeSecretPhrase),
+		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain),
+			query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature()),
+		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
 		_ = blockchainProcessor.AddGenesis()
 	}
-
-	go startSmith(sleepPeriod, blockchainProcessor)
+	if len(nodeSecretPhrase) > 0 {
+		go startSmith(sleepPeriod, blockchainProcessor)
+	}
 
 	startServices(queryExecutor)
 

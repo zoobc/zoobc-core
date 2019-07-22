@@ -7,11 +7,15 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/transaction"
+
 	"github.com/zoobc/zoobc-core/common/contract"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"golang.org/x/crypto/sha3"
@@ -21,41 +25,44 @@ type (
 
 	// Blocksmith is wrapper for the account in smithing process
 	Blocksmith struct {
-		NodePublicKey    []byte
-		AccountPublicKey []byte
-		Balance          *big.Int
-		SmithTime        int64
-		BlockSeed        *big.Int
-		SecretPhrase     string
-		deadline         uint32
+		NodePublicKey []byte
+		AccountID     []byte
+		Balance       *big.Int
+		SmithTime     int64
+		BlockSeed     *big.Int
+		SecretPhrase  string
+		deadline      uint32
 	}
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype    contract.ChainType
-		Generator    *Blocksmith
-		BlockService service.BlockServiceInterface
-		LastBlockID  int64
+		Chaintype      contract.ChainType
+		Generator      *Blocksmith
+		BlockService   service.BlockServiceInterface
+		MempoolService service.MempoolServiceInterface
+		LastBlockID    int64
 	}
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
-func NewBlockchainProcessor(chaintype contract.ChainType, blocksmith *Blocksmith,
-	blockService service.BlockServiceInterface) *BlockchainProcessor {
+func NewBlockchainProcessor(ct contract.ChainType, blocksmith *Blocksmith,
+	blockService service.BlockServiceInterface, mempoolService service.MempoolServiceInterface) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Chaintype:    chaintype,
-		Generator:    blocksmith,
-		BlockService: blockService,
+		Chaintype:      ct,
+		Generator:      blocksmith,
+		BlockService:   blockService,
+		MempoolService: mempoolService,
 	}
 }
 
 // InitGenerator initiate generator
-func NewBlocksmith() *Blocksmith {
+func NewBlocksmith(nodeSecretPhrase string) *Blocksmith {
+	// todo: get node[private + public key] + look up account [public key, ID]
 	blocksmith := &Blocksmith{
-		AccountPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+		AccountID: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
 			255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		Balance:      big.NewInt(1000000000),
-		SecretPhrase: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+		SecretPhrase: nodeSecretPhrase,
 		NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219,
 			80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 	}
@@ -65,12 +72,12 @@ func NewBlocksmith() *Blocksmith {
 // CalculateSmith calculate seed, smithTime, and deadline
 func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Blocksmith) *Blocksmith {
 	account := model.AccountBalance{
-		ID: []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111,
+		AccountID: []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111,
 			241, 130, 176, 116, 63, 35, 232, 241, 210, 172},
 		Balance:          1000000000,
 		SpendableBalance: 1000000000,
 	}
-	if len(account.ID) == 0 {
+	if len(account.AccountID) == 0 {
 		generator.Balance = big.NewInt(0)
 	} else {
 		accountEffectiveBalance := account.GetBalance()
@@ -81,7 +88,7 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 		generator.SmithTime = 0
 		generator.BlockSeed = big.NewInt(0)
 	}
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.AccountPublicKey, lastBlock)
+	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.AccountID, lastBlock)
 	generator.SmithTime = coreUtil.GetSmithTime(generator.Balance, generator.BlockSeed, lastBlock)
 	generator.deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
@@ -95,7 +102,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
-	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountPublicKey != nil {
+	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountID != nil {
 		if bp.Generator.SmithTime > smithMax {
 			log.Printf("skip forge\n")
 			return errors.New("SmithSkip")
@@ -116,7 +123,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			}
 
 			block, err := bp.GenerateBlock(previousBlock, bp.Generator.SecretPhrase, timestamp)
-
 			if err != nil {
 				return err
 			}
@@ -144,18 +150,49 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 	digest := sha3.New512()
 	var totalAmount int64
 	var totalFee int64
+	//TODO: missing coinbase calculation
 	var totalCoinbase int64
+	var payloadLength uint32
+
+	// only for mainchain
+	var sortedTx []*model.Transaction
+	var payloadHash []byte
+
+	if _, ok := bp.Chaintype.(*chaintype.MainChain); ok {
+		mempoolTransactions, err := bp.MempoolService.SelectTransactionsFromMempool(timestamp)
+		if err != nil {
+			log.Println(err)
+			return nil, errors.New("MempoolReadError")
+		}
+		digest := sha3.New512()
+		for _, mpTx := range mempoolTransactions {
+			tx, err := coreUtil.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			if err != nil {
+				return nil, err
+			}
+
+			sortedTx = append(sortedTx, tx)
+			_, _ = digest.Write(mpTx.TransactionBytes)
+			txType := transaction.GetTransactionType(tx, nil)
+			totalAmount += txType.GetAmount()
+			totalFee += tx.Fee
+			payloadLength += txType.GetSize()
+		}
+		payloadHash = digest.Sum([]byte{})
+	}
+
 	// loop through transaction to build block hash
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	blocksmith := bp.Generator.AccountPublicKey
+	blocksmith := bp.Generator.AccountID
 	_, _ = digest.Write(blocksmith)
 	blockSeed := digest.Sum([]byte{})
-	digest.Reset()                                                         // reset the digest
-	previousBlockHash := sha3.Sum512(coreUtil.GetBlockByte(previousBlock)) // PreviousBlock.Byte
-	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash),
-		newBlockHeight, timestamp, totalAmount, totalFee, totalCoinbase, []*model.Transaction{}, nil, secretPhrase)
+	digest.Reset() // reset the digest
+	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
+	previousBlockHash := sha3.Sum512(previousBlockByte)
+	block := bp.BlockService.NewBlock(1, previousBlockHash[:], blockSeed, blocksmith, string(hash), newBlockHeight, timestamp,
+		totalAmount, totalFee, totalCoinbase, sortedTx, payloadHash, payloadLength, secretPhrase)
 	log.Printf("block forged: fee %d\n", totalFee)
 	return block, nil
 }
@@ -166,11 +203,24 @@ func (bp *BlockchainProcessor) AddGenesis() error {
 	var totalAmount int64
 	var totalFee int64
 	var totalCoinBase int64
+	var payloadLength uint32
 	var blockTransactions []*model.Transaction
+	for _, tx := range service.GetGenesisTransactions(bp.Chaintype) {
+		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
+		_, _ = digest.Write(txBytes)
+		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+			totalAmount += tx.GetSendMoneyTransactionBody().Amount
+		}
+		txType := transaction.GetTransactionType(tx, nil)
+		totalAmount += txType.GetAmount()
+		totalFee += tx.Fee
+		payloadLength += txType.GetSize()
+		blockTransactions = append(blockTransactions, tx)
+	}
 	payloadHash := digest.Sum([]byte{})
 	block := bp.BlockService.NewGenesisBlock(1, nil, make([]byte, 64), []byte{}, "",
-		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinBase, blockTransactions, payloadHash, constant.InitialSmithScale,
-		big.NewInt(0), constant.GenesisBlockSignature)
+		0, constant.GenesisBlockTimestamp, totalAmount, totalFee, totalCoinBase, blockTransactions, payloadHash, payloadLength,
+		constant.InitialSmithScale, big.NewInt(0), constant.GenesisBlockSignature)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
 	err := bp.BlockService.PushBlock(&model.Block{ID: -1, Height: 0}, block)
