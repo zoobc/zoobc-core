@@ -199,12 +199,12 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 
 // AddGenesis add genesis block of chain to the chain
 func (bp *BlockchainProcessor) AddGenesis() error {
-	digest := sha3.New512()
-	var totalAmount int64
-	var totalFee int64
-	var totalCoinBase int64
-	var payloadLength uint32
-	var blockTransactions []*model.Transaction
+	var (
+		totalAmount, totalFee, totalCoinBase int64
+		blockTransactions                    []*model.Transaction
+		payloadLength                        uint32
+		digest                               = sha3.New512()
+	)
 	for _, tx := range service.GetGenesisTransactions(bp.Chaintype) {
 		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
 		_, _ = digest.Write(txBytes)

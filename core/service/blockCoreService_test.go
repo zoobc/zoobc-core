@@ -9,19 +9,111 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/google/go-cmp/cmp"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
-type mockSignature struct {
-	crypto.Signature
+type (
+	mockSignature struct {
+		crypto.Signature
+	}
+	mockQueryExecutorSuccess struct {
+		query.Executor
+	}
+	mockQueryExecuteNotNil struct {
+		query.Executor
+	}
+	mockQueryExecutorScanFail struct {
+		query.Executor
+	}
+	mockQueryExecutorFail struct {
+		query.Executor
+	}
+	mockTypeAction struct {
+		transaction.SendMoney
+	}
+	mockTypeActionSuccess struct {
+		mockTypeAction
+	}
+)
+
+func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase"}))
+	rows, _ := db.Query(qe)
+	return rows, nil
 }
 
-func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte { return []byte{} }
+func (*mockQueryExecuteNotNil) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	mock.ExpectQuery("").
+		WillReturnRows(sqlmock.NewRows([]string{"ID"}))
+	return db.Query("")
+}
+
+func (*mockQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("MockedError")
+}
+
+func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
+	return nil, errors.New("MockedError")
+}
+
+func (*mockTypeAction) ApplyConfirmed() error {
+	return nil
+}
+func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
+	return &mockTypeAction{}
+}
+
+func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte {
+	return []byte{}
+}
+
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
+		"height DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"Version"},
+		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block " +
+		"WHERE height = 0 LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
+			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height >= 0 " +
+		"LIMIT 100":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
+			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
+	return nil, nil
+}
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
@@ -31,44 +123,49 @@ func TestNewBlockService(t *testing.T) {
 		mempoolQuery     query.MempoolQueryInterface
 		transactionQuery query.TransactionQueryInterface
 		signature        crypto.SignatureInterface
+		txTypeChosen     transaction.TypeActionSwitcher
 	}
-	test := struct {
+	tests := []struct {
 		name string
 		args args
 		want *BlockService
 	}{
-		name: "NewBlockService:success",
-		args: args{
-			chaintype:        &chaintype.MainChain{},
-			queryExecutor:    nil,
-			blockQuery:       nil,
-			mempoolQuery:     nil,
-			transactionQuery: nil,
-			signature:        nil,
-		},
-		want: &BlockService{
-			Chaintype:     &chaintype.MainChain{},
-			QueryExecutor: nil,
-			BlockQuery:    nil,
-			MempoolQuery:  nil,
-			Signature:     nil,
+		{
+			name: "wantSuccess",
+			args: args{
+				chaintype: &chaintype.MainChain{},
+			},
+			want: &BlockService{
+				Chaintype: &chaintype.MainChain{},
+			},
 		},
 	}
-	got := NewBlockService(test.args.chaintype, test.args.queryExecutor, test.args.blockQuery,
-		test.args.mempoolQuery, test.args.transactionQuery, test.args.signature)
-
-	if !cmp.Equal(got, test.want) {
-		t.Errorf("NewBlockService() = %v, want %v", got, test.want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewBlockService(
+				tt.args.chaintype,
+				tt.args.queryExecutor,
+				tt.args.blockQuery,
+				tt.args.mempoolQuery,
+				tt.args.transactionQuery,
+				tt.args.signature,
+				tt.args.txTypeChosen,
+			); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
+			}
+		})
 	}
-
 }
 
 func TestBlockService_NewBlock(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		Signature     crypto.SignatureInterface
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	type args struct {
 		version             uint32
@@ -86,69 +183,92 @@ func TestBlockService_NewBlock(t *testing.T) {
 		payloadLength       uint32
 		secretPhrase        string
 	}
-	test := struct {
+	tests := []struct {
 		name   string
 		fields fields
 		args   args
 		want   *model.Block
 	}{
-		name: "NewBlock:success",
-		fields: fields{
-			Chaintype:     &chaintype.MainChain{},
-			QueryExecutor: nil,
-			BlockQuery:    nil,
-			Signature:     &mockSignature{},
-		},
-		args: args{
-			version:             1,
-			previousBlockHash:   []byte{},
-			blockSeed:           []byte{},
-			blocksmithID:        []byte{},
-			hash:                "hash",
-			previousBlockHeight: 0,
-			timestamp:           15875392,
-			totalAmount:         0,
-			totalFee:            0,
-			totalCoinBase:       0,
-			transactions:        []*model.Transaction{},
-			payloadHash:         []byte{},
-			payloadLength:       0,
-			secretPhrase:        "secretphrase",
-		},
-		want: &model.Block{
-			Version:           1,
-			PreviousBlockHash: []byte{},
-			BlockSeed:         []byte{},
-			BlocksmithID:      []byte{},
-			Timestamp:         15875392,
-			TotalAmount:       0,
-			TotalFee:          0,
-			TotalCoinBase:     0,
-			Transactions:      []*model.Transaction{},
-			PayloadHash:       []byte{},
-			PayloadLength:     0,
-			BlockSignature:    []byte{},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Chaintype: &chaintype.MainChain{},
+				Signature: &mockSignature{},
+			},
+			args: args{
+				version:             1,
+				previousBlockHash:   []byte{},
+				blockSeed:           []byte{},
+				blocksmithID:        []byte{},
+				hash:                "hash",
+				previousBlockHeight: 0,
+				timestamp:           15875392,
+				totalAmount:         0,
+				totalFee:            0,
+				totalCoinBase:       0,
+				transactions:        []*model.Transaction{},
+				payloadHash:         []byte{},
+				payloadLength:       0,
+				secretPhrase:        "secretphrase",
+			},
+			want: &model.Block{
+				Version:           1,
+				PreviousBlockHash: []byte{},
+				BlockSeed:         []byte{},
+				BlocksmithID:      []byte{},
+				Timestamp:         15875392,
+				TotalAmount:       0,
+				TotalFee:          0,
+				TotalCoinBase:     0,
+				Transactions:      []*model.Transaction{},
+				PayloadHash:       []byte{},
+				PayloadLength:     0,
+				BlockSignature:    []byte{},
+			},
 		},
 	}
-	b := &BlockService{
-		Chaintype:     test.fields.Chaintype,
-		QueryExecutor: test.fields.QueryExecutor,
-		BlockQuery:    test.fields.BlockQuery,
-		Signature:     test.fields.Signature,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+			}
+			if got := bs.NewBlock(
+				tt.args.version,
+				tt.args.previousBlockHash,
+				tt.args.blockSeed,
+				tt.args.blocksmithID,
+				tt.args.hash,
+				tt.args.previousBlockHeight,
+				tt.args.timestamp,
+				tt.args.totalAmount,
+				tt.args.totalFee,
+				tt.args.totalCoinBase,
+				tt.args.transactions,
+				tt.args.payloadHash,
+				tt.args.payloadLength,
+				tt.args.secretPhrase,
+			); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.NewBlock() = %v, want %v", got, tt.want)
+			}
+		})
 	}
-	if got := b.NewBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID, test.args.hash,
-		test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee, test.args.totalCoinBase,
-		test.args.transactions, test.args.payloadHash, test.args.payloadLength, test.args.secretPhrase); !reflect.DeepEqual(got, test.want) {
-		t.Errorf("BlockService.NewBlock() = %v, want %v", got, test.want)
-	}
-
 }
 
 func TestBlockService_NewGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	type args struct {
 		version              uint32
@@ -168,71 +288,98 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		cumulativeDifficulty *big.Int
 		genesisSignature     []byte
 	}
-	test := struct {
+	tests := []struct {
 		name   string
 		fields fields
 		args   args
 		want   *model.Block
 	}{
-		name: "NewBlockGenesis:success",
-		fields: fields{
-			Chaintype:     &chaintype.MainChain{},
-			QueryExecutor: nil,
-			BlockQuery:    nil,
-		},
-		args: args{
-			version:              1,
-			previousBlockHash:    []byte{},
-			blockSeed:            []byte{},
-			blocksmithID:         []byte{},
-			hash:                 "hash",
-			previousBlockHeight:  0,
-			timestamp:            15875392,
-			totalAmount:          0,
-			totalFee:             0,
-			totalCoinBase:        0,
-			transactions:         []*model.Transaction{},
-			payloadHash:          []byte{},
-			payloadLength:        8,
-			smithScale:           0,
-			cumulativeDifficulty: big.NewInt(1),
-			genesisSignature:     []byte{},
-		},
-		want: &model.Block{
-			Version:              1,
-			PreviousBlockHash:    []byte{},
-			BlockSeed:            []byte{},
-			BlocksmithID:         []byte{},
-			Timestamp:            15875392,
-			TotalAmount:          0,
-			TotalFee:             0,
-			TotalCoinBase:        0,
-			Transactions:         []*model.Transaction{},
-			PayloadHash:          []byte{},
-			PayloadLength:        8,
-			SmithScale:           0,
-			CumulativeDifficulty: "1",
-			BlockSignature:       []byte{},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Chaintype: &chaintype.MainChain{},
+				Signature: &mockSignature{},
+			},
+			args: args{
+				version:              1,
+				previousBlockHash:    []byte{},
+				blockSeed:            []byte{},
+				blocksmithID:         []byte{},
+				hash:                 "hash",
+				previousBlockHeight:  0,
+				timestamp:            15875392,
+				totalAmount:          0,
+				totalFee:             0,
+				totalCoinBase:        0,
+				transactions:         []*model.Transaction{},
+				payloadHash:          []byte{},
+				payloadLength:        8,
+				smithScale:           0,
+				cumulativeDifficulty: big.NewInt(1),
+				genesisSignature:     []byte{},
+			},
+			want: &model.Block{
+				Version:              1,
+				PreviousBlockHash:    []byte{},
+				BlockSeed:            []byte{},
+				BlocksmithID:         []byte{},
+				Timestamp:            15875392,
+				TotalAmount:          0,
+				TotalFee:             0,
+				TotalCoinBase:        0,
+				Transactions:         []*model.Transaction{},
+				PayloadHash:          []byte{},
+				PayloadLength:        8,
+				SmithScale:           0,
+				CumulativeDifficulty: "1",
+				BlockSignature:       []byte{},
+			},
 		},
 	}
-	b := &BlockService{
-		Chaintype:     test.fields.Chaintype,
-		QueryExecutor: test.fields.QueryExecutor,
-		BlockQuery:    test.fields.BlockQuery,
-	}
-	if got := b.NewGenesisBlock(test.args.version, test.args.previousBlockHash, test.args.blockSeed, test.args.blocksmithID,
-		test.args.hash, test.args.previousBlockHeight, test.args.timestamp, test.args.totalAmount, test.args.totalFee,
-		test.args.totalCoinBase, test.args.transactions, test.args.payloadHash, test.args.payloadLength, test.args.smithScale,
-		test.args.cumulativeDifficulty, test.args.genesisSignature); !reflect.DeepEqual(got, test.want) {
-		t.Errorf("BlockService.NewGenesisBlock() = %v, want %v", got, test.want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
+			}
+			if got := bs.NewGenesisBlock(
+				tt.args.version,
+				tt.args.previousBlockHash,
+				tt.args.blockSeed,
+				tt.args.blocksmithID,
+				tt.args.hash,
+				tt.args.previousBlockHeight,
+				tt.args.timestamp,
+				tt.args.totalAmount,
+				tt.args.totalFee,
+				tt.args.totalCoinBase,
+				tt.args.transactions,
+				tt.args.payloadHash,
+				tt.args.payloadLength,
+				tt.args.smithScale,
+				tt.args.cumulativeDifficulty,
+				tt.args.genesisSignature,
+			); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.NewGenesisBlock() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestBlockService_VerifySeed(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	type args struct {
 		seed          *big.Int
@@ -330,9 +477,13 @@ func TestBlockService_VerifySeed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &BlockService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
 			}
 			if got := b.VerifySeed(tt.args.seed, tt.args.balance, tt.args.previousBlock, tt.args.timestamp); got != tt.want {
 				t.Errorf("BlockService.VerifySeed() = %v, want %v", got, tt.want)
@@ -341,78 +492,15 @@ func TestBlockService_VerifySeed(t *testing.T) {
 	}
 }
 
-type mockQueryExecutorSuccess struct {
-	query.Executor
-}
-
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
-		"height DESC LIMIT 1":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
-			"Version"},
-		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
-	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block " +
-		"WHERE height = 0 LIMIT 1":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
-			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
-	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height >= 0 " +
-		"LIMIT 100":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
-			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
-func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, nil
-}
-
-type mockQueryExecutorFail struct {
-	query.Executor
-}
-
-func (*mockQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	return nil, errors.New("MockedError")
-}
-
-func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, errors.New("MockedError")
-}
-
-type mockQueryExecutorSQLFail struct {
-	query.Executor
-}
-
-func (*mockQueryExecutorSQLFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
-		"Version"}))
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -425,7 +513,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "PushBlock:success",
+			name: "PushBlock:Transactions<0",
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorSuccess{},
@@ -466,11 +554,14 @@ func TestBlockService_PushBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "PushBlock:fail-{QueryExecutor:fail}",
+			name: "PushBlock:ApplyConfirmedFailed",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorFail{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Chaintype:             &chaintype.MainChain{},
+				QueryExecutor:         &mockQueryExecutorSuccess{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:          query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionTypeChosen: &transaction.TypeSwitcher{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -478,21 +569,49 @@ func TestBlockService_PushBlock(t *testing.T) {
 					SmithScale:           10,
 					Timestamp:            10000,
 					CumulativeDifficulty: "10000",
+					Version:              1,
+					PreviousBlockHash:    []byte{},
+					BlockSeed:            []byte{},
+					BlocksmithID:         []byte{},
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					BlockSignature:       []byte{},
 				},
 				block: &model.Block{
-					ID:        1,
-					Timestamp: 12000,
+					ID:                1,
+					Timestamp:         12000,
+					Version:           1,
+					PreviousBlockHash: []byte{},
+					BlockSeed:         []byte{},
+					BlocksmithID:      []byte{},
+					TotalAmount:       0,
+					TotalFee:          0,
+					TotalCoinBase:     0,
+					Transactions: []*model.Transaction{
+						{
+							Height: 0,
+						},
+					},
+					PayloadHash:    []byte{},
+					BlockSignature: []byte{},
 				},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -503,9 +622,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 
 func TestBlockService_GetLastBlock(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -514,7 +637,7 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetLastBlock:success", // All is good
+			name: "GetLastBlock:Success", // All is good
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorSuccess{},
@@ -540,7 +663,7 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "GetLastBlock:fail", // ExecuteSelect return error != nil
+			name: "GetLastBlock:SelectFail",
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorFail{},
@@ -552,10 +675,10 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetLastBlock:fail-{sql.rows.Next = false}", // block not found | rows.Next() -> false
+			name: "GetLastBlock:SelectGotNil",
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorSQLFail{},
+				QueryExecutor: &mockQueryExecuteNotNil{},
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			want: &model.Block{
@@ -567,9 +690,13 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
 			}
 			got, err := bs.GetLastBlock()
 			if (err != nil) != tt.wantErr {
@@ -585,10 +712,13 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 
 func TestBlockService_GetGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		Blocks        []*model.Block
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -638,7 +768,7 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 			name: "GetGenesis:fail-{sql.rows.Next = false}", // genesis not found | rows.Next() -> false
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorSQLFail{},
+				QueryExecutor: &mockQueryExecutorScanFail{},
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			want: &model.Block{
@@ -650,9 +780,13 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
 			}
 			got, err := bs.GetGenesisBlock()
 			if (err != nil) != tt.wantErr {
@@ -668,10 +802,13 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 
 func TestBlockService_GetBlocks(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		Blocks        []*model.Block
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -721,9 +858,13 @@ func TestBlockService_GetBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				Signature:             tt.fields.Signature,
+				TransactionTypeChosen: tt.fields.TransactionTypeChosen,
 			}
 			got, err := bs.GetBlocks()
 			if (err != nil) != tt.wantErr {
@@ -736,7 +877,6 @@ func TestBlockService_GetBlocks(t *testing.T) {
 		})
 	}
 }
-
 func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 	type fields struct {
 		Chaintype     contract.ChainType

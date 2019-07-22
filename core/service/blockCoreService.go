@@ -16,7 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
-	core_util "github.com/zoobc/zoobc-core/core/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -37,32 +37,53 @@ type (
 	}
 
 	BlockService struct {
-		Chaintype        contract.ChainType
-		QueryExecutor    query.ExecutorInterface
-		BlockQuery       query.BlockQueryInterface
-		MempoolQuery     query.MempoolQueryInterface
-		TransactionQuery query.TransactionQueryInterface
-		Signature        crypto.SignatureInterface
+		Chaintype             contract.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		TransactionTypeChosen transaction.TypeActionSwitcher
 	}
 )
 
-func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface, mempoolQuery query.MempoolQueryInterface, transactionQuery query.TransactionQueryInterface,
-	signature crypto.SignatureInterface) *BlockService {
+func NewBlockService(
+	chaintype contract.ChainType,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	mempoolQuery query.MempoolQueryInterface,
+	transactionQuery query.TransactionQueryInterface,
+	signature crypto.SignatureInterface,
+	txTypeChosen transaction.TypeActionSwitcher,
+) *BlockService {
 	return &BlockService{
-		Chaintype:        chaintype,
-		QueryExecutor:    queryExecutor,
-		BlockQuery:       blockQuery,
-		MempoolQuery:     mempoolQuery,
-		TransactionQuery: transactionQuery,
-		Signature:        signature,
+		Chaintype:             chaintype,
+		QueryExecutor:         queryExecutor,
+		BlockQuery:            blockQuery,
+		MempoolQuery:          mempoolQuery,
+		TransactionQuery:      transactionQuery,
+		Signature:             signature,
+		TransactionTypeChosen: txTypeChosen,
 	}
 }
 
 // NewBlock generate new block
-func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte, hash string,
-	previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction,
-	payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block {
+func (bs *BlockService) NewBlock(
+	version uint32,
+	previousBlockHash,
+	blockSeed,
+	blocksmithID []byte,
+	hash string,
+	previousBlockHeight uint32,
+	timestamp,
+	totalAmount,
+	totalFee,
+	totalCoinBase int64,
+	transactions []*model.Transaction,
+	payloadHash []byte,
+	payloadLength uint32,
+	secretPhrase string,
+) *model.Block {
 	block := &model.Block{
 		Version:           version,
 		PreviousBlockHash: previousBlockHash,
@@ -77,7 +98,7 @@ func (bs *BlockService) NewBlock(version uint32, previousBlockHash, blockSeed, b
 		PayloadHash:       payloadHash,
 		PayloadLength:     payloadLength,
 	}
-	blockUnsignedByte, _ := core_util.GetBlockByte(block, false)
+	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
 	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
 	return block
 }
@@ -122,7 +143,7 @@ func (*BlockService) VerifySeed(seed, balance *big.Int, previousBlock *model.Blo
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	if previousBlock.GetID() != -1 {
 		block.Height = previousBlock.GetHeight() + 1
-		block = core_util.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
+		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
 	//TODO: start db transaction here
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
@@ -135,7 +156,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
-			err := transaction.GetTransactionType(tx, bs.QueryExecutor).ApplyConfirmed() // todo: make this mockable
+			err := bs.TransactionTypeChosen.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
 			if err == nil {
 				tx.BlockID = block.ID
 				tx.Height = block.Height
@@ -200,10 +221,23 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	}
 	var lastBlock model.Block
 	if rows.Next() {
-		err = rows.Scan(&lastBlock.ID, &lastBlock.PreviousBlockHash, &lastBlock.Height, &lastBlock.Timestamp, &lastBlock.BlockSeed,
-			&lastBlock.BlockSignature, &lastBlock.CumulativeDifficulty, &lastBlock.SmithScale, &lastBlock.PayloadLength,
-			&lastBlock.PayloadHash, &lastBlock.BlocksmithID, &lastBlock.TotalAmount, &lastBlock.TotalFee, &lastBlock.TotalCoinBase,
-			&lastBlock.Version)
+		err = rows.Scan(
+			&lastBlock.ID,
+			&lastBlock.PreviousBlockHash,
+			&lastBlock.Height,
+			&lastBlock.Timestamp,
+			&lastBlock.BlockSeed,
+			&lastBlock.BlockSignature,
+			&lastBlock.CumulativeDifficulty,
+			&lastBlock.SmithScale,
+			&lastBlock.PayloadLength,
+			&lastBlock.PayloadHash,
+			&lastBlock.BlocksmithID,
+			&lastBlock.TotalAmount,
+			&lastBlock.TotalFee,
+			&lastBlock.TotalCoinBase,
+			&lastBlock.Version,
+		)
 		if err != nil {
 			return &model.Block{
 				ID: -1,
@@ -244,7 +278,7 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 
 // RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
 func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
-	idsStr := []string{}
+	var idsStr []string
 	for _, tx := range transactions {
 		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
 	}
