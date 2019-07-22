@@ -113,6 +113,8 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"queued" INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
+				UNIQUE ("node_public_key", "height"),
+				UNIQUE ("account_id", "height"),
 				PRIMARY KEY("node_public_key", "account_id", "height")
 			);`,
 		}

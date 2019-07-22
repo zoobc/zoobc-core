@@ -96,3 +96,17 @@ func GetChecksumByte(bytes []byte) byte {
 	}
 	return a
 }
+
+// ValidateAccountAddress validates account address giving its account type
+func ValidateAccountAddress(accType uint32, address string) error {
+	switch accType {
+	case 0:
+		pubKey, err := GetPublicKeyFromAddress(address)
+		if err != nil || len(pubKey) != 32 {
+			return errors.New("InvalidAccountAddress")
+		}
+	default:
+		return errors.New("InvalidAccountType")
+	}
+	return nil
+}
