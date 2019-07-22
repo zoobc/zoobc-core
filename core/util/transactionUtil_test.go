@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 
@@ -274,6 +275,42 @@ func TestGetTransactionID(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("GetTransactionID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReadAccountAddress(t *testing.T) {
+	type args struct {
+		accountType uint32
+		buf         *bytes.Buffer
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "ReadAccountAddress:case_1:bcz",
+			args: args{
+				accountType: 0,
+				buf:         bytes.NewBuffer([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+			},
+			want: []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
+		},
+		{
+			name: "ReadAccountAddress:case_default:bcz",
+			args: args{
+				accountType: 0,
+				buf:         bytes.NewBuffer([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+			},
+			want: []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}
