@@ -103,6 +103,18 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"payload_hash" BLOB,
 				PRIMARY KEY("id")
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_registry" (
+				"node_public_key" BLOB,
+				"account_id" BLOB,
+				"registration_height" INTEGER,
+				"node_address" VARCHAR(255),
+				"locked_balance" INTEGER,
+				"queued" INTEGER,
+				"latest" INTEGER,
+				"height" INTEGER,
+				PRIMARY KEY("node_public_key", "account_id", "height")
+			);`,
 		}
 		return nil
 	}
