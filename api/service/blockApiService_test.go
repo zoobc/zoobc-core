@@ -3,12 +3,15 @@
 package service
 
 import (
+	"database/sql"
+	"errors"
 	"reflect"
 	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -16,6 +19,70 @@ import (
 // ResetBlockService resets the singleton back to nil, used in test case teardown
 func ResetBlockService() {
 	blockServiceInstance = nil
+}
+
+type (
+	mockQueryExecutorBlockByIDSuccess struct {
+		query.Executor
+	}
+
+	mockQueryExecutorBlockByIDFail struct {
+		query.Executor
+	}
+
+	mockQueryExecutorBlockByIDNotFound struct {
+		query.Executor
+	}
+
+	mockQueryExecutorGetBlocksSuccess struct {
+		query.Executor
+	}
+
+	mockQueryExecutorGetBlocksFail struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorBlockByIDSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
+		"Version"}).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockQueryExecutorBlockByIDFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockError:executeSelectFail")
+}
+
+func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
+		"Version"}))
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
+		"Version"}).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(1,
+		[]byte{}, 2, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockQueryExecutorGetBlocksFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockError:executeSelectFail")
 }
 
 func TestNewBlockervice(t *testing.T) {
@@ -44,16 +111,32 @@ func TestNewBlockervice(t *testing.T) {
 	}
 }
 
-func Test_BlockService_GetBlocks(t *testing.T) {
-	mockData := struct {
-		Limit  uint32
-		Height uint32
-		Blocks []*model.Block
+func TestBlockService_GetBlockByID(t *testing.T) {
+	type fields struct {
+		Query query.ExecutorInterface
+	}
+	type args struct {
+		chainType contract.ChainType
+		id        int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.Block
+		wantErr bool
 	}{
-		Limit:  2,
-		Height: 0,
-		Blocks: []*model.Block{
-			{
+		{
+			name: "GetBlockByID:success",
+			fields: fields{
+				Query: &mockQueryExecutorBlockByIDSuccess{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				id:        1,
+			},
+			wantErr: false,
+			want: &model.Block{
 				ID:                   1,
 				PreviousBlockHash:    []byte{},
 				Height:               1,
@@ -70,11 +153,79 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 				TotalCoinBase:        0,
 				Version:              1,
 			},
-			{
+		},
+		{
+			name: "GetBlockByID:fail-{ExecuteSelectFail}",
+			fields: fields{
+				Query: &mockQueryExecutorBlockByIDFail{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				id:        1,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "GetBlockByID:fail-{Block.ID notfound}",
+			fields: fields{
+				Query: &mockQueryExecutorBlockByIDNotFound{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				id:        1,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Query: tt.fields.Query,
+			}
+			got, err := bs.GetBlockByID(tt.args.chainType, tt.args.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.GetBlockByID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.GetBlockByID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_GetBlockByHeight(t *testing.T) {
+	type fields struct {
+		Query query.ExecutorInterface
+	}
+	type args struct {
+		chainType contract.ChainType
+		height    uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.Block
+		wantErr bool
+	}{
+		{
+			name: "GetBlockByHeight:success",
+			fields: fields{
+				Query: &mockQueryExecutorBlockByIDSuccess{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				height:    1,
+			},
+			wantErr: false,
+			want: &model.Block{
 				ID:                   1,
 				PreviousBlockHash:    []byte{},
-				Height:               2,
-				Timestamp:            11000,
+				Height:               1,
+				Timestamp:            10000,
 				BlockSeed:            []byte{},
 				BlockSignature:       []byte{},
 				CumulativeDifficulty: "",
@@ -88,144 +239,37 @@ func Test_BlockService_GetBlocks(t *testing.T) {
 				Version:              1,
 			},
 		},
-	}
-
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error while opening database connection")
-	}
-	defer db.Close()
-	instance := NewBlockService(query.NewQueryExecutor(db))
-	defer ResetBlockService()
-	tests := []struct {
-		name    string
-		bs      *BlockService
-		want    *model.GetBlocksResponse
-		wantErr bool
-	}{
 		{
-			name: "GetBlocks:success",
-			bs:   instance,
-			want: &model.GetBlocksResponse{
-				Blocks: mockData.Blocks,
-				Height: mockData.Height,
-				Count:  2,
+			name: "GetBlockByHeight:fail-{ExecuteSelectFail}",
+			fields: fields{
+				Query: &mockQueryExecutorBlockByIDFail{},
 			},
-			wantErr: false,
+			args: args{
+				chainType: &chaintype.MainChain{},
+				height:    1,
+			},
+			wantErr: true,
+			want:    nil,
 		},
-	}
-
-	chainType := chaintype.GetChainType(0)
-	blockQuery := query.NewBlockQuery(chainType)
-	queryStr := blockQuery.GetBlocks(mockData.Height, mockData.Limit)
-
-	mock.ExpectQuery(queryStr).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version",
-	}).AddRow(
-		1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(
-		1, []byte{}, 2, 11000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := instance.GetBlocks(chainType, mockData.Limit, mockData.Height)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.GetBlocks() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockService.GetBlocks() = %v, want %v", got, tt.want)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unfulfilled expectations: %s", err)
-			}
-		})
-	}
-}
-
-func Test_BlockService_GetBlockByID(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error while opening database connection")
-	}
-	defer db.Close()
-	var bl model.Block
-	if err != nil {
-		panic(err)
-	}
-	instance := NewBlockService(query.NewQueryExecutor(db))
-	defer ResetBlockService()
-
-	tests := []struct {
-		name    string
-		bs      *BlockService
-		want    *model.Block
-		wantErr bool
-	}{
 		{
-			name:    "GetBlockByID:success",
-			bs:      instance,
-			want:    &bl,
-			wantErr: false,
+			name: "GetBlockByHeight:fail-{Block.ID notfound}",
+			fields: fields{
+				Query: &mockQueryExecutorBlockByIDNotFound{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				height:    1,
+			},
+			wantErr: true,
+			want:    nil,
 		},
 	}
-
-	chainType := chaintype.GetChainType(0)
-	blockQuery := query.NewBlockQuery(chainType)
-	queryStr := blockQuery.GetBlockByID(0)
-	mock.ExpectQuery(regexp.QuoteMeta(queryStr)).
-		WillReturnRows(sqlmock.NewRows(blockQuery.Fields))
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := instance.GetBlockByID(chainType, 0)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.GetBlockByID() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			bs := &BlockService{
+				Query: tt.fields.Query,
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockService.GetBlockByID() = %v, want %v", got, tt.want)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unfulfilled expectations: %s", err)
-			}
-		})
-	}
-}
-
-func Test_BlockService_GetBlockByHeight(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error while opening database connection")
-	}
-	defer db.Close()
-	var bl model.Block
-	instance := NewBlockService(query.NewQueryExecutor(db))
-	defer ResetBlockService()
-	tests := []struct {
-		name    string
-		bs      *BlockService
-		want    *model.Block
-		wantErr bool
-	}{
-		{
-			name:    "GetBlockByHeight:success",
-			bs:      instance,
-			want:    &bl,
-			wantErr: false,
-		},
-	}
-
-	chainType := chaintype.GetChainType(0)
-	blockQuery := query.NewBlockQuery(chainType)
-	queryStr := blockQuery.GetBlockByHeight(0)
-	mock.ExpectQuery(regexp.QuoteMeta(queryStr)).
-		WillReturnRows(sqlmock.NewRows(blockQuery.Fields))
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := instance.GetBlockByHeight(chainType, 0)
+			got, err := bs.GetBlockByHeight(tt.args.chainType, tt.args.height)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlockByHeight() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -233,9 +277,104 @@ func Test_BlockService_GetBlockByHeight(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlockByHeight() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
 
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unfulfilled expectations: %s", err)
+func TestBlockService_GetBlocks(t *testing.T) {
+	type fields struct {
+		Query query.ExecutorInterface
+	}
+	type args struct {
+		chainType contract.ChainType
+		blockSize uint32
+		height    uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetBlocksResponse
+		wantErr bool
+	}{
+		{
+			name: "GetBlocks:success",
+			fields: fields{
+				Query: &mockQueryExecutorGetBlocksSuccess{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				blockSize: 2,
+				height:    1,
+			},
+			want: &model.GetBlocksResponse{
+				Height: 1,
+				Count:  2,
+				Blocks: []*model.Block{
+					{
+						ID:                   1,
+						PreviousBlockHash:    []byte{},
+						Height:               1,
+						Timestamp:            10000,
+						BlockSeed:            []byte{},
+						BlockSignature:       []byte{},
+						CumulativeDifficulty: "",
+						SmithScale:           1,
+						PayloadLength:        2,
+						PayloadHash:          []byte{},
+						BlocksmithID:         []byte{},
+						TotalAmount:          0,
+						TotalFee:             0,
+						TotalCoinBase:        0,
+						Version:              1,
+					},
+					{
+						ID:                   1,
+						PreviousBlockHash:    []byte{},
+						Height:               2,
+						Timestamp:            10000,
+						BlockSeed:            []byte{},
+						BlockSignature:       []byte{},
+						CumulativeDifficulty: "",
+						SmithScale:           1,
+						PayloadLength:        2,
+						PayloadHash:          []byte{},
+						BlocksmithID:         []byte{},
+						TotalAmount:          0,
+						TotalFee:             0,
+						TotalCoinBase:        0,
+						Version:              1,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GetBlocks:success",
+			fields: fields{
+				Query: &mockQueryExecutorGetBlocksFail{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				blockSize: 2,
+				height:    1,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Query: tt.fields.Query,
+			}
+			got, err := bs.GetBlocks(tt.args.chainType, tt.args.blockSize, tt.args.height)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.GetBlocks() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.GetBlocks() = %v, want %v", got, tt.want)
 			}
 		})
 	}

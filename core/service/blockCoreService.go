@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -170,13 +169,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		block.Height = previousBlock.GetHeight() + 1
 		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
-	//TODO: start db transaction here
+	// start db transaction here
+	_ = bs.QueryExecutor.BeginTx()
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	result, err := bs.QueryExecutor.ExecuteStatement(blockInsertQuery, blockInsertValue...)
+	err := bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("got new block, %v", result)
 	// apply transactions and remove them from mempool
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
@@ -186,8 +185,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 				tx.BlockID = block.ID
 				tx.Height = block.Height
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
-				_, err := bs.QueryExecutor.ExecuteStatement(transactionInsertQuery, transactionInsertValue...)
+				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 				if err != nil {
+					_ = bs.QueryExecutor.RollbackTx()
 					return err
 				}
 			}
@@ -199,10 +199,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 			}
 		}
 	}
-	//TODO: commit db transaction here
-
+	err = bs.QueryExecutor.CommitTx()
+	if err != nil { // commit automatically unlock executor and close tx
+		return err
+	}
 	// broadcast block
-
 	return nil
 
 }

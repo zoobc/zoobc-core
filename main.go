@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -63,12 +62,11 @@ func startServices(queryExecutor *query.Executor) {
 }
 
 func main() {
-	fmt.Println("run")
 
 	queryExecutor := query.NewQueryExecutor(db)
 
-	migration := database.Migration{}
-	if err := migration.Init(queryExecutor); err != nil {
+	migration := database.Migration{Query: queryExecutor}
+	if err := migration.Init(); err != nil {
 		panic(err)
 	}
 
@@ -77,6 +75,7 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
+
 	// todo: read secret phrase from config
 	blockchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
@@ -100,11 +99,17 @@ func main() {
 	)
 
 	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
-		err := blockchainProcessor.BlockService.AddGenesis()
-		if err != nil {
-			fmt.Printf("Main.BlockService.AddGenesis: %s\n", err.Error())
+
+		// genesis account will be inserted in the very beginning
+		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+			panic("Fail to add genesis account")
+		}
+
+		if err := blockchainProcessor.BlockService.AddGenesis(); err != nil {
+			panic(err)
 		}
 	}
+
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, blockchainProcessor)
 	}

@@ -1,84 +1,81 @@
 package service
 
 import (
-	"reflect"
+	"errors"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/DATA-DOG/go-sqlmock"
+
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
-func TestGetGenesisTransactions(t *testing.T) {
-	type args struct {
-		chainType contract.ChainType
+type (
+	mockExecutorAddGenesisAccountSuccess struct {
+		query.Executor
 	}
-	tests := []struct {
-		name string
-		args args
-		want []*model.Transaction
-	}{
-		{
-			name: "wantGenesisTX",
-			args: args{
-				chainType: &chaintype.MainChain{},
-			},
-			want: []*model.Transaction{
-				{
-					Version:                 1,
-					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-					Height:                  0,
-					Timestamp:               1562806389280,
-					SenderAccountType:       0,
-					SenderAccountAddress:    genesisSender,
-					RecipientAccountType:    0,
-					RecipientAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					Fee:                     0,
-					TransactionBodyLength:   8,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: 10000000,
-						},
-					},
-					TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(10000000)),
-					Signature:            genesisSignature,
-				},
-			},
-		},
-		{
-			name: "wantNilTX",
-			args: args{
-				chainType: nil,
-			},
-			want: []*model.Transaction{
-				{
-					Version:                 1,
-					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-					Height:                  0,
-					Timestamp:               1562806389280,
-					SenderAccountType:       0,
-					SenderAccountAddress:    genesisSender,
-					RecipientAccountType:    0,
-					RecipientAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					Fee:                     0,
-					TransactionBodyLength:   8,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: 10000000,
-						},
-					},
-					TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(10000000)),
-					Signature:            genesisSignature,
-				},
-			},
-		},
+	mockExecutorAddGenesisAccountFailExecuteTransactions struct {
+		query.Executor
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetGenesisTransactions(tt.args.chainType); reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
-				t.Errorf("GetGenesisTransactions() = %v, want %v", got, tt.want)
-			}
+
+	mockExecutorAddGenesisAccountCommitFail struct {
+		query.Executor
+	}
+)
+
+func (*mockExecutorAddGenesisAccountSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func (*mockExecutorAddGenesisAccountFailExecuteTransactions) ExecuteTransactions(queries [][]interface{}) error {
+	return errors.New("mockError:accountInsertFail")
+}
+
+func (*mockExecutorAddGenesisAccountCommitFail) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func TestAddGenesisAccount(t *testing.T) {
+	t.Run("AddGenesisAccount:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin() // we'll skip prepare expectation by mocking the function
+		mock.ExpectCommit()
+		err := AddGenesisAccount(&mockExecutorAddGenesisAccountSuccess{
+			query.Executor{
+				Db: db,
+			},
 		})
-	}
+		if err != nil {
+			t.Error("should be able to add genesis successfully")
+		}
+	})
+	t.Run("AddGenesisAccount:fail-{fail execute tx}", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		err := AddGenesisAccount(&mockExecutorAddGenesisAccountFailExecuteTransactions{
+			query.Executor{
+				Db: db,
+			},
+		})
+		if err == nil {
+			t.Error("ExecuteTransactionsFailure should causes error")
+		}
+	})
+	t.Run("AddGenesisAccount:fail-{fail commit tx}", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectCommit().WillReturnError(errors.New("mockError:commitFail"))
+		mock.ExpectRollback()
+		err := AddGenesisAccount(&mockExecutorAddGenesisAccountCommitFail{
+			query.Executor{
+				Db: db,
+			},
+		})
+		if err == nil {
+			t.Error("ExecuteTransactionsFailure should causes error")
+		}
+	})
 }
