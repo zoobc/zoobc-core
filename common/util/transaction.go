@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/syncthing/syncthing/lib/signature"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"golang.org/x/crypto/sha3"
@@ -196,19 +195,16 @@ func ValidateTransaction(tx *model.Transaction, queryExecutor query.ExecutorInte
 		return errors.New("TxInvalidBodyFormat")
 	}
 
-	accountPublicKey, err := GetPublicKeyFromAddress(tx.SenderAccountAddress)
-	if err != nil {
-		return err
-	}
-	transactionBytes, err := GetTransactionBytes(tx, true)
-	if err != nil {
-		return err
-	}
-	if verifySignature {
-		if err := signature.Verify(accountPublicKey, tx.Signature, bytes.NewReader(transactionBytes)); err != nil {
-			return err
-		}
-	}
+	//FIXME: comemented out for now because gives circular dependency (both this and crypto packages import common/util)..
+	// transactionBytes, err := GetTransactionBytes(tx, true)
+	// if err != nil {
+	// 	return err
+	// }
+	// if verifySignature {
+	// 	if !crypto.NewSignature().VerifySignature(transactionBytes, tx.Signature, tx.SenderAccountType, tx.SenderAccountAddress) {
+	// 		return errors.New("TxInvalidSignature")
+	// 	}
+	// }
 
 	return nil
 }
