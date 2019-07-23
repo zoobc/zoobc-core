@@ -116,10 +116,19 @@ func (bs *BlockService) NewBlock(
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
-func (bs *BlockService) NewGenesisBlock(version uint32, previousBlockHash, blockSeed, blocksmithID []byte,
-	hash string, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64,
-	transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
-	genesisSignature []byte) *model.Block {
+func (bs *BlockService) NewGenesisBlock(
+	version uint32,
+	previousBlockHash, blockSeed, blocksmithID []byte,
+	hash string,
+	previousBlockHeight uint32,
+	timestamp, totalAmount, totalFee, totalCoinBase int64,
+	transactions []*model.Transaction,
+	payloadHash []byte,
+	payloadLength uint32,
+	smithScale int64,
+	cumulativeDifficulty *big.Int,
+	genesisSignature []byte,
+) *model.Block {
 	block := &model.Block{
 		Version:              version,
 		PreviousBlockHash:    previousBlockHash,
@@ -143,7 +152,11 @@ func (bs *BlockService) NewGenesisBlock(version uint32, previousBlockHash, block
 // VerifySeed Verify a block can be forged (by a given account, using computed seed value and account balance).
 // Can be used to check who's smithing the next block (lastBlock) or if last forged block
 // (previousBlock) is acceptable by the network (meaning has been smithed by a valid blocksmith).
-func (*BlockService) VerifySeed(seed, balance *big.Int, previousBlock *model.Block, timestamp int64) bool {
+func (*BlockService) VerifySeed(
+	seed, balance *big.Int,
+	previousBlock *model.Block,
+	timestamp int64,
+) bool {
 	elapsedTime := timestamp - previousBlock.GetTimestamp()
 	effectiveSmithScale := new(big.Int).Mul(balance, big.NewInt(previousBlock.GetSmithScale()))
 	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)

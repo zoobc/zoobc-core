@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 
 	"github.com/zoobc/zoobc-core/core/smith"
@@ -78,13 +78,32 @@ func main() {
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 	// todo: read secret phrase from config
-	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
+	blockchainProcessor := smith.NewBlockchainProcessor(
+		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
-		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain),
-			query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature()),
-		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
-	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
-		_ = blockchainProcessor.AddGenesis()
+		service.NewBlockService(
+			mainchain,
+			query.NewQueryExecutor(db),
+			query.NewBlockQuery(mainchain),
+			query.NewMempoolQuery(mainchain),
+			query.NewTransactionQuery(mainchain),
+			crypto.NewSignature(),
+			&transaction.TypeSwitcher{
+				Executor: query.NewQueryExecutor(db),
+			},
+		),
+		service.NewMempoolService(
+			mainchain,
+			query.NewQueryExecutor(db),
+			query.NewMempoolQuery(mainchain),
+		),
+	)
+
+	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
+		err := blockchainProcessor.BlockService.AddGenesis()
+		if err != nil {
+			fmt.Printf("Main.BlockService.AddGenesis: %s\n", err.Error())
+		}
 	}
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, blockchainProcessor)
