@@ -1,11 +1,14 @@
 package service
 
 import (
+	"errors"
 	"log"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -15,8 +18,6 @@ var genesisFundReceiver = map[string]int64{ // address : amount | public key hex
 	"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN": 10000000, // 04266749faa93f9b6a15094c4d89037815455a76f254aeef2ebe4e445a538e0b
 	"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J": 10000000, // 04264a2ef814619d4a2b1fa3b45f4aa09b248d53ef07d8e92237f3cc8eb30d6d
 }
-
-const genesisSender = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" // 042643fd5c5f3b64bd6b38882f7727fdc5d6eee3c354f3ab9d7b8ff7c1840140
 
 var genesisSignature = []byte{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -36,7 +37,7 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 				Height:                  0,
 				Timestamp:               1562806389280,
 				SenderAccountType:       0,
-				SenderAccountAddress:    genesisSender,
+				SenderAccountAddress:    constant.GenesisAccountAddress,
 				RecipientAccountType:    0,
 				RecipientAccountAddress: receiver,
 				Fee:                     0,
@@ -64,5 +65,43 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 	default:
 		return nil
 	}
+}
 
+// AddGenesisAccount create genesis account into `account` and `account_balance` table
+func AddGenesisAccount(executor query.ExecutorInterface) error {
+	// add genesis account
+	genesisAccount := model.Account{
+		ID:          util.CreateAccountIDFromAddress(0, constant.GenesisAccountAddress),
+		AccountType: 0,
+		Address:     constant.GenesisAccountAddress,
+	}
+	genesisAccountBalance := model.AccountBalance{
+		AccountID:        genesisAccount.ID,
+		BlockHeight:      0,
+		SpendableBalance: 0,
+		Balance:          0,
+		PopRevenue:       0,
+		Latest:           true,
+	}
+	genesisAccountInsertQ, genesisAccountInsertArgs := query.NewAccountQuery().InsertAccount(&genesisAccount)
+	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
+		&genesisAccountBalance)
+	_ = executor.BeginTx()
+	var genesisQueries [][]interface{}
+	genesisQueries = append(genesisQueries,
+		append(
+			[]interface{}{genesisAccountInsertQ}, genesisAccountInsertArgs...),
+		append(
+			[]interface{}{genesisAccountBalanceInsertQ}, genesisAccountBalanceInsertArgs...),
+	)
+	err := executor.ExecuteTransactions(genesisQueries)
+	if err != nil {
+		_ = executor.RollbackTx()
+		return errors.New("fail to add genesis account balance")
+	}
+	err = executor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }

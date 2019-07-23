@@ -147,7 +147,7 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 		return err
 	}
 
-	// update sender
+	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-tx.Fee,
 		map[string]interface{}{
@@ -157,9 +157,7 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 			),
 		},
 	)
-	_, err = tx.QueryExecutor.ExecuteTransactionStatements([][]interface{}{
-		{append([]interface{}{accountBalanceSenderQ}, accountBalanceSenderQArgs...)},
-	})
+	_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
 		return err
 	}

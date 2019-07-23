@@ -348,6 +348,14 @@ type mockQueryExecutorSuccess struct {
 	query.Executor
 }
 
+func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
+
+func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
+func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
+
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -387,6 +395,14 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 type mockQueryExecutorFail struct {
 	query.Executor
 }
+
+func (*mockQueryExecutorFail) BeginTx() error { return nil }
+
+func (*mockQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
+func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:commitFail") }
 
 func (*mockQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
