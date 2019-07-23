@@ -14,7 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type mockMempoolQueryExecutorSuccess struct {
@@ -106,9 +106,10 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
-		ct            contract.ChainType
-		queryExecutor query.ExecutorInterface
-		mempoolQuery  query.MempoolQueryInterface
+		ct                  contract.ChainType
+		queryExecutor       query.ExecutorInterface
+		mempoolQuery        query.MempoolQueryInterface
+		accountBalanceQuery query.AccountBalanceQueryInterface
 	}
 
 	test := struct {
@@ -118,18 +119,20 @@ func TestNewMempoolService(t *testing.T) {
 	}{
 		name: "NewBlockService:success",
 		args: args{
-			ct:            &chaintype.MainChain{},
-			queryExecutor: nil,
-			mempoolQuery:  nil,
+			ct:                  &chaintype.MainChain{},
+			queryExecutor:       nil,
+			mempoolQuery:        nil,
+			accountBalanceQuery: nil,
 		},
 		want: &MempoolService{
-			Chaintype:     &chaintype.MainChain{},
-			QueryExecutor: nil,
-			MempoolQuery:  nil,
+			Chaintype:           &chaintype.MainChain{},
+			QueryExecutor:       nil,
+			MempoolQuery:        nil,
+			AccountBalanceQuery: nil,
 		},
 	}
 
-	got := NewMempoolService(test.args.ct, test.args.queryExecutor, test.args.mempoolQuery)
+	got := NewMempoolService(test.args.ct, test.args.queryExecutor, test.args.mempoolQuery, test.args.accountBalanceQuery)
 
 	if !cmp.Equal(got, test.want) {
 		t.Errorf("NewMempoolService() = %v, want %v", got, test.want)

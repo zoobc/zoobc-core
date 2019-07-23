@@ -10,8 +10,8 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
-	"github.com/zoobc/zoobc-core/core/util"
 )
 
 var mockBlocksmith = Blocksmith{

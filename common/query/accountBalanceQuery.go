@@ -42,12 +42,7 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 	}
 }
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
-	return fmt.Sprintf(`
-		SELECT %s 
-		FROM %s 
-		WHERE account_id = ? 
-		AND latest = 1 
-	`, strings.Join(q.Fields, ","), q.TableName)
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_id = ? AND latest = 1`, strings.Join(q.Fields, ","), q.TableName)
 }
 
 func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{}) {

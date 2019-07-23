@@ -1,10 +1,13 @@
 package service
 
 import (
+	"log"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 var genesisFundReceiver = map[string]int64{ // address : amount | public key hex
@@ -27,7 +30,7 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 	switch chainType.(type) {
 	case *chaintype.MainChain:
 		for receiver, amount := range genesisFundReceiver {
-			genesisTxs = append(genesisTxs, &model.Transaction{
+			genesisTx := &model.Transaction{
 				Version:                 1,
 				TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
 				Height:                  0,
@@ -45,7 +48,17 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 				},
 				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(amount)),
 				Signature:            genesisSignature,
-			})
+			}
+
+			transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+			if err != nil {
+				//TODO: return error instead?
+				log.Fatal(err)
+			}
+			transactionHash := sha3.Sum256(transactionBytes)
+			genesisTx.TransactionHash = transactionHash[:]
+			genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
+			genesisTxs = append(genesisTxs, genesisTx)
 		}
 		return genesisTxs
 	default:

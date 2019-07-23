@@ -1,8 +1,6 @@
 package transaction
 
 import (
-	"errors"
-
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -171,31 +169,6 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 
 // Validate validate node registration transaction and tx body
 func (tx *NodeRegistration) Validate() error {
-	if tx.Fee <= 0 {
-		return errors.New("TxFeeZero")
-	}
-	if tx.SenderAddress == "" {
-		return errors.New("TxSenderEmpty")
-	}
-	if tx.Height > 0 {
-		if err := util.ValidateAccountAddress(tx.SenderAccountType, tx.SenderAddress); err != nil {
-			return err
-		}
-		// validate sender account
-		senderAccountID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountID(), senderAccountID)
-		if err != nil {
-			return err
-		}
-		res := tx.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
-		if len(res) == 0 {
-			return errors.New("TxSenderNotFound")
-		}
-		senderAccountBalance := res[0]
-		if senderAccountBalance.SpendableBalance < tx.Fee {
-			return errors.New("TxAccountBalanceNotEnough")
-		}
-	}
 	return nil
 }
 
@@ -204,6 +177,13 @@ func (tx *NodeRegistration) GetAmount() int64 {
 }
 
 func (*NodeRegistration) GetSize() uint32 {
-	// only amount (int64)
-	return 8
+	nodePublicKey := 32
+	accountType := 2
+	//TODO: this is valid for account type = 0
+	accountAddress := 44
+	registrationHeight := 4
+	// Note: as address is a variable string, by convention, the client should pass a string long 100 bytes, then we parse it internally
+	nodeAddress := 100
+	lockedBalance := 8
+	return uint32(nodePublicKey + accountType + accountAddress + registrationHeight + nodeAddress + lockedBalance)
 }

@@ -166,7 +166,7 @@ func (bp *BlockchainProcessor) GenerateBlock(previousBlock *model.Block, secretP
 		}
 		digest := sha3.New512()
 		for _, mpTx := range mempoolTransactions {
-			tx, err := coreUtil.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
 				return nil, err
 			}
@@ -206,7 +206,7 @@ func (bp *BlockchainProcessor) AddGenesis() error {
 	var payloadLength uint32
 	var blockTransactions []*model.Transaction
 	for _, tx := range service.GetGenesisTransactions(bp.Chaintype) {
-		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
+		txBytes, _ := util.GetTransactionBytes(tx, true)
 		_, _ = digest.Write(txBytes)
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
