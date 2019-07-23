@@ -12,3 +12,4 @@ zoobc
 .idea
 *.db
 cover.out
+coverage*.*
