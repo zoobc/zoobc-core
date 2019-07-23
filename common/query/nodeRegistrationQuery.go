@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -9,11 +10,12 @@ import (
 
 type (
 	NodeRegistrationQueryInterface interface {
-		InsertNodeRegistration() string
-		ExtractModel(nr *model.NodeRegistration) []interface{}
+		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		GetNodeRegistrations(registrationHeight, size uint32)
 		GetNodeRegistrationNodeByPublicKey(nodePublicKey []byte)
 		GetNodeRegistrationByAccountPublicKey(accountPublicKey []byte)
+		ExtractModel(nr *model.NodeRegistration) []interface{}
+		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
 	}
 
 	NodeRegistrationQuery struct {
@@ -33,15 +35,13 @@ func (nr *NodeRegistrationQuery) getTableName() string {
 	return nr.TableName
 }
 
-func (nr *NodeRegistrationQuery) InsertNodeRegistration() string {
-	var value = ":" + nr.Fields[0]
-	for _, field := range nr.Fields[1:] {
-		value += (", :" + field)
-
-	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s); ",
-		nr.getTableName(), strings.Join(nr.Fields, ", "), value)
-	return query
+func (nr *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		nr.TableName,
+		strings.Join(nr.Fields, ","),
+		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nr.Fields)-1)),
+	), nr.ExtractModel(nodeRegistration)
 }
 
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
@@ -70,7 +70,27 @@ func (*NodeRegistrationQuery) ExtractModel(nr *model.NodeRegistration) []interfa
 		nr.RegistrationHeight,
 		nr.NodeAddress,
 		nr.LockedBalance,
+		nr.Queued,
 		nr.Latest,
 		nr.Height,
 	}
+}
+
+// BuildModel will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+func (*NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration {
+	for rows.Next() {
+		var nr model.NodeRegistration
+		_ = rows.Scan(
+			&nr.NodePublicKey,
+			&nr.AccountId,
+			&nr.RegistrationHeight,
+			&nr.NodeAddress,
+			&nr.LockedBalance,
+			&nr.Queued,
+			&nr.Latest,
+			&nr.Height)
+		nodeRegistrations = append(nodeRegistrations, &nr)
+	}
+	return nodeRegistrations
 }
