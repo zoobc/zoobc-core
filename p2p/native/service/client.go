@@ -59,12 +59,11 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 // SendPeers sends set of peers to other node (to populate the network)
 func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
 	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
-	defer conn.Close()
 	if err != nil {
 		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 	}
+	defer conn.Close()
 	p2pClient := service.NewP2PCommunicationClient(conn)
-	// ctx := psc.buildContext()
 	res, err := p2pClient.SendPeers(context.Background(), &model.SendPeersRequest{
 		Peers: peersInfo,
 	})

@@ -16,31 +16,25 @@ func TestClientPeerService(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *PeerService
+		want *PeerServiceClient
 	}{
 		// Test cases.
 		{name: "ClientPeerService:success",
 			args: args{
 				chaintype: new(chaintype.MainChain),
 			},
-			want: &PeerService{
-				Peer:      nil,
-				ChainType: new(chaintype.MainChain),
-			},
+			want: &PeerServiceClient{},
 		},
 		{name: "ClientPeerService:fail",
 			args: args{
 				chaintype: nil,
 			},
-			want: &PeerService{
-				Peer:      nil,
-				ChainType: nil,
-			},
+			want: &PeerServiceClient{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ClientPeerService(tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
+			if got := NewPeerServiceClient(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ClientPeerService() = %v, want %v", got, tt.want)
 			}
 		})
