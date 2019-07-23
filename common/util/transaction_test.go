@@ -20,13 +20,16 @@ type mockQueryExecutorSuccess struct {
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 
-	getAccountBalanceByAccountID := "SELECT account_id,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE account_id = ? AND latest = 1"
+	getAccountBalanceByAccountID := "SELECT account_id,block_height,spendable_balance,balance,pop_revenue," +
+		"latest FROM account_balance WHERE account_id = ? AND latest = 1"
 	defer db.Close()
 	switch qe {
 	case getAccountBalanceByAccountID:
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"account_id", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"},
 		).AddRow([]byte{}, 1, 10000, 10000, 0, 1))
+	default:
+		return nil, nil
 	}
 
 	rows, _ := db.Query(qe)

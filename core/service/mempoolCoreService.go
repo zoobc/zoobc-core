@@ -109,7 +109,10 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return errors.New("DatabaseError")
 	}
 
-	mps.ValidateMempoolTransaction(mpTx)
+	if err := mps.ValidateMempoolTransaction(mpTx); err != nil {
+		return err
+	}
+
 	result, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
 	if err != nil {
 		return err
