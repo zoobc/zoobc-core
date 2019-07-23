@@ -74,13 +74,22 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 	genesisAccountInsertQ, genesisAccountInsertArgs := query.NewAccountQuery().InsertAccount(&genesisAccount)
 	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
 		&genesisAccountBalance)
-	_, err := executor.ExecuteStatement(genesisAccountInsertQ, genesisAccountInsertArgs...)
+	_ = executor.BeginTx()
+	var genesisQueries [][]interface{}
+	genesisQueries = append(genesisQueries,
+		append(
+			[]interface{}{genesisAccountInsertQ}, genesisAccountInsertArgs...),
+		append(
+			[]interface{}{genesisAccountBalanceInsertQ}, genesisAccountBalanceInsertArgs...),
+	)
+	err := executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		return errors.New("fail to add genesis account")
-	}
-	_, err = executor.ExecuteStatement(genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs...)
-	if err != nil {
+		_ = executor.RollbackTx()
 		return errors.New("fail to add genesis account balance")
+	}
+	err = executor.CommitTx()
+	if err != nil {
+		return err
 	}
 	return nil
 }

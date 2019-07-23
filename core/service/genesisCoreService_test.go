@@ -1,77 +1,81 @@
 package service
 
 import (
-	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
 
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
 	mockExecutorAddGenesisAccountSuccess struct {
-		query.ExecutorInterface
+		query.Executor
 	}
-	mockExecutorAddGenesisAccountFailAccount struct {
-		query.ExecutorInterface
+	mockExecutorAddGenesisAccountFailExecuteTransactions struct {
+		query.Executor
 	}
 
-	mockExecutorAddGenesisAccountFailAccountBalance struct {
-		query.ExecutorInterface
+	mockExecutorAddGenesisAccountCommitFail struct {
+		query.Executor
 	}
 )
 
-func (*mockExecutorAddGenesisAccountSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, nil
+func (*mockExecutorAddGenesisAccountSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
 }
 
-func (*mockExecutorAddGenesisAccountFailAccount) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, errors.New("mockError:accountInsertFail")
+func (*mockExecutorAddGenesisAccountFailExecuteTransactions) ExecuteTransactions(queries [][]interface{}) error {
+	return errors.New("mockError:accountInsertFail")
 }
 
-func (*mockExecutorAddGenesisAccountFailAccountBalance) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	if qe == "INSERT INTO account (id,account_type,address) VALUES(? , ?, ?)" {
-		return nil, nil
-	}
-	return nil, errors.New("mockError:accountInsertFail")
+func (*mockExecutorAddGenesisAccountCommitFail) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
 }
 
 func TestAddGenesisAccount(t *testing.T) {
-	type args struct {
-		executor query.ExecutorInterface
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "AddGenesisAccount:success",
-			args: args{
-				executor: &mockExecutorAddGenesisAccountSuccess{},
+	t.Run("AddGenesisAccount:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin() // we'll skip prepare expectation by mocking the function
+		mock.ExpectCommit()
+		err := AddGenesisAccount(&mockExecutorAddGenesisAccountSuccess{
+			query.Executor{
+				Db: db,
 			},
-			wantErr: false,
-		},
-		{
-			name: "AddGenesisAccount:fail-{fail insert account}",
-			args: args{
-				executor: &mockExecutorAddGenesisAccountFailAccount{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "AddGenesisAccount:fail-{fail insert account balance}",
-			args: args{
-				executor: &mockExecutorAddGenesisAccountFailAccountBalance{},
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := AddGenesisAccount(tt.args.executor); (err != nil) != tt.wantErr {
-				t.Errorf("AddGenesisAccount() error = %v, wantErr %v", err, tt.wantErr)
-			}
 		})
-	}
+		if err != nil {
+			t.Error("should be able to add genesis successfully")
+		}
+	})
+	t.Run("AddGenesisAccount:fail-{fail execute tx}", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectRollback()
+		err := AddGenesisAccount(&mockExecutorAddGenesisAccountFailExecuteTransactions{
+			query.Executor{
+				Db: db,
+			},
+		})
+		if err == nil {
+			t.Error("ExecuteTransactionsFailure should causes error")
+		}
+	})
+	t.Run("AddGenesisAccount:fail-{fail commit tx}", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectBegin()
+		mock.ExpectCommit().WillReturnError(errors.New("mockError:commitFail"))
+		mock.ExpectRollback()
+		err := AddGenesisAccount(&mockExecutorAddGenesisAccountCommitFail{
+			query.Executor{
+				Db: db,
+			},
+		})
+		if err == nil {
+			t.Error("ExecuteTransactionsFailure should causes error")
+		}
+	})
 }

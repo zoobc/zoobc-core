@@ -157,10 +157,12 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 }
 
 // ExecuteTransactionCommit commit on every transaction stacked in Executor.Tx
+// note: rollback is called in this function if commit fail, to avoid locking complication
 func (qe *Executor) CommitTx() error {
 	err := qe.Tx.Commit()
 	defer qe.Unlock() // either success or not struct access should be unlocked once done
 	if err != nil {
+		_ = qe.Tx.Rollback()
 		return err
 	}
 	return nil
