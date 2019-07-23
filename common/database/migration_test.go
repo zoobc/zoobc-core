@@ -1,12 +1,29 @@
 package database
 
 import (
+	"database/sql"
 	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/query"
 )
+
+type (
+	mockExecutorInitFailRows struct {
+		query.Executor
+	}
+)
+
+func (*mockExecutorInitFailRows) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Version"}).AddRow(1))
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
 
 func TestMigration_Init(t *testing.T) {
 	db, _, err := sqlmock.New()
@@ -17,15 +34,11 @@ func TestMigration_Init(t *testing.T) {
 
 	type fields struct {
 		Versions []string
-		Query    *query.Executor
-	}
-	type args struct {
-		query *query.Executor
+		Query    query.ExecutorInterface
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		wantErr bool
 	}{
 		{
@@ -38,9 +51,6 @@ func TestMigration_Init(t *testing.T) {
 					);`,
 				},
 				Query: query.NewQueryExecutor(db),
-			},
-			args: args{
-				query: query.NewQueryExecutor(db),
 			},
 			wantErr: false,
 		},
@@ -55,10 +65,20 @@ func TestMigration_Init(t *testing.T) {
 				},
 				Query: nil,
 			},
-			args: args{
-				query: nil,
-			},
 			wantErr: true,
+		},
+		{
+			name: "wantSuccess:versionNotNil",
+			fields: fields{
+				Versions: []string{
+					`CREATE TABLE IF NOT EXISTS "migration" (
+						"version" INTEGER DEFAULT 0 NOT NULL,
+						"created_date" TIMESTAMP NOT NULL
+					);`,
+				},
+				Query: &mockExecutorInitFailRows{},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -67,7 +87,7 @@ func TestMigration_Init(t *testing.T) {
 				Versions: tt.fields.Versions,
 				Query:    tt.fields.Query,
 			}
-			if err := m.Init(tt.args.query); (err != nil) != tt.wantErr {
+			if err := m.Init(); (err != nil) != tt.wantErr {
 				t.Errorf("Migration.Init() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -67,8 +67,8 @@ func main() {
 
 	queryExecutor := query.NewQueryExecutor(db)
 
-	migration := database.Migration{}
-	if err := migration.Init(queryExecutor); err != nil {
+	migration := database.Migration{Query: queryExecutor}
+	if err := migration.Init(); err != nil {
 		panic(err)
 	}
 
@@ -84,6 +84,10 @@ func main() {
 			query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature()),
 		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
 	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
+		err := service.AddGenesisAccount(queryExecutor) // genesis account will be inserted in the very beginning
+		if err != nil {
+			panic("Fail to add genesis account")
+		}
 		_ = blockchainProcessor.AddGenesis()
 	}
 	if len(nodeSecretPhrase) > 0 {
