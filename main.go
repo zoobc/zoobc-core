@@ -27,6 +27,7 @@ var (
 	db                      *sql.DB
 	nodeSecretPhrase        string
 	apiRPCPort, apiHTTPPort int
+	queryExecutor           *query.Executor
 )
 
 func init() {
@@ -55,6 +56,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	queryExecutor = query.NewQueryExecutor(db)
 }
 
 func startServices(queryExecutor *query.Executor) {
@@ -62,8 +64,6 @@ func startServices(queryExecutor *query.Executor) {
 }
 
 func main() {
-
-	queryExecutor := query.NewQueryExecutor(db)
 
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
@@ -82,19 +82,19 @@ func main() {
 		smith.NewBlocksmith(nodeSecretPhrase),
 		service.NewBlockService(
 			mainchain,
-			query.NewQueryExecutor(db),
+			queryExecutor,
 			query.NewBlockQuery(mainchain),
 			query.NewMempoolQuery(mainchain),
 			query.NewTransactionQuery(mainchain),
 			crypto.NewSignature(),
+			service.NewMempoolService(
+				mainchain,
+				queryExecutor,
+				query.NewMempoolQuery(mainchain),
+			),
 			&transaction.TypeSwitcher{
-				Executor: query.NewQueryExecutor(db),
+				Executor: queryExecutor,
 			},
-		),
-		service.NewMempoolService(
-			mainchain,
-			query.NewQueryExecutor(db),
-			query.NewMempoolQuery(mainchain),
 		),
 	)
 

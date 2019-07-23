@@ -65,6 +65,7 @@ func NewBlockService(
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
 	signature crypto.SignatureInterface,
+	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 ) *BlockService {
 	return &BlockService{
@@ -74,6 +75,7 @@ func NewBlockService(
 		MempoolQuery:       mempoolQuery,
 		TransactionQuery:   transactionQuery,
 		Signature:          signature,
+		MempoolService:     mempoolService,
 		ActionTypeSwitcher: txTypeSwitcher,
 	}
 }

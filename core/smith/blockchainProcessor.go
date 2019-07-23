@@ -29,11 +29,10 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype      contract.ChainType
-		Generator      *Blocksmith
-		BlockService   service.BlockServiceInterface
-		MempoolService service.MempoolServiceInterface
-		LastBlockID    int64
+		Chaintype    contract.ChainType
+		Generator    *Blocksmith
+		BlockService service.BlockServiceInterface
+		LastBlockID  int64
 	}
 )
 
@@ -42,13 +41,11 @@ func NewBlockchainProcessor(
 	ct contract.ChainType,
 	blocksmith *Blocksmith,
 	blockService service.BlockServiceInterface,
-	mempoolService service.MempoolServiceInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Chaintype:      ct,
-		Generator:      blocksmith,
-		BlockService:   blockService,
-		MempoolService: mempoolService,
+		Chaintype:    ct,
+		Generator:    blocksmith,
+		BlockService: blockService,
 	}
 }
 
