@@ -36,10 +36,9 @@ __If Not Genesis__:
 func (tx *SendMoney) ApplyConfirmed() error {
 	// todo: undo apply unconfirmed for non-genesis transaction
 	var (
-		recipientAccountBalance model.AccountBalance
-		recipientAccount        model.Account
-		senderAccount           model.Account
-		err                     error
+		recipientAccount model.Account
+		senderAccount    model.Account
+		err              error
 	)
 
 	if err := tx.Validate(); err != nil {
@@ -57,49 +56,26 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		Address:     tx.SenderAddress,
 	}
 
-	if tx.Height == 0 { // create recipient account if genesis
-		recipientAccountBalance = model.AccountBalance{
-			AccountID:        recipientAccount.ID,
-			BlockHeight:      tx.Height,
-			SpendableBalance: 0,
-			Balance:          0,
-			PopRevenue:       0,
-			Latest:           true,
-		}
-		recipientAccountInsertQ, recipientAccountInsertArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
-		recipientAccountBalanceInsertQ, recipientAccountBalanceInsertArgs := tx.AccountBalanceQuery.InsertAccountBalance(&recipientAccountBalance)
-		err = tx.QueryExecutor.ExecuteTransaction(recipientAccountInsertQ, recipientAccountInsertArgs...)
-		if err != nil {
-			return err
-		}
-		err = tx.QueryExecutor.ExecuteTransaction(recipientAccountBalanceInsertQ, recipientAccountBalanceInsertArgs...)
-		if err != nil {
-			return err
-		}
-	}
 	// update recipient
-	accountBalanceRecipientQ, accountBalanceRecipientQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
 		tx.Body.Amount,
 		map[string]interface{}{
-			"account_id": recipientAccount.ID,
+			"account_id":   recipientAccount.ID,
+			"block_height": tx.Height,
 		},
 	)
 	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountBalance(
+	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-tx.Body.Amount,
 		map[string]interface{}{
-			"account_id": senderAccount.ID,
+			"account_id":   senderAccount.ID,
+			"block_height": tx.Height,
 		},
 	)
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err = tx.QueryExecutor.ExecuteTransactions(append(accountBalanceRecipientQ, accountBalanceSenderQ...))
 	if err != nil {
 		return err
 	}
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceRecipientQ, accountBalanceRecipientQArgs...)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

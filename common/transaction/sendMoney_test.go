@@ -3,7 +3,6 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"regexp"
 	"testing"
 
@@ -24,9 +23,6 @@ type (
 	executorAccountCountFail struct {
 		query.Executor
 	}
-	executorAccountCountBalanceFail struct {
-		query.Executor
-	}
 
 	executorValidateSuccess struct {
 		query.Executor
@@ -35,12 +31,12 @@ type (
 		executorValidateSuccess
 	}
 
-	executorAccountBalanceFailSenderNonGenesis struct {
+	executorFailUpdateAccount struct {
 		executorAccountCountSuccess
 	}
 
-	executorAccountBalanceFailRecipientNonGenesis struct {
-		executorAccountCountSuccess
+	executorSuccessUpdateAccount struct {
+		query.Executor
 	}
 )
 
@@ -103,6 +99,10 @@ func (*executorAccountCreateSuccess) ExecuteTransaction(qStr string, args ...int
 	return nil
 }
 
+func (*executorAccountCreateSuccess) ExecuteTransactions([][]interface{}) error {
+	return nil
+}
+
 func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -145,35 +145,20 @@ func (*executorAccountCountFail) ExecuteTransaction(qStr string, args ...interfa
 	return errors.New("mockError:accountInsertFail")
 }
 
-func (*executorAccountCountFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
-	db, mock, _ := sqlmock.New()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
-		"total_record",
-	}).AddRow(1))
-
-	return db.QueryRow(qStr, 1, 2)
+func (*executorAccountCountFail) ExecuteTransactions([][]interface{}) error {
+	return errors.New("mockError:accountInsertFail")
 }
 
-func (*executorAccountCountBalanceFail) ExecuteTransaction(qStr string, args ...interface{}) error {
-	a := regexp.QuoteMeta(qStr)
-	fmt.Printf("qstr %s\n", a)
-	if regexp.QuoteMeta(qStr) == `INSERT INTO account \(id,account_type,address\) VALUES\(\? , \?, \?\)` {
-		return nil
-	}
+func (*executorFailUpdateAccount) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:accountbalanceFail")
 }
 
-func (*executorAccountBalanceFailSenderNonGenesis) ExecuteTransaction(qStr string, args ...interface{}) error {
-	return errors.New("mockError:accountbalanceFail")
+func (*executorFailUpdateAccount) ExecuteTransactions([][]interface{}) error {
+	return errors.New("mockError:senderFail")
 }
 
-func (*executorAccountBalanceFailRecipientNonGenesis) ExecuteTransaction(qStr string, args ...interface{}) error {
-	if qStr == "UPDATE account_balance SET balance = balance + (-1), spendable_balance = spendable_balance"+
-		" + (-1) WHERE account_id = ?" {
-		return nil
-	}
-	return errors.New("mockError:accountbalanceFail")
+func (*executorSuccessUpdateAccount) ExecuteTransactions([][]interface{}) error {
+	return nil
 }
 
 func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
@@ -480,10 +465,27 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantSuccess:CreateAccount",
+			name: "wantFail:deductAddMoneyFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
+					Amount: 1,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorFailUpdateAccount{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantsuccess",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
 				},
 				Height:               0,
 				SenderAccountType:    0,
@@ -492,77 +494,9 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorAccountCreateSuccess{},
+				QueryExecutor:        &executorSuccessUpdateAccount{},
 			},
 			wantErr: false,
-		},
-		{
-			name: "wantFail:CreateAccount-{insert account fail}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorAccountCountFail{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantFail:CreateAccount-{insert account balance fail}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorAccountCountBalanceFail{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantFail:SenderFail-{non-genesis}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 1,
-				},
-				Height:               1,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorAccountBalanceFailSenderNonGenesis{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantFail:RecipientFail-{non-genesis}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 1,
-				},
-				Height:               1,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorAccountBalanceFailRecipientNonGenesis{},
-			},
-			wantErr: true,
 		},
 	}
 

@@ -19,7 +19,7 @@ type (
 		GetAccountBalanceByAccountID() string
 		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
-		AddAccountBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
+		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
 	}
 )
@@ -46,9 +46,22 @@ func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
 	`, strings.Join(q.Fields, ","), q.TableName)
 }
 
-func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{}) {
-	return fmt.Sprintf("UPDATE %s SET balance = balance + (%d), spendable_balance = spendable_balance + (%d) WHERE account_id = ?",
-		q.TableName, balance, balance), []interface{}{causedFields["account_id"]}
+func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
+	var queries [][]interface{}
+	updateVersionQuery := fmt.Sprintf("UPDATE %s SET latest = false WHERE account_id = ? AND block_height = %d - 1 AND latest = true",
+		q.TableName, causedFields["block_height"])
+	updateBalanceQuery := fmt.Sprintf("INSERT INTO %s (account_id, block_height, spendable_balance, balance, pop_revenue, latest) "+
+		"VALUES (?, %d, %d, %d, 0, true) ON CONFLICT(account_id, block_height) DO UPDATE SET spendable_balance = spendable_balance + %d, "+
+		"balance = balance + %d", q.TableName, causedFields["block_height"], balance, balance, balance, balance)
+	queries = append(queries,
+		[]interface{}{
+			updateVersionQuery, causedFields["account_id"],
+		},
+		[]interface{}{
+			updateBalanceQuery, causedFields["account_id"],
+		},
+	)
+	return queries
 }
 
 func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (
