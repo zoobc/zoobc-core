@@ -301,7 +301,7 @@ func TestReadAccountAddress(t *testing.T) {
 		{
 			name: "ReadAccountAddress:case_default:bcz",
 			args: args{
-				accountType: 0,
+				accountType: 10000,
 				buf:         bytes.NewBuffer([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
 			},
 			want: []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
