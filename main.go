@@ -76,7 +76,6 @@ func main() {
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 
-	// todo: read secret phrase from config
 	blockchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),

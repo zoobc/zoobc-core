@@ -200,6 +200,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
 				}
+			} else {
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
 			}
 		}
 		if block.Height != 0 {
