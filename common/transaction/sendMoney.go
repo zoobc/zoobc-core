@@ -198,10 +198,12 @@ func (tx *SendMoney) Validate() error {
 	return nil
 }
 
+// GetAmount return Amount from TransactionBody
 func (tx *SendMoney) GetAmount() int64 {
 	return tx.Body.Amount
 }
 
+// GetSize send money Amount should be 8
 func (*SendMoney) GetSize() uint32 {
 	// only amount (int64)
 	return 8

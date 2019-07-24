@@ -10,8 +10,6 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -92,17 +90,6 @@ func (c *transactionServiceClient) GetTransaction(ctx context.Context, in *model
 type TransactionServiceServer interface {
 	GetTransactions(context.Context, *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error)
 	GetTransaction(context.Context, *model.GetTransactionRequest) (*model.Transaction, error)
-}
-
-// UnimplementedTransactionServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedTransactionServiceServer struct {
-}
-
-func (*UnimplementedTransactionServiceServer) GetTransactions(ctx context.Context, req *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransactions not implemented")
-}
-func (*UnimplementedTransactionServiceServer) GetTransaction(ctx context.Context, req *model.GetTransactionRequest) (*model.Transaction, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransaction not implemented")
 }
 
 func RegisterTransactionServiceServer(s *grpc.Server, srv TransactionServiceServer) {

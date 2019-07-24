@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -29,17 +30,24 @@ type (
 		Chaintype           contract.ChainType
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 	}
 )
 
 // NewMempoolService returns an instance of mempool service
-func NewMempoolService(ct contract.ChainType, queryExecutor query.ExecutorInterface,
-	mempoolQuery query.MempoolQueryInterface, accountBalanceQuery query.AccountBalanceQueryInterface) *MempoolService {
+func NewMempoolService(
+	ct contract.ChainType,
+	queryExecutor query.ExecutorInterface,
+	mempoolQuery query.MempoolQueryInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
+) *MempoolService {
 	return &MempoolService{
 		Chaintype:           ct,
 		QueryExecutor:       queryExecutor,
 		MempoolQuery:        mempoolQuery,
+		ActionTypeSwitcher:  actionTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
 	}
 }
@@ -130,7 +138,8 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return err
 	}
 
-	if err := transaction.GetTransactionType(tx, mps.QueryExecutor).ApplyUnconfirmed(); err != nil {
+	if err := mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
+
 		return err
 	}
 	return nil
@@ -171,7 +180,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 
-			if err := transaction.GetTransactionType(tx, mps.QueryExecutor).Validate(); err != nil {
+			if err = mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
 				continue
 			}
 
