@@ -1,7 +1,6 @@
 package query
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -17,7 +16,6 @@ type (
 	// AccountBalanceQueryInterface interface that implemented by AccountBalanceQuery
 	AccountBalanceQueryInterface interface {
 		GetAccountBalanceByAccountID() string
-		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
@@ -39,11 +37,7 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 	}
 }
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
-	return fmt.Sprintf(`
-		SELECT %s
-		FROM %s
-		WHERE account_id = ? 
-	`, strings.Join(q.Fields, ","), q.TableName)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = ?", strings.Join(q.Fields, ","), q.TableName)
 }
 
 func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
@@ -68,39 +62,6 @@ func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFi
 	str string, args []interface{}) {
 	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_id = ?",
 		q.TableName, balance), []interface{}{causedFields["account_id"]}
-}
-
-func (q *AccountBalanceQuery) UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{}) {
-
-	var (
-		buff *bytes.Buffer
-		i, j int
-	)
-
-	buff = bytes.NewBufferString(fmt.Sprintf(`
-		UPDATE %s SET 
-	`, q.TableName))
-
-	for k, v := range fields {
-		buff.WriteString(fmt.Sprintf("%s = ? ", k))
-		if i < len(fields) && len(fields) > 1 {
-			buff.WriteString(",")
-		}
-		args = append(args, v)
-		i++
-	}
-
-	buff.WriteString("WHERE ")
-	for k, v := range causedFields {
-		buff.WriteString(fmt.Sprintf("%s = ?", k))
-		if j < len(causedFields) && len(causedFields) > 1 {
-			buff.WriteString(" AND")
-		}
-		j++
-		args = append(args, v)
-	}
-
-	return buff.String(), args
 }
 
 func (q *AccountBalanceQuery) InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{}) {
