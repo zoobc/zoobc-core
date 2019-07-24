@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 
@@ -36,25 +37,27 @@ type (
 	}
 
 	BlockService struct {
-		Chaintype        contract.ChainType
-		QueryExecutor    query.ExecutorInterface
-		BlockQuery       query.BlockQueryInterface
-		MempoolQuery     query.MempoolQueryInterface
-		TransactionQuery query.TransactionQueryInterface
-		Signature        crypto.SignatureInterface
+		Chaintype           contract.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
 	}
 )
 
 func NewBlockService(chaintype contract.ChainType, queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface, mempoolQuery query.MempoolQueryInterface, transactionQuery query.TransactionQueryInterface,
-	signature crypto.SignatureInterface) *BlockService {
+	accountBalanceQuery query.AccountBalanceQueryInterface, signature crypto.SignatureInterface) *BlockService {
 	return &BlockService{
-		Chaintype:        chaintype,
-		QueryExecutor:    queryExecutor,
-		BlockQuery:       blockQuery,
-		MempoolQuery:     mempoolQuery,
-		TransactionQuery: transactionQuery,
-		Signature:        signature,
+		Chaintype:           chaintype,
+		QueryExecutor:       queryExecutor,
+		BlockQuery:          blockQuery,
+		MempoolQuery:        mempoolQuery,
+		TransactionQuery:    transactionQuery,
+		AccountBalanceQuery: accountBalanceQuery,
+		Signature:           signature,
 	}
 }
 
@@ -134,6 +137,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
+			// validate the transaction
+			if err := util.ValidateTransaction(tx, bs.QueryExecutor, bs.AccountBalanceQuery, true); err != nil {
+				return err
+			}
+			// validate tx body and apply/perform transaction-specific logic
 			err := transaction.GetTransactionType(tx, bs.QueryExecutor).ApplyConfirmed() // todo: make this mockable
 			if err == nil {
 				tx.BlockID = block.ID
