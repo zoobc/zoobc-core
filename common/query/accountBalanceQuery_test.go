@@ -56,7 +56,7 @@ func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
 		res := mockAccountBalanceQuery.GetAccountBalanceByAccountID()
 		want := "SELECT account_id,block_height,spendable_balance,balance,pop_revenue,latest " +
-			"FROM account_balance WHERE account_id = ?"
+			"FROM account_balance WHERE account_id = ? AND latest = 1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
