@@ -45,7 +45,7 @@ func (aq *AccountQuery) GetAccountByIDs(ids [][]byte) (str string, args [][]byte
 		strings.Join(aq.Fields, ","),
 		aq.TableName,
 		fmt.Sprintf("? %s", strings.Repeat(",?", len(ids)-1)),
-	), args
+	), ids
 }
 
 func (aq *AccountQuery) InsertAccount(account *model.Account) (str string, args []interface{}) {
