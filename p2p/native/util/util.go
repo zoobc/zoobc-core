@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
@@ -75,16 +74,6 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
-}
-
-// GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
-func GetExceedMaxUnresolvedPeers(unresolvedPeers map[string]*model.Peer) int {
-	return len(unresolvedPeers) - constant.MaxUnresolvedPeers + 1
-}
-
-// GetExceedMaxResolvedPeers returns number of peers exceeding max number of the connected peers
-func GetExceedMaxResolvedPeers(resolvedPeers map[string]*model.Peer) int {
-	return len(resolvedPeers) - constant.MaxResolvedPeers + 1
 }
 
 func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
