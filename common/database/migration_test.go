@@ -94,12 +94,19 @@ func TestMigration_Init(t *testing.T) {
 	}
 }
 
-func TestMigration_Apply(t *testing.T) {
+var dbMock, mock, _ = sqlmock.New()
+
+type (
+	mockQueryExecutorVersionNotNil struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorVersionNotNil) ExecuteTransaction(qStr string, args ...interface{}) error {
 	db, mock, err := sqlmock.New()
 	if err != nil {
-		t.Fatalf("error while opening database connection")
+		return err
 	}
-	defer db.Close()
 
 	mock.ExpectBegin()
 	mock.ExpectPrepare(regexp.QuoteMeta(`
@@ -120,10 +127,21 @@ func TestMigration_Apply(t *testing.T) {
 		);
 	`)).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectCommit()
+	_, err = db.Exec("")
+	return err
+}
+
+func (*mockQueryExecutorVersionNotNil) CommitTx() error {
+	return nil
+}
+
+func TestMigration_Apply(t *testing.T) {
+	currentVersion := 0
 
 	type fields struct {
-		Versions []string
-		Query    *query.Executor
+		CurrentVersion *int
+		Versions       []string
+		Query          query.ExecutorInterface
 	}
 	tests := []struct {
 		name    string
@@ -140,7 +158,26 @@ func TestMigration_Apply(t *testing.T) {
 						PRIMARY KEY("public_key")
 					);`,
 				},
-				Query: query.NewQueryExecutor(db),
+				Query: &mockQueryExecutorVersionNotNil{
+					query.Executor{Db: dbMock},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantSuccess:VersionNil",
+			fields: fields{
+				CurrentVersion: &currentVersion,
+				Versions: []string{
+					`CREATE TABLE IF NOT EXISTS "accounts" (
+						id	INTEGER,
+						public_key	BLOB  NOT NULL,
+						PRIMARY KEY("public_key")
+					);`,
+				},
+				Query: &mockQueryExecutorVersionNotNil{
+					query.Executor{Db: dbMock},
+				},
 			},
 			wantErr: false,
 		},
@@ -148,14 +185,15 @@ func TestMigration_Apply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &Migration{
-				Versions: tt.fields.Versions,
-				Query:    tt.fields.Query,
+				CurrentVersion: tt.fields.CurrentVersion,
+				Versions:       tt.fields.Versions,
+				Query:          tt.fields.Query,
 			}
 			if err := m.Apply(); (err != nil) != tt.wantErr {
 				t.Errorf("Migration.Apply() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if err = mock.ExpectationsWereMet(); err != nil {
+			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Migration.Apply() query: %s, want: %s", tt.fields.Versions[0], err)
 			}
 		})
