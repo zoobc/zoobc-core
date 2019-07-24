@@ -3,11 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"math/big"
 	"strings"
-
-	"github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -96,23 +92,8 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
 func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
-	digest := sha3.New512()
-	txBytes, _ := util.GetTransactionBytes(tx, true)
-	_, _ = digest.Write(txBytes)
-	hash := digest.Sum([]byte{})
-	res := new(big.Int)
-	txID := res.SetBytes([]byte{
-		hash[7],
-		hash[6],
-		hash[5],
-		hash[4],
-		hash[3],
-		hash[2],
-		hash[1],
-		hash[0],
-	}).Int64()
 	return []interface{}{
-		txID,
+		&tx.ID,
 		&tx.BlockID,
 		&tx.Height,
 		&tx.SenderAccountType,

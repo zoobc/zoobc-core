@@ -10,8 +10,6 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -92,17 +90,6 @@ func (c *blockServiceClient) GetBlock(ctx context.Context, in *model.GetBlockReq
 type BlockServiceServer interface {
 	GetBlocks(context.Context, *model.GetBlocksRequest) (*model.GetBlocksResponse, error)
 	GetBlock(context.Context, *model.GetBlockRequest) (*model.Block, error)
-}
-
-// UnimplementedBlockServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedBlockServiceServer struct {
-}
-
-func (*UnimplementedBlockServiceServer) GetBlocks(ctx context.Context, req *model.GetBlocksRequest) (*model.GetBlocksResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
-}
-func (*UnimplementedBlockServiceServer) GetBlock(ctx context.Context, req *model.GetBlockRequest) (*model.Block, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
 }
 
 func RegisterBlockServiceServer(s *grpc.Server, srv BlockServiceServer) {

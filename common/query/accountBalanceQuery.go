@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,8 @@ type (
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
+		ExtractModel(accountBalance *model.AccountBalance) []interface{}
+		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance
 	}
 )
 
@@ -37,7 +40,7 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 	}
 }
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = ?", strings.Join(q.Fields, ","), q.TableName)
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_id = ? AND latest = 1`, strings.Join(q.Fields, ","), q.TableName)
 }
 
 func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
@@ -82,4 +85,21 @@ func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interf
 		account.PopRevenue,
 		account.Latest,
 	}
+}
+
+// BuildModel will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance {
+	for rows.Next() {
+		var accountBalance model.AccountBalance
+		_ = rows.Scan(
+			&accountBalance.AccountID,
+			&accountBalance.BlockHeight,
+			&accountBalance.SpendableBalance,
+			&accountBalance.Balance,
+			&accountBalance.PopRevenue,
+			&accountBalance.Latest)
+		accountBalances = append(accountBalances, &accountBalance)
+	}
+	return accountBalances
 }

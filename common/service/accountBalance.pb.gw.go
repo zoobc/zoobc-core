@@ -37,10 +37,7 @@ func request_AccountBalanceService_GetAccountBalances_0(ctx context.Context, mar
 	var protoReq model.GetAccountBalancesRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_AccountBalanceService_GetAccountBalances_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_AccountBalanceService_GetAccountBalances_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -57,10 +54,7 @@ func request_AccountBalanceService_GetAccountBalance_0(ctx context.Context, mars
 	var protoReq model.GetAccountBalanceRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_AccountBalanceService_GetAccountBalance_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_AccountBalanceService_GetAccountBalance_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -151,9 +145,9 @@ func RegisterAccountBalanceServiceHandlerClient(ctx context.Context, mux *runtim
 }
 
 var (
-	pattern_AccountBalanceService_GetAccountBalances_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "account", "GetAccountBalances"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_AccountBalanceService_GetAccountBalances_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "account", "GetAccountBalances"}, ""))
 
-	pattern_AccountBalanceService_GetAccountBalance_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "account", "GetAccountBalance"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_AccountBalanceService_GetAccountBalance_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "account", "GetAccountBalance"}, ""))
 )
 
 var (
