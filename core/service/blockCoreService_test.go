@@ -142,14 +142,15 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		chaintype          contract.ChainType
-		queryExecutor      query.ExecutorInterface
-		blockQuery         query.BlockQueryInterface
-		mempoolQuery       query.MempoolQueryInterface
-		transactionQuery   query.TransactionQueryInterface
-		signature          crypto.SignatureInterface
-		mempoolService     MempoolServiceInterface
-		actionTypeSwitcher transaction.TypeActionSwitcher
+		ct                  contract.ChainType
+		queryExecutor       query.ExecutorInterface
+		blockQuery          query.BlockQueryInterface
+		mempoolQuery        query.MempoolQueryInterface
+		transactionQuery    query.TransactionQueryInterface
+		signature           crypto.SignatureInterface
+		mempoolService      MempoolServiceInterface
+		txTypeSwitcher      transaction.TypeActionSwitcher
+		accountBalanceQuery query.AccountBalanceQueryInterface
 	}
 	tests := []struct {
 		name string
@@ -159,7 +160,7 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				chaintype: &chaintype.MainChain{},
+				ct: &chaintype.MainChain{},
 			},
 			want: &BlockService{
 				Chaintype: &chaintype.MainChain{},
@@ -169,14 +170,14 @@ func TestNewBlockService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockService(
-				tt.args.chaintype,
-				tt.args.queryExecutor,
+				tt.args.ct, tt.args.queryExecutor,
 				tt.args.blockQuery,
 				tt.args.mempoolQuery,
 				tt.args.transactionQuery,
 				tt.args.signature,
 				tt.args.mempoolService,
-				tt.args.actionTypeSwitcher,
+				tt.args.txTypeSwitcher,
+				tt.args.accountBalanceQuery,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}

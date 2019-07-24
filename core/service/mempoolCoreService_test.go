@@ -9,13 +9,12 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/google/go-cmp/cmp"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -109,10 +108,11 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
-		ct                 contract.ChainType
-		queryExecutor      query.ExecutorInterface
-		mempoolQuery       query.MempoolQueryInterface
-		actionTypeSwitcher transaction.TypeActionSwitcher
+		ct                  contract.ChainType
+		queryExecutor       query.ExecutorInterface
+		mempoolQuery        query.MempoolQueryInterface
+		actionTypeSwitcher  transaction.TypeActionSwitcher
+		accountBalanceQuery query.AccountBalanceQueryInterface
 	}
 
 	test := struct {
@@ -122,16 +122,10 @@ func TestNewMempoolService(t *testing.T) {
 	}{
 		name: "NewBlockService:success",
 		args: args{
-			ct:                 &chaintype.MainChain{},
-			queryExecutor:      nil,
-			mempoolQuery:       nil,
-			actionTypeSwitcher: nil,
+			ct: &chaintype.MainChain{},
 		},
 		want: &MempoolService{
-			Chaintype:          &chaintype.MainChain{},
-			QueryExecutor:      nil,
-			MempoolQuery:       nil,
-			ActionTypeSwitcher: nil,
+			Chaintype: &chaintype.MainChain{},
 		},
 	}
 
@@ -140,9 +134,9 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
+		test.args.accountBalanceQuery,
 	)
-
-	if !cmp.Equal(got, test.want) {
+	if !reflect.DeepEqual(got, test.want) {
 		t.Errorf("NewMempoolService() = %v, want %v", got, test.want)
 	}
 }

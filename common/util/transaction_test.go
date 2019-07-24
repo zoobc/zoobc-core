@@ -1,14 +1,40 @@
 package util
 
 import (
-	"bytes"
+	"database/sql"
 	"reflect"
+	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
+
+type mockQueryExecutorSuccess struct {
+	query.Executor
+}
+
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+
+	getAccountBalanceByAccountID := "SELECT account_id,block_height,spendable_balance,balance,pop_revenue," +
+		"latest FROM account_balance WHERE account_id = ? AND latest = 1"
+	defer db.Close()
+	switch qe {
+	case getAccountBalanceByAccountID:
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"account_id", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"},
+		).AddRow([]byte{}, 1, 10000, 10000, 0, 1))
+	default:
+		return nil, nil
+	}
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
 
 func TestGetTransactionBytes(t *testing.T) {
 	type args struct {
@@ -280,38 +306,57 @@ func TestGetTransactionID(t *testing.T) {
 	}
 }
 
-func TestReadAccountAddress(t *testing.T) {
+func TestValidateTransaction(t *testing.T) {
 	type args struct {
-		accountType uint32
-		buf         *bytes.Buffer
+		tx                  *model.Transaction
+		queryExecutor       query.ExecutorInterface
+		accountBalanceQuery query.AccountBalanceQueryInterface
+		verifySignature     bool
 	}
 	tests := []struct {
-		name string
-		args args
-		want []byte
+		name    string
+		args    args
+		wantErr bool
 	}{
 		{
-			name: "ReadAccountAddress:case_1:bcz",
+			name: "TestValidateTransaction:success",
 			args: args{
-				accountType: 0,
-				buf:         bytes.NewBuffer([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+				tx: buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"),
+				queryExecutor:       &mockQueryExecutorSuccess{},
+				accountBalanceQuery: query.NewAccountBalanceQuery(),
+				verifySignature:     false,
 			},
-			want: []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
 		},
-		{
-			name: "ReadAccountAddress:case_default:bcz",
-			args: args{
-				accountType: 0,
-				buf:         bytes.NewBuffer([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
-			},
-			want: []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
-		},
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
+			if err := ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
+				tt.args.verifySignature); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
+	return &model.Transaction{
+		Version:                 1,
+		ID:                      2774809487,
+		BlockID:                 1,
+		Height:                  1,
+		SenderAccountType:       0,
+		SenderAccountAddress:    sender,
+		RecipientAccountType:    0,
+		RecipientAccountAddress: recipient,
+		TransactionType:         0,
+		Fee:                     1,
+		Timestamp:               timestamp,
+		TransactionHash:         make([]byte, 32),
+		TransactionBodyLength:   0,
+		TransactionBodyBytes:    make([]byte, 0),
+		TransactionBody:         nil,
+		Signature:               make([]byte, 64),
 	}
 }

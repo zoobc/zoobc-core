@@ -49,6 +49,21 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		default:
 			return nil
 		}
+	case 2:
+		switch buf[1] {
+		case 0:
+			return &NodeRegistration{
+				Body:                tx.GetNodeRegistrationTransactionBody(),
+				SenderAddress:       tx.GetSenderAccountAddress(),
+				SenderAccountType:   tx.GetSenderAccountType(),
+				Height:              tx.GetHeight(),
+				AccountQuery:        query.NewAccountQuery(),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       ts.Executor,
+			}
+		default:
+			return nil
+		}
 	default:
 		return nil
 	}

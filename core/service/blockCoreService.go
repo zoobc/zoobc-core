@@ -47,14 +47,15 @@ type (
 	}
 
 	BlockService struct {
-		Chaintype          contract.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		MempoolService     MempoolServiceInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Chaintype           contract.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Signature           crypto.SignatureInterface
+		MempoolService      MempoolServiceInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
 	}
 )
 
@@ -67,16 +68,18 @@ func NewBlockService(
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
 ) *BlockService {
 	return &BlockService{
-		Chaintype:          ct,
-		QueryExecutor:      queryExecutor,
-		BlockQuery:         blockQuery,
-		MempoolQuery:       mempoolQuery,
-		TransactionQuery:   transactionQuery,
-		Signature:          signature,
-		MempoolService:     mempoolService,
-		ActionTypeSwitcher: txTypeSwitcher,
+		Chaintype:           ct,
+		QueryExecutor:       queryExecutor,
+		BlockQuery:          blockQuery,
+		MempoolQuery:        mempoolQuery,
+		TransactionQuery:    transactionQuery,
+		Signature:           signature,
+		MempoolService:      mempoolService,
+		ActionTypeSwitcher:  txTypeSwitcher,
+		AccountBalanceQuery: accountBalanceQuery,
 	}
 }
 
@@ -182,6 +185,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
+			// validate the transaction
+			if err := util.ValidateTransaction(tx, bs.QueryExecutor, bs.AccountBalanceQuery, true); err != nil {
+				return err
+			}
+			// validate tx body and apply/perform transaction-specific logic
 			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
 			if err == nil {
 				tx.BlockID = block.ID
@@ -343,7 +351,7 @@ func (bs *BlockService) GenerateBlock(
 			return nil, errors.New("MempoolReadError")
 		}
 		for _, mpTx := range mempoolTransactions {
-			tx, err := coreUtil.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
 				return nil, err
 			}
@@ -396,7 +404,7 @@ func (bs *BlockService) AddGenesis() error {
 		digest                               = sha3.New512()
 	)
 	for _, tx := range GetGenesisTransactions(bs.Chaintype) {
-		txBytes, _ := coreUtil.GetTransactionBytes(tx, true)
+		txBytes, _ := util.GetTransactionBytes(tx, true)
 		_, _ = digest.Write(txBytes)
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount

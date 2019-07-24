@@ -94,10 +94,12 @@ func main() {
 				&transaction.TypeSwitcher{
 					Executor: queryExecutor,
 				},
+				query.NewAccountBalanceQuery(),
 			),
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
 			},
+			query.NewAccountBalanceQuery(),
 		),
 	)
 

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/contract"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"

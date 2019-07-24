@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"log"
 	"sort"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -26,10 +26,11 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		Chaintype          contract.ChainType
-		QueryExecutor      query.ExecutorInterface
-		MempoolQuery       query.MempoolQueryInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Chaintype           contract.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
 	}
 )
 
@@ -39,12 +40,14 @@ func NewMempoolService(
 	queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
 ) *MempoolService {
 	return &MempoolService{
-		Chaintype:          ct,
-		QueryExecutor:      queryExecutor,
-		MempoolQuery:       mempoolQuery,
-		ActionTypeSwitcher: actionTypeSwitcher,
+		Chaintype:           ct,
+		QueryExecutor:       queryExecutor,
+		MempoolQuery:        mempoolQuery,
+		ActionTypeSwitcher:  actionTypeSwitcher,
+		AccountBalanceQuery: accountBalanceQuery,
 	}
 }
 
@@ -130,23 +133,12 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	if err != nil {
 		return err
 	}
-
-	// formally validate tx fields
-	if len(tx.TransactionHash) == 0 {
-		return errors.New("InvalidTransactionHash")
-	}
-
-	txID, err := util.GetTransactionID(tx.TransactionHash)
-	if err != nil {
+	if err := util.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
 
-	// verify that transaction ID sent by client = transaction ID calculated from transaction bytes (TransactionHash)
-	if tx.ID != txID {
-		return errors.New("InvalidTransactionID")
-	}
-
 	if err := mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
+
 		return err
 	}
 	return nil
