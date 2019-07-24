@@ -91,6 +91,9 @@ func main() {
 				mainchain,
 				queryExecutor,
 				query.NewMempoolQuery(mainchain),
+				&transaction.TypeSwitcher{
+					Executor: queryExecutor,
+				},
 			),
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
