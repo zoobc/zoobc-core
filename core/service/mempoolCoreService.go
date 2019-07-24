@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"log"
 	"sort"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
