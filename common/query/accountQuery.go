@@ -50,7 +50,7 @@ func (aq *AccountQuery) GetAccountByIDs(ids [][]byte) (str string, args [][]byte
 
 func (aq *AccountQuery) InsertAccount(account *model.Account) (str string, args []interface{}) {
 	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		"INSERT OR IGNORE INTO %s (%s) VALUES(%s)",
 		aq.TableName,
 		strings.Join(aq.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(aq.Fields)-1)),

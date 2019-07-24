@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -63,8 +62,6 @@ func startServices(queryExecutor *query.Executor) {
 }
 
 func main() {
-	fmt.Println("run")
-
 	queryExecutor := query.NewQueryExecutor(db)
 
 	migration := database.Migration{Query: queryExecutor}
@@ -77,7 +74,6 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-	// todo: read secret phrase from config
 	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
 		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain),

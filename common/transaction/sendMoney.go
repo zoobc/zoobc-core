@@ -56,7 +56,8 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		Address:     tx.SenderAddress,
 	}
 
-	// update recipient
+	// insert / update recipient
+	recipientAccountInsertQ, recipientAccountInsertArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
 	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
 		tx.Body.Amount,
 		map[string]interface{}{
@@ -72,7 +73,12 @@ func (tx *SendMoney) ApplyConfirmed() error {
 			"block_height": tx.Height,
 		},
 	)
-	err = tx.QueryExecutor.ExecuteTransactions(append(accountBalanceRecipientQ, accountBalanceSenderQ...))
+	var queries [][]interface{}
+	queries = append(append(accountBalanceRecipientQ, accountBalanceSenderQ...),
+		append([]interface{}{recipientAccountInsertQ}, recipientAccountInsertArgs...),
+	)
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+
 	if err != nil {
 		return err
 	}
