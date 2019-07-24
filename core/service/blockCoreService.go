@@ -350,7 +350,7 @@ func (bs *BlockService) GenerateBlock(
 
 			sortedTx = append(sortedTx, tx)
 			_, _ = digest.Write(mpTx.TransactionBytes)
-			txType := transaction.GetTransactionType(tx, nil)
+			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
 			totalAmount += txType.GetAmount()
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
@@ -401,7 +401,7 @@ func (bs *BlockService) AddGenesis() error {
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
 		}
-		txType := transaction.GetTransactionType(tx, nil)
+		txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
 		payloadLength += txType.GetSize()

@@ -26,19 +26,25 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		MempoolQuery  query.MempoolQueryInterface
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		MempoolQuery       query.MempoolQueryInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 )
 
 // NewMempoolService returns an instance of mempool service
-func NewMempoolService(ct contract.ChainType, queryExecutor query.ExecutorInterface,
-	mempoolQuery query.MempoolQueryInterface) *MempoolService {
+func NewMempoolService(
+	ct contract.ChainType,
+	queryExecutor query.ExecutorInterface,
+	mempoolQuery query.MempoolQueryInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+) *MempoolService {
 	return &MempoolService{
-		Chaintype:     ct,
-		QueryExecutor: queryExecutor,
-		MempoolQuery:  mempoolQuery,
+		Chaintype:          ct,
+		QueryExecutor:      queryExecutor,
+		MempoolQuery:       mempoolQuery,
+		ActionTypeSwitcher: actionTypeSwitcher,
 	}
 }
 
@@ -140,10 +146,9 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return errors.New("InvalidTransactionID")
 	}
 
-	if err := transaction.GetTransactionType(tx, mps.QueryExecutor).Validate(); err != nil {
+	if err := mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -182,7 +187,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 
-			if err := transaction.GetTransactionType(tx, mps.QueryExecutor).Validate(); err != nil {
+			if err = mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
 				continue
 			}
 

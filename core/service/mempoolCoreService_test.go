@@ -14,12 +14,15 @@ import (
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/util"
 )
 
-type mockMempoolQueryExecutorSuccess struct {
-	query.Executor
-}
+type (
+	mockMempoolQueryExecutorSuccess struct {
+		query.Executor
+	}
+)
 
 var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes FROM mempool WHERE id = :id"
 
@@ -106,9 +109,10 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
-		ct            contract.ChainType
-		queryExecutor query.ExecutorInterface
-		mempoolQuery  query.MempoolQueryInterface
+		ct                 contract.ChainType
+		queryExecutor      query.ExecutorInterface
+		mempoolQuery       query.MempoolQueryInterface
+		actionTypeSwitcher transaction.TypeActionSwitcher
 	}
 
 	test := struct {
@@ -118,18 +122,25 @@ func TestNewMempoolService(t *testing.T) {
 	}{
 		name: "NewBlockService:success",
 		args: args{
-			ct:            &chaintype.MainChain{},
-			queryExecutor: nil,
-			mempoolQuery:  nil,
+			ct:                 &chaintype.MainChain{},
+			queryExecutor:      nil,
+			mempoolQuery:       nil,
+			actionTypeSwitcher: nil,
 		},
 		want: &MempoolService{
-			Chaintype:     &chaintype.MainChain{},
-			QueryExecutor: nil,
-			MempoolQuery:  nil,
+			Chaintype:          &chaintype.MainChain{},
+			QueryExecutor:      nil,
+			MempoolQuery:       nil,
+			ActionTypeSwitcher: nil,
 		},
 	}
 
-	got := NewMempoolService(test.args.ct, test.args.queryExecutor, test.args.mempoolQuery)
+	got := NewMempoolService(
+		test.args.ct,
+		test.args.queryExecutor,
+		test.args.mempoolQuery,
+		test.args.actionTypeSwitcher,
+	)
 
 	if !cmp.Equal(got, test.want) {
 		t.Errorf("NewMempoolService() = %v, want %v", got, test.want)
@@ -221,9 +232,10 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		MempoolQuery  query.MempoolQueryInterface
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		MempoolQuery       query.MempoolQueryInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
 		mpTx *model.MempoolTransaction
@@ -237,9 +249,10 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 		{
 			name: "AddMempoolTransaction:Success",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorSuccess{},
+				Chaintype:          &chaintype.MainChain{},
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
 				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
@@ -249,9 +262,10 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 		{
 			name: "AddMempoolTransaction:DuplicateTransaction",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorFail{},
+				Chaintype:          &chaintype.MainChain{},
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:      &mockMempoolQueryExecutorFail{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
 				mpTx: getTestSignedMempoolTransaction(3, 1562893303),
@@ -262,9 +276,10 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				MempoolQuery:  tt.fields.MempoolQuery,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			if err := mps.AddMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.AddMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
@@ -275,9 +290,10 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
-		QueryExecutor query.ExecutorInterface
-		MempoolQuery  query.MempoolQueryInterface
+		Chaintype          contract.ChainType
+		QueryExecutor      query.ExecutorInterface
+		MempoolQuery       query.MempoolQueryInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
 		blockTimestamp int64
@@ -292,9 +308,10 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 		{
 			name: "SelectTransactionsFromMempool:Success",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorSuccess{},
+				Chaintype:          &chaintype.MainChain{},
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
 				blockTimestamp: math.MaxInt64,
@@ -337,9 +354,10 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				MempoolQuery:  tt.fields.MempoolQuery,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				MempoolQuery:       tt.fields.MempoolQuery,
+				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp)
 			if (err != nil) != tt.wantErr {
