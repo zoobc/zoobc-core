@@ -328,7 +328,34 @@ func TestValidateTransaction(t *testing.T) {
 				verifySignature:     false,
 			},
 		},
-		// TODO: Add test cases.
+		{
+			name: "ValidateTransaction:Genesis",
+			args: args{
+				tx: &model.Transaction{
+					Height: 0,
+				},
+			},
+		},
+		{
+			name: "ValidateTransaction:Fee<0",
+			args: args{
+				tx: &model.Transaction{
+					Height: 1,
+					Fee:    0,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateTransaction:SenderAddressEmpty",
+			args: args{
+				tx: &model.Transaction{
+					Height: 1,
+					Fee:    1,
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

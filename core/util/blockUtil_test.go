@@ -337,7 +337,26 @@ func TestValidateBlock(t *testing.T) { //todo:update test after applying signatu
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "wantSuccess:ErrorNil",
+			args: args{
+				block:             &model.Block{},
+				previousLastBlock: &model.Block{},
+				curTime:           12345678,
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantSuccess:InvalidTimestamp",
+			args: args{
+				block: &model.Block{
+					Timestamp: 23456789,
+				},
+				previousLastBlock: &model.Block{},
+				curTime:           12345678,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -153,8 +153,12 @@ func ReadAccountAddress(accountType uint32, buf *bytes.Buffer) []byte {
 	}
 }
 
-func ValidateTransaction(tx *model.Transaction, queryExecutor query.ExecutorInterface,
-	accountBalanceQuery query.AccountBalanceQueryInterface, verifySignature bool) error {
+func ValidateTransaction(
+	tx *model.Transaction,
+	queryExecutor query.ExecutorInterface,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
+	verifySignature bool,
+) error {
 	// don't validate genesis transactions
 	if tx.Height == 0 {
 		return nil
