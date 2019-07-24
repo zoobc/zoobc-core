@@ -73,8 +73,7 @@ func (tx *SendMoney) ApplyConfirmed() error {
 			"block_height": tx.Height,
 		},
 	)
-	var queries [][]interface{}
-	queries = append(append(accountBalanceRecipientQ, accountBalanceSenderQ...),
+	queries := append(append(accountBalanceRecipientQ, accountBalanceSenderQ...),
 		append([]interface{}{recipientAccountInsertQ}, recipientAccountInsertArgs...),
 	)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
