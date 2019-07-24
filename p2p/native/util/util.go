@@ -33,45 +33,10 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 		newPeer := *peer
 		unresolvedPeersMap[GetFullAddressPeer(peer)] = &newPeer
 	}
-	host.Peers = make(map[string]*model.Peer)
+	host.ResolvedPeers = make(map[string]*model.Peer)
 	host.KnownPeers = knownPeersMap
 	host.UnresolvedPeers = unresolvedPeersMap
 	return host
-}
-
-// GetAnyPeer Get any random peer
-func GetAnyPeer(hs *model.Host) *model.Peer {
-	if len(hs.Peers) < 1 {
-		return nil
-	}
-	randomIdx := int(util.GetSecureRandom())
-	if randomIdx != 0 {
-		randomIdx %= len(hs.Peers)
-	}
-	idx := 0
-	for _, peer := range hs.Peers {
-		if idx == randomIdx {
-			return peer
-		}
-		idx++
-	}
-	return nil
-}
-
-// GetAnyUnresolvedPeer Get any unresolved peer
-func GetAnyUnresolvedPeer(hs *model.Host) *model.Peer {
-	if len(hs.UnresolvedPeers) < 1 {
-		return nil
-	}
-	randomIdx := int(util.GetSecureRandom()) % len(hs.UnresolvedPeers)
-	idx := 0
-	for _, peer := range hs.UnresolvedPeers {
-		if idx == randomIdx {
-			return peer
-		}
-		idx++
-	}
-	return nil
 }
 
 // NewKnownPeer to parse address & port into Peer structur
@@ -112,82 +77,14 @@ func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
 }
 
-// AddToResolvedPeer to move unresolved peer into resolved peer
-func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
-	if host.UnresolvedPeers[GetFullAddressPeer(peer)] != nil {
-		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
-	}
-	host.Peers[GetFullAddressPeer(peer)] = peer
-	return host
-}
-
-// AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
-func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host {
-	exceedMaxUnresolvedPeers := GetExceedMaxUnresolvedPeers(host)
-	hostAddress := &model.Peer{
-		Info: host.Info,
-	}
-	for _, node := range newNodes {
-		peer := &model.Peer{
-			Info: node,
-		}
-		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil &&
-			host.Peers[GetFullAddressPeer(peer)] == nil &&
-			GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
-			for i := 0; i < exceedMaxUnresolvedPeers; i++ {
-				// removing a peer at random if the UnresolvedPeers has reached max
-				peer := GetAnyUnresolvedPeer(host)
-				if peer != nil {
-					delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
-				}
-			}
-			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
-		}
-
-		if exceedMaxUnresolvedPeers > 0 {
-			break
-		}
-	}
-	return host
-}
-
 // GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
-func GetExceedMaxUnresolvedPeers(host *model.Host) int {
-	return len(host.GetUnresolvedPeers()) - constant.MaxUnresolvedPeers + 1
+func GetExceedMaxUnresolvedPeers(unresolvedPeers map[string]*model.Peer) int {
+	return len(unresolvedPeers) - constant.MaxUnresolvedPeers + 1
 }
 
-// GetExceedMaxConnectedPeers returns number of peers exceeding max number of the connected peers
-func GetExceedMaxConnectedPeers(host *model.Host) int {
-	return len(host.GetPeers()) - constant.MaxConnectedPeers + 1
-}
-
-// PeerUnblacklist to update Peer state of peer
-func PeerUnblacklist(peer *model.Peer) *model.Peer {
-	peer.BlacklistingCause = ""
-	peer.BlacklistingTime = 0
-	if peer.State == model.PeerState_BLACKLISTED {
-		peer.State = model.PeerState_NON_CONNECTED
-	}
-	return peer
-}
-
-// DisconnectPeer moves connected peer to resolved peer
-// if the unresolved peer is full (maybe) it should not go to the unresolved peer
-func DisconnectPeer(host *model.Host, peer *model.Peer) {
-	if peer != nil {
-		delete(host.Peers, GetFullAddressPeer(peer))
-	}
-
-	if GetExceedMaxUnresolvedPeers(host) <= 0 {
-		host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
-	}
-}
-
-// RemovePeer removes peer from unresolved peer list
-func RemoveUnresolvedPeer(host *model.Host, peer *model.Peer) {
-	if peer != nil {
-		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
-	}
+// GetExceedMaxResolvedPeers returns number of peers exceeding max number of the connected peers
+func GetExceedMaxResolvedPeers(resolvedPeers map[string]*model.Peer) int {
+	return len(resolvedPeers) - constant.MaxResolvedPeers + 1
 }
 
 func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
