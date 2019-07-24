@@ -53,36 +53,3 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		return nil
 	}
 }
-
-func GetTransactionType(tx *model.Transaction, executor query.ExecutorInterface) TypeAction {
-
-	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
-	switch buf[0] {
-	case 0:
-		switch buf[1] {
-		case 0:
-			return &TXEmpty{}
-		default:
-			return nil
-		}
-	case 1:
-		switch buf[1] {
-		case 0:
-			return &SendMoney{
-				Body:                 tx.GetSendMoneyTransactionBody(),
-				SenderAddress:        tx.GetSenderAccountAddress(),
-				SenderAccountType:    tx.GetSenderAccountType(),
-				RecipientAddress:     tx.GetRecipientAccountAddress(),
-				RecipientAccountType: tx.GetRecipientAccountType(),
-				Height:               tx.GetHeight(),
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        executor,
-			}
-		default:
-			return nil
-		}
-	default:
-		return nil
-	}
-}
