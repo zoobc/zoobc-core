@@ -18,7 +18,7 @@ type (
 		GetTransactionType(tx *model.Transaction) TypeAction
 	}
 	TypeSwitcher struct {
-		Executor *query.Executor
+		Executor query.ExecutorInterface
 	}
 )
 

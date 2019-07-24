@@ -11,7 +11,7 @@ import (
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	type fields struct {
-		Executor *query.Executor
+		Executor query.ExecutorInterface
 	}
 	type args struct {
 		tx *model.Transaction
@@ -121,6 +121,34 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: nil,
+		},
+		{
+			name: "wantNodeRegistration",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  0,
+					SenderAccountType:       0,
+					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					RecipientAccountType:    0,
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
+						NodeRegistrationTransactionBody: &model.NodeRegistrationTransactionBody{},
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{2, 0, 0, 0}),
+				},
+			},
+			want: &NodeRegistration{
+				Height:              0,
+				SenderAccountType:   0,
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				Body:                &model.NodeRegistrationTransactionBody{},
+				QueryExecutor:       &query.Executor{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountQuery:        query.NewAccountQuery(),
+			},
 		},
 		{
 			name: "wantNil",
