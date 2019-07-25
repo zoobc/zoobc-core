@@ -78,6 +78,6 @@ func (ss *ServerService) GetMorePeers(ctx context.Context, req *model.Empty) (*m
 // SendPeers receives set of peers info from other node and put them into the unresolved peers
 func (ss *ServerService) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
 	// TODO: only accept nodes that are already registered
-	GetHostService().AddToUnresolvedPeers(req.Peers)
+	GetHostService().AddToUnresolvedPeers(req.Peers, true)
 	return &model.Empty{}, nil
 }

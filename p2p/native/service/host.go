@@ -11,9 +11,10 @@ import (
 
 // HostService represent data service node as server
 type HostService struct {
-	Host                *model.Host
-	ResolvedPeersLock   sync.RWMutex
-	UnresolvedPeersLock sync.RWMutex
+	Host                 *model.Host
+	ResolvedPeersLock    sync.RWMutex
+	UnresolvedPeersLock  sync.RWMutex
+	BlacklistedPeersLock sync.RWMutex
 }
 
 var hostServiceInstance *HostService
@@ -32,6 +33,12 @@ func GetHostService() *HostService {
 	return hostServiceInstance
 }
 
+/* 	========================================
+ *	Resolved Peers Operations
+ *	========================================
+ */
+
+// GetResolvedPeers returns resolved peers in thread-safe manner
 func (hs *HostService) GetResolvedPeers() map[string]*model.Peer {
 	hs.ResolvedPeersLock.RLock()
 	defer hs.ResolvedPeersLock.RUnlock()
@@ -63,6 +70,41 @@ func (hs *HostService) GetAnyResolvedPeer() *model.Peer {
 	return nil
 }
 
+// AddToResolvedPeer to add a peer into resolved peer
+func (hs *HostService) AddToResolvedPeer(peer *model.Peer) {
+	hs.ResolvedPeersLock.Lock()
+	defer hs.ResolvedPeersLock.Unlock()
+
+	hs.Host.ResolvedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
+}
+
+// RemoveResolvedPeer removes peer from Resolved peer list
+func (hs *HostService) RemoveResolvedPeer(peer *model.Peer) {
+	if peer == nil {
+		return
+	}
+	hs.ResolvedPeersLock.Lock()
+	defer hs.ResolvedPeersLock.Unlock()
+	delete(hs.Host.ResolvedPeers, nativeUtil.GetFullAddressPeer(peer))
+}
+
+/* 	========================================
+ *	Unresolved Peers Operations
+ *	========================================
+ */
+
+// GetUnresolvedPeers returns unresolved peers in thread-safe manner
+func (hs *HostService) GetUnresolvedPeers() map[string]*model.Peer {
+	hs.UnresolvedPeersLock.RLock()
+	defer hs.UnresolvedPeersLock.RUnlock()
+
+	var newUnresolvedPeers = make(map[string]*model.Peer)
+	for key, UnresolvedPeer := range hs.Host.UnresolvedPeers {
+		newUnresolvedPeers[key] = UnresolvedPeer
+	}
+	return newUnresolvedPeers
+}
+
 // GetAnyUnresolvedPeer Get any unresolved peer
 func (hs *HostService) GetAnyUnresolvedPeer() *model.Peer {
 	unresolvedPeers := hs.GetUnresolvedPeers()
@@ -78,27 +120,6 @@ func (hs *HostService) GetAnyUnresolvedPeer() *model.Peer {
 		idx++
 	}
 	return nil
-}
-
-// RemoveResolvedPeer removes peer from Resolved peer list
-func (hs *HostService) RemoveResolvedPeer(peer *model.Peer) {
-	if peer == nil {
-		return
-	}
-	hs.ResolvedPeersLock.Lock()
-	defer hs.ResolvedPeersLock.Unlock()
-	delete(hs.Host.ResolvedPeers, nativeUtil.GetFullAddressPeer(peer))
-}
-
-func (hs *HostService) GetUnresolvedPeers() map[string]*model.Peer {
-	hs.UnresolvedPeersLock.RLock()
-	defer hs.UnresolvedPeersLock.RUnlock()
-
-	var newUnresolvedPeers = make(map[string]*model.Peer)
-	for key, UnresolvedPeer := range hs.Host.UnresolvedPeers {
-		newUnresolvedPeers[key] = UnresolvedPeer
-	}
-	return newUnresolvedPeers
 }
 
 // RemoveUnresolvedPeer removes peer from unresolved peer list
@@ -118,20 +139,18 @@ func (hs *HostService) AddToUnresolvedPeer(peer *model.Peer) {
 	hs.Host.UnresolvedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
 }
 
-// AddToResolvedPeer to add a peer into resolved peer
-func (hs *HostService) AddToResolvedPeer(peer *model.Peer) {
-	hs.ResolvedPeersLock.Lock()
-	defer hs.ResolvedPeersLock.Unlock()
-
-	hs.Host.ResolvedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
-}
-
 // AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
-func (hs *HostService) AddToUnresolvedPeers(newNodes []*model.Node) {
+func (hs *HostService) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) {
+	exceedMaxUnresolvedPeers := hs.GetExceedMaxUnresolvedPeers()
+
+	// do not force a peer to go to unresolved list if the list is full n `toForce` is false
+	if exceedMaxUnresolvedPeers > 0 && !toForce {
+		return
+	}
+
 	unresolvedPeers := hs.GetUnresolvedPeers()
 	resolvedPeers := hs.GetResolvedPeers()
 
-	exceedMaxUnresolvedPeers := hs.GetExceedMaxUnresolvedPeers()
 	hostAddress := &model.Peer{
 		Info: hs.Host.Info,
 	}
@@ -154,6 +173,41 @@ func (hs *HostService) AddToUnresolvedPeers(newNodes []*model.Node) {
 			break
 		}
 	}
+}
+
+/* 	========================================
+ *	Blacklisted Peers Operations
+ *	========================================
+ */
+
+// GetBlacklistedPeers returns resolved peers in thread-safe manner
+func (hs *HostService) GetBlacklistedPeers() map[string]*model.Peer {
+	hs.BlacklistedPeersLock.RLock()
+	defer hs.BlacklistedPeersLock.RUnlock()
+
+	var newBlacklistedPeers = make(map[string]*model.Peer)
+	for key, resolvedPeer := range hs.Host.BlacklistedPeers {
+		newBlacklistedPeers[key] = resolvedPeer
+	}
+	return newBlacklistedPeers
+}
+
+// AddToBlacklistedPeer to add a peer into resolved peer
+func (hs *HostService) AddToBlacklistedPeer(peer *model.Peer) {
+	hs.BlacklistedPeersLock.Lock()
+	defer hs.BlacklistedPeersLock.Unlock()
+
+	hs.Host.BlacklistedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
+}
+
+// RemoveBlacklistedPeer removes peer from Blacklisted peer list
+func (hs *HostService) RemoveBlacklistedPeer(peer *model.Peer) {
+	if peer == nil {
+		return
+	}
+	hs.BlacklistedPeersLock.Lock()
+	defer hs.BlacklistedPeersLock.Unlock()
+	delete(hs.Host.BlacklistedPeers, nativeUtil.GetFullAddressPeer(peer))
 }
 
 // GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers

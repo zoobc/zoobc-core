@@ -28,12 +28,13 @@ func (hs *HostService) ResolvePeers() {
 	exceedMaxResolvedPeers := hs.GetExceedMaxResolvedPeers()
 	resolvingCount := 0
 
+	// removing the connected peers at random until max - 1
+	for i := 0; i < exceedMaxResolvedPeers; i++ {
+		peer := hs.GetAnyResolvedPeer()
+		hs.RemoveResolvedPeer(peer)
+	}
+
 	for _, peer := range hs.GetUnresolvedPeers() {
-		// removing the connected peers at random until max - 1
-		for i := 0; i < exceedMaxResolvedPeers; i++ {
-			peer := hs.GetAnyResolvedPeer()
-			hs.RemoveResolvedPeer(peer)
-		}
 		go hs.resolvePeer(peer)
 		resolvingCount++
 
@@ -74,20 +75,25 @@ func (hs *HostService) GetMorePeersHandler() {
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 		}
-		hs.AddToUnresolvedPeers(newPeers.GetPeers())
+		hs.AddToUnresolvedPeers(newPeers.GetPeers(), true)
 		hs.SendMyPeers(peer)
 	}
 }
 
+func (hs *HostService) PeerBlacklist(peer *model.Peer, cause string) {
+	peer.BlacklistingTime = uint64(time.Now().Unix())
+	peer.BlacklistingCause = cause
+	hs.AddToBlacklistedPeer(peer)
+	hs.RemoveUnresolvedPeer(peer)
+	hs.RemoveResolvedPeer(peer)
+}
+
 // PeerUnblacklist to update Peer state of peer
 func (hs *HostService) PeerUnblacklist(peer *model.Peer) *model.Peer {
-	// TODO: handle unblacklisting and blacklisting
-
-	// peer.BlacklistingCause = ""
-	// peer.BlacklistingTime = 0
-	// if peer.State == model.PeerState_BLACKLISTED {
-	// 	peer.State = model.PeerState_NON_CONNECTED
-	// }
+	peer.BlacklistingCause = ""
+	peer.BlacklistingTime = 0
+	hs.RemoveBlacklistedPeer(peer)
+	hs.AddToUnresolvedPeers([]*model.Node{peer.Info}, false)
 	return peer
 }
 

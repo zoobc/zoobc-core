@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -102,16 +103,13 @@ func updateBlacklistedStatus() {
 		for {
 			select {
 			case <-ticker.C:
-				// curTime := uint32(time.Now().Unix())
-				// for _, p := range hostServiceInstance.Host.GetKnownPeers() {
-				// 	// TODO: handle blacklisting
-
-				// 	if p.GetState() == model.PeerState_BLACKLISTED &&
-				// 		p.GetBlacklistingTime() > 0 &&
-				// 		p.GetBlacklistingTime()+constant.BlacklistingPeriod <= curTime {
-				// 		hostServiceInstance.Host.KnownPeers[nativeUtil.GetFullAddressPeer(p)] = nativeUtil.PeerUnblacklist(p)
-				// 	}
-				// }
+				curTime := uint64(time.Now().Unix())
+				for _, p := range hostServiceInstance.Host.GetBlacklistedPeers() {
+					if p.GetBlacklistingTime() > 0 &&
+						p.GetBlacklistingTime()+constant.BlacklistingPeriod <= curTime {
+						hostServiceInstance.Host.KnownPeers[nativeUtil.GetFullAddressPeer(p)] = hostServiceInstance.PeerUnblacklist(p)
+					}
+				}
 				break
 			case <-sigs:
 				ticker.Stop()

@@ -6,9 +6,9 @@ const (
 	// Max number of connected/resolved peers stored in a host
 	MaxResolvedPeers = 1 // 100
 	// Minimum time period in second to update a peer
-	SecondsToUpdatePeersConnection = 5 // 3600
+	SecondsToUpdatePeersConnection = 10 // 3600
 	// ResolvePeersGap, interval of peer thread trying resolve a peer (in second)
-	ResolvePeersGap uint = 1
+	ResolvePeersGap uint = 5
 	// BlacklistingPeriod, how long a peer in blaclisting status
-	BlacklistingPeriod uint32 = 5
+	BlacklistingPeriod uint64 = 3600
 )
