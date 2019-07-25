@@ -32,26 +32,10 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 		newPeer := *peer
 		unresolvedPeersMap[GetFullAddressPeer(peer)] = &newPeer
 	}
-	host.Peers = make(map[string]*model.Peer)
+	host.ResolvedPeers = make(map[string]*model.Peer)
 	host.KnownPeers = knownPeersMap
 	host.UnresolvedPeers = unresolvedPeersMap
 	return host
-}
-
-// GetAnyPeer Get any peer
-func GetAnyPeer(hs *model.Host) *model.Peer {
-	if len(hs.Peers) < 1 {
-		return nil
-	}
-	randomIdx := int(util.GetSecureRandom()) % len(hs.Peers)
-	idx := 0
-	for _, peer := range hs.Peers {
-		if idx == randomIdx {
-			return peer
-		}
-		idx++
-	}
-	return nil
 }
 
 // NewKnownPeer to parse address & port into Peer structur
@@ -90,43 +74,6 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
-}
-
-// AddToResolvedPeer to move unresolved peer into resolved peer
-func AddToResolvedPeer(host *model.Host, peer *model.Peer) *model.Host {
-	if host.UnresolvedPeers[GetFullAddressPeer(peer)] != nil {
-		delete(host.UnresolvedPeers, GetFullAddressPeer(peer))
-	}
-	host.Peers[GetFullAddressPeer(peer)] = peer
-	return host
-}
-
-// AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
-func AddToUnresolvedPeers(host *model.Host, newNodes []*model.Node) *model.Host {
-	hostAddress := &model.Peer{
-		Info: host.Info,
-	}
-	for _, node := range newNodes {
-		peer := &model.Peer{
-			Info: node,
-		}
-		if host.UnresolvedPeers[GetFullAddressPeer(peer)] == nil &&
-			host.Peers[GetFullAddressPeer(peer)] == nil &&
-			GetFullAddressPeer(hostAddress) != GetFullAddressPeer(peer) {
-			host.UnresolvedPeers[GetFullAddressPeer(peer)] = peer
-		}
-	}
-	return host
-}
-
-// PeerUnblacklist to update Peer state of peer
-func PeerUnblacklist(peer *model.Peer) *model.Peer {
-	peer.BlacklistingCause = ""
-	peer.BlacklistingTime = 0
-	if peer.State == model.PeerState_BLACKLISTED {
-		peer.State = model.PeerState_NON_CONNECTED
-	}
-	return peer
 }
 
 func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {

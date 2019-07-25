@@ -14,27 +14,32 @@ import (
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
-type Service struct{}
+type Service struct {
+	HostService *service.HostService
+}
 
 var hostServiceInstance *service.HostService
 
-// InitService to initialize hostServiceInstance if not set
+// InitService to initialize services of the native strategy
 func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string) (contract.P2PType, error) {
-	if hostServiceInstance == nil {
+	if s.HostService == nil {
 		knownPeersResult, err := nativeUtil.ParseKnownPeers(wellknownPeers)
 		if err != nil {
 			return nil, err
 		}
-
 		host := nativeUtil.NewHost(myAddress, port, knownPeersResult)
-		hostServiceInstance = &service.HostService{
-			Host: host,
-		}
+		hostServiceInstance = service.CreateHostService(host)
+		s.HostService = hostServiceInstance
 	}
 	return s, nil
 }
 
-// StartP2P to update  ChainType of hostServiceInstance and run all p2p Thread service
+// GetHostInstance returns the host model
+func (s *Service) GetHostInstance() *model.Host {
+	return s.HostService.Host
+}
+
+// StartP2P to run all p2p Thread service
 func (s *Service) StartP2P() {
 	startServer()
 
@@ -49,7 +54,7 @@ func startServer() {
 	port := hostServiceInstance.Host.GetInfo().GetPort()
 	listener := nativeUtil.ServerListener(int(port))
 	go func() {
-		_ = hostServiceInstance.StartListening(listener)
+		_ = service.NewServerService().StartListening(listener)
 	}()
 }
 
@@ -63,6 +68,7 @@ func resolvePeersThread() {
 		select {
 		case <-ticker.C:
 			go hostServiceInstance.ResolvePeers()
+			go hostServiceInstance.UpdateResolvedPeers()
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -97,14 +103,14 @@ func updateBlacklistedStatus() {
 		for {
 			select {
 			case <-ticker.C:
-				curTime := uint32(time.Now().Unix())
-				for _, p := range hostServiceInstance.Host.GetKnownPeers() {
-					if p.GetState() == model.PeerState_BLACKLISTED &&
-						p.GetBlacklistingTime() > 0 &&
+				curTime := uint64(time.Now().Unix())
+				for _, p := range hostServiceInstance.Host.GetBlacklistedPeers() {
+					if p.GetBlacklistingTime() > 0 &&
 						p.GetBlacklistingTime()+constant.BlacklistingPeriod <= curTime {
-						hostServiceInstance.Host.KnownPeers[nativeUtil.GetFullAddressPeer(p)] = nativeUtil.PeerUnblacklist(p)
+						hostServiceInstance.Host.KnownPeers[nativeUtil.GetFullAddressPeer(p)] = hostServiceInstance.PeerUnblacklist(p)
 					}
 				}
+				break
 			case <-sigs:
 				ticker.Stop()
 				return
