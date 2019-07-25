@@ -10,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
+	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -29,11 +30,11 @@ type (
 )
 
 // generate proof of ownership
-func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) (nodeMessages []byte, proofOfOwnershipSign []byte) {
+func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) ([]byte, []byte) {
 
 	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
 
-	ownerAccount, _ := nas.LookupOwnerAccount()
+	ownerAccountAddress := nas.LookupOwnerAccount()
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(commonUtil.ConvertUint32ToBytes(accountType)[:2])
@@ -41,9 +42,9 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accoun
 	buffer.Write(lastBlockHash)
 	buffer.Write(commonUtil.ConvertUint32ToBytes(lastBlock.Height))
 
-	if ownerAccount.AccountType == accountType && ownerAccount.Address == accountAddress {
-		nodeMessages = buffer.Bytes()
-		proofOfOwnershipSign = nas.SignData(nodeMessages)
+	if ownerAccountAddress == accountAddress {
+		nodeMessages := buffer.Bytes()
+		proofOfOwnershipSign := nas.SignData(nodeMessages)
 
 		return nodeMessages, proofOfOwnershipSign
 	}
@@ -58,9 +59,7 @@ func (nas *NodeAdminService) LookupLastBlock() (*model.Block, []byte, error) {
 		}
 	}()
 	if err != nil {
-		return nil, &model.Block{
-			ID: -1,
-		}, err
+		return nil, nil, err
 	}
 	var blocks []*model.Block
 	blocks = nas.BlockQuery.BuildModel(blocks, rows)
@@ -73,14 +72,13 @@ func (nas *NodeAdminService) LookupLastBlock() (*model.Block, []byte, error) {
 
 		return blocks[0], hash, nil
 	}
-	return nil, &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, nil, errors.New("BlockNotFound")
 
 }
 
-func (nas *NodeAdminService) LookupOwnerAccount() (*model.Account, error) {
+func (nas *NodeAdminService) LookupOwnerAccount() string {
 	ownerAccountAddress := viper.GetString("ownerAccountAddress")
+	return ownerAccountAddress
 }
 
 func (nas *NodeAdminService) SignData(payload []byte) (sign []byte) {
@@ -90,17 +88,69 @@ func (nas *NodeAdminService) SignData(payload []byte) (sign []byte) {
 }
 
 // validate proof of ownership
-func (nas *NodeAdminService) ValidateProofOfOwnership(mpTx *model.MempoolTransaction) error {
-	nas.ValidateSignature()
-	nas.ValidateHeight()
-	nas.LookupBlock()
-}
-func (nas *NodeAdminService) ValidateSignature() error {
+func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages []byte, signature []byte, publicKey []byte) error {
 
-}
-func (nas *NodeAdminService) ValidateHeight() error {
+	buffer := bytes.NewBuffer(nodeMessages)
+	transactionTypeBytes, err := readNodeMessages(buffer, 2)
+	if err != nil {
+		return nil, err
+	}
 
-}
-func (nas *NodeAdminService) LookupBlock() error {
+	blockHeigt :=
 
+	lastBlockHash :=
+
+	err1 := nas.ValidateSignature(signature, nodeMessages, publicKey)
+	err2 := nas.ValidateHeight(blockHeight)
+	err3 := nas.ValidateBlockHash(blockHeight, lastBlockHash)
+
+	i := nil
+	switch i {
+	case len(err1) != i:
+		return errors.New("Signature not valid")
+	case len(err2) != i:
+		return errors.New("Height not valid")
+	case len(err3) != i:
+		return errors.New("Hash not valid")
+	default:
+		return nil
+	}
+}
+func (nas *NodeAdminService) ValidateSignature(signature []byte, payload []byte, publicKey []byte) error {
+
+	result := ed25519.Verify(publicKey, payload, signature)
+
+	if result == false {
+		return errors.New("Signature not valid")
+	}
+
+	return nil
+}
+func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
+	rows, err := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
+	var blocks []*model.Block
+	blocks = nas.BlockQuery.BuildModel(blocks, rows)
+
+	if blockHeight > blocks[0].Height {
+		return errors.New("Block is older")
+	}
+
+	return nil
+}
+func (nas *NodeAdminService) ValidateBlockHash(blockHeight uint32, lastBlockHash []byte) error {
+
+	rows, err := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetBlockByHeight(blockHeight))
+	var blocks []*model.Block
+	blocks = nas.BlockQuery.BuildModel(blocks, rows)
+
+	digest := sha3.New512()
+	blockByte, _ := util.GetBlockByte(blocks[0], true)
+	_, _ = digest.Write(blockByte)
+	hash := digest.Sum([]byte{})
+
+	if hash != lastBlockHash {
+		return errors.New("Hash didn't same")
+	}
+
+	return nil
 }
