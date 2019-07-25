@@ -232,13 +232,13 @@ func (bp *BlockchainProcessor) AddGenesis() error {
 
 // CheckGenesis check if genesis has been added
 func (bp *BlockchainProcessor) CheckGenesis() bool {
-	// genesisBlock, err := bp.BlockService.GetGenesisBlock()
-	// if err != nil { // Genesis is not in the blockchain yet
-	// 	return false
-	// }
-	// if genesisBlock.ID != bp.Chaintype.GetGenesisBlockID() {
-	// 	log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bp.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
-	// }
+	genesisBlock, err := bp.BlockService.GetGenesisBlock()
+	if err != nil { // Genesis is not in the blockchain yet
+		return false
+	}
+	if genesisBlock.ID != bp.Chaintype.GetGenesisBlockID() {
+		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bp.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+	}
 	return true
 }
 

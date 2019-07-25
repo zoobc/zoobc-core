@@ -19,10 +19,8 @@ type HostService struct {
 
 var hostServiceInstance *HostService
 
-func NewHostService(host *model.Host) *HostService {
-	if hostServiceInstance == nil {
-		hostServiceInstance = &HostService{Host: host}
-	}
+func CreateHostService(host *model.Host) *HostService {
+	hostServiceInstance = &HostService{Host: host}
 	return hostServiceInstance
 }
 

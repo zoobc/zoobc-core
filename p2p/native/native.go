@@ -28,7 +28,7 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 			return nil, err
 		}
 		host := nativeUtil.NewHost(myAddress, port, knownPeersResult)
-		hostServiceInstance = service.NewHostService(host)
+		hostServiceInstance = service.CreateHostService(host)
 		s.HostService = hostServiceInstance
 	}
 	return s, nil

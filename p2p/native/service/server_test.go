@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc"
 )
@@ -15,7 +13,6 @@ func TestHostService_GetPeerInfo(t *testing.T) {
 	type fields struct {
 		Host       *model.Host
 		GrpcServer *grpc.Server
-		ChainType  contract.ChainType
 	}
 	type args struct {
 		ctx context.Context
@@ -38,11 +35,10 @@ func TestHostService_GetPeerInfo(t *testing.T) {
 						Address:       "127.0.0.1",
 						Port:          8001,
 					},
-					Peers:           make(map[string]*model.Peer),
+					ResolvedPeers:   make(map[string]*model.Peer),
 					KnownPeers:      make(map[string]*model.Peer),
 					UnresolvedPeers: make(map[string]*model.Peer),
 				},
-				ChainType: &chaintype.MainChain{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -60,10 +56,10 @@ func TestHostService_GetPeerInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := &HostService{
-				Host: tt.fields.Host,
-			}
-			got, err := hs.GetPeerInfo(tt.args.ctx, tt.args.req)
+			hostServiceInstance = CreateHostService(tt.fields.Host)
+
+			ss := NewServerService()
+			got, err := ss.GetPeerInfo(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HostService.GetPeerInfo() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -79,7 +75,6 @@ func TestHostService_GetMorePeers(t *testing.T) {
 	type fields struct {
 		Host       *model.Host
 		GrpcServer *grpc.Server
-		ChainType  contract.ChainType
 	}
 	type args struct {
 		ctx context.Context
@@ -102,7 +97,7 @@ func TestHostService_GetMorePeers(t *testing.T) {
 						Address:       "127.0.0.1",
 						Port:          8001,
 					},
-					Peers: map[string]*model.Peer{
+					ResolvedPeers: map[string]*model.Peer{
 						"192.168.55.3:2001": {
 							Info: &model.Node{
 								SharedAddress: "192.168.55.3",
@@ -114,7 +109,6 @@ func TestHostService_GetMorePeers(t *testing.T) {
 					KnownPeers:      make(map[string]*model.Peer),
 					UnresolvedPeers: make(map[string]*model.Peer),
 				},
-				ChainType: &chaintype.MainChain{},
 			},
 			args: args{
 				ctx: context.Background(),
@@ -133,10 +127,9 @@ func TestHostService_GetMorePeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := &HostService{
-				Host: tt.fields.Host,
-			}
-			got, err := hs.GetMorePeers(tt.args.ctx, tt.args.req)
+			hostServiceInstance = CreateHostService(tt.fields.Host)
+			ss := NewServerService()
+			got, err := ss.GetMorePeers(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HostService.GetMorePeers() error = %v, wantErr %v", err, tt.wantErr)
 				return
