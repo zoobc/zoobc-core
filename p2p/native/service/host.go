@@ -208,6 +208,23 @@ func (hs *HostService) RemoveBlacklistedPeer(peer *model.Peer) {
 	delete(hs.Host.BlacklistedPeers, nativeUtil.GetFullAddressPeer(peer))
 }
 
+// GetAnyKnownPeer Get any known peer
+func (hs *HostService) GetAnyKnownPeer() *model.Peer {
+	knownPeers := hs.Host.KnownPeers
+	if len(knownPeers) < 1 {
+		panic("No well known peer is found")
+	}
+	randomIdx := int(util.GetSecureRandom()) % len(knownPeers)
+	idx := 0
+	for _, peer := range knownPeers {
+		if idx == randomIdx {
+			return peer
+		}
+		idx++
+	}
+	return nil
+}
+
 // GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
 func (hs *HostService) GetExceedMaxUnresolvedPeers() int {
 	return len(hs.GetUnresolvedPeers()) - constant.MaxUnresolvedPeers + 1

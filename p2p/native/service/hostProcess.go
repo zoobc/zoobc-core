@@ -9,6 +9,7 @@ import (
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
+// SendMyPeers sends resolved peers of a host including the address of the host itself
 func (hs *HostService) SendMyPeers(peer *model.Peer) {
 	peers := hs.GetResolvedPeers()
 	var myPeersInfo []*model.Node
@@ -28,10 +29,9 @@ func (hs *HostService) ResolvePeers() {
 	exceedMaxResolvedPeers := hs.GetExceedMaxResolvedPeers()
 	resolvingCount := 0
 
-	// removing the connected peers at random until max - 1
 	for i := 0; i < exceedMaxResolvedPeers; i++ {
 		peer := hs.GetAnyResolvedPeer()
-		hs.RemoveResolvedPeer(peer)
+		hs.DisconnectPeer(peer)
 	}
 
 	for _, peer := range hs.GetUnresolvedPeers() {
