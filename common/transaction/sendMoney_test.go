@@ -161,6 +161,10 @@ func (*executorSuccessUpdateAccount) ExecuteTransactions([][]interface{}) error 
 	return nil
 }
 
+func (*executorSuccessUpdateAccount) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
 func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
@@ -180,6 +184,10 @@ func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface
 		query.NewAccountBalanceQuery().Fields,
 	).AddRow(1, 2, 3, 4, 5, 6))
 	return db.Query(qStr, 1)
+}
+
+func (*executorAccountCountSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
 }
 
 func TestSendMoney_Validate(t *testing.T) {
@@ -465,6 +473,27 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "wantError:UndoUnconfirmedInvalid",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor: &executorAccountCountFail{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "wantFail:deductAddMoneyFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
@@ -583,4 +612,76 @@ func TestSendMoney_GetSize(t *testing.T) {
 			t.Errorf("SendMoney size should be 8\nget: %d instead", size)
 		}
 	})
+}
+
+func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		Body                 *model.SendMoneyTransactionBody
+		SenderAddress        string
+		SenderAccountType    uint32
+		RecipientAddress     string
+		RecipientAccountType uint32
+		Height               uint32
+		AccountBalanceQuery  query.AccountBalanceQueryInterface
+		AccountQuery         query.AccountQueryInterface
+		QueryExecutor        query.ExecutorInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "UndoApplyUnconfirmed:success",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorAccountCountSuccess{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "UndoApplyUnconfirmed:executeTransactionFail/",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorAccountCountFail{},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				SenderAccountType:    tt.fields.SenderAccountType,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				RecipientAccountType: tt.fields.RecipientAccountType,
+				Height:               tt.fields.Height,
+				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
+				AccountQuery:         tt.fields.AccountQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+			}
+			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("SendMoney.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

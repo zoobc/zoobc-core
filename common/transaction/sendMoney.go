@@ -34,13 +34,18 @@ __If Not Genesis__:
 	`sender.balance` = current - amount
 */
 func (tx *SendMoney) ApplyConfirmed() error {
-	// todo: undo apply unconfirmed for non-genesis transaction
 	var (
 		recipientAccount model.Account
 		senderAccount    model.Account
 		err              error
 	)
 
+	if tx.Height > 0 {
+		err = tx.UndoApplyUnconfirmed()
+		if err != nil {
+			return err
+		}
+	}
 	if err := tx.Validate(); err != nil {
 		return err
 	}
@@ -117,6 +122,33 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 }
 
 /*
+UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *SendMoney) UndoApplyUnconfirmed() error {
+	var (
+		err error
+	)
+
+	// update sender
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		tx.Body.Amount,
+		map[string]interface{}{
+			"account_id": util.CreateAccountIDFromAddress(
+				tx.SenderAccountType,
+				tx.SenderAddress,
+			),
+		},
+	)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/*
 Validate is func that for validating to Transaction SendMoney type
 That specs:
 	- If Genesis, sender and recipient allowed not exists,
@@ -147,7 +179,7 @@ func (tx *SendMoney) Validate() error {
 			util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
 		})
 
-		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs).Scan(&count)
+		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs...).Scan(&count)
 		if err != nil {
 			return err
 		}
@@ -155,11 +187,10 @@ func (tx *SendMoney) Validate() error {
 		if count <= 1 {
 			return fmt.Errorf("count recipient and sender got: %d", count)
 		}
-
-		if rows, err := tx.QueryExecutor.ExecuteSelect(
-			tx.AccountBalanceQuery.GetAccountBalanceByAccountID(),
-			util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
-		); err != nil {
+		senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
+		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID)
+		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
+		if err != nil {
 			return err
 		} else if rows.Next() {
 			_ = rows.Scan(
@@ -171,6 +202,7 @@ func (tx *SendMoney) Validate() error {
 				&accountBalance.Latest,
 			)
 		}
+		defer rows.Close()
 
 		if accountBalance.SpendableBalance < tx.Body.GetAmount() {
 			return errors.New("transaction amount not enough")
