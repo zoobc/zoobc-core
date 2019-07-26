@@ -31,7 +31,7 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor *query.Executor) {
+func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
@@ -74,6 +74,6 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor *query.Executor) {
+func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface) {
 	startGrpcServer(grpcPort, queryExecutor)
 }

@@ -59,7 +59,7 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 }
 
-func startServices(queryExecutor *query.Executor) {
+func startServices(queryExecutor query.ExecutorInterface) {
 	api.Start(apiRPCPort, apiHTTPPort, queryExecutor)
 }
 
