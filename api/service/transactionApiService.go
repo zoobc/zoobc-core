@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 
@@ -31,6 +33,7 @@ type (
 		Signature          crypto.SignatureInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
+		Log                *logrus.Logger
 	}
 )
 
@@ -38,13 +41,15 @@ var transactionServiceInstance *TransactionService
 
 // NewTransactionService creates a singleton instance of TransactionService
 func NewTransactionService(queryExecutor query.ExecutorInterface, signature crypto.SignatureInterface,
-	txTypeSwitcher transaction.TypeActionSwitcher, mempoolService service.MempoolServiceInterface) *TransactionService {
+	txTypeSwitcher transaction.TypeActionSwitcher, mempoolService service.MempoolServiceInterface,
+	log *logrus.Logger) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
 			Query:              queryExecutor,
 			Signature:          signature,
 			ActionTypeSwitcher: txTypeSwitcher,
 			MempoolService:     mempoolService,
+			Log:                log,
 		}
 	}
 	return transactionServiceInstance
@@ -122,34 +127,52 @@ func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req 
 	if err != nil {
 		return nil, err
 	}
-	// tx is parsed, getting unsigned tx bytes should not return error
-	unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
-	// Validate Signature
-	signatureIsValid := ts.Signature.VerifySignature(unsignedTxBytes, tx.Signature, tx.SenderAccountType, tx.SenderAccountAddress)
-	if !signatureIsValid {
-		return nil, errors.New("ErrInvalidSignature")
-	}
 	// Validate Tx
 	txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
-	err = txType.Validate()
-	if err != nil {
-		return nil, err
-	}
-	// Apply Unconfirmed
-	err = txType.ApplyUnconfirmed()
-	if err != nil {
-		return nil, err
-	}
+
 	// Save to mempool
-	err = ts.MempoolService.AddMempoolTransaction(&model.MempoolTransaction{
+	mpTx := &model.MempoolTransaction{
 		FeePerByte:       0,
 		ID:               tx.ID,
 		TransactionBytes: txBytes,
-		ArrivalTimestamp: time.Now().Unix(), // todo: should arrival timestamp = exact arrival time
-	})
-	if err != nil {
+		ArrivalTimestamp: time.Now().Unix(),
+	}
+	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+		ts.Log.Warnf("Invalid transaction submitted: %v", err)
 		return nil, err
 	}
+	// Apply Unconfirmed
+	err = ts.Query.BeginTx()
+	if err != nil {
+		ts.Log.Warnf("error opening db transaction %v", err)
+		return nil, err
+	}
+	err = txType.ApplyUnconfirmed()
+	if err != nil {
+		ts.Log.Warnf("fail ApplyUnconfirmed tx: %v", err)
+		errRollback := ts.Query.RollbackTx()
+		if errRollback != nil {
+			ts.Log.Warnf("error rolling back db transaction %v", errRollback)
+			return nil, errRollback
+		}
+		return nil, err
+	}
+	err = ts.MempoolService.AddMempoolTransaction(mpTx)
+	if err != nil {
+		ts.Log.Warnf("error AddMempoolTransaction: %v", err)
+		errRollback := ts.Query.RollbackTx()
+		if errRollback != nil {
+			ts.Log.Warnf("error rolling back db transaction %v", errRollback)
+			return nil, err
+		}
+		return nil, err
+	}
+	err = ts.Query.CommitTx()
+	if err != nil {
+		ts.Log.Warnf("error committing db transaction: %v", err)
+		return nil, err
+	}
+
 	// return parsed transaction
 	return tx, nil
 }

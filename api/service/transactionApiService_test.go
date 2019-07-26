@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -24,12 +26,6 @@ func resetTransactionService() {
 }
 
 type (
-	mockSignatureInvalid struct {
-		crypto.Signature
-	}
-	mockSignatureValid struct {
-		crypto.Signature
-	}
 	mockTypeSwitcherValidateFail struct {
 		transaction.TypeSwitcher
 	}
@@ -49,6 +45,9 @@ type (
 		transaction.TXEmpty
 	}
 	mockMempoolServiceFailAdd struct {
+		service.MempoolService
+	}
+	mockMempoolServiceFailValidate struct {
 		service.MempoolService
 	}
 	mockMempoolServiceSuccess struct {
@@ -72,15 +71,21 @@ type (
 	mockGetTransactionExecutorTxSuccess struct {
 		query.Executor
 	}
+	mockTransactionExecutorFailBeginTx struct {
+		query.Executor
+	}
+	mockTransactionExecutorSuccess struct {
+		query.Executor
+	}
+	mockTransactionExecutorRollbackFail struct {
+		mockTransactionExecutorSuccess
+	}
+	mockTransactionExecutorCommitFail struct {
+		mockTransactionExecutorSuccess
+	}
 )
 
-func (*mockSignatureInvalid) VerifySignature(payload, signature []byte, accountType uint32, accountAddress string) bool {
-	return false
-}
-
-func (*mockSignatureValid) VerifySignature(payload, signature []byte, accountType uint32, accountAddress string) bool {
-	return true
-}
+var mockLog = logrus.New()
 
 func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
 	return &mockTxTypeValidateFail{}
@@ -118,7 +123,19 @@ func (*mockMempoolServiceFailAdd) AddMempoolTransaction(mpTx *model.MempoolTrans
 	return errors.New("mockError:addTxFail")
 }
 
+func (*mockMempoolServiceFailAdd) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return nil
+}
+
+func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return errors.New("mockedError")
+}
+
 func (*mockMempoolServiceSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return nil
+}
+
+func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
 	return nil
 }
 
@@ -220,6 +237,34 @@ func (*mockGetTransactionExecutorSuccess) ExecuteSelect(qe string, args ...inter
 	return db.Query(qe)
 }
 
+func (*mockTransactionExecutorFailBeginTx) BeginTx() error {
+	return errors.New("mockedError")
+}
+
+func (*mockTransactionExecutorSuccess) BeginTx() error {
+	return nil
+}
+
+func (*mockTransactionExecutorSuccess) CommitTx() error {
+	return nil
+}
+
+func (*mockTransactionExecutorSuccess) RollbackTx() error {
+	return nil
+}
+
+func (*mockTransactionExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
+func (*mockTransactionExecutorRollbackFail) RollbackTx() error {
+	return errors.New("mockedError")
+}
+
+func (*mockTransactionExecutorCommitFail) CommitTx() error {
+	return errors.New("mockedError")
+}
+
 func TestNewTransactionervice(t *testing.T) {
 	db, _, err := sqlmock.New()
 	if err != nil {
@@ -238,7 +283,8 @@ func TestNewTransactionervice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewTransactionService(query.NewQueryExecutor(db), nil, nil, nil); !reflect.DeepEqual(got, tt.want) {
+			if got := NewTransactionService(query.NewQueryExecutor(db),
+				nil, nil, nil, nil); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
 			defer resetTransactionService()
@@ -248,10 +294,11 @@ func TestNewTransactionervice(t *testing.T) {
 
 func TestTransactionService_PostTransaction(t *testing.T) {
 	type fields struct {
-		Query              *query.Executor
+		Query              query.ExecutorInterface
 		Signature          crypto.SignatureInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
+		Log                *logrus.Logger
 	}
 	type args struct {
 		chaintype contract.ChainType
@@ -267,8 +314,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		{
 			name: "PostTransaction:txBytesInvalid",
 			fields: fields{
-				Query:     nil,
-				Signature: &mockSignatureInvalid{},
+				Query: nil,
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -287,10 +333,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "PostTransaction:signatureInvalid",
+			name: "PostTransaction:txType.ValidateFail",
 			fields: fields{
-				Query:     nil,
-				Signature: &mockSignatureInvalid{},
+				Query:              nil,
+				ActionTypeSwitcher: &mockTypeSwitcherValidateFail{},
+				MempoolService:     &mockMempoolServiceFailValidate{},
+				Log:                mockLog,
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -310,11 +358,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "PostTransaction:txType.ValidateFail",
+			name: "PostTransaction:beginTxFail",
 			fields: fields{
-				Query:              nil,
-				Signature:          &mockSignatureValid{},
-				ActionTypeSwitcher: &mockTypeSwitcherValidateFail{},
+				Query:              &mockTransactionExecutorFailBeginTx{},
+				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
+				Log:                mockLog,
+				MempoolService:     &mockMempoolServiceSuccess{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -336,9 +385,35 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		{
 			name: "PostTransaction:txType.ApplyUnconfirmedFail",
 			fields: fields{
-				Query:              nil,
-				Signature:          &mockSignatureValid{},
+				Query:              &mockTransactionExecutorSuccess{},
 				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
+				Log:                mockLog,
+				MempoolService:     &mockMempoolServiceSuccess{},
+			},
+			args: args{
+				chaintype: &chaintype.MainChain{},
+				req: &model.PostTransactionRequest{
+					TransactionBytes: []byte{
+						1, 0, 1, 53, 119, 58, 93, 0, 0, 0, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77,
+						84, 89, 107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116,
+						78, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107,
+						106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 1, 0, 0, 0, 0, 0, 0, 0, 8, 0,
+						0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 32, 85, 34, 198, 89, 78, 166, 142, 59, 148, 243, 133, 69, 66, 123, 219, 2, 3, 229, 172,
+						221, 35, 185, 208, 43, 44, 172, 96, 166, 116, 205, 93, 78, 194, 153, 95, 243, 145, 108, 96, 42, 6, 186, 128, 59, 117,
+						83, 196, 26, 9, 15, 157, 215, 108, 180, 35, 195, 100, 7, 142, 47, 96, 108, 10,
+					},
+				},
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "PostTransaction:txType.ApplyUnconfirmedFail-RollbackFail",
+			fields: fields{
+				Query:              &mockTransactionExecutorRollbackFail{},
+				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
+				Log:                mockLog,
+				MempoolService:     &mockMempoolServiceSuccess{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -360,10 +435,60 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		{
 			name: "PostTransaction:txType.AddMempoolTransactionFail",
 			fields: fields{
-				Query:              nil,
-				Signature:          &mockSignatureValid{},
+				Query:              &mockTransactionExecutorSuccess{},
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceFailAdd{},
+				Log:                mockLog,
+			},
+			args: args{
+				chaintype: &chaintype.MainChain{},
+				req: &model.PostTransactionRequest{
+					TransactionBytes: []byte{
+						1, 0, 1, 53, 119, 58, 93, 0, 0, 0, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77,
+						84, 89, 107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116,
+						78, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107,
+						106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 1, 0, 0, 0, 0, 0, 0, 0, 8, 0,
+						0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 32, 85, 34, 198, 89, 78, 166, 142, 59, 148, 243, 133, 69, 66, 123, 219, 2, 3, 229, 172,
+						221, 35, 185, 208, 43, 44, 172, 96, 166, 116, 205, 93, 78, 194, 153, 95, 243, 145, 108, 96, 42, 6, 186, 128, 59, 117,
+						83, 196, 26, 9, 15, 157, 215, 108, 180, 35, 195, 100, 7, 142, 47, 96, 108, 10,
+					},
+				},
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "PostTransaction:txType.AddMempoolTransactionFail-RollbackFail",
+			fields: fields{
+				Query:              &mockTransactionExecutorRollbackFail{},
+				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
+				MempoolService:     &mockMempoolServiceFailAdd{},
+				Log:                mockLog,
+			},
+			args: args{
+				chaintype: &chaintype.MainChain{},
+				req: &model.PostTransactionRequest{
+					TransactionBytes: []byte{
+						1, 0, 1, 53, 119, 58, 93, 0, 0, 0, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77,
+						84, 89, 107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116,
+						78, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107,
+						106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 1, 0, 0, 0, 0, 0, 0, 0, 8, 0,
+						0, 0, 16, 39, 0, 0, 0, 0, 0, 0, 32, 85, 34, 198, 89, 78, 166, 142, 59, 148, 243, 133, 69, 66, 123, 219, 2, 3, 229, 172,
+						221, 35, 185, 208, 43, 44, 172, 96, 166, 116, 205, 93, 78, 194, 153, 95, 243, 145, 108, 96, 42, 6, 186, 128, 59, 117,
+						83, 196, 26, 9, 15, 157, 215, 108, 180, 35, 195, 100, 7, 142, 47, 96, 108, 10,
+					},
+				},
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "PostTransaction:txType.AddMempoolTransactionFail-RollbackFail",
+			fields: fields{
+				Query:              &mockTransactionExecutorCommitFail{},
+				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
+				MempoolService:     &mockMempoolServiceSuccess{},
+				Log:                mockLog,
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -385,10 +510,10 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		{
 			name: "PostTransaction:txType.Success",
 			fields: fields{
-				Query:              nil,
-				Signature:          &mockSignatureValid{},
+				Query:              &mockTransactionExecutorSuccess{},
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceSuccess{},
+				Log:                mockLog,
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -432,6 +557,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
+				Log:                tt.fields.Log,
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {
