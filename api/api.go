@@ -6,7 +6,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
-	"github.com/zoobc/zoobc-core/api/internal"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -28,7 +27,7 @@ func init() {
 
 func startGrpcServer(port int, queryExecutor *query.Executor, p2pHostService contract.P2PType) {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
 	)
 
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

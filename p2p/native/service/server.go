@@ -10,7 +10,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 
-	"github.com/zoobc/zoobc-core/p2p/native/internal"
 	"google.golang.org/grpc"
 )
 
@@ -50,7 +49,7 @@ func (ss *ServerService) StartListening(listener net.Listener) error {
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
 	)
 	service.RegisterP2PCommunicationServer(grpcServer, ss)
 	return grpcServer.Serve(listener)

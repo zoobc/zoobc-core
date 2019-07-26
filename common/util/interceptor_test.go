@@ -1,4 +1,4 @@
-package internal
+package util
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func TestNewInterceptor(t *testing.T) {
+func TestNewServerInterceptor(t *testing.T) {
 
 	type args struct {
 		logger *logrus.Logger
@@ -45,7 +45,7 @@ func TestNewInterceptor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewInterceptor(tt.args.logger)
+			got := NewServerInterceptor(tt.args.logger)
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewInterceptor() = %v, want %v", got, tt.want)
 			}
