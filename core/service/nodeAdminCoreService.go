@@ -119,11 +119,11 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages []byte, signa
 	i := interface{}(nil)
 	switch i {
 	case err1 != i:
-		return errors.New("Signature not valid")
+		return errors.New("signature not valid")
 	case err2 != i:
-		return errors.New("Height not valid")
+		return errors.New("height not valid")
 	case err3 != i:
-		return errors.New("Hash not valid")
+		return errors.New("hash not valid")
 	default:
 		return nil
 	}
@@ -132,8 +132,8 @@ func (nas *NodeAdminService) ValidateSignature(signature []byte, payload []byte,
 
 	result := ed25519.Verify(publicKey, payload, signature)
 
-	if result == false {
-		return errors.New("Signature not valid")
+	if !result {
+		return errors.New("signature not valid")
 	}
 
 	return nil
@@ -144,7 +144,7 @@ func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
 	blocks = nas.BlockQuery.BuildModel(blocks, rows)
 
 	if blockHeight > blocks[0].Height {
-		return errors.New("Block is older")
+		return errors.New("block is older")
 	}
 
 	return nil
@@ -160,8 +160,8 @@ func (nas *NodeAdminService) ValidateBlockHash(blockHeight uint32, lastBlockHash
 	_, _ = digest.Write(blockByte)
 	hash := digest.Sum([]byte{})
 
-	if bytes.Equal(hash, lastBlockHash) != true {
-		return errors.New("Hash didn't same")
+	if !bytes.Equal(hash, lastBlockHash) {
+		return errors.New("hash didn't same")
 	}
 
 	return nil
