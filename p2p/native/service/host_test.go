@@ -177,7 +177,7 @@ func TestGetResolvedPeers(t *testing.T) {
 				hostInstance: goodHostInstance,
 			},
 			want: map[string]*model.Peer{
-				"127.0.0.1:3000": &model.Peer{
+				"127.0.0.1:3000": {
 					Info: &model.Node{
 						SharedAddress: "127.0.0.1",
 						Address:       "127.0.0.1",
@@ -370,7 +370,7 @@ func TestGetUnresolvedPeers(t *testing.T) {
 				hostInstance: goodHostInstance,
 			},
 			want: map[string]*model.Peer{
-				"127.0.0.1:3000": &model.Peer{
+				"127.0.0.1:3000": {
 					Info: &model.Node{
 						SharedAddress: "127.0.0.1",
 						Address:       "127.0.0.1",
@@ -635,7 +635,7 @@ func TestGetBlacklistedPeers(t *testing.T) {
 				hostInstance: goodHostInstance,
 			},
 			want: map[string]*model.Peer{
-				"127.0.0.1:3000": &model.Peer{
+				"127.0.0.1:3000": {
 					Info: &model.Node{
 						SharedAddress: "127.0.0.1",
 						Address:       "127.0.0.1",
