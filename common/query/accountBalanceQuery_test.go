@@ -40,7 +40,7 @@ var mockAccountBalanceQuery = &AccountBalanceQuery{
 
 var causedFields = map[string]interface{}{
 	"account_id":   []byte{1},
-	"block_height": 1,
+	"block_height": uint32(1),
 }
 
 var mockAccountBalance = &model.AccountBalance{
@@ -54,11 +54,15 @@ var mockAccountBalance = &model.AccountBalance{
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
-		res := mockAccountBalanceQuery.GetAccountBalanceByAccountID()
+		res, arg := mockAccountBalanceQuery.GetAccountBalanceByAccountID([]byte{1})
 		want := "SELECT account_id,block_height,spendable_balance,balance,pop_revenue,latest " +
 			"FROM account_balance WHERE account_id = ? AND latest = 1"
+		wantArg := []byte{1}
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+		if !reflect.DeepEqual(arg, wantArg) {
+			t.Errorf("argument not match:\nget: %v\nwant: %v", arg, wantArg)
 		}
 	})
 }
@@ -69,12 +73,18 @@ func TestAccountBalanceQuery_AddAccountBalance(t *testing.T) {
 		res := mockAccountBalanceQuery.AddAccountBalance(100, causedFields)
 		var want [][]interface{}
 		want = append(want, []interface{}{
-			"UPDATE account_balance SET latest = false WHERE account_id = ? AND block_height = 1 - 1 AND latest = true",
-			causedFields["account_id"],
+			"INSERT INTO account_balance (account_id, block_height, spendable_balance, balance, pop_revenue, latest) SELECT ?, " +
+				"1, 0, 0, 0, 1 WHERE NOT EXISTS (SELECT account_id FROM account_balance WHERE account_id = ?)",
+			causedFields["account_id"], causedFields["account_id"],
 		}, []interface{}{
-			"INSERT INTO account_balance (account_id, block_height, spendable_balance, balance, pop_revenue, latest) VALUES " +
-				"(?, 1, 100, 100, 0, true) ON CONFLICT(account_id, block_height) DO UPDATE SET spendable_balance = spendable_balance " +
-				"+ 100, balance = balance + 100", causedFields["account_id"],
+			"INSERT INTO account_balance (account_id, block_height, spendable_balance, balance, pop_revenue, latest) SELECT account_id, " +
+				"1, spendable_balance + 100, balance + 100, pop_revenue, latest FROM account_balance WHERE account_id = ? AND latest = 1 " +
+				"ON CONFLICT(account_id, block_height) DO UPDATE SET (spendable_balance, balance) = (SELECT spendable_balance + 100, balance " +
+				"+ 100 FROM account_balance WHERE account_id = ? AND latest = 1)",
+			causedFields["account_id"], causedFields["account_id"],
+		}, []interface{}{
+			"UPDATE account_balance SET latest = false WHERE account_id = ? AND block_height != 1 AND latest = true",
+			causedFields["account_id"],
 		})
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
