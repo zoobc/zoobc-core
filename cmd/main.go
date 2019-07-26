@@ -10,7 +10,7 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "zoobc"}
-	logger, _ := util.InitLogger(".log/", "debug.log")
+	logger, _ := util.InitLogger(".log/", "cmd.debug.log")
 	rootCmd.AddCommand(account.GenerateAccount(logger))
 	rootCmd.AddCommand(transaction.GenerateTransactionBytes(logger, &crypto.Signature{}))
 	_ = rootCmd.Execute()
