@@ -41,6 +41,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: int64(sendMoneyTxAmount),
 				},
+				Fee:                  tx.Fee,
 				SenderAddress:        tx.GetSenderAccountAddress(),
 				SenderAccountType:    tx.GetSenderAccountType(),
 				RecipientAddress:     tx.GetRecipientAccountAddress(),
