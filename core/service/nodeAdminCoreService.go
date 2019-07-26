@@ -87,30 +87,41 @@ func (nas *NodeAdminService) SignData(payload []byte) (sign []byte) {
 	return sign
 }
 
+func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {
+	nextBytes := buf.Next(nBytes)
+	if len(nextBytes) < nBytes {
+		return nil, errors.New("EndOfBufferReached")
+	}
+	return nextBytes, nil
+}
+
 // validate proof of ownership
 func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages []byte, signature []byte, publicKey []byte) error {
 
 	buffer := bytes.NewBuffer(nodeMessages)
-	transactionTypeBytes, err := readNodeMessages(buffer, 2)
+
+	blockHeightBytes, err := readNodeMessages(buffer, 5)
+	blockHeight := commonUtil.ConvertBytesToUint32([]byte{blockHeightBytes[0], 0, 0, 0})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	blockHeigt :=
-
-	lastBlockHash :=
+	lastBlockHash, err := readNodeMessages(buffer, 4)
+	if err != nil {
+		return err
+	}
 
 	err1 := nas.ValidateSignature(signature, nodeMessages, publicKey)
 	err2 := nas.ValidateHeight(blockHeight)
 	err3 := nas.ValidateBlockHash(blockHeight, lastBlockHash)
 
-	i := nil
+	i := interface{}(nil)
 	switch i {
-	case len(err1) != i:
+	case err1 != i:
 		return errors.New("Signature not valid")
-	case len(err2) != i:
+	case err2 != i:
 		return errors.New("Height not valid")
-	case len(err3) != i:
+	case err3 != i:
 		return errors.New("Hash not valid")
 	default:
 		return nil
@@ -148,7 +159,7 @@ func (nas *NodeAdminService) ValidateBlockHash(blockHeight uint32, lastBlockHash
 	_, _ = digest.Write(blockByte)
 	hash := digest.Sum([]byte{})
 
-	if hash != lastBlockHash {
+	if bytes.Equal(hash, lastBlockHash) != true {
 		return errors.New("Hash didn't same")
 	}
 
