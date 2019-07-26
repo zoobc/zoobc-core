@@ -30,7 +30,8 @@ type (
 )
 
 // generate proof of ownership
-func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) (nodeMessages []byte, proofOfOwnershipSign []byte) {
+func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
+	accountAddress string, signature []byte) (nodeMessages []byte, proofOfOwnershipSign []byte) {
 
 	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
 
