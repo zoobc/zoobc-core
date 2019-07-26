@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	service2 "github.com/zoobc/zoobc-core/core/service"
+	core_service "github.com/zoobc/zoobc-core/core/service"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -35,7 +35,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-	mempoolService := service2.NewMempoolService(
+	mempoolService := core_service.NewMempoolService(
 		&chaintype.MainChain{},
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -62,7 +62,9 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
 			queryExecutor,
 			&crypto.Signature{},
 			actionTypeSwitcher,
-			mempoolService),
+			mempoolService,
+			apiLogger,
+		),
 	})
 	// run grpc-gateway handler
 	go func() {
