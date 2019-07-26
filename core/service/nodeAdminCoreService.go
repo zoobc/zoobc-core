@@ -31,7 +31,7 @@ type (
 
 // generate proof of ownership
 func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
-	accountAddress string, signature []byte) (nodeMessages []byte, proofOfOwnershipSign []byte) {
+	accountAddress string, signature []byte) (nodeMessages, proofOfOwnershipSign []byte) {
 
 	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
 
@@ -114,20 +114,22 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, p
 	}
 
 	err1 := nas.ValidateSignature(signature, nodeMessages, publicKey)
-	err2 := nas.ValidateHeight(blockHeight)
-	err3 := nas.ValidateBlockHash(blockHeight, lastBlockHash)
-
-	i := interface{}(nil)
-	switch i {
-	case err1 != i:
-		return errors.New("signature not valid")
-	case err2 != i:
-		return errors.New("height not valid")
-	case err3 != i:
-		return errors.New("hash not valid")
-	default:
-		return nil
+	if err1 != nil {
+		return err1
 	}
+
+	err2 := nas.ValidateHeight(blockHeight)
+	if err2 != nil {
+		return err2
+	}
+
+	err3 := nas.ValidateBlockHash(blockHeight, lastBlockHash)
+	if err3 != nil {
+		return err3
+	}
+
+	return nil
+
 }
 func (nas *NodeAdminService) ValidateSignature(signature, payload, publicKey []byte) error {
 
