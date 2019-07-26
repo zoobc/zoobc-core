@@ -48,6 +48,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accoun
 
 		return nodeMessages, proofOfOwnershipSign
 	}
+	return nil, nil
 }
 
 // GetLastBlock return the last pushed block
@@ -138,7 +139,7 @@ func (nas *NodeAdminService) ValidateSignature(signature []byte, payload []byte,
 	return nil
 }
 func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
-	rows, err := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
+	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
 	var blocks []*model.Block
 	blocks = nas.BlockQuery.BuildModel(blocks, rows)
 
@@ -150,7 +151,7 @@ func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
 }
 func (nas *NodeAdminService) ValidateBlockHash(blockHeight uint32, lastBlockHash []byte) error {
 
-	rows, err := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetBlockByHeight(blockHeight))
+	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetBlockByHeight(blockHeight))
 	var blocks []*model.Block
 	blocks = nas.BlockQuery.BuildModel(blocks, rows)
 
