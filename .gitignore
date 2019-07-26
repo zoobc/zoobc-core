@@ -11,4 +11,6 @@ zoobc
 .vscode
 .idea
 *.db
+*.db-journal
 cover.out
+coverage*.*

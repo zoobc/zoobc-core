@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,6 +12,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 
 	"github.com/zoobc/zoobc-core/core/smith"
@@ -33,6 +34,7 @@ var (
 	nodeSecretPhrase        string
 	apiRPCPort, apiHTTPPort int
 	p2pServiceInstance      contract.P2PType
+	queryExecutor           *query.Executor
 )
 
 func init() {
@@ -65,6 +67,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	queryExecutor = query.NewQueryExecutor(db)
 }
 
 func p2pService() {
@@ -83,12 +86,9 @@ func startServices(queryExecutor *query.Executor) {
 }
 
 func main() {
-	fmt.Println("run")
 
-	queryExecutor := query.NewQueryExecutor(db)
-
-	migration := database.Migration{}
-	if err := migration.Init(queryExecutor); err != nil {
+	migration := database.Migration{Query: queryExecutor}
+	if err := migration.Init(); err != nil {
 		panic(err)
 	}
 
@@ -97,15 +97,45 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-	// todo: read secret phrase from config
-	blockchainProcessor := smith.NewBlockchainProcessor(mainchain,
+
+	blockchainProcessor := smith.NewBlockchainProcessor(
+		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
-		service.NewBlockService(mainchain, query.NewQueryExecutor(db), query.NewBlockQuery(mainchain),
-			query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature()),
-		service.NewMempoolService(mainchain, query.NewQueryExecutor(db), query.NewMempoolQuery(mainchain)))
-	if !blockchainProcessor.CheckGenesis() { // Add genesis if not exist
-		_ = blockchainProcessor.AddGenesis()
+		service.NewBlockService(
+			mainchain,
+			queryExecutor,
+			query.NewBlockQuery(mainchain),
+			query.NewMempoolQuery(mainchain),
+			query.NewTransactionQuery(mainchain),
+			crypto.NewSignature(),
+			service.NewMempoolService(
+				mainchain,
+				queryExecutor,
+				query.NewMempoolQuery(mainchain),
+				&transaction.TypeSwitcher{
+					Executor: queryExecutor,
+				},
+				query.NewAccountBalanceQuery(),
+			),
+			&transaction.TypeSwitcher{
+				Executor: queryExecutor,
+			},
+			query.NewAccountBalanceQuery(),
+		),
+	)
+
+	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
+
+		// genesis account will be inserted in the very beginning
+		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+			panic("Fail to add genesis account")
+		}
+
+		if err := blockchainProcessor.BlockService.AddGenesis(); err != nil {
+			panic(err)
+		}
 	}
+
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, blockchainProcessor)
 	}
