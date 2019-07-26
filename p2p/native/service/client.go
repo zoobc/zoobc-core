@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -16,12 +17,15 @@ import (
 type PeerServiceClient struct{}
 
 var PeerServiceClientInstance *PeerServiceClient
+var once sync.Once
 
 // ClientPeerService to get instance of singleton peer service
 func NewPeerServiceClient() *PeerServiceClient {
-	if PeerServiceClientInstance == nil {
-		PeerServiceClientInstance = &PeerServiceClient{}
-	}
+	once.Do(func() {
+		if PeerServiceClientInstance == nil {
+			PeerServiceClientInstance = &PeerServiceClient{}
+		}
+	})
 	return PeerServiceClientInstance
 }
 
