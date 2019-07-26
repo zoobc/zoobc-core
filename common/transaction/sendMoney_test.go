@@ -27,8 +27,9 @@ type (
 	executorValidateSuccess struct {
 		query.Executor
 	}
-	executorApplySuccess struct {
-		executorValidateSuccess
+
+	executorApplyUnconfirmedSuccess struct {
+		query.Executor
 	}
 
 	executorFailUpdateAccount struct {
@@ -38,24 +39,11 @@ type (
 	executorSuccessUpdateAccount struct {
 		query.Executor
 	}
-)
 
-func (*executorApplySuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
+	executorUnconfirmedFail struct {
+		query.ExecutorInterface
 	}
-
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
-		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-
-	tx, _ := db.Begin()
-	stmt, _ := tx.Prepare("")
-	result, _ := stmt.Exec("")
-	err = tx.Commit()
-	return []sql.Result{result}, err
-}
+)
 
 func (*executorValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
@@ -78,22 +66,6 @@ func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) 
 	).AddRow(1, 2, 50, 50, 0, 1))
 	return db.Query(qStr, 1)
 }
-func (*executorValidateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
-		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-
-	tx, _ := db.Begin()
-	stmt, _ := tx.Prepare("")
-	result, _ := stmt.Exec("")
-	err = tx.Commit()
-	return []sql.Result{result}, err
-}
 
 func (*executorAccountCreateSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
@@ -115,22 +87,7 @@ func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interfac
 	))
 	return db.Query(qStr, 1)
 }
-func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
 
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
-		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-
-	tx, _ := db.Begin()
-	stmt, _ := tx.Prepare("")
-	result, _ := stmt.Exec("")
-	err = tx.Commit()
-	return []sql.Result{result}, err
-}
 func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 
@@ -187,6 +144,14 @@ func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface
 }
 
 func (*executorAccountCountSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
+func (*executorUnconfirmedFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return errors.New("MockedError")
+}
+
+func (*executorApplyUnconfirmedSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
 
@@ -367,7 +332,7 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantError:ValidateInvalid",
+			name: "wantError:ExecuteTransactionFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
@@ -379,11 +344,7 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCountSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:        &executorUnconfirmedFail{},
 			},
 			wantErr: true,
 		},
@@ -400,15 +361,9 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorApplySuccess{
-					executorValidateSuccess{
-						query.Executor{
-							Db: db,
-						},
-					},
-				},
+				QueryExecutor:        &executorApplyUnconfirmedSuccess{},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

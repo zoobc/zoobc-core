@@ -13,6 +13,7 @@ import (
 // SendMoney is Transaction Type that implemented TypeAction
 type SendMoney struct {
 	Body                 *model.SendMoneyTransactionBody
+	Fee                  int64
 	SenderAddress        string
 	SenderAccountType    uint32
 	RecipientAddress     string
@@ -72,7 +73,7 @@ func (tx *SendMoney) ApplyConfirmed() error {
 	)
 	// update sender
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-tx.Body.Amount,
+		-(tx.Body.Amount + tx.Fee),
 		map[string]interface{}{
 			"account_id":   senderAccount.ID,
 			"block_height": tx.Height,
@@ -99,13 +100,9 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 		err error
 	)
 
-	if err := tx.Validate(); err != nil {
-		return err
-	}
-
 	// update sender
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-tx.Body.Amount,
+		-(tx.Body.Amount + tx.Fee),
 		map[string]interface{}{
 			"account_id": util.CreateAccountIDFromAddress(
 				tx.SenderAccountType,
@@ -113,7 +110,7 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 			),
 		},
 	)
-	_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
 		return err
 	}
@@ -132,7 +129,7 @@ func (tx *SendMoney) UndoApplyUnconfirmed() error {
 
 	// update sender
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Body.Amount,
+		tx.Body.Amount+tx.Fee,
 		map[string]interface{}{
 			"account_id": util.CreateAccountIDFromAddress(
 				tx.SenderAccountType,
