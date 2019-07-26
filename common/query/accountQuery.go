@@ -16,7 +16,7 @@ type (
 
 	AccountQueryInterface interface {
 		GetAccountByID(accountID []byte) (str string, args []interface{})
-		GetAccountByIDs(ids [][]byte) (str string, args [][]byte)
+		GetAccountByIDs(ids [][]byte) (str string, args []interface{})
 		InsertAccount(account *model.Account) (str string, args []interface{})
 		ExtractModel(account *model.Account) []interface{}
 		BuildModel(accounts []*model.Account, rows *sql.Rows) []*model.Account
@@ -39,13 +39,16 @@ func (aq *AccountQuery) GetAccountByID(accountID []byte) (str string, args []int
 }
 
 // GetAccountByIDs return query string to get accounts by multiple IDs
-func (aq *AccountQuery) GetAccountByIDs(ids [][]byte) (str string, args [][]byte) {
+func (aq *AccountQuery) GetAccountByIDs(ids [][]byte) (str string, args []interface{}) {
+	for _, id := range ids {
+		args = append(args, id)
+	}
 	return fmt.Sprintf(
 		"SELECT %s FROM %s WHERE id in (%s)",
 		strings.Join(aq.Fields, ","),
 		aq.TableName,
 		fmt.Sprintf("? %s", strings.Repeat(",?", len(ids)-1)),
-	), ids
+	), args
 }
 
 func (aq *AccountQuery) InsertAccount(account *model.Account) (str string, args []interface{}) {
