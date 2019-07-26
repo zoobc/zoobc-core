@@ -30,7 +30,7 @@ type (
 )
 
 // generate proof of ownership
-func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) ([]byte, []byte) {
+func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) (nodeMessages []byte, proofOfOwnershipSign []byte) {
 
 	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
 
@@ -97,7 +97,7 @@ func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {
 }
 
 // validate proof of ownership
-func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages []byte, signature []byte, publicKey []byte) error {
+func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, publicKey []byte) error {
 
 	buffer := bytes.NewBuffer(nodeMessages)
 
@@ -128,7 +128,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages []byte, signa
 		return nil
 	}
 }
-func (nas *NodeAdminService) ValidateSignature(signature []byte, payload []byte, publicKey []byte) error {
+func (nas *NodeAdminService) ValidateSignature(signature, payload, publicKey []byte) error {
 
 	result := ed25519.Verify(publicKey, payload, signature)
 
