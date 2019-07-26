@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/util"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -39,7 +41,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 							Amount: 10,
 						},
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}),
+					TransactionBodyBytes: util.ConvertUint64ToBytes(10),
+					TransactionType:      binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}),
 				},
 			},
 			want: &SendMoney{
