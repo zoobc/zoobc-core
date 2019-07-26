@@ -17,8 +17,8 @@ import (
 type (
 	// NodeAdminServiceInterface represents interface for NodeAdminService
 	NodeAdminServiceInterface interface {
-		GenerateProofOfOwnership(accountType string, accountAddress uint32, signature []byte)
-		ValidateProofOfOwnership()
+		GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte)
+		ValidateProofOfOwnership(nodeMessages, signature, publicKey []byte)
 	}
 
 	NodeAdminService struct {
