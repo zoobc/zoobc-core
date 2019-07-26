@@ -76,12 +76,13 @@ error will be nil otherwise.
 */
 func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
 	qe.Lock()
-	defer qe.Unlock()
 	stmt, err := qe.Db.Prepare(query)
 
 	if err != nil {
 		return nil, err
 	}
+	defer stmt.Close()
+	defer qe.Unlock()
 	result, err := stmt.Exec(args...)
 
 	if err != nil {
@@ -160,6 +161,7 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 // note: rollback is called in this function if commit fail, to avoid locking complication
 func (qe *Executor) CommitTx() error {
 	err := qe.Tx.Commit()
+
 	defer qe.Unlock() // either success or not struct access should be unlocked once done
 	if err != nil {
 		_ = qe.Tx.Rollback()
