@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"math"
 	"reflect"
 	"regexp"
 	"testing"
@@ -308,7 +307,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
-				blockTimestamp: math.MaxInt64,
+				blockTimestamp: 1562893106,
 			},
 			want: []*model.MempoolTransaction{
 				{
