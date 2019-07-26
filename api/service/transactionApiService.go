@@ -3,7 +3,14 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"fmt"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/core/service"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+
+	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -15,20 +22,30 @@ type (
 	TransactionServiceInterface interface {
 		GetTransaction(contract.ChainType, *model.GetTransactionRequest) (*model.Transaction, error)
 		GetTransactions(contract.ChainType, *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error)
+		PostTransaction(contract.ChainType, *model.PostTransactionRequest) (*model.Transaction, error)
 	}
 
 	// TransactionService represents struct of TransactionService
 	TransactionService struct {
-		Query *query.Executor
+		Query              query.ExecutorInterface
+		Signature          crypto.SignatureInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
+		MempoolService     service.MempoolServiceInterface
 	}
 )
 
 var transactionServiceInstance *TransactionService
 
 // NewTransactionService creates a singleton instance of TransactionService
-func NewTransactionService(queryExecutor *query.Executor) *TransactionService {
+func NewTransactionService(queryExecutor query.ExecutorInterface, signature crypto.SignatureInterface,
+	txTypeSwitcher transaction.TypeActionSwitcher, mempoolService service.MempoolServiceInterface) *TransactionService {
 	if transactionServiceInstance == nil {
-		transactionServiceInstance = &TransactionService{Query: queryExecutor}
+		transactionServiceInstance = &TransactionService{
+			Query:              queryExecutor,
+			Signature:          signature,
+			ActionTypeSwitcher: txTypeSwitcher,
+			MempoolService:     mempoolService,
+		}
 	}
 	return transactionServiceInstance
 }
@@ -44,7 +61,6 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType,
 	txQuery := query.NewTransactionQuery(chainType)
 	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
 	if err != nil {
-		fmt.Printf("GetTransaction fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -70,7 +86,6 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 	selectQuery := txQuery.GetTransactions(params.Limit, params.Offset)
 	rows, err = ts.Query.ExecuteSelect(selectQuery)
 	if err != nil {
-		fmt.Printf("GetTransactions fails %v\n", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -78,7 +93,6 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 
 	rows2, err = ts.Query.ExecuteSelect(query.GetTotalRecordOfSelect(selectQuery))
 	if err != nil {
-		fmt.Printf("GetTransactions total records fails %v\n", err)
 		return nil, err
 	}
 	defer rows2.Close()
@@ -99,4 +113,43 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 		Count:        uint32(len(txs)),
 		Transactions: txs,
 	}, nil
+}
+
+func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req *model.PostTransactionRequest) (*model.Transaction, error) {
+	txBytes := req.TransactionBytes
+	// get unsigned bytes
+	tx, err := util.ParseTransactionBytes(txBytes, true)
+	if err != nil {
+		return nil, err
+	}
+	// tx is parsed, getting unsigned tx bytes should not return error
+	unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
+	// Validate Signature
+	signatureIsValid := ts.Signature.VerifySignature(unsignedTxBytes, tx.Signature, tx.SenderAccountType, tx.SenderAccountAddress)
+	if !signatureIsValid {
+		return nil, errors.New("ErrInvalidSignature")
+	}
+	// Validate Tx
+	txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	err = txType.Validate()
+	if err != nil {
+		return nil, err
+	}
+	// Apply Unconfirmed
+	err = txType.ApplyUnconfirmed()
+	if err != nil {
+		return nil, err
+	}
+	// Save to mempool
+	err = ts.MempoolService.AddMempoolTransaction(&model.MempoolTransaction{
+		FeePerByte:       0,
+		ID:               tx.ID,
+		TransactionBytes: txBytes,
+		ArrivalTimestamp: time.Now().Unix(), // todo: should arrival timestamp = exact arrival time
+	})
+	if err != nil {
+		return nil, err
+	}
+	// return parsed transaction
+	return tx, nil
 }
