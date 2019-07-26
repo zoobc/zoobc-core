@@ -39,7 +39,11 @@ func NewServerService() *ServerService {
 
 // StartListening to grpc connection
 func (ss *ServerService) StartListening(listener net.Listener) error {
-	hostInfo := GetHostService().Host.GetInfo()
+	hs, err := GetHostService()
+	if err != nil {
+		panic(err)
+	}
+	hostInfo := hs.Host.GetInfo()
 	if hostInfo.GetAddress() == "" || hostInfo.GetPort() == 0 {
 		log.Fatalf("Address or Port server is not available")
 	}
@@ -54,7 +58,11 @@ func (ss *ServerService) StartListening(listener net.Listener) error {
 
 // GetPeerInfo to return info of this host
 func (ss *ServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
-	hostInfo := GetHostService().Host.GetInfo()
+	hs, err := GetHostService()
+	if err != nil {
+		panic(err)
+	}
+	hostInfo := hs.Host.GetInfo()
 	return &model.Node{
 		SharedAddress: hostInfo.GetSharedAddress(),
 		Address:       hostInfo.GetAddress(),
@@ -65,8 +73,12 @@ func (ss *ServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfo
 // GetMorePeers contains info other peers
 func (ss *ServerService) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
 	var nodes []*model.Node
+	hs, err := GetHostService()
+	if err != nil {
+		panic(err)
+	}
 	// only sends the connected (resolved) peers
-	for _, hostPeer := range GetHostService().Host.ResolvedPeers {
+	for _, hostPeer := range hs.GetResolvedPeers() {
 		nodes = append(nodes, hostPeer.GetInfo())
 	}
 	peers := &model.GetMorePeersResponse{
@@ -77,7 +89,11 @@ func (ss *ServerService) GetMorePeers(ctx context.Context, req *model.Empty) (*m
 
 // SendPeers receives set of peers info from other node and put them into the unresolved peers
 func (ss *ServerService) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
-	// TODO: only accept nodes that are already registered
-	GetHostService().AddToUnresolvedPeers(req.Peers, true)
+	// TODO: only accept nodes that are already registered in the node registration
+	hs, err := GetHostService()
+	if err != nil {
+		panic(err)
+	}
+	_ = hs.AddToUnresolvedPeers(req.Peers, true)
 	return &model.Empty{}, nil
 }

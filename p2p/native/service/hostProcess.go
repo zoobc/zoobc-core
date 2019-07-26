@@ -27,9 +27,9 @@ func (hs *HostService) SendMyPeers(peer *model.Peer) {
 // ResolvePeers looping unresolve peers and adding to (resolve) Peers if get response
 func (hs *HostService) ResolvePeers() {
 	exceedMaxResolvedPeers := hs.GetExceedMaxResolvedPeers()
-	resolvingCount := 0
+	resolvingCount := int32(0)
 
-	for i := 0; i < exceedMaxResolvedPeers; i++ {
+	for i := int32(0); i < exceedMaxResolvedPeers; i++ {
 		peer := hs.GetAnyResolvedPeer()
 		hs.DisconnectPeer(peer)
 	}
@@ -63,8 +63,8 @@ func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 	if destPeer != nil {
 		destPeer.LastUpdated = time.Now().UTC().Unix()
 	}
-	hs.RemoveUnresolvedPeer(destPeer)
-	hs.AddToResolvedPeer(destPeer)
+	_ = hs.RemoveUnresolvedPeer(destPeer)
+	_ = hs.AddToResolvedPeer(destPeer)
 }
 
 // GetMorePeersHandler request peers to random peer in list and if get new peers will add to unresolved peer
@@ -75,7 +75,7 @@ func (hs *HostService) GetMorePeersHandler() {
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 		}
-		hs.AddToUnresolvedPeers(newPeers.GetPeers(), true)
+		_ = hs.AddToUnresolvedPeers(newPeers.GetPeers(), true)
 		hs.SendMyPeers(peer)
 	}
 }
@@ -83,25 +83,25 @@ func (hs *HostService) GetMorePeersHandler() {
 func (hs *HostService) PeerBlacklist(peer *model.Peer, cause string) {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
 	peer.BlacklistingCause = cause
-	hs.AddToBlacklistedPeer(peer)
-	hs.RemoveUnresolvedPeer(peer)
-	hs.RemoveResolvedPeer(peer)
+	_ = hs.AddToBlacklistedPeer(peer)
+	_ = hs.RemoveUnresolvedPeer(peer)
+	_ = hs.RemoveResolvedPeer(peer)
 }
 
 // PeerUnblacklist to update Peer state of peer
 func (hs *HostService) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
-	hs.RemoveBlacklistedPeer(peer)
-	hs.AddToUnresolvedPeers([]*model.Node{peer.Info}, false)
+	_ = hs.RemoveBlacklistedPeer(peer)
+	_ = hs.AddToUnresolvedPeers([]*model.Node{peer.Info}, false)
 	return peer
 }
 
 // DisconnectPeer moves connected peer to resolved peer
 // if the unresolved peer is full (maybe) it should not go to the unresolved peer
 func (hs *HostService) DisconnectPeer(peer *model.Peer) {
-	hs.RemoveResolvedPeer(peer)
+	_ = hs.RemoveResolvedPeer(peer)
 	if hs.GetExceedMaxUnresolvedPeers() <= 0 {
-		hs.AddToUnresolvedPeer(peer)
+		_ = hs.AddToUnresolvedPeer(peer)
 	}
 }

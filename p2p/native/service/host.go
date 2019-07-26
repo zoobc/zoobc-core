@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -15,20 +16,26 @@ type HostService struct {
 	ResolvedPeersLock    sync.RWMutex
 	UnresolvedPeersLock  sync.RWMutex
 	BlacklistedPeersLock sync.RWMutex
+	MaxUnresolvedPeers   int32
+	MaxResolvedPeers     int32
 }
 
 var hostServiceInstance *HostService
 
 func CreateHostService(host *model.Host) *HostService {
-	hostServiceInstance = &HostService{Host: host}
+	hostServiceInstance = &HostService{
+		Host:               host,
+		MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
+		MaxResolvedPeers:   constant.MaxResolvedPeers,
+	}
 	return hostServiceInstance
 }
 
-func GetHostService() *HostService {
-	if hostServiceInstance == nil {
-		panic("The host instance is never initiated yet")
+func GetHostService() (*HostService, error) {
+	if hostServiceInstance == nil || hostServiceInstance.Host == nil {
+		return nil, errors.New("the host instance is never initiated yet")
 	}
-	return hostServiceInstance
+	return hostServiceInstance, nil
 }
 
 /* 	========================================
@@ -69,21 +76,26 @@ func (hs *HostService) GetAnyResolvedPeer() *model.Peer {
 }
 
 // AddToResolvedPeer to add a peer into resolved peer
-func (hs *HostService) AddToResolvedPeer(peer *model.Peer) {
+func (hs *HostService) AddToResolvedPeer(peer *model.Peer) error {
+	if peer == nil {
+		return errors.New("peer is nil")
+	}
 	hs.ResolvedPeersLock.Lock()
 	defer hs.ResolvedPeersLock.Unlock()
 
 	hs.Host.ResolvedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
+	return nil
 }
 
 // RemoveResolvedPeer removes peer from Resolved peer list
-func (hs *HostService) RemoveResolvedPeer(peer *model.Peer) {
+func (hs *HostService) RemoveResolvedPeer(peer *model.Peer) error {
 	if peer == nil {
-		return
+		return errors.New("peer is nil")
 	}
 	hs.ResolvedPeersLock.Lock()
 	defer hs.ResolvedPeersLock.Unlock()
 	delete(hs.Host.ResolvedPeers, nativeUtil.GetFullAddressPeer(peer))
+	return nil
 }
 
 /* 	========================================
@@ -120,30 +132,24 @@ func (hs *HostService) GetAnyUnresolvedPeer() *model.Peer {
 	return nil
 }
 
-// RemoveUnresolvedPeer removes peer from unresolved peer list
-func (hs *HostService) RemoveUnresolvedPeer(peer *model.Peer) {
+// AddToUnresolvedPeer to add a peer into unresolved peer
+func (hs *HostService) AddToUnresolvedPeer(peer *model.Peer) error {
 	if peer == nil {
-		return
+		return errors.New("peer is nil")
 	}
 	hs.UnresolvedPeersLock.Lock()
 	defer hs.UnresolvedPeersLock.Unlock()
-	delete(hs.Host.UnresolvedPeers, nativeUtil.GetFullAddressPeer(peer))
-}
-
-// AddToUnresolvedPeer to add a peer into unresolved peer
-func (hs *HostService) AddToUnresolvedPeer(peer *model.Peer) {
-	hs.UnresolvedPeersLock.Lock()
-	defer hs.UnresolvedPeersLock.Unlock()
 	hs.Host.UnresolvedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
+	return nil
 }
 
 // AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
-func (hs *HostService) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) {
+func (hs *HostService) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error {
 	exceedMaxUnresolvedPeers := hs.GetExceedMaxUnresolvedPeers()
 
 	// do not force a peer to go to unresolved list if the list is full n `toForce` is false
 	if exceedMaxUnresolvedPeers > 0 && !toForce {
-		return
+		return errors.New("unresolvedPeers are full")
 	}
 
 	unresolvedPeers := hs.GetUnresolvedPeers()
@@ -159,18 +165,30 @@ func (hs *HostService) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool
 		if unresolvedPeers[nativeUtil.GetFullAddressPeer(peer)] == nil &&
 			resolvedPeers[nativeUtil.GetFullAddressPeer(peer)] == nil &&
 			nativeUtil.GetFullAddressPeer(hostAddress) != nativeUtil.GetFullAddressPeer(peer) {
-			for i := 0; i < exceedMaxUnresolvedPeers; i++ {
+			for i := int32(0); i < exceedMaxUnresolvedPeers; i++ {
 				// removing a peer at random if the UnresolvedPeers has reached max
 				peer := hs.GetAnyUnresolvedPeer()
-				hs.RemoveUnresolvedPeer(peer)
+				_ = hs.RemoveUnresolvedPeer(peer)
 			}
-			hs.AddToUnresolvedPeer(peer)
+			_ = hs.AddToUnresolvedPeer(peer)
 		}
 
 		if exceedMaxUnresolvedPeers > 0 {
 			break
 		}
 	}
+	return nil
+}
+
+// RemoveUnresolvedPeer removes peer from unresolved peer list
+func (hs *HostService) RemoveUnresolvedPeer(peer *model.Peer) error {
+	if peer == nil {
+		return errors.New("peer is nil")
+	}
+	hs.UnresolvedPeersLock.Lock()
+	defer hs.UnresolvedPeersLock.Unlock()
+	delete(hs.Host.UnresolvedPeers, nativeUtil.GetFullAddressPeer(peer))
+	return nil
 }
 
 /* 	========================================
@@ -191,21 +209,26 @@ func (hs *HostService) GetBlacklistedPeers() map[string]*model.Peer {
 }
 
 // AddToBlacklistedPeer to add a peer into resolved peer
-func (hs *HostService) AddToBlacklistedPeer(peer *model.Peer) {
+func (hs *HostService) AddToBlacklistedPeer(peer *model.Peer) error {
+	if peer == nil {
+		return errors.New("peer is nil")
+	}
 	hs.BlacklistedPeersLock.Lock()
 	defer hs.BlacklistedPeersLock.Unlock()
 
 	hs.Host.BlacklistedPeers[nativeUtil.GetFullAddressPeer(peer)] = peer
+	return nil
 }
 
 // RemoveBlacklistedPeer removes peer from Blacklisted peer list
-func (hs *HostService) RemoveBlacklistedPeer(peer *model.Peer) {
+func (hs *HostService) RemoveBlacklistedPeer(peer *model.Peer) error {
 	if peer == nil {
-		return
+		return errors.New("peer is nil")
 	}
 	hs.BlacklistedPeersLock.Lock()
 	defer hs.BlacklistedPeersLock.Unlock()
 	delete(hs.Host.BlacklistedPeers, nativeUtil.GetFullAddressPeer(peer))
+	return nil
 }
 
 // GetAnyKnownPeer Get any known peer
@@ -226,11 +249,11 @@ func (hs *HostService) GetAnyKnownPeer() *model.Peer {
 }
 
 // GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
-func (hs *HostService) GetExceedMaxUnresolvedPeers() int {
-	return len(hs.GetUnresolvedPeers()) - constant.MaxUnresolvedPeers + 1
+func (hs *HostService) GetExceedMaxUnresolvedPeers() int32 {
+	return int32(len(hs.GetUnresolvedPeers())) - hs.MaxUnresolvedPeers + 1
 }
 
 // GetExceedMaxResolvedPeers returns number of peers exceeding max number of the connected peers
-func (hs *HostService) GetExceedMaxResolvedPeers() int {
-	return len(hs.GetResolvedPeers()) - constant.MaxResolvedPeers + 1
+func (hs *HostService) GetExceedMaxResolvedPeers() int32 {
+	return int32(len(hs.GetResolvedPeers())) - hs.MaxResolvedPeers + 1
 }
