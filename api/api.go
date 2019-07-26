@@ -4,6 +4,12 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	service2 "github.com/zoobc/zoobc-core/core/service"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/transaction"
+
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/internal"
@@ -26,6 +32,15 @@ func init() {
 }
 
 func startGrpcServer(port int, queryExecutor *query.Executor) {
+	actionTypeSwitcher := &transaction.TypeSwitcher{
+		Executor: queryExecutor,
+	}
+	mempoolService := service2.NewMempoolService(
+		&chaintype.MainChain{},
+		queryExecutor,
+		query.NewMempoolQuery(&chaintype.MainChain{}),
+		actionTypeSwitcher,
+		query.NewAccountBalanceQuery())
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
 	)
@@ -43,9 +58,12 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 
 	// Set GRPC handler for Transactions requests
 	rpc_service.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
-		Service: service.NewTransactionService(queryExecutor),
+		Service: service.NewTransactionService(
+			queryExecutor,
+			&crypto.Signature{},
+			actionTypeSwitcher,
+			mempoolService),
 	})
-
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
