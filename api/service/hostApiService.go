@@ -10,20 +10,20 @@ type (
 	}
 
 	HostService struct {
-		Query *query.Executor
+		Query query.ExecutorInterface
 	}
 )
 
 var hostServiceInstance *HostService
 
 // NewHostService create a singleton instance of HostService
-func NewHostService(queryExecutor *query.Executor) *HostService {
+func NewHostService(queryExecutor query.ExecutorInterface) *HostService {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{Query: queryExecutor}
 	}
 	return hostServiceInstance
 }
 
-func (hs *HostService) GetHostInfo() *model.Host {
+func (*HostService) GetHostInfo() *model.Host {
 	return &model.Host{}
 }
