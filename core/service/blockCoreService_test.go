@@ -92,7 +92,7 @@ func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (
 func (*mockQueryExecutorFail) BeginTx() error { return nil }
 
 func (*mockQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
-	return nil
+	return errors.New("mockError:deleteMempoolFail")
 }
 func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:commitFail") }
 
@@ -627,7 +627,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					BlockSignature: []byte{},
 				},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
