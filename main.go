@@ -38,7 +38,7 @@ var (
 
 func init() {
 	var configPostfix string
-	flag.StringVar(&configPostfix, "postfix", "", "Usage")
+	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.Parse()
 
 	var err error
