@@ -2,13 +2,16 @@ package main
 
 import (
 	"database/sql"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 
@@ -19,6 +22,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/p2p"
+	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
 )
 
 var (
@@ -27,12 +32,17 @@ var (
 	db                      *sql.DB
 	nodeSecretPhrase        string
 	apiRPCPort, apiHTTPPort int
+	p2pServiceInstance      contract.P2PType
 	queryExecutor           *query.Executor
 )
 
 func init() {
+	var configPostfix string
+	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
+	flag.Parse()
+
 	var err error
-	if err := util.LoadConfig("./resource", "config", "toml"); err != nil {
+	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
 		panic(err)
 	} else {
 		dbPath = viper.GetString("dbPath")
@@ -60,7 +70,18 @@ func init() {
 }
 
 func startServices(queryExecutor query.ExecutorInterface) {
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor)
+	p2pService()
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance)
+}
+
+func p2pService() {
+	myAddress := viper.GetString("myAddress")
+	peerPort := viper.GetUint32("peerPort")
+	wellknownPeers := viper.GetStringSlice("wellknownPeers")
+	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
+
+	// run P2P service with any chaintype
+	go p2pServiceInstance.StartP2P()
 }
 
 func main() {

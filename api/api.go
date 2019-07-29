@@ -12,8 +12,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
-	"github.com/zoobc/zoobc-core/api/internal"
 	"github.com/zoobc/zoobc-core/api/service"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -31,7 +31,10 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
+func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService contract.P2PType) {
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
+	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
@@ -41,9 +44,6 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery())
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
-	)
 
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -66,6 +66,13 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
 			apiLogger,
 		),
 	})
+
+	// Set GRPC handler for Transactions requests
+	rpc_service.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
+		Service:        service.NewHostService(queryExecutor),
+		P2pHostService: p2pHostService,
+	})
+
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -76,6 +83,6 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface) {
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface) {
-	startGrpcServer(grpcPort, queryExecutor)
+func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService contract.P2PType) {
+	startGrpcServer(grpcPort, queryExecutor, p2pHostService)
 }
