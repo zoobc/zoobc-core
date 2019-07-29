@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -136,6 +138,23 @@ func TestAccountBalanceQuery_ExtractModel(t *testing.T) {
 		}
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, want)
+		}
+	})
+}
+
+func TestAccountBalanceQuery_BuildModel(t *testing.T) {
+	t.Run("AccountBalanceQuery-BuildModel:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
+			"AccountID", "BlockHeight", "SpendableBalance", "Balance", "PopRevenue", "Latest"}).
+			AddRow(mockAccountBalance.AccountID, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance,
+				mockAccountBalance.Balance, mockAccountBalance.PopRevenue, mockAccountBalance.Latest))
+		rows, _ := db.Query("foo")
+		var tempAccount []*model.AccountBalance
+		res := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
+		if !reflect.DeepEqual(res[0], mockAccountBalance) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccount)
 		}
 	})
 }
