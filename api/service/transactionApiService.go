@@ -120,7 +120,8 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 	}, nil
 }
 
-func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req *model.PostTransactionRequest) (*model.Transaction, error) {
+func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req *model.PostTransactionRequest) (*model.Transaction,
+	error) {
 	txBytes := req.TransactionBytes
 	// get unsigned bytes
 	tx, err := util.ParseTransactionBytes(txBytes, true)
