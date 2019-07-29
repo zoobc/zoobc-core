@@ -56,6 +56,10 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 	return nil
 }
 
+func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
+	return nil
+}
+
 // Validate validate node registration transaction and tx body
 func (tx *NodeRegistration) Validate() error {
 	return nil

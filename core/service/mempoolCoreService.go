@@ -23,6 +23,7 @@ type (
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
+		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -117,15 +118,10 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return errors.New("DatabaseError")
 	}
 
-	if err := mps.ValidateMempoolTransaction(mpTx); err != nil {
-		return err
-	}
-
-	result, err := mps.QueryExecutor.ExecuteStatement(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
+	err = mps.QueryExecutor.ExecuteTransaction(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
 	if err != nil {
 		return err
 	}
-	log.Printf("got new mempool transaction, %v", result)
 	return nil
 }
 
@@ -175,8 +171,8 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 			// compute transaction expiration time
-			txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
-			if blockTimestamp == 0 || txExpirationTime > blockTimestamp {
+			txExpirationTime := blockTimestamp + constant.TransactionExpirationOffset
+			if blockTimestamp > 0 && tx.Timestamp > txExpirationTime {
 				continue
 			}
 

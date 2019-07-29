@@ -13,6 +13,7 @@ import (
 // SendMoney is Transaction Type that implemented TypeAction
 type SendMoney struct {
 	Body                 *model.SendMoneyTransactionBody
+	Fee                  int64
 	SenderAddress        string
 	SenderAccountType    uint32
 	RecipientAddress     string
@@ -34,7 +35,6 @@ __If Not Genesis__:
 	`sender.balance` = current - amount
 */
 func (tx *SendMoney) ApplyConfirmed() error {
-	// todo: undo apply unconfirmed for non-genesis transaction
 	var (
 		recipientAccount model.Account
 		senderAccount    model.Account
@@ -43,6 +43,13 @@ func (tx *SendMoney) ApplyConfirmed() error {
 
 	if err := tx.Validate(); err != nil {
 		return err
+	}
+
+	if tx.Height > 0 {
+		err = tx.UndoApplyUnconfirmed()
+		if err != nil {
+			return err
+		}
 	}
 
 	recipientAccount = model.Account{
@@ -67,7 +74,7 @@ func (tx *SendMoney) ApplyConfirmed() error {
 	)
 	// update sender
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-tx.Body.Amount,
+		-(tx.Body.Amount + tx.Fee),
 		map[string]interface{}{
 			"account_id":   senderAccount.ID,
 			"block_height": tx.Height,
@@ -94,13 +101,9 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 		err error
 	)
 
-	if err := tx.Validate(); err != nil {
-		return err
-	}
-
 	// update sender
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-tx.Body.Amount,
+		-(tx.Body.Amount + tx.Fee),
 		map[string]interface{}{
 			"account_id": util.CreateAccountIDFromAddress(
 				tx.SenderAccountType,
@@ -108,7 +111,34 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 			),
 		},
 	)
-	_, err = tx.QueryExecutor.ExecuteStatement(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/*
+UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *SendMoney) UndoApplyUnconfirmed() error {
+	var (
+		err error
+	)
+
+	// update sender
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		tx.Body.Amount+tx.Fee,
+		map[string]interface{}{
+			"account_id": util.CreateAccountIDFromAddress(
+				tx.SenderAccountType,
+				tx.SenderAddress,
+			),
+		},
+	)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
 		return err
 	}
@@ -147,7 +177,7 @@ func (tx *SendMoney) Validate() error {
 			util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
 		})
 
-		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs).Scan(&count)
+		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs...).Scan(&count)
 		if err != nil {
 			return err
 		}
@@ -155,11 +185,10 @@ func (tx *SendMoney) Validate() error {
 		if count <= 1 {
 			return fmt.Errorf("count recipient and sender got: %d", count)
 		}
-
-		if rows, err := tx.QueryExecutor.ExecuteSelect(
-			tx.AccountBalanceQuery.GetAccountBalanceByAccountID(),
-			util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
-		); err != nil {
+		senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
+		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID)
+		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
+		if err != nil {
 			return err
 		} else if rows.Next() {
 			_ = rows.Scan(
@@ -171,6 +200,7 @@ func (tx *SendMoney) Validate() error {
 				&accountBalance.Latest,
 			)
 		}
+		defer rows.Close()
 
 		if accountBalance.SpendableBalance < tx.Body.GetAmount() {
 			return errors.New("transaction amount not enough")

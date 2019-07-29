@@ -69,6 +69,11 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 }
 
+func startServices(queryExecutor query.ExecutorInterface) {
+	p2pService()
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance)
+}
+
 func p2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
@@ -77,11 +82,6 @@ func p2pService() {
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
-}
-
-func startServices(queryExecutor *query.Executor) {
-	p2pService()
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance)
 }
 
 func main() {

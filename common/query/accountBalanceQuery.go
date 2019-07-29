@@ -16,7 +16,7 @@ type (
 	}
 	// AccountBalanceQueryInterface interface that implemented by AccountBalanceQuery
 	AccountBalanceQueryInterface interface {
-		GetAccountBalanceByAccountID() string
+		GetAccountBalanceByAccountID(accountID []byte) (string, interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
@@ -39,25 +39,45 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 		TableName: "account_balance",
 	}
 }
-func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_id = ? AND latest = 1`, strings.Join(q.Fields, ","), q.TableName)
+func (q *AccountBalanceQuery) GetAccountBalanceByAccountID(accountID []byte) (query string, args interface{}) {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_id = ? AND latest = 1`,
+		strings.Join(q.Fields, ","), q.TableName), accountID
 }
 
 func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
-	var queries [][]interface{}
-	updateVersionQuery := fmt.Sprintf("UPDATE %s SET latest = false WHERE account_id = ? AND block_height = %d - 1 AND latest = true",
-		q.TableName, causedFields["block_height"])
+	var (
+		queries            [][]interface{}
+		updateVersionQuery string
+	)
+	// insert account if account not in account balance yet
+	insertBalanceQuery := fmt.Sprintf("INSERT INTO %s (account_id, block_height, spendable_balance, balance, pop_revenue, latest) "+
+		"SELECT ?, %d, 0, 0, 0, 1 WHERE NOT EXISTS (SELECT account_id FROM %s WHERE account_id = ?)", q.TableName,
+		causedFields["block_height"], q.TableName)
+	// update or insert new account_balance row
 	updateBalanceQuery := fmt.Sprintf("INSERT INTO %s (account_id, block_height, spendable_balance, balance, pop_revenue, latest) "+
-		"VALUES (?, %d, %d, %d, 0, true) ON CONFLICT(account_id, block_height) DO UPDATE SET spendable_balance = spendable_balance + %d, "+
-		"balance = balance + %d", q.TableName, causedFields["block_height"], balance, balance, balance, balance)
+		"SELECT account_id, %d, spendable_balance + %d, balance + %d, pop_revenue, latest FROM account_balance WHERE account_id = ? AND "+
+		"latest = 1 ON CONFLICT(account_id, block_height) DO UPDATE SET (spendable_balance, balance) = (SELECT "+
+		"spendable_balance + %d, balance + %d FROM %s WHERE account_id = ? AND latest = 1)",
+		q.TableName, causedFields["block_height"], balance, balance, balance, balance, q.TableName)
+
 	queries = append(queries,
 		[]interface{}{
-			updateVersionQuery, causedFields["account_id"],
+			insertBalanceQuery, causedFields["account_id"], causedFields["account_id"],
 		},
 		[]interface{}{
-			updateBalanceQuery, causedFields["account_id"],
+			updateBalanceQuery, causedFields["account_id"], causedFields["account_id"],
 		},
 	)
+	if causedFields["block_height"].(uint32) != 0 {
+		// set previous version record to latest = false
+		updateVersionQuery = fmt.Sprintf("UPDATE %s SET latest = false WHERE account_id = ? AND block_height != %d AND latest = true",
+			q.TableName, causedFields["block_height"])
+		queries = append(queries,
+			[]interface{}{
+				updateVersionQuery, causedFields["account_id"],
+			},
+		)
+	}
 	return queries
 }
 

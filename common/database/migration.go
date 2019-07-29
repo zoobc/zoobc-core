@@ -28,6 +28,7 @@ func (m *Migration) Init() error {
 	if m.Query != nil {
 		rows, _ := m.Query.ExecuteSelect("SELECT version FROM migration;")
 		if rows != nil {
+			defer rows.Close()
 			var version int
 			_ = rows.Scan(&version)
 			m.CurrentVersion = &version

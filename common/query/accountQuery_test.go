@@ -60,8 +60,8 @@ func TestAccountQuery_GetAccountByIDs(t *testing.T) {
 		argIn := [][]byte{mockAccount.ID, {2}}
 		q, args := mockAccountQuery.GetAccountByIDs(argIn)
 		wantQ := "SELECT id,account_type,address FROM account WHERE id in (? ,?)"
-		wantArg := [][]byte{
-			mockAccount.ID, {2},
+		wantArg := []interface{}{
+			mockAccount.ID, []byte{2},
 		}
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)

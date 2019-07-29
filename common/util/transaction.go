@@ -180,11 +180,12 @@ func ValidateTransaction(
 
 	// validate sender account
 	senderAccountID := CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAccountAddress)
-	sqlQ := accountBalanceQuery.GetAccountBalanceByAccountID()
-	rows, err := queryExecutor.ExecuteSelect(sqlQ, senderAccountID)
+	sqlQ, arg := accountBalanceQuery.GetAccountBalanceByAccountID(senderAccountID)
+	rows, err := queryExecutor.ExecuteSelect(sqlQ, arg)
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	res := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 	if len(res) == 0 {
 		return errors.New("TxSenderNotFound")

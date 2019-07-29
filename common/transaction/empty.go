@@ -14,6 +14,10 @@ func (tx *TXEmpty) ApplyConfirmed() error {
 func (tx *TXEmpty) ApplyUnconfirmed() error {
 	return nil
 }
+
+func (tx *TXEmpty) UndoApplyUnconfirmed() error {
+	return nil
+}
 func (tx *TXEmpty) Validate() error {
 	return nil
 }
