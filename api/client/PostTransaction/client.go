@@ -19,7 +19,7 @@ func main() {
 	c := rpc_service.NewTransactionServiceClient(conn)
 
 	response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
-		// TransactionBytes: []byte{
+		// TransactionBytes: []byte{ // keep this to test multiple transaction in single block.
 		//	1, 0, 1, 82, 108, 58, 93, 0, 0, 0, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
 		//	107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 0, 0, 66,
 		//	67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57,
