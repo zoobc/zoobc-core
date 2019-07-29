@@ -41,14 +41,15 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		err              error
 	)
 
+	if err := tx.Validate(); err != nil {
+		return err
+	}
+
 	if tx.Height > 0 {
 		err = tx.UndoApplyUnconfirmed()
 		if err != nil {
 			return err
 		}
-	}
-	if err := tx.Validate(); err != nil {
-		return err
 	}
 
 	recipientAccount = model.Account{
