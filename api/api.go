@@ -6,8 +6,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
-	"github.com/zoobc/zoobc-core/api/internal"
 	"github.com/zoobc/zoobc-core/api/service"
+	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -25,9 +25,9 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor *query.Executor) {
+func startGrpcServer(port int, queryExecutor *query.Executor, p2pHostService contract.P2PType) {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(internal.NewInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
 	)
 
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
@@ -46,6 +46,12 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 		Service: service.NewTransactionService(queryExecutor),
 	})
 
+	// Set GRPC handler for Transactions requests
+	rpc_service.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
+		Service:        service.NewHostService(queryExecutor),
+		P2pHostService: p2pHostService,
+	})
+
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -56,6 +62,6 @@ func startGrpcServer(port int, queryExecutor *query.Executor) {
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor *query.Executor) {
-	startGrpcServer(grpcPort, queryExecutor)
+func Start(grpcPort, restPort int, queryExecutor *query.Executor, p2pHostService contract.P2PType) {
+	startGrpcServer(grpcPort, queryExecutor, p2pHostService)
 }

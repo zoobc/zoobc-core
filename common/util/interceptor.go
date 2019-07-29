@@ -1,4 +1,4 @@
-package internal
+package util
 
 import (
 	"context"
@@ -18,7 +18,7 @@ NewInterceptor function can use to inject middlewares like:
 	- validate `authentication` if needed
 With `recover()` function can handle re-run the app while got panic or error
 */
-func NewInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
+func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req interface{},
