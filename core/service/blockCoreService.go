@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -217,6 +218,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		return err
 	}
 	// broadcast block
+	observer.NewObserver().Notify(observer.BlockPushed, block, nil)
 	return nil
 
 }

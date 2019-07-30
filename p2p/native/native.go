@@ -6,9 +6,11 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/native/service"
 
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
@@ -47,6 +49,31 @@ func (s *Service) StartP2P() {
 	go resolvePeersThread()
 	go getMorePeersThread()
 	go updateBlacklistedStatus()
+}
+
+func (s *Service) SendBlockListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			b := block.(*model.Block)
+			s.SendBlock(b)
+		},
+	}
+}
+
+func (s *Service) SendBlock(block *model.Block) {
+	peers := s.HostService.GetResolvedPeers()
+	for _, peer := range peers {
+		sendBlockHandler(peer, block)
+	}
+}
+
+func sendBlockHandler(destPeer *model.Peer, block *model.Block) {
+	go func() {
+		_, err := service.NewPeerServiceClient().SendBlock(destPeer, block)
+		if err != nil {
+			log.Warnf("sendBlockHandler Error accord %v\n", err)
+		}
+	}()
 }
 
 // startServer to run p2p service as server

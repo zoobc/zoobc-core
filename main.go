@@ -22,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
 )
@@ -140,6 +141,9 @@ func main() {
 	}
 
 	startServices(queryExecutor)
+
+	// observer
+	observer.NewObserver().AddListener(p2pServiceInstance.SendBlockListener(), observer.BlockPushed)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
