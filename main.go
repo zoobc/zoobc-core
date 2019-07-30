@@ -143,7 +143,8 @@ func main() {
 	startServices(queryExecutor)
 
 	// observer
-	observer.NewObserver().AddListener(p2pServiceInstance.SendBlockListener(), observer.BlockPushed)
+	observer.NewObserver().AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
+	observer.NewObserver().AddListener(observer.BlockReceived, blockchainProcessor.BlockService.BlockBroadcastListener())
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

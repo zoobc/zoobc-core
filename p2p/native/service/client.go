@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
@@ -62,12 +61,10 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 
 // SendPeers sends set of peers to other node (to populate the network)
 func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
-	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
-	if err != nil {
-		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
-	}
-	defer conn.Close()
-	p2pClient := service.NewP2PCommunicationClient(conn)
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
 	res, err := p2pClient.SendPeers(context.Background(), &model.SendPeersRequest{
 		Peers: peersInfo,
 	})
@@ -79,12 +76,10 @@ func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.
 }
 
 func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
-	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
-	if err != nil {
-		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
-	}
-	defer conn.Close()
-	p2pClient := service.NewP2PCommunicationClient(conn)
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
 	res, err := p2pClient.SendBlock(context.Background(), block)
 	if err != nil {
 		log.Printf("could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)

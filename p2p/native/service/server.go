@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 
 	"google.golang.org/grpc"
 )
@@ -98,6 +99,6 @@ func (ss *ServerService) SendPeers(ctx context.Context, req *model.SendPeersRequ
 }
 
 func (ss *ServerService) SendBlock(ctx context.Context, req *model.Block) (*model.Empty, error) {
-	// TODO: Add observer notify to receive block
+	observer.NewObserver().Notify(observer.BlockReceived, req, nil)
 	return &model.Empty{}, nil
 }

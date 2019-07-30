@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 	"strconv"
@@ -45,6 +46,7 @@ type (
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
 		CheckGenesis() bool
+		BlockBroadcastListener() observer.Listener
 	}
 
 	BlockService struct {
@@ -459,4 +461,51 @@ func (bs *BlockService) CheckGenesis() bool {
 		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
 	return true
+}
+
+// CheckSignatureBlock check signature of block
+func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
+	if block.GetBlockSignature() != nil {
+		blockUnsignedByte, err := coreUtil.GetBlockByte(block, false)
+		if err != nil {
+			return false
+		}
+
+		// TODO: is BlocksmithID same as node public key ??
+		accountAddress, err := util.GetAddressFromPublicKey(block.GetBlocksmithID())
+		if err != nil {
+			return false
+		}
+		// TODO: how check accountType ??
+		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), 0, accountAddress)
+	}
+	return false
+}
+
+// BlockBroadcastListener handle received block from another node
+func (bs *BlockService) BlockBroadcastListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			receivedBlock := block.(*model.Block)
+			// make sure block has previous block hash
+			if receivedBlock.GetPreviousBlockHash() != nil {
+				if bs.CheckSignatureBlock(receivedBlock) {
+					lastBlock, err := bs.GetLastBlock()
+					if err != nil {
+						return
+					}
+
+					lastBlockByte, _ := coreUtil.GetBlockByte(lastBlock, true)
+					lasBlockHash := sha3.Sum512(lastBlockByte)
+
+					if bytes.Equal(lasBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
+						err := bs.PushBlock(lastBlock, receivedBlock)
+						if err != nil {
+							return
+						}
+					}
+				}
+			}
+		},
+	}
 }

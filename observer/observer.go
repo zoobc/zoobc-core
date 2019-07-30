@@ -30,7 +30,7 @@ func NewObserver() *Observer {
 }
 
 // AddListener to add new listener in observer
-func (o *Observer) AddListener(listener Listener, event Event) {
+func (o *Observer) AddListener(event Event, listener Listener) {
 	if o.Listeners == nil {
 		o.Listeners = map[Event][]Listener{}
 	}
