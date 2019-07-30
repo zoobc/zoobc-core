@@ -77,3 +77,18 @@ func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.
 	}
 	return res, err
 }
+
+func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
+	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
+	if err != nil {
+		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
+	}
+	defer conn.Close()
+	p2pClient := service.NewP2PCommunicationClient(conn)
+	res, err := p2pClient.SendBlock(context.Background(), block)
+	if err != nil {
+		log.Printf("could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
+		return nil, err
+	}
+	return res, err
+}

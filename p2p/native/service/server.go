@@ -96,3 +96,8 @@ func (ss *ServerService) SendPeers(ctx context.Context, req *model.SendPeersRequ
 	_ = hs.AddToUnresolvedPeers(req.Peers, true)
 	return &model.Empty{}, nil
 }
+
+func (ss *ServerService) SendBlock(ctx context.Context, req *model.Block) (*model.Empty, error) {
+	// TODO: Add observer notify to receive block
+	return &model.Empty{}, nil
+}
