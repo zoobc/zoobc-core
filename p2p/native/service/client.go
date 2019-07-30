@@ -75,6 +75,7 @@ func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.
 	return res, err
 }
 
+// SendBlock send block to selected peer
 func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
 	connection, _ := nativeUtil.GrpcDialer(destPeer)
 	defer connection.Close()
@@ -83,6 +84,20 @@ func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block)
 	res, err := p2pClient.SendBlock(context.Background(), block)
 	if err != nil {
 		log.Printf("SendBlock could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
+		return nil, err
+	}
+	return res, err
+}
+
+// SendTransaction send transaction to selected peer
+func (psc PeerServiceClient) SendTransaction(destPeer *model.Peer, block *model.Transaction) (*model.Empty, error) {
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
+	res, err := p2pClient.SendTransaction(context.Background(), block)
+	if err != nil {
+		log.Printf("SendTransaction could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
