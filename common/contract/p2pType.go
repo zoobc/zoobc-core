@@ -11,4 +11,5 @@ type P2PType interface {
 	StartP2P()
 	GetHostInstance() *model.Host
 	SendBlockListener() observer.Listener
+	SendTransactionListener() observer.Listener
 }
