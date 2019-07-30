@@ -471,7 +471,6 @@ func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
 			return false
 		}
 
-		// TODO: is BlocksmithID same as node public key ??
 		accountAddress, err := util.GetAddressFromPublicKey(block.GetBlocksmithID())
 		if err != nil {
 			return false
@@ -496,9 +495,10 @@ func (bs *BlockService) BlockBroadcastListener() observer.Listener {
 					}
 
 					lastBlockByte, _ := coreUtil.GetBlockByte(lastBlock, true)
-					lasBlockHash := sha3.Sum512(lastBlockByte)
+					lastBlockHash := sha3.Sum512(lastBlockByte)
 
-					if bytes.Equal(lasBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
+					//  check equality last block hash with previous block hash from received block
+					if bytes.Equal(lastBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
 						err := bs.PushBlock(lastBlock, receivedBlock)
 						if err != nil {
 							return

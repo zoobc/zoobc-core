@@ -82,7 +82,7 @@ func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block)
 
 	res, err := p2pClient.SendBlock(context.Background(), block)
 	if err != nil {
-		log.Printf("could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
+		log.Printf("SendBlock could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
