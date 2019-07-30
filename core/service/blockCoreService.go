@@ -46,7 +46,7 @@ type (
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
 		CheckGenesis() bool
-		BlockBroadcastListener() observer.Listener
+		ReceivedBlockListener() observer.Listener
 	}
 
 	BlockService struct {
@@ -481,8 +481,8 @@ func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
 	return false
 }
 
-// BlockBroadcastListener handle received block from another node
-func (bs *BlockService) BlockBroadcastListener() observer.Listener {
+// ReceivedBlockListener handle received block from another node
+func (bs *BlockService) ReceivedBlockListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args interface{}) {
 			receivedBlock := block.(*model.Block)
