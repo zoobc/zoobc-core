@@ -134,8 +134,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			if err != nil {
 				return err
 			}
-			allBlocks, _ := bp.BlockService.GetBlocks()
-			log.Printf("block pushed: %d\n", len(allBlocks))
 			stop = true
 		}
 	}

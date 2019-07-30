@@ -39,3 +39,16 @@ func (th *TransactionHandler) GetTransactions(ctx context.Context,
 
 	return response, nil
 }
+
+// PostTransaction handle transaction submitted by client
+func (th *TransactionHandler) PostTransaction(ctx context.Context,
+	req *model.PostTransactionRequest) (*model.PostTransactionResponse, error) {
+	chainType := chaintype.GetChainType(0)
+	transaction, err := th.Service.PostTransaction(chainType, req)
+	if err != nil {
+		return nil, err
+	}
+	return &model.PostTransactionResponse{
+		Transaction: transaction,
+	}, nil
+}

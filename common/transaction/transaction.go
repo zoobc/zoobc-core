@@ -10,6 +10,7 @@ type (
 	TypeAction interface {
 		ApplyConfirmed() error
 		ApplyUnconfirmed() error
+		UndoApplyUnconfirmed() error
 		Validate() error
 		GetAmount() int64
 		GetSize() uint32
@@ -35,8 +36,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 1:
 		switch buf[1] {
 		case 0:
+			sendMoneyTxAmount := util.ConvertBytesToUint64(tx.GetTransactionBodyBytes())
 			return &SendMoney{
-				Body:                 tx.GetSendMoneyTransactionBody(),
+				Body: &model.SendMoneyTransactionBody{
+					Amount: int64(sendMoneyTxAmount),
+				},
+				Fee:                  tx.Fee,
 				SenderAddress:        tx.GetSenderAccountAddress(),
 				SenderAccountType:    tx.GetSenderAccountType(),
 				RecipientAddress:     tx.GetRecipientAccountAddress(),

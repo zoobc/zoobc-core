@@ -186,6 +186,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
 		for _, tx := range block.GetTransactions() {
+			// assign block id and block height to tx
+			tx.BlockID = block.ID
+			tx.Height = block.Height
 			// validate the transaction
 			if err := util.ValidateTransaction(tx, bs.QueryExecutor, bs.AccountBalanceQuery, true); err != nil {
 				return err
@@ -193,8 +196,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 			// validate tx body and apply/perform transaction-specific logic
 			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
 			if err == nil {
-				tx.BlockID = block.ID
-				tx.Height = block.Height
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 				if err != nil {
@@ -323,7 +324,7 @@ func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transact
 	for _, tx := range transactions {
 		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
 	}
-	_, err := bs.QueryExecutor.ExecuteStatement(bs.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
+	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
 	if err != nil {
 		return err
 	}

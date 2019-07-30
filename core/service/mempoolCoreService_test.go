@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"math"
 	"reflect"
 	"regexp"
 	"testing"
@@ -49,6 +48,10 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...inte
 	return nil, nil
 }
 
+func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
+	return nil
+}
+
 type mockMempoolQueryExecutorFail struct {
 	query.Executor
 }
@@ -72,6 +75,10 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{
 
 func (*mockMempoolQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
+}
+
+func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...interface{}) error {
+	return errors.New("MockedError")
 }
 
 func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
@@ -308,7 +315,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
-				blockTimestamp: math.MaxInt64,
+				blockTimestamp: 1562893106,
 			},
 			want: []*model.MempoolTransaction{
 				{
