@@ -29,7 +29,7 @@ func NewObserver() *Observer {
 	return observerInstance
 }
 
-// AddListener to add new listener in observer
+// AddListener add new listener in observer
 func (o *Observer) AddListener(event Event, listener Listener) {
 	if o.Listeners == nil {
 		o.Listeners = map[Event][]Listener{}
@@ -37,12 +37,12 @@ func (o *Observer) AddListener(event Event, listener Listener) {
 	o.Listeners[event] = append(o.Listeners[event], listener)
 }
 
-// Remove to remove registered listener in observer
+// Remove remove registered listener in observer
 func (o *Observer) Remove(event Event) {
 	delete(o.Listeners, event)
 }
 
-// Notify to send data & arg to registered listener based on event
+// Notify send data & arg to registered listener based on event
 func (o *Observer) Notify(event Event, data, args interface{}) {
 	for _, listener := range o.Listeners[event] {
 		listener.OnNotify(data, args)
