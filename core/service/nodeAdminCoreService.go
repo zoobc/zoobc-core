@@ -110,10 +110,8 @@ func (nas *NodeAdminService) SignData(payload []byte) []byte {
 
 	fmt.Printf("node secret phrase = %v\n", nodeSecretPhrase)
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSecretPhrase)
-	sign := ed25519.Sign(nodePrivateKey, payload)
+	sign = ed25519.Sign(nodePrivateKey, payload)
 
-	// sign = nas.Signature.SignBlock(payload, nodeSecretPhrase)
-	fmt.Printf("sign = %v\n", sign)
 	return sign
 }
 
