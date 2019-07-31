@@ -169,10 +169,12 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				ct: &chaintype.MainChain{},
+				ct:   &chaintype.MainChain{},
+				obsr: observer.NewObserver(),
 			},
 			want: &BlockService{
 				Chaintype: &chaintype.MainChain{},
+				Observer:  observer.NewObserver(),
 			},
 		},
 	}
@@ -539,6 +541,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		TransactionQuery   query.TransactionQueryInterface
 		Signature          crypto.SignatureInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Observer           *observer.Observer
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -556,6 +559,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorSuccess{},
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Observer:      observer.NewObserver(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -600,6 +604,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
 				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				Observer:           observer.NewObserver(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -650,6 +655,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				TransactionQuery:   tt.fields.TransactionQuery,
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Observer:           tt.fields.Observer,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -1198,6 +1204,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		Signature          crypto.SignatureInterface
 		MempoolService     MempoolServiceInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Observer           *observer.Observer
 	}
 	tests := []struct {
 		name    string
@@ -1215,6 +1222,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				QueryExecutor:      &mockQueryExecutorSuccess{},
 				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				Observer:           observer.NewObserver(),
 			},
 			wantErr: false,
 		},
@@ -1230,6 +1238,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				MempoolService:     tt.fields.MempoolService,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Observer:           tt.fields.Observer,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
