@@ -97,7 +97,6 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-
 	mempoolService := service.NewMempoolService(
 		mainchain,
 		queryExecutor,
@@ -107,7 +106,6 @@ func main() {
 		},
 		query.NewAccountBalanceQuery(),
 	)
-
 	blockService := service.NewBlockService(
 		mainchain,
 		queryExecutor,
@@ -121,7 +119,6 @@ func main() {
 		},
 		query.NewAccountBalanceQuery(),
 	)
-
 	blockchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
