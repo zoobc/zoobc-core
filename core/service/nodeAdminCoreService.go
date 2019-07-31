@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -29,12 +30,17 @@ type (
 	}
 )
 
+var (
+	ownerAccountAddress string
+	nodeSecretPhrase    string
+	sign                []byte
+)
+
 // generate proof of ownership
 func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 	accountAddress string, signature []byte) (nodeMessages, proofOfOwnershipSign []byte) {
 
 	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
-
 	ownerAccountAddress := nas.LookupOwnerAccount()
 
 	buffer := bytes.NewBuffer([]byte{})
@@ -43,10 +49,9 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 	buffer.Write(lastBlockHash)
 	buffer.Write(commonUtil.ConvertUint32ToBytes(lastBlock.Height))
 
+	nodeMessages = buffer.Bytes()
+	proofOfOwnershipSign = nas.SignData(nodeMessages)
 	if ownerAccountAddress == accountAddress {
-		nodeMessages := buffer.Bytes()
-		proofOfOwnershipSign := nas.SignData(nodeMessages)
-
 		return nodeMessages, proofOfOwnershipSign
 	}
 	return nil, nil
@@ -79,13 +84,36 @@ func (nas *NodeAdminService) LookupLastBlock() (*model.Block, []byte, error) {
 }
 
 func (nas *NodeAdminService) LookupOwnerAccount() string {
-	ownerAccountAddress := viper.GetString("ownerAccountAddress")
+	if err := commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
+		panic(err)
+	} else {
+		ownerAccountAddress = viper.GetString("ownerAccountAddress")
+	}
 	return ownerAccountAddress
 }
 
-func (nas *NodeAdminService) SignData(payload []byte) (sign []byte) {
-	nodeSecretPhrase := viper.GetString("nodeSecretPhrase")
-	sign = nas.Signature.SignBlock(payload, nodeSecretPhrase)
+func ed25519GetPrivateKeyFromSeed(seed string) []byte {
+	// Convert seed (secret phrase) to byte array
+	seedBuffer := []byte(seed)
+	// Compute SHA3-256 hash of seed (secret phrase)
+	seedHash := sha3.Sum256(seedBuffer)
+	// Generate a private key from the hash of the seed
+	return ed25519.NewKeyFromSeed(seedHash[:])
+}
+
+func (nas *NodeAdminService) SignData(payload []byte) []byte {
+	if err := commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
+		panic(err)
+	} else {
+		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
+	}
+
+	fmt.Printf("node secret phrase = %v\n", nodeSecretPhrase)
+	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSecretPhrase)
+	sign := ed25519.Sign(nodePrivateKey, payload)
+
+	// sign = nas.Signature.SignBlock(payload, nodeSecretPhrase)
+	fmt.Printf("sign = %v\n", sign)
 	return sign
 }
 
