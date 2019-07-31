@@ -106,18 +106,18 @@ func sendBlockHandler(destPeer *model.Peer, block *model.Block) {
 }
 
 // sendTransaction send transaction to the list peer
-func sendTransaction(transaction *model.Transaction) {
+func sendTransactionBytes(transactionBytes []byte) {
 	peers := hostServiceInstance.GetResolvedPeers()
 	for _, peer := range peers {
-		sendTransactionHandler(peer, transaction)
+		sendTransactionBytesHandler(peer, transactionBytes)
 	}
 }
 
-func sendTransactionHandler(destPeer *model.Peer, transaction *model.Transaction) {
+func sendTransactionBytesHandler(destPeer *model.Peer, transactionBytes []byte) {
 	go func() {
-		_, err := service.NewPeerServiceClient().SendTransaction(destPeer, transaction)
+		_, err := service.NewPeerServiceClient().SendTransaction(destPeer, transactionBytes)
 		if err != nil {
-			log.Warnf("sendTransactionHandler Error accord %v\n", err)
+			log.Warnf("sendTransactionBytesHandler Error accord %v\n", err)
 		}
 	}()
 }

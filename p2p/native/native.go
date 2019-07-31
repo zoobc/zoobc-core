@@ -57,9 +57,9 @@ func (s *Service) SendBlockListener() observer.Listener {
 // SendTransactionListener setup listener for transaction to the list peer
 func (s *Service) SendTransactionListener() observer.Listener {
 	return observer.Listener{
-		OnNotify: func(block interface{}, args interface{}) {
-			t := block.(*model.Transaction)
-			sendTransaction(t)
+		OnNotify: func(transactionBytes interface{}, args interface{}) {
+			t := transactionBytes.([]byte)
+			sendTransactionBytes(t)
 		},
 	}
 }

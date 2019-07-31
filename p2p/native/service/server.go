@@ -107,7 +107,7 @@ func (ss *ServerService) SendBlock(ctx context.Context, req *model.Block) (*mode
 
 // TODO: test case
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
-func (ss *ServerService) SendTransaction(ctx context.Context, req *model.Transaction) (*model.Empty, error) {
-	observer.NewObserver().Notify(observer.TransactionReceived, req, nil)
+func (ss *ServerService) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Empty, error) {
+	observer.NewObserver().Notify(observer.TransactionReceived, req.GetTransactionBytes(), nil)
 	return &model.Empty{}, nil
 }
