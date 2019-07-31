@@ -470,12 +470,10 @@ func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
 		if err != nil {
 			return false
 		}
-
 		accountAddress, err := util.GetAddressFromPublicKey(block.GetBlocksmithID())
 		if err != nil {
 			return false
 		}
-		// TODO: how check accountType ??
 		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), 0, accountAddress)
 	}
 	return false
