@@ -59,6 +59,13 @@ func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transact
 func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte {
 	return []byte{}
 }
+func (*mockSignature) VerifySignature(
+	payload, signature []byte,
+	accountType uint32,
+	accountAddress string,
+) bool {
+	return true
+}
 
 // mockQueryExecutorScanFail
 func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
@@ -1313,6 +1320,147 @@ func TestBlockService_CheckGenesis(t *testing.T) {
 			}
 			if got := bs.CheckGenesis(); got != tt.want {
 				t.Errorf("BlockService.CheckGenesis() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_CheckSignatureBlock(t *testing.T) {
+	type fields struct {
+		Chaintype           contract.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Signature           crypto.SignatureInterface
+		MempoolService      MempoolServiceInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "wantFalse::BlockSignatureNil",
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+			},
+			args: args{
+				block: &model.Block{},
+			},
+			want: false,
+		},
+		{
+			name: "wantFalse::GetAddressFiled",
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+			},
+			args: args{
+				block: &model.Block{
+					Version:           1,
+					PreviousBlockHash: []byte{},
+					BlockSeed:         []byte{},
+					BlocksmithID:      nil,
+					Timestamp:         15875392,
+					TotalAmount:       0,
+					TotalFee:          0,
+					TotalCoinBase:     0,
+					Transactions:      []*model.Transaction{},
+					PayloadHash:       []byte{},
+					PayloadLength:     0,
+					BlockSignature:    []byte{},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "wantFalse::GetAddressFiled",
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+			},
+			args: args{
+				block: &model.Block{
+					Version:           1,
+					PreviousBlockHash: []byte{},
+					BlockSeed:         []byte{},
+					BlocksmithID:      nil,
+					Timestamp:         15875392,
+					TotalAmount:       0,
+					TotalFee:          0,
+					TotalCoinBase:     0,
+					Transactions:      []*model.Transaction{},
+					PayloadHash:       []byte{},
+					PayloadLength:     0,
+					BlockSignature:    []byte{},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "wantTrue::VerifySignature",
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+			},
+			args: args{
+				block: &model.Block{
+					Version:           1,
+					PreviousBlockHash: []byte{},
+					BlockSeed:         []byte{},
+					BlocksmithID:      make([]byte, 32),
+					Timestamp:         15875392,
+					TotalAmount:       0,
+					TotalFee:          0,
+					TotalCoinBase:     0,
+					Transactions:      []*model.Transaction{},
+					PayloadHash:       []byte{},
+					PayloadLength:     0,
+					BlockSignature:    []byte{},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Signature:           tt.fields.Signature,
+				MempoolService:      tt.fields.MempoolService,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+			}
+			if got := bs.CheckSignatureBlock(tt.args.block); got != tt.want {
+				t.Errorf("BlockService.CheckSignatureBlock() = %v, want %v", got, tt.want)
 			}
 		})
 	}
