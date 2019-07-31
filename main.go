@@ -98,30 +98,34 @@ func main() {
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 
+	mempoolService := service.NewMempoolService(
+		mainchain,
+		queryExecutor,
+		query.NewMempoolQuery(mainchain),
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		query.NewAccountBalanceQuery(),
+	)
+
+	blockService := service.NewBlockService(
+		mainchain,
+		queryExecutor,
+		query.NewBlockQuery(mainchain),
+		query.NewMempoolQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
+		mempoolService,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		query.NewAccountBalanceQuery(),
+	)
+
 	blockchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
-		service.NewBlockService(
-			mainchain,
-			queryExecutor,
-			query.NewBlockQuery(mainchain),
-			query.NewMempoolQuery(mainchain),
-			query.NewTransactionQuery(mainchain),
-			crypto.NewSignature(),
-			service.NewMempoolService(
-				mainchain,
-				queryExecutor,
-				query.NewMempoolQuery(mainchain),
-				&transaction.TypeSwitcher{
-					Executor: queryExecutor,
-				},
-				query.NewAccountBalanceQuery(),
-			),
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
-			query.NewAccountBalanceQuery(),
-		),
+		blockService,
 	)
 
 	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
@@ -144,7 +148,9 @@ func main() {
 
 	// observer
 	observer.NewObserver().AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
-	observer.NewObserver().AddListener(observer.BlockReceived, blockchainProcessor.BlockService.ReceivedBlockListener())
+	observer.NewObserver().AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
+	observer.NewObserver().AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observer.NewObserver().AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
