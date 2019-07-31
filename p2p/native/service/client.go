@@ -60,7 +60,7 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 }
 
 // SendPeers sends set of peers to other node (to populate the network)
-func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
 	connection, _ := nativeUtil.GrpcDialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
@@ -76,7 +76,7 @@ func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.
 }
 
 // SendBlock send block to selected peer
-func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
 	connection, _ := nativeUtil.GrpcDialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
@@ -90,7 +90,7 @@ func (psc PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block)
 }
 
 // SendTransaction send transaction to selected peer
-func (psc PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error) {
 	connection, _ := nativeUtil.GrpcDialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
