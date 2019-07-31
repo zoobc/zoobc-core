@@ -8,13 +8,14 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -151,6 +152,7 @@ func TestNewBlockService(t *testing.T) {
 		mempoolService      MempoolServiceInterface
 		txTypeSwitcher      transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
+		obsr                *observer.Observer
 	}
 	tests := []struct {
 		name string
@@ -178,6 +180,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.mempoolService,
 				tt.args.txTypeSwitcher,
 				tt.args.accountBalanceQuery,
+				tt.args.obsr,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}

@@ -11,12 +11,13 @@ import (
 
 type Service struct {
 	HostService *service.HostService
+	Observer    *observer.Observer
 }
 
 var hostServiceInstance *service.HostService
 
 // InitService to initialize services of the native strategy
-func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string) (contract.P2PType, error) {
+func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string, obsr *observer.Observer) (contract.P2PType, error) {
 	if s.HostService == nil {
 		knownPeersResult, err := nativeUtil.ParseKnownPeers(wellknownPeers)
 		if err != nil {
@@ -25,6 +26,7 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 		host := nativeUtil.NewHost(myAddress, port, knownPeersResult)
 		hostServiceInstance = service.CreateHostService(host)
 		s.HostService = hostServiceInstance
+		s.Observer = obsr
 	}
 	return s, nil
 }
@@ -36,7 +38,7 @@ func (s *Service) GetHostInstance() *model.Host {
 
 // StartP2P to run all p2p Thread service
 func (s *Service) StartP2P() {
-	startServer()
+	startServer(s.Observer)
 
 	// p2p thread
 	go resolvePeersThread()

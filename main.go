@@ -35,6 +35,7 @@ var (
 	apiRPCPort, apiHTTPPort int
 	p2pServiceInstance      contract.P2PType
 	queryExecutor           *query.Executor
+	observerInstance        *observer.Observer
 )
 
 func init() {
@@ -68,6 +69,9 @@ func init() {
 		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
+
+	// initialize Oberver
+	observerInstance = observer.NewObserver()
 }
 
 func startServices(queryExecutor query.ExecutorInterface) {
@@ -79,7 +83,7 @@ func p2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
-	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
+	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{}, observerInstance)
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
@@ -105,6 +109,7 @@ func main() {
 			Executor: queryExecutor,
 		},
 		query.NewAccountBalanceQuery(),
+		observerInstance,
 	)
 	blockService := service.NewBlockService(
 		mainchain,
@@ -118,6 +123,7 @@ func main() {
 			Executor: queryExecutor,
 		},
 		query.NewAccountBalanceQuery(),
+		observerInstance,
 	)
 	blockchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
@@ -144,10 +150,10 @@ func main() {
 	startServices(queryExecutor)
 
 	// observer
-	observer.NewObserver().AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
-	observer.NewObserver().AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
-	observer.NewObserver().AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	observer.NewObserver().AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
+	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
+	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

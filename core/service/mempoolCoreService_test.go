@@ -7,13 +7,14 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -120,6 +121,7 @@ func TestNewMempoolService(t *testing.T) {
 		mempoolQuery        query.MempoolQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
+		obsr                *observer.Observer
 	}
 
 	test := struct {
@@ -142,6 +144,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
+		test.args.obsr,
 	)
 	if !reflect.DeepEqual(got, test.want) {
 		t.Errorf("NewMempoolService() = %v, want %v", got, test.want)

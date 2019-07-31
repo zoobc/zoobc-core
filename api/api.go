@@ -17,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc"
 )
 
@@ -43,7 +44,8 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
-		query.NewAccountBalanceQuery())
+		query.NewAccountBalanceQuery(),
+		observer.NewObserver())
 
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

@@ -59,6 +59,7 @@ type (
 		MempoolService      MempoolServiceInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Observer            *observer.Observer
 	}
 )
 
@@ -72,6 +73,7 @@ func NewBlockService(
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	obsr *observer.Observer,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:           ct,
@@ -83,6 +85,7 @@ func NewBlockService(
 		MempoolService:      mempoolService,
 		ActionTypeSwitcher:  txTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
+		Observer:            obsr,
 	}
 }
 
@@ -221,7 +224,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		return err
 	}
 	// broadcast block
-	observer.NewObserver().Notify(observer.BlockPushed, block, nil)
+	bs.Observer.Notify(observer.BlockPushed, block, nil)
 	return nil
 
 }

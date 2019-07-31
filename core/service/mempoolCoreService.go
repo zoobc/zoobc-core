@@ -36,6 +36,7 @@ type (
 		MempoolQuery        query.MempoolQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Observer            *observer.Observer
 	}
 )
 
@@ -46,6 +47,7 @@ func NewMempoolService(
 	mempoolQuery query.MempoolQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	obsr *observer.Observer,
 ) *MempoolService {
 	return &MempoolService{
 		Chaintype:           ct,
@@ -53,6 +55,7 @@ func NewMempoolService(
 		MempoolQuery:        mempoolQuery,
 		ActionTypeSwitcher:  actionTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
+		Observer:            obsr,
 	}
 }
 
@@ -126,7 +129,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return err
 	}
 	// broadcast transaction
-	observer.NewObserver().Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), nil)
+	mps.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), nil)
 	return nil
 }
 

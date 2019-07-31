@@ -19,7 +19,9 @@ var (
 )
 
 // ServerService represent data service node as server
-type ServerService struct{}
+type ServerService struct {
+	Observer *observer.Observer
+}
 
 var serverServiceInstance *ServerService
 
@@ -30,9 +32,11 @@ func init() {
 	}
 }
 
-func NewServerService() *ServerService {
+func NewServerService(obsr *observer.Observer) *ServerService {
 	if serverServiceInstance == nil {
-		serverServiceInstance = &ServerService{}
+		serverServiceInstance = &ServerService{
+			Observer: obsr,
+		}
 	}
 	return serverServiceInstance
 }
@@ -98,16 +102,14 @@ func (ss *ServerService) SendPeers(ctx context.Context, req *model.SendPeersRequ
 	return &model.Empty{}, nil
 }
 
-// TODO: test case
 // SendBlock receive block from other node and calling BlockReceived Event
 func (ss *ServerService) SendBlock(ctx context.Context, req *model.Block) (*model.Empty, error) {
-	observer.NewObserver().Notify(observer.BlockReceived, req, nil)
+	ss.Observer.Notify(observer.BlockReceived, req, nil)
 	return &model.Empty{}, nil
 }
 
-// TODO: test case
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
 func (ss *ServerService) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Empty, error) {
-	observer.NewObserver().Notify(observer.TransactionReceived, req.GetTransactionBytes(), nil)
+	ss.Observer.Notify(observer.TransactionReceived, req.GetTransactionBytes(), nil)
 	return &model.Empty{}, nil
 }

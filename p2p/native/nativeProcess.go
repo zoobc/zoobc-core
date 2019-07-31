@@ -9,16 +9,17 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/native/service"
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
 // startServer to run p2p service as server
-func startServer() {
+func startServer(obsr *observer.Observer) {
 	port := hostServiceInstance.Host.GetInfo().GetPort()
 	listener := nativeUtil.ServerListener(int(port))
 	go func() {
-		_ = service.NewServerService().StartListening(listener)
+		_ = service.NewServerService(obsr).StartListening(listener)
 	}()
 }
 
