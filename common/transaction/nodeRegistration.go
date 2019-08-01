@@ -165,15 +165,15 @@ func (tx *NodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
 }
 
-func (*NodeRegistration) GetSize() uint32 {
+func (tx *NodeRegistration) GetSize() uint32 {
 	nodePublicKey := 32
 	accountType := 2
 	//TODO: this is valid for account type = 0
 	accountAddress := 44
-	// Note: as address is a variable string, by convention, the client should pass a string long 100 bytes, then we parse it internally
-	nodeAddress := 100
+	nodeAddressLength := 1
+	nodeAddress := len([]byte(tx.Body.NodeAddress))
 	lockedBalance := 8
-	return uint32(nodePublicKey + accountType + accountAddress + nodeAddress + lockedBalance)
+	return uint32(nodePublicKey + accountType + nodeAddressLength + accountAddress + nodeAddress + lockedBalance)
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -183,8 +183,8 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) *model.NodeRegistrat
 	accountTypeBytes := buffer.Next(2)
 	accountType := util.ConvertBytesToUint32([]byte{accountTypeBytes[0], accountTypeBytes[1], 0, 0})
 	accountAddressBytes := buffer.Next(44)
-	nodeAddressLength := util.ConvertBytesToUint32(buffer.Next(4)) // uint32 length of next bytes to read
-	nodeAddress := buffer.Next(int(nodeAddressLength))             // based on nodeAddressLength
+	nodeAddressLength := util.ConvertBytesToUint32([]byte{buffer.Next(1)[0], 0, 0, 0}) // uint32 length of next bytes to read
+	nodeAddress := buffer.Next(int(nodeAddressLength))                                 // based on nodeAddressLength
 	lockedBalance := util.ConvertBytesToUint64(buffer.Next(8))
 	return &model.NodeRegistrationTransactionBody{
 		NodePublicKey:     nodePublicKey,
@@ -202,7 +202,8 @@ func (*NodeRegistration) GetBodyBytes(txBody *model.NodeRegistrationTransactionB
 	buffer.Write(txBody.NodePublicKey)
 	buffer.Write(util.ConvertUint32ToBytes(txBody.AccountType)[:2])
 	buffer.Write([]byte(txBody.AccountAddress))
-	buffer.Write(util.ConvertUint32ToBytes(txBody.NodeAddressLength))
+	addressLengthBytes := util.ConvertUint32ToBytes(txBody.NodeAddressLength)
+	buffer.Write([]byte{addressLengthBytes[0]})
 	buffer.Write([]byte(txBody.NodeAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(txBody.LockedBalance)))
 	return buffer.Bytes()
