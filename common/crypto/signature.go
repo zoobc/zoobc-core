@@ -58,3 +58,10 @@ func (*Signature) VerifySignature(payload, signature []byte, accountType uint32,
 		return result
 	}
 }
+
+// VerifyNodeSignature Verify a signature of a block or message signed with a node private key
+// Note: this function is a wrapper around the ed25519 algorithm
+func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
+	result := ed25519.Verify(nodePublicKey, payload, signature)
+	return result
+}
