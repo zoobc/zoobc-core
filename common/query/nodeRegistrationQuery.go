@@ -11,9 +11,9 @@ import (
 type (
 	NodeRegistrationQueryInterface interface {
 		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
-		GetNodeRegistrations(registrationHeight, size uint32)
-		GetNodeRegistrationNodeByPublicKey(nodePublicKey []byte)
-		GetNodeRegistrationByAccountPublicKey(accountPublicKey []byte)
+		GetNodeRegistrations(registrationHeight, size uint32) (str string)
+		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		GetNodeRegistrationByAccountPublicKey(accountPublicKey []byte) (str string, args []interface{})
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
 	}
@@ -26,7 +26,8 @@ type (
 
 func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 	return &NodeRegistrationQuery{
-		Fields:    []string{"node_public_key", "account_id", "registration_height", "node_address", "locked_balance", "latest", "height"},
+		Fields: []string{"node_public_key", "account_id", "registration_height", "node_address", "locked_balance", "queued",
+			"latest", "height"},
 		TableName: "node_registry",
 	}
 }
@@ -38,28 +39,28 @@ func (nr *NodeRegistrationQuery) getTableName() string {
 func (nr *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
-		nr.TableName,
+		nr.getTableName(),
 		strings.Join(nr.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nr.Fields)-1)),
 	), nr.ExtractModel(nodeRegistration)
-}
-
-// GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
-func (nr *NodeRegistrationQuery) GetNodeRegistrationNodeByPublicKey(nodePublicKey []byte) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = %d AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName(), nodePublicKey)
-}
-
-// GetNodeRegistrationByAccountPublicKey returns query string to get Node Registration by account public key
-func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountID(accountPublicKey []byte) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = %d AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName(), accountPublicKey)
 }
 
 // GetNodeRegistrations returns query string to get multiple node registrations
 func (nr *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND latest=1 LIMIT %d",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), registrationHeight, size)
+}
+
+// GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
+func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
+		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey}
+}
+
+// GetNodeRegistrationByAccountPublicKey returns query string to get Node Registration by account public key
+func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountPublicKey(accountPublicKey []byte) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = %d AND latest=1",
+		strings.Join(nr.Fields, ", "), nr.getTableName(), accountPublicKey), []interface{}{accountPublicKey}
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
