@@ -26,7 +26,7 @@ func startServer(obsr *observer.Observer) {
 // resolvePeersThread to periodically try get response from peers in UnresolvedPeer list
 func resolvePeersThread() {
 	go hostServiceInstance.ResolvePeers()
-	ticker := nativeUtil.GetTickerTime(constant.ResolvePeersGap)
+	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
@@ -44,7 +44,7 @@ func resolvePeersThread() {
 // getMorePeersThread to periodically request more peers from another node in Peers list
 func getMorePeersThread() {
 	go hostServiceInstance.GetMorePeersHandler()
-	ticker := nativeUtil.GetTickerTime(constant.ResolvePeersGap)
+	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
@@ -61,7 +61,7 @@ func getMorePeersThread() {
 // updateBlacklistedStatus to periodically check blacklisting time of black listed peer,
 // every 60sec if there are blacklisted peers to unblacklist
 func updateBlacklistedStatus() {
-	ticker := nativeUtil.GetTickerTime(60)
+	ticker := time.NewTicker(time.Duration(60) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
