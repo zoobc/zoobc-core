@@ -23,46 +23,27 @@ type (
 	executorAccountCountFail struct {
 		query.Executor
 	}
+
 	executorValidateSuccess struct {
 		query.Executor
 	}
-	executorApplySuccess struct {
-		executorValidateSuccess
-	}
 
-	executorGenesisSuccess struct {
+	executorApplyUnconfirmedSuccess struct {
 		query.Executor
 	}
 
-	executorGenesisSuccessCreateAccount struct {
-		executorGenesisSuccess
+	executorFailUpdateAccount struct {
+		executorAccountCountSuccess
 	}
 
-	executorGenesisFail struct {
-		executorGenesisSuccessCreateAccount
+	executorSuccessUpdateAccount struct {
+		query.Executor
 	}
 
-	executorGenesisFailAddBalance struct {
-		executorGenesisSuccess
+	executorUnconfirmedFail struct {
+		query.ExecutorInterface
 	}
 )
-
-func (*executorApplySuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
-		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-
-	tx, _ := db.Begin()
-	stmt, _ := tx.Prepare("")
-	result, _ := stmt.Exec("")
-	err = tx.Commit()
-	return []sql.Result{result}, err
-}
 
 func (*executorValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
@@ -85,21 +66,13 @@ func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) 
 	).AddRow(1, 2, 50, 50, 0, 1))
 	return db.Query(qStr, 1)
 }
-func (*executorValidateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
 
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
-		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
+func (*executorAccountCreateSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
 
-	tx, _ := db.Begin()
-	stmt, _ := tx.Prepare("")
-	result, _ := stmt.Exec("")
-	err = tx.Commit()
-	return []sql.Result{result}, err
+func (*executorAccountCreateSuccess) ExecuteTransactions([][]interface{}) error {
+	return nil
 }
 
 func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
@@ -114,22 +87,7 @@ func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interfac
 	))
 	return db.Query(qStr, 1)
 }
-func (*executorAccountCreateSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
 
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta("")).ExpectExec().
-		WithArgs(1).WillReturnResult(sqlmock.NewResult(1, 1))
-
-	tx, _ := db.Begin()
-	stmt, _ := tx.Prepare("")
-	result, _ := stmt.Exec("")
-	err = tx.Commit()
-	return []sql.Result{result}, err
-}
 func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 
@@ -140,15 +98,30 @@ func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, args ...inter
 	return db.QueryRow(qStr, 1, 2)
 }
 
-func (*executorAccountCountFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
-	db, mock, _ := sqlmock.New()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
-		"total_record",
-	}).AddRow(1))
-
-	return db.QueryRow(qStr, 1, 2)
+func (*executorAccountCountFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return errors.New("mockError:accountInsertFail")
 }
+
+func (*executorAccountCountFail) ExecuteTransactions([][]interface{}) error {
+	return errors.New("mockError:accountInsertFail")
+}
+
+func (*executorFailUpdateAccount) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return errors.New("mockError:accountbalanceFail")
+}
+
+func (*executorFailUpdateAccount) ExecuteTransactions([][]interface{}) error {
+	return errors.New("mockError:senderFail")
+}
+
+func (*executorSuccessUpdateAccount) ExecuteTransactions([][]interface{}) error {
+	return nil
+}
+
+func (*executorSuccessUpdateAccount) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
 func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
@@ -170,42 +143,16 @@ func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface
 	return db.Query(qStr, 1)
 }
 
-func (*executorGenesisSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(args[0]).WillReturnRows(sqlmock.NewRows([]string{
-		"AccountID", "AccountType", "AccountAddress"},
-	).AddRow([]byte{}, 0, ""))
-	return db.Query(qStr, args[0])
+func (*executorAccountCountSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
 }
 
-func (*executorGenesisSuccess) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	return nil, nil
+func (*executorUnconfirmedFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return errors.New("MockedError")
 }
 
-func (*executorGenesisSuccessCreateAccount) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(args[0]).WillReturnRows(sqlmock.NewRows([]string{
-		"AccountID", "AccountType", "AccountAddress"},
-	))
-	return db.Query(qStr, args[0])
-}
-
-func (*executorGenesisFail) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	return nil, errors.New("mockedError")
-}
-
-func (*executorGenesisFailAddBalance) ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error) {
-	return nil, errors.New("mockedError")
+func (*executorApplyUnconfirmedSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
 }
 
 func TestSendMoney_Validate(t *testing.T) {
@@ -385,7 +332,7 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantError:ValidateInvalid",
+			name: "wantError:ExecuteTransactionFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
@@ -397,11 +344,7 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCountSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:        &executorUnconfirmedFail{},
 			},
 			wantErr: true,
 		},
@@ -418,15 +361,9 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorApplySuccess{
-					executorValidateSuccess{
-						query.Executor{
-							Db: db,
-						},
-					},
-				},
+				QueryExecutor:        &executorApplyUnconfirmedSuccess{},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -491,7 +428,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantSuccess:CreateAccount",
+			name: "wantError:UndoUnconfirmedInvalid",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
@@ -503,7 +440,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCreateSuccess{
+				QueryExecutor: &executorAccountCountFail{
 					query.Executor{
 						Db: db,
 					},
@@ -512,101 +449,10 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantSuccess:genesis-{genesis-sender-exist}",
+			name: "wantFail:deductAddMoneyFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorGenesisSuccess{},
-			},
-			wantErr: false,
-		},
-		{
-			name: "wantSuccess:genesis-{genesis-sender-not-exist, create genesis}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorGenesisSuccessCreateAccount{},
-			},
-			wantErr: false,
-		},
-		{
-			name: "wantFail:genesis-{genesis-sender-not-exist, create genesis fail}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorGenesisFail{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantFail:genesis-{genesis add balance fail}",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &executorGenesisFailAddBalance{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantSuccess:Create",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorApplySuccess{
-					executorValidateSuccess{
-						query.Executor{
-							Db: db,
-						},
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantSuccess:Update",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
+					Amount: 1,
 				},
 				Height:               1,
 				SenderAccountType:    0,
@@ -615,15 +461,26 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorApplySuccess{
-					executorValidateSuccess{
-						query.Executor{
-							Db: db,
-						},
-					},
-				},
+				QueryExecutor:        &executorFailUpdateAccount{},
 			},
 			wantErr: true,
+		},
+		{
+			name: "wantsuccess",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorSuccessUpdateAccount{},
+			},
+			wantErr: false,
 		},
 	}
 
@@ -642,6 +499,143 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSendMoney_GetAmount(t *testing.T) {
+	type fields struct {
+		Body                 *model.SendMoneyTransactionBody
+		SenderAddress        string
+		SenderAccountType    uint32
+		RecipientAddress     string
+		RecipientAccountType uint32
+		Height               uint32
+		AccountBalanceQuery  query.AccountBalanceQueryInterface
+		AccountQuery         query.AccountQueryInterface
+		QueryExecutor        query.ExecutorInterface
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   int64
+	}{
+		{
+			name: "GetAmount:success",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 100,
+				},
+				Height:               0,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorSuccessUpdateAccount{},
+			},
+			want: 100,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				SenderAccountType:    tt.fields.SenderAccountType,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				RecipientAccountType: tt.fields.RecipientAccountType,
+				Height:               tt.fields.Height,
+				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
+				AccountQuery:         tt.fields.AccountQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+			}
+			if got := tx.GetAmount(); got != tt.want {
+				t.Errorf("SendMoney.GetAmount() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSendMoney_GetSize(t *testing.T) {
+	t.Run("SendMoney:GetSize", func(t *testing.T) {
+		tx := &SendMoney{}
+		size := tx.GetSize()
+		if size != 8 {
+			t.Errorf("SendMoney size should be 8\nget: %d instead", size)
+		}
+	})
+}
+
+func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		Body                 *model.SendMoneyTransactionBody
+		SenderAddress        string
+		SenderAccountType    uint32
+		RecipientAddress     string
+		RecipientAccountType uint32
+		Height               uint32
+		AccountBalanceQuery  query.AccountBalanceQueryInterface
+		AccountQuery         query.AccountQueryInterface
+		QueryExecutor        query.ExecutorInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "UndoApplyUnconfirmed:success",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorAccountCountSuccess{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "UndoApplyUnconfirmed:executeTransactionFail/",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountQuery:         query.NewAccountQuery(),
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &executorAccountCountFail{},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				SenderAccountType:    tt.fields.SenderAccountType,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				RecipientAccountType: tt.fields.RecipientAccountType,
+				Height:               tt.fields.Height,
+				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
+				AccountQuery:         tt.fields.AccountQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+			}
+			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("SendMoney.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

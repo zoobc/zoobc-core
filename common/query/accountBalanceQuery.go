@@ -1,7 +1,7 @@
 package query
 
 import (
-	"bytes"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -16,11 +16,12 @@ type (
 	}
 	// AccountBalanceQueryInterface interface that implemented by AccountBalanceQuery
 	AccountBalanceQueryInterface interface {
-		GetAccountBalanceByAccountID() string
-		UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{})
+		GetAccountBalanceByAccountID(accountID []byte) (string, interface{})
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
-		AddAccountBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
+		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
+		ExtractModel(accountBalance *model.AccountBalance) []interface{}
+		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance
 	}
 )
 
@@ -38,56 +39,52 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 		TableName: "account_balance",
 	}
 }
-func (q *AccountBalanceQuery) GetAccountBalanceByAccountID() string {
-	return fmt.Sprintf(`
-		SELECT %s
-		FROM %s
-		WHERE account_id = ? 
-	`, strings.Join(q.Fields, ","), q.TableName)
+func (q *AccountBalanceQuery) GetAccountBalanceByAccountID(accountID []byte) (query string, args interface{}) {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_id = ? AND latest = 1`,
+		strings.Join(q.Fields, ","), q.TableName), accountID
 }
 
-func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{}) {
-	return fmt.Sprintf("UPDATE %s SET balance = balance + (%d), spendable_balance = spendable_balance + (%d) WHERE account_id = ?",
-		q.TableName, balance, balance), []interface{}{causedFields["account_id"]}
+func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
+	var (
+		queries            [][]interface{}
+		updateVersionQuery string
+	)
+	// insert account if account not in account balance yet
+	insertBalanceQuery := fmt.Sprintf("INSERT INTO %s (account_id, block_height, spendable_balance, balance, pop_revenue, latest) "+
+		"SELECT ?, %d, 0, 0, 0, 1 WHERE NOT EXISTS (SELECT account_id FROM %s WHERE account_id = ?)", q.TableName,
+		causedFields["block_height"], q.TableName)
+	// update or insert new account_balance row
+	updateBalanceQuery := fmt.Sprintf("INSERT INTO %s (account_id, block_height, spendable_balance, balance, pop_revenue, latest) "+
+		"SELECT account_id, %d, spendable_balance + %d, balance + %d, pop_revenue, latest FROM account_balance WHERE account_id = ? AND "+
+		"latest = 1 ON CONFLICT(account_id, block_height) DO UPDATE SET (spendable_balance, balance) = (SELECT "+
+		"spendable_balance + %d, balance + %d FROM %s WHERE account_id = ? AND latest = 1)",
+		q.TableName, causedFields["block_height"], balance, balance, balance, balance, q.TableName)
+
+	queries = append(queries,
+		[]interface{}{
+			insertBalanceQuery, causedFields["account_id"], causedFields["account_id"],
+		},
+		[]interface{}{
+			updateBalanceQuery, causedFields["account_id"], causedFields["account_id"],
+		},
+	)
+	if causedFields["block_height"].(uint32) != 0 {
+		// set previous version record to latest = false
+		updateVersionQuery = fmt.Sprintf("UPDATE %s SET latest = false WHERE account_id = ? AND block_height != %d AND latest = true",
+			q.TableName, causedFields["block_height"])
+		queries = append(queries,
+			[]interface{}{
+				updateVersionQuery, causedFields["account_id"],
+			},
+		)
+	}
+	return queries
 }
 
 func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (
 	str string, args []interface{}) {
 	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_id = ?",
 		q.TableName, balance), []interface{}{causedFields["account_id"]}
-}
-
-func (q *AccountBalanceQuery) UpdateAccountBalance(fields, causedFields map[string]interface{}) (str string, args []interface{}) {
-
-	var (
-		buff *bytes.Buffer
-		i, j int
-	)
-
-	buff = bytes.NewBufferString(fmt.Sprintf(`
-		UPDATE %s SET 
-	`, q.TableName))
-
-	for k, v := range fields {
-		buff.WriteString(fmt.Sprintf("%s = ? ", k))
-		if i < len(fields) && len(fields) > 1 {
-			buff.WriteString(",")
-		}
-		args = append(args, v)
-		i++
-	}
-
-	buff.WriteString("WHERE ")
-	for k, v := range causedFields {
-		buff.WriteString(fmt.Sprintf("%s = ?", k))
-		if j < len(causedFields) && len(causedFields) > 1 {
-			buff.WriteString(" AND")
-		}
-		j++
-		args = append(args, v)
-	}
-
-	return buff.String(), args
 }
 
 func (q *AccountBalanceQuery) InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{}) {
@@ -108,4 +105,21 @@ func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interf
 		account.PopRevenue,
 		account.Latest,
 	}
+}
+
+// BuildModel will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance {
+	for rows.Next() {
+		var accountBalance model.AccountBalance
+		_ = rows.Scan(
+			&accountBalance.AccountID,
+			&accountBalance.BlockHeight,
+			&accountBalance.SpendableBalance,
+			&accountBalance.Balance,
+			&accountBalance.PopRevenue,
+			&accountBalance.Latest)
+		accountBalances = append(accountBalances, &accountBalance)
+	}
+	return accountBalances
 }

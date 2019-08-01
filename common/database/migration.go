@@ -15,7 +15,7 @@ migration should be has `query.Executor` interface
 type Migration struct {
 	CurrentVersion *int
 	Versions       []string
-	Query          *query.Executor
+	Query          query.ExecutorInterface
 }
 
 /*
@@ -23,17 +23,17 @@ Init function must be call at the first time before call `Apply()`.
 That just for make sure no error that caused by `query.Executor` not `nil`
 and initialize versions
 */
-func (m *Migration) Init(qe *query.Executor) error {
+func (m *Migration) Init() error {
 
-	if qe != nil {
-		rows, _ := qe.ExecuteSelect("SELECT version FROM migration;")
+	if m.Query != nil {
+		rows, _ := m.Query.ExecuteSelect("SELECT version FROM migration;")
 		if rows != nil {
+			defer rows.Close()
 			var version int
 			_ = rows.Scan(&version)
 			m.CurrentVersion = &version
 		}
 
-		m.Query = qe
 		m.Versions = []string{
 			`CREATE TABLE IF NOT EXISTS "migration" (
 				"version" INTEGER DEFAULT 0 NOT NULL,
@@ -103,6 +103,20 @@ func (m *Migration) Init(qe *query.Executor) error {
 				"payload_hash" BLOB,
 				PRIMARY KEY("id")
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_registry" (
+				"node_public_key" BLOB,
+				"account_id" BLOB,
+				"registration_height" INTEGER,
+				"node_address" VARCHAR(255),
+				"locked_balance" INTEGER,
+				"queued" INTEGER,
+				"latest" INTEGER,
+				"height" INTEGER,
+				UNIQUE ("node_public_key", "height"),
+				UNIQUE ("account_id", "height"),
+				PRIMARY KEY("node_public_key", "account_id", "height")
+			);`,
 		}
 		return nil
 	}
@@ -126,20 +140,14 @@ func (m *Migration) Apply() error {
 
 	for version, query := range migrations {
 		version := version
-		queries := [][]interface{}{
-			{
-				query,
-			},
-		}
+		_ = m.Query.BeginTx()
+		_ = m.Query.ExecuteTransaction(query)
 
 		if m.CurrentVersion != nil {
-			queries = append(queries, []interface{}{
-				`UPDATE "migration"
-				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion,
-			})
+			_ = m.Query.ExecuteTransaction(`UPDATE "migration"
+				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion)
 		} else {
-			queries = append(queries, []interface{}{
-				`
+			_ = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
 					"version",
 					"created_date"
@@ -148,10 +156,9 @@ func (m *Migration) Apply() error {
 					0,
 					datetime('now')
 				);
-				`,
-			})
+				`)
 		}
-		_, err := m.Query.ExecuteTransactionStatements(queries)
+		err := m.Query.CommitTx()
 		m.CurrentVersion = &version
 		if err != nil {
 			return err

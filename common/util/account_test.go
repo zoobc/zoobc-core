@@ -1,6 +1,7 @@
 package util
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -227,6 +228,50 @@ func TestCreateAccountIDFromAddress(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := CreateAccountIDFromAddress(tt.args.accountType, tt.args.address); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CreateAccountIDFromAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestValidateAccountAddress(t *testing.T) {
+	type args struct {
+		accType uint32
+		address string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TestValidateAccountAddress:Default",
+			args: args{
+				accType: math.MaxUint32,
+				address: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestValidateAccountAddress:0:success",
+			args: args{
+				accType: 0,
+				address: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			},
+			wantErr: false,
+		},
+		{
+			name: "TestValidateAccountAddress:0:wantErr",
+			args: args{
+				accType: 0,
+				address: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateAccountAddress(tt.args.accType, tt.args.address); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

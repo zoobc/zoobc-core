@@ -57,7 +57,6 @@ linters:
     - prealloc
     - gochecknoglobals
     - gochecknoinits
-#    - goimports
 
 run:
   skip-dirs:
@@ -75,6 +74,7 @@ issues:
     - path: "(.+)_test.go"
       linters:
         - scopelint
+        - unused
     - text: "File is not `goimports`-ed"
       linters:
         - goimports
