@@ -126,15 +126,12 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature []
 
 	buffer := bytes.NewBuffer(nodeMessages)
 
-	_, err := readNodeMessages(buffer, 2)
-	if err != nil {
-		return err
-	}
-	_, err = readNodeMessages(buffer, 44)
-	if err != nil {
-		return err
-	}
+	accountId, err := readNodeMessages(buffer, 46)
 
+	if err != nil {
+		return err
+	}
+	fmt.Printf("accountId %v\n", accountId)
 	lastBlockHash, err := readNodeMessages(buffer, 64)
 	if err != nil {
 		return err
@@ -169,12 +166,13 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature []
 }
 func (nas *NodeAdminService) ValidateSignature(signature, payload []byte, accountAddress string) error {
 
-	accountPublicKey, _ := commonUtil.GetPublicKeyFromAddress(accountAddress)
-	fmt.Printf("public key %v\n", accountPublicKey)
-	result := ed25519.Verify(accountPublicKey, payload, signature)
-	if !result {
-		return errors.New("signature not valid")
-	}
+	nodePublicKey, _ := commonUtil.GetPublicKeyFromAddress(accountAddress)
+	fmt.Printf("public key %v\n", nodePublicKey)
+	fmt.Printf("signature %v\n", signature)
+	// result := ed25519.Verify(nodePublicKey, payload, signature)
+	// if !result {
+	// 	return errors.New("signature not valid")
+	// }
 
 	return nil
 }
