@@ -7,7 +7,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -90,8 +89,4 @@ func ServerListener(port int) net.Listener {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	return serv
-}
-
-func GetTickerTime(duration uint) *time.Ticker {
-	return time.NewTicker(time.Duration(duration) * time.Second)
 }
