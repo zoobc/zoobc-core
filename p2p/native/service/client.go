@@ -4,8 +4,7 @@ import (
 	"context"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
+	log "github.com/sirupsen/logrus" // TODO : Add interceptor for client
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
@@ -61,18 +60,46 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 }
 
 // SendPeers sends set of peers to other node (to populate the network)
-func (psc PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
-	conn, err := grpc.Dial(util.GetFullAddressPeer(destPeer), grpc.WithInsecure())
-	if err != nil {
-		log.Printf("did not connect %v: %v\n", util.GetFullAddressPeer(destPeer), err)
-	}
-	defer conn.Close()
-	p2pClient := service.NewP2PCommunicationClient(conn)
+func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
 	res, err := p2pClient.SendPeers(context.Background(), &model.SendPeersRequest{
 		Peers: peersInfo,
 	})
 	if err != nil {
 		log.Printf("could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
+		return nil, err
+	}
+	return res, err
+}
+
+// SendBlock send block to selected peer
+func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
+	res, err := p2pClient.SendBlock(context.Background(), block)
+	if err != nil {
+		log.Printf("SendBlock could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
+		return nil, err
+	}
+	return res, err
+}
+
+// SendTransaction send transaction to selected peer
+func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error) {
+	connection, _ := nativeUtil.GrpcDialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
+	res, err := p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
+		TransactionBytes: transactionBytes,
+	})
+	if err != nil {
+		log.Printf("SendTransaction could not greet %v: %v\n", util.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err

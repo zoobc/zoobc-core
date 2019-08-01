@@ -20,7 +20,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-// Host represent
+// Host represent node and listed peers information
 type Host struct {
 	Info                 *Node            `protobuf:"bytes,1,opt,name=Info,proto3" json:"Info,omitempty"`
 	ResolvedPeers        map[string]*Peer `protobuf:"bytes,2,rep,name=ResolvedPeers,proto3" json:"ResolvedPeers,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
