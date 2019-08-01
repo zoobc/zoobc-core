@@ -36,11 +36,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 1:
 		switch buf[1] {
 		case 0:
-			sendMoneyTxAmount := util.ConvertBytesToUint64(tx.GetTransactionBodyBytes())
 			return &SendMoney{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: int64(sendMoneyTxAmount),
-				},
+				Body:                 (&SendMoney{}).ParseBodyBytes(tx.TransactionBodyBytes),
 				Fee:                  tx.Fee,
 				SenderAddress:        tx.GetSenderAccountAddress(),
 				SenderAccountType:    tx.GetSenderAccountType(),
@@ -58,13 +55,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		switch buf[1] {
 		case 0:
 			return &NodeRegistration{
-				Body:                tx.GetNodeRegistrationTransactionBody(),
-				SenderAddress:       tx.GetSenderAccountAddress(),
-				SenderAccountType:   tx.GetSenderAccountType(),
-				Height:              tx.GetHeight(),
-				AccountQuery:        query.NewAccountQuery(),
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				QueryExecutor:       ts.Executor,
+				Body:                  (&NodeRegistration{}).ParseBodyBytes(tx.TransactionBodyBytes),
+				Fee:                   tx.Fee,
+				SenderAddress:         tx.GetSenderAccountAddress(),
+				SenderAccountType:     tx.GetSenderAccountType(),
+				Height:                tx.GetHeight(),
+				AccountQuery:          query.NewAccountQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         ts.Executor,
 			}
 		default:
 			return nil
