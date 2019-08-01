@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -44,6 +46,7 @@ type (
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
 		CheckGenesis() bool
+		ReceivedBlockListener() observer.Listener
 	}
 
 	BlockService struct {
@@ -56,6 +59,7 @@ type (
 		MempoolService      MempoolServiceInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Observer            *observer.Observer
 	}
 )
 
@@ -69,6 +73,7 @@ func NewBlockService(
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	obsr *observer.Observer,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:           ct,
@@ -80,6 +85,7 @@ func NewBlockService(
 		MempoolService:      mempoolService,
 		ActionTypeSwitcher:  txTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
+		Observer:            obsr,
 	}
 }
 
@@ -218,6 +224,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 		return err
 	}
 	// broadcast block
+	bs.Observer.Notify(observer.BlockPushed, block, nil)
 	return nil
 
 }
@@ -457,4 +464,49 @@ func (bs *BlockService) CheckGenesis() bool {
 		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
 	return true
+}
+
+// CheckSignatureBlock check signature of block
+func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
+	if block.GetBlockSignature() != nil {
+		blockUnsignedByte, err := coreUtil.GetBlockByte(block, false)
+		if err != nil {
+			return false
+		}
+		accountAddress, err := util.GetAddressFromPublicKey(block.GetBlocksmithID())
+		if err != nil {
+			return false
+		}
+		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), 0, accountAddress)
+	}
+	return false
+}
+
+// ReceivedBlockListener handle received block from another node
+func (bs *BlockService) ReceivedBlockListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			receivedBlock := block.(*model.Block)
+			// make sure block has previous block hash
+			if receivedBlock.GetPreviousBlockHash() != nil {
+				if bs.CheckSignatureBlock(receivedBlock) {
+					lastBlock, err := bs.GetLastBlock()
+					if err != nil {
+						return
+					}
+
+					lastBlockByte, _ := coreUtil.GetBlockByte(lastBlock, true)
+					lastBlockHash := sha3.Sum512(lastBlockByte)
+
+					//  check equality last block hash with previous block hash from received block
+					if bytes.Equal(lastBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
+						err := bs.PushBlock(lastBlock, receivedBlock)
+						if err != nil {
+							return
+						}
+					}
+				}
+			}
+		},
+	}
 }

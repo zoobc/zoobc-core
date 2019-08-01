@@ -22,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
 )
@@ -34,6 +35,7 @@ var (
 	apiRPCPort, apiHTTPPort int
 	p2pServiceInstance      contract.P2PType
 	queryExecutor           *query.Executor
+	observerInstance        *observer.Observer
 )
 
 func init() {
@@ -67,6 +69,9 @@ func init() {
 		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
+
+	// initialize Oberver
+	observerInstance = observer.NewObserver()
 }
 
 func startServices(queryExecutor query.ExecutorInterface) {
@@ -78,7 +83,7 @@ func p2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
-	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
+	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{}, observerInstance)
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
@@ -96,31 +101,34 @@ func main() {
 	}
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-
+	mempoolService := service.NewMempoolService(
+		mainchain,
+		queryExecutor,
+		query.NewMempoolQuery(mainchain),
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		query.NewAccountBalanceQuery(),
+		observerInstance,
+	)
+	blockService := service.NewBlockService(
+		mainchain,
+		queryExecutor,
+		query.NewBlockQuery(mainchain),
+		query.NewMempoolQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
+		mempoolService,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		query.NewAccountBalanceQuery(),
+		observerInstance,
+	)
 	blockchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
-		service.NewBlockService(
-			mainchain,
-			queryExecutor,
-			query.NewBlockQuery(mainchain),
-			query.NewMempoolQuery(mainchain),
-			query.NewTransactionQuery(mainchain),
-			crypto.NewSignature(),
-			service.NewMempoolService(
-				mainchain,
-				queryExecutor,
-				query.NewMempoolQuery(mainchain),
-				&transaction.TypeSwitcher{
-					Executor: queryExecutor,
-				},
-				query.NewAccountBalanceQuery(),
-			),
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
-			query.NewAccountBalanceQuery(),
-		),
+		blockService,
 	)
 
 	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
@@ -140,6 +148,12 @@ func main() {
 	}
 
 	startServices(queryExecutor)
+
+	// observer
+	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
+	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

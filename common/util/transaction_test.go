@@ -1,12 +1,14 @@
 package util
 
 import (
+	"bytes"
 	"database/sql"
+	"math"
 	"reflect"
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -385,5 +387,42 @@ func buildTransaction(timestamp int64, sender, recipient string) *model.Transact
 		TransactionBodyBytes:    make([]byte, 0),
 		TransactionBody:         nil,
 		Signature:               make([]byte, 64),
+	}
+}
+
+func TestReadAccountAddress(t *testing.T) {
+	type args struct {
+		accountType uint32
+		buf         *bytes.Buffer
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "TestReadAccountAddress:defult",
+			args: args{
+				accountType: math.MaxUint32,
+				buf: bytes.NewBuffer([]byte{2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122,
+					105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55,
+					0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80,
+					118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4,
+					5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190,
+					78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
+					229, 184, 77, 80, 80, 39, 254, 173, 28, 169}),
+			},
+			want: []byte{
+				2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110,
+				95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

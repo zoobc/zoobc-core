@@ -7,13 +7,14 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -120,6 +121,7 @@ func TestNewMempoolService(t *testing.T) {
 		mempoolQuery        query.MempoolQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
+		obsr                *observer.Observer
 	}
 
 	test := struct {
@@ -129,10 +131,12 @@ func TestNewMempoolService(t *testing.T) {
 	}{
 		name: "NewBlockService:success",
 		args: args{
-			ct: &chaintype.MainChain{},
+			ct:   &chaintype.MainChain{},
+			obsr: observer.NewObserver(),
 		},
 		want: &MempoolService{
 			Chaintype: &chaintype.MainChain{},
+			Observer:  observer.NewObserver(),
 		},
 	}
 
@@ -142,6 +146,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
+		test.args.obsr,
 	)
 	if !reflect.DeepEqual(got, test.want) {
 		t.Errorf("NewMempoolService() = %v, want %v", got, test.want)
@@ -237,6 +242,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 		QueryExecutor      query.ExecutorInterface
 		MempoolQuery       query.MempoolQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Observer           *observer.Observer
 	}
 	type args struct {
 		mpTx *model.MempoolTransaction
@@ -254,6 +260,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				Observer:           observer.NewObserver(),
 			},
 			args: args{
 				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
@@ -267,6 +274,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				QueryExecutor:      &mockMempoolQueryExecutorFail{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				Observer:           observer.NewObserver(),
 			},
 			args: args{
 				mpTx: getTestSignedMempoolTransaction(3, 1562893303),
@@ -281,6 +289,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				QueryExecutor:      tt.fields.QueryExecutor,
 				MempoolQuery:       tt.fields.MempoolQuery,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Observer:           tt.fields.Observer,
 			}
 			if err := mps.AddMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.AddMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
