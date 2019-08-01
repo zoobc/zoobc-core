@@ -1477,3 +1477,122 @@ func TestBlockService_CheckSignatureBlock(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockService_ReceivedBlockListener(t *testing.T) {
+	type (
+		fields struct {
+			Chaintype           contract.ChainType
+			QueryExecutor       query.ExecutorInterface
+			BlockQuery          query.BlockQueryInterface
+			MempoolQuery        query.MempoolQueryInterface
+			TransactionQuery    query.TransactionQueryInterface
+			Signature           crypto.SignatureInterface
+			MempoolService      MempoolServiceInterface
+			ActionTypeSwitcher  transaction.TypeActionSwitcher
+			AccountBalanceQuery query.AccountBalanceQueryInterface
+			Observer            *observer.Observer
+		}
+		args struct {
+			block *model.Block
+		}
+	)
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   observer.Listener
+	}{
+		{
+			name: "wantLastBlockAndPrevBlockNotEqual",
+			fields: fields{
+				Signature:     &mockSignature{},
+				QueryExecutor: &mockQueryExecutorSuccess{},
+				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				&model.Block{
+					ID:                   0,
+					Height:               0,
+					Version:              1,
+					CumulativeDifficulty: "",
+					SmithScale:           0,
+					PreviousBlockHash:    []byte{},
+					BlockSeed:            []byte{},
+					BlocksmithID:         make([]byte, 32),
+					Timestamp:            12345678,
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					PayloadLength:        0,
+					BlockSignature:       []byte{},
+				},
+			},
+			want: observer.Listener{
+				OnNotify: func(data interface{}, args interface{}) {
+
+				},
+			},
+		},
+		{
+			name: "wantGetLasBlockFail",
+			fields: fields{
+				Signature:     &mockSignature{},
+				QueryExecutor: &mockQueryExecuteNotNil{},
+				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				&model.Block{
+					ID:                   0,
+					Height:               0,
+					Version:              1,
+					CumulativeDifficulty: "",
+					SmithScale:           0,
+					PreviousBlockHash:    []byte{},
+					BlockSeed:            []byte{},
+					BlocksmithID:         make([]byte, 32),
+					Timestamp:            12345678,
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					PayloadLength:        0,
+					BlockSignature:       []byte{},
+				},
+			},
+			want: observer.Listener{
+				OnNotify: func(data interface{}, args interface{}) {
+
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Signature:           tt.fields.Signature,
+				MempoolService:      tt.fields.MempoolService,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Observer:            tt.fields.Observer,
+			}
+
+			got := bs.ReceivedBlockListener()
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
+				t.Errorf("BlockService.ReceivedBlockListener() = %v, want %v", got, tt.want)
+			}
+			testOnNotify(got.OnNotify, tt.args.block)
+		})
+	}
+}
+
+func testOnNotify(fn observer.OnNotify, block *model.Block) {
+	fn(block, nil)
+}
