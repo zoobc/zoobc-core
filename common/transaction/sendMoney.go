@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -218,4 +219,19 @@ func (tx *SendMoney) GetAmount() int64 {
 func (*SendMoney) GetSize() uint32 {
 	// only amount (int64)
 	return 8
+}
+
+// ParseBodyBytes read and translate body bytes to body implementation fields
+func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) *model.SendMoneyTransactionBody {
+	amount := util.ConvertBytesToUint64(txBodyBytes)
+	return &model.SendMoneyTransactionBody{
+		Amount: int64(amount),
+	}
+}
+
+// GetBodyBytes translate tx body to bytes representation
+func (*SendMoney) GetBodyBytes(txBody *model.SendMoneyTransactionBody) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint64ToBytes(uint64(txBody.Amount)))
+	return buffer.Bytes()
 }
