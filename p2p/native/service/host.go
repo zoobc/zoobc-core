@@ -23,10 +23,14 @@ type HostService struct {
 var hostServiceInstance *HostService
 
 func CreateHostService(host *model.Host) *HostService {
-	hostServiceInstance = &HostService{
-		Host:               host,
-		MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
-		MaxResolvedPeers:   constant.MaxResolvedPeers,
+	if hostServiceInstance == nil {
+		hostServiceInstance = &HostService{
+			Host:               host,
+			MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
+			MaxResolvedPeers:   constant.MaxResolvedPeers,
+		}
+	} else {
+		hostServiceInstance.Host = host
 	}
 	return hostServiceInstance
 }
