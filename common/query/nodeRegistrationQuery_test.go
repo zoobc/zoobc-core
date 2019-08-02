@@ -15,7 +15,7 @@ var mockNodeRegistrationQuery = &NodeRegistrationQuery{
 }
 
 var mockNodeRegistry = &model.NodeRegistration{
-	ID:                 1,
+	NodeID:             1,
 	NodePublicKey:      []byte{1},
 	AccountId:          []byte{2},
 	RegistrationHeight: 1,
@@ -57,7 +57,7 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 	t.Run("InsertNodeRegistration:success", func(t *testing.T) {
 
 		q, args := mockNodeRegistrationQuery.InsertNodeRegistration(mockNodeRegistry)
-		wantQ := "INSERT INTO node_registry (node_public_key,account_id,registration_height,node_address," +
+		wantQ := "INSERT INTO node_registry (id,node_public_key,account_id,registration_height,node_address," +
 			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
 			mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
@@ -76,7 +76,7 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 func TestNodeRegistrationQuery_GetNodeRegistrations(t *testing.T) {
 	t.Run("GetNodeRegistrations", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetNodeRegistrations(0, 2)
-		want := "SELECT node_public_key, account_id, registration_height, node_address, locked_balance, " +
+		want := "SELECT id, node_public_key, account_id, registration_height, node_address, locked_balance, " +
 			"queued, latest, height FROM node_registry WHERE height >= 0 AND latest=1 LIMIT 2"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
@@ -87,7 +87,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrations(t *testing.T) {
 func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) {
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByNodePublicKey([]byte{1})
-		want := "SELECT node_public_key, account_id, registration_height, node_address, locked_balance, " +
+		want := "SELECT id, node_public_key, account_id, registration_height, node_address, locked_balance, " +
 			"queued, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1"
 		wantArg := []interface{}{[]byte{1}}
 		if res != want {
@@ -101,8 +101,8 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 
 func TestNodeRegistrationQuery_GetNodeRegistrationByAccountPublicKey(t *testing.T) {
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
-		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByAccountPublicKey([]byte{1})
-		want := "SELECT node_public_key, account_id, registration_height, node_address, locked_balance, " +
+		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByAccountID([]byte{1})
+		want := "SELECT id, node_public_key, account_id, registration_height, node_address, locked_balance, " +
 			"queued, latest, height FROM node_registry WHERE account_id = [1] AND latest=1"
 		wantArg := []interface{}{[]byte{1}}
 		if res != want {
@@ -133,7 +133,7 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
-			"NodePublicKey", "AccountId", "RegistrationHeight", "NodeAddress", "LockedBalance",
+			"id", "NodePublicKey", "AccountId", "RegistrationHeight", "NodeAddress", "LockedBalance",
 			"Queued", "Latest", "Height"}).
 			AddRow(mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
 				mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
@@ -167,6 +167,21 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 		}
 		if !reflect.DeepEqual(args, wantArg) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
+		}
+	})
+}
+
+func TestNodeRegistrationQuery_GetNodeRegistrationByID(t *testing.T) {
+	t.Run("GetNodeRegistrationByID:success", func(t *testing.T) {
+		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByID(1)
+		want := "SELECT id, node_public_key, account_id, registration_height, node_address, locked_balance," +
+			" queued, latest, height FROM node_registry WHERE id = ? AND latest=1"
+		wantArg := []interface{}{int64(1)}
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+		if !reflect.DeepEqual(arg, wantArg) {
+			t.Errorf("argument not match:\nget: %v\nwant: %v", arg, wantArg)
 		}
 	})
 }

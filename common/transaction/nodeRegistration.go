@@ -146,7 +146,7 @@ func (tx *NodeRegistration) Validate() error {
 	defer rows.Close()
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
-		return errors.New("user balance not enough")
+		return errors.New("UserBalanceNotEnough")
 	}
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
@@ -173,7 +173,9 @@ func (tx *NodeRegistration) GetSize() uint32 {
 	nodeAddressLength := 1
 	nodeAddress := tx.Body.NodeAddressLength
 	lockedBalance := 8
-	return uint32(nodePublicKey+accountType+nodeAddressLength+accountAddress+lockedBalance) + nodeAddress
+	//TODO: return bytes of ProofOfOwnership (message + signature) when implemented
+	poown := 256
+	return uint32(nodePublicKey+accountType+nodeAddressLength+accountAddress+lockedBalance+poown) + nodeAddress
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -186,6 +188,8 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) *model.NodeRegistrat
 	nodeAddressLength := util.ConvertBytesToUint32([]byte{buffer.Next(1)[0], 0, 0, 0}) // uint32 length of next bytes to read
 	nodeAddress := buffer.Next(int(nodeAddressLength))                                 // based on nodeAddressLength
 	lockedBalance := util.ConvertBytesToUint64(buffer.Next(8))
+	//TODO: parse ProofOfOwnership (message + signature) bytes when implemented
+	poown := new(model.ProofOfOwnership)
 	return &model.NodeRegistrationTransactionBody{
 		NodePublicKey:     nodePublicKey,
 		AccountType:       accountType,
@@ -193,6 +197,7 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) *model.NodeRegistrat
 		NodeAddressLength: nodeAddressLength,
 		NodeAddress:       string(nodeAddress),
 		LockedBalance:     int64(lockedBalance),
+		Poown:             poown,
 	}
 }
 
@@ -206,5 +211,7 @@ func (*NodeRegistration) GetBodyBytes(txBody *model.NodeRegistrationTransactionB
 	buffer.Write([]byte{addressLengthBytes[0]})
 	buffer.Write([]byte(txBody.NodeAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(txBody.LockedBalance)))
+	//TODO: convert ProofOfOwnership (message + signature) to bytes
+	buffer.Write([]byte{})
 	return buffer.Bytes()
 }
