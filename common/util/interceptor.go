@@ -46,6 +46,10 @@ func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 			}
 		}()
 
-		return handler(ctx, req)
+		resp, err := handler(ctx, req)
+		if err != nil {
+			fields["exception"] = err
+		}
+		return resp, err
 	}
 }
