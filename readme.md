@@ -63,4 +63,4 @@ go build -o zoobc
 
 ### Contributing
 
-please refer to [contribute.md](contribute.md) for contribution.
+please refer to [contribute.md](contribute.md) and [code of conduct](code_of_conduct.md).
