@@ -171,9 +171,9 @@ func (tx *NodeRegistration) GetSize() uint32 {
 	//TODO: this is valid for account type = 0
 	accountAddress := 44
 	nodeAddressLength := 1
-	nodeAddress := len([]byte(tx.Body.NodeAddress))
+	nodeAddress := tx.Body.NodeAddressLength
 	lockedBalance := 8
-	return uint32(nodePublicKey + accountType + nodeAddressLength + accountAddress + nodeAddress + lockedBalance)
+	return uint32(nodePublicKey+accountType+nodeAddressLength+accountAddress+lockedBalance) + nodeAddress
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields

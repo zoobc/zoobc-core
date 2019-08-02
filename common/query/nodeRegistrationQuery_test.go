@@ -5,17 +5,17 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var mockNodeRegistrationQuery = &NodeRegistrationQuery{
-	Fields: []string{"node_public_key", "account_id", "registration_height", "node_address", "locked_balance", "queued",
+	Fields: []string{"id", "node_public_key", "account_id", "registration_height", "node_address", "locked_balance", "queued",
 		"latest", "height"},
 	TableName: "node_registry",
 }
 
 var mockNodeRegistry = &model.NodeRegistration{
+	ID:                 1,
 	NodePublicKey:      []byte{1},
 	AccountId:          []byte{2},
 	RegistrationHeight: 1,
@@ -143,6 +143,30 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 		res := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
 		if !reflect.DeepEqual(res[0], mockNodeRegistry) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockNodeRegistry)
+		}
+	})
+}
+
+func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
+	t.Run("UpdateNodeRegistration:success", func(t *testing.T) {
+
+		q, args := mockNodeRegistrationQuery.UpdateNodeRegistration(mockNodeRegistry)
+		wantQ0 := "UPDATE node_registry SET latest = 0 WHERE ID = 1"
+		wantQ1 := "INSERT INTO node_registry (id,node_public_key,account_id,registration_height,node_address," +
+			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
+		wantArg := []interface{}{
+			mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
+			mockNodeRegistry.Latest, mockNodeRegistry.Height,
+		}
+		if q[0] != wantQ0 {
+			t.Errorf("update query returned wrong: get: %s\nwant: %s", q, wantQ0)
+		}
+		if q[1] != wantQ1 {
+			t.Errorf("insert query returned wrong: get: %s\nwant: %s", q, wantQ1)
+		}
+		if !reflect.DeepEqual(args, wantArg) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
 		}
 	})
 }
