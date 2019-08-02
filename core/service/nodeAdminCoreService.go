@@ -122,7 +122,13 @@ func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {
 }
 
 // validate proof of ownership
-func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature []byte, accountAddress string) error {
+func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, nodePublicKey []byte) error {
+
+	v1 := crypto.NewSignature().VerifyNodeSignature(nodeMessages, signature, nodePublicKey)
+	fmt.Printf("v1 %v\n", v1)
+	if !v1 {
+		return errors.New("InvalidSignature")
+	}
 
 	buffer := bytes.NewBuffer(nodeMessages)
 
@@ -143,12 +149,6 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature []
 
 	blockHeight := commonUtil.ConvertBytesToUint32([]byte{blockHeightBytes[0], 0, 0, 0})
 
-	err1 := nas.ValidateSignature(signature, nodeMessages, accountAddress)
-	fmt.Printf("err1 %v\n", err1)
-	if err1 != nil {
-		return err1
-	}
-
 	err2 := nas.ValidateHeight(blockHeight)
 	fmt.Printf("err2 %v\n", err2)
 	if err2 != nil {
@@ -164,18 +164,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature []
 	return nil
 
 }
-func (nas *NodeAdminService) ValidateSignature(signature, payload []byte, accountAddress string) error {
 
-	nodePublicKey, _ := commonUtil.GetPublicKeyFromAddress(accountAddress)
-	fmt.Printf("public key %v\n", nodePublicKey)
-	fmt.Printf("signature %v\n", signature)
-	// result := ed25519.Verify(nodePublicKey, payload, signature)
-	// if !result {
-	// 	return errors.New("signature not valid")
-	// }
-
-	return nil
-}
 func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
 	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
 	var blocks []*model.Block
