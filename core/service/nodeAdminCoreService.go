@@ -38,7 +38,7 @@ var (
 
 // generate proof of ownership
 func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
-	accountAddress string, signature []byte) (nodeMessages, proofOfOwnershipSign []byte) {
+	accountAddress string) (nodeMessages, proofOfOwnershipSign []byte) {
 
 	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
 	ownerAccountAddress := nas.LookupOwnerAccount()
@@ -107,9 +107,10 @@ func (nas *NodeAdminService) SignData(payload []byte) []byte {
 	} else {
 		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 	}
+
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSecretPhrase)
 	sign = ed25519.Sign(nodePrivateKey, payload)
-
+	fmt.Printf("sign %v\n", sign)
 	return sign
 }
 
@@ -125,7 +126,6 @@ func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {
 func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, nodePublicKey []byte) error {
 
 	v1 := crypto.NewSignature().VerifyNodeSignature(nodeMessages, signature, nodePublicKey)
-	fmt.Printf("v1 %v\n", v1)
 	if !v1 {
 		return errors.New("InvalidSignature")
 	}
@@ -133,11 +133,13 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, n
 	buffer := bytes.NewBuffer(nodeMessages)
 
 	accountId, err := readNodeMessages(buffer, 46)
-
 	if err != nil {
 		return err
 	}
-	fmt.Printf("accountId %v\n", accountId)
+	if accountId == nil {
+		fmt.Println(err)
+	}
+
 	lastBlockHash, err := readNodeMessages(buffer, 64)
 	if err != nil {
 		return err
@@ -148,9 +150,8 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, n
 	}
 
 	blockHeight := commonUtil.ConvertBytesToUint32([]byte{blockHeightBytes[0], 0, 0, 0})
-
+	fmt.Printf("block height %v\n", blockHeight)
 	err2 := nas.ValidateHeight(blockHeight)
-	fmt.Printf("err2 %v\n", err2)
 	if err2 != nil {
 		return err2
 	}
@@ -167,6 +168,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, n
 
 func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
 	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
+	fmt.Printf("lastblock %v\n", rows)
 	var blocks []*model.Block
 	blocks = nas.BlockQuery.BuildModel(blocks, rows)
 
@@ -178,10 +180,11 @@ func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
 }
 func (nas *NodeAdminService) ValidateBlockHash(blockHeight uint32, lastBlockHash []byte) error {
 
-	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetBlockByHeight(blockHeight))
+	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
+	fmt.Printf("rows : %v\n", rows)
 	var blocks []*model.Block
 	blocks = nas.BlockQuery.BuildModel(blocks, rows)
-
+	fmt.Printf("blocks : %v\n", blocks)
 	digest := sha3.New512()
 	blockByte, _ := util.GetBlockByte(blocks[0], true)
 	_, _ = digest.Write(blockByte)

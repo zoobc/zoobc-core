@@ -46,7 +46,6 @@ func TestGenerateProofOfOwnership(t *testing.T) {
 			params: &paramsStruct{
 				accountType:    1,
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				signature:      []byte{4, 38, 113, 185},
 			},
 			want: &wantStruct{
 				proofOfOwnershipSign: []byte{115, 74, 30, 212, 221, 118, 106, 246, 87, 93, 149, 146, 141, 111, 100, 45, 29, 48,
@@ -69,7 +68,7 @@ func TestGenerateProofOfOwnership(t *testing.T) {
 				AccountQuery:  tt.fields.AccountQuery,
 				Signature:     tt.fields.Signature,
 			}
-			res1, res2 := nodeAdminService.GenerateProofOfOwnership(tt.params.accountType, tt.params.accountAddress, tt.params.signature)
+			res1, res2 := nodeAdminService.GenerateProofOfOwnership(tt.params.accountType, tt.params.accountAddress)
 
 			if !bytes.Equal(res1, tt.want.nodeMessages) {
 				t.Errorf("GetGenerateProofOfOwnership() \ngot = %v, \nwant = %v", res1, tt.want.nodeMessages)
@@ -122,11 +121,11 @@ func TestValidateProofOfOwnership(t *testing.T) {
 					108, 69, 28, 67, 36, 177, 18, 86, 20, 83, 73, 100, 118, 236, 245, 79, 57, 156, 69, 220, 166, 222, 128, 172,
 					119, 169, 85, 168, 111, 124, 143, 109, 18, 226, 91, 149, 235, 82, 49, 204, 97, 180, 91, 82, 40, 9, 12, 15, 94,
 					49, 245, 175, 150, 243, 217, 140, 133, 89, 117, 200, 193, 235, 101, 145, 8, 195, 1, 0, 0, 0},
-				signature: []byte{115, 74, 30, 212, 221, 118, 106, 246, 87, 93, 149, 146, 141, 111, 100, 45, 29, 48,
-					16, 212, 236, 60, 30, 50, 73, 134, 217, 91, 220, 41, 69, 7, 44, 181, 253, 159, 156, 174, 68, 206, 19, 51, 47, 211,
-					90, 100, 38, 32, 178, 155, 204, 215, 194, 5, 109, 251, 106, 118, 238, 8, 24, 127, 170, 4},
-				publicKey: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242,
-					84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11},
+				signature: []byte{115, 74, 30, 212, 221, 118, 106, 246, 87, 93, 149, 146, 141, 111, 100, 45, 29, 48, 16, 212, 236, 60, 30, 50, 73, 134, 217,
+					91, 220, 41, 69, 7, 44, 181, 253, 159, 156, 174, 68, 206, 19, 51, 47, 211, 90, 100, 38, 32, 178, 155, 204, 215, 194, 5, 109, 251, 106,
+					118, 238, 8, 24, 127, 170, 4},
+				publicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			},
 			want: &wantStruct{
 				err: nil,
