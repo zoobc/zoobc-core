@@ -116,7 +116,7 @@ func (m *Migration) Init() error {
 				"height" INTEGER,
 				UNIQUE ("node_public_key", "height"),
 				UNIQUE ("account_id", "height"),
-				PRIMARY KEY("id")
+				PRIMARY KEY("id", "height")
 			);`,
 		}
 		return nil
