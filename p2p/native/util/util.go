@@ -10,7 +10,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
-	"google.golang.org/grpc"
 )
 
 // NewHost to initialize new server node
@@ -73,14 +72,6 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
-}
-
-func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(GetFullAddressPeer(destinationPeer), grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
 }
 
 func ServerListener(port int) net.Listener {
