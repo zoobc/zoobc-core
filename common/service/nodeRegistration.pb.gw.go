@@ -195,7 +195,7 @@ var (
 
 	pattern_NodeRegistrationService_GetNodeRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "GetNodeRegistration"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_NodeRegistrationService_UpdateNodeRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "GetNodeRegistration"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_NodeRegistrationService_UpdateNodeRegistration_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeRegistration", "UpdateNodeRegistration"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
