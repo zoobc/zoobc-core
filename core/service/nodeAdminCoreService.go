@@ -132,11 +132,11 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, n
 
 	buffer := bytes.NewBuffer(nodeMessages)
 
-	accountId, err := readNodeMessages(buffer, 46)
+	accountID, err := readNodeMessages(buffer, 46)
 	if err != nil {
 		return err
 	}
-	if accountId == nil {
+	if accountID == nil {
 		fmt.Println(err)
 	}
 
