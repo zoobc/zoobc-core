@@ -17,11 +17,7 @@ import (
 type (
 	// NodeAdminServiceInterface represents interface for NodeAdminService
 	NodeAdminServiceInterface interface {
-		GetMessageSize() uint32
-		GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error)
-		ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error)
 		GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) (*model.ProofOfOwnership, error)
-		ValidateProofOfOwnershipRequest(accountType uint32, accountAddress string, signature []byte) bool
 		ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte)
 	}
 
@@ -29,6 +25,11 @@ type (
 	NodeAdminServiceHelpersInterface interface {
 		LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error)
 		LoadNodeSeedFromConfig() (nodeSeed string, err error)
+		GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error)
+		ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error)
+		// TODO: to be implemented: method to validate a request for a new proof of ownership, coming from the client
+		// ValidateProofOfOwnershipRequest(accountType uint32, accountAddress string, signature []byte) bool
+		GetMessageSize() uint32
 	}
 
 	NodeAdminService struct {
@@ -43,7 +44,7 @@ type (
 // GetMessageSize return the message size in bytes
 // note: it can be used to validate a message
 func (*NodeAdminService) GetMessageSize() uint32 {
-	accountType := 2
+	accountType := 4
 	//TODO: this is valid for account type = 0
 	accountAddress := 44
 	blockHash := 64
@@ -62,7 +63,9 @@ func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessag
 
 // GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
 func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
-	if uint32(len(messageBytes)) != nas.GetMessageSize() {
+	messageLength := len(messageBytes)
+	messageLengthRef := nas.GetMessageSize()
+	if uint32(messageLength) != messageLengthRef {
 		return nil, errors.New("InvalidPownMessageSize")
 	}
 	message := new(model.ProofOfOwnershipMessage)
@@ -112,11 +115,15 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 		BlockHash:      lastBlockHash,
 		BlockHeight:    lastBlock.Height,
 	}
-	messageBytes, err := nas.GetBytesFromMessage(poownMessage)
+	messageBytes, err := nas.Helpers.GetBytesFromMessage(poownMessage)
 	if err != nil {
 		return nil, err
 	}
-	poownSignature, err := nas.SignPoownMessageBytes(messageBytes)
+	nodeSecretPhrase, err := nas.Helpers.LoadNodeSeedFromConfig()
+	if err != nil {
+		return nil, err
+	}
+	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeSecretPhrase)
 	if err != nil {
 		return nil, err
 	}
@@ -125,16 +132,6 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 		MessageBytes: messageBytes,
 		Signature:    poownSignature,
 	}, nil
-}
-
-// SignPoownMessageBytes sign poown message bytes with the node private key
-func (nas *NodeAdminService) SignPoownMessageBytes(messageBytes []byte) ([]byte, error) {
-	nodeSecretPhrase, err := nas.Helpers.LoadNodeSeedFromConfig()
-	if err != nil {
-		return nil, err
-	}
-	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeSecretPhrase)
-	return poownSignature, nil
 }
 
 func (*NodeAdminService) LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error) {
@@ -158,14 +155,6 @@ func (*NodeAdminService) LoadNodeSeedFromConfig() (nodeSeed string, err error) {
 	return
 }
 
-func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {
-	nextBytes := buf.Next(nBytes)
-	if len(nextBytes) < nBytes {
-		return nil, errors.New("EndOfBufferReached")
-	}
-	return nextBytes, nil
-}
-
 // ValidateProofOfOwnership validates a proof of ownership message
 func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte) error {
 
@@ -174,7 +163,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 		return errors.New("InvalidSignature")
 	}
 
-	message, err := nas.ParseMessageBytes(poown.MessageBytes)
+	message, err := nas.Helpers.ParseMessageBytes(poown.MessageBytes)
 	if err != nil {
 		return err
 	}

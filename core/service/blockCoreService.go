@@ -256,8 +256,6 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	a := bs.BlockQuery.GetBlockByHeight(height)
-	log.Println(a)
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height))
 	defer func() {
 		if rows != nil {
