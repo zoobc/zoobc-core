@@ -3,10 +3,8 @@ package service
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	proto "github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -14,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -25,7 +22,7 @@ type (
 		ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error)
 		GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) (*model.ProofOfOwnership, error)
 		ValidateProofOfOwnershipRequest(accountType uint32, accountAddress string, signature []byte) bool
-		ValidateProofOfOwnership(nodeMessages, signature, publicKey []byte)
+		ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte)
 	}
 
 	// NodeAdminServiceHelpersInterface mockable service methods
@@ -123,8 +120,6 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 	if err != nil {
 		return nil, err
 	}
-	log.Println(messageBytes)
-	log.Println(poownSignature)
 
 	return &model.ProofOfOwnership{
 		MessageBytes: messageBytes,
@@ -171,77 +166,55 @@ func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {
 	return nextBytes, nil
 }
 
-// validate proof of ownership
-func (nas *NodeAdminService) ValidateProofOfOwnership(nodeMessages, signature, nodePublicKey []byte) error {
+// ValidateProofOfOwnership validates a proof of ownership message
+func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte) error {
 
-	v1 := crypto.NewSignature().VerifyNodeSignature(nodeMessages, signature, nodePublicKey)
+	v1 := crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey)
 	if !v1 {
 		return errors.New("InvalidSignature")
 	}
 
-	buffer := bytes.NewBuffer(nodeMessages)
-
-	accountID, err := readNodeMessages(buffer, 46)
-	if err != nil {
-		return err
-	}
-	if accountID == nil {
-		fmt.Println(err)
-	}
-
-	lastBlockHash, err := readNodeMessages(buffer, 64)
-	if err != nil {
-		return err
-	}
-	blockHeightBytes, err := readNodeMessages(buffer, 4)
+	message, err := nas.ParseMessageBytes(poown.MessageBytes)
 	if err != nil {
 		return err
 	}
 
-	blockHeight := commonUtil.ConvertBytesToUint32([]byte{blockHeightBytes[0], 0, 0, 0})
-	fmt.Printf("block height %v\n", blockHeight)
-	err2 := nas.ValidateHeight(blockHeight)
-	if err2 != nil {
-		return err2
+	// validate height
+	mainChain := &chaintype.MainChain{}
+	blockService := NewBlockService(
+		mainChain,
+		nas.QueryExecutor,
+		query.NewBlockQuery(mainChain),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	lastBlock, err := blockService.GetLastBlock()
+	if err != nil {
+		return err
 	}
 
-	err3 := nas.ValidateBlockHash(blockHeight, lastBlockHash)
-	fmt.Printf("err3 %v\n", err3)
-	if err3 != nil {
-		return err3
+	// FIXME: create an application-wide constant for this
+	// Expiration, in number of blocks, of a proof of ownership message
+	poownExpiration := uint32(100)
+	if lastBlock.Height-message.BlockHeight > poownExpiration {
+		return errors.New("ProofOfOwnershipExpired")
 	}
 
-	return nil
-
-}
-
-func (nas *NodeAdminService) ValidateHeight(blockHeight uint32) error {
-	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
-	fmt.Printf("lastblock %v\n", rows)
-	var blocks []*model.Block
-	blocks = nas.BlockQuery.BuildModel(blocks, rows)
-
-	if blockHeight > blocks[0].Height {
-		return errors.New("block is older")
+	poownBlockRef, err := blockService.GetBlockByHeight(message.BlockHeight)
+	if err != nil {
+		return err
 	}
-
-	return nil
-}
-func (nas *NodeAdminService) ValidateBlockHash(blockHeight uint32, lastBlockHash []byte) error {
-
-	rows, _ := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
-	fmt.Printf("rows : %v\n", rows)
-	var blocks []*model.Block
-	blocks = nas.BlockQuery.BuildModel(blocks, rows)
-	fmt.Printf("blocks : %v\n", blocks)
-	digest := sha3.New512()
-	blockByte, _ := util.GetBlockByte(blocks[0], true)
-	_, _ = digest.Write(blockByte)
-	hash := digest.Sum([]byte{})
-
-	if !bytes.Equal(hash, lastBlockHash) {
-		return errors.New("hash didn't same")
+	poownBlockHashRef, err := util.GetBlockHash(poownBlockRef)
+	if err != nil {
+		return err
 	}
-
+	if bytes.Compare(poownBlockHashRef, message.BlockHash) != 0 {
+		return errors.New("InvalidProofOfOwnershipBlockHash")
+	}
 	return nil
 }
