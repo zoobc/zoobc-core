@@ -121,7 +121,7 @@ func (bs *BlockService) NewBlock(
 		PayloadLength:     payloadLength,
 	}
 	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
-	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
+	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
 	return block
 }
 

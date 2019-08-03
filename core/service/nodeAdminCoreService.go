@@ -5,21 +5,33 @@ import (
 	"errors"
 	"fmt"
 
+	proto "github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
 
 type (
 	// NodeAdminServiceInterface represents interface for NodeAdminService
 	NodeAdminServiceInterface interface {
-		GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte)
+		GetMessageSize() uint32
+		GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error)
+		ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error)
+		GenerateProofOfOwnership(accountType uint32, accountAddress string, signature []byte) (*model.ProofOfOwnership, error)
+		ValidateProofOfOwnershipRequest(accountType uint32, accountAddress string, signature []byte) bool
 		ValidateProofOfOwnership(nodeMessages, signature, publicKey []byte)
+	}
+
+	// NodeAdminServiceHelpersInterface mockable service methods
+	NodeAdminServiceHelpersInterface interface {
+		LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error)
+		LoadNodeSeedFromConfig() (nodeSeed string, err error)
 	}
 
 	NodeAdminService struct {
@@ -27,91 +39,128 @@ type (
 		BlockQuery    query.BlockQueryInterface
 		AccountQuery  query.AccountQueryInterface
 		Signature     crypto.SignatureInterface
+		Helpers       NodeAdminServiceHelpersInterface
 	}
 )
 
-var (
-	ownerAccountAddress string
-	nodeSecretPhrase    string
-	sign                []byte
-)
+// GetMessageSize return the message size in bytes
+// note: it can be used to validate a message
+func (*NodeAdminService) GetMessageSize() uint32 {
+	accountType := 2
+	//TODO: this is valid for account type = 0
+	accountAddress := 44
+	blockHash := 64
+	blockHeight := 4
+	return uint32(accountType + accountAddress + blockHash + blockHeight)
+}
+
+// GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
+func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error) {
+	b, err := proto.Marshal(poown)
+	if err != nil {
+		return nil, errors.New("InvalidPoownMessage")
+	}
+	return b, nil
+}
+
+// GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
+func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
+	if uint32(len(messageBytes)) != nas.GetMessageSize() {
+		return nil, errors.New("InvalidPownMessageSize")
+	}
+	message := new(model.ProofOfOwnershipMessage)
+	if err := proto.Unmarshal(messageBytes, message); err != nil {
+		return nil, errors.New("InvalidPoownMessageBytes")
+	}
+	return message, nil
+}
 
 // generate proof of ownership
 func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
-	accountAddress string) (nodeMessages, proofOfOwnershipSign []byte) {
+	accountAddress string) (*model.ProofOfOwnership, error) {
 
-	lastBlock, lastBlockHash, _ := nas.LookupLastBlock()
-	ownerAccountAddress := nas.LookupOwnerAccount()
-
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(commonUtil.ConvertUint32ToBytes(accountType)[:2])
-	buffer.Write([]byte(accountAddress))
-	buffer.Write(lastBlockHash)
-	buffer.Write(commonUtil.ConvertUint32ToBytes(lastBlock.Height))
-
-	nodeMessages = buffer.Bytes()
-	proofOfOwnershipSign = nas.SignData(nodeMessages)
-	if ownerAccountAddress == accountAddress {
-		return nodeMessages, proofOfOwnershipSign
+	ownerAccountType, ownerAccountAddress, err := nas.Helpers.LoadOwnerAccountFromConfig()
+	if ownerAccountAddress != accountAddress && ownerAccountType != accountType {
+		return nil, errors.New("PoownAccountNotNodeOwner")
 	}
-	return nil, nil
-}
 
-// GetLastBlock return the last pushed block
-
-func (nas *NodeAdminService) LookupLastBlock() (*model.Block, []byte, error) {
-	rows, err := nas.QueryExecutor.ExecuteSelect(nas.BlockQuery.GetLastBlock())
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	var blocks []*model.Block
-	blocks = nas.BlockQuery.BuildModel(blocks, rows)
-	if len(blocks) > 0 {
-
-		digest := sha3.New512()
-		blockByte, _ := util.GetBlockByte(blocks[0], true)
-		_, _ = digest.Write(blockByte)
-		hash := digest.Sum([]byte{})
-
-		return blocks[0], hash, nil
+	mainChain := &chaintype.MainChain{}
+	blockService := NewBlockService(
+		mainChain,
+		nas.QueryExecutor,
+		query.NewBlockQuery(mainChain),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	lastBlock, err := blockService.GetLastBlock()
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil, errors.New("BlockNotFound")
+	lastBlockHash, err := util.GetBlockHash(lastBlock)
+	if err != nil {
+		return nil, err
+	}
 
+	poownMessage := &model.ProofOfOwnershipMessage{
+		AccountType:    accountType,
+		AccountAddress: accountAddress,
+		BlockHash:      lastBlockHash,
+		BlockHeight:    lastBlock.Height,
+	}
+	messageBytes, err := nas.GetBytesFromMessage(poownMessage)
+	if err != nil {
+		return nil, err
+	}
+	poownSignature, err := nas.SignPoownMessageBytes(messageBytes)
+	if err != nil {
+		return nil, err
+	}
+	log.Println(messageBytes)
+	log.Println(poownSignature)
+
+	return &model.ProofOfOwnership{
+		MessageBytes: messageBytes,
+		Signature:    poownSignature,
+	}, nil
 }
-func (nas *NodeAdminService) LookupOwnerAccount() string {
-	if err := commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
-		panic(err)
-	} else {
-		ownerAccountAddress = viper.GetString("ownerAccountAddress")
+
+// SignPoownMessageBytes sign poown message bytes with the node private key
+func (nas *NodeAdminService) SignPoownMessageBytes(messageBytes []byte) ([]byte, error) {
+	nodeSecretPhrase, err := nas.Helpers.LoadNodeSeedFromConfig()
+	if err != nil {
+		return nil, err
 	}
-	return ownerAccountAddress
+	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeSecretPhrase)
+	return poownSignature, nil
 }
 
-func ed25519GetPrivateKeyFromSeed(seed string) []byte {
-	// Convert seed (secret phrase) to byte array
-	seedBuffer := []byte(seed)
-	// Compute SHA3-256 hash of seed (secret phrase)
-	seedHash := sha3.Sum256(seedBuffer)
-	// Generate a private key from the hash of the seed
-	return ed25519.NewKeyFromSeed(seedHash[:])
+func (*NodeAdminService) LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error) {
+	err = nil
+	if err = commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
+		err = errors.New("NodeConfigFileNotFound")
+		return
+	}
+	ownerAccountType = viper.GetUint32("ownerAccountType")
+	ownerAccountAddress = viper.GetString("ownerAccountAddress")
+	return
 }
 
-func (nas *NodeAdminService) SignData(payload []byte) []byte {
-	if err := commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
-		panic(err)
-	} else {
-		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
+func (*NodeAdminService) LoadNodeSeedFromConfig() (nodeSeed string, err error) {
+	err = nil
+	if err = commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
+		err = errors.New("NodeConfigFileNotFound")
+		return
 	}
-
-	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSecretPhrase)
-	sign = ed25519.Sign(nodePrivateKey, payload)
-	fmt.Printf("sign %v\n", sign)
-	return sign
+	nodeSeed = viper.GetString("nodeSecretPhrase")
+	return
 }
 
 func readNodeMessages(buf *bytes.Buffer, nBytes int) ([]byte, error) {

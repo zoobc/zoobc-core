@@ -57,7 +57,7 @@ func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transact
 }
 
 // mockSignature
-func (*mockSignature) SignBlock(payload []byte, nodeSeed string) []byte {
+func (*mockSignature) SignByNode(payload []byte, nodeSeed string) []byte {
 	return []byte{}
 }
 func (*mockSignature) VerifySignature(

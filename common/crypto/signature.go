@@ -8,7 +8,7 @@ import (
 type (
 	SignatureInterface interface {
 		Sign(payload []byte, accountType uint32, accountAddress, seed string) []byte
-		SignBlock(payload []byte, nodeSeed string) []byte
+		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountType uint32, accountAddress string) bool
 	}
 
@@ -37,8 +37,8 @@ func (sig *Signature) Sign(payload []byte, accountType uint32, accountAddress, s
 	}
 }
 
-// SignBlock special method for signing block only, there will be no multiple signature options
-func (*Signature) SignBlock(payload []byte, nodeSeed string) []byte {
+// SignByNode special method for signing block only, there will be no multiple signature options
+func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSeed)
 	return ed25519.Sign(nodePrivateKey, payload)
 }

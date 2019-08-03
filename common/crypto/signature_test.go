@@ -83,7 +83,7 @@ func TestSignature_SignBlock(t *testing.T) {
 		want []byte
 	}{
 		{
-			name: "SignBlock:success",
+			name: "SignByNode:success",
 			args: args{
 				payload:  []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				nodeSeed: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
@@ -96,8 +96,8 @@ func TestSignature_SignBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Signature{}
-			if got := s.SignBlock(tt.args.payload, tt.args.nodeSeed); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Signature.SignBlock() = %v, want %v", got, tt.want)
+			if got := s.SignByNode(tt.args.payload, tt.args.nodeSeed); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Signature.SignByNode() = %v, want %v", got, tt.want)
 			}
 		})
 	}
