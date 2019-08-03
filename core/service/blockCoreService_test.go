@@ -851,7 +851,6 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 	}
 }
 
-//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 func TestBlockService_GetBlocks(t *testing.T) {
 	type fields struct {
 		Chaintype          contract.ChainType

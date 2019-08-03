@@ -124,10 +124,6 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 		return nil, err
 	}
 	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeSecretPhrase)
-	if err != nil {
-		return nil, err
-	}
-
 	return &model.ProofOfOwnership{
 		MessageBytes: messageBytes,
 		Signature:    poownSignature,
@@ -202,7 +198,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 	if err != nil {
 		return err
 	}
-	if bytes.Compare(poownBlockHashRef, message.BlockHash) != 0 {
+	if !bytes.Equal(poownBlockHashRef, message.BlockHash) {
 		return errors.New("InvalidProofOfOwnershipBlockHash")
 	}
 	return nil
