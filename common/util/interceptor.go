@@ -12,7 +12,7 @@ import (
 )
 
 /*
-NewInterceptor function can use to inject middlewares like:
+NewServerInterceptor function can use to inject middlewares like:
 	- `recover`
 	- `log` triggered
 	- validate `authentication` if needed
@@ -25,31 +25,94 @@ func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-
+		var (
+			errHandler error
+			resp       interface{}
+		)
 		start := time.Now()
 		fields := logrus.Fields{
 			"method": info.FullMethod,
 			"time":   start.String(),
 		}
+
 		defer func() {
 
 			fields["latency"] = fmt.Sprintf("%d ns", time.Since(start).Nanoseconds())
-			if err := recover(); err != nil {
+			err := recover()
+			if err != nil {
 				// get stack after panic called and perhaps its first error
 				_, file, line, _ := runtime.Caller(4)
-				fields["error"] = fmt.Sprintf("%s %d", file, line)
-				if logger != nil {
+				fields["panic"] = fmt.Sprintf("%s %d", file, line)
+			} else if errHandler != nil {
+				fields["error"] = errHandler
+			}
+
+			if logger != nil {
+				switch {
+				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
+					// break
+				case errHandler != nil:
+					logger.WithFields(fields).Warning(errHandler)
+					// break
+				default:
+					logger.WithFields(fields).Info("success")
 				}
-			} else if logger != nil {
-				logger.WithFields(fields).Info("success")
 			}
 		}()
 
-		resp, err := handler(ctx, req)
-		if err != nil {
-			fields["exception"] = err
-		}
-		return resp, err
+		resp, errHandler = handler(ctx, req)
+		return resp, errHandler
 	}
+}
+
+/*
+NewClientInterceptor function can use to inject using grpc client like:
+	- `recover`
+	- `log` triggered
+	- add access token if needed
+With `recover()` function can handle re-run the app while got panic
+*/
+func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req interface{},
+		reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		var (
+			errInvoker error
+		)
+		start := time.Now()
+		fields := logrus.Fields{
+			"method": method,
+			"time":   start.String(),
+		}
+
+		defer func() {
+			fields["latency"] = fmt.Sprintf("%d ns", time.Since(start).Nanoseconds())
+			err := recover()
+			if err != nil {
+				// get stack after panic called and perhaps its first error
+				_, file, line, _ := runtime.Caller(4)
+				fields["panic"] = fmt.Sprintf("%s %d", file, line)
+			}
+			if logger != nil {
+				switch {
+				case err != nil:
+					logger.WithFields(fields).Error(fmt.Sprint(err))
+				case errInvoker != nil:
+					logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
+				default:
+					logger.WithFields(fields).Info("success")
+				}
+			}
+		}()
+		errInvoker = invoker(ctx, method, req, reply, cc, opts...)
+		return errInvoker
+	}
+
 }

@@ -4,11 +4,11 @@ import (
 	"context"
 	"sync"
 
-	log "github.com/sirupsen/logrus" // TODO : Add interceptor for client
 	"google.golang.org/grpc"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
@@ -26,9 +26,14 @@ var once sync.Once
 func NewPeerServiceClient() *PeerServiceClient {
 	once.Do(func() {
 		if PeerServiceClientInstance == nil {
+			apiLogger, _ = util.InitLogger(".log/", "debugP2PClient.log")
 			PeerServiceClientInstance = &PeerServiceClient{
 				Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
-					conn, err := grpc.Dial(nativeUtil.GetFullAddressPeer(destinationPeer), grpc.WithInsecure())
+					conn, err := grpc.Dial(
+						nativeUtil.GetFullAddressPeer(destinationPeer),
+						grpc.WithInsecure(),
+						grpc.WithUnaryInterceptor(util.NewClientInterceptor(apiLogger)),
+					)
 					if err != nil {
 						return nil, err
 					}
@@ -49,10 +54,8 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{Version: "v1,.0.1"})
 	if err != nil {
-		log.Warnf("GetPeerInfo could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
-
 	return res, err
 }
 
@@ -65,7 +68,6 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetMorePeers(context.Background(), &model.Empty{})
 	if err != nil {
-		log.Warnf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -81,7 +83,6 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 		Peers: peersInfo,
 	})
 	if err != nil {
-		log.Printf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -95,7 +96,6 @@ func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block
 
 	res, err := p2pClient.SendBlock(context.Background(), block)
 	if err != nil {
-		log.Printf("SendBlock could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -111,7 +111,6 @@ func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionB
 		TransactionBytes: transactionBytes,
 	})
 	if err != nil {
-		log.Printf("SendTransaction could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
