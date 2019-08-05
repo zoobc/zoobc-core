@@ -7,10 +7,10 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -23,8 +23,6 @@ type (
 
 	// NodeAdminServiceHelpersInterface mockable service methods
 	NodeAdminServiceHelpersInterface interface {
-		LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error)
-		LoadNodeSeedFromConfig() (nodeSeed string, err error)
 		GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error)
 		ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error)
 		// TODO: to be implemented: method to validate a request for a new proof of ownership, coming from the client
@@ -79,14 +77,12 @@ func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.Proo
 func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 	accountAddress string) (*model.ProofOfOwnership, error) {
 
-	ownerAccountType, ownerAccountAddress, err := nas.Helpers.LoadOwnerAccountFromConfig()
+	ownerAccountType := viper.GetUint32("ownerAccountType")
+	ownerAccountAddress := viper.GetString("ownerAccountAddress")
 	if ownerAccountAddress != accountAddress && ownerAccountType != accountType {
 		return nil, errors.New("PoownAccountNotNodeOwner")
 	}
 
-	if err != nil {
-		return nil, err
-	}
 	mainChain := &chaintype.MainChain{}
 	blockService := NewBlockService(
 		mainChain,
@@ -119,36 +115,12 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 	if err != nil {
 		return nil, err
 	}
-	nodeSecretPhrase, err := nas.Helpers.LoadNodeSeedFromConfig()
-	if err != nil {
-		return nil, err
-	}
+	nodeSecretPhrase := viper.GetString("nodeSecretPhrase")
 	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeSecretPhrase)
 	return &model.ProofOfOwnership{
 		MessageBytes: messageBytes,
 		Signature:    poownSignature,
 	}, nil
-}
-
-func (*NodeAdminService) LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error) {
-	err = nil
-	if err = commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
-		err = errors.New("NodeConfigFileNotFound")
-		return
-	}
-	ownerAccountType = viper.GetUint32("ownerAccountType")
-	ownerAccountAddress = viper.GetString("ownerAccountAddress")
-	return
-}
-
-func (*NodeAdminService) LoadNodeSeedFromConfig() (nodeSeed string, err error) {
-	err = nil
-	if err = commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
-		err = errors.New("NodeConfigFileNotFound")
-		return
-	}
-	nodeSeed = viper.GetString("nodeSecretPhrase")
-	return
 }
 
 // ValidateProofOfOwnership validates a proof of ownership message
@@ -183,10 +155,8 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 		return err
 	}
 
-	// FIXME: create an application-wide constant for this
 	// Expiration, in number of blocks, of a proof of ownership message
-	poownExpiration := uint32(100)
-	if lastBlock.Height-message.BlockHeight > poownExpiration {
+	if lastBlock.Height-message.BlockHeight > constant.ProofOfOwnershipExpiration {
 		return errors.New("ProofOfOwnershipExpired")
 	}
 

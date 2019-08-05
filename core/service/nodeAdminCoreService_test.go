@@ -12,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -22,14 +23,6 @@ type (
 		query.Executor
 	}
 )
-
-func (*spyNodeAdminCoreServiceHelper) LoadOwnerAccountFromConfig() (ownerAccountType uint32, ownerAccountAddress string, err error) {
-	return 0, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", nil
-}
-
-func (*spyNodeAdminCoreServiceHelper) LoadNodeSeedFromConfig() (nodeSeed string, err error) {
-	return "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness", nil
-}
 
 func (*nodeAdminMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -59,6 +52,9 @@ func (*nodeAdminMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...inter
 }
 
 func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
+	if err := commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
+		panic(err)
+	}
 	type fields struct {
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
