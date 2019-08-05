@@ -167,11 +167,11 @@ func (tx *NodeRegistration) GetAmount() int64 {
 
 func (tx *NodeRegistration) GetSize() uint32 {
 	nodePublicKey := 32
-	accountType := 2
+	accountType := 4
 	//TODO: this is valid for account type = 0
 	accountAddress := 44
-	nodeAddressLength := 1
 	nodeAddress := tx.Body.NodeAddressLength
+	nodeAddressLength := 4
 	lockedBalance := 8
 	//TODO: return bytes of ProofOfOwnership (message + signature) when implemented
 	poown := 256

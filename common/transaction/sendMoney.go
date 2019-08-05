@@ -203,7 +203,7 @@ func (tx *SendMoney) Validate() error {
 		}
 		defer rows.Close()
 
-		if accountBalance.SpendableBalance < tx.Body.GetAmount() {
+		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
 			return errors.New("transaction amount not enough")
 		}
 	}
