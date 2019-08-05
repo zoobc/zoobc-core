@@ -51,10 +51,8 @@ func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 				switch {
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
-					// break
 				case errHandler != nil:
 					logger.WithFields(fields).Warning(errHandler)
-					// break
 				default:
 					logger.WithFields(fields).Info("success")
 				}
