@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -217,8 +218,8 @@ func (tx *SendMoney) GetAmount() int64 {
 
 // GetSize send money Amount should be 8
 func (*SendMoney) GetSize() uint32 {
-	// only amount (int64)
-	return 8
+	// only amount
+	return constant.Balance
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
