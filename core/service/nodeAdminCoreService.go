@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	proto "github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -27,7 +27,6 @@ type (
 		ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error)
 		// TODO: to be implemented: method to validate a request for a new proof of ownership, coming from the client
 		// ValidateProofOfOwnershipRequest(accountType uint32, accountAddress string, signature []byte) bool
-		GetMessageSize() uint32
 	}
 
 	NodeAdminService struct {
@@ -36,8 +35,26 @@ type (
 		AccountQuery  query.AccountQueryInterface
 		Signature     crypto.SignatureInterface
 		Helpers       NodeAdminServiceHelpersInterface
+		BlockService  BlockServiceInterface
 	}
 )
+
+func NewNodeAdminService(
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	accountQuery query.AccountQueryInterface,
+	signature crypto.SignatureInterface,
+	helpers NodeAdminServiceHelpersInterface,
+	blockService BlockServiceInterface) *NodeAdminService {
+	return &NodeAdminService{
+		queryExecutor,
+		blockQuery,
+		accountQuery,
+		signature,
+		helpers,
+		blockService,
+	}
+}
 
 // GetMessageSize return the message size in bytes
 // note: it can be used to validate a message
@@ -61,11 +78,6 @@ func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessag
 
 // GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
 func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
-	messageLength := len(messageBytes)
-	messageLengthRef := nas.GetMessageSize()
-	if uint32(messageLength) != messageLengthRef {
-		return nil, errors.New("InvalidPownMessageSize")
-	}
 	message := new(model.ProofOfOwnershipMessage)
 	if err := proto.Unmarshal(messageBytes, message); err != nil {
 		return nil, errors.New("InvalidPoownMessageBytes")
@@ -83,20 +95,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 		return nil, errors.New("PoownAccountNotNodeOwner")
 	}
 
-	mainChain := &chaintype.MainChain{}
-	blockService := NewBlockService(
-		mainChain,
-		nas.QueryExecutor,
-		query.NewBlockQuery(mainChain),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-	)
-	lastBlock, err := blockService.GetLastBlock()
+	lastBlock, err := nas.BlockService.GetLastBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +111,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 		BlockHeight:    lastBlock.Height,
 	}
 	messageBytes, err := nas.Helpers.GetBytesFromMessage(poownMessage)
+	log.Println(messageBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +126,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 // ValidateProofOfOwnership validates a proof of ownership message
 func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte) error {
 
-	v1 := crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey)
-	if !v1 {
+	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
 		return errors.New("InvalidSignature")
 	}
 
@@ -136,21 +135,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 		return err
 	}
 
-	// validate height
-	mainChain := &chaintype.MainChain{}
-	blockService := NewBlockService(
-		mainChain,
-		nas.QueryExecutor,
-		query.NewBlockQuery(mainChain),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-	)
-	lastBlock, err := blockService.GetLastBlock()
+	lastBlock, err := nas.BlockService.GetLastBlock()
 	if err != nil {
 		return err
 	}
@@ -160,7 +145,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 		return errors.New("ProofOfOwnershipExpired")
 	}
 
-	poownBlockRef, err := blockService.GetBlockByHeight(message.BlockHeight)
+	poownBlockRef, err := nas.BlockService.GetBlockByHeight(message.BlockHeight)
 	if err != nil {
 		return err
 	}
