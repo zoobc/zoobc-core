@@ -1,26 +1,16 @@
 package service
 
 import (
-	"database/sql"
-	"errors"
 	"reflect"
-	"regexp"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
 	spyNodeAdminCoreServiceHelper struct {
 		NodeAdminService
-	}
-	nodeAdminMockQueryExecutorSuccess struct {
-		query.Executor
 	}
 	blockServiceMocked struct {
 		BlockService
@@ -35,44 +25,13 @@ func (*blockServiceMocked) GetBlockByHeight(height uint32) (*model.Block, error)
 	return new(model.Block), nil
 }
 
-func (*nodeAdminMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
-		"height DESC LIMIT 1":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
-			"Version"},
-		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
-	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_id, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 1":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
-			"Version"},
-		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
-	default:
-		return nil, errors.New("QueryNotMocked")
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
 func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 	if err := commonUtil.LoadConfig("./resource", "config", "toml"); err != nil {
 		panic(err)
 	}
 	type fields struct {
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		AccountQuery  query.AccountQueryInterface
-		Signature     crypto.SignatureInterface
-		Helpers       NodeAdminServiceHelpersInterface
-		BlockService  BlockServiceInterface
+		Helpers      NodeAdminServiceHelpersInterface
+		BlockService BlockServiceInterface
 	}
 	type args struct {
 		accountType    uint32
@@ -88,12 +47,8 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 		{
 			name: "GenerateProofOfOwnership:Success",
 			fields: fields{
-				QueryExecutor: &nodeAdminMockQueryExecutorSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountQuery:  nil,
-				Signature:     nil,
-				Helpers:       &spyNodeAdminCoreServiceHelper{},
-				BlockService:  &blockServiceMocked{},
+				Helpers:      &spyNodeAdminCoreServiceHelper{},
+				BlockService: &blockServiceMocked{},
 			},
 			args: args{
 				accountType:    1,
@@ -115,12 +70,8 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nas := &NodeAdminService{
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
-				AccountQuery:  tt.fields.AccountQuery,
-				Signature:     tt.fields.Signature,
-				Helpers:       tt.fields.Helpers,
-				BlockService:  tt.fields.BlockService,
+				Helpers:      tt.fields.Helpers,
+				BlockService: tt.fields.BlockService,
 			}
 			got, err := nas.GenerateProofOfOwnership(tt.args.accountType, tt.args.accountAddress)
 			if (err != nil) != tt.wantErr {
@@ -136,12 +87,8 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 
 func TestNodeAdminService_ValidateProofOfOwnership(t *testing.T) {
 	type fields struct {
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		AccountQuery  query.AccountQueryInterface
-		Signature     crypto.SignatureInterface
-		Helpers       NodeAdminServiceHelpersInterface
-		BlockService  BlockServiceInterface
+		Helpers      NodeAdminServiceHelpersInterface
+		BlockService BlockServiceInterface
 	}
 	type args struct {
 		poown         *model.ProofOfOwnership
@@ -156,12 +103,8 @@ func TestNodeAdminService_ValidateProofOfOwnership(t *testing.T) {
 		{
 			name: "ValidateProofOfOwnership:Success",
 			fields: fields{
-				QueryExecutor: &nodeAdminMockQueryExecutorSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountQuery:  nil,
-				Signature:     nil,
-				Helpers:       &spyNodeAdminCoreServiceHelper{},
-				BlockService:  &blockServiceMocked{},
+				Helpers:      &spyNodeAdminCoreServiceHelper{},
+				BlockService: &blockServiceMocked{},
 			},
 			args: args{
 				poown: &model.ProofOfOwnership{
@@ -183,12 +126,8 @@ func TestNodeAdminService_ValidateProofOfOwnership(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nas := &NodeAdminService{
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
-				AccountQuery:  tt.fields.AccountQuery,
-				Signature:     tt.fields.Signature,
-				Helpers:       tt.fields.Helpers,
-				BlockService:  tt.fields.BlockService,
+				Helpers:      tt.fields.Helpers,
+				BlockService: tt.fields.BlockService,
 			}
 			if err := nas.ValidateProofOfOwnership(tt.args.poown, tt.args.nodePublicKey); (err != nil) != tt.wantErr {
 				t.Errorf("NodeAdminService.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
