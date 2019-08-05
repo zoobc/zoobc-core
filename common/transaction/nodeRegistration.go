@@ -169,7 +169,7 @@ func (tx *NodeRegistration) GetAmount() int64 {
 func (tx *NodeRegistration) GetSize() uint32 {
 	nodeAddress := tx.Body.NodeAddressLength
 	// ProofOfOwnership (message + signature)
-	poown := util.GetProofOfOwnershipMessageSize(true)
+	poown := util.GetProofOfOwnershipSize(true)
 	return constant.NodePublicKey + constant.AccountType + constant.NodeAddressLength + constant.AccountAddress +
 		constant.Balance + nodeAddress + poown
 }
@@ -177,20 +177,21 @@ func (tx *NodeRegistration) GetSize() uint32 {
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) *model.NodeRegistrationTransactionBody {
 	buffer := bytes.NewBuffer(txBodyBytes)
-	nodePublicKey := buffer.Next(32)
-	accountTypeBytes := buffer.Next(2)
-	accountType := util.ConvertBytesToUint32([]byte{accountTypeBytes[0], accountTypeBytes[1], 0, 0})
-	accountAddressBytes := buffer.Next(44)
-	nodeAddressLength := util.ConvertBytesToUint32([]byte{buffer.Next(1)[0], 0, 0, 0}) // uint32 length of next bytes to read
-	nodeAddress := buffer.Next(int(nodeAddressLength))                                 // based on nodeAddressLength
-	lockedBalance := util.ConvertBytesToUint64(buffer.Next(8))
+	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
+	accountType := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountType)))
+	accountAddress := buffer.Next(int(constant.AccountAddress))
+	nodeAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.NodeAddressLength))) // uint32 length of next bytes to read
+	nodeAddress := buffer.Next(int(nodeAddressLength))                                           // based on nodeAddressLength
+	lockedBalance := util.ConvertBytesToUint64(buffer.Next(int(constant.Balance)))
+	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	return &model.NodeRegistrationTransactionBody{
 		NodePublicKey:     nodePublicKey,
 		AccountType:       accountType,
-		AccountAddress:    string(accountAddressBytes),
+		AccountAddress:    string(accountAddress),
 		NodeAddressLength: nodeAddressLength,
 		NodeAddress:       string(nodeAddress),
 		LockedBalance:     int64(lockedBalance),
+		Poown:             poown,
 	}
 }
 
@@ -198,11 +199,12 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) *model.NodeRegistrat
 func (*NodeRegistration) GetBodyBytes(txBody *model.NodeRegistrationTransactionBody) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(txBody.NodePublicKey)
-	buffer.Write(util.ConvertUint32ToBytes(txBody.AccountType)[:2])
+	buffer.Write(util.ConvertUint32ToBytes(txBody.AccountType))
 	buffer.Write([]byte(txBody.AccountAddress))
 	addressLengthBytes := util.ConvertUint32ToBytes(txBody.NodeAddressLength)
 	buffer.Write([]byte{addressLengthBytes[0]})
 	buffer.Write([]byte(txBody.NodeAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(txBody.LockedBalance)))
+	buffer.Write(util.GetProofOfOwnershipBytes(txBody.Poown))
 	return buffer.Bytes()
 }
