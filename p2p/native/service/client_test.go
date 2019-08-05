@@ -115,6 +115,9 @@ func TestNewPeerServiceClient(t *testing.T) {
 }
 
 func TestPeerServiceClient_GetPeerInfo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("GetPeerInfo: skipping testing in short mode")
+	}
 	type fields struct {
 		Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 	}
@@ -183,6 +186,9 @@ func TestPeerServiceClient_GetPeerInfo(t *testing.T) {
 }
 
 func TestPeerServiceClient_GetMorePeers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("GetMorePeers: skipping testing in short mode")
+	}
 	type fields struct {
 		Dialer Dialer
 	}
@@ -259,6 +265,9 @@ func TestPeerServiceClient_GetMorePeers(t *testing.T) {
 }
 
 func TestPeerServiceClient_SendPeers(t *testing.T) {
+	if testing.Short() {
+		t.Skip("SendPeers: skipping testing in short mode")
+	}
 	type fields struct {
 		Dialer Dialer
 	}
@@ -345,6 +354,9 @@ func TestPeerServiceClient_SendPeers(t *testing.T) {
 }
 
 func TestPeerServiceClient_SendBlock(t *testing.T) {
+	if testing.Short() {
+		t.Skip("SendBlock: skipping testing in short mode")
+	}
 	type fields struct {
 		Dialer Dialer
 	}
@@ -447,6 +459,9 @@ func TestPeerServiceClient_SendBlock(t *testing.T) {
 }
 
 func TestPeerServiceClient_SendTransaction(t *testing.T) {
+	if testing.Short() {
+		t.Skip("SendTransaction: skipping testing in short mode")
+	}
 	type fields struct {
 		Dialer Dialer
 	}
