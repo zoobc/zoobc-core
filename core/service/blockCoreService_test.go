@@ -1588,11 +1588,11 @@ func TestBlockService_ReceivedBlockListener(t *testing.T) {
 			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
 				t.Errorf("BlockService.ReceivedBlockListener() = %v, want %v", got, tt.want)
 			}
-			testOnNotify(got.OnNotify, tt.args.block)
+			testOnNotifyBlockListener(got.OnNotify, tt.args.block)
 		})
 	}
 }
 
-func testOnNotify(fn observer.OnNotify, block *model.Block) {
+func testOnNotifyBlockListener(fn observer.OnNotify, block *model.Block) {
 	fn(block, nil)
 }
