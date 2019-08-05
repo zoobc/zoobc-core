@@ -645,7 +645,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 					NodeAddress: "127.0.0.1",
 				},
 			},
-			want: 101,
+			want: 272,
 		},
 	}
 	for _, tt := range tests {

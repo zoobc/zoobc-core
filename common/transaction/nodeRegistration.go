@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -166,14 +167,11 @@ func (tx *NodeRegistration) GetAmount() int64 {
 }
 
 func (tx *NodeRegistration) GetSize() uint32 {
-	nodePublicKey := 32
-	accountType := 4
-	//TODO: this is valid for account type = 0
-	accountAddress := 44
-	nodeAddressLength := 4
-	nodeAddress := len([]byte(tx.Body.NodeAddress))
-	lockedBalance := 8
-	return uint32(nodePublicKey + accountType + nodeAddressLength + accountAddress + nodeAddress + lockedBalance)
+	nodeAddress := tx.Body.NodeAddressLength
+	// ProofOfOwnership (message + signature)
+	poown := util.GetProofOfOwnershipMessageSize(true)
+	return constant.NodePublicKey + constant.AccountType + constant.NodeAddressLength + constant.AccountAddress +
+		constant.Balance + nodeAddress + poown
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
