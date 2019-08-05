@@ -84,10 +84,7 @@ func CalculateSmithScale(previousBlock, block *model.Block, smithingDelayTime in
 // return the assigned ID if assigned
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
-		digest := sha3.New512()
-		blockByte, _ := GetBlockByte(block, true)
-		_, _ = digest.Write(blockByte)
-		hash := digest.Sum([]byte{})
+		hash, _ := GetBlockHash(block)
 		res := new(big.Int)
 		block.ID = res.SetBytes([]byte{
 			hash[7],
@@ -101,6 +98,18 @@ func GetBlockID(block *model.Block) int64 {
 		}).Int64()
 	}
 	return block.ID
+}
+
+// GetBlockHash return the block's bytes hash.
+// note: the block must be signed, otherwise this function returns an error
+func GetBlockHash(block *model.Block) ([]byte, error) {
+	digest := sha3.New512()
+	blockByte, _ := GetBlockByte(block, true)
+	_, err := digest.Write(blockByte)
+	if err != nil {
+		return nil, err
+	}
+	return digest.Sum([]byte{}), nil
 }
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet
