@@ -92,7 +92,9 @@ func getTransaction(txType []byte) *model.Transaction {
 			NodeAddress:       "127.0.0.1",
 			LockedBalance:     100000,
 		}
-		txBodyBytes := (&transaction.NodeRegistration{}).GetBodyBytes(txBody)
+		txBodyBytes := (&transaction.NodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
 		return &model.Transaction{
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["registerNode"]),

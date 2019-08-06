@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -217,12 +218,12 @@ func (tx *SendMoney) GetAmount() int64 {
 
 // GetSize send money Amount should be 8
 func (*SendMoney) GetSize() uint32 {
-	// only amount (int64)
-	return 8
+	// only amount
+	return constant.Balance
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) *model.SendMoneyTransactionBody {
+func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	amount := util.ConvertBytesToUint64(txBodyBytes)
 	return &model.SendMoneyTransactionBody{
 		Amount: int64(amount),
@@ -230,8 +231,8 @@ func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) *model.SendMoneyTransaction
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (*SendMoney) GetBodyBytes(txBody *model.SendMoneyTransactionBody) []byte {
+func (tx *SendMoney) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint64ToBytes(uint64(txBody.Amount)))
+	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
 	return buffer.Bytes()
 }
