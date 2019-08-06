@@ -62,7 +62,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	rpc_service.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
 		Service: service.NewTransactionService(
 			queryExecutor,
-			&crypto.Signature{},
+			crypto.NewSignature(),
 			actionTypeSwitcher,
 			mempoolService,
 			apiLogger,
