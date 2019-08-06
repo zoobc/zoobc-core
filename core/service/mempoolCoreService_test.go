@@ -53,6 +53,14 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...in
 	return nil
 }
 
+func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
+	return nil
+}
+
+func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
+	return nil
+}
+
 type mockMempoolQueryExecutorFail struct {
 	query.Executor
 }
@@ -379,4 +387,104 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 			}
 		})
 	}
+}
+
+type (
+	ReceivedTransactionListenerMockTypeAction struct {
+		transaction.SendMoney
+	}
+	ReceivedTransactionListenerMockTypeActionSuccess struct {
+		ReceivedTransactionListenerMockTypeAction
+	}
+)
+
+// mockTypeAction
+func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed() error {
+	return nil
+}
+func (*ReceivedTransactionListenerMockTypeAction) Validate() error {
+	return nil
+}
+func (*ReceivedTransactionListenerMockTypeAction) GetAmount() int64 {
+	return 10
+}
+
+func (*ReceivedTransactionListenerMockTypeAction) ApplyUnconfirmed() error {
+	return nil
+}
+
+func (*ReceivedTransactionListenerMockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
+	return &ReceivedTransactionListenerMockTypeAction{}
+}
+
+func TestMempoolService_ReceivedTransactionListener(t *testing.T) {
+	type fields struct {
+		Chaintype           contract.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Observer            *observer.Observer
+	}
+
+	type args struct {
+		transactionBytes []byte
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   observer.Listener
+	}{
+		{
+			name: "TestMempoolService_ReceivedTransactionListener:success",
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockMempoolQueryExecutorSuccess{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher:  &ReceivedTransactionListenerMockTypeActionSuccess{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				Observer:            observer.NewObserver(),
+			},
+			args: args{
+				transactionBytes: []byte{
+					2, 0, 1, 218, 138, 66, 93, 0, 0, 0, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107,
+					68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 0, 0, 66, 67, 90, 75,
+					76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106,
+					102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 1, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226,
+					235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112,
+					80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112,
+					84, 106, 103, 116, 78, 9, 49, 50, 55, 46, 48, 46, 48, 46, 49, 160, 134, 1, 0, 0, 0, 0, 0, 118, 96, 0, 82, 83, 206, 138, 84, 224, 106,
+					207, 135, 30, 2, 186, 237, 239, 131, 229, 86, 45, 235, 250, 248, 8, 166, 83, 102, 108, 132, 208, 227, 121, 235, 59, 31, 146, 98, 125,
+					173, 86, 83, 138, 34, 164, 165, 200, 3, 149, 209, 190, 117, 102, 152, 173, 38, 151, 0, 212, 64, 253, 97, 123, 12,
+				},
+			},
+			want: observer.Listener{
+				OnNotify: func(data interface{}, args interface{}) {
+
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Observer:            tt.fields.Observer,
+			}
+			got := mps.ReceivedTransactionListener()
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
+				t.Errorf("MempoolService.ReceivedTransactionListener() = %v, want %v", got, tt.want)
+			}
+			testOnNotifyTransactionListener(got.OnNotify, tt.args.transactionBytes)
+		})
+	}
+}
+
+func testOnNotifyTransactionListener(fn observer.OnNotify, txBytes []byte) {
+	fn(txBytes, nil)
 }

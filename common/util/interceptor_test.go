@@ -49,12 +49,12 @@ func TestNewServerInterceptor(t *testing.T) {
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewInterceptor() = %v, want %v", got, tt.want)
 			}
-			testInterceptor(got, tt.wantRecover)
+			testServerInterceptor(got, tt.wantRecover)
 		})
 	}
 }
 
-func testInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool) {
+func testServerInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool) {
 	var (
 		handler grpc.UnaryHandler
 	)
@@ -68,4 +68,77 @@ func testInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool) {
 		}
 	}
 	_, _ = fn(context.Background(), nil, &grpc.UnaryServerInfo{}, handler)
+}
+
+func TestNewClientInterceptor(t *testing.T) {
+	type args struct {
+		logger *logrus.Logger
+	}
+	tests := []struct {
+		name        string
+		args        args
+		want        grpc.UnaryClientInterceptor
+		wantRecover bool
+	}{
+		{
+			name: "wantRecover",
+			args: args{
+				logger: logrus.New(),
+			},
+			want: func(
+				ctx context.Context,
+				method string,
+				req, reply interface{},
+				cc *grpc.ClientConn,
+				invoker grpc.UnaryInvoker,
+				opts ...grpc.CallOption) error {
+				return status.Errorf(codes.Internal, "there's something wrong")
+			},
+			wantRecover: false,
+		},
+		{
+			name: "wantRecover",
+			args: args{
+				logger: logrus.New(),
+			},
+			want: func(
+				ctx context.Context,
+				method string,
+				req, reply interface{},
+				cc *grpc.ClientConn,
+				invoker grpc.UnaryInvoker,
+				opts ...grpc.CallOption) error {
+				return status.Errorf(codes.Internal, "there's something wrong")
+			},
+			wantRecover: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NewClientInterceptor(tt.args.logger)
+			if cmp.Equal(got, tt.want) {
+				t.Errorf("NewClientInterceptor() = %v, want %v", got, tt.want)
+			}
+			testClientInterceptor(got, tt.wantRecover)
+		})
+	}
+}
+
+func testClientInterceptor(fn grpc.UnaryClientInterceptor, wantRecover bool) {
+	var (
+		invoker grpc.UnaryInvoker
+	)
+	if wantRecover {
+		invoker = func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+			panic(invoker)
+		}
+	} else {
+		invoker = func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+			return status.Errorf(codes.Internal, "there's something wrong")
+		}
+	}
+
+	cc, _ := grpc.Dial("127.0.0.1:8001", grpc.WithInsecure())
+	_ = fn(context.Background(), "testMethod", nil, nil, cc, invoker, nil)
+
 }

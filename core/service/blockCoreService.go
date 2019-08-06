@@ -41,6 +41,7 @@ type (
 		) (*model.Block, error)
 		PushBlock(previousBlock, block *model.Block) error
 		GetLastBlock() (*model.Block, error)
+		GetBlockByHeight(height uint32) (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
@@ -121,7 +122,7 @@ func (bs *BlockService) NewBlock(
 		PayloadLength:     payloadLength,
 	}
 	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
-	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
+	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
 	return block
 }
 
@@ -232,6 +233,30 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock())
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
+	if err != nil {
+		return &model.Block{
+			ID: -1,
+		}, err
+	}
+	var blocks []*model.Block
+	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	if len(blocks) > 0 {
+		return blocks[0], nil
+	}
+	return &model.Block{
+		ID: -1,
+	}, errors.New("BlockNotFound")
+
+}
+
+// GetLastBlock return the last pushed block
+func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height))
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
