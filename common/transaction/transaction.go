@@ -14,6 +14,8 @@ type (
 		Validate() error
 		GetAmount() int64
 		GetSize() uint32
+		ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface
+		GetBodyBytes() []byte
 	}
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) TypeAction
@@ -36,8 +38,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 1:
 		switch buf[1] {
 		case 0:
+			sendMoneyBody := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &SendMoney{
-				Body:                 (&SendMoney{}).ParseBodyBytes(tx.TransactionBodyBytes),
+				Body:                 sendMoneyBody.(*model.SendMoneyTransactionBody),
 				Fee:                  tx.Fee,
 				SenderAddress:        tx.GetSenderAccountAddress(),
 				SenderAccountType:    tx.GetSenderAccountType(),
@@ -54,8 +57,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 2:
 		switch buf[1] {
 		case 0:
+			nodeRegistrationBody := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &NodeRegistration{
-				Body:                  (&NodeRegistration{}).ParseBodyBytes(tx.TransactionBodyBytes),
+				Body:                  nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
 				SenderAccountType:     tx.GetSenderAccountType(),

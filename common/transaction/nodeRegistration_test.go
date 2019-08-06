@@ -669,6 +669,8 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
+	_, _, body, bodyBytes := GetFixtures()
+	// bodyBytes :=
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
@@ -693,23 +695,9 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			name:   "ParseBodyBytes:success",
 			fields: fields{},
 			args: args{
-				txBodyBytes: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-					101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
-					107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 9,
-					49, 50, 55, 46, 48, 46, 48, 46, 49, 160, 134, 1, 0, 0, 0, 0, 0,
-				},
+				txBodyBytes: bodyBytes,
 			},
-			want: &model.NodeRegistrationTransactionBody{
-				AccountType:    0,
-				AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				NodePublicKey: []byte{
-					0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-					101, 127, 241, 62, 152, 187, 255,
-				},
-				NodeAddressLength: uint32(len([]byte("127.0.0.1"))),
-				NodeAddress:       "127.0.0.1",
-				LockedBalance:     100000,
-			},
+			want: body,
 		},
 	}
 	for _, tt := range tests {
@@ -733,6 +721,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 }
 
 func TestNodeRegistration_GetBodyBytes(t *testing.T) {
+	_, _, body, bodyBytes := GetFixtures()
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
@@ -754,26 +743,14 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 		want   []byte
 	}{
 		{
-			name:   "GetBodyBytes:success",
-			fields: fields{},
+			name: "GetBodyBytes:success",
+			fields: fields{
+				Body: body,
+			},
 			args: args{
-				txBody: &model.NodeRegistrationTransactionBody{
-					AccountType:    0,
-					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					NodePublicKey: []byte{
-						0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-						101, 127, 241, 62, 152, 187, 255,
-					},
-					NodeAddressLength: uint32(len([]byte("127.0.0.1"))),
-					NodeAddress:       "127.0.0.1",
-					LockedBalance:     100000,
-				},
+				txBody: body,
 			},
-			want: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-				101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
-				107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 9,
-				49, 50, 55, 46, 48, 46, 48, 46, 49, 160, 134, 1, 0, 0, 0, 0, 0,
-			},
+			want: bodyBytes,
 		},
 	}
 	for _, tt := range tests {
@@ -789,7 +766,7 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got := n.GetBodyBytes(tt.args.txBody); !reflect.DeepEqual(got, tt.want) {
+			if got := n.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
