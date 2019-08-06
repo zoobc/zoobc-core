@@ -58,9 +58,9 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 
 		q, args := mockNodeRegistrationQuery.InsertNodeRegistration(mockNodeRegistry)
 		wantQ := "INSERT INTO node_registry (id,node_public_key,account_id,registration_height,node_address," +
-			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?)"
+			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
-			mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
 			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
 			mockNodeRegistry.Latest, mockNodeRegistry.Height,
 		}
@@ -118,7 +118,7 @@ func TestNodeRegistrationQuery_ExtractModel(t *testing.T) {
 	t.Run("NodeRegistration:ExtractModel:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.ExtractModel(mockNodeRegistry)
 		want := []interface{}{
-			mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
 			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
 			mockNodeRegistry.Latest, mockNodeRegistry.Height,
 		}
@@ -135,7 +135,7 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
 			"id", "NodePublicKey", "AccountId", "RegistrationHeight", "NodeAddress", "LockedBalance",
 			"Queued", "Latest", "Height"}).
-			AddRow(mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
+			AddRow(mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
 				mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
 				mockNodeRegistry.Latest, mockNodeRegistry.Height))
 		rows, _ := db.Query("foo")
@@ -155,7 +155,7 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 		wantQ1 := "INSERT INTO node_registry (id,node_public_key,account_id,registration_height,node_address," +
 			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
-			mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountId, mockNodeRegistry.RegistrationHeight,
 			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
 			mockNodeRegistry.Latest, mockNodeRegistry.Height,
 		}
