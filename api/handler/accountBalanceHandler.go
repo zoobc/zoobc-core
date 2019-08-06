@@ -11,7 +11,8 @@ type AccountBalanceHandler struct {
 	Service service.AccountBalanceServiceInterface
 }
 
-func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context, request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error) {
+func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
+	request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error) {
 	accountBalance, err := abh.Service.GetAccountBalance(request)
 	if err != nil {
 		return nil, err
@@ -19,6 +20,7 @@ func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context, request
 	return accountBalance, nil
 }
 
-func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context, request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
+func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context,
+	request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
 	return nil, nil
 }
