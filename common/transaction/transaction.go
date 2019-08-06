@@ -38,7 +38,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 1:
 		switch buf[1] {
 		case 0:
-			sendMoneyBody := (&SendMoney{}).ParseBodyBytes(tx.TransactionBodyBytes)
+			sendMoneyBody := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &SendMoney{
 				Body:                 sendMoneyBody.(*model.SendMoneyTransactionBody),
 				Fee:                  tx.Fee,
