@@ -22,5 +22,6 @@ func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
 
 func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context,
 	request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
+	// todo: implement this after have filter
 	return nil, nil
 }
