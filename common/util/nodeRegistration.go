@@ -16,6 +16,15 @@ func GetProofOfOwnershipSize(withSignature bool) uint32 {
 	return message
 }
 
+// GetProofOfOwnershipBytes serialize ProofOfOwnership struct into bytes
+// TODO: implement this
+func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(poown.MessageBytes)
+	buffer.Write(poown.Signature)
+	return buffer.Bytes()
+}
+
 // ParseProofOfOwnershipBytes parse a byte array into a ProofOfOwnership struct (message + signature)
 // poownBytes if true returns size of message + signature
 func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
@@ -26,6 +35,17 @@ func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
 		MessageBytes: poownMessageBytes,
 		Signature:    signature,
 	}
+}
+
+// GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes
+// TODO: implement this
+func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(ConvertUint32ToBytes(poownMessage.AccountType))
+	buffer.Write([]byte(poownMessage.AccountAddress))
+	buffer.Write(poownMessage.BlockHash)
+	buffer.Write(ConvertUint32ToBytes(poownMessage.BlockHeight))
+	return buffer.Bytes()
 }
 
 // ParseProofOfOwnershipMessageBytes parse a byte array into a ProofOfOwnershipMessage struct (only the message, no signature)
@@ -41,24 +61,4 @@ func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) *model.ProofOfO
 		BlockHash:      blockHash,
 		BlockHeight:    height,
 	}
-}
-
-// GetProofOfOwnershipBytes serialize ProofOfOwnership struct into bytes
-// TODO: implement this
-func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(poown.MessageBytes)
-	buffer.Write(poown.Signature)
-	return buffer.Bytes()
-}
-
-// GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes
-// TODO: implement this
-func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage) []byte {
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(ConvertUint32ToBytes(poownMessage.AccountType))
-	buffer.Write([]byte(poownMessage.AccountAddress))
-	buffer.Write(poownMessage.BlockHash)
-	buffer.Write(ConvertUint32ToBytes(poownMessage.BlockHeight))
-	return buffer.Bytes()
 }

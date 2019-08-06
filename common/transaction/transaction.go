@@ -14,6 +14,8 @@ type (
 		Validate() error
 		GetAmount() int64
 		GetSize() uint32
+		ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface
+		GetBodyBytes() []byte
 	}
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) TypeAction
