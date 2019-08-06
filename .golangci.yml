@@ -81,6 +81,9 @@ issues:
     - text: "lines are duplicate of"
       linters:
         - dupl
+    - text: "U1000: func `TransactionBodyInterface.isTxBody` is unused"
+      linters:
+        - unused
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:
