@@ -11,7 +11,7 @@ type GeneratePoownHandler struct {
 }
 
 // GetPoown handles request to get data of a proof of ownership
-func (gp *GeneratePoownHandler) GetPoown(accountType uint32, accountAddress string) (*model.ProofOfOwnership, error) {
+func (gp *GeneratePoownHandler) GetProofOfOwnership(accountType uint32, accountAddress string) (*model.ProofOfOwnership, error) {
 	var response *model.ProofOfOwnership
 	var err error
 
