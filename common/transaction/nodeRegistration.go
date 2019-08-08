@@ -147,7 +147,7 @@ func (tx *NodeRegistration) Validate() error {
 	defer rows.Close()
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
-		return errors.New("user balance not enough")
+		return errors.New("UserBalanceNotEnough")
 	}
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
