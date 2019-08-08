@@ -109,6 +109,7 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
+				"id" INTEGER,
 				"node_public_key" BLOB,
 				"account_id" BLOB,
 				"registration_height" INTEGER,
@@ -119,7 +120,7 @@ func (m *Migration) Init() error {
 				"height" INTEGER,
 				UNIQUE ("node_public_key", "height"),
 				UNIQUE ("account_id", "height"),
-				PRIMARY KEY("node_public_key", "account_id", "height")
+				PRIMARY KEY("id", "height")
 			);`,
 		}
 		return nil
