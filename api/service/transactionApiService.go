@@ -152,38 +152,31 @@ func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req 
 		RecipientAccountID: recipientAccountID,
 	}
 	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
-		ts.Log.Warnf("Invalid transaction submitted: %v", err)
 		return nil, err
 	}
 	// Apply Unconfirmed
 	err = ts.Query.BeginTx()
 	if err != nil {
-		ts.Log.Warnf("error opening db transaction %v", err)
 		return nil, err
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
-		ts.Log.Warnf("fail ApplyUnconfirmed tx: %v", err)
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			ts.Log.Warnf("error rolling back db transaction %v", errRollback)
 			return nil, errRollback
 		}
 		return nil, err
 	}
 	err = ts.MempoolService.AddMempoolTransaction(mpTx)
 	if err != nil {
-		ts.Log.Warnf("error AddMempoolTransaction: %v", err)
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			ts.Log.Warnf("error rolling back db transaction %v", errRollback)
 			return nil, err
 		}
 		return nil, err
 	}
 	err = ts.Query.CommitTx()
 	if err != nil {
-		ts.Log.Warnf("error committing db transaction: %v", err)
 		return nil, err
 	}
 
