@@ -63,7 +63,7 @@ func NewMempoolService(
 func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
 	var rows *sql.Rows
 	var err error
-	sqlStr := query.NewMempoolQuery(mps.Chaintype).GetMempoolTransactions()
+	sqlStr := mps.MempoolQuery.GetMempoolTransactions()
 	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr)
 	if err != nil {
 		log.Printf("GetMempoolTransactions fails %s\n", err)
@@ -71,20 +71,7 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 	}
 	defer rows.Close()
 	mempoolTransactions := []*model.MempoolTransaction{}
-	for rows.Next() {
-		var mpTx model.MempoolTransaction
-		err = rows.Scan(
-			&mpTx.ID,
-			&mpTx.FeePerByte,
-			&mpTx.ArrivalTimestamp,
-			&mpTx.TransactionBytes,
-		)
-		if err != nil {
-			log.Printf("GetMempoolTransactions fails scan %v\n", err)
-			return nil, err
-		}
-		mempoolTransactions = append(mempoolTransactions, &mpTx)
-	}
+	mempoolTransactions = mps.MempoolQuery.BuildModel(mempoolTransactions, rows)
 	return mempoolTransactions, nil
 }
 
@@ -97,15 +84,10 @@ func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransa
 		}, err
 	}
 	defer rows.Close()
-	var mpTx model.MempoolTransaction
-	if rows.Next() {
-		err = rows.Scan(&mpTx.ID, &mpTx.ArrivalTimestamp, &mpTx.FeePerByte, &mpTx.TransactionBytes)
-		if err != nil {
-			return &model.MempoolTransaction{
-				ID: -1,
-			}, err
-		}
-		return &mpTx, nil
+	var mpTx []*model.MempoolTransaction
+	mpTx = mps.MempoolQuery.BuildModel(mpTx, rows)
+	if len(mpTx) > 0 {
+		return mpTx[0], nil
 	}
 	return &model.MempoolTransaction{
 		ID: -1,
@@ -203,9 +185,11 @@ func (mps *MempoolService) ReceivedTransactionListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(transactionBytes interface{}, args interface{}) {
 			var (
-				err        error
-				receivedTx *model.Transaction
-				mempoolTx  *model.MempoolTransaction
+				err                error
+				receivedTx         *model.Transaction
+				mempoolTx          *model.MempoolTransaction
+				recipientAccountID []byte
+				senderAccountID    []byte
 			)
 
 			receivedTxBytes := transactionBytes.([]byte)
@@ -213,13 +197,23 @@ func (mps *MempoolService) ReceivedTransactionListener() observer.Listener {
 			if err != nil {
 				return
 			}
-
+			if receivedTx.RecipientAccountAddress == "" {
+				recipientAccountID = nil
+			} else {
+				recipientAccountID = util.CreateAccountIDFromAddress(
+					receivedTx.RecipientAccountType,
+					receivedTx.RecipientAccountAddress)
+			}
+			senderAccountID = util.CreateAccountIDFromAddress(receivedTx.SenderAccountType,
+				receivedTx.SenderAccountAddress)
 			mempoolTx = &model.MempoolTransaction{
 				// TODO: how to determine FeePerByte in mempool?
-				FeePerByte:       0,
-				ID:               receivedTx.ID,
-				TransactionBytes: receivedTxBytes,
-				ArrivalTimestamp: time.Now().Unix(),
+				FeePerByte:         0,
+				ID:                 receivedTx.ID,
+				TransactionBytes:   receivedTxBytes,
+				ArrivalTimestamp:   time.Now().Unix(),
+				SenderAccountID:    senderAccountID,
+				RecipientAccountID: recipientAccountID,
 			}
 
 			// Validate received transaction

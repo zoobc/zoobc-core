@@ -23,19 +23,22 @@ type (
 	}
 )
 
-var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes FROM mempool WHERE id = :id"
+var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id, " +
+	"recipient_account_id FROM mempool WHERE id = :id"
 
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes FROM mempool":
-		mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes"})
-		mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes)
-		mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes)
-		mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes)
-		mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes)
-		mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes)
+
+	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id, recipient_account_id FROM mempool":
+		mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id",
+			"recipient_account_id"})
+		mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, []byte{1}, []byte{2})
+		mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, []byte{1}, []byte{2})
+		mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, []byte{1}, []byte{2})
+		mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, []byte{1}, []byte{2})
+		mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, []byte{1}, []byte{2})
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	case getTxByIDQuery:
 		return nil, errors.New("MempoolTransactionNotFound")
@@ -72,8 +75,8 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{
 	// before adding mempool transactions to db we check for duplicate transactions
 	case getTxByIDQuery:
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes"},
-		).AddRow(3, 1, 1562893302, []byte{}))
+			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id", "recipient_account_id"},
+		).AddRow(3, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
 	default:
 		return nil, errors.New("MockedError")
 	}
@@ -115,10 +118,12 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 	txBytes, _ := util.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
-		ID:               id,
-		FeePerByte:       1,
-		ArrivalTimestamp: timestamp,
-		TransactionBytes: txBytes,
+		ID:                 id,
+		FeePerByte:         1,
+		ArrivalTimestamp:   timestamp,
+		TransactionBytes:   txBytes,
+		SenderAccountID:    []byte{1},
+		RecipientAccountID: []byte{2},
 	}
 }
 
@@ -182,34 +187,44 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			},
 			want: []*model.MempoolTransaction{
 				{
-					ID:               1,
-					FeePerByte:       1,
-					ArrivalTimestamp: 1562893305,
-					TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+					ID:                 1,
+					FeePerByte:         1,
+					ArrivalTimestamp:   1562893305,
+					TransactionBytes:   getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               2,
-					FeePerByte:       10,
-					ArrivalTimestamp: 1562893304,
-					TransactionBytes: getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+					ID:                 2,
+					FeePerByte:         10,
+					ArrivalTimestamp:   1562893304,
+					TransactionBytes:   getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               3,
-					FeePerByte:       1,
-					ArrivalTimestamp: 1562893302,
-					TransactionBytes: getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+					ID:                 3,
+					FeePerByte:         1,
+					ArrivalTimestamp:   1562893302,
+					TransactionBytes:   getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               4,
-					FeePerByte:       100,
-					ArrivalTimestamp: 1562893306,
-					TransactionBytes: getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+					ID:                 4,
+					FeePerByte:         100,
+					ArrivalTimestamp:   1562893306,
+					TransactionBytes:   getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               5,
-					FeePerByte:       5,
-					ArrivalTimestamp: 1562893303,
-					TransactionBytes: getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+					ID:                 5,
+					FeePerByte:         5,
+					ArrivalTimestamp:   1562893303,
+					TransactionBytes:   getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 			},
 			wantErr: false,
@@ -336,34 +351,44 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 			},
 			want: []*model.MempoolTransaction{
 				{
-					ID:               4,
-					FeePerByte:       100,
-					ArrivalTimestamp: 1562893306,
-					TransactionBytes: getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+					ID:                 4,
+					FeePerByte:         100,
+					ArrivalTimestamp:   1562893306,
+					TransactionBytes:   getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               2,
-					FeePerByte:       10,
-					ArrivalTimestamp: 1562893304,
-					TransactionBytes: getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+					ID:                 2,
+					FeePerByte:         10,
+					ArrivalTimestamp:   1562893304,
+					TransactionBytes:   getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               5,
-					FeePerByte:       5,
-					ArrivalTimestamp: 1562893303,
-					TransactionBytes: getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+					ID:                 5,
+					FeePerByte:         5,
+					ArrivalTimestamp:   1562893303,
+					TransactionBytes:   getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               3,
-					FeePerByte:       1,
-					ArrivalTimestamp: 1562893302,
-					TransactionBytes: getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+					ID:                 3,
+					FeePerByte:         1,
+					ArrivalTimestamp:   1562893302,
+					TransactionBytes:   getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 				{
-					ID:               1,
-					FeePerByte:       1,
-					ArrivalTimestamp: 1562893305,
-					TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+					ID:                 1,
+					FeePerByte:         1,
+					ArrivalTimestamp:   1562893305,
+					TransactionBytes:   getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+					SenderAccountID:    []byte{1},
+					RecipientAccountID: []byte{2},
 				},
 			},
 			wantErr: false,
