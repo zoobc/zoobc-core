@@ -123,8 +123,7 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req *model.PostTransactionRequest) (*model.Transaction,
 	error) {
 	var (
-		senderAccountID    []byte
-		recipientAccountID []byte
+		senderAccountID, recipientAccountID []byte
 	)
 	txBytes := req.TransactionBytes
 	// get unsigned bytes
