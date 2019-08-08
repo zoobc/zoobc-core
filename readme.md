@@ -1,3 +1,5 @@
+![](/src/assets/images/ZooBC-core.png)
+
 <h1 align="center">
   <a href="https://github.com/zoobc/zoobc-core">
     ZooBC Core
