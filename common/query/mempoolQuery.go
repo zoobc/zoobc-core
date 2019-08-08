@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,7 @@ type (
 		DeleteMempoolTransaction() string
 		DeleteMempoolTransactions() string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
+		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction
 	}
 
 	MempoolQuery struct {
@@ -30,7 +32,8 @@ type (
 func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
+			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id",
+			"recipient_account_id",
 		},
 		TableName: "mempool",
 		ChainType: chaintype,
@@ -74,5 +77,30 @@ func (mpq *MempoolQuery) DeleteMempoolTransactions() string {
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
 func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface{} {
-	return []interface{}{mempool.ID, mempool.FeePerByte, mempool.ArrivalTimestamp, mempool.TransactionBytes}
+	return []interface{}{
+		mempool.ID,
+		mempool.FeePerByte,
+		mempool.ArrivalTimestamp,
+		mempool.TransactionBytes,
+		mempool.SenderAccountID,
+		mempool.RecipientAccountID,
+	}
+}
+
+// BuildModel will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction {
+	for rows.Next() {
+		var mempool model.MempoolTransaction
+		_ = rows.Scan(
+			&mempool.ID,
+			&mempool.FeePerByte,
+			&mempool.ArrivalTimestamp,
+			&mempool.TransactionBytes,
+			&mempool.SenderAccountID,
+			&mempool.RecipientAccountID,
+		)
+		mempools = append(mempools, &mempool)
+	}
+	return mempools
 }

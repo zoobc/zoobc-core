@@ -1037,6 +1037,18 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool(
 	}, nil
 }
 
+// mockMempoolServiceSelectSuccess
+func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(
+	blockTimestamp int64,
+) ([]*model.MempoolTransaction, error) {
+	return []*model.MempoolTransaction{
+		{
+			FeePerByte:       1,
+			TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+		},
+	}, nil
+}
+
 // mockMempoolServiceSelectFail
 func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(
 	blockTimestamp int64,
@@ -1102,7 +1114,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 					PayloadLength:     0,
 					BlockSignature:    []byte{},
 				},
-				secretPhrase:        "pharsepress",
+				secretPhrase:        "phasepress",
 				timestamp:           12344587645,
 				blockSmithAccountID: []byte{1, 2, 4},
 			},
