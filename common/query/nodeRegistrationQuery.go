@@ -67,7 +67,7 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size u
 		strings.Join(nr.Fields, ", "), nr.getTableName(), registrationHeight, size)
 }
 
-// GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
+// GetNodeRegistrationByID returns query string to get Node Registration by node public key
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE id = ? AND latest=1",
 		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{id}

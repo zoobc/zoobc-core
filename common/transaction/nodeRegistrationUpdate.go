@@ -226,22 +226,22 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered
 	if len(tx.Body.NodePublicKey) == 32 {
-		rows1, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey))
+		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey))
 		if err != nil {
 			return err
 		}
-		if rows1.Next() {
+		if rows.Next() {
 			// public key already registered
 			return errors.New("NodePublicKeyAlredyRegistered")
 		}
-		defer rows1.Close()
 	}
 
-	rows2, err := tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID))
+	rows, err = tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID))
+
 	if err != nil {
 		return err
-	} else if rows2.Next() {
-		_ = rows2.Scan(
+	} else if rows.Next() {
+		_ = rows.Scan(
 			&accountBalance.AccountID,
 			&accountBalance.BlockHeight,
 			&accountBalance.SpendableBalance,
@@ -250,7 +250,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 			&accountBalance.Latest,
 		)
 	}
-	defer rows2.Close()
+	defer rows.Close()
 
 	if tx.Body.LockedBalance > 0 {
 		// delta amount to be locked
