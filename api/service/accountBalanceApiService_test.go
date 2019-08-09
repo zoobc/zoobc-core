@@ -3,12 +3,13 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
@@ -71,7 +72,6 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				Executor:            &mockExecutorGetAccountBalanceFail{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountType:    0,
 				AccountAddress: "BCZ000000000000",
 			}},
 			want:    nil,
@@ -84,7 +84,6 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				Executor:            &mockExecutorGetAccountBalanceNotFound{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountType:    0,
 				AccountAddress: "BCZ000000000000",
 			}},
 			want:    nil,
@@ -97,12 +96,11 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				Executor:            &mockExecutorGetAccountBalanceSuccess{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountType:    0,
 				AccountAddress: "BCZ000000000000",
 			}},
 			want: &model.GetAccountBalanceResponse{
 				AccountBalance: &model.AccountBalance{
-					AccountID:        []byte{1},
+					AccountAddress:   "",
 					BlockHeight:      1,
 					SpendableBalance: 10000,
 					Balance:          10000,
