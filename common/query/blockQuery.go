@@ -33,7 +33,7 @@ type (
 func NewBlockQuery(chaintype contract.ChainType) *BlockQuery {
 	return &BlockQuery{
 		Fields: []string{"id", "previous_block_hash", "height", "timestamp", "block_seed", "block_signature", "cumulative_difficulty",
-			"smith_scale", "payload_length", "payload_hash", "blocksmith_address_length", "blocksmith_address", "total_amount", "total_fee",
+			"smith_scale", "payload_length", "payload_hash", "blocksmith_address", "total_amount", "total_fee",
 			"total_coinbase", "version",
 		},
 		TableName: "block",
@@ -88,7 +88,6 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.SmithScale,
 		block.PayloadLength,
 		block.PayloadHash,
-		block.BlocksmithAddressLength,
 		block.BlocksmithAddress,
 		block.TotalAmount,
 		block.TotalFee,
@@ -102,7 +101,7 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 		var block model.Block
 		_ = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed,
 			&block.BlockSignature, &block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength,
-			&block.PayloadHash, &block.BlocksmithAddressLength, &block.BlocksmithAddress, &block.TotalAmount, &block.TotalFee,
+			&block.PayloadHash, &block.BlocksmithAddress, &block.TotalAmount, &block.TotalFee,
 			&block.TotalCoinBase, &block.Version)
 		blocks = append(blocks, &block)
 	}
