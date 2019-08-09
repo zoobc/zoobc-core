@@ -17,9 +17,10 @@ type (
 		Done(limit uint32, offset uint64) (query string, args []interface{})
 		// TODO: WhereIn, When etc... if needed
 	}
+	// Operand const
+	Operand string
 	// CaseQuery would be as swap `Query` and `Args` those can save the query and args values
 	// until `Done` called
-	Operand   string
 	CaseQuery struct {
 		Query *bytes.Buffer
 		Args  []interface{}
