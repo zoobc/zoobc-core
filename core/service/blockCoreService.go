@@ -305,7 +305,6 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 			&lastBlock.SmithScale,
 			&lastBlock.PayloadLength,
 			&lastBlock.PayloadHash,
-			&lastBlock.BlocksmithAddressLength,
 			&lastBlock.BlocksmithAddress,
 			&lastBlock.TotalAmount,
 			&lastBlock.TotalFee,
@@ -340,8 +339,8 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	for rows.Next() {
 		var block model.Block
 		err = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed, &block.BlockSignature,
-			&block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithAddressLength,
-			&block.BlocksmithAddress, &block.TotalAmount, &block.TotalFee, &block.TotalCoinBase, &block.Version)
+			&block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithAddress,
+			&block.TotalAmount, &block.TotalFee, &block.TotalCoinBase, &block.Version)
 		if err != nil {
 			return nil, err
 		}
@@ -497,9 +496,6 @@ func (bs *BlockService) CheckGenesis() bool {
 func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
 	if block.GetBlockSignature() != nil {
 		blockUnsignedByte, err := coreUtil.GetBlockByte(block, false)
-		if err != nil {
-			return false
-		}
 		if err != nil {
 			return false
 		}

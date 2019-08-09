@@ -90,7 +90,6 @@ func (m *Migration) Init() error {
 				"block_signature" BLOB,
 				"cumulative_difficulty" TEXT,
 				"smith_scale" INTEGER,
-				"blocksmith_address_length" INTEGER,
 				"blocksmith_address" VARCHAR(255),
 				"total_amount" INTEGER,
 				"total_fee" INTEGER,

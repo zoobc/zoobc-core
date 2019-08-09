@@ -69,7 +69,7 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 		Balance:          1000000000,
 		SpendableBalance: 1000000000,
 	}
-	if len(account.AccountAddress) == 0 {
+	if account.AccountAddress == "" {
 		generator.Balance = big.NewInt(0)
 	} else {
 		accountEffectiveBalance := account.GetBalance()
