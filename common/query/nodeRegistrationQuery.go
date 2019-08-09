@@ -81,7 +81,7 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKe
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %d AND latest=1",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %s AND latest=1",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress), []interface{}{accountAddress}
 }
 

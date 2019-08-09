@@ -50,6 +50,7 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, id int64) (*m
 		return nil, err
 	}
 	defer rows.Close()
+
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
 		return nil, errors.New("BlockNotFound")

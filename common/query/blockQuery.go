@@ -32,9 +32,23 @@ type (
 // NewBlockQuery returns BlockQuery instance
 func NewBlockQuery(chaintype contract.ChainType) *BlockQuery {
 	return &BlockQuery{
-		Fields: []string{"id", "previous_block_hash", "height", "timestamp", "block_seed", "block_signature", "cumulative_difficulty",
-			"smith_scale", "payload_length", "payload_hash", "blocksmith_address_length", "blocksmith_address", "total_amount", "total_fee",
-			"total_coinbase", "version",
+		Fields: []string{
+			"id",
+			"previous_block_hash",
+			"height",
+			"timestamp",
+			"block_seed",
+			"block_signature",
+			"cumulative_difficulty",
+			"smith_scale",
+			"blocksmith_address_length",
+			"blocksmith_address",
+			"total_amount",
+			"total_fee",
+			"total_coinbase",
+			"version",
+			"payload_length",
+			"payload_hash",
 		},
 		TableName: "block",
 		ChainType: chaintype,
@@ -94,7 +108,6 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.Version,
 		block.PayloadLength,
 		block.PayloadHash,
-		block.Transactions,
 	}
 }
 
