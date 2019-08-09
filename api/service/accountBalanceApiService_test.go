@@ -100,7 +100,7 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 			}},
 			want: &model.GetAccountBalanceResponse{
 				AccountBalance: &model.AccountBalance{
-					AccountAddress:   "",
+					AccountAddress:   "\001",
 					BlockHeight:      1,
 					SpendableBalance: 10000,
 					Balance:          10000,
