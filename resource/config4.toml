@@ -1,5 +1,5 @@
 dbPath = "./resource/"
-dbName = "zoobc.db"
+dbName = "zoobc4.db"
 
 # Peer
 peerPort=8004

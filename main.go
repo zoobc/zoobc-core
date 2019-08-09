@@ -8,13 +8,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/core/blockchainSync"
 	"github.com/zoobc/zoobc-core/core/service"
 
+	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
@@ -32,8 +33,13 @@ var (
 	db                      *sql.DB
 	nodeSecretPhrase        string
 	apiRPCPort, apiHTTPPort int
-	p2pServiceInstance      contract.P2PType
+	p2pServiceInstance      p2p.P2pServiceInterface
 	queryExecutor           *query.Executor
+)
+
+var (
+	blockServices = make(map[int32]coreService.BlockServiceInterface)
+	p2pService    p2p.P2pServiceInterface
 )
 
 func init() {
@@ -70,22 +76,74 @@ func init() {
 }
 
 func startServices(queryExecutor query.ExecutorInterface) {
-	p2pService()
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance)
+	startP2pService()
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance, blockServices)
 }
 
-func p2pService() {
+func startP2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
 	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{})
+	p2pServiceInstance.SetBlockServices(blockServices)
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
+	p2pService = p2pServiceInstance
+}
+
+func startMainchain(mainchainSyncChannel chan bool) {
+	mainchain := &chaintype.MainChain{}
+	mainchainBlockService := service.NewBlockService(
+		mainchain,
+		queryExecutor,
+		query.NewBlockQuery(mainchain),
+		query.NewMempoolQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
+		service.NewMempoolService(
+			mainchain,
+			queryExecutor,
+			query.NewMempoolQuery(mainchain),
+			&transaction.TypeSwitcher{
+				Executor: queryExecutor,
+			},
+			query.NewAccountBalanceQuery(),
+		),
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		query.NewAccountBalanceQuery(),
+	)
+	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+
+	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
+	mainchainProcessor := smith.NewBlockchainProcessor(
+		mainchain,
+		smith.NewBlocksmith(nodeSecretPhrase),
+		mainchainBlockService,
+	)
+
+	if !mainchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
+
+		// genesis account will be inserted in the very beginning
+		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+			panic("Fail to add genesis account")
+		}
+
+		if err := mainchainProcessor.BlockService.AddGenesis(); err != nil {
+			panic(err)
+		}
+	}
+
+	if len(nodeSecretPhrase) > 0 {
+		go startSmith(sleepPeriod, mainchainProcessor)
+	}
+	mainchainSynchronizer := blockchainSync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance)
+	mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 
 func main() {
-
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		panic(err)
@@ -94,52 +152,12 @@ func main() {
 	if err := migration.Apply(); err != nil {
 		panic(err)
 	}
-	mainchain := &chaintype.MainChain{}
-	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
-
-	blockchainProcessor := smith.NewBlockchainProcessor(
-		mainchain,
-		smith.NewBlocksmith(nodeSecretPhrase),
-		service.NewBlockService(
-			mainchain,
-			queryExecutor,
-			query.NewBlockQuery(mainchain),
-			query.NewMempoolQuery(mainchain),
-			query.NewTransactionQuery(mainchain),
-			crypto.NewSignature(),
-			service.NewMempoolService(
-				mainchain,
-				queryExecutor,
-				query.NewMempoolQuery(mainchain),
-				&transaction.TypeSwitcher{
-					Executor: queryExecutor,
-				},
-				query.NewAccountBalanceQuery(),
-			),
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
-			query.NewAccountBalanceQuery(),
-		),
-	)
-
-	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
-
-		// genesis account will be inserted in the very beginning
-		if err := service.AddGenesisAccount(queryExecutor); err != nil {
-			panic("Fail to add genesis account")
-		}
-
-		if err := blockchainProcessor.BlockService.AddGenesis(); err != nil {
-			panic(err)
-		}
-	}
-
-	if len(nodeSecretPhrase) > 0 {
-		go startSmith(sleepPeriod, blockchainProcessor)
-	}
 
 	startServices(queryExecutor)
+
+	mainchainSyncChannel := make(chan bool, 1)
+	mainchainSyncChannel <- true
+	startMainchain(mainchainSyncChannel)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

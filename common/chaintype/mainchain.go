@@ -3,6 +3,11 @@ package chaintype
 // MainChain is struct should has methods in below
 type MainChain struct{}
 
+// GetTypeInt return the value of the chain type in int
+func (*MainChain) GetTypeInt() int32 {
+	return 0
+}
+
 // GetTablePrefix return the value of current chain table prefix in the database
 func (*MainChain) GetTablePrefix() string {
 	return "main"

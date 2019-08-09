@@ -641,7 +641,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block); (err != nil) != tt.wantErr {
+			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

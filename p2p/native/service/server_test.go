@@ -58,7 +58,7 @@ func TestHostService_GetPeerInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			hostServiceInstance = CreateHostService(tt.fields.Host)
 
-			ss := NewServerService()
+			ss := NewServerService(nil)
 			got, err := ss.GetPeerInfo(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HostService.GetPeerInfo() error = %v, wantErr %v", err, tt.wantErr)
@@ -128,7 +128,7 @@ func TestHostService_GetMorePeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hostServiceInstance = CreateHostService(tt.fields.Host)
-			ss := NewServerService()
+			ss := NewServerService(nil)
 			got, err := ss.GetMorePeers(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HostService.GetMorePeers() error = %v, wantErr %v", err, tt.wantErr)

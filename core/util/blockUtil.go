@@ -88,19 +88,24 @@ func GetBlockID(block *model.Block) int64 {
 		blockByte, _ := GetBlockByte(block, true)
 		_, _ = digest.Write(blockByte)
 		hash := digest.Sum([]byte{})
-		res := new(big.Int)
-		block.ID = res.SetBytes([]byte{
-			hash[7],
-			hash[6],
-			hash[5],
-			hash[4],
-			hash[3],
-			hash[2],
-			hash[1],
-			hash[0],
-		}).Int64()
+		block.ID = GetBlockIDFromHash(hash)
 	}
 	return block.ID
+}
+
+// GetBlockIdFromHash returns blockID from given hash
+func GetBlockIDFromHash(blockHash []byte) int64 {
+	res := new(big.Int)
+	return res.SetBytes([]byte{
+		blockHash[7],
+		blockHash[6],
+		blockHash[5],
+		blockHash[4],
+		blockHash[3],
+		blockHash[2],
+		blockHash[1],
+		blockHash[0],
+	}).Int64()
 }
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet

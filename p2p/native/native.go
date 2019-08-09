@@ -7,21 +7,24 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	coreService "github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/native/service"
 
 	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
 )
 
 type Service struct {
-	HostService *service.HostService
+	HostService   *service.HostService
+	BlockServices map[int32]coreService.BlockServiceInterface
+	service.PeerServiceClient
 }
 
 var hostServiceInstance *service.HostService
 
 // InitService to initialize services of the native strategy
-func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string) (contract.P2PType, error) {
+func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string) (p2p.P2pServiceInterface, error) {
 	if s.HostService == nil {
 		knownPeersResult, err := nativeUtil.ParseKnownPeers(wellknownPeers)
 		if err != nil {
@@ -34,14 +37,33 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 	return s, nil
 }
 
+func (s *Service) SetBlockServices(blockServices map[int32]coreService.BlockServiceInterface) {
+	s.BlockServices = blockServices
+}
+
 // GetHostInstance returns the host model
 func (s *Service) GetHostInstance() *model.Host {
 	return s.HostService.Host
 }
 
+// DisconnectPeer returns the host model
+func (s *Service) DisconnectPeer(peer *model.Peer) {
+	s.HostService.DisconnectPeer(peer)
+}
+
+// GetAnyResolvedPeer Get any random resolved peer
+func (s *Service) GetAnyResolvedPeer() *model.Peer {
+	return s.HostService.GetAnyResolvedPeer()
+}
+
+// GetResolvedPeer Get resolved peers
+func (s *Service) GetResolvedPeers() map[string]*model.Peer {
+	return s.HostService.GetResolvedPeers()
+}
+
 // StartP2P to run all p2p Thread service
 func (s *Service) StartP2P() {
-	startServer()
+	s.startServer()
 
 	// p2p thread
 	go resolvePeersThread()
@@ -50,11 +72,11 @@ func (s *Service) StartP2P() {
 }
 
 // startServer to run p2p service as server
-func startServer() {
+func (s *Service) startServer() {
 	port := hostServiceInstance.Host.GetInfo().GetPort()
 	listener := nativeUtil.ServerListener(int(port))
 	go func() {
-		_ = service.NewServerService().StartListening(listener)
+		_ = service.NewServerService(s.BlockServices).StartListening(listener)
 	}()
 }
 

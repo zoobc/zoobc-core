@@ -55,7 +55,7 @@ func (hs *HostService) GetResolvedPeers() map[string]*model.Peer {
 	return newResolvedPeers
 }
 
-// GetAnyResolvedPeer Get any random connected peer
+// GetAnyResolvedPeer Get any random resolved peer
 func (hs *HostService) GetAnyResolvedPeer() *model.Peer {
 	resolvedPeers := hs.GetResolvedPeers()
 	if len(resolvedPeers) < 1 {
@@ -253,7 +253,7 @@ func (hs *HostService) GetExceedMaxUnresolvedPeers() int32 {
 	return int32(len(hs.GetUnresolvedPeers())) - hs.MaxUnresolvedPeers + 1
 }
 
-// GetExceedMaxResolvedPeers returns number of peers exceeding max number of the connected peers
+// GetExceedMaxResolvedPeers returns number of peers exceeding max number of the resolved peers
 func (hs *HostService) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(hs.GetResolvedPeers())) - hs.MaxResolvedPeers + 1
 }

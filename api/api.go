@@ -5,7 +5,8 @@ import (
 	"net"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	core_service "github.com/zoobc/zoobc-core/core/service"
+	coreService "github.com/zoobc/zoobc-core/core/service"
+	p2p "github.com/zoobc/zoobc-core/p2p"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -13,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -31,14 +31,14 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService contract.P2PType) {
+func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.P2pServiceInterface, blockServices map[int32]coreService.BlockServiceInterface) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-	mempoolService := core_service.NewMempoolService(
+	mempoolService := coreService.NewMempoolService(
 		&chaintype.MainChain{},
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -69,8 +69,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 
 	// Set GRPC handler for Transactions requests
 	rpc_service.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service:        service.NewHostService(queryExecutor),
-		P2pHostService: p2pHostService,
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices),
 	})
 
 	// run grpc-gateway handler
@@ -83,6 +82,6 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService contract.P2PType) {
-	startGrpcServer(grpcPort, queryExecutor, p2pHostService)
+func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.P2pServiceInterface, blockServices map[int32]coreService.BlockServiceInterface) {
+	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices)
 }

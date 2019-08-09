@@ -1,10 +1,10 @@
 dbPath = "./resource/"
-dbName = "zoobc.db"
+dbName = "zoobc2.db"
 
 # Peer
 peerPort=8002
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8003"]
+wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3002
 apiHTTPPort=3032
