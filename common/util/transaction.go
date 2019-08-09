@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"errors"
-
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
