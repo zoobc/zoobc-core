@@ -46,7 +46,6 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
 		observer.NewObserver())
-
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		apiLogger.Fatalf("failed to listen: %v\n", err)
@@ -74,6 +73,12 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		Service:        service.NewHostService(queryExecutor),
 		P2pHostService: p2pHostService,
 	})
+
+	// Set GRPC handler for account balance requests
+	rpc_service.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{Service: service.NewAccountBalanceService(
+		queryExecutor,
+		query.NewAccountBalanceQuery(),
+	)})
 
 	// run grpc-gateway handler
 	go func() {

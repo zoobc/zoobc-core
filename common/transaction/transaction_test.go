@@ -12,6 +12,7 @@ import (
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
+	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixtures()
 	type fields struct {
 		Executor query.ExecutorInterface
 	}
@@ -138,48 +139,17 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
-						NodeRegistrationTransactionBody: &model.NodeRegistrationTransactionBody{
-							AccountType:    0,
-							AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-							NodePublicKey: []byte{
-								0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-								101, 127, 241, 62, 152, 187, 255,
-							},
-							NodeAddressLength: uint32(len([]byte("127.0.0.1"))),
-							NodeAddress:       "127.0.0.1",
-							LockedBalance:     100000,
-						},
+						NodeRegistrationTransactionBody: nodeRegistrationBody,
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{2, 0, 0, 0}),
-					TransactionBodyBytes: (&NodeRegistration{}).GetBodyBytes(&model.NodeRegistrationTransactionBody{
-						AccountType:    0,
-						AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-						NodePublicKey: []byte{
-							0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-							101, 127, 241, 62, 152, 187, 255,
-						},
-						NodeAddressLength: uint32(len([]byte("127.0.0.1"))),
-						NodeAddress:       "127.0.0.1",
-						LockedBalance:     100000,
-					},
-					),
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 0, 0, 0}),
+					TransactionBodyBytes: nodeRegistrationBodyBytes,
 				},
 			},
 			want: &NodeRegistration{
-				Height:            0,
-				SenderAccountType: 0,
-				SenderAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Body: &model.NodeRegistrationTransactionBody{
-					AccountType:    0,
-					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					NodePublicKey: []byte{
-						0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-						101, 127, 241, 62, 152, 187, 255,
-					},
-					NodeAddressLength: uint32(len([]byte("127.0.0.1"))),
-					NodeAddress:       "127.0.0.1",
-					LockedBalance:     100000,
-				},
+				Height:                0,
+				SenderAccountType:     0,
+				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				Body:                  nodeRegistrationBody,
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				AccountQuery:          query.NewAccountQuery(),

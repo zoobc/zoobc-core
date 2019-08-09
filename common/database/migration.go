@@ -45,7 +45,11 @@ func (m *Migration) Init() error {
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
-				PRIMARY KEY("id")
+				"sender_account_id" BLOB,
+				"recipient_account_id" BLOB,
+				PRIMARY KEY("id"),
+				FOREIGN KEY("sender_account_id") REFERENCES account(id),
+				FOREIGN KEY("recipient_account_id") REFERENCES account(id)
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "transaction" (
@@ -105,6 +109,7 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
+				"id" INTEGER,
 				"node_public_key" BLOB,
 				"account_id" BLOB,
 				"registration_height" INTEGER,
@@ -115,7 +120,7 @@ func (m *Migration) Init() error {
 				"height" INTEGER,
 				UNIQUE ("node_public_key", "height"),
 				UNIQUE ("account_id", "height"),
-				PRIMARY KEY("node_public_key", "account_id", "height")
+				PRIMARY KEY("id", "height")
 			);`,
 		}
 		return nil

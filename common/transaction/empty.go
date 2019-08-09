@@ -27,3 +27,13 @@ func (*TXEmpty) GetAmount() int64 {
 func (tx *TXEmpty) GetSize() uint32 {
 	return 0
 }
+
+// ParseBodyBytes read and translate body bytes to body implementation fields
+func (*TXEmpty) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+	return &model.EmptyTransactionBody{}
+}
+
+// GetBodyBytes translate tx body to bytes representation
+func (*TXEmpty) GetBodyBytes() []byte {
+	return []byte{}
+}
