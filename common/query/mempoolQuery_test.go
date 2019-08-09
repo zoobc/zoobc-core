@@ -21,12 +21,12 @@ var mockMempoolQuery = &MempoolQuery{
 }
 
 var mockMempool = &model.MempoolTransaction{
-	ID:                 1,
-	ArrivalTimestamp:   1000,
-	FeePerByte:         10,
-	TransactionBytes:   []byte{1, 2, 3, 4, 5},
-	SenderAccountID:    []byte{1},
-	RecipientAccountID: []byte{2},
+	ID:                      1,
+	ArrivalTimestamp:        1000,
+	FeePerByte:              10,
+	TransactionBytes:        []byte{1, 2, 3, 4, 5},
+	SenderAccountAddress:    "BCZ",
+	RecipientAccountAddress: "ZCB",
 }
 
 func TestNewMempoolQuery(t *testing.T) {
@@ -126,8 +126,8 @@ func TestMempoolQuery_ExtractModel(t *testing.T) {
 			mockMempool.FeePerByte,
 			mockMempool.ArrivalTimestamp,
 			mockMempool.TransactionBytes,
-			mockMempool.SenderAccountID,
-			mockMempool.RecipientAccountID,
+			mockMempool.SenderAccountAddress,
+			mockMempool.RecipientAccountAddress,
 		}
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, want)

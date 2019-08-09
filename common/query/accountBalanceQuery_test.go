@@ -30,7 +30,7 @@ func TestNewAccountBalanceQuery(t *testing.T) {
 
 var mockAccountBalanceQuery = &AccountBalanceQuery{
 	Fields: []string{
-		"account_id",
+		"account_address",
 		"block_height",
 		"spendable_balance",
 		"balance",
@@ -41,12 +41,12 @@ var mockAccountBalanceQuery = &AccountBalanceQuery{
 }
 
 var causedFields = map[string]interface{}{
-	"account_id":   []byte{1},
-	"block_height": uint32(1),
+	"account_address": "BCZ",
+	"block_height":    uint32(1),
 }
 
 var mockAccountBalance = &model.AccountBalance{
-	AccountID:        []byte{1},
+	AccountAddress:   "BCZ",
 	BlockHeight:      0,
 	SpendableBalance: 0,
 	Balance:          0,
@@ -56,10 +56,10 @@ var mockAccountBalance = &model.AccountBalance{
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
-		res, arg := mockAccountBalanceQuery.GetAccountBalanceByAccountID([]byte{1})
-		want := "SELECT account_id,block_height,spendable_balance,balance,pop_revenue,latest " +
-			"FROM account_balance WHERE account_id = ? AND latest = 1"
-		wantArg := []byte{1}
+		res, arg := mockAccountBalanceQuery.GetAccountBalanceByAccountAddress("BCZ")
+		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
+			"FROM account_balance WHERE account_address = ? AND latest = 1"
+		wantArg := "BCZ"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -75,18 +75,18 @@ func TestAccountBalanceQuery_AddAccountBalance(t *testing.T) {
 		res := mockAccountBalanceQuery.AddAccountBalance(100, causedFields)
 		var want [][]interface{}
 		want = append(want, []interface{}{
-			"INSERT INTO account_balance (account_id, block_height, spendable_balance, balance, pop_revenue, latest) SELECT ?, " +
-				"1, 0, 0, 0, 1 WHERE NOT EXISTS (SELECT account_id FROM account_balance WHERE account_id = ?)",
-			causedFields["account_id"], causedFields["account_id"],
+			"INSERT INTO account_balance (account_address, block_height, spendable_balance, balance, pop_revenue, latest) SELECT ?, " +
+				"1, 0, 0, 0, 1 WHERE NOT EXISTS (SELECT account_address FROM account_balance WHERE account_address = ?)",
+			causedFields["account_address"], causedFields["account_address"],
 		}, []interface{}{
-			"INSERT INTO account_balance (account_id, block_height, spendable_balance, balance, pop_revenue, latest) SELECT account_id, " +
-				"1, spendable_balance + 100, balance + 100, pop_revenue, latest FROM account_balance WHERE account_id = ? AND latest = 1 " +
-				"ON CONFLICT(account_id, block_height) DO UPDATE SET (spendable_balance, balance) = (SELECT spendable_balance + 100, balance " +
-				"+ 100 FROM account_balance WHERE account_id = ? AND latest = 1)",
-			causedFields["account_id"], causedFields["account_id"],
+			"INSERT INTO account_balance (account_address, block_height, spendable_balance, balance, pop_revenue, latest) SELECT account_address, " +
+				"1, spendable_balance + 100, balance + 100, pop_revenue, latest FROM account_balance WHERE account_address = ? AND latest = 1 " +
+				"ON CONFLICT(account_address, block_height) DO UPDATE SET (spendable_balance, balance) = (SELECT spendable_balance + 100, balance " +
+				"+ 100 FROM account_balance WHERE account_address = ? AND latest = 1)",
+			causedFields["account_address"], causedFields["account_address"],
 		}, []interface{}{
-			"UPDATE account_balance SET latest = false WHERE account_id = ? AND block_height != 1 AND latest = true",
-			causedFields["account_id"],
+			"UPDATE account_balance SET latest = false WHERE account_address = ? AND block_height != 1 AND latest = true",
+			causedFields["account_address"],
 		})
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
@@ -97,10 +97,8 @@ func TestAccountBalanceQuery_AddAccountBalance(t *testing.T) {
 func TestAccountBalanceQuery_AddAccountSpendableBalance(t *testing.T) {
 	t.Run("AddAccountSpendableBalance:succes", func(t *testing.T) {
 		q, args := mockAccountBalanceQuery.AddAccountSpendableBalance(100, causedFields)
-		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_id = ?"
-		wantArg := []interface{}{
-			causedFields["account_id"],
-		}
+		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_address = ?"
+		wantArg := []interface{}{"BCZ"}
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -115,9 +113,9 @@ func TestAccountBalanceQuery_InsertAccountBalance(t *testing.T) {
 	t.Run("InsertAccountBalance:success", func(t *testing.T) {
 
 		q, args := mockAccountBalanceQuery.InsertAccountBalance(mockAccountBalance)
-		wantQ := "INSERT INTO account_balance (account_id,block_height,spendable_balance,balance,pop_revenue,latest) VALUES(? , ?, ?, ?, ?, ?)"
+		wantQ := "INSERT INTO account_balance (account_address,block_height,spendable_balance,balance,pop_revenue,latest) VALUES(? , ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
-			mockAccountBalance.AccountID, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance, mockAccountBalance.Balance,
+			mockAccountBalance.AccountAddress, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance, mockAccountBalance.Balance,
 			mockAccountBalance.PopRevenue, true,
 		}
 		if q != wantQ {
@@ -133,7 +131,7 @@ func TestAccountBalanceQuery_ExtractModel(t *testing.T) {
 	t.Run("ExtractModel:success", func(t *testing.T) {
 		res := mockAccountBalanceQuery.ExtractModel(mockAccountBalance)
 		want := []interface{}{
-			mockAccountBalance.AccountID, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance, mockAccountBalance.Balance,
+			mockAccountBalance.AccountAddress, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance, mockAccountBalance.Balance,
 			mockAccountBalance.PopRevenue, true,
 		}
 		if !reflect.DeepEqual(res, want) {
@@ -147,14 +145,14 @@ func TestAccountBalanceQuery_BuildModel(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
-			"AccountID", "BlockHeight", "SpendableBalance", "Balance", "PopRevenue", "Latest"}).
-			AddRow(mockAccountBalance.AccountID, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance,
+			"AccountAddress", "BlockHeight", "SpendableBalance", "Balance", "PopRevenue", "Latest"}).
+			AddRow(mockAccountBalance.AccountAddress, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance,
 				mockAccountBalance.Balance, mockAccountBalance.PopRevenue, mockAccountBalance.Latest))
 		rows, _ := db.Query("foo")
 		var tempAccount []*model.AccountBalance
 		res := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
 		if !reflect.DeepEqual(res[0], mockAccountBalance) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccount)
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccountBalance)
 		}
 	})
 }
