@@ -26,10 +26,10 @@ import (
 type (
 	BlockServiceInterface interface {
 		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
-		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte, hash string,
+		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithAddress string, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
-		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithID []byte,
+		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithAddress string,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
 			genesisSignature []byte) *model.Block
@@ -37,7 +37,7 @@ type (
 			previousBlock *model.Block,
 			secretPhrase string,
 			timestamp int64,
-			blockSmithAccountID []byte,
+			blockSmithAccountAddress string,
 		) (*model.Block, error)
 		PushBlock(previousBlock, block *model.Block) error
 		GetLastBlock() (*model.Block, error)
@@ -94,9 +94,8 @@ func NewBlockService(
 func (bs *BlockService) NewBlock(
 	version uint32,
 	previousBlockHash,
-	blockSeed,
-	blocksmithID []byte,
-	hash string,
+	blockSeed []byte,
+	blocksmithAddress, hash string,
 	previousBlockHeight uint32,
 	timestamp,
 	totalAmount,
@@ -108,18 +107,19 @@ func (bs *BlockService) NewBlock(
 	secretPhrase string,
 ) *model.Block {
 	block := &model.Block{
-		Version:           version,
-		PreviousBlockHash: previousBlockHash,
-		BlockSeed:         blockSeed,
-		BlocksmithID:      blocksmithID,
-		Height:            previousBlockHeight,
-		Timestamp:         timestamp,
-		TotalAmount:       totalAmount,
-		TotalFee:          totalFee,
-		TotalCoinBase:     totalCoinBase,
-		Transactions:      transactions,
-		PayloadHash:       payloadHash,
-		PayloadLength:     payloadLength,
+		Version:                 version,
+		PreviousBlockHash:       previousBlockHash,
+		BlockSeed:               blockSeed,
+		BlocksmithAddressLength: uint32(len(blocksmithAddress)),
+		BlocksmithAddress:       blocksmithAddress,
+		Height:                  previousBlockHeight,
+		Timestamp:               timestamp,
+		TotalAmount:             totalAmount,
+		TotalFee:                totalFee,
+		TotalCoinBase:           totalCoinBase,
+		Transactions:            transactions,
+		PayloadHash:             payloadHash,
+		PayloadLength:           payloadLength,
 	}
 	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
@@ -129,8 +129,8 @@ func (bs *BlockService) NewBlock(
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
 func (bs *BlockService) NewGenesisBlock(
 	version uint32,
-	previousBlockHash, blockSeed, blocksmithID []byte,
-	hash string,
+	previousBlockHash, blockSeed []byte,
+	blocksmithAddress, hash string,
 	previousBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
@@ -141,21 +141,22 @@ func (bs *BlockService) NewGenesisBlock(
 	genesisSignature []byte,
 ) *model.Block {
 	block := &model.Block{
-		Version:              version,
-		PreviousBlockHash:    previousBlockHash,
-		BlockSeed:            blockSeed,
-		BlocksmithID:         blocksmithID,
-		Height:               previousBlockHeight,
-		Timestamp:            timestamp,
-		TotalAmount:          totalAmount,
-		TotalFee:             totalFee,
-		TotalCoinBase:        totalCoinBase,
-		Transactions:         transactions,
-		PayloadLength:        payloadLength,
-		PayloadHash:          payloadHash,
-		SmithScale:           smithScale,
-		CumulativeDifficulty: cumulativeDifficulty.String(),
-		BlockSignature:       genesisSignature,
+		Version:                 version,
+		PreviousBlockHash:       previousBlockHash,
+		BlockSeed:               blockSeed,
+		BlocksmithAddressLength: uint32(len(blocksmithAddress)),
+		BlocksmithAddress:       blocksmithAddress,
+		Height:                  previousBlockHeight,
+		Timestamp:               timestamp,
+		TotalAmount:             totalAmount,
+		TotalFee:                totalFee,
+		TotalCoinBase:           totalCoinBase,
+		Transactions:            transactions,
+		PayloadLength:           payloadLength,
+		PayloadHash:             payloadHash,
+		SmithScale:              smithScale,
+		CumulativeDifficulty:    cumulativeDifficulty.String(),
+		BlockSignature:          genesisSignature,
 	}
 	return block
 }
@@ -304,7 +305,8 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 			&lastBlock.SmithScale,
 			&lastBlock.PayloadLength,
 			&lastBlock.PayloadHash,
-			&lastBlock.BlocksmithID,
+			&lastBlock.BlocksmithAddressLength,
+			&lastBlock.BlocksmithAddress,
 			&lastBlock.TotalAmount,
 			&lastBlock.TotalFee,
 			&lastBlock.TotalCoinBase,
@@ -338,8 +340,8 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	for rows.Next() {
 		var block model.Block
 		err = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed, &block.BlockSignature,
-			&block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithID, &block.TotalAmount,
-			&block.TotalFee, &block.TotalCoinBase, &block.Version)
+			&block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithAddressLength,
+			&block.BlocksmithAddress, &block.TotalAmount, &block.TotalFee, &block.TotalCoinBase, &block.Version)
 		if err != nil {
 			return nil, err
 		}
@@ -367,7 +369,7 @@ func (bs *BlockService) GenerateBlock(
 	previousBlock *model.Block,
 	secretPhrase string,
 	timestamp int64,
-	blockSmithAccountID []byte,
+	blockSmithAccountAddress string,
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
@@ -406,7 +408,7 @@ func (bs *BlockService) GenerateBlock(
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	_, _ = digest.Write(blockSmithAccountID)
+	_, _ = digest.Write([]byte(blockSmithAccountAddress))
 	blockSeed := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
@@ -415,7 +417,7 @@ func (bs *BlockService) GenerateBlock(
 		1,
 		previousBlockHash[:],
 		blockSeed,
-		blockSmithAccountID,
+		blockSmithAccountAddress,
 		string(hash),
 		newBlockHeight,
 		timestamp,
@@ -456,7 +458,7 @@ func (bs *BlockService) AddGenesis() error {
 		1,
 		nil,
 		make([]byte, 64),
-		[]byte{},
+		"",
 		"",
 		0,
 		constant.GenesisBlockTimestamp,
@@ -498,11 +500,10 @@ func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
 		if err != nil {
 			return false
 		}
-		accountAddress, err := util.GetAddressFromPublicKey(block.GetBlocksmithID())
 		if err != nil {
 			return false
 		}
-		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), 0, accountAddress)
+		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), block.GetBlocksmithAddress())
 	}
 	return false
 }

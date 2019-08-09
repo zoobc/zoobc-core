@@ -33,16 +33,16 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 		for _, fundReceiver := range genesisFundReceiver {
 			for receiver, amount := range fundReceiver {
 				genesisTx := &model.Transaction{
-					Version:                 1,
-					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-					Height:                  0,
-					Timestamp:               1562806389280,
-					SenderAccountType:       0,
-					SenderAccountAddress:    constant.GenesisAccountAddress,
-					RecipientAccountType:    0,
-					RecipientAccountAddress: receiver,
-					Fee:                     0,
-					TransactionBodyLength:   8,
+					Version:                       1,
+					TransactionType:               util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
+					Height:                        0,
+					Timestamp:                     1562806389280,
+					SenderAccountAddressLength:    uint32(len(constant.GenesisAccountAddress)),
+					SenderAccountAddress:          constant.GenesisAccountAddress,
+					RecipientAccountAddressLength: uint32(len(receiver)),
+					RecipientAccountAddress:       receiver,
+					Fee:                           0,
+					TransactionBodyLength:         8,
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 							Amount: amount,
@@ -73,27 +73,19 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 // AddGenesisAccount create genesis account into `account` and `account_balance` table
 func AddGenesisAccount(executor query.ExecutorInterface) error {
 	// add genesis account
-	genesisAccount := model.Account{
-		ID:          util.CreateAccountIDFromAddress(0, constant.GenesisAccountAddress),
-		AccountType: 0,
-		Address:     constant.GenesisAccountAddress,
-	}
 	genesisAccountBalance := model.AccountBalance{
-		AccountID:        genesisAccount.ID,
+		AccountAddress:   constant.GenesisAccountAddress,
 		BlockHeight:      0,
 		SpendableBalance: 0,
 		Balance:          0,
 		PopRevenue:       0,
 		Latest:           true,
 	}
-	genesisAccountInsertQ, genesisAccountInsertArgs := query.NewAccountQuery().InsertAccount(&genesisAccount)
 	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
 		&genesisAccountBalance)
 	_ = executor.BeginTx()
 	var genesisQueries [][]interface{}
 	genesisQueries = append(genesisQueries,
-		append(
-			[]interface{}{genesisAccountInsertQ}, genesisAccountInsertArgs...),
 		append(
 			[]interface{}{genesisAccountBalanceInsertQ}, genesisAccountBalanceInsertArgs...),
 	)
