@@ -102,8 +102,8 @@ func (ts *TransactionService) GetTransactions(
 		Query: bytes.NewBuffer([]byte{}),
 	}
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
+
 	accountAddress := params.GetAccountAddress()
-	accountType := params.GetAccountType()
 	if accountAddress != "" {
 		caseQuery.Where(map[string]interface{}{
 			"sender_account_address": accountAddress,
@@ -112,25 +112,26 @@ func (ts *TransactionService) GetTransactions(
 			"recipient_account_address": accountAddress,
 		})
 	}
-	if accountType != "" {
-		if accountAddress != "" {
-			caseQuery.Conjunct(query.OperandAnd, map[string]interface{}{
-				"sender_account_type": accountType,
-			})
-			caseQuery.Or(map[string]interface{}{
-				"recipient_account_address": accountType,
-			})
-		} else {
-			caseQuery.Where(map[string]interface{}{
-				"sender_account_type": accountType,
-			})
-			caseQuery.Or(map[string]interface{}{
-				"recipient_account_address": accountType,
-			})
+
+	selectQuery, args := caseQuery.Done(params.Limit, params.Offset)
+	// count first
+	countQuery := query.GetTotalRecordOfSelect(selectQuery)
+	rows, err = ts.Query.ExecuteSelect(countQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(
+			&totalRecords,
+		)
+		if err != nil {
+			return &model.GetTransactionsResponse{}, err
 		}
 	}
 
-	selectQuery, args := caseQuery.Done(params.Limit, params.Offset)
+	// Get Transactions
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {
 		return nil, err
@@ -138,23 +139,6 @@ func (ts *TransactionService) GetTransactions(
 	defer rows.Close()
 
 	txs = txQuery.BuildModel(txs, rows)
-
-	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ts.Query.ExecuteSelect(countQuery, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	if rows.Next() {
-		err = rows.Scan(
-			&totalRecords,
-		)
-
-		if err != nil {
-			return &model.GetTransactionsResponse{}, err
-		}
-
-	}
 
 	return &model.GetTransactionsResponse{
 		Total:        totalRecords,
