@@ -12,6 +12,8 @@ import (
 type (
 	TransactionQueryInterface interface {
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
+		GetTransaction(id int64) string
+		GetTransactions(limit uint32, offset uint64) string
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 	}
