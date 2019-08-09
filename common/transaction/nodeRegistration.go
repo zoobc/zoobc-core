@@ -13,15 +13,14 @@ import (
 
 // NodeRegistration Implement service layer for (new) node registration's transaction
 type NodeRegistration struct {
-	Body                  *model.NodeRegistrationTransactionBody
-	Fee                   int64
-	SenderAddress         string
-	SenderAccountType     uint32
-	Height                uint32
-	AccountBalanceQuery   query.AccountBalanceQueryInterface
-	AccountQuery          query.AccountQueryInterface
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	QueryExecutor         query.ExecutorInterface
+	Body                       *model.NodeRegistrationTransactionBody
+	Fee                        int64
+	SenderAddress              string
+	SenderAccountAddressLength uint32
+	Height                     uint32
+	AccountBalanceQuery        query.AccountBalanceQueryInterface
+	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
+	QueryExecutor              query.ExecutorInterface
 }
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
@@ -46,17 +45,14 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
 		Queued:             true,
-		AccountId:          util.CreateAccountIDFromAddress(tx.Body.AccountType, tx.Body.AccountAddress),
+		AccountAddress:     tx.Body.AccountAddress,
 	}
 	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-(tx.Body.LockedBalance + tx.Fee),
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
-			"block_height": tx.Height,
+			"account_address": tx.SenderAddress,
+			"block_height":    tx.Height,
 		},
 	)
 	insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
@@ -90,10 +86,7 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-(tx.Body.LockedBalance + tx.Fee),
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_id": tx.SenderAddress,
 		},
 	)
 	// add row to node_registry table
@@ -110,10 +103,7 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		tx.Body.LockedBalance+tx.Fee,
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_address": tx.SenderAddress,
 		},
 	)
 	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
@@ -129,14 +119,13 @@ func (tx *NodeRegistration) Validate() error {
 		accountBalance model.AccountBalance
 	)
 	// check balance
-	senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
-	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID)
+	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
 	if err != nil {
 		return err
 	} else if rows.Next() {
 		_ = rows.Scan(
-			&accountBalance.AccountID,
+			&accountBalance.AccountAddress,
 			&accountBalance.BlockHeight,
 			&accountBalance.SpendableBalance,
 			&accountBalance.Balance,
@@ -170,7 +159,7 @@ func (tx *NodeRegistration) GetSize() uint32 {
 	nodeAddress := tx.Body.NodeAddressLength
 	// ProofOfOwnership (message + signature)
 	poown := util.GetProofOfOwnershipSize(true)
-	return constant.NodePublicKey + constant.AccountType + constant.NodeAddressLength + constant.AccountAddress +
+	return constant.NodePublicKey + constant.AccountAddressLength + constant.NodeAddressLength + constant.AccountAddress +
 		constant.Balance + nodeAddress + poown
 }
 
@@ -178,22 +167,22 @@ func (tx *NodeRegistration) GetSize() uint32 {
 func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	buffer := bytes.NewBuffer(txBodyBytes)
 	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
-	accountType := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountType)))
-	accountAddress := buffer.Next(int(constant.AccountAddress))
+	accountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
+	accountAddress := buffer.Next(int(accountAddressLength))
 	nodeRegistrationHeight := util.ConvertBytesToUint32(buffer.Next(int(constant.Height)))
 	nodeAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.NodeAddressLength))) // uint32 length of next bytes to read
 	nodeAddress := buffer.Next(int(nodeAddressLength))                                           // based on nodeAddressLength
 	lockedBalance := util.ConvertBytesToUint64(buffer.Next(int(constant.Balance)))
 	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	txBody := &model.NodeRegistrationTransactionBody{
-		NodePublicKey:      nodePublicKey,
-		AccountType:        accountType,
-		AccountAddress:     string(accountAddress),
-		RegistrationHeight: nodeRegistrationHeight,
-		NodeAddressLength:  nodeAddressLength,
-		NodeAddress:        string(nodeAddress),
-		LockedBalance:      int64(lockedBalance),
-		Poown:              poown,
+		NodePublicKey:        nodePublicKey,
+		AccountAddressLength: accountAddressLength,
+		AccountAddress:       string(accountAddress),
+		RegistrationHeight:   nodeRegistrationHeight,
+		NodeAddressLength:    nodeAddressLength,
+		NodeAddress:          string(nodeAddress),
+		LockedBalance:        int64(lockedBalance),
+		Poown:                poown,
 	}
 	return txBody
 }
@@ -202,7 +191,7 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBod
 func (tx *NodeRegistration) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	buffer.Write(util.ConvertUint32ToBytes(tx.Body.AccountType))
+	buffer.Write(util.ConvertUint32ToBytes(tx.Body.AccountAddressLength))
 	buffer.Write([]byte(tx.Body.AccountAddress))
 	buffer.Write(util.ConvertUint32ToBytes(tx.Body.RegistrationHeight))
 	buffer.Write(util.ConvertUint32ToBytes(tx.Body.NodeAddressLength))

@@ -14,15 +14,14 @@ import (
 
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
-	Body                  *model.UpdateNodeRegistrationTransactionBody
-	Fee                   int64
-	SenderAddress         string
-	SenderAccountType     uint32
-	Height                uint32
-	AccountBalanceQuery   query.AccountBalanceQueryInterface
-	AccountQuery          query.AccountQueryInterface
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	QueryExecutor         query.ExecutorInterface
+	Body                       *model.UpdateNodeRegistrationTransactionBody
+	Fee                        int64
+	SenderAddress              string
+	SenderAccountAddressLength uint32
+	Height                     uint32
+	AccountBalanceQuery        query.AccountBalanceQueryInterface
+	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
+	QueryExecutor              query.ExecutorInterface
 }
 
 func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
@@ -41,8 +40,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		}
 	}
 	// get the latest noderegistration by owner (sender account)
-	senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountID(senderID))
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
 	if err != nil {
 		// no nodes registered with this accountID
 		return err
@@ -82,7 +80,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
 		Queued:             prevNodeRegistration.Queued,
-		AccountId:          senderID,
+		AccountAddress:     tx.SenderAddress,
 	}
 
 	var effectiveBalanceToLock int64
@@ -95,10 +93,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-(effectiveBalanceToLock + tx.Fee),
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_address": tx.SenderAddress,
 			"block_height": tx.Height,
 		},
 	)
@@ -134,8 +129,7 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
-		senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountID(senderID))
+		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
 		if err != nil {
 			return err
 		} else if rows.Next() {
@@ -153,10 +147,7 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-(effectiveBalanceToLock + tx.Fee),
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_address":  tx.SenderAddress,
 		},
 	)
 	// add row to node_registry table
@@ -173,10 +164,7 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		tx.Body.LockedBalance+tx.Fee,
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_address": tx.SenderAddress,
 		},
 	)
 	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
@@ -201,8 +189,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	//
 
 	// check that sender is node's owner
-	senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountID(senderID))
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
 	if err != nil {
 		return err
 	}
@@ -214,7 +201,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	_ = rows.Scan(
 		&prevNodeRegistration.NodeID,
 		&prevNodeRegistration.NodePublicKey,
-		&prevNodeRegistration.AccountId,
+		&prevNodeRegistration.AccountAddress,
 		&prevNodeRegistration.RegistrationHeight,
 		&prevNodeRegistration.NodeAddress,
 		&prevNodeRegistration.LockedBalance,
@@ -236,13 +223,13 @@ func (tx *UpdateNodeRegistration) Validate() error {
 		}
 	}
 
-	rows, err = tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID))
+	rows, err = tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress))
 
 	if err != nil {
 		return err
 	} else if rows.Next() {
 		_ = rows.Scan(
-			&accountBalance.AccountID,
+			&accountBalance.AccountAddress,
 			&accountBalance.BlockHeight,
 			&accountBalance.SpendableBalance,
 			&accountBalance.Balance,

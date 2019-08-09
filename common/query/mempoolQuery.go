@@ -82,8 +82,8 @@ func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface
 		mempool.FeePerByte,
 		mempool.ArrivalTimestamp,
 		mempool.TransactionBytes,
-		mempool.SenderAccountID,
-		mempool.RecipientAccountID,
+		mempool.SenderAccountAddress,
+		mempool.RecipientAccountAddress,
 	}
 }
 
@@ -97,8 +97,8 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 			&mempool.FeePerByte,
 			&mempool.ArrivalTimestamp,
 			&mempool.TransactionBytes,
-			&mempool.SenderAccountID,
-			&mempool.RecipientAccountID,
+			&mempool.SenderAccountAddress,
+			&mempool.RecipientAccountAddress,
 		)
 		mempools = append(mempools, &mempool)
 	}

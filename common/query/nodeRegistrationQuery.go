@@ -15,7 +15,7 @@ type (
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
-		GetNodeRegistrationByAccountID(accountPublicKey []byte) (str string, args []interface{})
+		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
 	}
@@ -28,7 +28,7 @@ type (
 
 func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 	return &NodeRegistrationQuery{
-		Fields: []string{"id", "node_public_key", "account_id", "registration_height", "node_address", "locked_balance", "queued",
+		Fields: []string{"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance", "queued",
 			"latest", "height"},
 		TableName: "node_registry",
 	}
@@ -80,9 +80,9 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKe
 }
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
-func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountID(accountPublicKey []byte) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_id = %d AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName(), accountPublicKey), []interface{}{accountPublicKey}
+func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %d AND latest=1",
+		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress), []interface{}{accountAddress}
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
@@ -90,7 +90,7 @@ func (*NodeRegistrationQuery) ExtractModel(nr *model.NodeRegistration) []interfa
 	return []interface{}{
 		nr.NodeID,
 		nr.NodePublicKey,
-		nr.AccountId,
+		nr.AccountAddress,
 		nr.RegistrationHeight,
 		nr.NodeAddress,
 		nr.LockedBalance,
@@ -108,7 +108,7 @@ func (*NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistra
 		_ = rows.Scan(
 			&nr.NodeID,
 			&nr.NodePublicKey,
-			&nr.AccountId,
+			&nr.AccountAddress,
 			&nr.RegistrationHeight,
 			&nr.NodeAddress,
 			&nr.LockedBalance,

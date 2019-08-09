@@ -9,7 +9,6 @@ import (
 func GetFixtures() (poownMessage *model.ProofOfOwnershipMessage, poown *model.ProofOfOwnership,
 	txBody *model.NodeRegistrationTransactionBody, txBodyBytes []byte) {
 
-	senderAccountType := uint32(0)
 	senderAddress := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 	senderSeed := "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	poownMessage = &model.ProofOfOwnershipMessage{
@@ -23,7 +22,6 @@ func GetFixtures() (poownMessage *model.ProofOfOwnershipMessage, poown *model.Pr
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
 	poownSignature := crypto.NewSignature().Sign(
 		poownMessageBytes,
-		senderAccountType,
 		senderAddress,
 		senderSeed,
 	)
@@ -34,7 +32,6 @@ func GetFixtures() (poownMessage *model.ProofOfOwnershipMessage, poown *model.Pr
 	txBody = &model.NodeRegistrationTransactionBody{
 		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
 			63, 224, 101, 127, 241, 62, 152, 187, 255},
-		AccountType:        0,
 		AccountAddress:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		RegistrationHeight: 0,
 		NodeAddressLength:  9,
