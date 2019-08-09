@@ -12,6 +12,7 @@ import (
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
+	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixtures()
 	type fields struct {
 		Executor query.ExecutorInterface
 	}
@@ -138,19 +139,21 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
-						NodeRegistrationTransactionBody: &model.NodeRegistrationTransactionBody{},
+						NodeRegistrationTransactionBody: nodeRegistrationBody,
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{2, 0, 0, 0}),
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 0, 0, 0}),
+					TransactionBodyBytes: nodeRegistrationBodyBytes,
 				},
 			},
 			want: &NodeRegistration{
-				Height:              0,
-				SenderAccountType:   0,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Body:                &model.NodeRegistrationTransactionBody{},
-				QueryExecutor:       &query.Executor{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountQuery:        query.NewAccountQuery(),
+				Height:                0,
+				SenderAccountType:     0,
+				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				Body:                  nodeRegistrationBody,
+				QueryExecutor:         &query.Executor{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				AccountQuery:          query.NewAccountQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 		},
 		{

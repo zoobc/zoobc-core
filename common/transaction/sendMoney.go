@@ -1,9 +1,11 @@
 package transaction
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -202,7 +204,7 @@ func (tx *SendMoney) Validate() error {
 		}
 		defer rows.Close()
 
-		if accountBalance.SpendableBalance < tx.Body.GetAmount() {
+		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
 			return errors.New("transaction amount not enough")
 		}
 	}
@@ -216,6 +218,21 @@ func (tx *SendMoney) GetAmount() int64 {
 
 // GetSize send money Amount should be 8
 func (*SendMoney) GetSize() uint32 {
-	// only amount (int64)
-	return 8
+	// only amount
+	return constant.Balance
+}
+
+// ParseBodyBytes read and translate body bytes to body implementation fields
+func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+	amount := util.ConvertBytesToUint64(txBodyBytes)
+	return &model.SendMoneyTransactionBody{
+		Amount: int64(amount),
+	}
+}
+
+// GetBodyBytes translate tx body to bytes representation
+func (tx *SendMoney) GetBodyBytes() []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
+	return buffer.Bytes()
 }

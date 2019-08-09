@@ -14,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
 
 	"google.golang.org/grpc"
 )
@@ -25,6 +26,7 @@ var (
 // ServerService represent data service node as server
 type ServerService struct {
 	BlockServices map[int32]coreService.BlockServiceInterface
+	Observer      *observer.Observer
 }
 
 var serverServiceInstance *ServerService
@@ -36,10 +38,11 @@ func init() {
 	}
 }
 
-func NewServerService(blockServices map[int32]coreService.BlockServiceInterface) *ServerService {
+func NewServerService(blockServices map[int32]coreService.BlockServiceInterface, obsr *observer.Observer) *ServerService {
 	if serverServiceInstance == nil {
 		serverServiceInstance = &ServerService{
 			BlockServices: blockServices,
+			Observer:      obsr,
 		}
 	}
 	return serverServiceInstance
@@ -246,4 +249,16 @@ func (ss *ServerService) GetNextBlocks(ctx context.Context, req *model.GetNextBl
 		blocksMessage = append(blocksMessage, block)
 	}
 	return &model.BlocksData{Blocks: blocksMessage}, nil
+}
+
+// SendBlock receive block from other node and calling BlockReceived Event
+func (ss *ServerService) SendBlock(ctx context.Context, req *model.Block) (*model.Empty, error) {
+	ss.Observer.Notify(observer.BlockReceived, req, nil)
+	return &model.Empty{}, nil
+}
+
+// SendTransaction receive transaction from other node and calling TransactionReceived Event
+func (ss *ServerService) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Empty, error) {
+	ss.Observer.Notify(observer.TransactionReceived, req.GetTransactionBytes(), nil)
+	return &model.Empty{}, nil
 }

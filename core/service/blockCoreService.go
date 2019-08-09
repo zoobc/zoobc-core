@@ -1,7 +1,7 @@
 package service
 
 import (
-	"database/sql"
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -53,6 +54,7 @@ type (
 		GetChainType() contract.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
+		ReceivedBlockListener() observer.Listener
 	}
 
 	BlockService struct {
@@ -66,6 +68,7 @@ type (
 		MempoolService      MempoolServiceInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Observer            *observer.Observer
 	}
 )
 
@@ -79,6 +82,7 @@ func NewBlockService(
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	obsr *observer.Observer,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:           ct,
@@ -90,6 +94,7 @@ func NewBlockService(
 		MempoolService:      mempoolService,
 		ActionTypeSwitcher:  txTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
+		Observer:            obsr,
 	}
 }
 
@@ -125,7 +130,7 @@ func (bs *BlockService) NewBlock(
 		PayloadLength:     payloadLength,
 	}
 	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
-	block.BlockSignature = bs.Signature.SignBlock(blockUnsignedByte, secretPhrase)
+	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
 	return block
 }
 
@@ -247,6 +252,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		return err
 	}
 	// broadcast block
+	bs.Observer.Notify(observer.BlockPushed, block, nil)
 	return nil
 
 }
@@ -272,27 +278,6 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 	return &model.Block{
 		ID: -1,
 	}, errors.New("BlockNotFound")
-}
-
-// GetBlockByHeight fetches a single block from Blockchain by providing block size
-func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	var (
-		err  error
-		bl   []*model.Block
-		rows *sql.Rows
-	)
-
-	rows, err = bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height))
-	if err != nil {
-		fmt.Printf("GetBlockByHeight fails %v\n", err)
-		return nil, err
-	}
-	defer rows.Close()
-	bl = bs.BlockQuery.BuildModel(bl, rows)
-	if len(bl) == 0 {
-		return nil, errors.New("BlockNotFound")
-	}
-	return bl[0], nil
 }
 
 func (bs *BlockService) GetBlocksFromHeight(startHeight uint32, limit uint32) ([]*model.Block, error) {
@@ -331,6 +316,30 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	return &model.Block{
 		ID: -1,
 	}, errors.New("BlockNotFound")
+}
+
+// GetLastBlock return the last pushed block
+func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height))
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
+	if err != nil {
+		return &model.Block{
+			ID: -1,
+		}, err
+	}
+	var blocks []*model.Block
+	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	if len(blocks) > 0 {
+		return blocks[0], nil
+	}
+	return &model.Block{
+		ID: -1,
+	}, errors.New("BlockNotFound")
+
 }
 
 // GetGenesis return the last pushed block
@@ -527,6 +536,7 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
+	fmt.Printf("\n\ngenesis block: %v\n\n ", block)
 	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
 	if err != nil {
 		panic("PushGenesisBlock:fail")
@@ -544,4 +554,49 @@ func (bs *BlockService) CheckGenesis() bool {
 		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
 	return true
+}
+
+// CheckSignatureBlock check signature of block
+func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
+	if block.GetBlockSignature() != nil {
+		blockUnsignedByte, err := coreUtil.GetBlockByte(block, false)
+		if err != nil {
+			return false
+		}
+		accountAddress, err := util.GetAddressFromPublicKey(block.GetBlocksmithID())
+		if err != nil {
+			return false
+		}
+		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), 0, accountAddress)
+	}
+	return false
+}
+
+// ReceivedBlockListener handle received block from another node
+func (bs *BlockService) ReceivedBlockListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			receivedBlock := block.(*model.Block)
+			// make sure block has previous block hash
+			if receivedBlock.GetPreviousBlockHash() != nil {
+				if bs.CheckSignatureBlock(receivedBlock) {
+					lastBlock, err := bs.GetLastBlock()
+					if err != nil {
+						return
+					}
+
+					lastBlockByte, _ := coreUtil.GetBlockByte(lastBlock, true)
+					lastBlockHash := sha3.Sum512(lastBlockByte)
+
+					//  check equality last block hash with previous block hash from received block
+					if bytes.Equal(lastBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
+						err := bs.PushBlock(lastBlock, receivedBlock, true)
+						if err != nil {
+							return
+						}
+					}
+				}
+			}
+		},
+	}
 }

@@ -216,10 +216,9 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b5936d38011189ba9b2e5890a38c7ffe0ac7f157eef2ddc0fe752117c50d394d"
+  digest = "1:d31a812696686f0059241fa6c3b56d89ada56dddde4db1d5036de5c1084000c5"
   name = "golang.org/x/net"
   packages = [
-    "context",
     "http/httpguts",
     "http2",
     "http2/hpack",
@@ -346,7 +345,6 @@
     "github.com/tyler-smith/go-bip39",
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/sha3",
-    "golang.org/x/net/context",
     "google.golang.org/genproto/googleapis/api/annotations",
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",

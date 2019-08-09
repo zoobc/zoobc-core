@@ -7,11 +7,9 @@ import (
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
-	"google.golang.org/grpc"
 )
 
 // NewHost to initialize new server node
@@ -76,22 +74,10 @@ func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
 }
 
-func GrpcDialer(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(GetFullAddressPeer(destinationPeer), grpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}
-
 func ServerListener(port int) net.Listener {
 	serv, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	return serv
-}
-
-func GetTickerTime(duration uint) *time.Ticker {
-	return time.NewTicker(time.Duration(duration) * time.Second)
 }

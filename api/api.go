@@ -17,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc"
 )
 
@@ -43,8 +44,8 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
-		query.NewAccountBalanceQuery())
-
+		query.NewAccountBalanceQuery(),
+		observer.NewObserver())
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		apiLogger.Fatalf("failed to listen: %v\n", err)
@@ -71,6 +72,12 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	rpc_service.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
 		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices),
 	})
+
+	// Set GRPC handler for account balance requests
+	rpc_service.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{Service: service.NewAccountBalanceService(
+		queryExecutor,
+		query.NewAccountBalanceQuery(),
+	)})
 
 	// run grpc-gateway handler
 	go func() {

@@ -8,7 +8,7 @@ import (
 type (
 	SignatureInterface interface {
 		Sign(payload []byte, accountType uint32, accountAddress, seed string) []byte
-		SignBlock(payload []byte, nodeSeed string) []byte
+		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountType uint32, accountAddress string) bool
 	}
 
@@ -37,8 +37,8 @@ func (sig *Signature) Sign(payload []byte, accountType uint32, accountAddress, s
 	}
 }
 
-// SignBlock special method for signing block only, there will be no multiple signature options
-func (*Signature) SignBlock(payload []byte, nodeSeed string) []byte {
+// SignByNode special method for signing block only, there will be no multiple signature options
+func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSeed)
 	return ed25519.Sign(nodePrivateKey, payload)
 }
@@ -57,4 +57,11 @@ func (*Signature) VerifySignature(payload, signature []byte, accountType uint32,
 		result := ed25519.Verify(accountPublicKey, payload, signature)
 		return result
 	}
+}
+
+// VerifyNodeSignature Verify a signature of a block or message signed with a node private key
+// Note: this function is a wrapper around the ed25519 algorithm
+func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
+	result := ed25519.Verify(nodePublicKey, payload, signature)
+	return result
 }

@@ -14,6 +14,8 @@ type (
 		Validate() error
 		GetAmount() int64
 		GetSize() uint32
+		ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface
+		GetBodyBytes() []byte
 	}
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) TypeAction
@@ -36,11 +38,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 1:
 		switch buf[1] {
 		case 0:
-			sendMoneyTxAmount := util.ConvertBytesToUint64(tx.GetTransactionBodyBytes())
+			sendMoneyBody := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &SendMoney{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: int64(sendMoneyTxAmount),
-				},
+				Body:                 sendMoneyBody.(*model.SendMoneyTransactionBody),
 				Fee:                  tx.Fee,
 				SenderAddress:        tx.GetSenderAccountAddress(),
 				SenderAccountType:    tx.GetSenderAccountType(),
@@ -57,14 +57,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 	case 2:
 		switch buf[1] {
 		case 0:
+			nodeRegistrationBody := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &NodeRegistration{
-				Body:                tx.GetNodeRegistrationTransactionBody(),
-				SenderAddress:       tx.GetSenderAccountAddress(),
-				SenderAccountType:   tx.GetSenderAccountType(),
-				Height:              tx.GetHeight(),
-				AccountQuery:        query.NewAccountQuery(),
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				QueryExecutor:       ts.Executor,
+				Body:                  nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
+				Fee:                   tx.Fee,
+				SenderAddress:         tx.GetSenderAccountAddress(),
+				SenderAccountType:     tx.GetSenderAccountType(),
+				Height:                tx.GetHeight(),
+				AccountQuery:          query.NewAccountQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         ts.Executor,
 			}
 		default:
 			return nil
