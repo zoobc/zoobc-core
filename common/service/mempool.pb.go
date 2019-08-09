@@ -10,8 +10,6 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -93,17 +91,6 @@ func (c *mempoolServiceClient) GetMempoolTransaction(ctx context.Context, in *mo
 type MempoolServiceServer interface {
 	GetMempoolTransactions(context.Context, *model.GetMempoolTransactionsRequest) (*model.GetMempoolTransactionsResponse, error)
 	GetMempoolTransaction(context.Context, *model.GetMempoolTransactionRequest) (*model.MempoolTransaction, error)
-}
-
-// UnimplementedMempoolServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedMempoolServiceServer struct {
-}
-
-func (*UnimplementedMempoolServiceServer) GetMempoolTransactions(ctx context.Context, req *model.GetMempoolTransactionsRequest) (*model.GetMempoolTransactionsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMempoolTransactions not implemented")
-}
-func (*UnimplementedMempoolServiceServer) GetMempoolTransaction(ctx context.Context, req *model.GetMempoolTransactionRequest) (*model.MempoolTransaction, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMempoolTransaction not implemented")
 }
 
 func RegisterMempoolServiceServer(s *grpc.Server, srv MempoolServiceServer) {

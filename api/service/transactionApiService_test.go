@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -54,15 +55,6 @@ type (
 		service.MempoolService
 	}
 	mockGetTransactionExecutorTxsFail struct {
-		query.Executor
-	}
-	mockGetTransactionExecutorTotalFail struct {
-		query.Executor
-	}
-	mockGetTransactionExecutorTotalFailRow struct {
-		query.Executor
-	}
-	mockGetTransactionExecutorSuccess struct {
 		query.Executor
 	}
 	mockGetTransactionExecutorTxNoRow struct {
@@ -143,28 +135,6 @@ func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(qe string, args ...inter
 	return nil, errors.New("mockError:getTxsFail")
 }
 
-func (*mockGetTransactionExecutorTotalFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, " +
-		"recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, " +
-		"transaction_body_bytes, signature, version from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,2":
-		mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "BlockID", "Height", "SenderAccountType", "SenderAccountAddress", "RecipientAccountType", "RecipientAccountAddress",
-			"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
-			"Version",
-		}).AddRow(4545420970999433273, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
-		).AddRow(
-			4545420970999433274, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1))
-	default:
-		return nil, errors.New("mockError:totalFail")
-	}
-	return db.Query(qe)
-}
-
 func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -185,55 +155,6 @@ func (*mockGetTransactionExecutorTxSuccess) ExecuteSelect(qe string, args ...int
 	}).AddRow(4545420970999433273, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
 	))
-	return db.Query(qe)
-}
-
-func (*mockGetTransactionExecutorTotalFailRow) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, " +
-		"recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, " +
-		"transaction_body_bytes, signature, version from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,2":
-		mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "BlockID", "Height", "SenderAccountType", "SenderAccountAddress", "RecipientAccountType", "RecipientAccountAddress",
-			"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature", "Version",
-		}).AddRow(4545420970999433273, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
-		).AddRow(
-			4545420970999433274, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1))
-	default:
-		mock.ExpectQuery("wrongRow").WillReturnRows(sqlmock.NewRows([]string{
-			"total_record",
-		}).AddRow("abc"))
-		return db.Query("wrongRow")
-	}
-	return db.Query(qe)
-}
-
-func (*mockGetTransactionExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case "SELECT id, block_id, block_height, sender_account_type, sender_account_address, recipient_account_type, " +
-		"recipient_account_address, transaction_type, fee, timestamp, transaction_hash, transaction_body_length, " +
-		"transaction_body_bytes, signature, version from \"transaction\" ORDER BY block_height, timestamp LIMIT 0,2":
-		mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "BlockID", "Height", "SenderAccountType", "SenderAccountAddress", "RecipientAccountType", "RecipientAccountAddress",
-			"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
-			"Version",
-		}).AddRow(4545420970999433273, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
-		).AddRow(
-			4545420970999433274, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1))
-	default:
-		mock.ExpectQuery("total-success").WillReturnRows(sqlmock.NewRows([]string{
-			"total_record",
-		}).AddRow(2))
-		return db.Query("total-success")
-	}
 	return db.Query(qe)
 }
 
@@ -265,7 +186,7 @@ func (*mockTransactionExecutorCommitFail) CommitTx() error {
 	return errors.New("mockedError")
 }
 
-func TestNewTransactionervice(t *testing.T) {
+func TestNewTransactionService(t *testing.T) {
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error while opening database connection")
@@ -529,9 +450,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				BlockID:                 0,
 				Height:                  0,
 				Timestamp:               1562806389280,
-				SenderAccountType:       0,
 				SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-				RecipientAccountType:    0,
 				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				Fee:                     1000000,
 				TransactionHash: []byte{75, 232, 57, 223, 87, 35, 155, 219, 42, 153, 22, 92, 243, 248, 88, 113, 184, 206, 205,
@@ -565,6 +484,45 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 	}
 }
 
+type (
+	mockQueryGetTransactionsFail struct {
+		query.Executor
+	}
+	mockQueryGetTransactionsSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryGetTransactionsFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("want error")
+}
+func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	switch strings.Contains(qStr, "total_record") {
+	case true:
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
+	default:
+		mock.ExpectQuery("").
+			WillReturnRows(sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).
+				AddRow(
+					4545420970999433273,
+					1,
+					1,
+					"senderA",
+					"recipientA",
+					1,
+					1,
+					10000,
+					[]byte{1, 1},
+					8,
+					[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+					[]byte{0, 0, 0, 0, 0, 0, 0},
+					1,
+				),
+			)
+	}
+	return db.Query("")
+}
 func TestTransactionService_GetTransactions(t *testing.T) {
 	type fields struct {
 		Query              query.ExecutorInterface
@@ -584,9 +542,25 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetTransactions:executeSelectGetTxsFail",
+			name: "RequestFilledExecuteSelectGetTxsFail",
 			fields: fields{
-				Query: &mockGetTransactionExecutorTxsFail{},
+				Query: &mockQueryGetTransactionsFail{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				params: &model.GetTransactionsRequest{
+					Limit:          2,
+					Offset:         0,
+					AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "RequestExceptAccountAddressExecuteSelectGetTxsFail",
+			fields: fields{
+				Query: &mockQueryGetTransactionsFail{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -599,75 +573,27 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetTransactions:executeSelectGetTotalFail",
+			name: "RequestSuccess",
 			fields: fields{
-				Query: &mockGetTransactionExecutorTotalFail{},
+				Query: &mockQueryGetTransactionsSuccess{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
-					Limit:  2,
-					Offset: 0,
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "GetTransactions:executeSelectGetTotalFailRow",
-			fields: fields{
-				Query: &mockGetTransactionExecutorTotalFailRow{},
-			},
-			args: args{
-				chainType: &chaintype.MainChain{},
-				params: &model.GetTransactionsRequest{
-					Limit:  2,
-					Offset: 0,
-				},
-			},
-			want:    &model.GetTransactionsResponse{},
-			wantErr: true,
-		},
-		{
-			name: "GetTransactions:executeSelectGetTotalFailRow",
-			fields: fields{
-				Query: &mockGetTransactionExecutorSuccess{},
-			},
-			args: args{
-				chainType: &chaintype.MainChain{},
-				params: &model.GetTransactionsRequest{
-					Limit:  2,
-					Offset: 0,
+					Limit:          1,
+					Offset:         0,
+					AccountAddress: "accountA",
 				},
 			},
 			want: &model.GetTransactionsResponse{
-				Count: 2,
-				Total: 2,
+				Count: 1,
+				Total: 1,
 				Transactions: []*model.Transaction{
 					{
 						ID:                      4545420970999433273,
 						BlockID:                 1,
 						Height:                  1,
-						SenderAccountType:       0,
 						SenderAccountAddress:    "senderA",
-						RecipientAccountType:    0,
-						RecipientAccountAddress: "recipientA",
-						TransactionType:         1,
-						Fee:                     1,
-						Timestamp:               10000,
-						TransactionHash:         []byte{1, 1},
-						TransactionBodyLength:   8,
-						TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-						Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
-						Version:                 1,
-					},
-					{
-						ID:                      4545420970999433274,
-						BlockID:                 1,
-						Height:                  1,
-						SenderAccountType:       0,
-						SenderAccountAddress:    "senderA",
-						RecipientAccountType:    0,
 						RecipientAccountAddress: "recipientA",
 						TransactionType:         1,
 						Fee:                     1,
@@ -693,11 +619,11 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 			}
 			got, err := ts.GetTransactions(tt.args.chainType, tt.args.params)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("TransactionService.GetTransactions() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("TransactionService.GetTransactions() error = \n %v, wantErr = \n %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TransactionService.GetTransactions() = %v, want %v", got, tt.want)
+				t.Errorf("TransactionService.GetTransactions() got = \n %v, want = \n %v", got, tt.want)
 			}
 		})
 	}
@@ -765,9 +691,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				ID:                      4545420970999433273,
 				BlockID:                 1,
 				Height:                  1,
-				SenderAccountType:       0,
 				SenderAccountAddress:    "senderA",
-				RecipientAccountType:    0,
 				RecipientAccountAddress: "recipientA",
 				TransactionType:         1,
 				Fee:                     1,

@@ -93,16 +93,32 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.TotalFee,
 		block.TotalCoinBase,
 		block.Version,
+		block.PayloadLength,
+		block.PayloadHash,
+		block.Transactions,
 	}
 }
 
 func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block {
 	for rows.Next() {
 		var block model.Block
-		_ = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed,
-			&block.BlockSignature, &block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength,
-			&block.PayloadHash, &block.BlocksmithAddress, &block.TotalAmount, &block.TotalFee,
-			&block.TotalCoinBase, &block.Version)
+		_ = rows.Scan(
+			&block.ID,
+			&block.PreviousBlockHash,
+			&block.Height,
+			&block.Timestamp,
+			&block.BlockSeed,
+			&block.BlockSignature,
+			&block.CumulativeDifficulty,
+			&block.SmithScale,
+			&block.PayloadLength,
+			&block.PayloadHash,
+			&block.BlocksmithAddress,
+			&block.TotalAmount,
+			&block.TotalFee,
+			&block.TotalCoinBase,
+			&block.Version,
+		)
 		blocks = append(blocks, &block)
 	}
 	return blocks
