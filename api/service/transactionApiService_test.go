@@ -60,9 +60,7 @@ type (
 	mockGetTransactionExecutorTxNoRow struct {
 		query.Executor
 	}
-	mockGetTransactionExecutorTxSuccess struct {
-		query.Executor
-	}
+
 	mockTransactionExecutorFailBeginTx struct {
 		query.Executor
 	}
@@ -142,19 +140,6 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, args ...inter
 		"ID", "BlockID", "Height", "SenderAccountType", "SenderAccountAddress", "RecipientAccountType", "RecipientAccountAddress",
 		"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
 		"Version"}))
-	return db.Query(qe)
-}
-
-func (*mockGetTransactionExecutorTxSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "BlockID", "Height", "SenderAccountType", "SenderAccountAddress", "RecipientAccountType", "RecipientAccountAddress",
-		"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
-		"Version",
-	}).AddRow(4545420970999433273, 1, 1, 0, "senderA", 0, "recipientA", 1, 1, 10000, []byte{1, 1}, 8, []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
-	))
 	return db.Query(qe)
 }
 
@@ -629,6 +614,32 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 	}
 }
 
+type (
+	mockQueryGetTransactionSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryGetTransactionSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).AddRow(
+			4545420970999433273,
+			1,
+			1,
+			"senderA",
+			"recipientA",
+			1,
+			1,
+			10000,
+			[]byte{1, 1},
+			8,
+			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+			[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
+		),
+	)
+	return db.Query("")
+}
 func TestTransactionService_GetTransaction(t *testing.T) {
 	type fields struct {
 		Query              query.ExecutorInterface
@@ -678,7 +689,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 		{
 			name: "GetTransaction:success",
 			fields: fields{
-				Query: &mockGetTransactionExecutorTxSuccess{},
+				Query: &mockQueryGetTransactionSuccess{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -718,7 +729,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TransactionService.GetTransaction() = %v, want %v", got, tt.want)
+				t.Errorf("TransactionService.GetTransaction() got = \n%v, want = \n%v", got, tt.want)
 			}
 		})
 	}
