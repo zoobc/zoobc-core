@@ -39,7 +39,6 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 				unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
 				tx.Signature = signature.Sign(
 					unsignedTxBytes,
-					tx.SenderAccountType,
 					tx.SenderAccountAddress,
 					seed,
 				)
@@ -64,15 +63,15 @@ func getTransaction(txType []byte) *model.Transaction {
 	case util.ConvertBytesToUint32(txTypeMap["sendMoney"]):
 		amount := int64(10000)
 		return &model.Transaction{
-			Version:                 1,
-			TransactionType:         util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
-			Timestamp:               time.Now().Unix(),
-			SenderAccountType:       0,
-			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountType:    0,
-			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			Fee:                     1,
-			TransactionBodyLength:   8,
+			Version:                       1,
+			TransactionType:               util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
+			Timestamp:                     time.Now().Unix(),
+			SenderAccountAddressLength:    uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddressLength: uint32(len("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                           1,
+			TransactionBodyLength:         8,
 			TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 				SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 					Amount: amount,
@@ -82,8 +81,8 @@ func getTransaction(txType []byte) *model.Transaction {
 		}
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
 		txBody := &model.NodeRegistrationTransactionBody{
-			AccountType:    0,
-			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			AccountAddressLength: uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+			AccountAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			NodePublicKey: []byte{
 				0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
 				101, 127, 241, 62, 152, 187, 255,
@@ -96,15 +95,15 @@ func getTransaction(txType []byte) *model.Transaction {
 			Body: txBody,
 		}).GetBodyBytes()
 		return &model.Transaction{
-			Version:                 1,
-			TransactionType:         util.ConvertBytesToUint32(txTypeMap["registerNode"]),
-			Timestamp:               time.Now().Unix(),
-			SenderAccountType:       0,
-			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountType:    0,
-			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			Fee:                     1,
-			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			Version:                       1,
+			TransactionType:               util.ConvertBytesToUint32(txTypeMap["registerNode"]),
+			Timestamp:                     time.Now().Unix(),
+			SenderAccountAddressLength:    uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddressLength: uint32(len("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                           1,
+			TransactionBodyLength:         uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 				NodeRegistrationTransactionBody: txBody,
 			},
