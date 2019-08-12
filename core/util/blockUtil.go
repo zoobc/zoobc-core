@@ -145,5 +145,20 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	if GetBlockID(block) == 0 {
 		return errors.New("duplicate block:TODO:conditionNotComplete")
 	}
+
+	previousBlockIDFromHash := new(big.Int)
+	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
+		block.PreviousBlockHash[7],
+		block.PreviousBlockHash[6],
+		block.PreviousBlockHash[5],
+		block.PreviousBlockHash[4],
+		block.PreviousBlockHash[3],
+		block.PreviousBlockHash[2],
+		block.PreviousBlockHash[1],
+		block.PreviousBlockHash[0],
+	}).Int64()
+	if previousLastBlock.ID != previousBlockIDFromHashInt {
+		return errors.New("previous block ID does not match with current previous_block_hash value")
+	}
 	return nil
 }
