@@ -14,6 +14,7 @@ type (
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
 		GetTransaction(id int64) string
 		GetTransactions(limit uint32, offset uint64) string
+		GetTransactionsByBlockID(blockID int64) (str string, argss []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 	}
@@ -88,6 +89,11 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
 		tq.getTableName(), strings.Join(tq.Fields, ", "), value)
 	return query, tq.ExtractModel(tx)
+}
+
+func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, argss []interface{}) {
+	query := fmt.Sprintf("SELECT %s from %s WHERE block_id = ?", strings.Join(tq.Fields, ", "), tq.getTableName())
+	return query, []interface{}{blockID}
 }
 
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields

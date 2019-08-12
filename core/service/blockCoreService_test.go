@@ -42,6 +42,22 @@ type (
 	}
 )
 
+var mockTransaction = &model.Transaction{
+	ID:                      1,
+	BlockID:                 1,
+	Height:                  0,
+	SenderAccountAddress:    "BCZ",
+	RecipientAccountAddress: "ZCB",
+	TransactionType:         1,
+	Fee:                     10,
+	Timestamp:               1000,
+	TransactionHash:         []byte{},
+	TransactionBodyLength:   8,
+	TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
+	Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
+	Version:                 1,
+}
+
 // mockTypeAction
 func (*mockTypeAction) ApplyConfirmed() error {
 	return nil
@@ -144,8 +160,27 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
 			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
+		"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version from \"transaction\" WHERE block_id = ?":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "BlockID", "BlockHeight", "SenderAccountAddress", "RecipientAccountAddress", "TransactionType",
+			"Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
+			"Version"},
+		).AddRow(
+			mockTransaction.ID,
+			mockTransaction.BlockID,
+			mockTransaction.Height,
+			mockTransaction.SenderAccountAddress,
+			mockTransaction.RecipientAccountAddress,
+			mockTransaction.TransactionType,
+			mockTransaction.Fee,
+			mockTransaction.Timestamp,
+			mockTransaction.TransactionHash,
+			mockTransaction.TransactionBodyLength,
+			mockTransaction.TransactionBodyBytes,
+			mockTransaction.Signature,
+			mockTransaction.Version))
 	}
-
 	rows, _ := db.Query(qe)
 	return rows, nil
 }
@@ -695,9 +730,10 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 		{
 			name: "GetLastBlock:Success", // All is good
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			want: &model.Block{
 				ID:                      1,
@@ -710,12 +746,15 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 				SmithScale:              1,
 				PayloadLength:           2,
 				PayloadHash:             []byte{},
-				BlocksmithAddressLength: 0,
+				BlocksmithAddressLength: 3,
 				BlocksmithAddress:       "BCZ",
 				TotalAmount:             0,
-				TotalFee:                0,
-				TotalCoinBase:           0,
-				Version:                 1,
+				Transactions: []*model.Transaction{
+					mockTransaction,
+				},
+				TotalFee:      0,
+				TotalCoinBase: 0,
+				Version:       1,
 			},
 			wantErr: false,
 		},
@@ -1309,7 +1348,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...inter
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
 		"Version",
-	}).AddRow(-1360700853772335847, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}).AddRow(2392517098252617169, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	return db.Query("")
 }
 
@@ -1480,9 +1519,10 @@ func TestBlockService_ReceivedBlockListener(t *testing.T) {
 		{
 			name: "wantLastBlockAndPrevBlockNotEqual",
 			fields: fields{
-				Signature:     &mockSignature{},
-				QueryExecutor: &mockQueryExecutorSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			args: args{
 				&model.Block{
@@ -1514,9 +1554,10 @@ func TestBlockService_ReceivedBlockListener(t *testing.T) {
 		{
 			name: "wantGetLasBlockFail",
 			fields: fields{
-				Signature:     &mockSignature{},
-				QueryExecutor: &mockQueryExecuteNotNil{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+				QueryExecutor:    &mockQueryExecuteNotNil{},
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			args: args{
 				&model.Block{
