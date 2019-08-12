@@ -151,9 +151,6 @@ func (ts *TransactionService) PostTransaction(
 	chaintype contract.ChainType,
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
-	var (
-		senderAccountID, recipientAccountID []byte
-	)
 	txBytes := req.TransactionBytes
 	// get unsigned bytes
 	tx, err := util.ParseTransactionBytes(txBytes, true)
@@ -163,22 +160,14 @@ func (ts *TransactionService) PostTransaction(
 	// Validate Tx
 	txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
 
-	if tx.RecipientAccountAddress == "" {
-		recipientAccountID = nil
-	} else {
-		recipientAccountID = util.CreateAccountIDFromAddress(
-			tx.RecipientAccountType, tx.RecipientAccountAddress)
-	}
-	senderAccountID = util.CreateAccountIDFromAddress(
-		tx.SenderAccountType, tx.SenderAccountAddress)
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
-		FeePerByte:         0,
-		ID:                 tx.ID,
-		TransactionBytes:   txBytes,
-		ArrivalTimestamp:   time.Now().Unix(),
-		SenderAccountID:    senderAccountID,
-		RecipientAccountID: recipientAccountID,
+		FeePerByte:              0,
+		ID:                      tx.ID,
+		TransactionBytes:        txBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    tx.SenderAccountAddress,
+		RecipientAccountAddress: tx.RecipientAccountAddress,
 	}
 	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
 		return nil, err

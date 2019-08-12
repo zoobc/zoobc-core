@@ -37,10 +37,7 @@ func request_BlockService_GetBlocks_0(ctx context.Context, marshaler runtime.Mar
 	var protoReq model.GetBlocksRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BlockService_GetBlocks_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_BlockService_GetBlocks_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -57,10 +54,7 @@ func request_BlockService_GetBlock_0(ctx context.Context, marshaler runtime.Mars
 	var protoReq model.GetBlockRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_BlockService_GetBlock_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_BlockService_GetBlock_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -151,9 +145,9 @@ func RegisterBlockServiceHandlerClient(ctx context.Context, mux *runtime.ServeMu
 }
 
 var (
-	pattern_BlockService_GetBlocks_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "block", "GetBlocks"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_BlockService_GetBlocks_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "block", "GetBlocks"}, ""))
 
-	pattern_BlockService_GetBlock_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "block", "GetBlock"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_BlockService_GetBlock_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "block", "GetBlock"}, ""))
 )
 
 var (

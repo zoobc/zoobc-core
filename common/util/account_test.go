@@ -1,40 +1,9 @@
 package util
 
 import (
-	"math"
 	"reflect"
 	"testing"
 )
-
-func TestGetAccountIDByPublicKey(t *testing.T) {
-	type args struct {
-		accountType uint32
-		publicKey   []byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			name: "GetAccountIDByPublicKey:success",
-			args: args{
-				accountType: 0,
-				publicKey: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242,
-					84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11},
-			},
-			want: []byte{61, 173, 177, 191, 183, 169, 194, 0, 147, 155, 147, 2, 103, 251, 133, 203, 243, 56, 197, 6, 238, 74,
-				226, 190, 77, 169, 58, 218, 234, 86, 88, 130},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetAccountIDByPublicKey(tt.args.accountType, tt.args.publicKey); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetAccountIDByPublicKey() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestGetChecksumByte(t *testing.T) {
 	type args struct {
@@ -199,79 +168,6 @@ func TestGetPublicKeyFromAddress(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetPublicKeyFromAddress() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCreateAccountIDFromAddress(t *testing.T) {
-	type args struct {
-		accountType uint32
-		address     string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			name: "CreateAccountIDFromAddress:success",
-			args: args{
-				accountType: 0,
-				address:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			},
-			want: []byte{136, 106, 141, 253, 44, 34, 145, 81, 166, 229, 33, 209, 150, 188, 204, 28, 239, 33, 152, 158, 4, 187,
-				13, 109, 173, 223, 169, 232, 50, 200, 169, 25},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateAccountIDFromAddress(tt.args.accountType, tt.args.address); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateAccountIDFromAddress() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestValidateAccountAddress(t *testing.T) {
-	type args struct {
-		accType uint32
-		address string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "TestValidateAccountAddress:Default",
-			args: args{
-				accType: math.MaxUint32,
-				address: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			},
-			wantErr: true,
-		},
-		{
-			name: "TestValidateAccountAddress:0:success",
-			args: args{
-				accType: 0,
-				address: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			},
-			wantErr: false,
-		},
-		{
-			name: "TestValidateAccountAddress:0:wantErr",
-			args: args{
-				accType: 0,
-				address: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0",
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateAccountAddress(tt.args.accType, tt.args.address); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
