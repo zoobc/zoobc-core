@@ -66,9 +66,9 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                       1,
 			TransactionType:               util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
 			Timestamp:                     time.Now().Unix(),
-			SenderAccountAddressLength:    uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+			SenderAccountAddressLength:    uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
 			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddressLength: uint32(len("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+			RecipientAccountAddressLength: uint32(len([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"))),
 			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Fee:                           1,
 			TransactionBodyLength:         8,
@@ -81,7 +81,7 @@ func getTransaction(txType []byte) *model.Transaction {
 		}
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
 		txBody := &model.NodeRegistrationTransactionBody{
-			AccountAddressLength: uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+			AccountAddressLength: uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
 			AccountAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			NodePublicKey: []byte{
 				0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
@@ -98,9 +98,9 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                       1,
 			TransactionType:               util.ConvertBytesToUint32(txTypeMap["registerNode"]),
 			Timestamp:                     time.Now().Unix(),
-			SenderAccountAddressLength:    uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+			SenderAccountAddressLength:    uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
 			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddressLength: uint32(len("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J")),
+			RecipientAccountAddressLength: uint32(len([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"))),
 			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Fee:                           1,
 			TransactionBodyLength:         uint32(len(txBodyBytes)),
