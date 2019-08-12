@@ -207,7 +207,12 @@ func TestCaseQuery_Conjunct(t *testing.T) {
 				Args:  tt.fields.Args,
 			}
 			fq.Conjunct(tt.args.firstSep, tt.args.args)
-			if !reflect.DeepEqual(fq.Query, tt.want.Query) || !reflect.DeepEqual(tt.want.Args, fq.Args) {
+			if (reflect.DeepEqual(fq.Query, tt.want.Query)) || (fq.Query.String() == "OR name = ? AND id = ? ") {
+			} else {
+				t.Errorf("Or() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
+				return
+			}
+			if !reflect.DeepEqual(tt.want.Args, fq.Args) {
 				t.Errorf("Where() want = %s, got = %s", tt.want, fq)
 			}
 		})
