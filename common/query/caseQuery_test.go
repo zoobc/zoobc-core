@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+func sliceReverser(input []interface{}) []interface{} {
+	if len(input) == 0 {
+		return input
+	}
+	return append(sliceReverser(input[1:]), input[0])
+}
+
 func TestCaseQuery_Select(t *testing.T) {
 	type fields struct {
 		Query *bytes.Buffer
@@ -97,8 +104,17 @@ func TestCaseQuery_Where(t *testing.T) {
 				Args:  tt.fields.Args,
 			}
 			fq.Where(tt.args.args)
-			if !reflect.DeepEqual(fq.Query, tt.want.Query) || !reflect.DeepEqual(tt.want.Args, fq.Args) {
-				t.Errorf("Where() want = %s, got = %s", tt.want, fq)
+			switch {
+			case reflect.DeepEqual(fq.Query, tt.want.Query):
+				if !reflect.DeepEqual(tt.want.Args, fq.Args) {
+					t.Errorf("Where() want = %v, got = %v", tt.want.Args, fq.Args)
+				}
+			case fq.Query.String() == "WHERE name = ? AND id = ? ":
+				if !reflect.DeepEqual(sliceReverser(tt.want.Args), sliceReverser(fq.Args)) {
+					t.Errorf("Where() want = %v, got = %v", tt.want.Args, fq.Args)
+				}
+			default:
+				t.Errorf("Where() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
 			}
 		})
 	}
@@ -148,15 +164,18 @@ func TestCaseQuery_Or(t *testing.T) {
 				Args:  tt.fields.Args,
 			}
 			fq.Or(tt.args.args)
-			if (reflect.DeepEqual(fq.Query, tt.want.Query)) || (fq.Query.String() == "OR name = ? AND id = ? ") {
-			} else {
+			switch {
+			case reflect.DeepEqual(fq.Query, tt.want.Query):
+				if !reflect.DeepEqual(fq.Args, tt.want.Args) {
+					t.Errorf("Or() want = %s, got = %s", tt.want, fq)
+				}
+			case fq.Query.String() == "OR name = ? AND id = ?":
+				if !reflect.DeepEqual(sliceReverser(fq.Args), sliceReverser(tt.want.Args)) {
+					t.Errorf("Or() want = %s, got = %s", tt.want, fq)
+				}
+			default:
 				t.Errorf("Or() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
-				return
 			}
-			if !reflect.DeepEqual(tt.want.Args, fq.Args) {
-				t.Errorf("Or() want = %s, got = %s", tt.want, fq)
-			}
-
 		})
 	}
 }
@@ -207,13 +226,17 @@ func TestCaseQuery_Conjunct(t *testing.T) {
 				Args:  tt.fields.Args,
 			}
 			fq.Conjunct(tt.args.firstSep, tt.args.args)
-			if (reflect.DeepEqual(fq.Query, tt.want.Query)) || (fq.Query.String() == "OR name = ? AND id = ? ") {
-			} else {
-				t.Errorf("Or() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
-				return
-			}
-			if !reflect.DeepEqual(tt.want.Args, fq.Args) {
-				t.Errorf("Where() want = %s, got = %s", tt.want, fq)
+			switch {
+			case reflect.DeepEqual(fq.Query, tt.want.Query):
+				if !reflect.DeepEqual(fq.Args, tt.want.Args) {
+					t.Errorf("Where() want = %s, got = %s", tt.want, fq)
+				}
+			case fq.Query.String() == " OR name = ? AND id = ? ":
+				if !reflect.DeepEqual(sliceReverser(fq.Args), sliceReverser(tt.want.Args)) {
+					t.Errorf("Where() want = %s, got = %s", tt.want, fq)
+				}
+			default:
+				t.Errorf("Conjuct() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
 			}
 		})
 	}
