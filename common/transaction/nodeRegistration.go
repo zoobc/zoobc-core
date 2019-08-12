@@ -86,7 +86,7 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-(tx.Body.LockedBalance + tx.Fee),
 		map[string]interface{}{
-			"account_id": tx.SenderAddress,
+			"account_address": tx.SenderAddress,
 		},
 	)
 	// add row to node_registry table
