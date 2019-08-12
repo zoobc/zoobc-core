@@ -41,13 +41,13 @@ func NewBlockQuery(chaintype contract.ChainType) *BlockQuery {
 			"block_signature",
 			"cumulative_difficulty",
 			"smith_scale",
+			"payload_length",
+			"payload_hash",
 			"blocksmith_address",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
 			"version",
-			"payload_length",
-			"payload_hash",
 		},
 		TableName: "block",
 		ChainType: chaintype,
@@ -106,8 +106,6 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.TotalFee,
 		block.TotalCoinBase,
 		block.Version,
-		block.PayloadLength,
-		block.PayloadHash,
 	}
 }
 

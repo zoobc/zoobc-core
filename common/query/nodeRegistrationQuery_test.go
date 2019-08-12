@@ -103,7 +103,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByAccountPublicKey(t *testing.
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"queued, latest, height FROM node_registry WHERE account_id = [1] AND latest=1"
+			"queued, latest, height FROM node_registry WHERE account_address = BCZ AND latest=1"
 		wantArg := []interface{}{"BCZ"}
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
@@ -174,7 +174,7 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 func TestNodeRegistrationQuery_GetNodeRegistrationByID(t *testing.T) {
 	t.Run("GetNodeRegistrationByID:success", func(t *testing.T) {
 		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByID(1)
-		want := "SELECT id, node_public_key, account_id, registration_height, node_address, locked_balance," +
+		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance," +
 			" queued, latest, height FROM node_registry WHERE id = ? AND latest=1"
 		wantArg := []interface{}{int64(1)}
 		if res != want {

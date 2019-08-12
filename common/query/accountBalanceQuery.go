@@ -55,8 +55,9 @@ func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[
 		causedFields["block_height"], q.TableName)
 	// update or insert new account_balance row
 	updateBalanceQuery := fmt.Sprintf("INSERT INTO %s (account_address, block_height, spendable_balance, balance, pop_revenue, latest) "+
-		"SELECT account_address, %d, spendable_balance + %d, balance + %d, pop_revenue, latest FROM account_balance WHERE account_address = ? AND "+
-		"latest = 1 ON CONFLICT(account_address, block_height) DO UPDATE SET (spendable_balance, balance) = (SELECT "+
+		"SELECT account_address, %d, spendable_balance + %d, balance + %d, pop_revenue, latest FROM account_balance WHERE "+
+		"account_address = ? AND latest = 1 ON CONFLICT(account_address, block_height) "+
+		"DO UPDATE SET (spendable_balance, balance) = (SELECT "+
 		"spendable_balance + %d, balance + %d FROM %s WHERE account_address = ? AND latest = 1)",
 		q.TableName, causedFields["block_height"], balance, balance, balance, balance, q.TableName)
 

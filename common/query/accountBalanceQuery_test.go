@@ -113,7 +113,8 @@ func TestAccountBalanceQuery_InsertAccountBalance(t *testing.T) {
 	t.Run("InsertAccountBalance:success", func(t *testing.T) {
 
 		q, args := mockAccountBalanceQuery.InsertAccountBalance(mockAccountBalance)
-		wantQ := "INSERT INTO account_balance (account_address,block_height,spendable_balance,balance,pop_revenue,latest) VALUES(? , ?, ?, ?, ?, ?)"
+		wantQ := "INSERT INTO account_balance (account_address,block_height,spendable_balance,balance,pop_revenue,latest) " +
+			"VALUES(? , ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
 			mockAccountBalance.AccountAddress, mockAccountBalance.BlockHeight, mockAccountBalance.SpendableBalance, mockAccountBalance.Balance,
 			mockAccountBalance.PopRevenue, true,
