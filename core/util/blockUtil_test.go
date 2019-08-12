@@ -342,6 +342,9 @@ func TestValidateBlock(t *testing.T) { //todo:update test after applying signatu
 		previousLastBlock *model.Block
 		curTime           int64
 	}
+	previousBlockID := new(big.Int).SetBytes([]byte{
+		7, 6, 5, 4, 3, 2, 1, 0,
+	}).Int64()
 	tests := []struct {
 		name    string
 		args    args
@@ -350,9 +353,13 @@ func TestValidateBlock(t *testing.T) { //todo:update test after applying signatu
 		{
 			name: "wantSuccess:ErrorNil",
 			args: args{
-				block:             &model.Block{},
-				previousLastBlock: &model.Block{},
-				curTime:           12345678,
+				block: &model.Block{
+					PreviousBlockHash: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8},
+				},
+				previousLastBlock: &model.Block{
+					ID: previousBlockID,
+				},
+				curTime: 12345678,
 			},
 			wantErr: false,
 		},
