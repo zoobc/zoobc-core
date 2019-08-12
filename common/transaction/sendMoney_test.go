@@ -75,19 +75,6 @@ func (*executorAccountCreateSuccess) ExecuteTransactions([][]interface{}) error 
 	return nil
 }
 
-func (*executorAccountCreateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
-		query.NewAccountQuery().Fields,
-	))
-	return db.Query(qStr, 1)
-}
-
 func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 
@@ -164,7 +151,6 @@ func TestSendMoney_Validate(t *testing.T) {
 		RecipientAccountType uint32
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	tests := []struct {
@@ -217,7 +203,6 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor: &executorAccountCreateSuccess{
 					query.Executor{
@@ -238,7 +223,6 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor: &executorAccountCountFail{
 					query.Executor{
@@ -259,7 +243,6 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor: &executorAccountCountSuccess{
 					query.Executor{
@@ -280,7 +263,6 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor: &executorValidateSuccess{
 					query.Executor{
@@ -294,15 +276,12 @@ func TestSendMoney_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                 tt.fields.Body,
-				SenderAddress:        tt.fields.SenderAddress,
-				SenderAccountType:    tt.fields.SenderAccountType,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				RecipientAccountType: tt.fields.RecipientAccountType,
-				Height:               tt.fields.Height,
-				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
-				AccountQuery:         tt.fields.AccountQuery,
-				QueryExecutor:        tt.fields.QueryExecutor,
+				Body:                tt.fields.Body,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if err := tx.Validate(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -323,7 +302,6 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 		RecipientAccountType uint32
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	tests := []struct {
@@ -342,7 +320,6 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorUnconfirmedFail{},
 			},
@@ -359,7 +336,6 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorApplyUnconfirmedSuccess{},
 			},
@@ -369,15 +345,12 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                 tt.fields.Body,
-				SenderAddress:        tt.fields.SenderAddress,
-				SenderAccountType:    tt.fields.SenderAccountType,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				RecipientAccountType: tt.fields.RecipientAccountType,
-				Height:               tt.fields.Height,
-				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
-				AccountQuery:         tt.fields.AccountQuery,
-				QueryExecutor:        tt.fields.QueryExecutor,
+				Body:                tt.fields.Body,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -398,7 +371,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 		RecipientAccountType uint32
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	tests := []struct {
@@ -417,7 +389,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor: &executorAccountCountSuccess{
 					query.Executor{
@@ -438,7 +409,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor: &executorAccountCountFail{
 					query.Executor{
@@ -459,7 +429,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorFailUpdateAccount{},
 			},
@@ -476,7 +445,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorSuccessUpdateAccount{},
 			},
@@ -487,15 +455,12 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                 tt.fields.Body,
-				SenderAddress:        tt.fields.SenderAddress,
-				SenderAccountType:    tt.fields.SenderAccountType,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				RecipientAccountType: tt.fields.RecipientAccountType,
-				Height:               tt.fields.Height,
-				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
-				AccountQuery:         tt.fields.AccountQuery,
-				QueryExecutor:        tt.fields.QueryExecutor,
+				Body:                tt.fields.Body,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -513,7 +478,6 @@ func TestSendMoney_GetAmount(t *testing.T) {
 		RecipientAccountType uint32
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	tests := []struct {
@@ -532,7 +496,6 @@ func TestSendMoney_GetAmount(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorSuccessUpdateAccount{},
 			},
@@ -542,15 +505,12 @@ func TestSendMoney_GetAmount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                 tt.fields.Body,
-				SenderAddress:        tt.fields.SenderAddress,
-				SenderAccountType:    tt.fields.SenderAccountType,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				RecipientAccountType: tt.fields.RecipientAccountType,
-				Height:               tt.fields.Height,
-				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
-				AccountQuery:         tt.fields.AccountQuery,
-				QueryExecutor:        tt.fields.QueryExecutor,
+				Body:                tt.fields.Body,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if got := tx.GetAmount(); got != tt.want {
 				t.Errorf("SendMoney.GetAmount() = %v, want %v", got, tt.want)
@@ -578,7 +538,6 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 		RecipientAccountType uint32
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		AccountQuery         query.AccountQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	tests := []struct {
@@ -597,7 +556,6 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorAccountCountSuccess{},
 			},
@@ -614,7 +572,6 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountQuery:         query.NewAccountQuery(),
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorAccountCountFail{},
 			},
@@ -624,15 +581,12 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                 tt.fields.Body,
-				SenderAddress:        tt.fields.SenderAddress,
-				SenderAccountType:    tt.fields.SenderAccountType,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				RecipientAccountType: tt.fields.RecipientAccountType,
-				Height:               tt.fields.Height,
-				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
-				AccountQuery:         tt.fields.AccountQuery,
-				QueryExecutor:        tt.fields.QueryExecutor,
+				Body:                tt.fields.Body,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)

@@ -32,8 +32,22 @@ type (
 // NewBlockQuery returns BlockQuery instance
 func NewBlockQuery(chaintype contract.ChainType) *BlockQuery {
 	return &BlockQuery{
-		Fields: []string{"id", "previous_block_hash", "height", "timestamp", "block_seed", "block_signature", "cumulative_difficulty",
-			"smith_scale", "payload_length", "payload_hash", "blocksmith_id", "total_amount", "total_fee", "total_coinbase", "version",
+		Fields: []string{
+			"id",
+			"previous_block_hash",
+			"height",
+			"timestamp",
+			"block_seed",
+			"block_signature",
+			"cumulative_difficulty",
+			"smith_scale",
+			"payload_length",
+			"payload_hash",
+			"blocksmith_address",
+			"total_amount",
+			"total_fee",
+			"total_coinbase",
+			"version",
 		},
 		TableName: "block",
 		ChainType: chaintype,
@@ -87,7 +101,7 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.SmithScale,
 		block.PayloadLength,
 		block.PayloadHash,
-		block.BlocksmithID,
+		block.BlocksmithAddress,
 		block.TotalAmount,
 		block.TotalFee,
 		block.TotalCoinBase,
@@ -98,10 +112,23 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block {
 	for rows.Next() {
 		var block model.Block
-		_ = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed,
-			&block.BlockSignature, &block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength,
-			&block.PayloadHash, &block.BlocksmithID, &block.TotalAmount, &block.TotalFee, &block.TotalCoinBase,
-			&block.Version)
+		_ = rows.Scan(
+			&block.ID,
+			&block.PreviousBlockHash,
+			&block.Height,
+			&block.Timestamp,
+			&block.BlockSeed,
+			&block.BlockSignature,
+			&block.CumulativeDifficulty,
+			&block.SmithScale,
+			&block.PayloadLength,
+			&block.PayloadHash,
+			&block.BlocksmithAddress,
+			&block.TotalAmount,
+			&block.TotalFee,
+			&block.TotalCoinBase,
+			&block.Version,
+		)
 		blocks = append(blocks, &block)
 	}
 	return blocks
