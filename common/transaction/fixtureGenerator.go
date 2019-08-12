@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"fmt"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -44,6 +43,5 @@ func GetFixtures() (poownMessage *model.ProofOfOwnershipMessage, poown *model.Pr
 		Body: txBody,
 	}
 	txBodyBytes = nr.GetBodyBytes()
-	fmt.Printf("txBodyBytes: %v", txBodyBytes)
 	return poownMessage, poown, txBody, txBodyBytes
 }
