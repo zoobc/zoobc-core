@@ -19,7 +19,6 @@ func main() {
 	c := rpc_service.NewAccountBalanceServiceClient(conn)
 
 	response, err := c.GetAccountBalance(context.Background(), &rpc_model.GetAccountBalanceRequest{
-		AccountType:    0,
 		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 	})
 
