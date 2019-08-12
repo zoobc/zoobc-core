@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"errors"
-
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -18,9 +17,9 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	buffer.Write(ConvertUint32ToBytes(transaction.TransactionType))
 	buffer.Write(ConvertUint32ToBytes(transaction.Version)[:constant.TransactionVersion])
 	buffer.Write(ConvertUint64ToBytes(uint64(transaction.Timestamp)))
-	buffer.Write(ConvertUint32ToBytes(transaction.SenderAccountType))
+	buffer.Write(ConvertUint32ToBytes(transaction.SenderAccountAddressLength))
 	buffer.Write([]byte(transaction.SenderAccountAddress))
-	buffer.Write(ConvertUint32ToBytes(transaction.RecipientAccountType))
+	buffer.Write(ConvertUint32ToBytes(transaction.RecipientAccountAddressLength))
 	if transaction.RecipientAccountAddress == "" {
 		buffer.Write(make([]byte, constant.AccountAddress)) // if no recipient pad with 44 (zoobc address length)
 	} else {
@@ -58,16 +57,16 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 		return nil, err
 	}
 	timestamp := ConvertBytesToUint64(timestampBytes)
-	senderAccountType, err := ReadTransactionBytes(buffer, int(constant.AccountType))
+	senderAccountAddressLength, err := ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	senderAccountAddress := ReadAccountAddress(ConvertBytesToUint32(senderAccountType), buffer)
-	recipientAccountType, err := ReadTransactionBytes(buffer, int(constant.AccountType))
+	senderAccountAddress := ReadAccountAddress(ConvertBytesToUint32(senderAccountAddressLength), buffer)
+	recipientAccountAddressLength, err := ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	recipientAccountAddress := ReadAccountAddress(ConvertBytesToUint32(recipientAccountType), buffer)
+	recipientAccountAddress := ReadAccountAddress(ConvertBytesToUint32(recipientAccountAddressLength), buffer)
 	feeBytes, err := ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
 		return nil, err
@@ -101,19 +100,19 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	transactionHash := sha3.Sum256(transactionBytes)
 	txID, _ := GetTransactionID(transactionHash[:])
 	tx := &model.Transaction{
-		ID:                      txID,
-		TransactionType:         transactionType,
-		Version:                 transactionVersion,
-		Timestamp:               int64(timestamp),
-		SenderAccountType:       ConvertBytesToUint32(senderAccountType),
-		SenderAccountAddress:    string(senderAccountAddress),
-		RecipientAccountType:    ConvertBytesToUint32(recipientAccountType),
-		RecipientAccountAddress: string(recipientAccountAddress),
-		Fee:                     int64(fee),
-		TransactionBodyLength:   transactionBodyLength,
-		TransactionBodyBytes:    transactionBodyBytes,
-		TransactionHash:         transactionHash[:],
-		Signature:               sig,
+		ID:                            txID,
+		TransactionType:               transactionType,
+		Version:                       transactionVersion,
+		Timestamp:                     int64(timestamp),
+		SenderAccountAddressLength:    ConvertBytesToUint32(senderAccountAddressLength),
+		SenderAccountAddress:          string(senderAccountAddress),
+		RecipientAccountAddressLength: ConvertBytesToUint32(recipientAccountAddressLength),
+		RecipientAccountAddress:       string(recipientAccountAddress),
+		Fee:                           int64(fee),
+		TransactionBodyLength:         transactionBodyLength,
+		TransactionBodyBytes:          transactionBodyBytes,
+		TransactionHash:               transactionHash[:],
+		Signature:                     sig,
 	}
 	return tx, nil
 }
@@ -154,18 +153,9 @@ func ValidateTransaction(
 	if tx.SenderAccountAddress == "" {
 		return errors.New("TxSenderEmpty")
 	}
-	if err := ValidateAccountAddress(tx.SenderAccountType, tx.SenderAccountAddress); err != nil {
-		return err
-	}
-	if tx.RecipientAccountAddress != "" {
-		if err := ValidateAccountAddress(tx.RecipientAccountType, tx.RecipientAccountAddress); err != nil {
-			return err
-		}
-	}
 
 	// validate sender account
-	senderAccountID := CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAccountAddress)
-	sqlQ, arg := accountBalanceQuery.GetAccountBalanceByAccountID(senderAccountID)
+	sqlQ, arg := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
 	rows, err := queryExecutor.ExecuteSelect(sqlQ, arg)
 	if err != nil {
 		return err

@@ -249,7 +249,7 @@ func TestServerService_SendBlock(t *testing.T) {
 					SmithScale:           0,
 					PreviousBlockHash:    []byte{},
 					BlockSeed:            []byte{},
-					BlocksmithID:         make([]byte, 32),
+					BlocksmithAddress:    "BCZ",
 					Timestamp:            12345678,
 					TotalAmount:          0,
 					TotalFee:             0,

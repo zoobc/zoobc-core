@@ -29,14 +29,13 @@ import (
 )
 
 var (
-	dbPath, dbName          string
-	dbInstance              *database.SqliteDB
-	db                      *sql.DB
-	nodeSecretPhrase        string
-	apiRPCPort, apiHTTPPort int
-	p2pServiceInstance      p2p.P2pServiceInterface
-	queryExecutor           *query.Executor
-	observerInstance        *observer.Observer
+	dbPath, dbName, nodeSecretPhrase string
+	dbInstance                       *database.SqliteDB
+	db                               *sql.DB
+	apiRPCPort, apiHTTPPort          int
+	p2pServiceInstance               p2p.P2pServiceInterface
+	queryExecutor                    *query.Executor
+	observerInstance                 *observer.Observer
 )
 
 var (
@@ -46,11 +45,14 @@ var (
 )
 
 func init() {
-	var configPostfix string
+	var (
+		configPostfix string
+		err           error
+	)
+
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.Parse()
 
-	var err error
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
 		panic(err)
 	} else {
@@ -96,6 +98,13 @@ func startP2pService() {
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
 	p2pService = p2pServiceInstance
+}
+func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
+	for {
+		_ = processor.StartSmithing()
+		time.Sleep(time.Duration(sleepPeriod) * time.Second)
+	}
+
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
@@ -184,13 +193,4 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything
 	<-sigs
-
-}
-
-func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
-	for {
-		_ = processor.StartSmithing()
-		time.Sleep(time.Duration(sleepPeriod) * time.Second)
-	}
-
 }

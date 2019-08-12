@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -10,34 +9,6 @@ import (
 
 	"golang.org/x/crypto/sha3"
 )
-
-// CreateAccountIDFromAddress return the account ID byte which is the hash of
-// account type (int32) and the account address (default: base64(public key))
-// for type 0
-func CreateAccountIDFromAddress(accountType uint32, address string) []byte {
-	digest := sha3.New256()
-	_, _ = digest.Write(ConvertUint32ToBytes(accountType))
-	_, _ = digest.Write([]byte(address))
-	accountID := digest.Sum([]byte{})
-	return accountID
-}
-
-// GetAccountIDByPublicKey return the account ID byte which is the hash of
-// account type (uint32) and the account address (default: base64(public key))
-// for type 0
-func GetAccountIDByPublicKey(accountType uint32, publicKey []byte) []byte {
-	accountTypeByte := make([]byte, 4)
-	binary.LittleEndian.PutUint32(accountTypeByte, accountType)
-	var address string
-	if accountType == 0 { // default account type: zoobc
-		address, _ = GetAddressFromPublicKey(publicKey)
-	}
-	digest := sha3.New256()
-	_, _ = digest.Write(accountTypeByte[:2])
-	_, _ = digest.Write([]byte(address))
-	accountID := digest.Sum([]byte{})
-	return accountID
-}
 
 // GetPrivateKeyFromSeed Get the raw private key corresponding to a seed (secret phrase)
 func GetPrivateKeyFromSeed(seed string) ([]byte, error) {
@@ -95,18 +66,4 @@ func GetChecksumByte(bytes []byte) byte {
 		a += bytes[i]
 	}
 	return a
-}
-
-// ValidateAccountAddress validates account address giving its account type
-func ValidateAccountAddress(accType uint32, address string) error {
-	switch accType {
-	case 0:
-		pubKey, err := GetPublicKeyFromAddress(address)
-		if err != nil || len(pubKey) != 32 {
-			return errors.New("InvalidAccountAddress")
-		}
-	default:
-		return errors.New("InvalidAccountType")
-	}
-	return nil
 }

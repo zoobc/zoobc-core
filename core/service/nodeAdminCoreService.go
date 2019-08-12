@@ -32,7 +32,6 @@ type (
 	NodeAdminService struct {
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
-		AccountQuery  query.AccountQueryInterface
 		Signature     crypto.SignatureInterface
 		Helpers       NodeAdminServiceHelpersInterface
 		BlockService  BlockServiceInterface
@@ -42,14 +41,12 @@ type (
 func NewNodeAdminService(
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
-	accountQuery query.AccountQueryInterface,
 	signature crypto.SignatureInterface,
 	helpers NodeAdminServiceHelpersInterface,
 	blockService BlockServiceInterface) *NodeAdminService {
 	return &NodeAdminService{
 		queryExecutor,
 		blockQuery,
-		accountQuery,
 		signature,
 		helpers,
 		blockService,
