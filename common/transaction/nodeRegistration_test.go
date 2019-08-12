@@ -163,17 +163,17 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT account_id,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_id = ? AND latest = 1" {
+	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
+		"account_address = ? AND latest = 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"AccountID",
+			"AccountAddress",
 			"BlockHeight",
 			"SpendableBalance",
 			"Balance",
 			"PopRevenue",
 			"Latest",
 		}).AddRow(
-			[]byte{1},
+			"BCZ",
 			1,
 			1000000,
 			1000000,
@@ -184,7 +184,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 	}
 	mock.ExpectQuery("B").WillReturnRows(sqlmock.NewRows([]string{
 		"NodePublicKey",
-		"AccountId",
+		"AccountAddress",
 		"RegistrationHeight",
 		"NodeAddress",
 		"LockedBalance",
@@ -231,7 +231,6 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -305,10 +304,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
 				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -327,7 +324,6 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -385,10 +381,8 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
 				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -407,7 +401,6 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -453,10 +446,8 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
 				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -475,7 +466,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -560,10 +550,8 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
 				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -582,7 +570,6 @@ func TestNodeRegistration_GetAmount(t *testing.T) {
 		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -607,10 +594,8 @@ func TestNodeRegistration_GetAmount(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
 				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -629,7 +614,6 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -654,10 +638,8 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
 				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -674,11 +656,10 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
+		SenderAddressLength   uint32
 		SenderAddress         string
-		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -703,15 +684,14 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			n := &NodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
-				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
+				Body:                       tt.fields.Body,
+				Fee:                        tt.fields.Fee,
+				SenderAccountAddressLength: tt.fields.SenderAddressLength,
+				SenderAddress:              tt.fields.SenderAddress,
+				Height:                     tt.fields.Height,
+				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
+				QueryExecutor:              tt.fields.QueryExecutor,
 			}
 			if got := n.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
@@ -726,10 +706,8 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
 		SenderAddress         string
-		SenderAccountType     uint32
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		AccountQuery          query.AccountQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 	}
@@ -759,10 +737,7 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
-				SenderAccountType:     tt.fields.SenderAccountType,
-				Height:                tt.fields.Height,
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				AccountQuery:          tt.fields.AccountQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}

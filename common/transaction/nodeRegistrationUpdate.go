@@ -94,7 +94,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		-(effectiveBalanceToLock + tx.Fee),
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
-			"block_height": tx.Height,
+			"block_height":    tx.Height,
 		},
 	)
 	updateNodeQ, updateNodeArg := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
@@ -147,7 +147,7 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-(effectiveBalanceToLock + tx.Fee),
 		map[string]interface{}{
-			"account_address":  tx.SenderAddress,
+			"account_address": tx.SenderAddress,
 		},
 	)
 	// add row to node_registry table
