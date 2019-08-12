@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"fmt"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -12,7 +13,6 @@ func GetFixtures() (poownMessage *model.ProofOfOwnershipMessage, poown *model.Pr
 	senderAddress := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 	senderSeed := "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	poownMessage = &model.ProofOfOwnershipMessage{
-		AccountType:    0,
 		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
 			101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
@@ -32,16 +32,18 @@ func GetFixtures() (poownMessage *model.ProofOfOwnershipMessage, poown *model.Pr
 	txBody = &model.NodeRegistrationTransactionBody{
 		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
 			63, 224, 101, 127, 241, 62, 152, 187, 255},
-		AccountAddress:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RegistrationHeight: 0,
-		NodeAddressLength:  9,
-		NodeAddress:        "10.10.0.1",
-		LockedBalance:      10000000000,
-		Poown:              poown,
+		AccountAddressLength: uint32(len("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")),
+		AccountAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		RegistrationHeight:   0,
+		NodeAddressLength:    9,
+		NodeAddress:          "10.10.0.1",
+		LockedBalance:        10000000000,
+		Poown:                poown,
 	}
 	nr := NodeRegistration{
 		Body: txBody,
 	}
 	txBodyBytes = nr.GetBodyBytes()
+	fmt.Printf("txBodyBytes: %v", txBodyBytes)
 	return poownMessage, poown, txBody, txBodyBytes
 }
