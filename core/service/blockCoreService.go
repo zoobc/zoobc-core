@@ -429,7 +429,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	block := bs.NewBlock(
 		1,
-		previousBlockHash[:],
+		previousBlockHash,
 		blockSeed,
 		blockSmithAccountAddress,
 		string(hash),
