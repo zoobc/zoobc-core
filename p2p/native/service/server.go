@@ -235,7 +235,7 @@ func (ss *ServerService) GetNextBlocks(ctx context.Context, req *model.GetNextBl
 	blocksMessage := []*model.Block{}
 	block, err := blockService.GetBlockByID(reqBlockId)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("can not find block with ID %v: \n", reqBlockId, err))
+		return nil, errors.New(fmt.Sprintf("can not find block with ID %v: %v\n", reqBlockId, err))
 	}
 	blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(reqBlockIdList)))
 	if err != nil {
@@ -248,7 +248,7 @@ func (ss *ServerService) GetNextBlocks(ctx context.Context, req *model.GetNextBl
 
 		blocksMessage = append(blocksMessage, block)
 	}
-	return &model.BlocksData{Blocks: blocksMessage}, nil
+	return &model.BlocksData{NextBlocks: blocksMessage}, nil
 }
 
 // SendBlock receive block from other node and calling BlockReceived Event

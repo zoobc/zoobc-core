@@ -154,3 +154,12 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	}
 	return nil
 }
+
+func IsBlockIDExist(blockIds []int64, expectedBlockId int64) bool {
+	for _, blockId := range blockIds {
+		if blockId == expectedBlockId {
+			return true
+		}
+	}
+	return false
+}
