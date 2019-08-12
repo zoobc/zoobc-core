@@ -10,8 +10,6 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -92,17 +90,6 @@ func (c *accountServiceClient) GetAccount(ctx context.Context, in *model.GetAcco
 type AccountServiceServer interface {
 	GetAccounts(context.Context, *model.GetAccountsRequest) (*model.GetAccountsResponse, error)
 	GetAccount(context.Context, *model.GetAccountRequest) (*model.Account, error)
-}
-
-// UnimplementedAccountServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedAccountServiceServer struct {
-}
-
-func (*UnimplementedAccountServiceServer) GetAccounts(ctx context.Context, req *model.GetAccountsRequest) (*model.GetAccountsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAccounts not implemented")
-}
-func (*UnimplementedAccountServiceServer) GetAccount(ctx context.Context, req *model.GetAccountRequest) (*model.Account, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAccount not implemented")
 }
 
 func RegisterAccountServiceServer(s *grpc.Server, srv AccountServiceServer) {

@@ -37,10 +37,7 @@ func request_MempoolService_GetMempoolTransactions_0(ctx context.Context, marsha
 	var protoReq model.GetMempoolTransactionsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MempoolService_GetMempoolTransactions_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MempoolService_GetMempoolTransactions_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -57,10 +54,7 @@ func request_MempoolService_GetMempoolTransaction_0(ctx context.Context, marshal
 	var protoReq model.GetMempoolTransactionRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MempoolService_GetMempoolTransaction_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MempoolService_GetMempoolTransaction_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -151,9 +145,9 @@ func RegisterMempoolServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_MempoolService_GetMempoolTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "mempool", "GetMempoolTransactions"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_MempoolService_GetMempoolTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "mempool", "GetMempoolTransactions"}, ""))
 
-	pattern_MempoolService_GetMempoolTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "mempool", "GetMempoolTransaction"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_MempoolService_GetMempoolTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "mempool", "GetMempoolTransaction"}, ""))
 )
 
 var (

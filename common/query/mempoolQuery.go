@@ -32,8 +32,8 @@ type (
 func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id",
-			"recipient_account_id",
+			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
+			"recipient_account_address",
 		},
 		TableName: "mempool",
 		ChainType: chaintype,
@@ -82,8 +82,8 @@ func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface
 		mempool.FeePerByte,
 		mempool.ArrivalTimestamp,
 		mempool.TransactionBytes,
-		mempool.SenderAccountID,
-		mempool.RecipientAccountID,
+		mempool.SenderAccountAddress,
+		mempool.RecipientAccountAddress,
 	}
 }
 
@@ -97,8 +97,8 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 			&mempool.FeePerByte,
 			&mempool.ArrivalTimestamp,
 			&mempool.TransactionBytes,
-			&mempool.SenderAccountID,
-			&mempool.RecipientAccountID,
+			&mempool.SenderAccountAddress,
+			&mempool.RecipientAccountAddress,
 		)
 		mempools = append(mempools, &mempool)
 	}

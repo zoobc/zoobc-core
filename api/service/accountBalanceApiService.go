@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -31,8 +30,7 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 		err             error
 		accountBalances []*model.AccountBalance
 	)
-	accountID := util.CreateAccountIDFromAddress(request.AccountType, request.AccountAddress)
-	accountBalanceQuery, arg := abs.AccountBalanceQuery.GetAccountBalanceByAccountID(accountID)
+	accountBalanceQuery, arg := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(request.AccountAddress)
 	rows, err := abs.Executor.ExecuteSelect(accountBalanceQuery, arg)
 
 	if err != nil {

@@ -185,11 +185,9 @@ func (mps *MempoolService) ReceivedTransactionListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(transactionBytes interface{}, args interface{}) {
 			var (
-				err                error
-				receivedTx         *model.Transaction
-				mempoolTx          *model.MempoolTransaction
-				recipientAccountID []byte
-				senderAccountID    []byte
+				err        error
+				receivedTx *model.Transaction
+				mempoolTx  *model.MempoolTransaction
 			)
 
 			receivedTxBytes := transactionBytes.([]byte)
@@ -197,23 +195,14 @@ func (mps *MempoolService) ReceivedTransactionListener() observer.Listener {
 			if err != nil {
 				return
 			}
-			if receivedTx.RecipientAccountAddress == "" {
-				recipientAccountID = nil
-			} else {
-				recipientAccountID = util.CreateAccountIDFromAddress(
-					receivedTx.RecipientAccountType,
-					receivedTx.RecipientAccountAddress)
-			}
-			senderAccountID = util.CreateAccountIDFromAddress(receivedTx.SenderAccountType,
-				receivedTx.SenderAccountAddress)
 			mempoolTx = &model.MempoolTransaction{
 				// TODO: how to determine FeePerByte in mempool?
-				FeePerByte:         0,
-				ID:                 receivedTx.ID,
-				TransactionBytes:   receivedTxBytes,
-				ArrivalTimestamp:   time.Now().Unix(),
-				SenderAccountID:    senderAccountID,
-				RecipientAccountID: recipientAccountID,
+				FeePerByte:              0,
+				ID:                      receivedTx.ID,
+				TransactionBytes:        receivedTxBytes,
+				ArrivalTimestamp:        time.Now().Unix(),
+				SenderAccountAddress:    receivedTx.SenderAccountAddress,
+				RecipientAccountAddress: receivedTx.RecipientAccountAddress,
 			}
 
 			// Validate received transaction
