@@ -16,7 +16,7 @@ var mockMempoolQuery = &MempoolQuery{
 	TableName: "mempool",
 	Fields: []string{
 		"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
-		"sender_account_id", "recipient_account_id",
+		"sender_account_address", "recipient_account_address",
 	},
 }
 
@@ -67,8 +67,8 @@ func TestMempoolQuery_getTableName(t *testing.T) {
 func TestMempoolQuery_GetMempoolTransactions(t *testing.T) {
 	t.Run("GetMempoolTransactions:success", func(t *testing.T) {
 		q := mockMempoolQuery.GetMempoolTransactions()
-		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id" +
-			", recipient_account_id FROM mempool"
+		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address" +
+			", recipient_account_address FROM mempool"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -78,8 +78,8 @@ func TestMempoolQuery_GetMempoolTransactions(t *testing.T) {
 func TestMempoolQuery_GetMempoolTransaction(t *testing.T) {
 	t.Run("GetMempoolTransaction:success", func(t *testing.T) {
 		q := mockMempoolQuery.GetMempoolTransaction()
-		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id," +
-			" recipient_account_id FROM mempool WHERE id = :id"
+		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
+			" recipient_account_address FROM mempool WHERE id = :id"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -89,9 +89,9 @@ func TestMempoolQuery_GetMempoolTransaction(t *testing.T) {
 func TestMempoolQuery_InsertMempoolTransaction(t *testing.T) {
 	t.Run("InsertMempoolTransaction:success", func(t *testing.T) {
 		q := mockMempoolQuery.InsertMempoolTransaction()
-		wantQ := "INSERT INTO mempool (id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id," +
-			" recipient_account_id) VALUES(:id, :fee_per_byte, :arrival_timestamp, :transaction_bytes," +
-			" :sender_account_id, :recipient_account_id)"
+		wantQ := "INSERT INTO mempool (id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
+			" recipient_account_address) VALUES(:id, :fee_per_byte, :arrival_timestamp, :transaction_bytes," +
+			" :sender_account_address, :recipient_account_address)"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}

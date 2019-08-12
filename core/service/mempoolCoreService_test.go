@@ -23,17 +23,17 @@ type (
 	}
 )
 
-var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id, " +
-	"recipient_account_id FROM mempool WHERE id = :id"
+var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
+	"recipient_account_address FROM mempool WHERE id = :id"
 
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
 
-	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_id, recipient_account_id FROM mempool":
-		mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id",
-			"recipient_account_id"})
+	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, recipient_account_address FROM mempool":
+		mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
+			"recipient_account_address"})
 		mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
 		mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
 		mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
@@ -75,7 +75,7 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{
 	// before adding mempool transactions to db we check for duplicate transactions
 	case getTxByIDQuery:
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id", "recipient_account_id"},
+			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address", "recipient_account_address"},
 		).AddRow(3, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
 	default:
 		return nil, errors.New("MockedError")
