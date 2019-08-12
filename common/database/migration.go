@@ -45,21 +45,17 @@ func (m *Migration) Init() error {
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
-				"sender_account_id" BLOB,
-				"recipient_account_id" BLOB,
-				PRIMARY KEY("id"),
-				FOREIGN KEY("sender_account_id") REFERENCES account(id),
-				FOREIGN KEY("recipient_account_id") REFERENCES account(id)
+				"sender_account_address" VARCHAR(255),
+				"recipient_account_address" VARCHAR(255),
+				PRIMARY KEY("id")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "transaction" (
 				"id"	INTEGER,
 				"block_id"	INTEGER,
 				"block_height"	INTEGER,
-				"sender_account_address_length"	INTEGER,
-				"sender_account_address"	TEXT,
-				"recipient_account_address_length"	INTEGER,
-				"recipient_account_address"	TEXT,
+				"sender_account_address"	VARCHAR(255),
+				"recipient_account_address"	VARCHAR(255),
 				"transaction_type"	INTEGER,
 				"fee"	INTEGER,
 				"timestamp"	INTEGER,

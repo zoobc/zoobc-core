@@ -166,7 +166,7 @@ func (ts *TransactionService) PostTransaction(
 		ID:                      tx.ID,
 		TransactionBytes:        txBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    tx.RecipientAccountAddress,
+		SenderAccountAddress:    tx.SenderAccountAddress,
 		RecipientAccountAddress: tx.RecipientAccountAddress,
 	}
 	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {

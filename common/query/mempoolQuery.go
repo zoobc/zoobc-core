@@ -32,8 +32,8 @@ type (
 func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_id",
-			"recipient_account_id",
+			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
+			"recipient_account_address",
 		},
 		TableName: "mempool",
 		ChainType: chaintype,
