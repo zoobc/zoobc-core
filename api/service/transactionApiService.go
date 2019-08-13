@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"time"
@@ -40,9 +41,13 @@ type (
 var transactionServiceInstance *TransactionService
 
 // NewTransactionService creates a singleton instance of TransactionService
-func NewTransactionService(queryExecutor query.ExecutorInterface, signature crypto.SignatureInterface,
-	txTypeSwitcher transaction.TypeActionSwitcher, mempoolService service.MempoolServiceInterface,
-	log *logrus.Logger) *TransactionService {
+func NewTransactionService(
+	queryExecutor query.ExecutorInterface,
+	signature crypto.SignatureInterface,
+	txTypeSwitcher transaction.TypeActionSwitcher,
+	mempoolService service.MempoolServiceInterface,
+	log *logrus.Logger,
+) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
 			Query:              queryExecutor,
@@ -56,8 +61,10 @@ func NewTransactionService(queryExecutor query.ExecutorInterface, signature cryp
 }
 
 // GetTransaction fetches a single transaction from DB
-func (ts *TransactionService) GetTransaction(chainType contract.ChainType,
-	params *model.GetTransactionRequest) (*model.Transaction, error) {
+func (ts *TransactionService) GetTransaction(
+	chainType contract.ChainType,
+	params *model.GetTransactionRequest,
+) (*model.Transaction, error) {
 	var (
 		err    error
 		rows   *sql.Rows
@@ -78,40 +85,60 @@ func (ts *TransactionService) GetTransaction(chainType contract.ChainType,
 }
 
 // GetTransactions fetches a single transaction from DB
-func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
-	params *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error) {
+// included filters
+func (ts *TransactionService) GetTransactions(
+	chainType contract.ChainType,
+	params *model.GetTransactionsRequest,
+) (*model.GetTransactionsResponse, error) {
 	var (
 		err          error
 		rows         *sql.Rows
-		rows2        *sql.Rows
 		txs          []*model.Transaction
 		totalRecords uint64
 	)
+
 	txQuery := query.NewTransactionQuery(chainType)
-	selectQuery := txQuery.GetTransactions(params.Limit, params.Offset)
-	rows, err = ts.Query.ExecuteSelect(selectQuery)
+	caseQuery := query.CaseQuery{
+		Query: bytes.NewBuffer([]byte{}),
+	}
+	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
+
+	accountAddress := params.GetAccountAddress()
+	if accountAddress != "" {
+		caseQuery.Where(map[string]interface{}{
+			"sender_account_address": accountAddress,
+		})
+		caseQuery.Or(map[string]interface{}{
+			"recipient_account_address": accountAddress,
+		})
+	}
+
+	selectQuery, args := caseQuery.Done(params.Limit, params.Offset)
+	// count first
+	countQuery := query.GetTotalRecordOfSelect(selectQuery)
+	rows, err = ts.Query.ExecuteSelect(countQuery, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	txs = txQuery.BuildModel(txs, rows)
 
-	rows2, err = ts.Query.ExecuteSelect(query.GetTotalRecordOfSelect(selectQuery))
-	if err != nil {
-		return nil, err
-	}
-	defer rows2.Close()
-
-	if rows2.Next() {
-		err = rows2.Scan(
+	if rows.Next() {
+		err = rows.Scan(
 			&totalRecords,
 		)
-
 		if err != nil {
 			return &model.GetTransactionsResponse{}, err
 		}
-
 	}
+
+	// Get Transactions
+	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txs = txQuery.BuildModel(txs, rows)
 
 	return &model.GetTransactionsResponse{
 		Total:        totalRecords,
@@ -120,8 +147,10 @@ func (ts *TransactionService) GetTransactions(chainType contract.ChainType,
 	}, nil
 }
 
-func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req *model.PostTransactionRequest) (*model.Transaction,
-	error) {
+func (ts *TransactionService) PostTransaction(
+	chaintype contract.ChainType,
+	req *model.PostTransactionRequest,
+) (*model.Transaction, error) {
 	txBytes := req.TransactionBytes
 	// get unsigned bytes
 	tx, err := util.ParseTransactionBytes(txBytes, true)
@@ -133,44 +162,39 @@ func (ts *TransactionService) PostTransaction(chaintype contract.ChainType, req 
 
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
-		FeePerByte:       0,
-		ID:               tx.ID,
-		TransactionBytes: txBytes,
-		ArrivalTimestamp: time.Now().Unix(),
+		FeePerByte:              0,
+		ID:                      tx.ID,
+		TransactionBytes:        txBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    tx.SenderAccountAddress,
+		RecipientAccountAddress: tx.RecipientAccountAddress,
 	}
 	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
-		ts.Log.Warnf("Invalid transaction submitted: %v", err)
 		return nil, err
 	}
 	// Apply Unconfirmed
 	err = ts.Query.BeginTx()
 	if err != nil {
-		ts.Log.Warnf("error opening db transaction %v", err)
 		return nil, err
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
-		ts.Log.Warnf("fail ApplyUnconfirmed tx: %v", err)
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			ts.Log.Warnf("error rolling back db transaction %v", errRollback)
 			return nil, errRollback
 		}
 		return nil, err
 	}
 	err = ts.MempoolService.AddMempoolTransaction(mpTx)
 	if err != nil {
-		ts.Log.Warnf("error AddMempoolTransaction: %v", err)
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			ts.Log.Warnf("error rolling back db transaction %v", errRollback)
 			return nil, err
 		}
 		return nil, err
 	}
 	err = ts.Query.CommitTx()
 	if err != nil {
-		ts.Log.Warnf("error committing db transaction: %v", err)
 		return nil, err
 	}
 

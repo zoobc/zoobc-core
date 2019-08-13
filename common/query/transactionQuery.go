@@ -12,6 +12,9 @@ import (
 type (
 	TransactionQueryInterface interface {
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
+		GetTransaction(id int64) string
+		GetTransactions(limit uint32, offset uint64) string
+		GetTransactionsByBlockID(blockID int64) (str string, argss []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 	}
@@ -30,9 +33,7 @@ func NewTransactionQuery(chaintype contract.ChainType) *TransactionQuery {
 			"id",
 			"block_id",
 			"block_height",
-			"sender_account_type",
 			"sender_account_address",
-			"recipient_account_type",
 			"recipient_account_address",
 			"transaction_type",
 			"fee",
@@ -90,15 +91,18 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 	return query, tq.ExtractModel(tx)
 }
 
+func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, argss []interface{}) {
+	query := fmt.Sprintf("SELECT %s from %s WHERE block_id = ?", strings.Join(tq.Fields, ", "), tq.getTableName())
+	return query, []interface{}{blockID}
+}
+
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
 func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 	return []interface{}{
 		&tx.ID,
 		&tx.BlockID,
 		&tx.Height,
-		&tx.SenderAccountType,
 		&tx.SenderAccountAddress,
-		&tx.RecipientAccountType,
 		&tx.RecipientAccountAddress,
 		&tx.TransactionType,
 		&tx.Fee,
@@ -118,9 +122,7 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 			&tx.ID,
 			&tx.BlockID,
 			&tx.Height,
-			&tx.SenderAccountType,
 			&tx.SenderAccountAddress,
-			&tx.RecipientAccountType,
 			&tx.RecipientAccountAddress,
 			&tx.TransactionType,
 			&tx.Fee,

@@ -33,9 +33,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountType:       0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
@@ -47,17 +45,14 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &SendMoney{
-				Height:               0,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:     "",
-				RecipientAccountType: 0,
+				Height:           0,
+				SenderAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress: "",
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountQuery:        query.NewAccountQuery(),
 			},
 		},
 		{
@@ -68,9 +63,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountType:       0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
@@ -90,9 +83,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountType:       0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
@@ -112,9 +103,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountType:       0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
@@ -134,9 +123,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountType:       0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 						NodeRegistrationTransactionBody: nodeRegistrationBody,
@@ -147,12 +134,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &NodeRegistration{
 				Height:                0,
-				SenderAccountType:     0,
 				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Body:                  nodeRegistrationBody,
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				AccountQuery:          query.NewAccountQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 		},
@@ -164,9 +149,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountType:       0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountType:    0,
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{

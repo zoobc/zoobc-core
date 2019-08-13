@@ -15,7 +15,6 @@ type (
 		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
-		// ExecuteTransactionStatements(queries [][]interface{}) ([]sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
 		ExecuteTransactions(queries [][]interface{}) error
 		CommitTx() error

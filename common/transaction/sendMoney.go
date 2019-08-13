@@ -3,7 +3,6 @@ package transaction
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -14,16 +13,15 @@ import (
 
 // SendMoney is Transaction Type that implemented TypeAction
 type SendMoney struct {
-	Body                 *model.SendMoneyTransactionBody
-	Fee                  int64
-	SenderAddress        string
-	SenderAccountType    uint32
-	RecipientAddress     string
-	RecipientAccountType uint32
-	Height               uint32
-	AccountBalanceQuery  query.AccountBalanceQueryInterface
-	AccountQuery         query.AccountQueryInterface
-	QueryExecutor        query.ExecutorInterface
+	Body                          *model.SendMoneyTransactionBody
+	Fee                           int64
+	SenderAccountAddressLength    uint32
+	SenderAddress                 string
+	RecipientAccountAddressLength uint32
+	RecipientAddress              string
+	Height                        uint32
+	AccountBalanceQuery           query.AccountBalanceQueryInterface
+	QueryExecutor                 query.ExecutorInterface
 }
 
 /*
@@ -38,9 +36,7 @@ __If Not Genesis__:
 */
 func (tx *SendMoney) ApplyConfirmed() error {
 	var (
-		recipientAccount model.Account
-		senderAccount    model.Account
-		err              error
+		err error
 	)
 
 	if err := tx.Validate(); err != nil {
@@ -54,37 +50,23 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		}
 	}
 
-	recipientAccount = model.Account{
-		ID:          util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-		AccountType: tx.RecipientAccountType,
-		Address:     tx.RecipientAddress,
-	}
-	senderAccount = model.Account{
-		ID:          util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
-		AccountType: tx.SenderAccountType,
-		Address:     tx.SenderAddress,
-	}
-
 	// insert / update recipient
-	recipientAccountInsertQ, recipientAccountInsertArgs := tx.AccountQuery.InsertAccount(&recipientAccount)
 	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
 		tx.Body.Amount,
 		map[string]interface{}{
-			"account_id":   recipientAccount.ID,
-			"block_height": tx.Height,
+			"account_address": tx.RecipientAddress,
+			"block_height":    tx.Height,
 		},
 	)
 	// update sender
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-(tx.Body.Amount + tx.Fee),
 		map[string]interface{}{
-			"account_id":   senderAccount.ID,
-			"block_height": tx.Height,
+			"account_address": tx.SenderAddress,
+			"block_height":    tx.Height,
 		},
 	)
-	queries := append(append(accountBalanceRecipientQ, accountBalanceSenderQ...),
-		append([]interface{}{recipientAccountInsertQ}, recipientAccountInsertArgs...),
-	)
+	queries := append(accountBalanceRecipientQ, accountBalanceSenderQ...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 
 	if err != nil {
@@ -107,10 +89,7 @@ func (tx *SendMoney) ApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-(tx.Body.Amount + tx.Fee),
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_address": tx.SenderAddress,
 		},
 	)
 	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
@@ -134,10 +113,7 @@ func (tx *SendMoney) UndoApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		tx.Body.Amount+tx.Fee,
 		map[string]interface{}{
-			"account_id": util.CreateAccountIDFromAddress(
-				tx.SenderAccountType,
-				tx.SenderAddress,
-			),
+			"account_address": tx.SenderAddress,
 		},
 	)
 	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
@@ -157,9 +133,7 @@ That specs:
 func (tx *SendMoney) Validate() error {
 
 	var (
-		err            error
 		accountBalance model.AccountBalance
-		count          int
 	)
 
 	if tx.Body.GetAmount() <= 0 {
@@ -174,27 +148,13 @@ func (tx *SendMoney) Validate() error {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		accounts, accountArgs := tx.AccountQuery.GetAccountByIDs([][]byte{
-			util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress),
-			util.CreateAccountIDFromAddress(tx.RecipientAccountType, tx.RecipientAddress),
-		})
-
-		err = tx.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(accounts), accountArgs...).Scan(&count)
-		if err != nil {
-			return err
-		}
-
-		if count <= 1 {
-			return fmt.Errorf("count recipient and sender got: %d", count)
-		}
-		senderID := util.CreateAccountIDFromAddress(tx.SenderAccountType, tx.SenderAddress)
-		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountID(senderID)
+		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
 		if err != nil {
 			return err
 		} else if rows.Next() {
 			_ = rows.Scan(
-				&accountBalance.AccountID,
+				&accountBalance.AccountAddress,
 				&accountBalance.BlockHeight,
 				&accountBalance.SpendableBalance,
 				&accountBalance.Balance,

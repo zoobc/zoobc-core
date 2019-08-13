@@ -45,6 +45,8 @@ func (m *Migration) Init() error {
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
+				"sender_account_address" VARCHAR(255),
+				"recipient_account_address" VARCHAR(255),
 				PRIMARY KEY("id")
 			);`,
 			`
@@ -52,10 +54,8 @@ func (m *Migration) Init() error {
 				"id"	INTEGER,
 				"block_id"	INTEGER,
 				"block_height"	INTEGER,
-				"sender_account_type"	INTEGER,
-				"sender_account_address"	TEXT,
-				"recipient_account_type"	INTEGER,
-				"recipient_account_address"	TEXT,
+				"sender_account_address"	VARCHAR(255),
+				"recipient_account_address"	VARCHAR(255),
 				"transaction_type"	INTEGER,
 				"fee"	INTEGER,
 				"timestamp"	INTEGER,
@@ -67,22 +67,14 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("id")
 			);`,
 			`
-			CREATE TABLE IF NOT EXISTS "account" (
-				"id"	BLOB,
-				"account_type"	INTEGER,
-				"address"	TEXT,
-				PRIMARY KEY("id")
-			);`,
-			`
 			CREATE TABLE IF NOT EXISTS "account_balance" (
-				"account_id"	BLOB,
+				"account_address"	VARCHAR(255),
 				"block_height"	INTEGER,
 				"spendable_balance"	INTEGER,
 				"balance"	INTEGER,
 				"pop_revenue"	INTEGER,
 				"latest"	INTEGER,
-				PRIMARY KEY("account_id","block_height"),
-				FOREIGN KEY("account_id") REFERENCES account(id)
+				PRIMARY KEY("account_address","block_height")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "main_block" (
@@ -94,7 +86,7 @@ func (m *Migration) Init() error {
 				"block_signature" BLOB,
 				"cumulative_difficulty" TEXT,
 				"smith_scale" INTEGER,
-				"blocksmith_id" BLOB,
+				"blocksmith_address" VARCHAR(255),
 				"total_amount" INTEGER,
 				"total_fee" INTEGER,
 				"total_coinbase" INTEGER,
@@ -105,8 +97,9 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
+				"id" INTEGER,
 				"node_public_key" BLOB,
-				"account_id" BLOB,
+				"account_address" VARCHAR(255),
 				"registration_height" INTEGER,
 				"node_address" VARCHAR(255),
 				"locked_balance" INTEGER,
@@ -114,8 +107,8 @@ func (m *Migration) Init() error {
 				"latest" INTEGER,
 				"height" INTEGER,
 				UNIQUE ("node_public_key", "height"),
-				UNIQUE ("account_id", "height"),
-				PRIMARY KEY("node_public_key", "account_id", "height")
+				UNIQUE ("account_address", "height"),
+				PRIMARY KEY("id", "height")
 			);`,
 		}
 		return nil
