@@ -208,11 +208,6 @@ func (bss *BlockchainSyncService) confirmBlockchainState(peer *model.Peer, commo
 
 func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commonBlock *model.Block, chainBlockIds []int64) error {
 	var peersTobeDeactivated []*model.Peer
-	lastBlock, err := bss.BlockService.GetLastBlock()
-	if err != nil {
-		return err
-	}
-	startHeight := lastBlock.Height
 	segSize := constant.BlockDownloadSegSize
 
 	stop := uint32(len(chainBlockIds) - 1)
@@ -241,8 +236,9 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 
 		// TODO: apply retry mechanism
 		startTime := time.Now()
-		nextBlocks, err := bss.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds, commonBlock.ID, start, commonUtil.MinUint32(startHeight+start, stop))
+		nextBlocks, err := bss.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds, start, commonUtil.MinUint32(start+segSize, stop))
 		if err != nil {
+			log.Warn(err)
 			return err
 		}
 		elapsedTime := time.Since(startTime)
@@ -251,6 +247,7 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 		}
 
 		if len(nextBlocks) < 1 {
+			log.Warnf("disconnecting with peer %v for not responding correctly in getting the next blocks\n", peerUsed.Info.Address)
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
 			continue
 		}
@@ -271,15 +268,12 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 	}
 
 	forkBlocks := []*model.Block{}
-	for idx, block := range blocksToBeProcessed {
+	for _, block := range blocksToBeProcessed {
 		if block.Height == 0 {
 			continue
 		}
 		lastBlock, _ := bss.BlockService.GetLastBlock()
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
-		if idx < 5 {
-			fmt.Printf("\npreparing pushBlock cLbID: %v \tpbID: %v\t incomingAttack: %v\n", lastBlock.ID, previousBlockID, block)
-		}
 		if lastBlock.ID == previousBlockID {
 			err := bss.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
@@ -330,9 +324,9 @@ func (bss *BlockchainSyncService) getBlockIdsAfterCommon(peer *model.Peer, commo
 	return blockIds.BlockIds
 }
 
-func (bss *BlockchainSyncService) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer, blockIds []int64, blockId int64, start uint32, stop uint32) ([]*model.Block, error) {
+func (bss *BlockchainSyncService) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer, blockIds []int64, start uint32, stop uint32) ([]*model.Block, error) {
 	blocks := []*model.Block{}
-	nextBlocksResponse, err := bss.P2pService.GetNextBlocks(peerUsed, bss.ChainType, blockIds[start:stop], blockId)
+	nextBlocksResponse, err := bss.P2pService.GetNextBlocks(peerUsed, bss.ChainType, blockIds[start:stop], blockIds[start])
 	nextBlocks := nextBlocksResponse.NextBlocks
 	nextBlocksLength := uint32(len(nextBlocks))
 	if nextBlocksLength > maxNextBlocks {
@@ -341,8 +335,8 @@ func (bss *BlockchainSyncService) getNextBlocks(maxNextBlocks uint32, peerUsed *
 	if nextBlocks == nil || err != nil || nextBlocksLength == 0 {
 		return nil, err
 	}
-	for _, block := range nextBlocks {
-		blocks = append(blocks, block)
+	if len(nextBlocks) > 0 {
+		return nextBlocks, nil
 	}
 	return blocks, nil
 }

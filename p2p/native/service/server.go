@@ -242,7 +242,7 @@ func (ss *ServerService) GetNextBlocks(ctx context.Context, req *model.GetNextBl
 		return nil, errors.New(fmt.Sprintf("failed to get the blocks: %v\n", err))
 	}
 	for idx, block := range blocks {
-		if block.ID != req.BlockIds[idx] {
+		if block.ID != reqBlockIdList[idx] {
 			break
 		}
 
