@@ -105,19 +105,20 @@ func TestCaseQuery_Where(t *testing.T) {
 			}
 			fq.Where(tt.args.args)
 			switch {
-			case reflect.DeepEqual(fq.Query, tt.want.Query):
-				if !reflect.DeepEqual(tt.want.Args, fq.Args) {
-					t.Errorf("Where() want = %v, got = %v", tt.want.Args, fq.Args)
+			case reflect.DeepEqual(fq.Args, tt.want.Args):
+				if !reflect.DeepEqual(fq.Query, tt.want.Query) {
+					t.Errorf("Where() want = \n%v, got = \n%v", fq, tt.want)
 				}
-			case fq.Query.String() == "WHERE name = ? AND id = ? ":
-				if !reflect.DeepEqual(sliceReverser(tt.want.Args), sliceReverser(fq.Args)) {
-					t.Errorf("Where() want = %v, got = %v", tt.want.Args, fq.Args)
+			case reflect.DeepEqual(fq.Args, sliceReverser(tt.want.Args)):
+				if fq.Query.String() != "WHERE name = ? AND id = ? " {
+					t.Errorf("Where() Reversed want = \n%v, got = \n%v", fq, tt.want)
 				}
 			default:
 				t.Errorf("Where() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
 			}
 		})
 	}
+
 }
 
 func TestCaseQuery_Or(t *testing.T) {
@@ -165,13 +166,13 @@ func TestCaseQuery_Or(t *testing.T) {
 			}
 			fq.Or(tt.args.args)
 			switch {
-			case reflect.DeepEqual(fq.Query, tt.want.Query):
-				if !reflect.DeepEqual(fq.Args, tt.want.Args) {
-					t.Errorf("Or() want = %s, got = %s", tt.want, fq)
+			case reflect.DeepEqual(fq.Args, tt.want.Args):
+				if !reflect.DeepEqual(fq.Query, tt.want.Query) {
+					t.Errorf("Or() want = \n%v, got = \n%v", fq, tt.want)
 				}
-			case fq.Query.String() == "OR name = ? AND id = ?":
-				if !reflect.DeepEqual(sliceReverser(fq.Args), sliceReverser(tt.want.Args)) {
-					t.Errorf("Or() want = %s, got = %s", tt.want, fq)
+			case reflect.DeepEqual(fq.Args, sliceReverser(tt.want.Args)):
+				if fq.Query.String() != "OR name = ? AND id = ? " {
+					t.Errorf("Or() Reversed want = \n%v, got = \n%v", fq, tt.want)
 				}
 			default:
 				t.Errorf("Or() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
@@ -226,14 +227,15 @@ func TestCaseQuery_Conjunct(t *testing.T) {
 				Args:  tt.fields.Args,
 			}
 			fq.Conjunct(tt.args.firstSep, tt.args.args)
+			t.Log(fq.Query)
 			switch {
-			case reflect.DeepEqual(fq.Query, tt.want.Query):
-				if !reflect.DeepEqual(fq.Args, tt.want.Args) {
-					t.Errorf("Where() want = %s, got = %s", tt.want, fq)
+			case reflect.DeepEqual(fq.Args, tt.want.Args):
+				if !reflect.DeepEqual(fq.Query, tt.want.Query) {
+					t.Errorf("Conjunct() want = \n%v, got = \n%v", fq, tt.want)
 				}
-			case fq.Query.String() == " OR name = ? AND id = ? ":
-				if !reflect.DeepEqual(sliceReverser(fq.Args), sliceReverser(tt.want.Args)) {
-					t.Errorf("Where() want = %s, got = %s", tt.want, fq)
+			case reflect.DeepEqual(fq.Args, sliceReverser(tt.want.Args)):
+				if fq.Query.String() != " OR name = ? AND id = ? " {
+					t.Errorf("Conjuct() Reversed want = \n%v, got = \n%v", fq, tt.want)
 				}
 			default:
 				t.Errorf("Conjuct() fq.Query is not equal with want.Query. got = \n%v, want = \n%v,", fq.Query, tt.want.Query)
