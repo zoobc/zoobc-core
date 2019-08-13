@@ -9,6 +9,127 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
+var mockBlockValidSignature = &model.Block{
+	ID:        1,
+	Height:    0,
+	BlockSeed: []byte{1, 2, 3},
+	BlockSignature: []byte{
+		0, 0, 0, 0, 186, 94, 104, 188, 20, 86, 116, 3, 115, 173, 143, 37, 41, 248, 134, 75, 167, 131, 189, 249, 17, 150,
+		240, 103, 44, 27, 239, 66, 176, 71, 71, 254, 42, 248, 246, 15, 220, 80, 209, 242, 146, 163, 95, 40, 62, 120, 28,
+		226, 158, 234, 253, 46, 174, 223, 98, 53, 160, 186, 124, 154, 72, 61, 64, 1,
+	},
+	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	CumulativeDifficulty: "0",
+	PayloadHash:          []byte{},
+	PayloadLength:        1,
+	PreviousBlockHash: []byte{
+		0, 0, 0, 0, 0, 0, 0, 0,
+	},
+	SmithScale:    0,
+	Timestamp:     1000,
+	TotalAmount:   1000,
+	TotalCoinBase: 0,
+	TotalFee:      1,
+	Transactions:  nil,
+	Version:       1,
+}
+
+var mockBlockZeroID = &model.Block{
+	ID:        0,
+	Height:    0,
+	BlockSeed: []byte{1, 2, 3},
+	BlockSignature: []byte{
+		0, 0, 0, 0, 186, 94, 104, 188, 20, 86, 116, 3, 115, 173, 143, 37, 41, 248, 134, 75, 167, 131, 189, 249, 17, 150,
+		240, 103, 44, 27, 239, 66, 176, 71, 71, 254, 42, 248, 246, 15, 220, 80, 209, 242, 146, 163, 95, 40, 62, 120, 28,
+		226, 158, 234, 253, 46, 174, 223, 98, 53, 160, 186, 124, 154, 72, 61, 64, 1,
+	},
+	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	CumulativeDifficulty: "0",
+	PayloadHash:          []byte{},
+	PayloadLength:        1,
+	PreviousBlockHash: []byte{
+		0, 0, 0, 0, 0, 0, 0, 0,
+	},
+	SmithScale:    0,
+	Timestamp:     1000,
+	TotalAmount:   1000,
+	TotalCoinBase: 0,
+	TotalFee:      1,
+	Transactions:  nil,
+	Version:       1,
+}
+
+var mockBlockPrevious = &model.Block{
+	ID:        0,
+	Height:    0,
+	BlockSeed: []byte{1, 2, 3},
+	BlockSignature: []byte{
+		0, 0, 0, 0, 143, 169, 160, 83, 125, 53, 38, 84, 54, 90, 232, 190, 87, 217, 90, 227, 249, 241, 3, 200, 204, 47,
+		221, 191, 151, 232, 111, 241, 248, 69, 82, 203, 75, 128, 164, 45, 162, 105, 166, 1, 81, 113, 65, 8, 71, 19, 26,
+		20, 3, 49, 192, 244, 20, 155, 96, 242, 195, 19, 108, 251, 100, 55, 153, 12,
+	},
+	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	CumulativeDifficulty: "0",
+	PayloadHash:          []byte{},
+	PayloadLength:        1,
+	PreviousBlockHash:    []byte{},
+	SmithScale:           0,
+	Timestamp:            1000,
+	TotalAmount:          1000,
+	TotalCoinBase:        0,
+	TotalFee:             1,
+	Transactions:         nil,
+	Version:              1,
+}
+
+var mockBlockInvalidPrevious = &model.Block{
+	ID:        100,
+	Height:    0,
+	BlockSeed: []byte{1, 2, 3},
+	BlockSignature: []byte{
+		0, 0, 0, 0, 143, 169, 160, 83, 125, 53, 38, 84, 54, 90, 232, 190, 87, 217, 90, 227, 249, 241, 3, 200, 204, 47,
+		221, 191, 151, 232, 111, 241, 248, 69, 82, 203, 75, 128, 164, 45, 162, 105, 166, 1, 81, 113, 65, 8, 71, 19, 26,
+		20, 3, 49, 192, 244, 20, 155, 96, 242, 195, 19, 108, 251, 100, 55, 153, 12,
+	},
+	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	CumulativeDifficulty: "0",
+	PayloadHash:          []byte{},
+	PayloadLength:        1,
+	PreviousBlockHash:    []byte{},
+	SmithScale:           0,
+	Timestamp:            1000,
+	TotalAmount:          1000,
+	TotalCoinBase:        0,
+	TotalFee:             1,
+	Transactions:         nil,
+	Version:              1,
+}
+
+var mockBlockInvalidSignature = &model.Block{
+	ID:        1,
+	Height:    0,
+	BlockSeed: []byte{1, 2, 3},
+	BlockSignature: []byte{
+		186, 94, 104, 188, 20, 86, 116, 3, 115, 173, 143, 37, 41, 248, 134, 75, 167, 131, 189, 249, 17, 150,
+		240, 103, 44, 27, 239, 66, 176, 71, 71, 254, 42, 248, 246, 15, 220, 80, 209, 242, 146, 163, 95, 40, 62, 120, 28,
+		226, 158, 234, 253, 46, 174, 223, 98, 53, 160, 186, 124, 154, 72, 61, 64, 1,
+	},
+	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	CumulativeDifficulty: "0",
+	PayloadHash:          []byte{},
+	PayloadLength:        1,
+	PreviousBlockHash: []byte{
+		0, 0, 0, 0, 0, 0, 0, 0,
+	},
+	SmithScale:    0,
+	Timestamp:     1000,
+	TotalAmount:   1000,
+	TotalCoinBase: 0,
+	TotalFee:      1,
+	Transactions:  nil,
+	Version:       1,
+}
+
 func TestGetBlockSeed(t *testing.T) {
 	resultOne, _ := new(big.Int).SetString("17294717645224993457", 10)
 	resulTwo, _ := new(big.Int).SetString("12040414258978844097", 10)
@@ -336,15 +457,12 @@ func TestGetBlockByte(t *testing.T) {
 	}
 }
 
-func TestValidateBlock(t *testing.T) { //todo:update test after applying signature related functionalities
+func TestValidateBlock(t *testing.T) {
 	type args struct {
 		block             *model.Block
 		previousLastBlock *model.Block
 		curTime           int64
 	}
-	previousBlockID := new(big.Int).SetBytes([]byte{
-		7, 6, 5, 4, 3, 2, 1, 0,
-	}).Int64()
 	tests := []struct {
 		name    string
 		args    args
@@ -353,13 +471,9 @@ func TestValidateBlock(t *testing.T) { //todo:update test after applying signatu
 		{
 			name: "wantSuccess:ErrorNil",
 			args: args{
-				block: &model.Block{
-					PreviousBlockHash: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8},
-				},
-				previousLastBlock: &model.Block{
-					ID: previousBlockID,
-				},
-				curTime: 12345678,
+				block:             mockBlockValidSignature,
+				previousLastBlock: mockBlockPrevious,
+				curTime:           12345678,
 			},
 			wantErr: false,
 		},
@@ -370,6 +484,33 @@ func TestValidateBlock(t *testing.T) { //todo:update test after applying signatu
 					Timestamp: 23456789,
 				},
 				previousLastBlock: &model.Block{},
+				curTime:           12345678,
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:InvalidSignature",
+			args: args{
+				block:             mockBlockInvalidSignature,
+				previousLastBlock: mockBlockPrevious,
+				curTime:           12345678,
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:InvalidPrevious",
+			args: args{
+				block:             mockBlockValidSignature,
+				previousLastBlock: mockBlockInvalidPrevious,
+				curTime:           12345678,
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:ZeroID",
+			args: args{
+				block:             mockBlockZeroID,
+				previousLastBlock: mockBlockInvalidPrevious,
 				curTime:           12345678,
 			},
 			wantErr: true,
