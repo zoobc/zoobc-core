@@ -17,7 +17,7 @@ import (
 type (
 	// NodeAdminServiceInterface represents interface for NodeAdminService
 	NodeAdminServiceInterface interface {
-		GenerateProofOfOwnership(accountType uint32, accountAddress string) (*model.ProofOfOwnership, error)
+		GenerateProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error)
 		ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte)
 	}
 
@@ -56,12 +56,10 @@ func NewNodeAdminService(
 // GetMessageSize return the message size in bytes
 // note: it can be used to validate a message
 func (*NodeAdminService) GetMessageSize() uint32 {
-	accountType := 4
-	//TODO: this is valid for account type = 0
 	accountAddress := 44
 	blockHash := 64
 	blockHeight := 4
-	return uint32(accountType + accountAddress + blockHash + blockHeight)
+	return uint32(accountAddress + blockHash + blockHeight)
 }
 
 // GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
@@ -83,12 +81,11 @@ func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.Proo
 }
 
 // generate proof of ownership
-func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
+func (nas *NodeAdminService) GenerateProofOfOwnership(
 	accountAddress string) (*model.ProofOfOwnership, error) {
 
-	ownerAccountType := viper.GetUint32("ownerAccountType")
 	ownerAccountAddress := viper.GetString("ownerAccountAddress")
-	if ownerAccountAddress != accountAddress && ownerAccountType != accountType {
+	if ownerAccountAddress != accountAddress {
 		return nil, errors.New("PoownAccountNotNodeOwner")
 	}
 
@@ -102,7 +99,6 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(accountType uint32,
 	}
 
 	poownMessage := &model.ProofOfOwnershipMessage{
-		AccountType:    accountType,
 		AccountAddress: accountAddress,
 		BlockHash:      lastBlockHash,
 		BlockHeight:    lastBlock.Height,

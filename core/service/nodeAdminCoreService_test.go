@@ -34,7 +34,6 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 		BlockService BlockServiceInterface
 	}
 	type args struct {
-		accountType    uint32
 		accountAddress string
 	}
 	tests := []struct {
@@ -51,7 +50,6 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 				BlockService: &blockServiceMocked{},
 			},
 			args: args{
-				accountType:    1,
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			},
 			want: &model.ProofOfOwnership{
@@ -73,7 +71,7 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 				Helpers:      tt.fields.Helpers,
 				BlockService: tt.fields.BlockService,
 			}
-			got, err := nas.GenerateProofOfOwnership(tt.args.accountType, tt.args.accountAddress)
+			got, err := nas.GenerateProofOfOwnership(tt.args.accountAddress)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeAdminService.GenerateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				return

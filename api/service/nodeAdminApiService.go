@@ -8,7 +8,7 @@ import (
 type (
 	// TransactionServiceInterface represents interface for TransactionService
 	NodeAdminAPIServiceInterface interface {
-		GetProofOfOwnership(accountType uint32, accountAddress string) (*model.ProofOfOwnership, error)
+		GetProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error)
 	}
 
 	// TransactionService represents struct of TransactionService
@@ -18,9 +18,9 @@ type (
 )
 
 // GetProof of ownership
-func (nas *NodeAdmin) GetProofOfOwnership(accountType uint32, accountAddress string) (*model.ProofOfOwnership, error) {
+func (nas *NodeAdmin) GetProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error) {
 
-	poown, err := nas.NodeAdminService.GenerateProofOfOwnership(accountType, accountAddress)
+	poown, err := nas.NodeAdminService.GenerateProofOfOwnership(accountAddress)
 	if err != nil {
 		return nil, err
 	}
