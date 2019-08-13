@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"bytes"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/ed25519"
 )
@@ -32,8 +34,12 @@ func (sig *Signature) Sign(payload []byte, accountAddress, seed string) []byte {
 
 // SignByNode special method for signing block only, there will be no multiple signature options
 func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint32ToBytes(constant.NodeSignatureTypeDefault))
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSeed)
-	return ed25519.Sign(nodePrivateKey, payload)
+	signature := ed25519.Sign(nodePrivateKey, payload)
+	buffer.Write(signature)
+	return buffer.Bytes()
 }
 
 // VerifySignature accept payload (before without signature), signature and the account id
