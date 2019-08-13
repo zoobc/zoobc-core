@@ -24,6 +24,25 @@ func GetPrivateKeyFromSeed(seed string) ([]byte, error) {
 	return privateKey, nil
 }
 
+// GetAddressFromSeed Get the address corresponding to a seed (secret phrase)
+func GetAddressFromSeed(seed string) string {
+	result, _ := GetAddressFromPublicKey(GetPublicKeyFromSeed(seed))
+	return result
+}
+
+// GetPublicKeyFromSeed Get the raw public key corresponding to a seed (secret phrase)
+func GetPublicKeyFromSeed(seed string) []byte {
+
+	// Get the private key from the seed
+	privateKey, _ := GetPrivateKeyFromSeed(seed)
+
+	// Get the public key from the private key
+	// publicKey := privateKey.Public()
+	publicKey := privateKey[32:] // according to the Ed25519 source, this is all we do to get the public key?
+
+	return publicKey
+}
+
 // GetAddressFromPublicKey Get the formatted address from a raw public key
 func GetAddressFromPublicKey(publicKey []byte) (string, error) {
 	// public key should be 32 long

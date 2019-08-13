@@ -5,6 +5,13 @@ import (
 	"testing"
 )
 
+var (
+	mockSeed      = "compile fernlike laptop scouring bobsled tremble probably immunity babble elsewhere throwing thrill"
+	mockPublicKey = []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111,
+		241, 130, 176, 116, 63, 35, 232, 241, 210, 172}
+	mockAddress = "BCZxuVDVJUdEsbB-8ToDIIEBnEHHb_GCsHQ_I-jx0qw7"
+)
+
 func TestGetChecksumByte(t *testing.T) {
 	type args struct {
 		bytes []byte
@@ -77,6 +84,18 @@ func TestGetPrivateKeyFromSeed(t *testing.T) {
 				t.Errorf("GetPrivateKeyFromSeed() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGetPublicKeyFromSeed(t *testing.T) {
+	if !reflect.DeepEqual(mockPublicKey, GetPublicKeyFromSeed(mockSeed)) {
+		t.Error("result from `GetPublicKeyFromSeed` does not match")
+	}
+}
+
+func TestGetAddressFromSeed(t *testing.T) {
+	if !reflect.DeepEqual(mockAddress, GetAddressFromSeed(mockSeed)) {
+		t.Error("result from `GetAddressFromSeed` does not match")
 	}
 }
 
