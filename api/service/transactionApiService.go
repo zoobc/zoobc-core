@@ -74,10 +74,7 @@ func (ts *TransactionService) GetTransaction(
 	txQuery := query.NewTransactionQuery(chainType)
 	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
 	if err != nil {
-		return nil, blocker.Blocker{
-			Type:    blocker.DBErr,
-			Message: err.Error(),
-		}
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 
