@@ -20,6 +20,8 @@ func main() {
 
 	response, err := c.GetTransactions(context.Background(), &rpcModel.GetTransactionsRequest{
 		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		Limit:          1,
+		Page:           0,
 	})
 
 	if err != nil {

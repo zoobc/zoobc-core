@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -94,6 +95,8 @@ func (ts *TransactionService) GetTransactions(
 		err          error
 		rows         *sql.Rows
 		txs          []*model.Transaction
+		selectQuery  string
+		args         []interface{}
 		totalRecords uint64
 	)
 
@@ -105,15 +108,11 @@ func (ts *TransactionService) GetTransactions(
 
 	accountAddress := params.GetAccountAddress()
 	if accountAddress != "" {
-		caseQuery.Where(map[string]interface{}{
-			"sender_account_address": accountAddress,
-		})
-		caseQuery.Or(map[string]interface{}{
-			"recipient_account_address": accountAddress,
-		})
+		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
+			Or(caseQuery.Equal("recipient_account_address", accountAddress))
 	}
 
-	selectQuery, args := caseQuery.Done(params.Limit, params.Offset)
+	selectQuery, args = caseQuery.Build()
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rows, err = ts.Query.ExecuteSelect(countQuery, args...)
@@ -132,6 +131,9 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	// Get Transactions
+	caseQuery.Paginate(params.GetLimit(), params.GetPage())
+	selectQuery, args = caseQuery.Build()
+	fmt.Println(selectQuery, args)
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {
 		return nil, err
@@ -142,7 +144,6 @@ func (ts *TransactionService) GetTransactions(
 
 	return &model.GetTransactionsResponse{
 		Total:        totalRecords,
-		Count:        uint32(len(txs)),
 		Transactions: txs,
 	}, nil
 }
