@@ -289,6 +289,7 @@ func (tx *UpdateNodeRegistration) GetSize() uint32 {
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	buffer := bytes.NewBuffer(txBodyBytes)
+	nodeID := util.ConvertBytesToUint64(buffer.Next(8))
 	nodePublicKey := buffer.Next(32)
 	nodeAddressLength := util.ConvertBytesToUint32([]byte{buffer.Next(1)[0], 0, 0, 0}) // uint32 length of next bytes to read
 	nodeAddress := buffer.Next(int(nodeAddressLength))                                 // based on nodeAddressLength
@@ -296,6 +297,7 @@ func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.Transact
 	// parse ProofOfOwnership (message + signature) bytes
 	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	return &model.UpdateNodeRegistrationTransactionBody{
+		NodeID:            int64(nodeID),
 		NodePublicKey:     nodePublicKey,
 		NodeAddressLength: nodeAddressLength,
 		NodeAddress:       string(nodeAddress),
@@ -307,6 +309,7 @@ func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.Transact
 // GetBodyBytes translate tx body to bytes representation
 func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.NodeID)))
 	buffer.Write(tx.Body.NodePublicKey)
 	addressLengthBytes := util.ConvertUint32ToBytes(tx.Body.NodeAddressLength)
 	buffer.Write([]byte{addressLengthBytes[0]})
