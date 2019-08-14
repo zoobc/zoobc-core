@@ -122,7 +122,11 @@ func (bss *BlockchainSyncService) getPeerBlockchainInfo() error {
 
 	commonMilestoneBlockID := bss.ChainType.GetGenesisBlockID()
 	if lastBlockID != commonMilestoneBlockID {
-		commonMilestoneBlockID = bss.getPeerCommonBlockID(peer)
+		var err error
+		commonMilestoneBlockID, err = bss.getPeerCommonBlockID(peer)
+		if err != nil {
+			return err
+		}
 	}
 
 	chainBlockIds := bss.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
@@ -133,6 +137,7 @@ func (bss *BlockchainSyncService) getPeerBlockchainInfo() error {
 	commonBlockID := chainBlockIds[0]
 	commonBlock, err := bss.BlockService.GetBlockByID(commonBlockID)
 	if err != nil {
+		log.Warnf("common block %v not found, milestone %v", commonBlockID, commonMilestoneBlockID)
 		return err
 	}
 	if commonBlock == nil || lastBlockHeight-commonBlock.GetHeight() >= 720 {
@@ -288,32 +293,34 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 
 	if len(forkBlocks) > 0 {
 		// log.Println("processing fork blocks %v", forkBlocks)
-		//processFork(forkBlocks)
+		// processFork(forkBlocks)
 	}
 	return nil
 }
 
-func (bss *BlockchainSyncService) getPeerCommonBlockID(peer *model.Peer) int64 {
-	lastMilestoneBlockId := int64(0)
+func (bss *BlockchainSyncService) getPeerCommonBlockID(peer *model.Peer) (int64, error) {
+	lastMilestoneBlockID := int64(0)
 	lastBlock, err := bss.BlockService.GetLastBlock()
-	if lastBlock == nil || err != nil {
-		return 0
+	if err != nil {
+		log.Warnf("failed to get blockchain last block: %v\n", err)
+		return 0, err
 	}
 	lastBlockID := lastBlock.ID
 	for {
-		commonMilestoneBlockIdResponse, err := bss.P2pService.GetCommonMilestoneBlockIDs(peer, bss.ChainType, lastBlockID, lastMilestoneBlockId)
+		commonMilestoneBlockIDResponse, err := bss.P2pService.GetCommonMilestoneBlockIDs(peer, bss.ChainType, lastBlockID, lastMilestoneBlockID)
 		if err != nil {
-			return lastMilestoneBlockId
+			log.Warnf("failed to get common milestone from the peer: %v\n", err)
+			bss.P2pService.DisconnectPeer(peer)
+			return 0, err
 		}
-		for _, blockId := range commonMilestoneBlockIdResponse.BlockIds {
-			blockFound, _ := bss.BlockService.GetBlockByID(blockId)
-			if blockFound != nil {
-				return blockId
+		for _, blockID := range commonMilestoneBlockIDResponse.BlockIds {
+			_, err := bss.BlockService.GetBlockByID(blockID)
+			if err != nil {
+				return lastMilestoneBlockID, nil
 			}
-			lastMilestoneBlockId = blockId
+			lastMilestoneBlockID = blockID
 		}
 	}
-	return 0
 }
 
 func (bss *BlockchainSyncService) getBlockIdsAfterCommon(peer *model.Peer, commonMilestoneBlockID int64) []int64 {
@@ -321,16 +328,29 @@ func (bss *BlockchainSyncService) getBlockIdsAfterCommon(peer *model.Peer, commo
 	if err != nil {
 		return []int64{}
 	}
-	return blockIds.BlockIds
+
+	newBlockIDIdx := 0
+	for idx, blockID := range blockIds.BlockIds {
+		_, err := bss.BlockService.GetBlockByID(blockID)
+		// mark the new block ID starting where it is not found
+		if err != nil {
+			break
+		}
+		newBlockIDIdx = idx
+	}
+	if newBlockIDIdx >= len(blockIds.BlockIds) {
+		return []int64{}
+	}
+	return blockIds.BlockIds[newBlockIDIdx:]
 }
 
-func (bss *BlockchainSyncService) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer, blockIds []int64, start uint32, stop uint32) ([]*model.Block, error) {
+func (bss *BlockchainSyncService) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer, blockIds []int64, start, stop uint32) ([]*model.Block, error) {
 	blocks := []*model.Block{}
 	nextBlocksResponse, err := bss.P2pService.GetNextBlocks(peerUsed, bss.ChainType, blockIds[start:stop], blockIds[start])
 	nextBlocks := nextBlocksResponse.NextBlocks
 	nextBlocksLength := uint32(len(nextBlocks))
 	if nextBlocksLength > maxNextBlocks {
-		return nil, fmt.Errorf("too many blocks returned (%d blocks), possibly a rogue peer %v\n", nextBlocksLength, peerUsed.Info.Address)
+		return nil, fmt.Errorf("too many blocks returned (%d blocks), possibly a rogue peer %v", nextBlocksLength, peerUsed.Info.Address)
 	}
 	if nextBlocks == nil || err != nil || nextBlocksLength == 0 {
 		return nil, err

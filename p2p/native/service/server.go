@@ -138,7 +138,8 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 	}
 	myLastBlockId := myLastBlock.ID
 	myBlockchainHeight := myLastBlock.Height
-	if block, _ := blockService.GetBlockByID(lastBlockId); block != nil || lastBlockId == myLastBlockId {
+
+	if _, err := blockService.GetBlockByID(lastBlockId); err == nil {
 		preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
 			BlockIds: []int64{lastBlockId},
 		}
@@ -153,9 +154,12 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 	limit := constant.CommonMilestoneBlockIdsLimit
 	lastMilestoneBlockId := req.LastMilestoneBlockId
 	if lastMilestoneBlockId != 0 {
-		lastMilestoneBlock, _ := blockService.GetBlockByID(lastMilestoneBlockId)
-		if lastMilestoneBlock == nil {
-			return &model.GetCommonMilestoneBlockIdsResponse{BlockIds: []int64{}}, errors.New("block not found")
+		lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockId)
+		if err != nil {
+			if lastMilestoneBlock == nil {
+				return &model.GetCommonMilestoneBlockIdsResponse{BlockIds: []int64{}}, errors.New("block not found")
+			}
+			return nil, err
 		}
 		height = lastMilestoneBlock.GetHeight()
 		jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myBlockchainHeight, 1))
