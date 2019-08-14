@@ -37,10 +37,7 @@ func GetPublicKeyFromSeed(seed string) []byte {
 	privateKey, _ := GetPrivateKeyFromSeed(seed)
 
 	// Get the public key from the private key
-	// publicKey := privateKey.Public()
-	publicKey := privateKey[32:] // according to the Ed25519 source, this is all we do to get the public key?
-
-	return publicKey
+	return privateKey[32:]
 }
 
 // GetAddressFromPublicKey Get the formatted address from a raw public key
