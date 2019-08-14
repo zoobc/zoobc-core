@@ -15,5 +15,5 @@ var (
 )
 
 func (e Blocker) Error() string {
-	return e.Error()
+	return e.Message
 }
