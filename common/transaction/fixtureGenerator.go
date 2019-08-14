@@ -30,6 +30,7 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 		Signature:    poownSignature,
 	}
 	txBody = &model.NodeRegistrationTransactionBody{
+		NodeID: 1,
 		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
 			63, 224, 101, 127, 241, 62, 152, 187, 255},
 		AccountAddressLength: uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
