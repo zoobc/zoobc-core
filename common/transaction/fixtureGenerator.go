@@ -6,11 +6,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
+var senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
+
 func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessage, poown *model.ProofOfOwnership,
 	txBody *model.NodeRegistrationTransactionBody, txBodyBytes []byte) {
 
-	senderAddress := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	senderSeed := "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
@@ -21,8 +22,8 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
 	poownSignature := crypto.NewSignature().Sign(
 		poownMessageBytes,
-		senderAddress,
-		senderSeed,
+		senderAddress1,
+		senderSeed1,
 	)
 	poown = &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
@@ -48,8 +49,6 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershipMessage, poown *model.ProofOfOwnership,
 	txBody *model.UpdateNodeRegistrationTransactionBody, txBodyBytes []byte) {
 
-	senderAddress := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	senderSeed := "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
@@ -60,8 +59,8 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
 	poownSignature := crypto.NewSignature().Sign(
 		poownMessageBytes,
-		senderAddress,
-		senderSeed,
+		senderAddress1,
+		senderSeed1,
 	)
 	poown = &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
