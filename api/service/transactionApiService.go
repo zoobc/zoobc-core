@@ -8,6 +8,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 
@@ -73,7 +74,10 @@ func (ts *TransactionService) GetTransaction(
 	txQuery := query.NewTransactionQuery(chainType)
 	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
 	if err != nil {
-		return nil, err
+		return nil, blocker.Blocker{
+			Type:    blocker.DBErr,
+			Message: err.Error(),
+		}
 	}
 	defer rows.Close()
 
