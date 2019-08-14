@@ -3,7 +3,7 @@ package blocker
 type (
 	TypeBlocker int
 
-	Blocker struct {
+	blocker struct {
 		Type    TypeBlocker
 		Message string
 	}
@@ -14,6 +14,13 @@ var (
 	BlockErr TypeBlocker = 2
 )
 
-func (e Blocker) Error() string {
+func NewBlocker(typeBlocker TypeBlocker, message string) error {
+	return blocker{
+		Type:    typeBlocker,
+		Message: message,
+	}
+}
+
+func (e blocker) Error() string {
 	return e.Message
 }
