@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -133,7 +132,6 @@ func (ts *TransactionService) GetTransactions(
 	// Get Transactions
 	caseQuery.Paginate(params.GetLimit(), params.GetPage())
 	selectQuery, args = caseQuery.Build()
-	fmt.Println(selectQuery, args)
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {
 		return nil, err

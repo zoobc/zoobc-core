@@ -10,31 +10,37 @@ import (
 )
 
 type (
-	UnconfirmedTransactionServiceInterface interface {
-		GetUnconfirmedTransactions(
+	MempoolTransactionServiceInterface interface {
+		GetMempoolTransaction(
+			chainType contract.ChainType,
+			params *model.GetMempoolTransactionRequest,
+		) (*model.GetMempoolTransactionResponse, error)
+		GetMempoolTransactions(
 			chainType contract.ChainType,
 			params *model.GetMempoolTransactionsRequest,
 		) (*model.GetMempoolTransactionsResponse, error)
 	}
-	UnconfirmedTransactionService struct {
+	MempoolTransactionService struct {
 		Query query.ExecutorInterface
 	}
 )
 
-var unconfirmedTransactionsServiceInstance *UnconfirmedTransactionService
-
-func NewUnconfirmedTransactionsService(
+func NewMempoolTransactionsService(
 	queryExecutor query.ExecutorInterface,
-) *UnconfirmedTransactionService {
-	if unconfirmedTransactionsServiceInstance == nil {
-		unconfirmedTransactionsServiceInstance = &UnconfirmedTransactionService{
-			Query: queryExecutor,
-		}
+) *MempoolTransactionService {
+	return &MempoolTransactionService{
+		Query: queryExecutor,
 	}
-	return unconfirmedTransactionsServiceInstance
 }
 
-func (ut *UnconfirmedTransactionService) GetUnconfirmedTransactions(
+func (ut *MempoolTransactionService) GetMempoolTransaction(
+	chainType contract.ChainType,
+	params *model.GetMempoolTransactionRequest,
+) (*model.GetMempoolTransactionResponse, error) {
+	return nil, nil
+}
+
+func (ut *MempoolTransactionService) GetMempoolTransactions(
 	chainType contract.ChainType,
 	params *model.GetMempoolTransactionsRequest,
 ) (*model.GetMempoolTransactionsResponse, error) {

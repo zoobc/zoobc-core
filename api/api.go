@@ -78,6 +78,10 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
 		Service: service.NewAccountBalanceService(queryExecutor, query.NewAccountBalanceQuery()),
 	})
+	rpcService.RegisterMempoolServiceServer(grpcServer, &handler.MempoolTransactionHandler{
+		Service: service.NewMempoolTransactionsService(queryExecutor),
+	})
+
 	// Set GRPC handler for unconfirmed
 	// run grpc-gateway handler
 	go func() {

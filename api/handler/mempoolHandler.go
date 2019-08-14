@@ -9,12 +9,20 @@ import (
 )
 
 type (
-	UnconfirmedTransactionHandler struct {
-		Service service.UnconfirmedTransactionServiceInterface
+	MempoolTransactionHandler struct {
+		Service service.MempoolTransactionServiceInterface
 	}
 )
 
-func (uth *UnconfirmedTransactionHandler) GetUnconfirmedTransactions(
+func (uth *MempoolTransactionHandler) GetMempoolTransaction(
+	context.Context,
+	*model.GetMempoolTransactionRequest,
+) (*model.GetMempoolTransactionResponse, error) {
+	// TODO: Implement GetMempoolTransaction
+	panic("implement me")
+}
+
+func (uth *MempoolTransactionHandler) GetMempoolTransactions(
 	ctx context.Context,
 	req *model.GetMempoolTransactionsRequest,
 ) (*model.GetMempoolTransactionsResponse, error) {
@@ -24,7 +32,7 @@ func (uth *UnconfirmedTransactionHandler) GetUnconfirmedTransactions(
 	)
 
 	chainType := chaintype.GetChainType(0)
-	response, err = uth.Service.GetUnconfirmedTransactions(chainType, req)
+	response, err = uth.Service.GetMempoolTransactions(chainType, req)
 	if err != nil {
 		return nil, err
 	}
