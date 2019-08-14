@@ -651,7 +651,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, _, body, bodyBytes := GetFixtures()
+	_, _, body, bodyBytes := GetFixturesForNoderegistration()
 	// bodyBytes :=
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
@@ -701,7 +701,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 }
 
 func TestNodeRegistration_GetBodyBytes(t *testing.T) {
-	_, _, body, bodyBytes := GetFixtures()
+	_, _, body, bodyBytes := GetFixturesForNoderegistration()
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64

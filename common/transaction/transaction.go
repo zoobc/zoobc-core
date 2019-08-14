@@ -67,6 +67,18 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				QueryExecutor:              ts.Executor,
 			}
+		case 1:
+			nodeRegistrationBody := new(UpdateNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			return &UpdateNodeRegistration{
+				Body:                       nodeRegistrationBody.(*model.UpdateNodeRegistrationTransactionBody),
+				Fee:                        tx.Fee,
+				SenderAddress:              tx.GetSenderAccountAddress(),
+				SenderAccountAddressLength: tx.GetSenderAccountAddressLength(),
+				Height:                     tx.GetHeight(),
+				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
+				QueryExecutor:              ts.Executor,
+			}
 		default:
 			return nil
 		}
