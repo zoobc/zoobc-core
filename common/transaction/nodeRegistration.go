@@ -169,7 +169,6 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBod
 	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
 	accountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
 	accountAddress := buffer.Next(int(accountAddressLength))
-	nodeRegistrationHeight := util.ConvertBytesToUint32(buffer.Next(int(constant.Height)))
 	nodeAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.NodeAddressLength))) // uint32 length of next bytes to read
 	nodeAddress := buffer.Next(int(nodeAddressLength))                                           // based on nodeAddressLength
 	lockedBalance := util.ConvertBytesToUint64(buffer.Next(int(constant.Balance)))
@@ -178,7 +177,6 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBod
 		NodePublicKey:        nodePublicKey,
 		AccountAddressLength: accountAddressLength,
 		AccountAddress:       string(accountAddress),
-		RegistrationHeight:   nodeRegistrationHeight,
 		NodeAddressLength:    nodeAddressLength,
 		NodeAddress:          string(nodeAddress),
 		LockedBalance:        int64(lockedBalance),
@@ -193,7 +191,6 @@ func (tx *NodeRegistration) GetBodyBytes() []byte {
 	buffer.Write(tx.Body.NodePublicKey)
 	buffer.Write(util.ConvertUint32ToBytes(tx.Body.AccountAddressLength))
 	buffer.Write([]byte(tx.Body.AccountAddress))
-	buffer.Write(util.ConvertUint32ToBytes(tx.Body.RegistrationHeight))
 	buffer.Write(util.ConvertUint32ToBytes(tx.Body.NodeAddressLength))
 	buffer.Write([]byte(tx.Body.NodeAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
