@@ -99,7 +99,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	}
 	defer rows.Close()
 
-	_ = txQuery.BuildModel(txs, rows)
+	txs = txQuery.BuildModel(txs, rows)
 
 	response = &model.GetMempoolTransactionsResponse{
 		MempoolTransactions: txs,
