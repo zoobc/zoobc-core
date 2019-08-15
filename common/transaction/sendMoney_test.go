@@ -576,7 +576,6 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                          *model.SendMoneyTransactionBody
 		Fee                           int64
-		SenderAccountAddressLength    uint32
 		SenderAddress                 string
 		RecipientAccountAddressLength uint32
 		RecipientAddress              string
@@ -596,7 +595,6 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 					Amount: 1000,
 				},
 				Fee:                           0,
-				SenderAccountAddressLength:    0,
 				SenderAddress:                 "",
 				RecipientAccountAddressLength: 0,
 				RecipientAddress:              "",
@@ -614,7 +612,6 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 			tx := &SendMoney{
 				Body:                          tt.fields.Body,
 				Fee:                           tt.fields.Fee,
-				SenderAccountAddressLength:    tt.fields.SenderAccountAddressLength,
 				SenderAddress:                 tt.fields.SenderAddress,
 				RecipientAccountAddressLength: tt.fields.RecipientAccountAddressLength,
 				RecipientAddress:              tt.fields.RecipientAddress,

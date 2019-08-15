@@ -95,22 +95,20 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 
 func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
 	return &model.Transaction{
-		Version:                       1,
-		ID:                            2774809487,
-		BlockID:                       1,
-		Height:                        1,
-		SenderAccountAddressLength:    uint32(len([]byte(sender))),
-		SenderAccountAddress:          sender,
-		RecipientAccountAddressLength: uint32(len([]byte(recipient))),
-		RecipientAccountAddress:       recipient,
-		TransactionType:               0,
-		Fee:                           1,
-		Timestamp:                     timestamp,
-		TransactionHash:               make([]byte, 32),
-		TransactionBodyLength:         0,
-		TransactionBodyBytes:          make([]byte, 0),
-		TransactionBody:               nil,
-		Signature:                     make([]byte, 64),
+		Version:                 1,
+		ID:                      2774809487,
+		BlockID:                 1,
+		Height:                  1,
+		SenderAccountAddress:    sender,
+		RecipientAccountAddress: recipient,
+		TransactionType:         0,
+		Fee:                     1,
+		Timestamp:               timestamp,
+		TransactionHash:         make([]byte, 32),
+		TransactionBodyLength:   0,
+		TransactionBodyBytes:    make([]byte, 0),
+		TransactionBody:         nil,
+		Signature:               make([]byte, 64),
 	}
 }
 
