@@ -1,6 +1,7 @@
 package query
 
 import (
+	"github.com/DATA-DOG/go-sqlmock"
 	"reflect"
 	"testing"
 
@@ -131,6 +132,23 @@ func TestMempoolQuery_ExtractModel(t *testing.T) {
 		}
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, want)
+		}
+	})
+}
+
+func TestMempoolQuery_BuildModel(t *testing.T) {
+	t.Run("MempoolQuery-BuildModel:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes", "SenderAccountAddress", "RecipientAccountAddress"}).
+			AddRow(mockMempool.ID, mockMempool.FeePerByte, mockMempool.ArrivalTimestamp, mockMempool.TransactionBytes,
+				mockMempool.SenderAccountAddress, mockMempool.RecipientAccountAddress))
+		rows, _ := db.Query("foo")
+		var tempMempool []*model.MempoolTransaction
+		res := mockMempoolQuery.BuildModel(tempMempool, rows)
+		if !reflect.DeepEqual(res[0], mockMempool) {
+			t.Errorf("returned wrong: get: %v\nwant: %v", res, mockMempool)
 		}
 	})
 }

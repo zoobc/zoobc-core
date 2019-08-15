@@ -3,7 +3,8 @@ package util
 
 import (
 	"bytes"
-	"errors"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -138,7 +139,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(block.GetPreviousBlockHash())
 	if signed {
 		if block.BlockSignature == nil {
-			return nil, errors.New("BlockNotSigned")
+			return nil, blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 		}
 		buffer.Write(block.BlockSignature)
 	}
@@ -148,12 +149,26 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 // ValidateBlock validate block to be pushed into the blockchain
 func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	if block.GetTimestamp() > curTime+15 {
-		return errors.New("InvalidTimestamp")
+		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
 	}
 	if GetBlockID(block) == 0 {
-		return errors.New("duplicate block:TODO:conditionNotComplete")
+		return blocker.NewBlocker(blocker.BlockErr, "invalid ID")
+	}
+	// Verify Signature
+	sig := new(crypto.Signature)
+	blockByte, err := GetBlockByte(block, false)
+	if err != nil {
+		return err
 	}
 
+	if !sig.VerifySignature(
+		blockByte,
+		block.BlockSignature,
+		block.BlocksmithAddress,
+	) {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
+	}
+	// Verify previous block hash
 	previousBlockIDFromHash := new(big.Int)
 	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
 		block.PreviousBlockHash[7],
@@ -166,7 +181,7 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 		block.PreviousBlockHash[0],
 	}).Int64()
 	if previousLastBlock.ID != previousBlockIDFromHashInt {
-		return errors.New("previous block ID does not match with current previous_block_hash value")
+		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
 	}
 	return nil
 }
