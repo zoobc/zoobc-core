@@ -69,17 +69,42 @@ jobs:
       - restore_cache:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
           paths:
-            - ./bin
+            - ./dist
       - run:
           name: Build
-          command: go build -o ./bin/zoobc
+          command: |
+            go build -o ./dist/zoobc
+            cp -R -p ./resource ./dist/resorce
       - save_cache:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
-            - ./bin
+            - ./dist
+  deploy-stage:
+    working_directory: /go/src/github.com/zoobc/zoobc-core
+    docker:
+      - image: circleci/golang:1.12.0
+    steps:
+      - restore_cache:
+          key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - ./dist
+      - run: ssh-keyscan $old_ip_server >> ~/.ssh/known_hosts
+      - run:
+          name: Stop Service
+          command: |
+            ssh ubuntu@$old_ip_server 
+            sudo systemctl stop zoobc-service.service
+      - run:
+          name: Deploy
+          command: rsync -va --delete ./dist/ ubuntu@$old_ip_server/home/ubuntu/zoobc
+      - run:
+          name: Start Service
+          command: |
+            ssh ubuntu@$old_ip_server
+            sudo systemctl start zoobc-service.service
 workflows:
   version: 2
-  prepare-build:
+  prepare-deploy:
     jobs:
       - prepare
       - test:
@@ -87,8 +112,9 @@ workflows:
             - prepare
       - build:
           requires:
-            - prepare
             - test
+      - deploy-stage:
+          requires:
             - build
           filters:
             branches:
