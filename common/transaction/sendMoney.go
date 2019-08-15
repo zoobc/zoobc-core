@@ -15,7 +15,6 @@ import (
 type SendMoney struct {
 	Body                          *model.SendMoneyTransactionBody
 	Fee                           int64
-	SenderAccountAddressLength    uint32
 	SenderAddress                 string
 	RecipientAccountAddressLength uint32
 	RecipientAddress              string
