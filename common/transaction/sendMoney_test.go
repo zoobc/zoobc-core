@@ -574,15 +574,13 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 
 func TestSendMoney_GetBodyBytes(t *testing.T) {
 	type fields struct {
-		Body                          *model.SendMoneyTransactionBody
-		Fee                           int64
-		SenderAccountAddressLength    uint32
-		SenderAddress                 string
-		RecipientAccountAddressLength uint32
-		RecipientAddress              string
-		Height                        uint32
-		AccountBalanceQuery           query.AccountBalanceQueryInterface
-		QueryExecutor                 query.ExecutorInterface
+		Body                *model.SendMoneyTransactionBody
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
 		name   string
@@ -595,14 +593,12 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 1000,
 				},
-				Fee:                           0,
-				SenderAccountAddressLength:    0,
-				SenderAddress:                 "",
-				RecipientAccountAddressLength: 0,
-				RecipientAddress:              "",
-				Height:                        0,
-				AccountBalanceQuery:           nil,
-				QueryExecutor:                 nil,
+				Fee:                 0,
+				SenderAddress:       "",
+				RecipientAddress:    "",
+				Height:              0,
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
 			},
 			want: []byte{
 				232, 3, 0, 0, 0, 0, 0, 0,
@@ -612,15 +608,13 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                          tt.fields.Body,
-				Fee:                           tt.fields.Fee,
-				SenderAccountAddressLength:    tt.fields.SenderAccountAddressLength,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAccountAddressLength: tt.fields.RecipientAccountAddressLength,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
-				AccountBalanceQuery:           tt.fields.AccountBalanceQuery,
-				QueryExecutor:                 tt.fields.QueryExecutor,
+				Body:                tt.fields.Body,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
