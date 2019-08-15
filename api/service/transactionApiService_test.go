@@ -535,7 +535,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
 					Limit:          2,
-					Offset:         0,
+					Page:           0,
 					AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 				},
 			},
@@ -550,8 +550,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
-					Limit:  2,
-					Offset: 0,
+					Limit: 2,
+					Page:  0,
 				},
 			},
 			want:    nil,
@@ -566,12 +566,11 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
 					Limit:          1,
-					Offset:         0,
+					Page:           0,
 					AccountAddress: "accountA",
 				},
 			},
 			want: &model.GetTransactionsResponse{
-				Count: 1,
 				Total: 1,
 				Transactions: []*model.Transaction{
 					{
