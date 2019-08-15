@@ -57,6 +57,10 @@ jobs:
       - run:
           name: Go Official Lint
           command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+      - save_cache:
+          key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
+          paths:
+            - /go/src/github.com/zoobc/zoobc-core/vendor
   build:
     working_directory: /go/src/github.com/zoobc/zoobc-core
     docker:
