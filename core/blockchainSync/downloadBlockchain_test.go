@@ -22,10 +22,10 @@ type mockP2pService_success struct {
 func (*mockP2pService_success) GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64, blockID int64) (*model.BlocksData, error) {
 	return &model.BlocksData{
 		NextBlocks: []*model.Block{
-			&model.Block{
+			{
 				ID: int64(123),
 			},
-			&model.Block{
+			{
 				ID: int64(234),
 			},
 		},
@@ -260,10 +260,10 @@ func TestGetNextBlocks(t *testing.T) {
 				stop:     uint32(2),
 			},
 			want: []*model.Block{
-				&model.Block{
+				{
 					ID: int64(123),
 				},
-				&model.Block{
+				{
 					ID: int64(234),
 				},
 			},

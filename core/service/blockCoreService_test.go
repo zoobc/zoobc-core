@@ -1835,7 +1835,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 				limit:       2,
 			},
 			want: []*model.Block{
-				&model.Block{
+				{
 					ID:                      1,
 					PreviousBlockHash:       []byte{},
 					Height:                  1,
@@ -1853,7 +1853,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 					TotalCoinBase:           0,
 					Version:                 1,
 				},
-				&model.Block{
+				{
 					ID:                      2,
 					PreviousBlockHash:       []byte{},
 					Height:                  1,
