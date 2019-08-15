@@ -3,7 +3,7 @@ package util
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/blockers"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/big"
 
@@ -131,7 +131,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(block.GetPreviousBlockHash())
 	if signed {
 		if block.BlockSignature == nil {
-			return nil, blockers.ErrBlockNoSignature
+			return nil, blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 		}
 		buffer.Write(block.BlockSignature)
 	}
@@ -141,10 +141,10 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 // ValidateBlock validate block to be pushed into the blockchain
 func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	if block.GetTimestamp() > curTime+15 {
-		return blockers.ErrBlockInvalidTimestamp
+		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
 	}
 	if GetBlockID(block) == 0 {
-		return blockers.ErrBlockDuplicateBlock
+		return blocker.NewBlocker(blocker.BlockErr, "invalid ID")
 	}
 	// Verify Signature
 	sig := new(crypto.Signature)
@@ -158,7 +158,7 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 		block.BlockSignature,
 		block.BlocksmithAddress,
 	) {
-		return blockers.ErrBlockInvalidSignature
+		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 	}
 	// Verify previous block hash
 	previousBlockIDFromHash := new(big.Int)
@@ -173,7 +173,7 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 		block.PreviousBlockHash[0],
 	}).Int64()
 	if previousLastBlock.ID != previousBlockIDFromHashInt {
-		return blockers.ErrBlockInvalidPreviousBlockHash
+		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
 	}
 	return nil
 }
