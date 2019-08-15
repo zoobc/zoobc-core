@@ -3,6 +3,7 @@ package transaction
 import (
 	"database/sql"
 	"errors"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -213,26 +214,6 @@ func TestSendMoney_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantError:CountAccountGot0",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               1,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCountFail{
-					query.Executor{
-						Db: db,
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
 			name: "wantError:AmountNotEnough",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
@@ -399,10 +380,10 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantError:UndoUnconfirmedInvalid",
+			name: "wantFail:undoUnconfirmedFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
+					Amount: 1,
 				},
 				Height:               1,
 				SenderAccountType:    0,
@@ -410,21 +391,17 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCountFail{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:        &executorFailUpdateAccount{},
 			},
 			wantErr: true,
 		},
 		{
-			name: "wantFail:deductAddMoneyFail",
+			name: "ExecuteTransactionFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 1,
 				},
-				Height:               1,
+				Height:               0,
 				SenderAccountType:    0,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
@@ -590,6 +567,63 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSendMoney_GetBodyBytes(t *testing.T) {
+	type fields struct {
+		Body                          *model.SendMoneyTransactionBody
+		Fee                           int64
+		SenderAccountAddressLength    uint32
+		SenderAddress                 string
+		RecipientAccountAddressLength uint32
+		RecipientAddress              string
+		Height                        uint32
+		AccountBalanceQuery           query.AccountBalanceQueryInterface
+		QueryExecutor                 query.ExecutorInterface
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   []byte
+	}{
+		{
+			name: "GetBodyBytes:success",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1000,
+				},
+				Fee:                           0,
+				SenderAccountAddressLength:    0,
+				SenderAddress:                 "",
+				RecipientAccountAddressLength: 0,
+				RecipientAddress:              "",
+				Height:                        0,
+				AccountBalanceQuery:           nil,
+				QueryExecutor:                 nil,
+			},
+			want: []byte{
+				232, 3, 0, 0, 0, 0, 0, 0,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				Body:                          tt.fields.Body,
+				Fee:                           tt.fields.Fee,
+				SenderAccountAddressLength:    tt.fields.SenderAccountAddressLength,
+				SenderAddress:                 tt.fields.SenderAddress,
+				RecipientAccountAddressLength: tt.fields.RecipientAccountAddressLength,
+				RecipientAddress:              tt.fields.RecipientAddress,
+				Height:                        tt.fields.Height,
+				AccountBalanceQuery:           tt.fields.AccountBalanceQuery,
+				QueryExecutor:                 tt.fields.QueryExecutor,
+			}
+			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
 	}
