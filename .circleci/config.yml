@@ -72,6 +72,12 @@ jobs:
           paths:
             - ./dist
       - run:
+          name: Install rsync
+          command: |
+            if [ ! -d rsync ]; then
+              sudo apt-get update && sudo apt-get install rsync
+            fi
+      - run:
           name: Build
           command: |
             go build -o ./dist/zoobc
@@ -86,6 +92,12 @@ jobs:
       - image: circleci/golang:1.12.0
     steps:
       - checkout
+      - run:
+          name: Install rsync
+          command: |
+            if [ ! -d rsync ]; then
+              sudo apt-get update && sudo apt-get install rsync
+            fi
       - restore_cache:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
