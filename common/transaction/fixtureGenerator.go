@@ -32,12 +32,10 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 	txBody = &model.NodeRegistrationTransactionBody{
 		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
 			63, 224, 101, 127, 241, 62, 152, 187, 255},
-		AccountAddressLength: uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
-		AccountAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		NodeAddressLength:    9,
-		NodeAddress:          "10.10.0.1",
-		LockedBalance:        10000000000,
-		Poown:                poown,
+		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		NodeAddress:    "10.10.0.1",
+		LockedBalance:  10000000000,
+		Poown:          poown,
 	}
 	nr := NodeRegistration{
 		Body: txBody,
@@ -69,10 +67,9 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 	txBody = &model.UpdateNodeRegistrationTransactionBody{
 		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
 			63, 224, 101, 127, 241, 62, 152, 187, 255},
-		NodeAddressLength: 9,
-		NodeAddress:       "10.10.0.1",
-		LockedBalance:     10000000000,
-		Poown:             poown,
+		NodeAddress:   "10.10.0.1",
+		LockedBalance: 10000000000,
+		Poown:         poown,
 	}
 	nr := UpdateNodeRegistration{
 		Body: txBody,

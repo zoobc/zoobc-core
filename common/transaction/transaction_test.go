@@ -2,10 +2,9 @@ package transaction
 
 import (
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/util"
 	"reflect"
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"

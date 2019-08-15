@@ -33,16 +33,14 @@ func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
 		for _, fundReceiver := range genesisFundReceiver {
 			for receiver, amount := range fundReceiver {
 				genesisTx := &model.Transaction{
-					Version:                       1,
-					TransactionType:               util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-					Height:                        0,
-					Timestamp:                     1562806389280,
-					SenderAccountAddressLength:    uint32(len([]byte(constant.GenesisAccountAddress))),
-					SenderAccountAddress:          constant.GenesisAccountAddress,
-					RecipientAccountAddressLength: uint32(len([]byte(receiver))),
-					RecipientAccountAddress:       receiver,
-					Fee:                           0,
-					TransactionBodyLength:         8,
+					Version:                 1,
+					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
+					Height:                  0,
+					Timestamp:               1562806389280,
+					SenderAccountAddress:    constant.GenesisAccountAddress,
+					RecipientAccountAddress: receiver,
+					Fee:                     0,
+					TransactionBodyLength:   8,
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 							Amount: amount,
