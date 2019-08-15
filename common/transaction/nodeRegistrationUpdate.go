@@ -255,12 +255,6 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	}
 
 	if tx.Body.NodeAddress != "" {
-		if tx.Body.NodeAddressLength == 0 {
-			return errors.New("NodeAddressLengthRequired")
-		}
-		if len(tx.Body.NodeAddress) != int(tx.Body.NodeAddressLength) {
-			return errors.New("InvalidNodeAddressLength")
-		}
 		if net.ParseIP(tx.Body.NodeAddress) == nil {
 			// not a valid ipv4 or ipv6 address. let's check if is a valid domain name
 			if _, err := url.Parse(tx.Body.NodeAddress); err != nil {
@@ -279,7 +273,7 @@ func (tx *UpdateNodeRegistration) GetAmount() int64 {
 func (tx *UpdateNodeRegistration) GetSize() uint32 {
 	nodePublicKey := 32
 	nodeAddressLength := 1
-	nodeAddress := tx.Body.NodeAddressLength
+	nodeAddress := uint32(len([]byte(tx.Body.NodeAddress)))
 	lockedBalance := 8
 	//TODO: return bytes of ProofOfOwnership (message + signature) when implemented
 	poown := 256
@@ -296,11 +290,10 @@ func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.Transact
 	// parse ProofOfOwnership (message + signature) bytes
 	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	return &model.UpdateNodeRegistrationTransactionBody{
-		NodePublicKey:     nodePublicKey,
-		NodeAddressLength: nodeAddressLength,
-		NodeAddress:       string(nodeAddress),
-		LockedBalance:     int64(lockedBalance),
-		Poown:             poown,
+		NodePublicKey: nodePublicKey,
+		NodeAddress:   string(nodeAddress),
+		LockedBalance: int64(lockedBalance),
+		Poown:         poown,
 	}
 }
 
@@ -308,8 +301,8 @@ func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.Transact
 func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	addressLengthBytes := util.ConvertUint32ToBytes(tx.Body.NodeAddressLength)
-	buffer.Write([]byte{addressLengthBytes[0]})
+	addressLengthBytes := util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.NodeAddress))))
+	buffer.Write(addressLengthBytes)
 	buffer.Write([]byte(tx.Body.NodeAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	// convert ProofOfOwnership (message + signature) to bytes
