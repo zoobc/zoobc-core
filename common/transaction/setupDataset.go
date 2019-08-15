@@ -26,7 +26,8 @@ ApplyConfirmed is func that for applying Transaction SetupDataset type,
 */
 func (tx *SetupDataset) ApplyConfirmed() error {
 	var (
-		err error
+		err     error
+		dataset *model.Dataset
 	)
 	if tx.Height > 0 {
 		err = tx.UndoApplyUnconfirmed()
@@ -44,10 +45,9 @@ func (tx *SetupDataset) ApplyConfirmed() error {
 		},
 	)
 
-	// This is Default mode, Dataset will be valid as soon as block creation
-	// TODO: (optional) Adding chosen timestamp when Dataset will be valid
+	// This is Default mode, Dataset will be active as soon as block creation
 	currentTime := uint64(time.Now().Unix())
-	dataset := &model.Dataset{
+	dataset = &model.Dataset{
 		AccountSetter:    tx.Body.GetAccountSetter(),
 		AccountRecipient: tx.Body.GetAccountRecipient(),
 		Property:         tx.Body.GetProperty(),
@@ -58,10 +58,9 @@ func (tx *SetupDataset) ApplyConfirmed() error {
 		Latest:           true,
 	}
 
-	// TODO : Add new row in Dataset
 	datasetQuery := tx.DatasetQuery.AddDataset(dataset)
 	queries := append(accountBalanceSenderQ, datasetQuery...)
-	// add row to node_registry table
+
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
@@ -138,7 +137,7 @@ func (tx *SetupDataset) Validate() error {
 	)
 
 	if tx.Body.GetMuchTime() == 0 {
-		return errors.New("starts time is not allowed same with expiration time")
+		return errors.New("Validate SetupDataset: starts time is not allowed same with expiration time")
 	}
 
 	// check balance
@@ -159,7 +158,7 @@ func (tx *SetupDataset) Validate() error {
 	defer rows.Close()
 	// TODO: transaction fee + (expiration time fee)
 	if accountBalance.SpendableBalance < tx.Fee {
-		return errors.New("user balance not enough")
+		return errors.New("Validate SetupDataset: user balance not enough")
 	}
 
 	return nil
