@@ -123,12 +123,12 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "want:getPeerCommonBlockID successfully return commin block ID",
+			name: "want:getPeerCommonBlockID successfully return common block ID",
 			args: args{
 				p2pService:   &mockP2pService_success{},
 				blockService: &mockBlockService_success{},
 			},
-			want:    int64(2),
+			want:    int64(1),
 			wantErr: false,
 		},
 		{

@@ -315,12 +315,13 @@ func (bss *BlockchainSyncService) getPeerCommonBlockID(peer *model.Peer) (int64,
 		}
 		for _, blockID := range commonMilestoneBlockIDResponse.BlockIds {
 			_, err := bss.BlockService.GetBlockByID(blockID)
-			if err != nil {
-				return lastMilestoneBlockID, nil
+			if err == nil {
+				return blockID, nil
 			}
 			lastMilestoneBlockID = blockID
 		}
 	}
+	return 0, nil
 }
 
 func (bss *BlockchainSyncService) getBlockIdsAfterCommon(peer *model.Peer, commonMilestoneBlockID int64) []int64 {
