@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"net"
 	"net/url"
 
@@ -14,14 +15,13 @@ import (
 
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
-	Body                       *model.UpdateNodeRegistrationTransactionBody
-	Fee                        int64
-	SenderAddress              string
-	SenderAccountAddressLength uint32
-	Height                     uint32
-	AccountBalanceQuery        query.AccountBalanceQueryInterface
-	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
-	QueryExecutor              query.ExecutorInterface
+	Body                  *model.UpdateNodeRegistrationTransactionBody
+	Fee                   int64
+	SenderAddress         string
+	Height                uint32
+	AccountBalanceQuery   query.AccountBalanceQueryInterface
+	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	QueryExecutor         query.ExecutorInterface
 }
 
 func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
@@ -284,8 +284,9 @@ func (tx *UpdateNodeRegistration) GetSize() uint32 {
 func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	buffer := bytes.NewBuffer(txBodyBytes)
 	nodePublicKey := buffer.Next(32)
-	nodeAddressLength := util.ConvertBytesToUint32([]byte{buffer.Next(1)[0], 0, 0, 0}) // uint32 length of next bytes to read
-	nodeAddress := buffer.Next(int(nodeAddressLength))                                 // based on nodeAddressLength
+	nodeAddressLength := util.ConvertBytesToUint32(
+		buffer.Next(int(constant.NodeAddressLength))) // uint32 length of next bytes to read
+	nodeAddress := buffer.Next(int(nodeAddressLength)) // based on nodeAddressLength
 	lockedBalance := util.ConvertBytesToUint64(buffer.Next(8))
 	// parse ProofOfOwnership (message + signature) bytes
 	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))

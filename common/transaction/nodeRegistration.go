@@ -13,14 +13,13 @@ import (
 
 // NodeRegistration Implement service layer for (new) node registration's transaction
 type NodeRegistration struct {
-	Body                       *model.NodeRegistrationTransactionBody
-	Fee                        int64
-	SenderAddress              string
-	SenderAccountAddressLength uint32
-	Height                     uint32
-	AccountBalanceQuery        query.AccountBalanceQueryInterface
-	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
-	QueryExecutor              query.ExecutorInterface
+	Body                  *model.NodeRegistrationTransactionBody
+	Fee                   int64
+	SenderAddress         string
+	Height                uint32
+	AccountBalanceQuery   query.AccountBalanceQueryInterface
+	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	QueryExecutor         query.ExecutorInterface
 }
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
