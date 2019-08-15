@@ -28,7 +28,7 @@ func TestService_InitService(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    p2p.P2pServiceInterface
+		want    p2p.ServiceInterface
 		wantErr bool
 	}{
 		// Add test cases.

@@ -111,7 +111,8 @@ func (ss *ServerService) SendPeers(ctx context.Context, req *model.SendPeersRequ
 }
 
 // GetCumulativeDifficulty responds to the request of the cummulative difficulty status of a node
-func (ss *ServerService) GetCumulativeDifficulty(ctx context.Context, req *model.GetCumulativeDifficultyRequest) (*model.GetCumulativeDifficultyResponse, error) {
+func (ss *ServerService) GetCumulativeDifficulty(ctx context.Context,
+	req *model.GetCumulativeDifficultyRequest) (*model.GetCumulativeDifficultyResponse, error) {
 	blockService := ss.BlockServices[req.ChainType]
 	lastBlock, err := blockService.GetLastBlock()
 	if err != nil {
@@ -123,13 +124,14 @@ func (ss *ServerService) GetCumulativeDifficulty(ctx context.Context, req *model
 	}, nil
 }
 
-func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context,
+	req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	// if `lastBlockID` is supplied
 	// check it the last `lastBlockID` got matches with the host's lastBlock then return the response as is
 	chainType := chaintype.GetChainType(req.ChainType)
 	blockService := ss.BlockServices[chainType.GetTypeInt()]
 	if blockService == nil {
-		return nil, errors.New("The block service is not set for this chaintype in this host")
+		return nil, errors.New("the block service is not set for this chaintype in this host")
 	}
 
 	lastBlockID := req.LastBlockID
@@ -174,18 +176,18 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 	if err != nil {
 		return nil, err
 	}
-	blockIdAtHeight := block.ID
+	blockIDAtHeight := block.ID
 	blockIds := []int64{}
 	for {
-		limit = limit - 1
+		limit--
 		if height > 0 && limit > 0 {
-			blockIds = append(blockIds, blockIdAtHeight)
-			height = height - jump
+			blockIds = append(blockIds, blockIDAtHeight)
+			height -= jump
 			block, err := blockService.GetBlockByHeight(height)
 			if err != nil {
 				return nil, err
 			}
-			blockIdAtHeight = block.ID
+			blockIDAtHeight = block.ID
 		} else {
 			break
 		}
@@ -201,22 +203,22 @@ func (ss *ServerService) GetNextBlockIDs(ctx context.Context, req *model.GetNext
 	chainType := chaintype.GetChainType(req.ChainType)
 	blockService := ss.BlockServices[chainType.GetTypeInt()]
 	if blockService == nil {
-		return nil, errors.New("The block service is not set for this chaintype in this host")
+		return nil, errors.New("the block service is not set for this chaintype in this host")
 	}
 	reqLimit := req.Limit
-	reqBlockId := req.BlockId
+	reqBlockID := req.BlockId
 	limit := constant.PeerGetBlocksLimit
 	if reqLimit != 0 && reqLimit < limit {
 		limit = reqLimit
 	}
 
-	foundBlock, err := blockService.GetBlockByID(reqBlockId)
+	foundBlock, err := blockService.GetBlockByID(reqBlockID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
 	}
 	blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get the block IDs: %v\n", err))
+		return nil, fmt.Errorf("failed to get the block IDs: %v", err)
 	}
 	if len(blocks) == 0 {
 		return &model.BlockIdsResponse{}, nil
@@ -235,19 +237,19 @@ func (ss *ServerService) GetNextBlocks(ctx context.Context, req *model.GetNextBl
 	chainType := chaintype.GetChainType(req.ChainType)
 	blockService := ss.BlockServices[chainType.GetTypeInt()]
 
-	reqBlockId := req.BlockId
-	reqBlockIdList := req.BlockIds
+	reqBlockID := req.BlockId
+	reqBlockIDList := req.BlockIds
 	blocksMessage := []*model.Block{}
-	block, err := blockService.GetBlockByID(reqBlockId)
+	block, err := blockService.GetBlockByID(reqBlockID)
 	if err != nil {
 		return nil, err
 	}
-	blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(reqBlockIdList)))
+	blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(reqBlockIDList)))
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get the blocks: %v\n", err))
+		return nil, fmt.Errorf("failed to get the blocks: %v", err)
 	}
 	for idx, block := range blocks {
-		if block.ID != reqBlockIdList[idx] {
+		if block.ID != reqBlockIDList[idx] {
 			break
 		}
 

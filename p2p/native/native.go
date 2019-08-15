@@ -20,7 +20,8 @@ type Service struct {
 var hostServiceInstance *service.HostService
 
 // InitService to initialize services of the native strategy
-func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string, obsr *observer.Observer) (p2p.P2pServiceInterface, error) {
+func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string,
+	obsr *observer.Observer) (p2p.ServiceInterface, error) {
 	if s.HostService == nil {
 		knownPeersResult, err := nativeUtil.ParseKnownPeers(wellknownPeers)
 		if err != nil {

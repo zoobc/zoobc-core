@@ -8,8 +8,8 @@ import (
 	nativeService "github.com/zoobc/zoobc-core/p2p/native/service"
 )
 
-type P2pServiceInterface interface {
-	InitService(myAddress string, port uint32, wellknownPeers []string, obsr *observer.Observer) (P2pServiceInterface, error)
+type ServiceInterface interface {
+	InitService(myAddress string, port uint32, wellknownPeers []string, obsr *observer.Observer) (ServiceInterface, error)
 	SetBlockServices(blockServices map[int32]coreService.BlockServiceInterface)
 	StartP2P()
 
@@ -28,7 +28,8 @@ type P2pServiceInterface interface {
 
 // InitP2P to initialize p2p strategy will used
 // TODO: Add Switcer Interface
-func InitP2P(myAddress string, port uint32, wellknownPeers []string, p2pType P2pServiceInterface, obsr *observer.Observer) P2pServiceInterface {
+func InitP2P(myAddress string, port uint32, wellknownPeers []string, p2pType ServiceInterface,
+	obsr *observer.Observer) ServiceInterface {
 	p2pService, err := p2pType.InitService(myAddress, port, wellknownPeers, obsr)
 	if err != nil {
 		log.Fatalf("Faild to initialize P2P service\nError : %v\n", err)

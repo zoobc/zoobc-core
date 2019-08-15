@@ -24,9 +24,10 @@ type (
 		SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error)
 
 		GetCumulativeDifficulty(*model.Peer, contract.ChainType) (*model.GetCumulativeDifficultyResponse, error)
-		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
-		GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, blockId int64, limit uint32) (*model.BlockIdsResponse, error)
-		GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64, blockId int64) (*model.BlocksData, error)
+		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID,
+			astMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
+		GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, blockID int64, limit uint32) (*model.BlockIdsResponse, error)
+		GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64, blockID int64) (*model.BlocksData, error)
 	}
 	// PeerService represent peer service
 	PeerServiceClient struct {
@@ -135,7 +136,8 @@ func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionB
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
-func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer, chaintype contract.ChainType) (*model.GetCumulativeDifficultyResponse, error) {
+func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
+	chaintype contract.ChainType) (*model.GetCumulativeDifficultyResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -154,7 +156,8 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer, chain
 }
 
 // GetCommonMilestoneBlockIDs request the blockIds that may act as milestone block
-func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID,
+	lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -175,7 +178,8 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, ch
 }
 
 // GetNextBlockIDs request the blockIds of the next blocks requested
-func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, blockId int64, limit uint32) (*model.BlockIdsResponse, error) {
+func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType,
+	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -185,7 +189,7 @@ func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype con
 	p2pClient := service.NewP2PCommunicationClient(connection)
 	res, err := p2pClient.GetNextBlockIDs(context.Background(), &model.GetNextBlockIdsRequest{
 		ChainType: chaintype.GetTypeInt(),
-		BlockId:   blockId,
+		BlockId:   blockID,
 		Limit:     limit,
 	})
 	if err != nil {
@@ -196,7 +200,8 @@ func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype con
 }
 
 // GetNextBlocks request the next blocks matching the array of blockIds
-func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64, blockId int64) (*model.BlocksData, error) {
+func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64,
+	blockID int64) (*model.BlocksData, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -206,7 +211,7 @@ func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype contr
 	p2pClient := service.NewP2PCommunicationClient(connection)
 	res, err := p2pClient.GetNextBlocks(context.Background(), &model.GetNextBlocksRequest{
 		ChainType: chaintype.GetTypeInt(),
-		BlockId:   blockId,
+		BlockId:   blockID,
 		BlockIds:  blockIds,
 	})
 	if err != nil {

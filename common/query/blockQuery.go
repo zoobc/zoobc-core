@@ -90,8 +90,9 @@ func (bq *BlockQuery) GetBlockByHeight(height uint32) string {
 }
 
 // GetBlockFromHeight returns query string to get blocks from a certain height
-func (bq *BlockQuery) GetBlockFromHeight(startHeight uint32, limit uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE HEIGHT >= %d ORDER BY HEIGHT LIMIT %d", strings.Join(bq.Fields, ", "), bq.getTableName(), startHeight, limit)
+func (bq *BlockQuery) GetBlockFromHeight(startHeight, limit uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE HEIGHT >= %d ORDER BY HEIGHT LIMIT %d",
+		strings.Join(bq.Fields, ", "), bq.getTableName(), startHeight, limit)
 }
 
 // ExtractModel extract the model struct fields to the order of BlockQuery.Fields

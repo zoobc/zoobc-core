@@ -12,7 +12,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/blockchainSync"
+	"github.com/zoobc/zoobc-core/core/blockchainsync"
 	"github.com/zoobc/zoobc-core/core/service"
 
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -33,7 +33,7 @@ var (
 	dbInstance                       *database.SqliteDB
 	db                               *sql.DB
 	apiRPCPort, apiHTTPPort          int
-	p2pServiceInstance               p2p.P2pServiceInterface
+	p2pServiceInstance               p2p.ServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
 )
@@ -41,7 +41,7 @@ var (
 var (
 	blockServices   = make(map[int32]coreService.BlockServiceInterface)
 	mempoolServices = make(map[int32]service.MempoolServiceInterface)
-	p2pService      p2p.P2pServiceInterface
+	p2pService      p2p.ServiceInterface
 )
 
 func init() {
@@ -159,7 +159,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
-	mainchainSynchronizer := blockchainSync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance)
+	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance)
 	mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 

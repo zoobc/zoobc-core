@@ -3,9 +3,10 @@ package util
 
 import (
 	"bytes"
+	"math/big"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -186,9 +187,9 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	return nil
 }
 
-func IsBlockIDExist(blockIds []int64, expectedBlockId int64) bool {
-	for _, blockId := range blockIds {
-		if blockId == expectedBlockId {
+func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
+	for _, blockID := range blockIds {
+		if blockID == expectedBlockID {
 			return true
 		}
 	}

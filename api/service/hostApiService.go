@@ -15,14 +15,15 @@ type (
 	HostService struct {
 		Query         query.ExecutorInterface
 		BlockServices map[int32]coreService.BlockServiceInterface
-		P2pService    p2p.P2pServiceInterface
+		P2pService    p2p.ServiceInterface
 	}
 )
 
 var hostServiceInstance *HostService
 
 // NewHostService create a singleton instance of HostService
-func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.P2pServiceInterface, blockServices map[int32]coreService.BlockServiceInterface) HostServiceInterface {
+func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.ServiceInterface,
+	blockServices map[int32]coreService.BlockServiceInterface) HostServiceInterface {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{
 			Query:         queryExecutor,
