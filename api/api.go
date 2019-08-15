@@ -5,7 +5,7 @@ import (
 	"net"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	core_service "github.com/zoobc/zoobc-core/core/service"
+	coreService "github.com/zoobc/zoobc-core/core/service"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -15,7 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/query"
-	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc"
@@ -39,7 +39,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-	mempoolService := core_service.NewMempoolService(
+	mempoolService := coreService.NewMempoolService(
 		&chaintype.MainChain{},
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -51,14 +51,16 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		apiLogger.Fatalf("failed to listen: %v\n", err)
 		return
 	}
+	// *************************************
+	// RPC Services Init
+	// *************************************
 
 	// Set GRPC handler for Block requests
-	rpc_service.RegisterBlockServiceServer(grpcServer, &handler.BlockHandler{
+	rpcService.RegisterBlockServiceServer(grpcServer, &handler.BlockHandler{
 		Service: service.NewBlockService(queryExecutor),
 	})
-
 	// Set GRPC handler for Transactions requests
-	rpc_service.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
+	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
 		Service: service.NewTransactionService(
 			queryExecutor,
 			crypto.NewSignature(),
@@ -67,19 +69,20 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 			apiLogger,
 		),
 	})
-
 	// Set GRPC handler for Transactions requests
-	rpc_service.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
+	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
 		Service:        service.NewHostService(queryExecutor),
 		P2pHostService: p2pHostService,
 	})
-
 	// Set GRPC handler for account balance requests
-	rpc_service.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{Service: service.NewAccountBalanceService(
-		queryExecutor,
-		query.NewAccountBalanceQuery(),
-	)})
+	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
+		Service: service.NewAccountBalanceService(queryExecutor, query.NewAccountBalanceQuery()),
+	})
+	rpcService.RegisterMempoolServiceServer(grpcServer, &handler.MempoolTransactionHandler{
+		Service: service.NewMempoolTransactionsService(queryExecutor),
+	})
 
+	// Set GRPC handler for unconfirmed
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {

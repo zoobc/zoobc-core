@@ -106,19 +106,18 @@ func (bs *BlockService) NewBlock(
 	secretPhrase string,
 ) *model.Block {
 	block := &model.Block{
-		Version:                 version,
-		PreviousBlockHash:       previousBlockHash,
-		BlockSeed:               blockSeed,
-		BlocksmithAddressLength: uint32(len([]byte(blocksmithAddress))),
-		BlocksmithAddress:       blocksmithAddress,
-		Height:                  previousBlockHeight,
-		Timestamp:               timestamp,
-		TotalAmount:             totalAmount,
-		TotalFee:                totalFee,
-		TotalCoinBase:           totalCoinBase,
-		Transactions:            transactions,
-		PayloadHash:             payloadHash,
-		PayloadLength:           payloadLength,
+		Version:           version,
+		PreviousBlockHash: previousBlockHash,
+		BlockSeed:         blockSeed,
+		BlocksmithAddress: blocksmithAddress,
+		Height:            previousBlockHeight,
+		Timestamp:         timestamp,
+		TotalAmount:       totalAmount,
+		TotalFee:          totalFee,
+		TotalCoinBase:     totalCoinBase,
+		Transactions:      transactions,
+		PayloadHash:       payloadHash,
+		PayloadLength:     payloadLength,
 	}
 	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
@@ -140,22 +139,21 @@ func (bs *BlockService) NewGenesisBlock(
 	genesisSignature []byte,
 ) *model.Block {
 	block := &model.Block{
-		Version:                 version,
-		PreviousBlockHash:       previousBlockHash,
-		BlockSeed:               blockSeed,
-		BlocksmithAddressLength: uint32(len([]byte(blocksmithAddress))),
-		BlocksmithAddress:       blocksmithAddress,
-		Height:                  previousBlockHeight,
-		Timestamp:               timestamp,
-		TotalAmount:             totalAmount,
-		TotalFee:                totalFee,
-		TotalCoinBase:           totalCoinBase,
-		Transactions:            transactions,
-		PayloadLength:           payloadLength,
-		PayloadHash:             payloadHash,
-		SmithScale:              smithScale,
-		CumulativeDifficulty:    cumulativeDifficulty.String(),
-		BlockSignature:          genesisSignature,
+		Version:              version,
+		PreviousBlockHash:    previousBlockHash,
+		BlockSeed:            blockSeed,
+		BlocksmithAddress:    blocksmithAddress,
+		Height:               previousBlockHeight,
+		Timestamp:            timestamp,
+		TotalAmount:          totalAmount,
+		TotalFee:             totalFee,
+		TotalCoinBase:        totalCoinBase,
+		Transactions:         transactions,
+		PayloadLength:        payloadLength,
+		PayloadHash:          payloadHash,
+		SmithScale:           smithScale,
+		CumulativeDifficulty: cumulativeDifficulty.String(),
+		BlockSignature:       genesisSignature,
 	}
 	return block
 }
@@ -243,9 +241,21 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 			ID: -1,
 		}, err
 	}
-	var blocks []*model.Block
+	var (
+		blocks       []*model.Block
+		transactions []*model.Transaction
+	)
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	if len(blocks) > 0 {
+		// get transaction of the block
+		transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blocks[0].ID)
+		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+		if err != nil {
+			return &model.Block{
+				ID: -1,
+			}, err
+		}
+		blocks[0].Transactions = bs.TransactionQuery.BuildModel(transactions, rows)
 		return blocks[0], nil
 	}
 	return &model.Block{
@@ -409,11 +419,13 @@ func (bs *BlockService) GenerateBlock(
 	_, _ = digest.Write([]byte(blockSmithAccountAddress))
 	blockSeed := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
-	previousBlockByte, _ := coreUtil.GetBlockByte(previousBlock, true)
-	previousBlockHash := sha3.Sum512(previousBlockByte)
+	previousBlockHash, err := coreUtil.GetBlockHash(previousBlock)
+	if err != nil {
+		return nil, err
+	}
 	block := bs.NewBlock(
 		1,
-		previousBlockHash[:],
+		previousBlockHash,
 		blockSeed,
 		blockSmithAccountAddress,
 		string(hash),
@@ -456,7 +468,7 @@ func (bs *BlockService) AddGenesis() error {
 		1,
 		nil,
 		make([]byte, 64),
-		"",
+		constant.GenesisAccountAddress,
 		"",
 		0,
 		constant.GenesisBlockTimestamp,

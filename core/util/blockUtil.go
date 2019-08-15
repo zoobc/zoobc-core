@@ -3,7 +3,8 @@ package util
 
 import (
 	"bytes"
-	"errors"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -124,13 +125,13 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
 	buffer.Write(block.PayloadHash)
-	buffer.Write(util.ConvertUint32ToBytes(block.BlocksmithAddressLength))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
 	buffer.Write([]byte(block.GetBlocksmithAddress()))
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
 	if signed {
 		if block.BlockSignature == nil {
-			return nil, errors.New("BlockNotSigned")
+			return nil, blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 		}
 		buffer.Write(block.BlockSignature)
 	}
@@ -140,10 +141,39 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 // ValidateBlock validate block to be pushed into the blockchain
 func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	if block.GetTimestamp() > curTime+15 {
-		return errors.New("InvalidTimestamp")
+		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
 	}
 	if GetBlockID(block) == 0 {
-		return errors.New("duplicate block:TODO:conditionNotComplete")
+		return blocker.NewBlocker(blocker.BlockErr, "invalid ID")
+	}
+	// Verify Signature
+	sig := new(crypto.Signature)
+	blockByte, err := GetBlockByte(block, false)
+	if err != nil {
+		return err
+	}
+
+	if !sig.VerifySignature(
+		blockByte,
+		block.BlockSignature,
+		block.BlocksmithAddress,
+	) {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
+	}
+	// Verify previous block hash
+	previousBlockIDFromHash := new(big.Int)
+	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
+		block.PreviousBlockHash[7],
+		block.PreviousBlockHash[6],
+		block.PreviousBlockHash[5],
+		block.PreviousBlockHash[4],
+		block.PreviousBlockHash[3],
+		block.PreviousBlockHash[2],
+		block.PreviousBlockHash[1],
+		block.PreviousBlockHash[0],
+	}).Int64()
+	if previousLastBlock.ID != previousBlockIDFromHashInt {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
 	}
 	return nil
 }

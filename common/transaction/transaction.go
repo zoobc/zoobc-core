@@ -40,15 +40,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		case 0:
 			sendMoneyBody := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &SendMoney{
-				Body:                          sendMoneyBody.(*model.SendMoneyTransactionBody),
-				Fee:                           tx.Fee,
-				SenderAddress:                 tx.GetSenderAccountAddress(),
-				SenderAccountAddressLength:    tx.GetSenderAccountAddressLength(),
-				RecipientAddress:              tx.GetRecipientAccountAddress(),
-				RecipientAccountAddressLength: tx.GetRecipientAccountAddressLength(),
-				Height:                        tx.GetHeight(),
-				AccountBalanceQuery:           query.NewAccountBalanceQuery(),
-				QueryExecutor:                 ts.Executor,
+				Body:                sendMoneyBody.(*model.SendMoneyTransactionBody),
+				Fee:                 tx.Fee,
+				SenderAddress:       tx.GetSenderAccountAddress(),
+				RecipientAddress:    tx.GetRecipientAccountAddress(),
+				Height:              tx.GetHeight(),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       ts.Executor,
 			}
 		default:
 			return nil
@@ -58,14 +56,24 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		case 0:
 			nodeRegistrationBody := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &NodeRegistration{
-				Body:                       nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
-				Fee:                        tx.Fee,
-				SenderAddress:              tx.GetSenderAccountAddress(),
-				SenderAccountAddressLength: tx.GetSenderAccountAddressLength(),
-				Height:                     tx.GetHeight(),
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
-				QueryExecutor:              ts.Executor,
+				Body:                  nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
+				Fee:                   tx.Fee,
+				SenderAddress:         tx.GetSenderAccountAddress(),
+				Height:                tx.GetHeight(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         ts.Executor,
+			}
+		case 1:
+			nodeRegistrationBody := new(UpdateNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			return &UpdateNodeRegistration{
+				Body:                  nodeRegistrationBody.(*model.UpdateNodeRegistrationTransactionBody),
+				Fee:                   tx.Fee,
+				SenderAddress:         tx.GetSenderAccountAddress(),
+				Height:                tx.GetHeight(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         ts.Executor,
 			}
 		default:
 			return nil

@@ -17,9 +17,9 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	buffer.Write(ConvertUint32ToBytes(transaction.TransactionType))
 	buffer.Write(ConvertUint32ToBytes(transaction.Version)[:constant.TransactionVersion])
 	buffer.Write(ConvertUint64ToBytes(uint64(transaction.Timestamp)))
-	buffer.Write(ConvertUint32ToBytes(transaction.SenderAccountAddressLength))
+	buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(transaction.SenderAccountAddress)))))
 	buffer.Write([]byte(transaction.SenderAccountAddress))
-	buffer.Write(ConvertUint32ToBytes(transaction.RecipientAccountAddressLength))
+	buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
 	if transaction.RecipientAccountAddress == "" {
 		buffer.Write(make([]byte, constant.AccountAddress)) // if no recipient pad with 44 (zoobc address length)
 	} else {
@@ -100,19 +100,17 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	transactionHash := sha3.Sum256(transactionBytes)
 	txID, _ := GetTransactionID(transactionHash[:])
 	tx := &model.Transaction{
-		ID:                            txID,
-		TransactionType:               transactionType,
-		Version:                       transactionVersion,
-		Timestamp:                     int64(timestamp),
-		SenderAccountAddressLength:    ConvertBytesToUint32(senderAccountAddressLength),
-		SenderAccountAddress:          string(senderAccountAddress),
-		RecipientAccountAddressLength: ConvertBytesToUint32(recipientAccountAddressLength),
-		RecipientAccountAddress:       string(recipientAccountAddress),
-		Fee:                           int64(fee),
-		TransactionBodyLength:         transactionBodyLength,
-		TransactionBodyBytes:          transactionBodyBytes,
-		TransactionHash:               transactionHash[:],
-		Signature:                     sig,
+		ID:                      txID,
+		TransactionType:         transactionType,
+		Version:                 transactionVersion,
+		Timestamp:               int64(timestamp),
+		SenderAccountAddress:    string(senderAccountAddress),
+		RecipientAccountAddress: string(recipientAccountAddress),
+		Fee:                     int64(fee),
+		TransactionBodyLength:   transactionBodyLength,
+		TransactionBodyBytes:    transactionBodyBytes,
+		TransactionHash:         transactionHash[:],
+		Signature:               sig,
 	}
 	return tx, nil
 }

@@ -2,17 +2,17 @@ package transaction
 
 import (
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/util"
 	"reflect"
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
-	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixtures()
+	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixturesForNoderegistration()
+	_, _, updateNodeRegistrationBody, updateNodeRegistrationBodyBytes := GetFixturesForUpdateNoderegistration()
 	type fields struct {
 		Executor query.ExecutorInterface
 	}
@@ -110,7 +110,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 							Amount: 10,
 						},
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{1, 1, 0, 0}),
+					TransactionType: binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
 				},
 			},
 			want: nil,
@@ -142,7 +142,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 		},
 		{
-			name: "wantNil",
+			name: "wantUpdateNodeRegistration",
 			fields: fields{
 				Executor: &query.Executor{},
 			},
@@ -151,15 +151,21 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  0,
 					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 					RecipientAccountAddress: "",
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: 10,
-						},
+					TransactionBody: &model.Transaction_UpdateNodeRegistrationTransactionBody{
+						UpdateNodeRegistrationTransactionBody: updateNodeRegistrationBody,
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{2, 1, 0, 0}),
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 1, 0, 0}),
+					TransactionBodyBytes: updateNodeRegistrationBodyBytes,
 				},
 			},
-			want: nil,
+			want: &UpdateNodeRegistration{
+				Body:                  updateNodeRegistrationBody,
+				Height:                0,
+				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				QueryExecutor:         &query.Executor{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
 		},
 	}
 	for _, tt := range tests {

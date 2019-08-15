@@ -64,15 +64,13 @@ func getTransaction(txType []byte) *model.Transaction {
 	case util.ConvertBytesToUint32(txTypeMap["sendMoney"]):
 		amount := int64(10000)
 		return &model.Transaction{
-			Version:                       1,
-			TransactionType:               util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
-			Timestamp:                     time.Now().Unix(),
-			SenderAccountAddressLength:    uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
-			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddressLength: uint32(len([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"))),
-			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			Fee:                           1,
-			TransactionBodyLength:         8,
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                     1,
+			TransactionBodyLength:   8,
 			TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 				SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 					Amount: amount,
@@ -82,29 +80,25 @@ func getTransaction(txType []byte) *model.Transaction {
 		}
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
 		txBody := &model.NodeRegistrationTransactionBody{
-			AccountAddressLength: uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
-			AccountAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			NodePublicKey: []byte{
 				0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
 				101, 127, 241, 62, 152, 187, 255,
 			},
-			NodeAddressLength: uint32(len([]byte("127.0.0.1"))),
-			NodeAddress:       "127.0.0.1",
-			LockedBalance:     100000,
+			NodeAddress:   "127.0.0.1",
+			LockedBalance: 100000,
 		}
 		txBodyBytes := (&transaction.NodeRegistration{
 			Body: txBody,
 		}).GetBodyBytes()
 		return &model.Transaction{
-			Version:                       1,
-			TransactionType:               util.ConvertBytesToUint32(txTypeMap["registerNode"]),
-			Timestamp:                     time.Now().Unix(),
-			SenderAccountAddressLength:    uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
-			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddressLength: uint32(len([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"))),
-			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			Fee:                           1,
-			TransactionBodyLength:         uint32(len(txBodyBytes)),
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["registerNode"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 				NodeRegistrationTransactionBody: txBody,
 			},
