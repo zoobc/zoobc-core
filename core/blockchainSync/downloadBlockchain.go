@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -58,7 +59,7 @@ func (bss BlockchainSyncService) getMoreBlocks(runNext chan bool) {
 		// observers.BlockNotifier().Notify(observers.BLOCK_DOWNLOADING, nil, bss.Chaintype)
 		currentLastBlock, err := bss.BlockService.GetLastBlock()
 		if err != nil {
-			log.Error("failed to get the current last block")
+			log.Error(err)
 			continue
 		}
 		currentHeight := currentLastBlock.Height
@@ -68,20 +69,18 @@ func (bss BlockchainSyncService) getMoreBlocks(runNext chan bool) {
 		}
 		afterDownloadLastBlock, err := bss.BlockService.GetLastBlock()
 		if err != nil {
-			log.Error("failed to get the last block state after block download")
+			log.Warnf("failed to get the last block state after block download")
 			continue
 		}
 		heightAfterDownload := afterDownloadLastBlock.Height
 		if currentHeight > 0 && currentHeight == heightAfterDownload {
 			bss.IsDownloading = false
-			log.Printf("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), heightAfterDownload-initialHeight)
+			log.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), heightAfterDownload-initialHeight)
 			// observers.BlockNotifier().Notify(observers.BLOCK_DOWNLOAD_FINISH, heightAfterDownload, bs.Chaintype)
 			break
 		}
 		break
 	}
-
-	// bs.RestorePrunableData()
 
 	// TODO: Handle interruption and other exceptions
 	time.Sleep(constant.GetMoreBlocksDelay * time.Second)
@@ -96,7 +95,7 @@ func (bss *BlockchainSyncService) getPeerBlockchainInfo() error {
 	}
 	peerCumulativeDifficultyResponse, err := bss.P2pService.GetCumulativeDifficulty(peer, bss.ChainType)
 	if err != nil {
-		return errors.New(fmt.Sprintf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err))
+		return fmt.Errorf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err)
 	}
 
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
@@ -137,7 +136,7 @@ func (bss *BlockchainSyncService) getPeerBlockchainInfo() error {
 	commonBlockID := chainBlockIds[0]
 	commonBlock, err := bss.BlockService.GetBlockByID(commonBlockID)
 	if err != nil {
-		log.Warnf("common block %v not found, milestone %v", commonBlockID, commonMilestoneBlockID)
+		log.Warnf("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
 		return err
 	}
 	if commonBlock == nil || lastBlockHeight-commonBlock.GetHeight() >= 720 {
@@ -155,7 +154,10 @@ func (bss *BlockchainSyncService) getPeerBlockchainInfo() error {
 	bss.downloadFromPeer(peer, commonBlock, chainBlockIds)
 
 	// TODO: analyze the importance of this mechanism
-	bss.confirmBlockchainState(peer, commonMilestoneBlockID)
+	confirmBlockchainError := bss.confirmBlockchainState(peer, commonMilestoneBlockID)
+	if confirmBlockchainError != nil {
+		return err
+	}
 	newLastBlock, err := bss.BlockService.GetLastBlock()
 	if err != nil {
 		return err
@@ -277,7 +279,10 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 		if block.Height == 0 {
 			continue
 		}
-		lastBlock, _ := bss.BlockService.GetLastBlock()
+		lastBlock, err := bss.BlockService.GetLastBlock()
+		if err != nil {
+			return err
+		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
 		if lastBlock.ID == previousBlockID {
 			err := bss.BlockService.PushBlock(lastBlock, block, false)
@@ -292,8 +297,8 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 	}
 
 	if len(forkBlocks) > 0 {
-		// log.Println("processing fork blocks %v", forkBlocks)
-		// processFork(forkBlocks)
+		// log.Println("processing fork blocks...")
+		// bss.processFork(forkBlocks)
 	}
 	return nil
 }
@@ -302,7 +307,7 @@ func (bss *BlockchainSyncService) getPeerCommonBlockID(peer *model.Peer) (int64,
 	lastMilestoneBlockID := int64(0)
 	lastBlock, err := bss.BlockService.GetLastBlock()
 	if err != nil {
-		log.Warnf("failed to get blockchain last block: %v\n", err)
+		log.Errorf("failed to get blockchain last block: %v\n", err)
 		return 0, err
 	}
 	lastBlockID := lastBlock.ID
@@ -317,11 +322,15 @@ func (bss *BlockchainSyncService) getPeerCommonBlockID(peer *model.Peer) (int64,
 			_, err := bss.BlockService.GetBlockByID(blockID)
 			if err == nil {
 				return blockID, nil
+			} else {
+				errCasted := err.(blocker.Blocker)
+				if errCasted.Type != blocker.BlockNotFoundErr {
+					return 0, err
+				}
 			}
 			lastMilestoneBlockID = blockID
 		}
 	}
-	return 0, nil
 }
 
 func (bss *BlockchainSyncService) getBlockIdsAfterCommon(peer *model.Peer, commonMilestoneBlockID int64) []int64 {

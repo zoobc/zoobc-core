@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -267,21 +268,17 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
 }
 
-func (bs *BlockService) GetBlocksFromHeight(startHeight uint32, limit uint32) ([]*model.Block, error) {
+func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit))
 	defer func() {
 		if rows != nil {
@@ -305,9 +302,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var (
 		blocks       []*model.Block
@@ -320,16 +315,12 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blocks[0].ID)
 		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
 		if err != nil {
-			return &model.Block{
-				ID: -1,
-			}, err
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		blocks[0].Transactions = bs.TransactionQuery.BuildModel(transactions, rows)
 		return blocks[0], nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("last block is not found"))
 }
 
 // GetLastBlock return the last pushed block
@@ -341,18 +332,14 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block with height %v is not found", height))
 
 }
 
@@ -365,9 +352,7 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("genesis block is not found"))
 	}
 	var lastBlock model.Block
 	if rows.Next() {
@@ -389,15 +374,11 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 			&lastBlock.Version,
 		)
 		if err != nil {
-			return &model.Block{
-				ID: -1,
-			}, err
+			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("genesis block is not found"))
 		}
 		return &lastBlock, nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("genesis block is not found"))
 
 }
 

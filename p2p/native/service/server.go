@@ -8,6 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -123,27 +124,31 @@ func (ss *ServerService) GetCumulativeDifficulty(ctx context.Context, req *model
 }
 
 func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
-	// if `lastBlockId` is supplied
-	// check it the last `lastBlockId` got matches with the host's lastBlock then return the response as is
+	// if `lastBlockID` is supplied
+	// check it the last `lastBlockID` got matches with the host's lastBlock then return the response as is
 	chainType := chaintype.GetChainType(req.ChainType)
 	blockService := ss.BlockServices[chainType.GetTypeInt()]
 	if blockService == nil {
 		return nil, errors.New("The block service is not set for this chaintype in this host")
 	}
 
-	lastBlockId := req.LastBlockId
+	lastBlockID := req.LastBlockId
+	lastMilestoneBlockId := req.LastMilestoneBlockId
+	if lastBlockID == 0 && lastMilestoneBlockId == 0 {
+		return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockId has to be supplied")
+	}
 	myLastBlock, err := blockService.GetLastBlock()
 	if err != nil || myLastBlock == nil {
 		return nil, errors.New("failed to get last block")
 	}
-	myLastBlockId := myLastBlock.ID
+	myLastBlockID := myLastBlock.ID
 	myBlockchainHeight := myLastBlock.Height
 
-	if _, err := blockService.GetBlockByID(lastBlockId); err == nil {
+	if _, err := blockService.GetBlockByID(lastBlockID); err == nil {
 		preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
-			BlockIds: []int64{lastBlockId},
+			BlockIds: []int64{lastBlockID},
 		}
-		if lastBlockId == myLastBlockId {
+		if lastBlockID == myLastBlockID {
 			preparedResponse.Last = true
 		}
 		return preparedResponse, nil
@@ -152,26 +157,22 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 	// if not, send (assumed) milestoneBlock of the host
 	var height, jump uint32
 	limit := constant.CommonMilestoneBlockIdsLimit
-	lastMilestoneBlockId := req.LastMilestoneBlockId
 	if lastMilestoneBlockId != 0 {
 		lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockId)
 		if err != nil {
-			if lastMilestoneBlock == nil {
-				return &model.GetCommonMilestoneBlockIdsResponse{BlockIds: []int64{}}, errors.New("block not found")
-			}
 			return nil, err
 		}
 		height = lastMilestoneBlock.GetHeight()
 		jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myBlockchainHeight, 1))
-	} else if lastBlockId != 0 {
+	} else if lastBlockID != 0 {
 		// TODO: analyze difference of height jump
 		height = myBlockchainHeight
 		jump = 10
 	}
 
 	block, err := blockService.GetBlockByHeight(height)
-	if block == nil || err != nil {
-		return nil, errors.New(fmt.Sprintf("failed to get block at height %v, probably because of corrupted data", height))
+	if err != nil {
+		return nil, err
 	}
 	blockIdAtHeight := block.ID
 	blockIds := []int64{}
@@ -181,8 +182,8 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 			blockIds = append(blockIds, blockIdAtHeight)
 			height = height - jump
 			block, err := blockService.GetBlockByHeight(height)
-			if block == nil || err != nil {
-				return nil, errors.New(fmt.Sprintf("failed to get block at height %v, probably because of corrupted data", height))
+			if err != nil {
+				return nil, err
 			}
 			blockIdAtHeight = block.ID
 		} else {
@@ -210,8 +211,8 @@ func (ss *ServerService) GetNextBlockIDs(ctx context.Context, req *model.GetNext
 	}
 
 	foundBlock, err := blockService.GetBlockByID(reqBlockId)
-	if foundBlock == nil || foundBlock.ID == -1 || err != nil {
-		return &model.BlockIdsResponse{}, errors.New(fmt.Sprintf("the block with id %v is not found", reqBlockId))
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
 	}
 	blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit)
 	if err != nil {
@@ -239,7 +240,7 @@ func (ss *ServerService) GetNextBlocks(ctx context.Context, req *model.GetNextBl
 	blocksMessage := []*model.Block{}
 	block, err := blockService.GetBlockByID(reqBlockId)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("can not find block with ID %v: %v\n", reqBlockId, err))
+		return nil, err
 	}
 	blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(reqBlockIdList)))
 	if err != nil {

@@ -20,7 +20,7 @@ func (*MainChain) GetChainSmithingDelayTime() int64 {
 
 // GetName return the name of the chain : used in parsing chaintype across node
 func (*MainChain) GetName() string {
-	return ""
+	return "Mainchain"
 }
 
 // GetGenesisBlockID return the block ID of genesis block in the chain

@@ -2,9 +2,11 @@ package blockchainSync
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -90,9 +92,7 @@ func (*mockBlockService_success) GetBlockByID(blockID int64) (*model.Block, erro
 			ID: 1,
 		}, nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
 }
 
 func (*mockBlockService_success) GetLastBlock() (*model.Block, error) {
@@ -108,7 +108,7 @@ func (*mockBlockService_fail) GetChainType() contract.ChainType {
 }
 
 func (*mockBlockService_fail) GetLastBlock() (*model.Block, error) {
-	return nil, errors.New("mock error")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
 }
 
 func TestGetPeerCommonBlockID(t *testing.T) {
