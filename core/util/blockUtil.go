@@ -134,7 +134,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
 	buffer.Write(block.PayloadHash)
-	buffer.Write(util.ConvertUint32ToBytes(block.BlocksmithAddressLength))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
 	buffer.Write([]byte(block.GetBlocksmithAddress()))
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
