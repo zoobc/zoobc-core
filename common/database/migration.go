@@ -112,15 +112,15 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "datasets"(
-				"account_setter" TEXT,
-				"account_receiver" TEXT,
+				"account_setter" VARCHAR(255),
+				"account_recipient" VARCHAR(255),
 				"property" TEXT,
 				"value" TEXT,
 				"timestamp_starts" INTEGER,
 				"timestamp_expires" INTEGER,
-				"latest" INTEGER,
 				"height" INTEGER,
-				PRIMARY KEY("account_setter","account_receiver", "property")
+				"latest" INTEGER,
+				PRIMARY KEY("account_setter","account_recipient", "property", "height")
 			);`,
 		}
 		return nil

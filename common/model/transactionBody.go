@@ -8,3 +8,4 @@ type TransactionBodyInterface interface {
 func (*NodeRegistrationTransactionBody) isTxBody() {}
 func (*EmptyTransactionBody) isTxBody()            {}
 func (*SendMoneyTransactionBody) isTxBody()        {}
+func (*SetupDatasetTransactionBody) isTxBody()     {}

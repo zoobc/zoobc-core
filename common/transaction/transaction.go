@@ -70,6 +70,22 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		default:
 			return nil
 		}
+	case 3:
+		switch buf[1] {
+		case 0:
+			setupDatasetTransactionBody := new(SetupDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+			return &SetupDataset{
+				Body:                setupDatasetTransactionBody.(*model.SetupDatasetTransactionBody),
+				Fee:                 tx.Fee,
+				SenderAddress:       tx.GetSenderAccountAddress(),
+				Height:              tx.GetHeight(),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				DatasetQuery:        query.NewDatasetsQuery(),
+				QueryExecutor:       ts.Executor,
+			}
+		default:
+			return nil
+		}
 	default:
 		return nil
 	}
