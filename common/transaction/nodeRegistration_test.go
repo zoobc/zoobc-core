@@ -636,7 +636,6 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddressLength   uint32
 		SenderAddress         string
 		Height                uint32
 		AccountBalanceQuery   query.AccountBalanceQueryInterface

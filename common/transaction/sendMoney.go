@@ -13,14 +13,13 @@ import (
 
 // SendMoney is Transaction Type that implemented TypeAction
 type SendMoney struct {
-	Body                          *model.SendMoneyTransactionBody
-	Fee                           int64
-	SenderAddress                 string
-	RecipientAccountAddressLength uint32
-	RecipientAddress              string
-	Height                        uint32
-	AccountBalanceQuery           query.AccountBalanceQueryInterface
-	QueryExecutor                 query.ExecutorInterface
+	Body                *model.SendMoneyTransactionBody
+	Fee                 int64
+	SenderAddress       string
+	RecipientAddress    string
+	Height              uint32
+	AccountBalanceQuery query.AccountBalanceQueryInterface
+	QueryExecutor       query.ExecutorInterface
 }
 
 /*
