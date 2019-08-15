@@ -53,15 +53,6 @@ func NewNodeAdminService(
 	}
 }
 
-// GetMessageSize return the message size in bytes
-// note: it can be used to validate a message
-func (*NodeAdminService) GetMessageSize() uint32 {
-	accountAddress := 44
-	blockHash := 64
-	blockHeight := 4
-	return uint32(accountAddress + blockHash + blockHeight)
-}
-
 // GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
 func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error) {
 	b, err := proto.Marshal(poown)
