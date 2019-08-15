@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial(":8000", grpc.WithInsecure())
+	conn, err := grpc.Dial(":3001", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -18,7 +18,9 @@ func main() {
 
 	c := rpc_service.NewGeneratePoownServiceClient(conn)
 
-	response, err := c.GetProofOfOwnership(context.Background(), &rpc_model.GetProofOfOwnershipRequest{})
+	response, err := c.GetProofOfOwnership(context.Background(), &rpc_model.GetProofOfOwnershipRequest{
+		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+	})
 
 	if err != nil {
 		log.Fatalf("error calling remote.GetProofOfOwnership: %s", err)

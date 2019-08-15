@@ -37,7 +37,10 @@ func request_GeneratePoownService_GetProofOfOwnership_0(ctx context.Context, mar
 	var protoReq model.GetProofOfOwnershipRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_GeneratePoownService_GetProofOfOwnership_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GeneratePoownService_GetProofOfOwnership_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -108,7 +111,7 @@ func RegisterGeneratePoownServiceHandlerClient(ctx context.Context, mux *runtime
 }
 
 var (
-	pattern_GeneratePoownService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, ""))
+	pattern_GeneratePoownService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

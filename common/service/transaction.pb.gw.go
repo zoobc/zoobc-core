@@ -37,7 +37,10 @@ func request_TransactionService_GetTransactions_0(ctx context.Context, marshaler
 	var protoReq model.GetTransactionsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TransactionService_GetTransactions_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TransactionService_GetTransactions_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -54,28 +57,14 @@ func request_TransactionService_GetTransaction_0(ctx context.Context, marshaler 
 	var protoReq model.GetTransactionRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TransactionService_GetTransaction_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_TransactionService_GetTransaction_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.GetTransaction(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-var (
-	filter_TransactionService_PostTransaction_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
-)
-
-func request_TransactionService_PostTransaction_0(ctx context.Context, marshaler runtime.Marshaler, client TransactionServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq model.PostTransactionRequest
-	var metadata runtime.ServerMetadata
-
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_TransactionService_PostTransaction_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.PostTransaction(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -158,41 +147,17 @@ func RegisterTransactionServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
-	mux.Handle("POST", pattern_TransactionService_PostTransaction_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_TransactionService_PostTransaction_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_TransactionService_PostTransaction_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	return nil
 }
 
 var (
-	pattern_TransactionService_GetTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "transaction", "GetTransactions"}, ""))
+	pattern_TransactionService_GetTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "transaction", "GetTransactions"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_TransactionService_GetTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "transaction", "GetTransaction"}, ""))
-
-	pattern_TransactionService_PostTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "transaction", "PostTransaction"}, ""))
+	pattern_TransactionService_GetTransaction_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "transaction", "GetTransaction"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
 	forward_TransactionService_GetTransactions_0 = runtime.ForwardResponseMessage
 
 	forward_TransactionService_GetTransaction_0 = runtime.ForwardResponseMessage
-
-	forward_TransactionService_PostTransaction_0 = runtime.ForwardResponseMessage
 )

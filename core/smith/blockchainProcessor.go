@@ -53,11 +53,10 @@ func NewBlockchainProcessor(
 func NewBlocksmith(nodeSecretPhrase string) *Blocksmith {
 	// todo: get node[private + public key] + look up account [public key, ID]
 	blocksmith := &Blocksmith{
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountAddress: util.GetAddressFromSeed(nodeSecretPhrase),
 		Balance:        big.NewInt(1000000000),
 		SecretPhrase:   nodeSecretPhrase,
-		NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219,
-			80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		NodePublicKey:  util.GetPublicKeyFromSeed(nodeSecretPhrase),
 	}
 	return blocksmith
 }

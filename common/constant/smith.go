@@ -9,5 +9,7 @@ var (
 	GenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	GenesisBlockTimestamp = int64(1562117271)
-	GenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" // 042643fd5c5f3b64bd6b38882f7727fdc5d6eee3c354f3ab9d7b8ff7c1840140
+	GenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn" +
+		"_cXW7uPDVPOrnXuP98GEAUC7" // 042643fd5c5f3b64bd6b38882f7727fdc5d6eee3c354f3ab9d7b8ff7c1840140
+	NodeSignatureTypeDefault = uint32(0)
 )
