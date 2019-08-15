@@ -9,6 +9,8 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	model "github.com/zoobc/zoobc-core/common/model"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -126,6 +128,26 @@ type P2PCommunicationServer interface {
 	SendPeers(context.Context, *model.SendPeersRequest) (*model.Empty, error)
 	SendBlock(context.Context, *model.Block) (*model.Empty, error)
 	SendTransaction(context.Context, *model.SendTransactionRequest) (*model.Empty, error)
+}
+
+// UnimplementedP2PCommunicationServer can be embedded to have forward compatible implementations.
+type UnimplementedP2PCommunicationServer struct {
+}
+
+func (*UnimplementedP2PCommunicationServer) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPeerInfo not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMorePeers not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendPeers not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendBlock(ctx context.Context, req *model.Block) (*model.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendBlock not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendTransaction not implemented")
 }
 
 func RegisterP2PCommunicationServer(s *grpc.Server, srv P2PCommunicationServer) {

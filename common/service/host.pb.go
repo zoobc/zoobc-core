@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -78,6 +80,14 @@ func (c *hostServiceClient) GetHostInfo(ctx context.Context, in *model.Empty, op
 // HostServiceServer is the server API for HostService service.
 type HostServiceServer interface {
 	GetHostInfo(context.Context, *model.Empty) (*model.Host, error)
+}
+
+// UnimplementedHostServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedHostServiceServer struct {
+}
+
+func (*UnimplementedHostServiceServer) GetHostInfo(ctx context.Context, req *model.Empty) (*model.Host, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHostInfo not implemented")
 }
 
 func RegisterHostServiceServer(s *grpc.Server, srv HostServiceServer) {

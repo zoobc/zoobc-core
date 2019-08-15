@@ -29,21 +29,21 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 func init() { proto.RegisterFile("service/proofOfOwnership.proto", fileDescriptor_e7843b578b7f744e) }
 
 var fileDescriptor_e7843b578b7f744e = []byte{
-	// 216 bytes of a gzipped FileDescriptorProto
+	// 212 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x2b, 0x4e, 0x2d, 0x2a,
 	0xcb, 0x4c, 0x4e, 0xd5, 0x2f, 0x28, 0xca, 0xcf, 0x4f, 0xf3, 0x4f, 0xf3, 0x2f, 0xcf, 0x4b, 0x2d,
 	0x2a, 0xce, 0xc8, 0x2c, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x87, 0xca, 0x4b, 0xc9,
 	0xe4, 0xe6, 0xa7, 0xa4, 0xe6, 0xe0, 0x50, 0x26, 0x25, 0x93, 0x9e, 0x9f, 0x9f, 0x9e, 0x93, 0xaa,
 	0x9f, 0x58, 0x90, 0xa9, 0x9f, 0x98, 0x97, 0x97, 0x5f, 0x92, 0x58, 0x92, 0x99, 0x9f, 0x57, 0x0c,
-	0x91, 0x35, 0x9a, 0xce, 0xc8, 0x25, 0xe2, 0x9e, 0x9a, 0x97, 0x5a, 0x94, 0x58, 0x92, 0x1a, 0x90,
-	0x9f, 0x5f, 0x9e, 0x17, 0x0c, 0x31, 0x54, 0xa8, 0x9e, 0x4b, 0xd8, 0x3d, 0xb5, 0x24, 0x00, 0xcd,
-	0x4c, 0x21, 0x45, 0x3d, 0xb0, 0x65, 0x7a, 0x58, 0xe4, 0x82, 0x52, 0x0b, 0x4b, 0x53, 0x8b, 0x4b,
-	0xa4, 0xa4, 0x70, 0x2b, 0x51, 0xd2, 0x6c, 0xba, 0xfc, 0x64, 0x32, 0x93, 0xb2, 0x90, 0xa2, 0x7e,
-	0x99, 0xa1, 0x7e, 0x5e, 0x7e, 0x4a, 0x6a, 0x62, 0x4a, 0x6e, 0x66, 0x9e, 0x7e, 0x3a, 0xa6, 0x52,
-	0x27, 0x9d, 0x28, 0xad, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd, 0xe4, 0xfc, 0x5c, 0xfd, 0xaa,
-	0xfc, 0xfc, 0xa4, 0x64, 0x08, 0xa9, 0x9b, 0x9c, 0x5f, 0x94, 0xaa, 0x9f, 0x9c, 0x9f, 0x9b, 0x9b,
-	0x9f, 0xa7, 0x0f, 0x0d, 0x83, 0x24, 0x36, 0xb0, 0x77, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff,
-	0xcd, 0x46, 0xad, 0x8a, 0x35, 0x01, 0x00, 0x00,
+	0x91, 0x35, 0x9a, 0xc0, 0xc8, 0x25, 0xe0, 0x97, 0x9f, 0x92, 0xea, 0x98, 0x92, 0x9b, 0x99, 0x17,
+	0x0c, 0x31, 0x50, 0xa8, 0x86, 0x4b, 0xd8, 0x3d, 0xb5, 0x24, 0x00, 0xcd, 0x3c, 0x21, 0x45, 0x3d,
+	0xb0, 0x45, 0x7a, 0x58, 0xe4, 0x82, 0x52, 0x0b, 0x4b, 0x53, 0x8b, 0x4b, 0xa4, 0xc4, 0xa1, 0x4a,
+	0xd0, 0xe5, 0x95, 0x34, 0x9b, 0x2e, 0x3f, 0x99, 0xcc, 0xa4, 0x2c, 0xa4, 0xa8, 0x5f, 0x66, 0xa8,
+	0x9f, 0x97, 0x9f, 0x92, 0x9a, 0x08, 0xb2, 0x50, 0x3f, 0x1d, 0xd3, 0x28, 0x27, 0x9d, 0x28, 0xad,
+	0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd, 0xe4, 0xfc, 0x5c, 0xfd, 0xaa, 0xfc, 0xfc, 0xa4, 0x64,
+	0x08, 0xa9, 0x9b, 0x9c, 0x5f, 0x94, 0xaa, 0x9f, 0x9c, 0x9f, 0x9b, 0x9b, 0x9f, 0xa7, 0x0f, 0xf5,
+	0x7c, 0x12, 0x1b, 0xd8, 0x1f, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0x4e, 0x8a, 0x9f, 0x21,
+	0x2e, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -54,72 +54,72 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// GeneratePoownServiceClient is the client API for GeneratePoownService service.
+// NodeAdminServiceClient is the client API for NodeAdminService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type GeneratePoownServiceClient interface {
-	GetProofOfOwnership(ctx context.Context, in *model.GetProofOfOwnershipRequest, opts ...grpc.CallOption) (*model.GetProofOfOwnership, error)
+type NodeAdminServiceClient interface {
+	GetProofOfOwnership(ctx context.Context, in *model.GetProofOfOwnershipRequest, opts ...grpc.CallOption) (*model.ProofOfOwnership, error)
 }
 
-type generatePoownServiceClient struct {
+type nodeAdminServiceClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewGeneratePoownServiceClient(cc *grpc.ClientConn) GeneratePoownServiceClient {
-	return &generatePoownServiceClient{cc}
+func NewNodeAdminServiceClient(cc *grpc.ClientConn) NodeAdminServiceClient {
+	return &nodeAdminServiceClient{cc}
 }
 
-func (c *generatePoownServiceClient) GetProofOfOwnership(ctx context.Context, in *model.GetProofOfOwnershipRequest, opts ...grpc.CallOption) (*model.GetProofOfOwnership, error) {
-	out := new(model.GetProofOfOwnership)
-	err := c.cc.Invoke(ctx, "/service.GeneratePoownService/GetProofOfOwnership", in, out, opts...)
+func (c *nodeAdminServiceClient) GetProofOfOwnership(ctx context.Context, in *model.GetProofOfOwnershipRequest, opts ...grpc.CallOption) (*model.ProofOfOwnership, error) {
+	out := new(model.ProofOfOwnership)
+	err := c.cc.Invoke(ctx, "/service.NodeAdminService/GetProofOfOwnership", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// GeneratePoownServiceServer is the server API for GeneratePoownService service.
-type GeneratePoownServiceServer interface {
-	GetProofOfOwnership(context.Context, *model.GetProofOfOwnershipRequest) (*model.GetProofOfOwnership, error)
+// NodeAdminServiceServer is the server API for NodeAdminService service.
+type NodeAdminServiceServer interface {
+	GetProofOfOwnership(context.Context, *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error)
 }
 
-// UnimplementedGeneratePoownServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedGeneratePoownServiceServer struct {
+// UnimplementedNodeAdminServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedNodeAdminServiceServer struct {
 }
 
-func (*UnimplementedGeneratePoownServiceServer) GetProofOfOwnership(ctx context.Context, req *model.GetProofOfOwnershipRequest) (*model.GetProofOfOwnership, error) {
+func (*UnimplementedNodeAdminServiceServer) GetProofOfOwnership(ctx context.Context, req *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProofOfOwnership not implemented")
 }
 
-func RegisterGeneratePoownServiceServer(s *grpc.Server, srv GeneratePoownServiceServer) {
-	s.RegisterService(&_GeneratePoownService_serviceDesc, srv)
+func RegisterNodeAdminServiceServer(s *grpc.Server, srv NodeAdminServiceServer) {
+	s.RegisterService(&_NodeAdminService_serviceDesc, srv)
 }
 
-func _GeneratePoownService_GetProofOfOwnership_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _NodeAdminService_GetProofOfOwnership_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(model.GetProofOfOwnershipRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GeneratePoownServiceServer).GetProofOfOwnership(ctx, in)
+		return srv.(NodeAdminServiceServer).GetProofOfOwnership(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/service.GeneratePoownService/GetProofOfOwnership",
+		FullMethod: "/service.NodeAdminService/GetProofOfOwnership",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GeneratePoownServiceServer).GetProofOfOwnership(ctx, req.(*model.GetProofOfOwnershipRequest))
+		return srv.(NodeAdminServiceServer).GetProofOfOwnership(ctx, req.(*model.GetProofOfOwnershipRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _GeneratePoownService_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "service.GeneratePoownService",
-	HandlerType: (*GeneratePoownServiceServer)(nil),
+var _NodeAdminService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "service.NodeAdminService",
+	HandlerType: (*NodeAdminServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "GetProofOfOwnership",
-			Handler:    _GeneratePoownService_GetProofOfOwnership_Handler,
+			Handler:    _NodeAdminService_GetProofOfOwnership_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

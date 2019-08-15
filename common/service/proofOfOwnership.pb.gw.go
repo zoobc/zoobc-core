@@ -30,17 +30,17 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 
 var (
-	filter_GeneratePoownService_GetProofOfOwnership_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+	filter_NodeAdminService_GetProofOfOwnership_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
-func request_GeneratePoownService_GetProofOfOwnership_0(ctx context.Context, marshaler runtime.Marshaler, client GeneratePoownServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_NodeAdminService_GetProofOfOwnership_0(ctx context.Context, marshaler runtime.Marshaler, client NodeAdminServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq model.GetProofOfOwnershipRequest
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GeneratePoownService_GetProofOfOwnership_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_NodeAdminService_GetProofOfOwnership_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -49,9 +49,9 @@ func request_GeneratePoownService_GetProofOfOwnership_0(ctx context.Context, mar
 
 }
 
-// RegisterGeneratePoownServiceHandlerFromEndpoint is same as RegisterGeneratePoownServiceHandler but
+// RegisterNodeAdminServiceHandlerFromEndpoint is same as RegisterNodeAdminServiceHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
-func RegisterGeneratePoownServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+func RegisterNodeAdminServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
 	conn, err := grpc.Dial(endpoint, opts...)
 	if err != nil {
 		return err
@@ -71,23 +71,23 @@ func RegisterGeneratePoownServiceHandlerFromEndpoint(ctx context.Context, mux *r
 		}()
 	}()
 
-	return RegisterGeneratePoownServiceHandler(ctx, mux, conn)
+	return RegisterNodeAdminServiceHandler(ctx, mux, conn)
 }
 
-// RegisterGeneratePoownServiceHandler registers the http handlers for service GeneratePoownService to "mux".
+// RegisterNodeAdminServiceHandler registers the http handlers for service NodeAdminService to "mux".
 // The handlers forward requests to the grpc endpoint over "conn".
-func RegisterGeneratePoownServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
-	return RegisterGeneratePoownServiceHandlerClient(ctx, mux, NewGeneratePoownServiceClient(conn))
+func RegisterNodeAdminServiceHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return RegisterNodeAdminServiceHandlerClient(ctx, mux, NewNodeAdminServiceClient(conn))
 }
 
-// RegisterGeneratePoownServiceHandlerClient registers the http handlers for service GeneratePoownService
-// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "GeneratePoownServiceClient".
-// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "GeneratePoownServiceClient"
+// RegisterNodeAdminServiceHandlerClient registers the http handlers for service NodeAdminService
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "NodeAdminServiceClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "NodeAdminServiceClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "GeneratePoownServiceClient" to call the correct interceptors.
-func RegisterGeneratePoownServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client GeneratePoownServiceClient) error {
+// "NodeAdminServiceClient" to call the correct interceptors.
+func RegisterNodeAdminServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client NodeAdminServiceClient) error {
 
-	mux.Handle("GET", pattern_GeneratePoownService_GetProofOfOwnership_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_NodeAdminService_GetProofOfOwnership_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -96,14 +96,14 @@ func RegisterGeneratePoownServiceHandlerClient(ctx context.Context, mux *runtime
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_GeneratePoownService_GetProofOfOwnership_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_NodeAdminService_GetProofOfOwnership_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_GeneratePoownService_GetProofOfOwnership_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_NodeAdminService_GetProofOfOwnership_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -111,9 +111,9 @@ func RegisterGeneratePoownServiceHandlerClient(ctx context.Context, mux *runtime
 }
 
 var (
-	pattern_GeneratePoownService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_NodeAdminService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
-	forward_GeneratePoownService_GetProofOfOwnership_0 = runtime.ForwardResponseMessage
+	forward_NodeAdminService_GetProofOfOwnership_0 = runtime.ForwardResponseMessage
 )

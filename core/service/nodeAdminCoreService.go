@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	proto "github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -18,7 +17,7 @@ type (
 	// NodeAdminServiceInterface represents interface for NodeAdminService
 	NodeAdminServiceInterface interface {
 		GenerateProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error)
-		ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte)
+		ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte) error
 	}
 
 	// NodeAdminServiceHelpersInterface mockable service methods
@@ -75,11 +74,6 @@ func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.Proo
 func (nas *NodeAdminService) GenerateProofOfOwnership(
 	accountAddress string) (*model.ProofOfOwnership, error) {
 
-	ownerAccountAddress := viper.GetString("ownerAccountAddress")
-	if ownerAccountAddress != accountAddress {
-		return nil, errors.New("PoownAccountNotNodeOwner")
-	}
-
 	lastBlock, err := nas.BlockService.GetLastBlock()
 	if err != nil {
 		return nil, err
@@ -95,7 +89,6 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 		BlockHeight:    lastBlock.Height,
 	}
 	messageBytes, err := nas.Helpers.GetBytesFromMessage(poownMessage)
-	log.Println(messageBytes)
 	if err != nil {
 		return nil, err
 	}
