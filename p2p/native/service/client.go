@@ -24,7 +24,7 @@ type (
 		SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error)
 
 		GetCumulativeDifficulty(*model.Peer, contract.ChainType) (*model.GetCumulativeDifficultyResponse, error)
-		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockId, lastMilestoneBlockId int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
+		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
 		GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, blockId int64, limit uint32) (*model.BlockIdsResponse, error)
 		GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64, blockId int64) (*model.BlocksData, error)
 	}
@@ -154,7 +154,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer, chain
 }
 
 // GetCommonMilestoneBlockIDs request the blockIds that may act as milestone block
-func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockId, lastMilestoneBlockId int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -164,8 +164,8 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, ch
 	p2pClient := service.NewP2PCommunicationClient(connection)
 	res, err := p2pClient.GetCommonMilestoneBlockIDs(context.Background(), &model.GetCommonMilestoneBlockIdsRequest{
 		ChainType:            chaintype.GetTypeInt(),
-		LastBlockId:          lastBlockId,
-		LastMilestoneBlockId: lastMilestoneBlockId,
+		LastBlockID:          lastBlockID,
+		LastMilestoneBlockID: lastMilestoneBlockID,
 	})
 	if err != nil {
 		log.Printf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)

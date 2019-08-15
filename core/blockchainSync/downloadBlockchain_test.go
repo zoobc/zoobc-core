@@ -38,7 +38,7 @@ func (*mockP2pService_success) GetNextBlockIDs(destPeer *model.Peer, chaintype c
 	}, nil
 }
 
-func (*mockP2pService_success) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockId, lastMilestoneBlockId int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (*mockP2pService_success) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	return &model.GetCommonMilestoneBlockIdsResponse{
 		BlockIds: []int64{1, 2, 3, 4},
 	}, nil
@@ -72,7 +72,7 @@ func (*mockP2pService_fail) GetNextBlockIDs(destPeer *model.Peer, chaintype cont
 	return nil, errors.New("simulating error")
 }
 
-func (*mockP2pService_fail) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockId, lastMilestoneBlockId int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (*mockP2pService_fail) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	return nil, errors.New("mock error")
 }
 

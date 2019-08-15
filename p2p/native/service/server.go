@@ -132,10 +132,10 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 		return nil, errors.New("The block service is not set for this chaintype in this host")
 	}
 
-	lastBlockID := req.LastBlockId
-	lastMilestoneBlockId := req.LastMilestoneBlockId
-	if lastBlockID == 0 && lastMilestoneBlockId == 0 {
-		return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockId has to be supplied")
+	lastBlockID := req.LastBlockID
+	lastMilestoneBlockID := req.LastMilestoneBlockID
+	if lastBlockID == 0 && lastMilestoneBlockID == 0 {
+		return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 	}
 	myLastBlock, err := blockService.GetLastBlock()
 	if err != nil || myLastBlock == nil {
@@ -157,8 +157,8 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context, req *mo
 	// if not, send (assumed) milestoneBlock of the host
 	var height, jump uint32
 	limit := constant.CommonMilestoneBlockIdsLimit
-	if lastMilestoneBlockId != 0 {
-		lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockId)
+	if lastMilestoneBlockID != 0 {
+		lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID)
 		if err != nil {
 			return nil, err
 		}
