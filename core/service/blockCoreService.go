@@ -277,6 +277,7 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 }
 
 func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
+	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit))
 	defer func() {
 		if rows != nil {
@@ -286,7 +287,6 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 	if err != nil {
 		return []*model.Block{}, err
 	}
-	var blocks []*model.Block
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	return blocks, nil
 }
@@ -317,7 +317,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		blocks[0].Transactions = bs.TransactionQuery.BuildModel(transactions, rows)
 		return blocks[0], nil
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("last block is not found"))
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "last block is not found")
 }
 
 // GetLastBlock return the last pushed block
@@ -349,7 +349,7 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("genesis block is not found"))
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 	}
 	var lastBlock model.Block
 	if rows.Next() {
@@ -371,11 +371,11 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 			&lastBlock.Version,
 		)
 		if err != nil {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("genesis block is not found"))
+			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 		}
 		return &lastBlock, nil
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("genesis block is not found"))
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 
 }
 
@@ -533,7 +533,7 @@ func (bs *BlockService) AddGenesis() error {
 	fmt.Printf("\n\ngenesis block: %v\n\n ", block)
 	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
 	if err != nil {
-		panic("PushGenesisBlock:fail")
+		log.Fatal("PushGenesisBlock:fail")
 	}
 	return nil
 }

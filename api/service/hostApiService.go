@@ -35,7 +35,7 @@ func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Servic
 }
 
 func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
-	var chainStatuses = []*model.ChainStatus{}
+	chainStatuses := []*model.ChainStatus{}
 	for chainType, blockService := range hs.BlockServices {
 		lastBlock, err := blockService.GetLastBlock()
 		if lastBlock == nil || err != nil {

@@ -20,10 +20,10 @@ import (
 
 func (bss *Service) Start(runNext chan bool) {
 	if bss.ChainType == nil {
-		panic("no chaintype")
+		log.Fatal("no chaintype")
 	}
 	if bss.P2pService == nil {
-		panic("no p2p service defined")
+		log.Fatal("no p2p service defined")
 	}
 	bss.GetMoreBlocksThread(runNext)
 }
@@ -49,10 +49,10 @@ func (bss Service) getMoreBlocks(runNext chan bool) {
 
 	lastBlock, err := bss.BlockService.GetLastBlock()
 	if err != nil {
-		panic(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
+		log.Fatal(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
 	}
 	if lastBlock == nil {
-		panic("There is no genesis block found")
+		log.Fatal("There is no genesis block found")
 	}
 	initialHeight := lastBlock.Height
 	for bss.NeedGetMoreBlocks {

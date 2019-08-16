@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -54,7 +55,7 @@ func init() {
 	flag.Parse()
 
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
-		panic(err)
+		log.Fatal(err)
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
@@ -71,11 +72,11 @@ func init() {
 
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 
@@ -148,11 +149,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
-			panic("Fail to add genesis account")
+			log.Fatal("Fail to add genesis account")
 		}
 
 		if err := mainchainProcessor.BlockService.AddGenesis(); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}
 
@@ -166,11 +167,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 func main() {
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err := migration.Apply(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	startServices(queryExecutor)

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,9 +15,10 @@ type BlockHandler struct {
 
 // GetBlock handles request to get data of a single Block
 func (bs *BlockHandler) GetBlock(ctx context.Context, req *model.GetBlockRequest) (*model.Block, error) {
-	fmt.Printf("\n\n%v\n\n", req)
-	var blockResponse *model.Block
-	var err error
+	var (
+		blockResponse *model.Block
+		err           error
+	)
 	chainType := chaintype.GetChainType(req.ChainType)
 	if req.ID != 0 {
 		blockResponse, err = bs.Service.GetBlockByID(chainType, req.ID)
