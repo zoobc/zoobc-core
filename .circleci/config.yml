@@ -106,16 +106,14 @@ jobs:
       - run:
           name: Stop Service
           command: |
-            ssh ubuntu@$old_ip_server 
-            sudo systemctl stop zoobc-service.service
+            ssh ubuntu@$old_ip_server 'sudo systemctl stop zoobc-service.service'
       - run:
           name: Deploy
           command: rsync -va --delete ./dist/ ubuntu@$old_ip_server/home/ubuntu/zoobc
       - run:
           name: Start Service
           command: |
-            ssh ubuntu@$old_ip_server
-            sudo systemctl start zoobc-service.service
+            ssh ubuntu@$old_ip_server 'sudo systemctl start zoobc-service.service'
 workflows:
   version: 2
   prepare-deploy:
