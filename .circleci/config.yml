@@ -80,7 +80,7 @@ jobs:
           name: Build
           command: |
             go build -o ./dist/zoobc
-            rsync -va --exclude='*.db' ./resource ./dist/resource
+            rsync -va --exclude='*.db' ./resource ./dist
       - save_cache:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
@@ -109,7 +109,8 @@ jobs:
             ssh ubuntu@$old_ip_server 'sudo systemctl stop zoobc-service.service'
       - run:
           name: Deploy
-          command: rsync -vae ssh ./dist/ ubuntu@$old_ip_server/home/ubuntu/zoobc
+          command: |
+            rsync -vae ssh ./dist/ ubuntu@$old_ip_server:/home/ubuntu/zoobc --exclude='*.db'
       - run:
           name: Start Service
           command: |
