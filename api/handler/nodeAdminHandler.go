@@ -2,9 +2,9 @@ package handler
 
 import (
 	"context"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/api/service"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -18,10 +18,10 @@ func (gp *NodeAdminHandler) GetProofOfOwnership(ctx context.Context,
 	req *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error) {
 	// validate mandatory fields
 	if req.AccountAddress == "" {
-		return nil, errors.New("AccountAddressRequired")
+		return nil, blocker.NewBlocker(blocker.BlockErr, "AccountAddressRequired")
 	}
 	if len(req.Signature) == 0 {
-		return nil, errors.New("SignatureRequired")
+		return nil, blocker.NewBlocker(blocker.BlockErr, "SignatureRequired")
 	}
 
 	response, err := gp.Service.GetProofOfOwnership(req.AccountAddress, req.Signature)

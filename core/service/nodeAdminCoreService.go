@@ -2,10 +2,10 @@ package service
 
 import (
 	"bytes"
-	"errors"
 
 	proto "github.com/golang/protobuf/proto"
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -56,7 +56,7 @@ func NewNodeAdminService(
 func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error) {
 	b, err := proto.Marshal(poown)
 	if err != nil {
-		return nil, errors.New("InvalidPoownMessage")
+		return nil, blocker.NewBlocker(blocker.BlockErr, "InvalidPoownMessage")
 	}
 	return b, nil
 }
@@ -65,7 +65,7 @@ func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessag
 func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
 	message := new(model.ProofOfOwnershipMessage)
 	if err := proto.Unmarshal(messageBytes, message); err != nil {
-		return nil, errors.New("InvalidPoownMessageBytes")
+		return nil, blocker.NewBlocker(blocker.BlockErr, "InvalidPoownMessageBytes")
 	}
 	return message, nil
 }
@@ -104,7 +104,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte) error {
 
 	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
-		return errors.New("InvalidSignature")
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
 	}
 
 	message, err := nas.Helpers.ParseMessageBytes(poown.MessageBytes)
@@ -119,7 +119,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 
 	// Expiration, in number of blocks, of a proof of ownership message
 	if lastBlock.Height-message.BlockHeight > constant.ProofOfOwnershipExpiration {
-		return errors.New("ProofOfOwnershipExpired")
+		return blocker.NewBlocker(blocker.BlockErr, "ProofOfOwnershipExpired")
 	}
 
 	poownBlockRef, err := nas.BlockService.GetBlockByHeight(message.BlockHeight)
@@ -131,7 +131,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 		return err
 	}
 	if !bytes.Equal(poownBlockHashRef, message.BlockHash) {
-		return errors.New("InvalidProofOfOwnershipBlockHash")
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidProofOfOwnershipBlockHash")
 	}
 	return nil
 }

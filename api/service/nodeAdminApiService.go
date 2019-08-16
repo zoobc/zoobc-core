@@ -1,9 +1,8 @@
 package service
 
 import (
-	"errors"
-
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -57,11 +56,11 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminServic
 func (nas *NodeAdminService) GetProofOfOwnership(accountAddress string, signature []byte) (*model.ProofOfOwnership, error) {
 	// validate signature: message (the account address..) must be signed by accountAddress
 	if !crypto.NewSignature().VerifySignature([]byte(accountAddress), signature, accountAddress) {
-		return nil, errors.New("PoownAccountNotNodeOwner")
+		return nil, blocker.NewBlocker(blocker.BlockErr, "PoownAccountNotNodeOwner")
 	}
 	ownerAccountAddress := viper.GetString("ownerAccountAddress")
 	if ownerAccountAddress != accountAddress {
-		return nil, errors.New("PoownAccountNotNodeOwner")
+		return nil, blocker.NewBlocker(blocker.BlockErr, "PoownAccountNotNodeOwner")
 	}
 
 	poown, err := nas.NodeAdminCoreService.GenerateProofOfOwnership(accountAddress)
