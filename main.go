@@ -3,12 +3,12 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -55,7 +55,7 @@ func init() {
 	flag.Parse()
 
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
@@ -72,11 +72,11 @@ func init() {
 
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 
@@ -149,11 +149,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
-			log.Fatal("Fail to add genesis account")
+			logrus.Fatal("Fail to add genesis account")
 		}
 
 		if err := mainchainProcessor.BlockService.AddGenesis(); err != nil {
-			log.Fatal(err)
+			logrus.Fatal(err)
 		}
 	}
 
@@ -167,11 +167,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 func main() {
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	if err := migration.Apply(); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 
 	startServices(queryExecutor)

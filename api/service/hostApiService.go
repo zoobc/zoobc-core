@@ -48,7 +48,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		})
 	}
 	return &model.HostInfo{
-		Host:        hs.P2pService.GetHostInstance(),
-		ChainStatus: chainStatuses,
+		Host:          hs.P2pService.GetHostInstance(),
+		ChainStatuses: chainStatuses,
 	}, nil
 }
