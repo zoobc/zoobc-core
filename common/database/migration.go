@@ -106,8 +106,6 @@ func (m *Migration) Init() error {
 				"queued" INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
-				UNIQUE ("node_public_key", "height"),
-				UNIQUE ("account_address", "height"),
 				PRIMARY KEY("id", "height")
 			);`,
 		}

@@ -75,6 +75,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
 			}
+		case 2:
+			removeNodeRegistrationBody := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			return &RemoveNodeRegistration{
+				Body:                  removeNodeRegistrationBody.(*model.RemoveNodeRegistrationTransactionBody),
+				Fee:                   tx.Fee,
+				SenderAddress:         tx.GetSenderAccountAddress(),
+				Height:                tx.GetHeight(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         ts.Executor,
+			}
 		default:
 			return nil
 		}

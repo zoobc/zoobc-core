@@ -7,5 +7,6 @@ type TransactionBodyInterface interface {
 
 func (*NodeRegistrationTransactionBody) isTxBody()       {}
 func (*UpdateNodeRegistrationTransactionBody) isTxBody() {}
+func (*RemoveNodeRegistrationTransactionBody) isTxBody() {}
 func (*EmptyTransactionBody) isTxBody()                  {}
 func (*SendMoneyTransactionBody) isTxBody()              {}
