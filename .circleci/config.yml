@@ -109,7 +109,7 @@ jobs:
             ssh ubuntu@$old_ip_server 'sudo systemctl stop zoobc-service.service'
       - run:
           name: Deploy
-          command: rsync -va ssh ./dist/ ubuntu@$old_ip_server/home/ubuntu/zoobc
+          command: rsync -vae ssh ./dist/ ubuntu@$old_ip_server/home/ubuntu/zoobc
       - run:
           name: Start Service
           command: |
