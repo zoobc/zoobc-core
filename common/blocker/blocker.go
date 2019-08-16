@@ -16,6 +16,9 @@ var (
 	BlockErr            TypeBlocker = "BlockErr"
 	BlockNotFoundErr    TypeBlocker = "BlockNotFoundErr"
 	RequestParameterErr TypeBlocker = "RequestParameterErr"
+	AppErr              TypeBlocker = "AppErr"
+	AuthErr             TypeBlocker = "AuthErr"
+	ValidationErr       TypeBlocker = "ValidationErr"
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {

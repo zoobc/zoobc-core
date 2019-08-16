@@ -81,6 +81,9 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	rpcService.RegisterMempoolServiceServer(grpcServer, &handler.MempoolTransactionHandler{
 		Service: service.NewMempoolTransactionsService(queryExecutor),
 	})
+	rpcService.RegisterNodeAdminServiceServer(grpcServer, &handler.NodeAdminHandler{
+		Service: service.NewNodeAdminService(queryExecutor),
+	})
 
 	// Set GRPC handler for unconfirmed
 	// run grpc-gateway handler
