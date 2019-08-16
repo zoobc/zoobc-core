@@ -227,7 +227,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 				return err
 			}
 			// validate tx body and apply/perform transaction-specific logic
-			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
+			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed()
 			if err == nil {
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
