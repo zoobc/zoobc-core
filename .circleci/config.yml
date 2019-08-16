@@ -11,7 +11,6 @@ jobs:
           name: Switch to SSH
           command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
       - checkout
-      - add_ssh_keys
       - restore_cache:
           key: gopkg-{{ .Branch }}-{{ checksum "Gopkg.lock" }}
           paths:
@@ -92,6 +91,7 @@ jobs:
       - image: circleci/golang:1.12.0
     steps:
       - checkout
+      - add_ssh_keys
       - run:
           name: Install rsync
           command: |
