@@ -57,6 +57,7 @@ func (hs *HostService) UpdateResolvedPeers() {
 func (hs *HostService) resolvePeer(destPeer *model.Peer) {
 	_, err := NewPeerServiceClient().GetPeerInfo(destPeer)
 	if err != nil {
+		// TODO: add mechanism to blacklist failing peers
 		hs.DisconnectPeer(destPeer)
 		return
 	}

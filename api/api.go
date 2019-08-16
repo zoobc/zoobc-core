@@ -6,6 +6,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	p2p "github.com/zoobc/zoobc-core/p2p"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -13,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -32,7 +32,8 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService contract.P2PType) {
+func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
+	blockServices map[int32]coreService.BlockServiceInterface) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
 	)
@@ -71,8 +72,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service:        service.NewHostService(queryExecutor),
-		P2pHostService: p2pHostService,
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -96,6 +96,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService contract.P2PType) {
-	startGrpcServer(grpcPort, queryExecutor, p2pHostService)
+func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
+	blockServices map[int32]coreService.BlockServiceInterface) {
+	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices)
 }

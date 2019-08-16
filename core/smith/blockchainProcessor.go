@@ -129,7 +129,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				return err
 			}
 			// if validated push
-			err = bp.BlockService.PushBlock(previousBlock, block)
+			err = bp.BlockService.PushBlock(previousBlock, block, true)
 			if err != nil {
 				return err
 			}
