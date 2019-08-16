@@ -69,7 +69,10 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 	updateDataset := fmt.Sprintf(`
 		UPDATE %s SET (%s) = 
 		(
-			SELECT '%s', %d, %d + CASE WHEN timestamp_expires - %d < 0 THEN 0 ELSE timestamp_expires - %d END 
+			SELECT '%s', %d, 
+				%d + CASE 
+					WHEN timestamp_expires - %d < 0 THEN 0
+					ELSE timestamp_expires - %d END 
 			FROM %s 
 			WHERE %s AND latest = 1
 			ORDER BY height DESC LIMIT 1
@@ -106,16 +109,16 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 			WHERE %s
 		)
 	`,
-		dq.TableName,
+		dq.getFields(),
 		strings.Join(dq.getFields(), ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(dq.getFields()[:6])-1)),
 		dataset.GetTimestampExpires(),
 		dataset.GetTimestampStarts(),
 		dataset.GetTimestampStarts(),
-		dq.TableName,
+		dq.getFields(),
 		fmt.Sprintf("%s != ? ", strings.Join(dq.PrimaryFields, " = ? AND ")),
 		dq.PrimaryFields[0],
-		dq.TableName,
+		dq.getFields(),
 		fmt.Sprintf("%s = ? ", strings.Join(dq.PrimaryFields, " = ? AND ")),
 	)
 
@@ -127,7 +130,8 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 
 	queries = append(queries,
 		append([]interface{}{updateDataset}, append(dq.ArgumentWhere(dataset), dq.ArgumentWhere(dataset)...)...),
-		append([]interface{}{insertDataset}, append(dq.ExtractModel(dataset)[:6], append(dq.ArgumentWhere(dataset), dq.ArgumentWhere(dataset)...)...)...),
+		append([]interface{}{insertDataset},
+			append(dq.ExtractModel(dataset)[:6], append(dq.ArgumentWhere(dataset), dq.ArgumentWhere(dataset)...)...)...),
 		append([]interface{}{updateVersionQuery}, dq.ArgumentWhere(dataset)...),
 	)
 
@@ -135,23 +139,23 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 }
 func (dq *DatasetsQuery) ArgumentWhere(dataset *model.Dataset) []interface{} {
 	return []interface{}{
-		dataset.AccountSetter,
-		dataset.AccountRecipient,
-		dataset.Property,
-		dataset.Height,
+		dataset.GetAccountSetter(),
+		dataset.GetAccountRecipient(),
+		dataset.GetProperty(),
+		dataset.GetHeight(),
 	}
 }
 
 func (dq *DatasetsQuery) ExtractModel(dataset *model.Dataset) []interface{} {
 	return []interface{}{
-		dataset.AccountSetter,
-		dataset.AccountRecipient,
-		dataset.Property,
-		dataset.Height,
-		dataset.Value,
-		dataset.TimestampStarts,
-		dataset.TimestampExpires,
-		dataset.Latest,
+		dataset.GetAccountSetter(),
+		dataset.GetAccountRecipient(),
+		dataset.GetProperty(),
+		dataset.GetHeight(),
+		dataset.GetValue(),
+		dataset.GetTimestampStarts(),
+		dataset.GetTimestampExpires(),
+		dataset.GetLatest(),
 	}
 }
 
