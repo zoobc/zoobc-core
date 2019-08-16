@@ -13,7 +13,7 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 	txBody *model.NodeRegistrationTransactionBody, txBodyBytes []byte) {
 
 	poownMessage = &model.ProofOfOwnershipMessage{
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountAddress: senderAddress1,
 		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
 			101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
 			107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75},
@@ -32,7 +32,7 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 	txBody = &model.NodeRegistrationTransactionBody{
 		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
 			63, 224, 101, 127, 241, 62, 152, 187, 255},
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountAddress: senderAddress1,
 		NodeAddress:    "10.10.0.1",
 		LockedBalance:  10000000000,
 		Poown:          poown,
@@ -48,7 +48,7 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 	txBody *model.UpdateNodeRegistrationTransactionBody, txBodyBytes []byte) {
 
 	poownMessage = &model.ProofOfOwnershipMessage{
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountAddress: senderAddress1,
 		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
 			101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
 			107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75},

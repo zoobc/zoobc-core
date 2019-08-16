@@ -516,3 +516,39 @@ func TestValidateBlock(t *testing.T) {
 		})
 	}
 }
+
+func TestIsBlockIDExist(t *testing.T) { //todo:update test after applying signature related functionalities
+	type args struct {
+		blockIds        []int64
+		expectedBlockID int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "wantSuccess:BlockIDFound",
+			args: args{
+				blockIds:        []int64{1, 2, 3, 4},
+				expectedBlockID: int64(1),
+			},
+			want: true,
+		},
+		{
+			name: "wantSuccess:InvalidTimestamp",
+			args: args{
+				blockIds:        []int64{1, 2, 3, 4},
+				expectedBlockID: int64(5),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsBlockIDExist(tt.args.blockIds, tt.args.expectedBlockID); got != tt.want {
+				t.Errorf("TestIsBlockIDExist() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

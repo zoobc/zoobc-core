@@ -9,7 +9,7 @@ import (
 
 // GetProofOfOwnershipSize returns size in bytes of a proof of ownership message
 func GetProofOfOwnershipSize(withSignature bool) uint32 {
-	message := constant.AccountAddressLength + constant.AccountAddress + constant.BlockHash + constant.Height
+	message := constant.AccountAddress + constant.BlockHash + constant.Height
 	if withSignature {
 		return message + constant.NodeSignature
 	}
@@ -41,7 +41,6 @@ func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
 // TODO: implement this
 func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage) []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(ConvertUint32ToBytes(poownMessage.AccountType))
 	buffer.Write([]byte(poownMessage.AccountAddress))
 	buffer.Write(poownMessage.BlockHash)
 	buffer.Write(ConvertUint32ToBytes(poownMessage.BlockHeight))
@@ -51,12 +50,10 @@ func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage
 // ParseProofOfOwnershipMessageBytes parse a byte array into a ProofOfOwnershipMessage struct (only the message, no signature)
 func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) *model.ProofOfOwnershipMessage {
 	buffer := bytes.NewBuffer(poownMessageBytes)
-	accountType := ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
 	accountAddress := buffer.Next(int(constant.AccountAddress))
 	blockHash := buffer.Next(int(constant.BlockHash))
 	height := ConvertBytesToUint32(buffer.Next(int(constant.Height)))
 	return &model.ProofOfOwnershipMessage{
-		AccountType:    accountType,
 		AccountAddress: string(accountAddress),
 		BlockHash:      blockHash,
 		BlockHeight:    height,
