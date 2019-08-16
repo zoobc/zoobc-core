@@ -100,7 +100,7 @@ func RegisterHostServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_HostService_GetHostInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "host", "GetHostInfo"}, ""))
+	pattern_HostService_GetHostInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "host", "GetHostInfo"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
