@@ -10,8 +10,11 @@ type (
 )
 
 var (
-	DBErr    TypeBlocker = 1
-	BlockErr TypeBlocker = 2
+	DBErr         TypeBlocker = 1
+	BlockErr      TypeBlocker = 2
+	AppErr        TypeBlocker = 3
+	AuthErr       TypeBlocker = 4
+	ValidationErr TypeBlocker = 5
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {

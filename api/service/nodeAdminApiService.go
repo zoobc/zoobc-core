@@ -56,11 +56,11 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminServic
 func (nas *NodeAdminService) GetProofOfOwnership(accountAddress string, signature []byte) (*model.ProofOfOwnership, error) {
 	// validate signature: message (the account address..) must be signed by accountAddress
 	if !crypto.NewSignature().VerifySignature([]byte(accountAddress), signature, accountAddress) {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "PoownAccountNotNodeOwner")
+		return nil, blocker.NewBlocker(blocker.AuthErr, "PoownAccountNotNodeOwner")
 	}
 	ownerAccountAddress := viper.GetString("ownerAccountAddress")
 	if ownerAccountAddress != accountAddress {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "PoownAccountNotNodeOwner")
+		return nil, blocker.NewBlocker(blocker.AuthErr, "PoownAccountNotNodeOwner")
 	}
 
 	poown, err := nas.NodeAdminCoreService.GenerateProofOfOwnership(accountAddress)

@@ -18,10 +18,10 @@ func (gp *NodeAdminHandler) GetProofOfOwnership(ctx context.Context,
 	req *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error) {
 	// validate mandatory fields
 	if req.AccountAddress == "" {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "AccountAddressRequired")
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
 	}
 	if len(req.Signature) == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "SignatureRequired")
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "SignatureRequired")
 	}
 
 	response, err := gp.Service.GetProofOfOwnership(req.AccountAddress, req.Signature)

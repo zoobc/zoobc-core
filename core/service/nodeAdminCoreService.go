@@ -56,7 +56,7 @@ func NewNodeAdminService(
 func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error) {
 	b, err := proto.Marshal(poown)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "InvalidPoownMessage")
+		return nil, blocker.NewBlocker(blocker.AppErr, "InvalidPoownMessage")
 	}
 	return b, nil
 }
@@ -65,7 +65,7 @@ func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessag
 func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
 	message := new(model.ProofOfOwnershipMessage)
 	if err := proto.Unmarshal(messageBytes, message); err != nil {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "InvalidPoownMessageBytes")
+		return nil, blocker.NewBlocker(blocker.AppErr, "InvalidPoownMessageBytes")
 	}
 	return message, nil
 }
@@ -104,7 +104,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwnership, nodePublicKey []byte) error {
 
 	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
+		return blocker.NewBlocker(blocker.AppErr, "InvalidSignature")
 	}
 
 	message, err := nas.Helpers.ParseMessageBytes(poown.MessageBytes)
@@ -119,7 +119,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 
 	// Expiration, in number of blocks, of a proof of ownership message
 	if lastBlock.Height-message.BlockHeight > constant.ProofOfOwnershipExpiration {
-		return blocker.NewBlocker(blocker.BlockErr, "ProofOfOwnershipExpired")
+		return blocker.NewBlocker(blocker.AppErr, "ProofOfOwnershipExpired")
 	}
 
 	poownBlockRef, err := nas.BlockService.GetBlockByHeight(message.BlockHeight)
@@ -131,7 +131,7 @@ func (nas *NodeAdminService) ValidateProofOfOwnership(poown *model.ProofOfOwners
 		return err
 	}
 	if !bytes.Equal(poownBlockHashRef, message.BlockHash) {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidProofOfOwnershipBlockHash")
+		return blocker.NewBlocker(blocker.AppErr, "InvalidProofOfOwnershipBlockHash")
 	}
 	return nil
 }
