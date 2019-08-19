@@ -40,7 +40,7 @@ func (nhs *NodeHardwareService) GetNodeHardware(request *model.GetNodeHardwareRe
 		diskStat     *disk.UsageStat
 	)
 	// validate request
-	err = auth.VerifyAuthApi(nhs.OwnerAccountAddress, request.Auth, model.RequestType_GetNodeHardware)
+	err = auth.VerifyAuthAPI(nhs.OwnerAccountAddress, request.Auth, model.RequestType_GetNodeHardware)
 	if err != nil {
 		return nil, err
 	}

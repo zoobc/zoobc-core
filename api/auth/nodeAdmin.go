@@ -8,16 +8,25 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-// VerifyAuthApi verify the request body and the signature of the request message, checking include
+var LastRequestTimestamp uint64
+
+// VerifyAuthAPI verify the request body and the signature of the request message, checking include
 // request type checking, and the validity of the signature to the owner address
 // return nil if valid, and Blocker object otherwise
-func VerifyAuthApi(ownerAddress string, auth *model.Auth, requestType model.RequestType) error {
+func VerifyAuthAPI(ownerAddress string, auth *model.Auth, requestType model.RequestType) error {
 	if auth.RequestType != requestType {
 		return blocker.NewBlocker(
 			blocker.RequestParameterErr,
 			"invalid request type",
 		)
 	}
+	if auth.Timestamp <= LastRequestTimestamp {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"timestamp is in the past",
+		)
+	}
+	LastRequestTimestamp = auth.Timestamp
 	signature := crypto.NewSignature()
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(auth.RequestType)))

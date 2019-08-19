@@ -28,20 +28,23 @@ func main() {
 	}
 	waitC := make(chan struct{})
 	signature := crypto.Signature{}
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
-	buffer.Write(util.ConvertUint64ToBytes(130000))
-	auth := &rpcModel.Auth{
-		RequestType: rpcModel.RequestType_GetNodeHardware,
-		Timestamp:   130000,
-		Signature: signature.Sign(
-			buffer.Bytes(),
-			constant.NodeSignatureTypeDefault,
-			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-		),
-	}
+
+
 	go func() {
 		for {
+			currentTime := uint64(time.Now().Unix())
+			buffer := bytes.NewBuffer([]byte{})
+			buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
+			buffer.Write(util.ConvertUint64ToBytes(currentTime))
+			auth := &rpcModel.Auth{
+				RequestType: rpcModel.RequestType_GetNodeHardware,
+				Timestamp:  currentTime,
+				Signature: signature.Sign(
+					buffer.Bytes(),
+					constant.NodeSignatureTypeDefault,
+					"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				),
+			}
 			log.Println("Sleeping...")
 			time.Sleep(2 * time.Second)
 			log.Println("Sending request...")
