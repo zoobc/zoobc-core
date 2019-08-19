@@ -37,6 +37,7 @@ var (
 	p2pServiceInstance               p2p.ServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
+	ownerAccountAddress              string
 )
 
 var (
@@ -68,6 +69,7 @@ func init() {
 		if apiHTTPPort == 0 {
 			apiHTTPPort = 8000
 		}
+		ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -84,9 +86,9 @@ func init() {
 	observerInstance = observer.NewObserver()
 }
 
-func startServices(queryExecutor query.ExecutorInterface) {
+func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress string) {
 	startP2pService()
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance, blockServices)
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance, blockServices, ownerAccountAddress)
 }
 
 func startP2pService() {
@@ -174,7 +176,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	startServices(queryExecutor)
+	startServices(queryExecutor, ownerAccountAddress)
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true

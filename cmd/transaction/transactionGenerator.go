@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -39,7 +40,7 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 				unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
 				tx.Signature = signature.Sign(
 					unsignedTxBytes,
-					tx.SenderAccountAddress,
+					constant.NodeSignatureTypeDefault,
 					seed,
 				)
 				signedTxBytes, _ := util.GetTransactionBytes(tx, true)

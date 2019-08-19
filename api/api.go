@@ -33,7 +33,7 @@ func init() {
 }
 
 func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface) {
+	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
 	)
@@ -84,7 +84,12 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	rpcService.RegisterNodeAdminServiceServer(grpcServer, &handler.NodeAdminHandler{
 		Service: service.NewNodeAdminService(queryExecutor),
 	})
-
+	rpcService.RegisterNodeHardwareServiceServer(grpcServer, &handler.NodeHardwareHandler{
+		Service: service.NewNodeHardwareService(
+			ownerAccountAddress,
+			crypto.NewSignature(),
+		),
+	})
 	// Set GRPC handler for unconfirmed
 	// run grpc-gateway handler
 	go func() {
@@ -97,6 +102,6 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 
 // Start starts api servers in the given port and passing query executor
 func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface) {
-	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices)
+	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
+	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress)
 }

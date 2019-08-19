@@ -10,7 +10,7 @@ import (
 
 type (
 	SignatureInterface interface {
-		Sign(payload []byte, accountAddress, seed string) []byte
+		Sign(payload []byte, signatureType uint32, seed string) []byte
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) bool
 	}
@@ -27,10 +27,21 @@ func NewSignature() *Signature {
 
 // Sign accept account ID and payload to be signed then return the signature byte based on the
 // signature method associated with account.Type
-func (sig *Signature) Sign(payload []byte, accountAddress, seed string) []byte {
-	accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
-	signature := ed25519.Sign(accountPrivateKey, payload)
-	return signature
+func (sig *Signature) Sign(payload []byte, signatureType uint32, seed string) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint32ToBytes(signatureType))
+	switch signatureType {
+	case 0:
+		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
+		signature := ed25519.Sign(accountPrivateKey, payload)
+		buffer.Write(signature)
+		return buffer.Bytes()
+	default:
+		accountPrivateKey := ed25519GetPrivateKeyFromSeed(seed)
+		signature := ed25519.Sign(accountPrivateKey, payload)
+		buffer.Write(signature)
+		return buffer.Bytes()
+	}
 }
 
 // SignByNode special method for signing block only, there will be no multiple signature options

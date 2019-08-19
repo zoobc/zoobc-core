@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/util"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -25,11 +28,16 @@ func main() {
 	}
 	waitC := make(chan struct{})
 	signature := crypto.Signature{}
-	poow := &rpcModel.ProofOfOwnership{
-		MessageBytes: []byte("HelloBlock"),
-		Signature: signature.SignByNode(
-			[]byte("HelloBlock"),
-			"sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
+	buffer.Write(util.ConvertUint64ToBytes(130000))
+	auth := &rpcModel.Auth{
+		RequestType: rpcModel.RequestType_GetNodeHardware,
+		Timestamp:   130000,
+		Signature: signature.Sign(
+			buffer.Bytes(),
+			constant.NodeSignatureTypeDefault,
+			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 		),
 	}
 	go func() {
@@ -38,7 +46,7 @@ func main() {
 			time.Sleep(2 * time.Second)
 			log.Println("Sending request...")
 			err = stream.Send(&rpcModel.GetNodeHardwareRequest{
-				ProofOfOwnership: poow,
+				Auth: auth,
 			})
 			if err != nil {
 				log.Fatalf("error sending request to rpcService.GetNodeHardware: %s", err)

@@ -18,4 +18,6 @@ var (
 	TransactionBodyLength uint32 = 4
 	// AccountSignature TODO: this is valid for signatures using Ed25519. in future we might have more implementations
 	AccountSignature uint32 = 64
+	// Signature variables
+	SignatureType uint32 = 4
 )

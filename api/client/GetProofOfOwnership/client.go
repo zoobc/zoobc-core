@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -22,7 +23,7 @@ func main() {
 	c := rpc_service.NewNodeAdminServiceClient(conn)
 
 	sig := crypto.NewSignature().Sign([]byte("BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"),
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		constant.NodeSignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(1))
