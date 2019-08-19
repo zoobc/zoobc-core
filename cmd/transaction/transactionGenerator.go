@@ -124,15 +124,13 @@ func getTransaction(txType []byte) *model.Transaction {
 			Body: txBody,
 		}).GetBodyBytes()
 		return &model.Transaction{
-			Version:                       1,
-			TransactionType:               util.ConvertBytesToUint32(txTypeMap["setupDataset"]),
-			Timestamp:                     time.Now().Unix(),
-			SenderAccountAddressLength:    uint32(len([]byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"))),
-			SenderAccountAddress:          "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddressLength: uint32(len([]byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"))),
-			RecipientAccountAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			Fee:                           1,
-			TransactionBodyLength:         uint32(len(txBodyBytes)),
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["setupDataset"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_SetupDatasetTransactionBody{
 				SetupDatasetTransactionBody: txBody,
 			},
