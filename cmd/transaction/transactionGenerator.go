@@ -114,11 +114,11 @@ func getTransaction(txType []byte) *model.Transaction {
 		}
 	case util.ConvertBytesToUint32(txTypeMap["setupDataset"]):
 		txBody := &model.SetupDatasetTransactionBody{
-			AccountSetter:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			AccountRecipient: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			Property:         "Member",
-			Value:            "Welcome to the jungle",
-			MuchTime:         2592000, // 30 days in second
+			SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Property:                "Member",
+			Value:                   "Welcome to the jungle",
+			MuchTime:                2592000, // 30 days in second
 		}
 		txBodyBytes := (&transaction.SetupDataset{
 			Body: txBody,

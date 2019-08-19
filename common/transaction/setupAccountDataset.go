@@ -11,20 +11,20 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-type SetupDataset struct {
-	Body                *model.SetupDatasetTransactionBody
+type SetupAccountDataset struct {
+	Body                *model.SetupAccountDatasetTransactionBody
 	Fee                 int64
 	SenderAddress       string
 	Height              uint32
 	AccountBalanceQuery query.AccountBalanceQueryInterface
-	DatasetQuery        query.DatasetsQueryInterface
+	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface
 }
 
 /*
-ApplyConfirmed is func that for applying Transaction SetupDataset type,
+ApplyConfirmed is func that for applying Transaction SetupAccountDataset type,
 */
-func (tx *SetupDataset) ApplyConfirmed() error {
+func (tx *SetupAccountDataset) ApplyConfirmed() error {
 	var (
 		err     error
 		dataset *model.Dataset
@@ -48,17 +48,17 @@ func (tx *SetupDataset) ApplyConfirmed() error {
 	// This is Default mode, Dataset will be active as soon as block creation
 	currentTime := uint64(time.Now().Unix())
 	dataset = &model.Dataset{
-		AccountSetter:    tx.Body.GetAccountSetter(),
-		AccountRecipient: tx.Body.GetAccountRecipient(),
-		Property:         tx.Body.GetProperty(),
-		Value:            tx.Body.GetValue(),
-		TimestampStarts:  currentTime,
-		TimestampExpires: currentTime + tx.Body.GetMuchTime(),
-		Height:           tx.Height,
-		Latest:           true,
+		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
+		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
+		Property:                tx.Body.GetProperty(),
+		Value:                   tx.Body.GetValue(),
+		TimestampStarts:         currentTime,
+		TimestampExpires:        currentTime + tx.Body.GetMuchTime(),
+		Height:                  tx.Height,
+		Latest:                  true,
 	}
 
-	datasetQuery := tx.DatasetQuery.AddDataset(dataset)
+	datasetQuery := tx.AccountDatasetQuery.AddDataset(dataset)
 	queries := append(accountBalanceSenderQ, datasetQuery...)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
@@ -70,17 +70,13 @@ func (tx *SetupDataset) ApplyConfirmed() error {
 }
 
 /*
-ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SetupDataset` type
+ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SetupAccountDataset` type
 */
-func (tx *SetupDataset) ApplyUnconfirmed() error {
+func (tx *SetupAccountDataset) ApplyUnconfirmed() error {
 
 	var (
 		err error
 	)
-
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	// update account sender spendable balance
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
@@ -102,7 +98,7 @@ func (tx *SetupDataset) ApplyUnconfirmed() error {
 UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
-func (tx *SetupDataset) UndoApplyUnconfirmed() error {
+func (tx *SetupAccountDataset) UndoApplyUnconfirmed() error {
 	var (
 		err error
 	)
@@ -124,19 +120,19 @@ func (tx *SetupDataset) UndoApplyUnconfirmed() error {
 }
 
 /*
-Validate is func that for validating to Transaction SetupDataset type
+Validate is func that for validating to Transaction SetupAccountDataset type
 That specs:
 	- Checking the expiration time
 	- Checking Spendable Balance sender
 */
-func (tx *SetupDataset) Validate() error {
+func (tx *SetupAccountDataset) Validate() error {
 
 	var (
 		accountBalance model.AccountBalance
 	)
 
 	if tx.Body.GetMuchTime() == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "SetupDataset, starts time is not allowed same with expiration time")
+		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
 	}
 
 	// check balance
@@ -157,31 +153,31 @@ func (tx *SetupDataset) Validate() error {
 	defer rows.Close()
 	// TODO: transaction fee + (expiration time fee)
 	if accountBalance.SpendableBalance < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "SetupDataset, user balance not enough")
+		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, user balance not enough")
 	}
 
 	return nil
 }
 
 // GetAmount return Amount from TransactionBody
-func (tx *SetupDataset) GetAmount() int64 {
+func (tx *SetupAccountDataset) GetAmount() int64 {
 	// TODO: transaction fee + (expiration time fee)
 	return tx.Fee
 }
 
 // GetSize is size of transaction body
-func (tx *SetupDataset) GetSize() uint32 {
+func (tx *SetupAccountDataset) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*SetupDataset) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+func (*SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	buffer := bytes.NewBuffer(txBodyBytes)
-	accountSetterLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
-	accountSetter := buffer.Next(int(accountSetterLength))
+	setterAccountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
+	setterAccountAddress := buffer.Next(int(setterAccountAddressLength))
 
-	accountRecipientLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
-	accountRecipient := buffer.Next(int(accountRecipientLength))
+	recipientAccountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
+	recipientAccountAddress := buffer.Next(int(recipientAccountAddressLength))
 
 	propertyLength := util.ConvertBytesToUint32(buffer.Next(int(constant.DatasetPropertyLength)))
 	property := buffer.Next(int(propertyLength))
@@ -191,24 +187,24 @@ func (*SetupDataset) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInt
 
 	muchTime := util.ConvertBytesToUint64(buffer.Next(int(constant.Timestamp)))
 
-	txBody := &model.SetupDatasetTransactionBody{
-		AccountSetter:    string(accountSetter),
-		AccountRecipient: string(accountRecipient),
-		Property:         string(property),
-		Value:            string(value),
-		MuchTime:         muchTime,
+	txBody := &model.SetupAccountDatasetTransactionBody{
+		SetterAccountAddress:    string(setterAccountAddress),
+		RecipientAccountAddress: string(recipientAccountAddress),
+		Property:                string(property),
+		Value:                   string(value),
+		MuchTime:                muchTime,
 	}
 	return txBody
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *SetupDataset) GetBodyBytes() []byte {
+func (tx *SetupAccountDataset) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetAccountSetter())))))
-	buffer.Write([]byte(tx.Body.GetAccountSetter()))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetSetterAccountAddress())))))
+	buffer.Write([]byte(tx.Body.GetSetterAccountAddress()))
 
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetAccountRecipient())))))
-	buffer.Write([]byte(tx.Body.GetAccountRecipient()))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetRecipientAccountAddress())))))
+	buffer.Write([]byte(tx.Body.GetRecipientAccountAddress()))
 
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetProperty())))))
 	buffer.Write([]byte(tx.Body.GetProperty()))

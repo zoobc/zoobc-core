@@ -10,10 +10,10 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-var mockDatasetQuery = &DatasetsQuery{
+var mockDatasetQuery = &AccountDatasetsQuery{
 	PrimaryFields: []string{
-		"account_setter",
-		"account_recipient",
+		"setter_account_address",
+		"recipient_account_address",
 		"property",
 		"height",
 	},
@@ -23,24 +23,24 @@ var mockDatasetQuery = &DatasetsQuery{
 		"timestamp_expires",
 		"latest",
 	},
-	TableName: "datasets",
+	TableName: "account_datasets",
 }
 
 var mockDataset = &model.Dataset{
-	AccountSetter:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-	AccountRecipient: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-	Property:         "Admin",
-	Value:            "You Welcome",
-	TimestampStarts:  1565942932686,
-	TimestampExpires: 1565943056129,
-	Latest:           true,
-	Height:           5,
+	SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+	RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+	Property:                "Admin",
+	Value:                   "You Welcome",
+	TimestampStarts:         1565942932686,
+	TimestampExpires:        1565943056129,
+	Latest:                  true,
+	Height:                  5,
 }
 
-func TestNewDatasetsQuery(t *testing.T) {
+func TestNewAccountDatasetsQuery(t *testing.T) {
 	tests := []struct {
 		name string
-		want *DatasetsQuery
+		want *AccountDatasetsQuery
 	}{
 		{
 			name: "success",
@@ -49,16 +49,16 @@ func TestNewDatasetsQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewDatasetsQuery(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewDatasetsQuery() = %v, want %v", got, tt.want)
+			if got := NewAccountDatasetsQuery(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewAccountDatasetsQuery() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestDatasetsQuery_GetDatasetsByAccountRecipient(t *testing.T) {
+func TestAccountDatasetsQuery_GetDatasetsByRecipientAccountAddress(t *testing.T) {
 	type args struct {
-		accountRecipient string
+		RecipientAccountAddress string
 	}
 	tests := []struct {
 		name      string
@@ -69,32 +69,32 @@ func TestDatasetsQuery_GetDatasetsByAccountRecipient(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				accountRecipient: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			},
-			wantQuery: "SELECT account_setter,account_recipient,property,height,value,timestamp_starts,timestamp_expires,latest " +
+			wantQuery: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires,latest " +
 				"FROM datasets " +
-				"WHERE account_recipient = ? AND latest = 1",
+				"WHERE recipient_account_address = ? AND latest = 1",
 			wantArgs: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotQuery, gotArgs := mockDatasetQuery.GetDatasetsByAccountRecipient(tt.args.accountRecipient)
+			gotQuery, gotArgs := mockDatasetQuery.GetDatasetsByRecipientAccountAddress(tt.args.RecipientAccountAddress)
 			if gotQuery != tt.wantQuery {
-				t.Errorf("DatasetsQuery.GetDatasetsByAccountRecipient() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
+				t.Errorf("AccountDatasetsQuery.GetDatasetsByRecipientAccountAddress() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("DatasetsQuery.GetDatasetsByAccountRecipient() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("AccountDatasetsQuery.GetDatasetsByRecipientAccountAddress() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
 }
 
-func TestDatasetsQuery_GetLastDataset(t *testing.T) {
+func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 	type args struct {
-		accountSetter    string
-		accountRecipient string
-		property         string
+		SetterAccountAddress    string
+		RecipientAccountAddress string
+		property                string
 	}
 	tests := []struct {
 		name      string
@@ -105,30 +105,30 @@ func TestDatasetsQuery_GetLastDataset(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				accountSetter:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				accountRecipient: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				property:         "Admin",
+				SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				property:                "Admin",
 			},
-			wantQuery: "SELECT account_setter,account_recipient,property,height,value,timestamp_starts,timestamp_expires,latest " +
+			wantQuery: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires,latest " +
 				"FROM datasets " +
-				"WHERE account_setter = ? AND account_recipient = ? AND property = ? AND latest = 1 ORDER BY height DESC LIMIT 1",
+				"WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = 1 ORDER BY height DESC LIMIT 1",
 			wantArgs: []interface{}{"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J", "Admin"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotQuery, gotArgs := mockDatasetQuery.GetLastDataset(tt.args.accountSetter, tt.args.accountRecipient, tt.args.property)
+			gotQuery, gotArgs := mockDatasetQuery.GetLastDataset(tt.args.SetterAccountAddress, tt.args.RecipientAccountAddress, tt.args.property)
 			if gotQuery != tt.wantQuery {
-				t.Errorf("DatasetsQuery.GetLastDataset() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
+				t.Errorf("AccountDatasetsQuery.GetLastDataset() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("DatasetsQuery.GetLastDataset() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("AccountDatasetsQuery.GetLastDataset() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
 }
 
-func TestDatasetsQuery_AddDataset(t *testing.T) {
+func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 	var want [][]interface{}
 	type args struct {
 		dataset *model.Dataset
@@ -212,13 +212,13 @@ func TestDatasetsQuery_AddDataset(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mockDatasetQuery.AddDataset(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("DatasetsQuery.AddDataset() = \n%v, want \n%v", got, tt.want)
+				t.Errorf("AccountDatasetsQuery.AddDataset() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestDatasetsQuery_ExtractModel(t *testing.T) {
+func TestAccountDatasetsQuery_ExtractModel(t *testing.T) {
 	type args struct {
 		dataset *model.Dataset
 	}
@@ -233,8 +233,8 @@ func TestDatasetsQuery_ExtractModel(t *testing.T) {
 				dataset: mockDataset,
 			},
 			want: []interface{}{
-				mockDataset.AccountSetter,
-				mockDataset.AccountRecipient,
+				mockDataset.SetterAccountAddress,
+				mockDataset.RecipientAccountAddress,
 				mockDataset.Property,
 				mockDataset.Height,
 				mockDataset.Value,
@@ -247,21 +247,21 @@ func TestDatasetsQuery_ExtractModel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mockDatasetQuery.ExtractModel(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("DatasetsQuery.ExtractModel() = %v, want %v", got, tt.want)
+				t.Errorf("AccountDatasetsQuery.ExtractModel() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestDatasetsQuery_BuildModel(t *testing.T) {
+func TestAccountDatasetsQuery_BuildModel(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
-			"AccountSetter", "AccountRecipient", "Property", "Height", "Value", "TimestampStarts", "TimestampExpires", "Latest"}).
+			"SetterAccountAddress", "RecipientAccountAddress", "Property", "Height", "Value", "TimestampStarts", "TimestampExpires", "Latest"}).
 			AddRow(
-				mockDataset.AccountSetter,
-				mockDataset.AccountRecipient,
+				mockDataset.SetterAccountAddress,
+				mockDataset.RecipientAccountAddress,
 				mockDataset.Property,
 				mockDataset.Height,
 				mockDataset.Value,
@@ -272,7 +272,7 @@ func TestDatasetsQuery_BuildModel(t *testing.T) {
 		rows, _ := db.Query("foo")
 		var tempDataset []*model.Dataset
 		if got := mockDatasetQuery.BuildModel(tempDataset, rows); !reflect.DeepEqual(got[0], mockDataset) {
-			t.Errorf("DatasetsQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
+			t.Errorf("AccountDatasetsQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
 		}
 	})
 }

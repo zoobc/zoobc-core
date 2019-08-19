@@ -15,12 +15,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixturesForNoderegistration()
 	_, _, updateNodeRegistrationBody, updateNodeRegistrationBodyBytes := GetFixturesForUpdateNoderegistration()
 
-	mockSetupDatasetBody := &model.SetupDatasetTransactionBody{
-		AccountSetter:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		AccountRecipient: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:         "Admin",
-		Value:            "Welcome",
-		MuchTime:         123,
+	mockSetupAccountDatasetBody := &model.SetupAccountDatasetTransactionBody{
+		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Property:                "Admin",
+		Value:                   "Welcome",
+		MuchTime:                123,
 	}
 
 	type fields struct {
@@ -187,8 +187,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  5,
 					SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					RecipientAccountAddress: "",
-					TransactionBody: &model.Transaction_SetupDatasetTransactionBody{
-						SetupDatasetTransactionBody: mockSetupDatasetBody,
+					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
+						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
 					},
 					TransactionType: binary.LittleEndian.Uint32([]byte{3, 0, 0, 0}),
 					TransactionBodyBytes: []byte{
@@ -200,13 +200,13 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					},
 				},
 			},
-			want: &SetupDataset{
-				Body:                mockSetupDatasetBody,
+			want: &SetupAccountDataset{
+				Body:                mockSetupAccountDatasetBody,
 				Height:              5,
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				DatasetQuery:        query.NewDatasetsQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 			},
 		},
 	}
