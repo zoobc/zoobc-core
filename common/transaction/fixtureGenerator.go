@@ -77,3 +77,16 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 	txBodyBytes = nr.GetBodyBytes()
 	return poownMessage, poown, txBody, txBodyBytes
 }
+
+func GetFixturesForRemoveNoderegistration() (txBody *model.RemoveNodeRegistrationTransactionBody, txBodyBytes []byte) {
+
+	txBody = &model.RemoveNodeRegistrationTransactionBody{
+		NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86,
+			211, 123, 72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
+	}
+	nr := RemoveNodeRegistration{
+		Body: txBody,
+	}
+	txBodyBytes = nr.GetBodyBytes()
+	return txBody, txBodyBytes
+}

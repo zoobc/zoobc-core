@@ -37,11 +37,12 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		}
 	}
 
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey))
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(qry, args)
 	if err != nil {
 		return err
 	}
-	tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
+	nodereGistrations = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
 	if len(nodereGistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
@@ -140,7 +141,7 @@ func (tx *RemoveNodeRegistration) Validate() error {
 	if err != nil {
 		return err
 	}
-	tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
+	nodereGistrations = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
 	if len(nodereGistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
