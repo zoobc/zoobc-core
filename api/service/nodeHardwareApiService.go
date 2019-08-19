@@ -41,6 +41,8 @@ func (nhs *NodeHardwareService) GetNodeHardware(request *model.GetNodeHardwareRe
 		diskStat     *disk.UsageStat
 	)
 	// validate request
+	// todo: this is verifying against whatever owner address is in the config file, update this
+	// todo: to follow how `claim` node work.
 	err = auth.VerifyAuthAPI(
 		nhs.OwnerAccountAddress,
 		request.Auth,
