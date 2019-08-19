@@ -21,12 +21,12 @@ func TestBlocker_Error(t *testing.T) {
 				Type:    DBErr,
 				Message: "sql error",
 			},
-			want: "sql error",
+			want: "DBErr: sql error",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := blocker{
+			e := Blocker{
 				Type:    tt.fields.Type,
 				Message: tt.fields.Message,
 			}
@@ -68,5 +68,5 @@ func TestNewBlocker(t *testing.T) {
 func ExampleNewBlocker() {
 	err := NewBlocker(BlockErr, "invalid block height")
 	fmt.Println(err)
-	// Output: invalid block height
+	// Output: BlockErr: invalid block height
 }

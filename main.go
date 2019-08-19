@@ -8,13 +8,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/core/blockchainsync"
 	"github.com/zoobc/zoobc-core/core/service"
 
+	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
@@ -32,9 +34,15 @@ var (
 	dbInstance                       *database.SqliteDB
 	db                               *sql.DB
 	apiRPCPort, apiHTTPPort          int
-	p2pServiceInstance               contract.P2PType
+	p2pServiceInstance               p2p.ServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
+)
+
+var (
+	blockServices   = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices = make(map[int32]service.MempoolServiceInterface)
+	p2pService      p2p.ServiceInterface
 )
 
 func init() {
@@ -47,7 +55,7 @@ func init() {
 	flag.Parse()
 
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
-		panic(err)
+		logrus.Fatal(err)
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
@@ -64,11 +72,11 @@ func init() {
 
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
-		panic(err)
+		logrus.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		panic(err)
+		logrus.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 
@@ -77,18 +85,20 @@ func init() {
 }
 
 func startServices(queryExecutor query.ExecutorInterface) {
-	p2pService()
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance)
+	startP2pService()
+	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance, blockServices)
 }
 
-func p2pService() {
+func startP2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
 	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{}, observerInstance)
+	p2pServiceInstance.SetBlockServices(blockServices)
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
+	p2pService = p2pServiceInstance
 }
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
@@ -98,16 +108,7 @@ func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 
 }
 
-func main() {
-
-	migration := database.Migration{Query: queryExecutor}
-	if err := migration.Init(); err != nil {
-		panic(err)
-	}
-
-	if err := migration.Apply(); err != nil {
-		panic(err)
-	}
+func startMainchain(mainchainSyncChannel chan bool) {
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 	mempoolService := service.NewMempoolService(
@@ -120,7 +121,9 @@ func main() {
 		query.NewAccountBalanceQuery(),
 		observerInstance,
 	)
-	blockService := service.NewBlockService(
+	mempoolServices[mainchain.GetTypeInt()] = mempoolService
+
+	mainchainBlockService := service.NewBlockService(
 		mainchain,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
@@ -134,35 +137,58 @@ func main() {
 		query.NewAccountBalanceQuery(),
 		observerInstance,
 	)
-	blockchainProcessor := smith.NewBlockchainProcessor(
+	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+
+	mainchainProcessor := smith.NewBlockchainProcessor(
 		mainchain,
 		smith.NewBlocksmith(nodeSecretPhrase),
-		blockService,
+		mainchainBlockService,
 	)
 
-	if !blockchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
+	if !mainchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
 
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
-			panic("Fail to add genesis account")
+			logrus.Fatal("Fail to add genesis account")
 		}
 
-		if err := blockchainProcessor.BlockService.AddGenesis(); err != nil {
-			panic(err)
+		if err := mainchainProcessor.BlockService.AddGenesis(); err != nil {
+			logrus.Fatal(err)
 		}
 	}
 
 	if len(nodeSecretPhrase) > 0 {
-		go startSmith(sleepPeriod, blockchainProcessor)
+		go startSmith(sleepPeriod, mainchainProcessor)
+	}
+	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance)
+	mainchainSynchronizer.Start(mainchainSyncChannel)
+}
+
+func main() {
+	migration := database.Migration{Query: queryExecutor}
+	if err := migration.Init(); err != nil {
+		logrus.Fatal(err)
+	}
+
+	if err := migration.Apply(); err != nil {
+		logrus.Fatal(err)
 	}
 
 	startServices(queryExecutor)
 
+	mainchainSyncChannel := make(chan bool, 1)
+	mainchainSyncChannel <- true
+	startMainchain(mainchainSyncChannel)
+
 	// observer
 	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
-	observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
+	for _, blockService := range blockServices {
+		observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
+	}
+	for _, mempoolService := range mempoolServices {
+		observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
+	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

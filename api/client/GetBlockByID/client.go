@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial(":8000", grpc.WithInsecure())
+	conn, err := grpc.Dial(":3001", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -19,7 +19,7 @@ func main() {
 	c := rpc_service.NewBlockServiceClient(conn)
 
 	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		ID: -7639577553511789811,
+		ID: -8875736238633164302,
 	})
 
 	if err != nil {

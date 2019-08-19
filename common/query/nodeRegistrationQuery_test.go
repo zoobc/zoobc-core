@@ -99,7 +99,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 	})
 }
 
-func TestNodeRegistrationQuery_GetNodeRegistrationByAccountPublicKey(t *testing.T) {
+func TestNodeRegistrationQuery_GetNodeRegistrationByAccountAddress(t *testing.T) {
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +

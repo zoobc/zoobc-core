@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/contract"
@@ -38,18 +41,24 @@ type (
 			timestamp int64,
 			blockSmithAccountAddress string,
 		) (*model.Block, error)
-		PushBlock(previousBlock, block *model.Block) error
+		PushBlock(previousBlock, block *model.Block, needLock bool) error
+		GetBlockByID(int64) (*model.Block, error)
+		GetBlockByHeight(uint32) (*model.Block, error)
+		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
-		GetBlockByHeight(height uint32) (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
 		CheckGenesis() bool
+		GetChainType() contract.ChainType
+		ChainWriteLock()
+		ChainWriteUnlock()
 		ReceivedBlockListener() observer.Listener
 	}
 
 	BlockService struct {
+		chainWriteLock      sync.WaitGroup
 		Chaintype           contract.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
@@ -124,6 +133,21 @@ func (bs *BlockService) NewBlock(
 	return block
 }
 
+// GetChainType returns the chaintype
+func (bs *BlockService) GetChainType() contract.ChainType {
+	return bs.Chaintype
+}
+
+// ChainWriteLock locks the chain
+func (bs *BlockService) ChainWriteLock() {
+	bs.chainWriteLock.Add(1)
+}
+
+// ChainWriteUnlock unlocks the chain
+func (bs *BlockService) ChainWriteUnlock() {
+	bs.chainWriteLock.Done()
+}
+
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
 func (bs *BlockService) NewGenesisBlock(
 	version uint32,
@@ -174,7 +198,11 @@ func (*BlockService) VerifySeed(
 }
 
 // PushBlock push block into blockchain
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bool) error {
+	// needLock indicates the push block needs to be protected
+	if needLock {
+		bs.chainWriteLock.Wait()
+	}
 	if previousBlock.GetID() != -1 {
 		block.Height = previousBlock.GetHeight() + 1
 		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
@@ -198,7 +226,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 				return err
 			}
 			// validate tx body and apply/perform transaction-specific logic
-			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed() // todo: make this mockable
+			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed()
 			if err == nil {
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -228,6 +256,40 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block) error {
 
 }
 
+// GetBlockByID return the last pushed block
+func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id))
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	var blocks []*model.Block
+	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	if len(blocks) > 0 {
+		return blocks[0], nil
+	}
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+}
+
+func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
+	var blocks []*model.Block
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit))
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	return blocks, nil
+}
+
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock())
@@ -237,9 +299,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var (
 		blocks       []*model.Block
@@ -251,17 +311,12 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blocks[0].ID)
 		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
 		if err != nil {
-			return &model.Block{
-				ID: -1,
-			}, err
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		blocks[0].Transactions = bs.TransactionQuery.BuildModel(transactions, rows)
 		return blocks[0], nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
-
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "last block is not found")
 }
 
 // GetLastBlock return the last pushed block
@@ -273,18 +328,14 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block with height %v is not found", height))
 
 }
 
@@ -297,9 +348,7 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 		}
 	}()
 	if err != nil {
-		return &model.Block{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 	}
 	var lastBlock model.Block
 	if rows.Next() {
@@ -321,15 +370,11 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 			&lastBlock.Version,
 		)
 		if err != nil {
-			return &model.Block{
-				ID: -1,
-			}, err
+			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 		}
 		return &lastBlock, nil
 	}
-	return &model.Block{
-		ID: -1,
-	}, errors.New("BlockNotFound")
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 
 }
 
@@ -484,9 +529,10 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
-	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block)
+	fmt.Printf("\n\ngenesis block: %v\n\n ", block)
+	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
 	if err != nil {
-		panic("PushGenesisBlock:fail")
+		log.Fatal("PushGenesisBlock:fail")
 	}
 	return nil
 }
@@ -533,7 +579,7 @@ func (bs *BlockService) ReceivedBlockListener() observer.Listener {
 
 					//  check equality last block hash with previous block hash from received block
 					if bytes.Equal(lastBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
-						err := bs.PushBlock(lastBlock, receivedBlock)
+						err := bs.PushBlock(lastBlock, receivedBlock, true)
 						if err != nil {
 							return
 						}

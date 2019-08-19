@@ -3,6 +3,11 @@ package chaintype
 // MainChain is struct should has methods in below
 type MainChain struct{}
 
+// GetTypeInt return the value of the chain type in int
+func (*MainChain) GetTypeInt() int32 {
+	return 0
+}
+
 // GetTablePrefix return the value of current chain table prefix in the database
 func (*MainChain) GetTablePrefix() string {
 	return "main"
@@ -15,7 +20,7 @@ func (*MainChain) GetChainSmithingDelayTime() int64 {
 
 // GetName return the name of the chain : used in parsing chaintype across node
 func (*MainChain) GetName() string {
-	return ""
+	return "Mainchain"
 }
 
 // GetGenesisBlockID return the block ID of genesis block in the chain

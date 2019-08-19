@@ -79,6 +79,10 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(amount)),
 		}
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
+		poowMessage := []byte("HelloBlock")
+		signature := (&crypto.Signature{}).SignByNode(
+			poowMessage,
+			"prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy")
 		txBody := &model.NodeRegistrationTransactionBody{
 			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			NodePublicKey: []byte{
@@ -87,6 +91,10 @@ func getTransaction(txType []byte) *model.Transaction {
 			},
 			NodeAddress:   "127.0.0.1",
 			LockedBalance: 100000,
+			Poown: &model.ProofOfOwnership{
+				MessageBytes: poowMessage,
+				Signature:    signature,
+			},
 		}
 		txBodyBytes := (&transaction.NodeRegistration{
 			Body: txBody,

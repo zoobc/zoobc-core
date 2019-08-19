@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -104,6 +106,20 @@ type NodeRegistrationServiceServer interface {
 	GetNodeRegistrations(context.Context, *model.GetNodeRegistrationsRequest) (*model.GetNodeRegistrationsResponse, error)
 	GetNodeRegistration(context.Context, *model.GetNodeRegistrationRequest) (*model.NodeRegistration, error)
 	UpdateNodeRegistration(context.Context, *model.UpdateNodeRegistrationRequest) (*model.NodeRegistration, error)
+}
+
+// UnimplementedNodeRegistrationServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedNodeRegistrationServiceServer struct {
+}
+
+func (*UnimplementedNodeRegistrationServiceServer) GetNodeRegistrations(ctx context.Context, req *model.GetNodeRegistrationsRequest) (*model.GetNodeRegistrationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNodeRegistrations not implemented")
+}
+func (*UnimplementedNodeRegistrationServiceServer) GetNodeRegistration(ctx context.Context, req *model.GetNodeRegistrationRequest) (*model.NodeRegistration, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNodeRegistration not implemented")
+}
+func (*UnimplementedNodeRegistrationServiceServer) UpdateNodeRegistration(ctx context.Context, req *model.UpdateNodeRegistrationRequest) (*model.NodeRegistration, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateNodeRegistration not implemented")
 }
 
 func RegisterNodeRegistrationServiceServer(s *grpc.Server, srv NodeRegistrationServiceServer) {
