@@ -21,7 +21,6 @@ type (
 		AddDataset(dataset *model.Dataset) [][]interface{}
 		ExtractModel(dataset *model.Dataset) []interface{}
 		BuildModel(datasets []*model.Dataset, rows *sql.Rows) []*model.Dataset
-		BuildModelRow(dataset *model.Dataset, row *sql.Row) (*model.Dataset, error)
 	}
 )
 
