@@ -73,3 +73,6 @@
 [[constraint]]
   branch = "master"
   name = "github.com/tyler-smith/go-bip39"
+[[constraint]]
+  name = "github.com/shirou/gopsutil"
+  version = "2.19.7"
