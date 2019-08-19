@@ -2,9 +2,9 @@ package transaction
 
 import (
 	"bytes"
-	"errors"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -63,15 +63,14 @@ func (tx *SetupDataset) ApplyConfirmed() error {
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
 	return nil
 }
 
 /*
-ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SetupDataset` type:
-	-
+ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SetupDataset` type
 */
 func (tx *SetupDataset) ApplyUnconfirmed() error {
 
@@ -93,7 +92,7 @@ func (tx *SetupDataset) ApplyUnconfirmed() error {
 	)
 	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
 	return nil
@@ -118,7 +117,7 @@ func (tx *SetupDataset) UndoApplyUnconfirmed() error {
 	)
 	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
 	return nil
@@ -137,14 +136,14 @@ func (tx *SetupDataset) Validate() error {
 	)
 
 	if tx.Body.GetMuchTime() == 0 {
-		return errors.New("Validate SetupDataset: starts time is not allowed same with expiration time")
+		return blocker.NewBlocker(blocker.ValidationErr, "SetupDataset, starts time is not allowed same with expiration time")
 	}
 
 	// check balance
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	} else if rows.Next() {
 		_ = rows.Scan(
 			&accountBalance.AccountAddress,
@@ -158,7 +157,7 @@ func (tx *SetupDataset) Validate() error {
 	defer rows.Close()
 	// TODO: transaction fee + (expiration time fee)
 	if accountBalance.SpendableBalance < tx.Fee {
-		return errors.New("Validate SetupDataset: user balance not enough")
+		return blocker.NewBlocker(blocker.ValidationErr, "SetupDataset, user balance not enough")
 	}
 
 	return nil
