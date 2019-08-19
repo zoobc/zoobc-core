@@ -20,11 +20,14 @@ func (gp *NodeAdminHandler) GetProofOfOwnership(ctx context.Context,
 	if req.AccountAddress == "" {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
 	}
+	if req.Timestamp == 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "TimestampRequired")
+	}
 	if len(req.Signature) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "SignatureRequired")
 	}
 
-	response, err := gp.Service.GetProofOfOwnership(req.AccountAddress, req.Signature)
+	response, err := gp.Service.GetProofOfOwnership(req.AccountAddress, req.Timestamp, req.Signature)
 	if err != nil {
 		return nil, err
 	}

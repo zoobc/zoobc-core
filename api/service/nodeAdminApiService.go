@@ -60,7 +60,7 @@ func (nas *NodeAdminService) GetProofOfOwnership(accountAddress string, timestam
 	signature []byte) (*model.ProofOfOwnership, error) {
 	// validate timestamp
 	timeout := viper.GetInt64("proofOfOwnershipReqTimeoutSec")
-	if time.Now().Unix()+timeout > timestamp {
+	if timestamp > time.Now().Unix()+timeout || timestamp < time.Now().Unix()-timeout {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "TimeStampExpired")
 	}
 	// validate signature: message (the account address bytes+timestamp bytes..) must be signed by accountAddress

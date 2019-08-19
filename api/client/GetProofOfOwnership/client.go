@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -13,7 +14,7 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial(":3001", grpc.WithInsecure())
+	conn, err := grpc.Dial(":7000", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -30,6 +31,7 @@ func main() {
 	newSig := buffer.Bytes()
 	response, err := c.GetProofOfOwnership(context.Background(), &rpc_model.GetProofOfOwnershipRequest{
 		AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		Timestamp:      time.Now().Unix(),
 		Signature:      newSig,
 	})
 
