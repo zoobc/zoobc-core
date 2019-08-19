@@ -27,7 +27,7 @@ ApplyConfirmed is func that for applying Transaction SetupAccountDataset type,
 func (tx *SetupAccountDataset) ApplyConfirmed() error {
 	var (
 		err     error
-		dataset *model.Dataset
+		dataset *model.AccountDataset
 	)
 	if tx.Height > 0 {
 		err = tx.UndoApplyUnconfirmed()
@@ -47,7 +47,7 @@ func (tx *SetupAccountDataset) ApplyConfirmed() error {
 
 	// This is Default mode, Dataset will be active as soon as block creation
 	currentTime := uint64(time.Now().Unix())
-	dataset = &model.Dataset{
+	dataset = &model.AccountDataset{
 		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
 		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
 		Property:                tx.Body.GetProperty(),

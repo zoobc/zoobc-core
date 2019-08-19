@@ -18,9 +18,9 @@ type (
 	AccountDatasetsQueryInterface interface {
 		GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{})
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
-		AddDataset(dataset *model.Dataset) [][]interface{}
-		ExtractModel(dataset *model.Dataset) []interface{}
-		BuildModel(datasets []*model.Dataset, rows *sql.Rows) []*model.Dataset
+		AddDataset(dataset *model.AccountDataset) [][]interface{}
+		ExtractModel(dataset *model.AccountDataset) []interface{}
+		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) []*model.AccountDataset
 	}
 )
 
@@ -60,7 +60,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 		[]interface{}{accountSetter, accountRecipient, property}
 }
 
-func (adq *AccountDatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
+func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]interface{} {
 	var (
 		queries [][]interface{}
 	)
@@ -129,17 +129,26 @@ func (adq *AccountDatasetsQuery) AddDataset(dataset *model.Dataset) [][]interfac
 		fmt.Sprintf("%s != ? ", strings.Join(adq.PrimaryFields, " = ? AND ")), // where clause
 	)
 
+	/*
+		argumentWhere represent extracted spesific field of account dataset model:
+		- SetterAccountAddress,
+		- RecipientAccountAddress
+		- Property
+		- Height
+	*/
+	argumentWhere := adq.ExtractModel(dataset)[:4]
+
 	queries = append(queries,
-		append([]interface{}{updateDataset}, append(adq.ExtractModel(dataset)[:4], adq.ExtractModel(dataset)[:4]...)...),
+		append([]interface{}{updateDataset}, append(argumentWhere, argumentWhere...)...),
 		append([]interface{}{insertDataset},
-			append(adq.ExtractModel(dataset)[:6], append(adq.ExtractModel(dataset)[:4], adq.ExtractModel(dataset)[:4]...)...)...),
-		append([]interface{}{updateVersionQuery}, adq.ExtractModel(dataset)[:4]...),
+			append(adq.ExtractModel(dataset)[:6], append(argumentWhere, argumentWhere...)...)...),
+		append([]interface{}{updateVersionQuery}, argumentWhere...),
 	)
 
 	return queries
 }
 
-func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.Dataset) []interface{} {
+func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {
 	return []interface{}{
 		dataset.GetSetterAccountAddress(),
 		dataset.GetRecipientAccountAddress(),
@@ -152,9 +161,9 @@ func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.Dataset) []interfac
 	}
 }
 
-func (adq *AccountDatasetsQuery) BuildModel(datasets []*model.Dataset, rows *sql.Rows) []*model.Dataset {
+func (adq *AccountDatasetsQuery) BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) []*model.AccountDataset {
 	for rows.Next() {
-		var dataset model.Dataset
+		var dataset model.AccountDataset
 		_ = rows.Scan(
 			&dataset.SetterAccountAddress,
 			&dataset.RecipientAccountAddress,

@@ -26,7 +26,7 @@ var mockDatasetQuery = &AccountDatasetsQuery{
 	TableName: "account_datasets",
 }
 
-var mockDataset = &model.Dataset{
+var mockDataset = &model.AccountDataset{
 	SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 	RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 	Property:                "Admin",
@@ -131,7 +131,7 @@ func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 	var want [][]interface{}
 	type args struct {
-		dataset *model.Dataset
+		dataset *model.AccountDataset
 	}
 
 	tests := []struct {
@@ -220,7 +220,7 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 
 func TestAccountDatasetsQuery_ExtractModel(t *testing.T) {
 	type args struct {
-		dataset *model.Dataset
+		dataset *model.AccountDataset
 	}
 	tests := []struct {
 		name string
@@ -270,7 +270,7 @@ func TestAccountDatasetsQuery_BuildModel(t *testing.T) {
 				mockDataset.Latest,
 			))
 		rows, _ := db.Query("foo")
-		var tempDataset []*model.Dataset
+		var tempDataset []*model.AccountDataset
 		if got := mockDatasetQuery.BuildModel(tempDataset, rows); !reflect.DeepEqual(got[0], mockDataset) {
 			t.Errorf("AccountDatasetsQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
 		}
