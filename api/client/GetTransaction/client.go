@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	conn, err := grpc.Dial(":8000", grpc.WithInsecure())
+	conn, err := grpc.Dial(":7000", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -19,7 +19,7 @@ func main() {
 	c := rpc_service.NewTransactionServiceClient(conn)
 
 	request := &rpc_model.GetTransactionRequest{
-		ID: 123,
+		ID: -4835401998167402617,
 	}
 	response, err := c.GetTransaction(context.Background(), request)
 
