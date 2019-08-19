@@ -56,7 +56,7 @@ func (dq *DatasetsQuery) GetLastDataset(accountSetter, accountRecipient, propert
 	return fmt.Sprintf("SELECT %s FROM %s WHERE %s AND latest = 1 ORDER BY height DESC LIMIT 1",
 			strings.Join(dq.getFields(), ","),
 			dq.getTableName(),
-			fmt.Sprintf("%s = ? ", strings.Join(dq.PrimaryFields[:3], " = ? AND ")), // where clause
+			fmt.Sprintf("%s = ?", strings.Join(dq.PrimaryFields[:3], " = ? AND ")), // where clause
 		),
 		[]interface{}{accountSetter, accountRecipient, property}
 }
@@ -66,6 +66,7 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 		queries [][]interface{}
 	)
 
+	// Update Dataset will happen when new dataset already exist in highest height
 	updateDataset := fmt.Sprintf(`
 		UPDATE %s SET (%s) = 
 		(
@@ -91,13 +92,14 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 		fmt.Sprintf("%s = ? ", strings.Join(dq.PrimaryFields, " = ? AND ")),
 	)
 
+	// Insert Dataset will happen when new dataset doesn't exist in highest height
 	insertDataset := fmt.Sprintf(`
 		INSERT INTO %s (%s)
-		SELECT %s, 
+		SELECT %s,
 			%d + IFNULL((
-				SELECT CASE 
-					WHEN timestamp_expires - %d < 0 
-						THEN 0 
+				SELECT CASE
+					WHEN timestamp_expires - %d < 0
+						THEN 0
 					ELSE timestamp_expires - %d END
 				FROM %s
 				WHERE %s AND latest = 1
@@ -105,20 +107,20 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 			), 0),
 			1
 		WHERE NOT EXISTS (
-			SELECT %s FROM %s 
+			SELECT %s FROM %s
 			WHERE %s
 		)
 	`,
-		dq.getFields(),
+		dq.getTableName(),
 		strings.Join(dq.getFields(), ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(dq.getFields()[:6])-1)),
 		dataset.GetTimestampExpires(),
 		dataset.GetTimestampStarts(),
 		dataset.GetTimestampStarts(),
-		dq.getFields(),
+		dq.getTableName(),
 		fmt.Sprintf("%s != ? ", strings.Join(dq.PrimaryFields, " = ? AND ")),
 		dq.PrimaryFields[0],
-		dq.getFields(),
+		dq.getTableName(),
 		fmt.Sprintf("%s = ? ", strings.Join(dq.PrimaryFields, " = ? AND ")),
 	)
 
@@ -129,21 +131,13 @@ func (dq *DatasetsQuery) AddDataset(dataset *model.Dataset) [][]interface{} {
 	)
 
 	queries = append(queries,
-		append([]interface{}{updateDataset}, append(dq.ArgumentWhere(dataset), dq.ArgumentWhere(dataset)...)...),
+		append([]interface{}{updateDataset}, append(dq.ExtractModel(dataset)[:4], dq.ExtractModel(dataset)[:4]...)...),
 		append([]interface{}{insertDataset},
-			append(dq.ExtractModel(dataset)[:6], append(dq.ArgumentWhere(dataset), dq.ArgumentWhere(dataset)...)...)...),
-		append([]interface{}{updateVersionQuery}, dq.ArgumentWhere(dataset)...),
+			append(dq.ExtractModel(dataset)[:6], append(dq.ExtractModel(dataset)[:4], dq.ExtractModel(dataset)[:4]...)...)...),
+		append([]interface{}{updateVersionQuery}, dq.ExtractModel(dataset)[:4]...),
 	)
 
 	return queries
-}
-func (dq *DatasetsQuery) ArgumentWhere(dataset *model.Dataset) []interface{} {
-	return []interface{}{
-		dataset.GetAccountSetter(),
-		dataset.GetAccountRecipient(),
-		dataset.GetProperty(),
-		dataset.GetHeight(),
-	}
 }
 
 func (dq *DatasetsQuery) ExtractModel(dataset *model.Dataset) []interface{} {
@@ -175,20 +169,6 @@ func (dq *DatasetsQuery) BuildModel(datasets []*model.Dataset, rows *sql.Rows) [
 		datasets = append(datasets, &dataset)
 	}
 	return datasets
-}
-
-func (dq *DatasetsQuery) BuildModelRow(dataset *model.Dataset, row *sql.Row) (*model.Dataset, error) {
-	err := row.Scan(
-		&dataset.AccountSetter,
-		&dataset.AccountRecipient,
-		&dataset.Property,
-		&dataset.Height,
-		&dataset.Value,
-		&dataset.TimestampStarts,
-		&dataset.TimestampExpires,
-		&dataset.Latest,
-	)
-	return dataset, err
 }
 
 func (dq *DatasetsQuery) getTableName() string {

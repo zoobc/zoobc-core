@@ -2,9 +2,10 @@ package transaction
 
 import (
 	"encoding/binary"
-	"github.com/zoobc/zoobc-core/common/util"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -13,6 +14,15 @@ import (
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixturesForNoderegistration()
 	_, _, updateNodeRegistrationBody, updateNodeRegistrationBodyBytes := GetFixturesForUpdateNoderegistration()
+
+	mockSetupDatasetBody := &model.SetupDatasetTransactionBody{
+		AccountSetter:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountRecipient: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Property:         "Admin",
+		Value:            "Welcome",
+		MuchTime:         123,
+	}
+
 	type fields struct {
 		Executor query.ExecutorInterface
 	}
@@ -165,6 +175,38 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+		},
+		{
+			name: "wantSetupDataset",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_SetupDatasetTransactionBody{
+						SetupDatasetTransactionBody: mockSetupDatasetBody,
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{3, 0, 0, 0}),
+					TransactionBodyBytes: []byte{
+						44, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107, 68, 101, 66, 86,
+						70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 44, 0, 0, 0, 66, 67,
+						90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118,
+						66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 5, 0, 0, 0, 65, 100, 109, 105, 110, 7, 0,
+						0, 0, 87, 101, 108, 99, 111, 109, 101, 123, 0, 0, 0, 0, 0, 0, 0,
+					},
+				},
+			},
+			want: &SetupDataset{
+				Body:                mockSetupDatasetBody,
+				Height:              5,
+				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				QueryExecutor:       &query.Executor{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				DatasetQuery:        query.NewDatasetsQuery(),
 			},
 		},
 	}
