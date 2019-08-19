@@ -72,7 +72,7 @@ func TestAccountDatasetsQuery_GetDatasetsByRecipientAccountAddress(t *testing.T)
 				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			},
 			wantQuery: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires,latest " +
-				"FROM datasets " +
+				"FROM account_datasets " +
 				"WHERE recipient_account_address = ? AND latest = 1",
 			wantArgs: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 		},
@@ -110,7 +110,7 @@ func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 				property:                "Admin",
 			},
 			wantQuery: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires,latest " +
-				"FROM datasets " +
+				"FROM account_datasets " +
 				"WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = 1 ORDER BY height DESC LIMIT 1",
 			wantArgs: []interface{}{"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J", "Admin"},
 		},

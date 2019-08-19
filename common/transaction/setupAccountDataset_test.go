@@ -236,18 +236,6 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "wantErr:ValidateFail",
-			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				AccountBalanceQuery: nil,
-				AccountDatasetQuery: nil,
-				QueryExecutor:       nil,
-			},
-			wantErr: true,
-		},
-		{
 			name: "wantErr:ExecuteSpandableBalanceFail",
 			fields: fields{
 				Body: &model.SetupAccountDatasetTransactionBody{
