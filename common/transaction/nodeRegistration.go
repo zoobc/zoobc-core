@@ -13,6 +13,7 @@ import (
 
 // NodeRegistration Implement service layer for (new) node registration's transaction
 type NodeRegistration struct {
+	ID                    int64
 	Body                  *model.NodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
@@ -38,6 +39,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	}
 	//FIXME: missing NodeID
 	nodeRegistration := &model.NodeRegistration{
+		NodeID:             tx.ID,
 		LockedBalance:      tx.Body.LockedBalance,
 		Height:             tx.Height,
 		NodeAddress:        tx.Body.NodeAddress,

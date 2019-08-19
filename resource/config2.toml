@@ -4,10 +4,10 @@ dbName = "zoobc_2.db"
 # Peer
 peerPort=8002
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8003"]
+wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3002
 apiHTTPPort=3032
-nodeSecretPhrase = "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband"
+# nodeSecretPhrase = "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband"
 ownerAccountType = 0
 ownerAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"

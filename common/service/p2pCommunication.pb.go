@@ -28,25 +28,32 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 func init() { proto.RegisterFile("service/p2pCommunication.proto", fileDescriptor_5d547fbc25d9babc) }
 
 var fileDescriptor_5d547fbc25d9babc = []byte{
-	// 280 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0x4f, 0x4b, 0xc4, 0x30,
-	0x10, 0xc5, 0x17, 0x0f, 0x8a, 0xd9, 0x05, 0xd7, 0x5c, 0x16, 0x2b, 0x7a, 0xd8, 0x9b, 0xa2, 0x0d,
-	0x54, 0xc1, 0x83, 0x17, 0x59, 0x91, 0xc5, 0x83, 0x52, 0x56, 0x4f, 0xde, 0xda, 0x74, 0xd4, 0xe2,
-	0x26, 0x13, 0x93, 0x54, 0xd0, 0xaf, 0xe4, 0x97, 0x94, 0x34, 0xe9, 0x3f, 0x64, 0x2f, 0x85, 0xfe,
-	0xde, 0x7b, 0xf3, 0xa6, 0x53, 0x72, 0x6c, 0x40, 0x7f, 0x95, 0x1c, 0x98, 0x4a, 0xd4, 0x2d, 0x0a,
-	0x51, 0xc9, 0x92, 0x67, 0xb6, 0x44, 0x19, 0x2b, 0x8d, 0x16, 0xe9, 0x4e, 0xd0, 0xa3, 0xa9, 0xc0,
-	0x02, 0xd6, 0x4c, 0x01, 0x68, 0x2f, 0x35, 0x44, 0x62, 0x01, 0x81, 0xec, 0x7b, 0x02, 0x42, 0xd9,
-	0xef, 0x21, 0xca, 0xd7, 0xc8, 0x3f, 0x02, 0x9a, 0x79, 0x64, 0x75, 0x26, 0x4d, 0xc6, 0xbb, 0xae,
-	0xe4, 0x77, 0x8b, 0x4c, 0xd3, 0x24, 0x1d, 0xac, 0x41, 0xaf, 0xc8, 0x78, 0x09, 0x36, 0x05, 0xd0,
-	0xf7, 0xf2, 0x15, 0xe9, 0x41, 0x5c, 0xa7, 0xe3, 0x1e, 0x5b, 0xc1, 0x67, 0x05, 0xc6, 0x46, 0xe3,
-	0x20, 0x3d, 0x62, 0x01, 0xf3, 0x11, 0xbd, 0x26, 0x93, 0x25, 0xd8, 0x07, 0xd4, 0xe0, 0x8c, 0x86,
-	0x4e, 0x82, 0x7c, 0xe7, 0xb6, 0x8b, 0x0e, 0xbb, 0x39, 0xad, 0x65, 0x05, 0x46, 0xa1, 0x34, 0x2e,
-	0x7c, 0x49, 0x76, 0x9f, 0x40, 0x16, 0x3e, 0x39, 0x0b, 0xde, 0x96, 0x34, 0x8d, 0x83, 0x91, 0xf3,
-	0x11, 0x3d, 0xf1, 0xa9, 0x85, 0xfb, 0xd8, 0xb6, 0xaf, 0x7e, 0xfb, 0x67, 0xbd, 0x21, 0x7b, 0xce,
-	0xfa, 0xdc, 0x1d, 0x81, 0x1e, 0xf5, 0x6a, 0x7a, 0x7c, 0x43, 0xd9, 0xe2, 0xec, 0xe5, 0xf4, 0xad,
-	0xb4, 0xef, 0x55, 0x1e, 0x73, 0x14, 0xec, 0x07, 0x31, 0xe7, 0xfe, 0x79, 0xce, 0x51, 0x03, 0xe3,
-	0x28, 0x04, 0x4a, 0x16, 0x7e, 0x5f, 0xbe, 0x5d, 0x9f, 0xf8, 0xe2, 0x2f, 0x00, 0x00, 0xff, 0xff,
-	0xe0, 0x07, 0x23, 0x05, 0xf0, 0x01, 0x00, 0x00,
+	// 398 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0x41, 0xeb, 0xd3, 0x40,
+	0x10, 0xc5, 0x7b, 0x51, 0x71, 0xff, 0x95, 0xb6, 0x7b, 0x30, 0x98, 0x52, 0x0f, 0x05, 0xc5, 0x8a,
+	0x26, 0x50, 0x05, 0x0f, 0x5e, 0xb4, 0xad, 0x84, 0x22, 0x2d, 0xa5, 0x7a, 0xf2, 0x96, 0x6c, 0xa6,
+	0x76, 0x35, 0xbb, 0x13, 0xb3, 0x9b, 0x62, 0xfd, 0x2c, 0x7e, 0x58, 0x49, 0xb2, 0xdd, 0x6c, 0xb0,
+	0xe2, 0xff, 0x12, 0xc8, 0x6f, 0xde, 0xbc, 0x37, 0x33, 0x24, 0xe4, 0xb1, 0x82, 0xe2, 0xc4, 0x19,
+	0x84, 0xf9, 0x3c, 0x5f, 0xa2, 0x10, 0xa5, 0xe4, 0x2c, 0xd6, 0x1c, 0x65, 0x90, 0x17, 0xa8, 0x91,
+	0xde, 0x33, 0x75, 0x7f, 0x28, 0x30, 0x85, 0x2c, 0xcc, 0x01, 0x8a, 0xa6, 0x74, 0x21, 0x12, 0x53,
+	0x30, 0x64, 0xd4, 0x10, 0x10, 0xb9, 0x3e, 0x77, 0x51, 0x92, 0x21, 0xfb, 0x6e, 0xd0, 0x43, 0x07,
+	0xb1, 0x63, 0xcc, 0x4d, 0x94, 0xef, 0x35, 0x5c, 0x17, 0xb1, 0x54, 0x31, 0x6b, 0x67, 0x98, 0xff,
+	0xbe, 0x43, 0x86, 0xbb, 0xf9, 0xae, 0x33, 0x1e, 0x7d, 0x43, 0x6e, 0x22, 0xd0, 0x3b, 0x80, 0x62,
+	0x2d, 0x0f, 0x48, 0x1f, 0x05, 0x75, 0x77, 0xe0, 0xb0, 0x3d, 0xfc, 0x28, 0x41, 0x69, 0xff, 0xc6,
+	0x94, 0xb6, 0x98, 0xc2, 0xb4, 0x47, 0xdf, 0x92, 0x7e, 0x04, 0x7a, 0x83, 0x05, 0x54, 0x42, 0x45,
+	0xfb, 0xa6, 0xfc, 0xa1, 0x9a, 0xda, 0x1f, 0xb7, 0x3e, 0x56, 0xb2, 0x07, 0x95, 0xa3, 0x54, 0x55,
+	0xf3, 0x6b, 0x72, 0xff, 0x13, 0xc8, 0xb4, 0xe9, 0xf4, 0x8c, 0xd6, 0x92, 0x4b, 0x62, 0xc7, 0x72,
+	0xda, 0xa3, 0xb3, 0xa6, 0x6b, 0x51, 0x6d, 0x6c, 0xf3, 0xea, 0xb7, 0xbf, 0xa4, 0xef, 0xc8, 0xa0,
+	0x92, 0x7e, 0x6e, 0x8f, 0x40, 0x27, 0x4e, 0x8c, 0xc3, 0xff, 0x15, 0xf6, 0x8d, 0x78, 0x11, 0xe8,
+	0x65, 0x29, 0xca, 0x2c, 0xd6, 0xfc, 0x04, 0x2b, 0x7e, 0x38, 0x70, 0x56, 0x66, 0xfa, 0x4c, 0x9f,
+	0xb4, 0xcb, 0x5d, 0xab, 0x5f, 0x1c, 0x9f, 0xfe, 0x4f, 0x66, 0xcf, 0xa1, 0x88, 0x5f, 0x89, 0x50,
+	0x08, 0x94, 0x1b, 0x9e, 0x81, 0xd2, 0x28, 0xa1, 0x5e, 0x6c, 0xbd, 0x52, 0xf4, 0x99, 0xe3, 0x73,
+	0x4d, 0x92, 0xda, 0x83, 0xcd, 0x6e, 0xa1, 0xb4, 0xa1, 0x1f, 0xc9, 0x20, 0x02, 0xbd, 0x85, 0x9f,
+	0xda, 0x26, 0x4d, 0xda, 0xfe, 0x96, 0xb7, 0xf6, 0x9e, 0x7b, 0xf2, 0xae, 0xd9, 0x7b, 0xf2, 0xc0,
+	0x6d, 0x52, 0x74, 0x7c, 0xc5, 0xca, 0x1a, 0x8d, 0x5c, 0x23, 0xb5, 0x8a, 0x75, 0x3c, 0xed, 0x2d,
+	0x5e, 0x7c, 0x79, 0xfe, 0x95, 0xeb, 0x63, 0x99, 0x04, 0x0c, 0x45, 0xf8, 0x0b, 0x31, 0x61, 0xcd,
+	0xf3, 0x25, 0xc3, 0x02, 0x42, 0x56, 0x2f, 0x14, 0x9a, 0xff, 0x28, 0xb9, 0x5b, 0x7f, 0xd3, 0xaf,
+	0xfe, 0x04, 0x00, 0x00, 0xff, 0xff, 0x95, 0xc4, 0xe9, 0x71, 0x79, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -66,6 +73,10 @@ type P2PCommunicationClient interface {
 	SendPeers(ctx context.Context, in *model.SendPeersRequest, opts ...grpc.CallOption) (*model.Empty, error)
 	SendBlock(ctx context.Context, in *model.Block, opts ...grpc.CallOption) (*model.Empty, error)
 	SendTransaction(ctx context.Context, in *model.SendTransactionRequest, opts ...grpc.CallOption) (*model.Empty, error)
+	GetCumulativeDifficulty(ctx context.Context, in *model.GetCumulativeDifficultyRequest, opts ...grpc.CallOption) (*model.GetCumulativeDifficultyResponse, error)
+	GetCommonMilestoneBlockIDs(ctx context.Context, in *model.GetCommonMilestoneBlockIdsRequest, opts ...grpc.CallOption) (*model.GetCommonMilestoneBlockIdsResponse, error)
+	GetNextBlockIDs(ctx context.Context, in *model.GetNextBlockIdsRequest, opts ...grpc.CallOption) (*model.BlockIdsResponse, error)
+	GetNextBlocks(ctx context.Context, in *model.GetNextBlocksRequest, opts ...grpc.CallOption) (*model.BlocksData, error)
 }
 
 type p2PCommunicationClient struct {
@@ -121,6 +132,42 @@ func (c *p2PCommunicationClient) SendTransaction(ctx context.Context, in *model.
 	return out, nil
 }
 
+func (c *p2PCommunicationClient) GetCumulativeDifficulty(ctx context.Context, in *model.GetCumulativeDifficultyRequest, opts ...grpc.CallOption) (*model.GetCumulativeDifficultyResponse, error) {
+	out := new(model.GetCumulativeDifficultyResponse)
+	err := c.cc.Invoke(ctx, "/service.P2PCommunication/GetCumulativeDifficulty", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *p2PCommunicationClient) GetCommonMilestoneBlockIDs(ctx context.Context, in *model.GetCommonMilestoneBlockIdsRequest, opts ...grpc.CallOption) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	out := new(model.GetCommonMilestoneBlockIdsResponse)
+	err := c.cc.Invoke(ctx, "/service.P2PCommunication/GetCommonMilestoneBlockIDs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *p2PCommunicationClient) GetNextBlockIDs(ctx context.Context, in *model.GetNextBlockIdsRequest, opts ...grpc.CallOption) (*model.BlockIdsResponse, error) {
+	out := new(model.BlockIdsResponse)
+	err := c.cc.Invoke(ctx, "/service.P2PCommunication/GetNextBlockIDs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *p2PCommunicationClient) GetNextBlocks(ctx context.Context, in *model.GetNextBlocksRequest, opts ...grpc.CallOption) (*model.BlocksData, error) {
+	out := new(model.BlocksData)
+	err := c.cc.Invoke(ctx, "/service.P2PCommunication/GetNextBlocks", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // P2PCommunicationServer is the server API for P2PCommunication service.
 type P2PCommunicationServer interface {
 	GetPeerInfo(context.Context, *model.GetPeerInfoRequest) (*model.Node, error)
@@ -128,6 +175,10 @@ type P2PCommunicationServer interface {
 	SendPeers(context.Context, *model.SendPeersRequest) (*model.Empty, error)
 	SendBlock(context.Context, *model.Block) (*model.Empty, error)
 	SendTransaction(context.Context, *model.SendTransactionRequest) (*model.Empty, error)
+	GetCumulativeDifficulty(context.Context, *model.GetCumulativeDifficultyRequest) (*model.GetCumulativeDifficultyResponse, error)
+	GetCommonMilestoneBlockIDs(context.Context, *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error)
+	GetNextBlockIDs(context.Context, *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error)
+	GetNextBlocks(context.Context, *model.GetNextBlocksRequest) (*model.BlocksData, error)
 }
 
 // UnimplementedP2PCommunicationServer can be embedded to have forward compatible implementations.
@@ -148,6 +199,18 @@ func (*UnimplementedP2PCommunicationServer) SendBlock(ctx context.Context, req *
 }
 func (*UnimplementedP2PCommunicationServer) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendTransaction not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetCumulativeDifficulty(ctx context.Context, req *model.GetCumulativeDifficultyRequest) (*model.GetCumulativeDifficultyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCumulativeDifficulty not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetCommonMilestoneBlockIDs(ctx context.Context, req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCommonMilestoneBlockIDs not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetNextBlockIDs(ctx context.Context, req *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNextBlockIDs not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetNextBlocks(ctx context.Context, req *model.GetNextBlocksRequest) (*model.BlocksData, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNextBlocks not implemented")
 }
 
 func RegisterP2PCommunicationServer(s *grpc.Server, srv P2PCommunicationServer) {
@@ -244,6 +307,78 @@ func _P2PCommunication_SendTransaction_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _P2PCommunication_GetCumulativeDifficulty_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetCumulativeDifficultyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(P2PCommunicationServer).GetCumulativeDifficulty(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.P2PCommunication/GetCumulativeDifficulty",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(P2PCommunicationServer).GetCumulativeDifficulty(ctx, req.(*model.GetCumulativeDifficultyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _P2PCommunication_GetCommonMilestoneBlockIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetCommonMilestoneBlockIdsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(P2PCommunicationServer).GetCommonMilestoneBlockIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.P2PCommunication/GetCommonMilestoneBlockIDs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(P2PCommunicationServer).GetCommonMilestoneBlockIDs(ctx, req.(*model.GetCommonMilestoneBlockIdsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _P2PCommunication_GetNextBlockIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetNextBlockIdsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(P2PCommunicationServer).GetNextBlockIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.P2PCommunication/GetNextBlockIDs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(P2PCommunicationServer).GetNextBlockIDs(ctx, req.(*model.GetNextBlockIdsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _P2PCommunication_GetNextBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetNextBlocksRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(P2PCommunicationServer).GetNextBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.P2PCommunication/GetNextBlocks",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(P2PCommunicationServer).GetNextBlocks(ctx, req.(*model.GetNextBlocksRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _P2PCommunication_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "service.P2PCommunication",
 	HandlerType: (*P2PCommunicationServer)(nil),
@@ -267,6 +402,22 @@ var _P2PCommunication_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SendTransaction",
 			Handler:    _P2PCommunication_SendTransaction_Handler,
+		},
+		{
+			MethodName: "GetCumulativeDifficulty",
+			Handler:    _P2PCommunication_GetCumulativeDifficulty_Handler,
+		},
+		{
+			MethodName: "GetCommonMilestoneBlockIDs",
+			Handler:    _P2PCommunication_GetCommonMilestoneBlockIDs_Handler,
+		},
+		{
+			MethodName: "GetNextBlockIDs",
+			Handler:    _P2PCommunication_GetNextBlockIDs_Handler,
+		},
+		{
+			MethodName: "GetNextBlocks",
+			Handler:    _P2PCommunication_GetNextBlocks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

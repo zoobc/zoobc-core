@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
+	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/native/service"
 )
 
@@ -28,7 +28,7 @@ func TestService_InitService(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    contract.P2PType
+		want    p2p.ServiceInterface
 		wantErr bool
 	}{
 		// Add test cases.
