@@ -14,7 +14,7 @@ type (
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
 		GetTransaction(id int64) string
 		GetTransactions(limit uint32, offset uint64) string
-		GetTransactionsByBlockID(blockID int64) (str string, argss []interface{})
+		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 	}
@@ -91,7 +91,7 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 	return query, tq.ExtractModel(tx)
 }
 
-func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, argss []interface{}) {
+func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s from %s WHERE block_id = ?", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
 }

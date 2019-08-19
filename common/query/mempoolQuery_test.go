@@ -1,15 +1,15 @@
 package query
 
 import (
-	"github.com/DATA-DOG/go-sqlmock"
+	"database/sql"
+	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/model"
-
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var mockMempoolQuery = &MempoolQuery{
@@ -151,4 +151,98 @@ func TestMempoolQuery_BuildModel(t *testing.T) {
 			t.Errorf("returned wrong: get: %v\nwant: %v", res, mockMempool)
 		}
 	})
+}
+
+type (
+	mockRowMempoolQueryScan struct {
+		Executor
+	}
+)
+
+func (*mockRowMempoolQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(NewMempoolQuery(&chaintype.MainChain{}).Fields).AddRow(
+			1,
+			1,
+			1000,
+			make([]byte, 88),
+			"accountA",
+			"accountB",
+		),
+	)
+	return db.QueryRow("")
+}
+
+func TestMempoolQuery_Scan(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType contract.ChainType
+	}
+	type args struct {
+		mempool *model.MempoolTransaction
+		row     *sql.Row
+	}
+
+	mempoolQ := NewMempoolQuery(&chaintype.MainChain{})
+	mempoolTX := model.MempoolTransaction{}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    model.MempoolTransaction
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Fields:    mempoolQ.Fields,
+				TableName: mempoolQ.TableName,
+				ChainType: &chaintype.MainChain{},
+			},
+			args: args{
+				mempool: &mempoolTX,
+				row:     (&mockRowMempoolQueryScan{}).ExecuteSelectRow("", ""),
+			},
+			want: model.MempoolTransaction{
+				ID:                      1,
+				FeePerByte:              1,
+				ArrivalTimestamp:        1000,
+				TransactionBytes:        make([]byte, 88),
+				SenderAccountAddress:    "accountA",
+				RecipientAccountAddress: "accountB",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &MempoolQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if err := m.Scan(tt.args.mempool, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("MempoolQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(mempoolTX, tt.want) {
+				t.Errorf("MempoolQuery.Scan() = %v, want %v", mempoolTX, tt.want)
+			}
+		})
+	}
+}
+func ExampleMempoolQuery_Scan() {
+	var (
+		mempool  model.MempoolTransaction
+		mempoolQ MempoolQueryInterface
+		err      error
+	)
+	mempoolQ = NewMempoolQuery(&chaintype.MainChain{})
+	err = mempoolQ.Scan(&mempool, (&mockRowMempoolQueryScan{}).ExecuteSelectRow("", ""))
+	fmt.Println(err)
+	// Output: <nil>
+
 }

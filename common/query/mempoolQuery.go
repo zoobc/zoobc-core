@@ -19,6 +19,7 @@ type (
 		DeleteMempoolTransactions() string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction
+		Scan(mempool *model.MempoolTransaction, row *sql.Row) error
 	}
 
 	MempoolQuery struct {
@@ -107,4 +108,17 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 		mempools = append(mempools, &mempool)
 	}
 	return mempools
+}
+
+// Scan similar with `sql.Scan`
+func (*MempoolQuery) Scan(mempool *model.MempoolTransaction, row *sql.Row) error {
+	err := row.Scan(
+		&mempool.ID,
+		&mempool.FeePerByte,
+		&mempool.ArrivalTimestamp,
+		&mempool.TransactionBytes,
+		&mempool.SenderAccountAddress,
+		&mempool.RecipientAccountAddress,
+	)
+	return err
 }
