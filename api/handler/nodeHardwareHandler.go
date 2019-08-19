@@ -18,6 +18,9 @@ func (nhh *NodeHardwareHandler) GetNodeHardware(
 		if err == io.EOF {
 			return nil
 		}
+		if in == nil {
+			return nil
+		}
 		nodeHardware, err := nhh.Service.GetNodeHardware(in)
 		if err != nil {
 			return err
