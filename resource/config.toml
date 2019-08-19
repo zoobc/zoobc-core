@@ -9,5 +9,6 @@ wellknownPeers=["127.0.0.1:8002"]
 apiRPCPort=7000
 apiHTTPPort=3031
 nodeSecretPhrase = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
-ownerAccountType = 0
 ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+
+proofOfOwnershipReqTimeoutSec = 1
