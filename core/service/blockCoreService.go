@@ -13,7 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -52,7 +51,7 @@ type (
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
 		CheckGenesis() bool
-		GetChainType() contract.ChainType
+		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
 		ReceivedBlockListener() observer.Listener
@@ -60,7 +59,7 @@ type (
 
 	BlockService struct {
 		chainWriteLock      sync.WaitGroup
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
@@ -74,7 +73,7 @@ type (
 )
 
 func NewBlockService(
-	ct contract.ChainType,
+	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
@@ -135,7 +134,7 @@ func (bs *BlockService) NewBlock(
 }
 
 // GetChainType returns the chaintype
-func (bs *BlockService) GetChainType() contract.ChainType {
+func (bs *BlockService) GetChainType() chaintype.ChainType {
 	return bs.Chaintype
 }
 

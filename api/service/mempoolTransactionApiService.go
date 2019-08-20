@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -13,11 +13,11 @@ import (
 type (
 	MempoolTransactionServiceInterface interface {
 		GetMempoolTransaction(
-			chainType contract.ChainType,
+			chainType chaintype.ChainType,
 			params *model.GetMempoolTransactionRequest,
 		) (*model.GetMempoolTransactionResponse, error)
 		GetMempoolTransactions(
-			chainType contract.ChainType,
+			chainType chaintype.ChainType,
 			params *model.GetMempoolTransactionsRequest,
 		) (*model.GetMempoolTransactionsResponse, error)
 	}
@@ -35,7 +35,7 @@ func NewMempoolTransactionsService(
 }
 
 func (ut *MempoolTransactionService) GetMempoolTransaction(
-	chainType contract.ChainType,
+	chainType chaintype.ChainType,
 	params *model.GetMempoolTransactionRequest,
 ) (*model.GetMempoolTransactionResponse, error) {
 	var (
@@ -64,7 +64,7 @@ func (ut *MempoolTransactionService) GetMempoolTransaction(
 }
 
 func (ut *MempoolTransactionService) GetMempoolTransactions(
-	chainType contract.ChainType,
+	chainType chaintype.ChainType,
 	params *model.GetMempoolTransactionsRequest,
 ) (*model.GetMempoolTransactionsResponse, error) {
 	var (

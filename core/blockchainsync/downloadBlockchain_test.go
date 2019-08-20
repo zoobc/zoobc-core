@@ -9,7 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
@@ -19,7 +18,7 @@ type mockP2pServiceSuccess struct {
 	p2p.ServiceInterface
 }
 
-func (*mockP2pServiceSuccess) GetNextBlocks(destPeer *model.Peer, _ contract.ChainType,
+func (*mockP2pServiceSuccess) GetNextBlocks(destPeer *model.Peer, _ chaintype.ChainType,
 	blockIDs []int64, blockID int64) (*model.BlocksData, error) {
 	return &model.BlocksData{
 		NextBlocks: []*model.Block{
@@ -33,14 +32,14 @@ func (*mockP2pServiceSuccess) GetNextBlocks(destPeer *model.Peer, _ contract.Cha
 	}, nil
 }
 
-func (*mockP2pServiceSuccess) GetNextBlockIDs(destPeer *model.Peer, _ contract.ChainType,
+func (*mockP2pServiceSuccess) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
 	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
 	return &model.BlockIdsResponse{
 		BlockIds: []int64{1, 2, 3, 4},
 	}, nil
 }
 
-func (*mockP2pServiceSuccess) GetCommonMilestoneBlockIDs(destPeer *model.Peer, _ contract.ChainType,
+func (*mockP2pServiceSuccess) GetCommonMilestoneBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
 	lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	return &model.GetCommonMilestoneBlockIdsResponse{
 		BlockIds: []int64{1, 2, 3, 4},
@@ -51,7 +50,7 @@ type mockP2pServiceSuccessOneResult struct {
 	p2p.ServiceInterface
 }
 
-func (*mockP2pServiceSuccessOneResult) GetNextBlockIDs(destPeer *model.Peer, _ contract.ChainType,
+func (*mockP2pServiceSuccessOneResult) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
 	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
 	return &model.BlockIdsResponse{
 		BlockIds: []int64{1},
@@ -62,7 +61,7 @@ type mockP2pServiceSuccessNewResult struct {
 	p2p.ServiceInterface
 }
 
-func (*mockP2pServiceSuccessNewResult) GetNextBlockIDs(destPeer *model.Peer, _ contract.ChainType,
+func (*mockP2pServiceSuccessNewResult) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
 	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
 	return &model.BlockIdsResponse{
 		BlockIds: []int64{3, 4},
@@ -73,12 +72,12 @@ type mockP2pServiceFail struct {
 	p2p.ServiceInterface
 }
 
-func (*mockP2pServiceFail) GetNextBlockIDs(destPeer *model.Peer, _ contract.ChainType, blockID int64,
+func (*mockP2pServiceFail) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType, blockID int64,
 	limit uint32) (*model.BlockIdsResponse, error) {
 	return nil, errors.New("simulating error")
 }
 
-func (*mockP2pServiceFail) GetCommonMilestoneBlockIDs(destPeer *model.Peer, _ contract.ChainType,
+func (*mockP2pServiceFail) GetCommonMilestoneBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
 	lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	return nil, errors.New("mock error")
 }
@@ -89,7 +88,7 @@ type mockBlockServiceSuccess struct {
 	coreService.BlockServiceInterface
 }
 
-func (*mockBlockServiceSuccess) GetChainType() contract.ChainType {
+func (*mockBlockServiceSuccess) GetChainType() chaintype.ChainType {
 	return &chaintype.MainChain{}
 }
 
@@ -110,7 +109,7 @@ type mockBlockServiceFail struct {
 	coreService.BlockServiceInterface
 }
 
-func (*mockBlockServiceFail) GetChainType() contract.ChainType {
+func (*mockBlockServiceFail) GetChainType() chaintype.ChainType {
 	return &chaintype.MainChain{}
 }
 

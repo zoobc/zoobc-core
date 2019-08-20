@@ -10,7 +10,6 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -87,7 +86,7 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 		Query query.ExecutorInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		params    *model.GetMempoolTransactionsRequest
 	}
 	tests := []struct {
@@ -203,7 +202,7 @@ func TestMempoolTransactionService_GetMempoolTransaction(t *testing.T) {
 		Query query.ExecutorInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		params    *model.GetMempoolTransactionRequest
 	}
 	tests := []struct {

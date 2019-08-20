@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/contract"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -25,12 +24,12 @@ type (
 	MempoolQuery struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
+		ChainType chaintype.ChainType
 	}
 )
 
 // NewMempoolQuery returns MempoolQuery instance
-func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
+func NewMempoolQuery(chaintype chaintype.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
 			"id",

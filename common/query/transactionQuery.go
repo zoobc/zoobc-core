@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -22,12 +22,12 @@ type (
 	TransactionQuery struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
+		ChainType chaintype.ChainType
 	}
 )
 
 // NewTransactionQuery returns TransactionQuery instance
-func NewTransactionQuery(chaintype contract.ChainType) *TransactionQuery {
+func NewTransactionQuery(chaintype chaintype.ChainType) *TransactionQuery {
 	return &TransactionQuery{
 		Fields: []string{
 			"id",

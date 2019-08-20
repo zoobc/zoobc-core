@@ -8,7 +8,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -32,7 +31,7 @@ var mockMempool = &model.MempoolTransaction{
 
 func TestNewMempoolQuery(t *testing.T) {
 	type args struct {
-		chaintype contract.ChainType
+		chaintype chaintype.ChainType
 	}
 	tests := []struct {
 		name string
@@ -178,7 +177,7 @@ func TestMempoolQuery_Scan(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
+		ChainType chaintype.ChainType
 	}
 	type args struct {
 		mempool *model.MempoolTransaction

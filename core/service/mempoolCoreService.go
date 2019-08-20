@@ -8,9 +8,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -31,7 +31,7 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
@@ -42,7 +42,7 @@ type (
 
 // NewMempoolService returns an instance of mempool service
 func NewMempoolService(
-	ct contract.ChainType,
+	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
