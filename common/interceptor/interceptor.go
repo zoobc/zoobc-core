@@ -120,10 +120,10 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 }
 
 /*
-NewNodeAdminAuthStreamInterceptor
+NewStreamInterceptor
 validate request against the destination service and the signature with the node owner
 */
-func NewNodeAdminAuthStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
+func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
 	return func(
 		srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler,
 	) error {

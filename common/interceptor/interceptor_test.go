@@ -305,7 +305,7 @@ func TestNewNodeAdminAuthStreamInterceptor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewNodeAdminAuthStreamInterceptor(tt.args.ownerAddress)
+			got := NewStreamInterceptor(tt.args.ownerAddress)
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewInterceptor() = %v, want %v", got, tt.want)
 			}
