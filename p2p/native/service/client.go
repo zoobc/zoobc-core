@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -51,7 +52,7 @@ func NewPeerServiceClient() PeerServiceClientInterface {
 					conn, err := grpc.Dial(
 						nativeUtil.GetFullAddressPeer(destinationPeer),
 						grpc.WithInsecure(),
-						grpc.WithUnaryInterceptor(util.NewClientInterceptor(apiLogger)),
+						grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(apiLogger)),
 					)
 					if err != nil {
 						return nil, err

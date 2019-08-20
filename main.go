@@ -39,6 +39,7 @@ var (
 	observerInstance                 *observer.Observer
 	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
 	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
+	ownerAccountAddress              string
 )
 
 func init() {
@@ -58,6 +59,7 @@ func init() {
 		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
+		ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -74,7 +76,7 @@ func init() {
 	observerInstance = observer.NewObserver()
 }
 
-func startServices(queryExecutor query.ExecutorInterface) {
+func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress string) {
 	startP2pService()
 	api.Start(
 		apiRPCPort,
@@ -82,6 +84,7 @@ func startServices(queryExecutor query.ExecutorInterface) {
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
+		ownerAccountAddress,
 	)
 }
 
@@ -169,7 +172,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	startServices(queryExecutor)
+	startServices(queryExecutor, ownerAccountAddress)
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true

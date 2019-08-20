@@ -18,7 +18,10 @@ var (
 	TransactionBodyLength uint32 = 4
 	// AccountSignature TODO: this is valid for signatures using Ed25519. in future we might have more implementations
 	AccountSignature uint32 = 64
-
+	// SignatureType variables
+	SignatureType   uint32 = 4
+	AuthRequestType        = 4
+	AuthTimestamp          = 8
 	// DatasetPropertyLength is max length of string property name in dataset
 	DatasetPropertyLength uint32 = 4
 	// DatasetValueLength is max length of string property value in dataset
