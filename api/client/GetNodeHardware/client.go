@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc/metadata"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -22,13 +24,13 @@ func main() {
 	defer conn.Close()
 
 	c := rpcService.NewNodeHardwareServiceClient(conn)
-	stream, err := c.GetNodeHardware(context.Background())
+	var stream rpcService.NodeHardwareService_GetNodeHardwareClient
+
 	if err != nil {
 		log.Fatalf("error calling rpcService.GetAccountBalance: %s", err)
 	}
 	waitC := make(chan struct{})
 	signature := crypto.Signature{}
-
 
 	go func() {
 		for {
@@ -36,21 +38,21 @@ func main() {
 			buffer := bytes.NewBuffer([]byte{})
 			buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
 			buffer.Write(util.ConvertUint64ToBytes(currentTime))
-			auth := &rpcModel.Auth{
-				RequestType: rpcModel.RequestType_GetNodeHardware,
-				Timestamp:  currentTime,
-				Signature: signature.Sign(
-					buffer.Bytes(),
-					constant.NodeSignatureTypeDefault,
-					"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-				),
-			}
+			sig := signature.Sign(
+				buffer.Bytes(),
+				constant.NodeSignatureTypeDefault,
+				"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			)
+			buffer.Write(sig)
+
+			ctx := context.Background()
+			md := metadata.Pairs("authorization", hex.EncodeToString(buffer.Bytes()))
+			ctx = metadata.NewOutgoingContext(ctx, md)
+			stream, err = c.GetNodeHardware(ctx)
 			log.Println("Sleeping...")
 			time.Sleep(2 * time.Second)
 			log.Println("Sending request...")
-			err = stream.Send(&rpcModel.GetNodeHardwareRequest{
-				Auth: auth,
-			})
+			err = stream.Send(&rpcModel.GetNodeHardwareRequest{})
 			if err != nil {
 				log.Fatalf("error sending request to rpcService.GetNodeHardware: %s", err)
 			}

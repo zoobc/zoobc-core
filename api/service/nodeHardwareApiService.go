@@ -5,7 +5,6 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
-	"github.com/zoobc/zoobc-core/api/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -40,17 +39,7 @@ func (nhs *NodeHardwareService) GetNodeHardware(request *model.GetNodeHardwareRe
 		err          error
 		diskStat     *disk.UsageStat
 	)
-	// validate request
-	// todo: this is verifying against whatever owner address is in the config file, update this
-	// todo: to follow how `claim` node work.
-	err = auth.VerifyAuthAPI(
-		nhs.OwnerAccountAddress,
-		request.Auth,
-		model.RequestType_GetNodeHardware,
-		nhs.Signature)
-	if err != nil {
-		return nil, err
-	}
+
 	runtimeOS := runtime.GOOS
 	// memory
 	vmStat, err := mem.VirtualMemory()
