@@ -1,12 +1,16 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 	"net"
+	"net/http"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	coreService "github.com/zoobc/zoobc-core/core/service"
-	p2p "github.com/zoobc/zoobc-core/p2p"
+	"github.com/zoobc/zoobc-core/p2p"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -35,7 +39,8 @@ func init() {
 func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
+		grpc.StreamInterceptor(interceptor.NewNodeAdminAuthStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
@@ -104,4 +109,29 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
 	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress)
+	go func() {
+		_ = runProxy(restPort, grpcPort)
+	}()
+}
+
+/**
+runProxy only ran when `Debug` flag is set to `true` in `config.toml`
+this function open a http endpoint that will be proxy to our rpc service
+*/
+func runProxy(apiPort, rpcPort int) error {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	_ = rpcService.RegisterAccountBalanceServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterBlockServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterHostServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterMempoolServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterNodeHardwareServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterNodeRegistrationServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+
+	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

@@ -1,11 +1,10 @@
-package auth
+package util
 
 import (
 	"bytes"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 var LastRequestTimestamp uint64
@@ -32,8 +31,8 @@ func VerifyAuthAPI(
 	}
 	LastRequestTimestamp = auth.Timestamp
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(auth.RequestType)))
-	buffer.Write(util.ConvertUint64ToBytes(auth.Timestamp))
+	buffer.Write(ConvertUint32ToBytes(uint32(auth.RequestType)))
+	buffer.Write(ConvertUint64ToBytes(auth.Timestamp))
 	signatureValid := signature.VerifySignature(
 		buffer.Bytes(),
 		auth.Signature,

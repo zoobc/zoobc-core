@@ -1,11 +1,10 @@
-package auth
+package util
 
 import (
 	"bytes"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
 	"testing"
 )
 
@@ -22,8 +21,8 @@ func TestVerifyAuthAPI(t *testing.T) {
 		signature    crypto.SignatureInterface
 	}
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(0))
-	buffer.Write(util.ConvertUint64ToBytes(10000))
+	buffer.Write(ConvertUint32ToBytes(0))
+	buffer.Write(ConvertUint64ToBytes(10000))
 	validSignature := (&crypto.Signature{}).Sign(
 		buffer.Bytes(),
 		constant.NodeSignatureTypeDefault,
