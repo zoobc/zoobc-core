@@ -37,12 +37,9 @@ var (
 	p2pServiceInstance               p2p.ServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
-)
-
-var (
-	blockServices   = make(map[int32]coreService.BlockServiceInterface)
-	mempoolServices = make(map[int32]service.MempoolServiceInterface)
-	p2pService      p2p.ServiceInterface
+	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
+	p2pService                       p2p.ServiceInterface
 )
 
 func init() {
@@ -61,13 +58,7 @@ func init() {
 		dbName = viper.GetString("dbName")
 		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
-		}
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
-		if apiHTTPPort == 0 {
-			apiHTTPPort = 8000
-		}
 	}
 
 	dbInstance = database.NewSqliteDB()
