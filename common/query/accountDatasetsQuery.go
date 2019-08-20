@@ -39,7 +39,7 @@ func NewAccountDatasetsQuery() *AccountDatasetsQuery {
 			"timestamp_expires",
 			"latest",
 		},
-		TableName: "account_datasets",
+		TableName: "account_dataset",
 	}
 }
 
