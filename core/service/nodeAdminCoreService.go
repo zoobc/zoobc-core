@@ -54,6 +54,7 @@ func NewNodeAdminService(
 
 // GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
 func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessage) ([]byte, error) {
+	//FIXME: don't use proto marshal
 	b, err := proto.Marshal(poown)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.AppErr, "InvalidPoownMessage")
@@ -64,6 +65,7 @@ func (*NodeAdminService) GetBytesFromMessage(poown *model.ProofOfOwnershipMessag
 // GetBytesFromMessage wrapper around proto.marshal function. returns the message's bytes
 func (nas *NodeAdminService) ParseMessageBytes(messageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
 	message := new(model.ProofOfOwnershipMessage)
+	//FIXME: don't use proto unmarshal
 	if err := proto.Unmarshal(messageBytes, message); err != nil {
 		return nil, blocker.NewBlocker(blocker.AppErr, "InvalidPoownMessageBytes")
 	}
