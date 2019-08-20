@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -407,9 +406,9 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
 	var idsStr []string
 	for _, tx := range transactions {
-		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
+		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
 	}
-	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
+	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(idsStr))
 	if err != nil {
 		return err
 	}

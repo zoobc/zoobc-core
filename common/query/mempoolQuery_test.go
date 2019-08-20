@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -110,8 +111,8 @@ func TestMempoolQuery_DeleteMempoolTransaction(t *testing.T) {
 
 func TestMempoolQuery_DeleteMempoolTransactions(t *testing.T) {
 	t.Run("DeleteMempoolTransactions:success", func(t *testing.T) {
-		q := mockMempoolQuery.DeleteMempoolTransactions()
-		wantQ := "DELETE FROM mempool WHERE id IN (:ids)"
+		q := mockMempoolQuery.DeleteMempoolTransactions([]string{"'7886972234269775174'", "'2392517098252617169'"})
+		wantQ := "DELETE FROM mempool WHERE id IN ('7886972234269775174','2392517098252617169')"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}

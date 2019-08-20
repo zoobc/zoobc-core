@@ -9,3 +9,4 @@ func (*NodeRegistrationTransactionBody) isTxBody()       {}
 func (*UpdateNodeRegistrationTransactionBody) isTxBody() {}
 func (*EmptyTransactionBody) isTxBody()                  {}
 func (*SendMoneyTransactionBody) isTxBody()              {}
+func (*SetupAccountDatasetTransactionBody) isTxBody()    {}

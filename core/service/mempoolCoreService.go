@@ -116,6 +116,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 }
 
 func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	// TODO : check if transaction already inserted in Transaction Table. Is needed?
 	tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
 		return err
