@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/contract"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -19,17 +18,18 @@ type (
 		DeleteMempoolTransactions([]string) string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction
+		Scan(mempool *model.MempoolTransaction, row *sql.Row) error
 	}
 
 	MempoolQuery struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
+		ChainType chaintype.ChainType
 	}
 )
 
 // NewMempoolQuery returns MempoolQuery instance
-func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
+func NewMempoolQuery(chaintype chaintype.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
 			"id",
@@ -107,4 +107,17 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 		mempools = append(mempools, &mempool)
 	}
 	return mempools
+}
+
+// Scan similar with `sql.Scan`
+func (*MempoolQuery) Scan(mempool *model.MempoolTransaction, row *sql.Row) error {
+	err := row.Scan(
+		&mempool.ID,
+		&mempool.FeePerByte,
+		&mempool.ArrivalTimestamp,
+		&mempool.TransactionBytes,
+		&mempool.SenderAccountAddress,
+		&mempool.RecipientAccountAddress,
+	)
+	return err
 }

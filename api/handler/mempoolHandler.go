@@ -15,11 +15,20 @@ type (
 )
 
 func (uth *MempoolTransactionHandler) GetMempoolTransaction(
-	context.Context,
-	*model.GetMempoolTransactionRequest,
+	ctx context.Context,
+	req *model.GetMempoolTransactionRequest,
 ) (*model.GetMempoolTransactionResponse, error) {
-	// TODO: Implement GetMempoolTransaction
-	panic("implement me")
+	var (
+		err      error
+		response *model.GetMempoolTransactionResponse
+	)
+
+	chainType := chaintype.GetChainType(0)
+	response, err = uth.Service.GetMempoolTransaction(chainType, req)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (uth *MempoolTransactionHandler) GetMempoolTransactions(

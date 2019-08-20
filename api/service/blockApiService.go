@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -15,9 +15,9 @@ import (
 type (
 	// BlockServiceInterface represents interface for BlockService
 	BlockServiceInterface interface {
-		GetBlockByID(chainType contract.ChainType, ID int64) (*model.Block, error)
-		GetBlockByHeight(chainType contract.ChainType, Height uint32) (*model.Block, error)
-		GetBlocks(chainType contract.ChainType, Count uint32, Height uint32) (*model.GetBlocksResponse, error)
+		GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.Block, error)
+		GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.Block, error)
+		GetBlocks(chainType chaintype.ChainType, Count uint32, Height uint32) (*model.GetBlocksResponse, error)
 	}
 
 	// BlockService represents struct of BlockService
@@ -37,7 +37,7 @@ func NewBlockService(queryExecutor query.ExecutorInterface) *BlockService {
 }
 
 // GetBlockByID fetch a single block from Blockchain by providing block ID
-func (bs *BlockService) GetBlockByID(chainType contract.ChainType, id int64) (*model.Block, error) {
+func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.Block, error) {
 	var (
 		err  error
 		bl   []*model.Block
@@ -61,7 +61,7 @@ func (bs *BlockService) GetBlockByID(chainType contract.ChainType, id int64) (*m
 }
 
 // GetBlockByHeight fetches a single block from Blockchain by providing block size
-func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, height uint32) (*model.Block, error) {
+func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.Block, error) {
 	var (
 		err  error
 		bl   []*model.Block
@@ -84,7 +84,7 @@ func (bs *BlockService) GetBlockByHeight(chainType contract.ChainType, height ui
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system
-func (bs *BlockService) GetBlocks(chainType contract.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
+func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
 	var rows *sql.Rows
 	var err error
 	var blocks []*model.Block
