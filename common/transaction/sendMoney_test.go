@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -359,26 +359,6 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{
-			name: "wantError:ValidateInvalid",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               1,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCountSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
-			},
-			wantErr: true,
-		},
 		{
 			name: "wantFail:undoUnconfirmedFail",
 			fields: fields{

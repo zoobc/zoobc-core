@@ -6,8 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
-
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -45,11 +44,6 @@ type (
 	}
 	mockExecutorApplyUnconfirmedSuccess struct {
 		mockExecutorValidateSuccess
-	}
-
-	// apply confirmed mock
-	mockApplyConfirmedFailValidate struct {
-		mockExecutorValidateFailExecuteSelectFail
 	}
 	mockApplyConfirmedUndoUnconfirmedFail struct {
 		mockExecutorValidateSuccess
@@ -239,15 +233,6 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "ApplyConfirmed:fail-{validateFail}",
-			wantErr: true,
-			fields: fields{
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				QueryExecutor:       &mockApplyConfirmedFailValidate{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-			},
-		},
-		{
 			name:    "ApplyConfirmed:fail-{undoUnconfirmedFail}",
 			wantErr: true,
 			fields: fields{
@@ -326,15 +311,6 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{
-			name:    "ApplyUnconfirmed:fail-{validateFail}",
-			wantErr: true,
-			fields: fields{
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-			},
-		},
 		{
 			name:    "ApplyUnconfirmed:fail-{ExecuteTransactionFail}",
 			wantErr: true,

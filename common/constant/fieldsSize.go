@@ -22,4 +22,8 @@ var (
 	SignatureType   uint32 = 4
 	AuthRequestType        = 4
 	AuthTimestamp          = 8
+	// DatasetPropertyLength is max length of string property name in dataset
+	DatasetPropertyLength uint32 = 4
+	// DatasetValueLength is max length of string property value in dataset
+	DatasetValueLength uint32 = 4
 )
