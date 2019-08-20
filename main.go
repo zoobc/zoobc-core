@@ -39,7 +39,6 @@ var (
 	observerInstance                 *observer.Observer
 	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
 	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	p2pService                       p2p.ServiceInterface
 )
 
 func init() {
@@ -77,7 +76,13 @@ func init() {
 
 func startServices(queryExecutor query.ExecutorInterface) {
 	startP2pService()
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance, blockServices)
+	api.Start(
+		apiRPCPort,
+		apiHTTPPort,
+		queryExecutor,
+		p2pServiceInstance,
+		blockServices,
+	)
 }
 
 func startP2pService() {
@@ -89,7 +94,6 @@ func startP2pService() {
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
-	p2pService = p2pServiceInstance
 }
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
