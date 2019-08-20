@@ -19,5 +19,7 @@ var (
 	// AccountSignature TODO: this is valid for signatures using Ed25519. in future we might have more implementations
 	AccountSignature uint32 = 64
 	// SignatureType variables
-	SignatureType uint32 = 4
+	SignatureType   uint32 = 4
+	AuthRequestType        = 4
+	AuthTimestamp          = 8
 )

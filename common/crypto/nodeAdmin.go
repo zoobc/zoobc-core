@@ -1,10 +1,12 @@
-package util
+package crypto
 
 import (
 	"bytes"
+	"encoding/hex"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 var LastRequestTimestamp uint64
@@ -13,29 +15,38 @@ var LastRequestTimestamp uint64
 // request type checking, and the validity of the signature to the owner address
 // return nil if valid, and Blocker object otherwise
 func VerifyAuthAPI(
-	ownerAddress string,
-	auth *model.Auth,
-	requestType model.RequestType,
-	signature crypto.SignatureInterface) error {
-	if auth.RequestType != requestType {
+	ownerAddress,
+	auth string,
+	requestType model.RequestType) error {
+	// parse
+	var (
+		authRequestType int32
+		authTimestamp   uint64
+	)
+	signature := NewSignature()
+	authBytes, err := hex.DecodeString(auth)
+	if err != nil {
+		return err
+	}
+	authBytesBuffer := bytes.NewBuffer(authBytes)
+	authRequestType = int32(util.ConvertBytesToUint32(authBytesBuffer.Next(constant.AuthRequestType)))
+	authTimestamp = util.ConvertBytesToUint64(authBytesBuffer.Next(constant.AuthTimestamp))
+	if authRequestType != int32(requestType) {
 		return blocker.NewBlocker(
 			blocker.RequestParameterErr,
 			"invalid request type",
 		)
 	}
-	if auth.Timestamp <= LastRequestTimestamp {
+	if authTimestamp <= LastRequestTimestamp {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"timestamp is in the past",
 		)
 	}
-	LastRequestTimestamp = auth.Timestamp
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(ConvertUint32ToBytes(uint32(auth.RequestType)))
-	buffer.Write(ConvertUint64ToBytes(auth.Timestamp))
+	LastRequestTimestamp = authTimestamp
 	signatureValid := signature.VerifySignature(
-		buffer.Bytes(),
-		auth.Signature,
+		authBytes[:constant.AuthRequestType+constant.AuthTimestamp],
+		authBytes[constant.AuthRequestType+constant.AuthTimestamp:],
 		ownerAddress,
 	)
 	if !signatureValid {
