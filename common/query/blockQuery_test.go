@@ -9,8 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
-	"github.com/zoobc/zoobc-core/common/contract"
 )
 
 var mockBlockQuery = &BlockQuery{
@@ -42,7 +40,7 @@ var mockBlock = &model.Block{
 
 func TestNewBlockQuery(t *testing.T) {
 	type args struct {
-		chaintype contract.ChainType
+		chaintype chaintype.ChainType
 	}
 	tests := []struct {
 		name string

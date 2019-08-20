@@ -11,7 +11,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -134,7 +133,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		Query query.ExecutorInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		id        int64
 	}
 	tests := []struct {
@@ -253,7 +252,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		Query query.ExecutorInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		height    uint32
 	}
 	tests := []struct {
@@ -372,7 +371,7 @@ func TestBlockService_GetBlocks(t *testing.T) {
 		Query query.ExecutorInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		blockSize uint32
 		height    uint32
 	}

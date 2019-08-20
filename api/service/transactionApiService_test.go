@@ -13,7 +13,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -207,7 +206,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		Log                *logrus.Logger
 	}
 	type args struct {
-		chaintype contract.ChainType
+		chaintype chaintype.ChainType
 		req       *model.PostTransactionRequest
 	}
 	tests := []struct {
@@ -516,7 +515,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 		MempoolService     service.MempoolServiceInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		params    *model.GetTransactionsRequest
 	}
 	tests := []struct {
@@ -647,7 +646,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 		MempoolService     service.MempoolServiceInterface
 	}
 	type args struct {
-		chainType contract.ChainType
+		chainType chaintype.ChainType
 		params    *model.GetTransactionRequest
 	}
 	tests := []struct {

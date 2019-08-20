@@ -37,12 +37,9 @@ var (
 	p2pServiceInstance               p2p.ServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
-)
-
-var (
-	blockServices   = make(map[int32]coreService.BlockServiceInterface)
-	mempoolServices = make(map[int32]service.MempoolServiceInterface)
-	p2pService      p2p.ServiceInterface
+	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
+	ownerAccountAddress              string
 )
 
 func init() {
@@ -61,13 +58,8 @@ func init() {
 		dbName = viper.GetString("dbName")
 		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
-		}
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
-		if apiHTTPPort == 0 {
-			apiHTTPPort = 8000
-		}
+		ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -84,9 +76,16 @@ func init() {
 	observerInstance = observer.NewObserver()
 }
 
-func startServices(queryExecutor query.ExecutorInterface) {
+func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress string) {
 	startP2pService()
-	api.Start(apiRPCPort, apiHTTPPort, queryExecutor, p2pServiceInstance, blockServices)
+	api.Start(
+		apiRPCPort,
+		apiHTTPPort,
+		queryExecutor,
+		p2pServiceInstance,
+		blockServices,
+		ownerAccountAddress,
+	)
 }
 
 func startP2pService() {
@@ -98,7 +97,6 @@ func startP2pService() {
 
 	// run P2P service with any chaintype
 	go p2pServiceInstance.StartP2P()
-	p2pService = p2pServiceInstance
 }
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
@@ -174,7 +172,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	startServices(queryExecutor)
+	startServices(queryExecutor, ownerAccountAddress)
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true

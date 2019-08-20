@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -18,6 +19,7 @@ import (
 var txTypeMap = map[string][]byte{
 	"sendMoney":    {1, 0, 0, 0},
 	"registerNode": {2, 0, 0, 0},
+	"setupDataset": {3, 0, 0, 0},
 }
 
 func GenerateTransactionBytes(logger *logrus.Logger,
@@ -39,7 +41,7 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 				unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
 				tx.Signature = signature.Sign(
 					unsignedTxBytes,
-					tx.SenderAccountAddress,
+					constant.NodeSignatureTypeDefault,
 					seed,
 				)
 				signedTxBytes, _ := util.GetTransactionBytes(tx, true)
@@ -108,6 +110,30 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 				NodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["setupDataset"]):
+		txBody := &model.SetupAccountDatasetTransactionBody{
+			SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Property:                "Member",
+			Value:                   "Welcome to the jungle",
+			MuchTime:                2592000, // 30 days in second
+		}
+		txBodyBytes := (&transaction.SetupAccountDataset{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["setupDataset"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
+				SetupAccountDatasetTransactionBody: txBody,
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}

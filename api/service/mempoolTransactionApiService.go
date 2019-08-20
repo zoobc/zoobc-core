@@ -3,8 +3,9 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"errors"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -12,11 +13,11 @@ import (
 type (
 	MempoolTransactionServiceInterface interface {
 		GetMempoolTransaction(
-			chainType contract.ChainType,
+			chainType chaintype.ChainType,
 			params *model.GetMempoolTransactionRequest,
 		) (*model.GetMempoolTransactionResponse, error)
 		GetMempoolTransactions(
-			chainType contract.ChainType,
+			chainType chaintype.ChainType,
 			params *model.GetMempoolTransactionsRequest,
 		) (*model.GetMempoolTransactionsResponse, error)
 	}
@@ -34,14 +35,36 @@ func NewMempoolTransactionsService(
 }
 
 func (ut *MempoolTransactionService) GetMempoolTransaction(
-	chainType contract.ChainType,
+	chainType chaintype.ChainType,
 	params *model.GetMempoolTransactionRequest,
 ) (*model.GetMempoolTransactionResponse, error) {
-	return nil, nil
+	var (
+		err error
+		row *sql.Row
+		tx  model.MempoolTransaction
+	)
+
+	txQuery := query.NewMempoolQuery(chainType)
+	row = ut.Query.ExecuteSelectRow(txQuery.GetMempoolTransaction(), params.GetID())
+	if row == nil {
+		return nil, err
+	}
+
+	err = txQuery.Scan(&tx, row)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tx.GetTransactionBytes()) == 0 {
+		return nil, errors.New("record not found")
+	}
+	return &model.GetMempoolTransactionResponse{
+		Transaction: &tx,
+	}, nil
 }
 
 func (ut *MempoolTransactionService) GetMempoolTransactions(
-	chainType contract.ChainType,
+	chainType chaintype.ChainType,
 	params *model.GetMempoolTransactionsRequest,
 ) (*model.GetMempoolTransactionsResponse, error) {
 	var (
@@ -69,14 +92,20 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 
 	address := params.GetAddress()
 	if address != "" {
-		caseQuery.And(caseQuery.Equal("sender_account_address", address)).
-			Or(caseQuery.Equal("recipient_account_address", address))
+		if timestampStart > 0 {
+			caseQuery.And(caseQuery.Equal("sender_account_address", address)).
+				Or(caseQuery.Equal("recipient_account_address", address))
+		} else {
+			caseQuery.Where(caseQuery.Equal("sender_account_address", address)).
+				Or(caseQuery.Equal("recipient_account_address", address))
+		}
 	}
 
 	// count first
 	selectQuery, args = caseQuery.Build()
 	countQuery = query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ut.Query.ExecuteSelect(countQuery, args)
+
+	rows, err = ut.Query.ExecuteSelect(countQuery, args...)
 	if err != nil {
 		return nil, err
 	}

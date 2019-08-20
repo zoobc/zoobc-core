@@ -108,6 +108,18 @@ func (m *Migration) Init() error {
 				"height" INTEGER,
 				PRIMARY KEY("id", "height")
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "account_dataset"(
+				"setter_account_address" VARCHAR(255),
+				"recipient_account_address" VARCHAR(255),
+				"property" TEXT,
+				"value" TEXT,
+				"timestamp_starts" INTEGER,
+				"timestamp_expires" INTEGER,
+				"height" INTEGER,
+				"latest" INTEGER,
+				PRIMARY KEY("setter_account_address","recipient_account_address", "property", "height")
+			);`,
 		}
 		return nil
 	}

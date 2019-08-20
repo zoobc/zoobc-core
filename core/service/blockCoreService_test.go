@@ -8,9 +8,8 @@ import (
 	"regexp"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -207,7 +206,7 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		ct                  contract.ChainType
+		ct                  chaintype.ChainType
 		queryExecutor       query.ExecutorInterface
 		blockQuery          query.BlockQueryInterface
 		mempoolQuery        query.MempoolQueryInterface
@@ -256,7 +255,7 @@ func TestNewBlockService(t *testing.T) {
 
 func TestBlockService_NewBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -359,7 +358,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 
 func TestBlockService_NewGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -470,7 +469,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 
 func TestBlockService_VerifySeed(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -591,7 +590,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -723,7 +722,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 
 func TestBlockService_GetLastBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -813,7 +812,7 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 
 func TestBlockService_GetGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -899,7 +898,7 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 
 func TestBlockService_GetBlocks(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -976,7 +975,7 @@ func TestBlockService_GetBlocks(t *testing.T) {
 }
 func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
+		Chaintype     chaintype.ChainType
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
 		MempoolQuery  query.MempoolQueryInterface
@@ -1115,7 +1114,7 @@ func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMemp
 
 func TestBlockService_GenerateBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -1261,7 +1260,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -1350,7 +1349,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...inter
 
 func TestBlockService_CheckGenesis(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		BlockQuery         query.BlockQueryInterface
 		MempoolQuery       query.MempoolQueryInterface
@@ -1404,7 +1403,7 @@ func TestBlockService_CheckGenesis(t *testing.T) {
 
 func TestBlockService_CheckSignatureBlock(t *testing.T) {
 	type fields struct {
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
@@ -1490,7 +1489,7 @@ func TestBlockService_CheckSignatureBlock(t *testing.T) {
 func TestBlockService_ReceivedBlockListener(t *testing.T) {
 	type (
 		fields struct {
-			Chaintype           contract.ChainType
+			Chaintype           chaintype.ChainType
 			QueryExecutor       query.ExecutorInterface
 			BlockQuery          query.BlockQueryInterface
 			MempoolQuery        query.MempoolQueryInterface
@@ -1610,7 +1609,7 @@ func testOnNotifyBlockListener(fn observer.OnNotify, block *model.Block) {
 
 func TestBlockService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
@@ -1696,7 +1695,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
@@ -1785,7 +1784,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 
 func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 	type fields struct {
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
