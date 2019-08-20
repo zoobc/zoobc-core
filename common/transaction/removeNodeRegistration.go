@@ -26,9 +26,6 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		queries           [][]interface{}
 		nodereGistrations []*model.NodeRegistration
 	)
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	if tx.Height > 0 {
 		err := tx.UndoApplyUnconfirmed()
@@ -95,10 +92,6 @@ func (tx *RemoveNodeRegistration) ApplyUnconfirmed() error {
 	var (
 		err error
 	)
-
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(

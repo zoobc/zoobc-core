@@ -239,15 +239,6 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "ApplyConfirmed:fail-{validateFail}",
-			wantErr: true,
-			fields: fields{
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				QueryExecutor:       &mockApplyConfirmedFailValidate{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-			},
-		},
-		{
 			name:    "ApplyConfirmed:fail-{undoUnconfirmedFail}",
 			wantErr: true,
 			fields: fields{
@@ -326,15 +317,6 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{
-			name:    "ApplyUnconfirmed:fail-{validateFail}",
-			wantErr: true,
-			fields: fields{
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-			},
-		},
 		{
 			name:    "ApplyUnconfirmed:fail-{ExecuteTransactionFail}",
 			wantErr: true,
