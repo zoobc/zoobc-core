@@ -48,9 +48,6 @@ type (
 	}
 
 	// apply confirmed mock
-	mockApplyConfirmedFailValidate struct {
-		mockExecutorValidateFailExecuteSelectFail
-	}
 	mockApplyConfirmedUndoUnconfirmedFail struct {
 		mockExecutorValidateSuccess
 	}
