@@ -1,8 +1,12 @@
-package util
+package interceptor
 
 import (
 	"context"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/model"
+	"google.golang.org/grpc/metadata"
 	"runtime"
 	"time"
 
@@ -113,4 +117,55 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 		return errInvoker
 	}
 
+}
+
+/*
+NewStreamInterceptor
+validate request against the destination service and the signature with the node owner
+*/
+func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
+	return func(
+		srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler,
+	) error {
+		var (
+			errHandler  error
+			requestType model.RequestType
+		)
+		switch info.FullMethod {
+		case "/service.NodeHardwareService/GetNodeHardware":
+			requestType = model.RequestType_GetNodeHardware
+		default:
+			// unprotected service, by pass the auth checking
+			requestType = -1
+		}
+		md, ok := metadata.FromIncomingContext(ss.Context())
+		if !ok {
+			return blocker.NewBlocker(
+				blocker.AuthErr,
+				"metadata not provided",
+			)
+		}
+		authSlice := md.Get("authorization")
+		if authSlice == nil {
+			return blocker.NewBlocker(
+				blocker.AuthErr,
+				"authorization metadata not provided",
+			)
+		}
+		if requestType > -1 {
+			// validate request
+			// todo: this is verifying against whatever owner address is in the config file, update this
+			// todo: to follow how `claim` node work.
+			err := crypto.VerifyAuthAPI(
+				ownerAddress,
+				authSlice[0],
+				requestType)
+			if err != nil {
+				return err
+			}
+		}
+
+		errHandler = handler(srv, ss)
+		return errHandler
+	}
 }

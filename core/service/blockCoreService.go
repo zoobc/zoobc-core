@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
-	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -52,7 +50,7 @@ type (
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
 		CheckGenesis() bool
-		GetChainType() contract.ChainType
+		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
 		ReceivedBlockListener() observer.Listener
@@ -60,7 +58,7 @@ type (
 
 	BlockService struct {
 		chainWriteLock      sync.WaitGroup
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
@@ -74,7 +72,7 @@ type (
 )
 
 func NewBlockService(
-	ct contract.ChainType,
+	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
@@ -135,7 +133,7 @@ func (bs *BlockService) NewBlock(
 }
 
 // GetChainType returns the chaintype
-func (bs *BlockService) GetChainType() contract.ChainType {
+func (bs *BlockService) GetChainType() chaintype.ChainType {
 	return bs.Chaintype
 }
 
@@ -408,9 +406,9 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
 	var idsStr []string
 	for _, tx := range transactions {
-		idsStr = append(idsStr, strconv.FormatInt(tx.ID, 10))
+		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
 	}
-	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(), strings.Join(idsStr, ","))
+	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(idsStr))
 	if err != nil {
 		return err
 	}

@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"google.golang.org/grpc"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -23,11 +24,11 @@ type (
 		SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error)
 		SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error)
 
-		GetCumulativeDifficulty(*model.Peer, contract.ChainType) (*model.GetCumulativeDifficultyResponse, error)
-		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID,
+		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
+		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
 			astMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
-		GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, blockID int64, limit uint32) (*model.BlockIdsResponse, error)
-		GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64, blockID int64) (*model.BlocksData, error)
+		GetNextBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, blockID int64, limit uint32) (*model.BlockIdsResponse, error)
+		GetNextBlocks(destPeer *model.Peer, chaintype chaintype.ChainType, blockIds []int64, blockID int64) (*model.BlocksData, error)
 	}
 	// PeerService represent peer service
 	PeerServiceClient struct {
@@ -51,7 +52,7 @@ func NewPeerServiceClient() PeerServiceClientInterface {
 					conn, err := grpc.Dial(
 						nativeUtil.GetFullAddressPeer(destinationPeer),
 						grpc.WithInsecure(),
-						grpc.WithUnaryInterceptor(util.NewClientInterceptor(apiLogger)),
+						grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(apiLogger)),
 					)
 					if err != nil {
 						return nil, err
@@ -137,7 +138,7 @@ func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionB
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
 func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
-	chaintype contract.ChainType) (*model.GetCumulativeDifficultyResponse, error) {
+	chaintype chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -156,7 +157,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
 }
 
 // GetCommonMilestoneBlockIDs request the blockIds that may act as milestone block
-func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype contract.ChainType, lastBlockID,
+func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
 	lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
@@ -178,7 +179,7 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, ch
 }
 
 // GetNextBlockIDs request the blockIds of the next blocks requested
-func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype contract.ChainType,
+func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType,
 	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),
@@ -200,7 +201,7 @@ func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype con
 }
 
 // GetNextBlocks request the next blocks matching the array of blockIds
-func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype contract.ChainType, blockIds []int64,
+func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype chaintype.ChainType, blockIds []int64,
 	blockID int64) (*model.BlocksData, error) {
 	connection, _ := grpc.Dial(
 		nativeUtil.GetFullAddressPeer(destPeer),

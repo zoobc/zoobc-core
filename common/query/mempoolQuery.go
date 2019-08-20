@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/contract"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -16,20 +15,21 @@ type (
 		GetMempoolTransaction() string
 		InsertMempoolTransaction() string
 		DeleteMempoolTransaction() string
-		DeleteMempoolTransactions() string
+		DeleteMempoolTransactions([]string) string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction
+		Scan(mempool *model.MempoolTransaction, row *sql.Row) error
 	}
 
 	MempoolQuery struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
+		ChainType chaintype.ChainType
 	}
 )
 
 // NewMempoolQuery returns MempoolQuery instance
-func NewMempoolQuery(chaintype contract.ChainType) *MempoolQuery {
+func NewMempoolQuery(chaintype chaintype.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
 			"id",
@@ -75,8 +75,8 @@ func (mpq *MempoolQuery) DeleteMempoolTransaction() string {
 }
 
 // DeleteMempoolTransaction delete one mempool transaction by id
-func (mpq *MempoolQuery) DeleteMempoolTransactions() string {
-	return fmt.Sprintf("DELETE FROM %s WHERE id IN (:ids)", mpq.getTableName())
+func (mpq *MempoolQuery) DeleteMempoolTransactions(idsStr []string) string {
+	return fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", mpq.getTableName(), strings.Join(idsStr, ","))
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
@@ -107,4 +107,17 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 		mempools = append(mempools, &mempool)
 	}
 	return mempools
+}
+
+// Scan similar with `sql.Scan`
+func (*MempoolQuery) Scan(mempool *model.MempoolTransaction, row *sql.Row) error {
+	err := row.Scan(
+		&mempool.ID,
+		&mempool.FeePerByte,
+		&mempool.ArrivalTimestamp,
+		&mempool.TransactionBytes,
+		&mempool.SenderAccountAddress,
+		&mempool.RecipientAccountAddress,
+	)
+	return err
 }
