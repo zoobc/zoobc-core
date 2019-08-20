@@ -10,6 +10,8 @@ import (
 type (
 	HostServiceInterface interface {
 		GetHostInfo() (*model.HostInfo, error)
+		GetHostPeers() (*model.GetHostPeersResponse, error)
+		// GetHostPeers(context.Context, *model.Empty) (*model.GetHostPeersResponse, error)
 	}
 
 	HostService struct {
@@ -50,5 +52,13 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	return &model.HostInfo{
 		Host:          hs.P2pService.GetHostInstance(),
 		ChainStatuses: chainStatuses,
+	}, nil
+}
+
+func (hs *HostService) GetHostPeers() (*model.GetHostPeersResponse, error) {
+	host := hs.P2pService.GetHostInstance()
+	return &model.GetHostPeersResponse{
+		ConnectedPeers:    host.GetResolvedPeers(),
+		DisconnectedPeers: host.GetUnresolvedPeers(),
 	}, nil
 }

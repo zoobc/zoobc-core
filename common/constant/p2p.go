@@ -2,9 +2,9 @@ package constant
 
 const (
 	// Max number of unresolved peers stored in a host
-	MaxUnresolvedPeers int32 = 2 // 1000
+	MaxUnresolvedPeers int32 = 10 // 1000
 	// Max number of connected/resolved peers stored in a host
-	MaxResolvedPeers int32 = 1 // 100
+	MaxResolvedPeers int32 = 5 // 100
 	// Minimum time period in second to update a peer
 	SecondsToUpdatePeersConnection int64 = 10 // 3600
 	// ResolvePeersGap, interval of peer thread trying resolve a peer (in second)
