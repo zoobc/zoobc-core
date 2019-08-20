@@ -63,6 +63,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 		accountAddress string
 		timestamp      int64
 		signature      []byte
+		timeout        int64
 	}
 	tests := []struct {
 		name    string
@@ -81,6 +82,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				accountAddress: accountAddress,
 				timestamp:      time.Now().Unix(),
 				signature:      sig,
+				timeout:        1,
 			},
 			want:    nodeAdminAPIServicePoown,
 			wantErr: false,
@@ -95,6 +97,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				accountAddress: accountAddress,
 				timestamp:      time.Now().Unix() - viper.GetInt64("proofOfOwnershipReqTimeoutSec"),
 				signature:      sig,
+				timeout:        1,
 			},
 			wantErr: true,
 		},
@@ -105,7 +108,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				Query:                tt.fields.Query,
 				NodeAdminCoreService: tt.fields.NodeAdminCoreService,
 			}
-			got, err := nas.GetProofOfOwnership(tt.args.accountAddress, tt.args.timestamp, tt.args.signature)
+			got, err := nas.GetProofOfOwnership(tt.args.accountAddress, tt.args.timestamp, tt.args.signature, tt.args.timeout)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeAdminService.GetProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				return

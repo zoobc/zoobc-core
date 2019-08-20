@@ -16,7 +16,7 @@ import (
 type (
 	// TransactionServiceInterface represents interface for TransactionService
 	NodeAdminServiceInterface interface {
-		GetProofOfOwnership(accountAddress string, timestamp int64, signature []byte) (*model.ProofOfOwnership, error)
+		GetProofOfOwnership(accountAddress string, timestamp int64, signature []byte, timeout int64) (*model.ProofOfOwnership, error)
 	}
 
 	// TransactionService represents struct of TransactionService
@@ -57,9 +57,8 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminServic
 
 // GetProofOfOwnership GetProof of ownership
 func (nas *NodeAdminService) GetProofOfOwnership(accountAddress string, timestamp int64,
-	signature []byte) (*model.ProofOfOwnership, error) {
+	signature []byte, timeout int64) (*model.ProofOfOwnership, error) {
 	// validate timestamp
-	timeout := viper.GetInt64("proofOfOwnershipReqTimeoutSec")
 	if timestamp > time.Now().Unix()+timeout || timestamp < time.Now().Unix()-timeout {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "TimeStampExpired")
 	}
