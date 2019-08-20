@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	rpc_model "github.com/zoobc/zoobc-core/common/model"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
 )
 
@@ -20,7 +23,11 @@ func main() {
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
 	if len(ip) < 1 {
-		ip = ":3001"
+		if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
+		}
 	}
 	conn, err = grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
