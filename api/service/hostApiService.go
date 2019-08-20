@@ -11,7 +11,6 @@ type (
 	HostServiceInterface interface {
 		GetHostInfo() (*model.HostInfo, error)
 		GetHostPeers() (*model.GetHostPeersResponse, error)
-		// GetHostPeers(context.Context, *model.Empty) (*model.GetHostPeersResponse, error)
 	}
 
 	HostService struct {
