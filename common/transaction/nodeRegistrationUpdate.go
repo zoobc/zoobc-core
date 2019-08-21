@@ -3,10 +3,10 @@ package transaction
 import (
 	"bytes"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"net"
 	"net/url"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -29,9 +29,6 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		queries              [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	if tx.Height > 0 {
 		err := tx.UndoApplyUnconfirmed()
@@ -120,10 +117,6 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		err                  error
 		prevNodeRegistration *model.NodeRegistration
 	)
-
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	// update sender balance by reducing his spendable balance of the tx fee
 	var effectiveBalanceToLock int64

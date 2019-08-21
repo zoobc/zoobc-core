@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
-		ct           contract.ChainType
+		ct           chaintype.ChainType
 		blocksmith   *Blocksmith
 		blockService service.BlockServiceInterface
 	}

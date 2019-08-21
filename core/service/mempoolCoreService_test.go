@@ -7,9 +7,8 @@ import (
 	"regexp"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -127,7 +126,7 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
-		ct                  contract.ChainType
+		ct                  chaintype.ChainType
 		queryExecutor       query.ExecutorInterface
 		mempoolQuery        query.MempoolQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
@@ -166,7 +165,7 @@ func TestNewMempoolService(t *testing.T) {
 
 func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype     contract.ChainType
+		Chaintype     chaintype.ChainType
 		QueryExecutor query.ExecutorInterface
 		MempoolQuery  query.MempoolQueryInterface
 	}
@@ -259,7 +258,7 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		MempoolQuery       query.MempoolQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
@@ -321,7 +320,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	type fields struct {
-		Chaintype          contract.ChainType
+		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		MempoolQuery       query.MempoolQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
@@ -442,7 +441,7 @@ func (*ReceivedTransactionListenerMockTypeActionSuccess) GetTransactionType(tx *
 
 func TestMempoolService_ReceivedTransactionListener(t *testing.T) {
 	type fields struct {
-		Chaintype           contract.ChainType
+		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher

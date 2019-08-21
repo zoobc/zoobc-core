@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 
@@ -16,7 +17,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/util"
 
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -24,9 +24,9 @@ import (
 type (
 	// TransactionServiceInterface represents interface for TransactionService
 	TransactionServiceInterface interface {
-		GetTransaction(contract.ChainType, *model.GetTransactionRequest) (*model.Transaction, error)
-		GetTransactions(contract.ChainType, *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error)
-		PostTransaction(contract.ChainType, *model.PostTransactionRequest) (*model.Transaction, error)
+		GetTransaction(chaintype.ChainType, *model.GetTransactionRequest) (*model.Transaction, error)
+		GetTransactions(chaintype.ChainType, *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error)
+		PostTransaction(chaintype.ChainType, *model.PostTransactionRequest) (*model.Transaction, error)
 	}
 
 	// TransactionService represents struct of TransactionService
@@ -63,7 +63,7 @@ func NewTransactionService(
 
 // GetTransaction fetches a single transaction from DB
 func (ts *TransactionService) GetTransaction(
-	chainType contract.ChainType,
+	chainType chaintype.ChainType,
 	params *model.GetTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
@@ -88,7 +88,7 @@ func (ts *TransactionService) GetTransaction(
 // GetTransactions fetches a single transaction from DB
 // included filters
 func (ts *TransactionService) GetTransactions(
-	chainType contract.ChainType,
+	chainType chaintype.ChainType,
 	params *model.GetTransactionsRequest,
 ) (*model.GetTransactionsResponse, error) {
 	var (
@@ -148,7 +148,7 @@ func (ts *TransactionService) GetTransactions(
 }
 
 func (ts *TransactionService) PostTransaction(
-	chaintype contract.ChainType,
+	chaintype chaintype.ChainType,
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
 	txBytes := req.TransactionBytes

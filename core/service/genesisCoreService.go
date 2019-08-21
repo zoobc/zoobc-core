@@ -6,7 +6,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -26,7 +25,7 @@ var genesisSignature = []byte{
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
-func GetGenesisTransactions(chainType contract.ChainType) []*model.Transaction {
+func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction {
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:

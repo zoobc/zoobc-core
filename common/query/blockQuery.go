@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/contract"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -26,12 +25,12 @@ type (
 	BlockQuery struct {
 		Fields    []string
 		TableName string
-		ChainType contract.ChainType
+		ChainType chaintype.ChainType
 	}
 )
 
 // NewBlockQuery returns BlockQuery instance
-func NewBlockQuery(chaintype contract.ChainType) *BlockQuery {
+func NewBlockQuery(chaintype chaintype.ChainType) *BlockQuery {
 	return &BlockQuery{
 		Fields: []string{
 			"id",
