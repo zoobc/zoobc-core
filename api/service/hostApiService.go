@@ -57,7 +57,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 func (hs *HostService) GetHostPeers() (*model.GetHostPeersResponse, error) {
 	host := hs.P2pService.GetHostInstance()
 	return &model.GetHostPeersResponse{
-		ConnectedPeers:    host.GetResolvedPeers(),
-		DisconnectedPeers: host.GetUnresolvedPeers(),
+		ResolvedPeers:   host.GetResolvedPeers(),
+		UnresolvedPeers: host.GetUnresolvedPeers(),
 	}, nil
 }
