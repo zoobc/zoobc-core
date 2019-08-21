@@ -18,7 +18,6 @@ func GetProofOfOwnershipSize(withSignature bool) uint32 {
 }
 
 // GetProofOfOwnershipBytes serialize ProofOfOwnership struct into bytes
-// TODO: implement this
 func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(poown.MessageBytes)
@@ -39,7 +38,6 @@ func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
 }
 
 // GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes
-// TODO: implement this
 func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write([]byte(poownMessage.AccountAddress))
