@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -22,7 +23,7 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
 	poownSignature := crypto.NewSignature().Sign(
 		poownMessageBytes,
-		senderAddress1,
+		constant.NodeSignatureTypeDefault,
 		senderSeed1,
 	)
 	poown = &model.ProofOfOwnership{
@@ -57,7 +58,7 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
 	poownSignature := crypto.NewSignature().Sign(
 		poownMessageBytes,
-		senderAddress1,
+		constant.NodeSignatureTypeDefault,
 		senderSeed1,
 	)
 	poown = &model.ProofOfOwnership{

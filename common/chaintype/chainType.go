@@ -1,4 +1,4 @@
-package contract
+package chaintype
 
 // ChainType interface define the different behavior of each chain
 type ChainType interface {

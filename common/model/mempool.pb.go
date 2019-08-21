@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -301,7 +302,7 @@ func (m *GetMempoolTransactionsResponse) GetMempoolTransactions() []*MempoolTran
 }
 
 func init() {
-	proto.RegisterType((*MempoolTransaction)(nil), "model.MempoolTransaction")
+	proto.RegisterType((*MempoolTransaction)(nil), "model.GetMempoolTransaction")
 	proto.RegisterType((*GetMempoolTransactionRequest)(nil), "model.GetMempoolTransactionRequest")
 	proto.RegisterType((*GetMempoolTransactionResponse)(nil), "model.GetMempoolTransactionResponse")
 	proto.RegisterType((*GetMempoolTransactionsRequest)(nil), "model.GetMempoolTransactionsRequest")

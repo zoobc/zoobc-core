@@ -20,6 +20,7 @@ var (
 	AuthErr             TypeBlocker = "AuthErr"
 	ValidationErr       TypeBlocker = "ValidationErr"
 	ParserErr           TypeBlocker = "ParserErr"
+	ServerError         TypeBlocker = "ServerError"
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {

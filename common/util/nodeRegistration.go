@@ -12,7 +12,7 @@ import (
 func GetProofOfOwnershipSize(withSignature bool) uint32 {
 	message := constant.AccountAddress + constant.BlockHash + constant.Height
 	if withSignature {
-		return message + constant.NodeSignature
+		return message + constant.NodeSignature + constant.SignatureType
 	}
 	return message
 }
@@ -31,7 +31,7 @@ func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
 func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
 	buffer := bytes.NewBuffer(poownBytes)
 	poownMessageBytes := buffer.Next(int(GetProofOfOwnershipSize(false)))
-	signature := buffer.Next(int(constant.NodeSignature))
+	signature := buffer.Next(int(constant.NodeSignature + constant.SignatureType))
 	return &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
 		Signature:    signature,

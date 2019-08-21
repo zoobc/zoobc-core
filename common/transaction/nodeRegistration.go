@@ -27,9 +27,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
 		queries [][]interface{}
 	)
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	if tx.Height > 0 {
 		err := tx.UndoApplyUnconfirmed()
@@ -78,10 +75,6 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 	var (
 		err error
 	)
-
-	if err := tx.Validate(); err != nil {
-		return err
-	}
 
 	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(

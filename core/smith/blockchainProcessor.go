@@ -2,13 +2,14 @@ package smith
 
 import (
 	"errors"
-	"github.com/zoobc/zoobc-core/common/util"
 	"log"
 	"math"
 	"math/big"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/util"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -29,7 +30,7 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype    contract.ChainType
+		Chaintype    chaintype.ChainType
 		Generator    *Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
@@ -38,7 +39,7 @@ type (
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
 func NewBlockchainProcessor(
-	ct contract.ChainType,
+	ct chaintype.ChainType,
 	blocksmith *Blocksmith,
 	blockService service.BlockServiceInterface,
 ) *BlockchainProcessor {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 	"net"
 
 	log "github.com/sirupsen/logrus"
@@ -62,7 +63,7 @@ func (ss *ServerService) StartListening(listener net.Listener) error {
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(util.NewServerInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
 	)
 	service.RegisterP2PCommunicationServer(grpcServer, ss)
 	return grpcServer.Serve(listener)
