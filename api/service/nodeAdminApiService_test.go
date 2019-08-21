@@ -51,9 +51,8 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 	accountAddress := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 	timestamp := time.Now().Unix()
 	message := append([]byte(accountAddress), util.ConvertUint64ToBytes(uint64(timestamp))...)
-	sig := crypto.NewSignature().Sign(message, accountAddress, "concur vocalist"+
+	sig := crypto.NewSignature().Sign(message, 0, "concur vocalist"+
 		" rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-	sig = append([]byte{0, 0, 0, 0}, sig...)
 
 	type fields struct {
 		Query                query.ExecutorInterface
@@ -82,7 +81,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				accountAddress: accountAddress,
 				timestamp:      time.Now().Unix(),
 				signature:      sig,
-				timeout:        1,
+				timeout:        10,
 			},
 			want:    nodeAdminAPIServicePoown,
 			wantErr: false,
@@ -97,7 +96,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				accountAddress: accountAddress,
 				timestamp:      time.Now().Unix() - viper.GetInt64("proofOfOwnershipReqTimeoutSec"),
 				signature:      sig,
-				timeout:        1,
+				timeout:        10,
 			},
 			wantErr: true,
 		},
