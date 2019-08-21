@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/sirupsen/logrus"
@@ -44,6 +46,7 @@ func main() {
 	newSig := buffer.Bytes()
 	response, err := c.GetProofOfOwnership(context.Background(), &rpc_model.GetProofOfOwnershipRequest{
 		AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		Timestamp:      time.Now().Unix(),
 		Signature:      newSig,
 	})
 
