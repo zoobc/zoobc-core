@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -20,6 +21,7 @@ type NodeRegistration struct {
 	Height                uint32
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
 }
 
@@ -113,6 +115,12 @@ func (tx *NodeRegistration) Validate() error {
 	var (
 		accountBalance model.AccountBalance
 	)
+
+	// validate poown
+	if err := auth.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
+		return err
+	}
+
 	// check balance
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)

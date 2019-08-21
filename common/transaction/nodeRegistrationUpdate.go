@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -22,6 +24,7 @@ type UpdateNodeRegistration struct {
 	Height                uint32
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
 }
 
@@ -176,11 +179,16 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	)
 	// formally validate tx body fields
 	if tx.Body.Poown == nil {
-		return errors.New("PoownRequired")
+		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
 	}
-	// TODO: validate poown when implemented
-	//
-	//
+
+	// validate proof of ownership
+	if err := auth.ValidateProofOfOwnership(
+		tx.Body.Poown, tx.Body.NodePublicKey,
+		tx.QueryExecutor,
+		tx.BlockQuery); err != nil {
+		return err
+	}
 
 	// check that sender is node's owner
 	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
@@ -190,7 +198,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	if !rows.Next() {
 		// sender doesn't own any node
 		// note: any account can own exactly one node at the time, meaning that, if this query returns no rows,
-		return errors.New("NodeNotFoundWithAccountID")
+		return blocker.NewBlocker(blocker.ValidationErr, "NodeNotFoundWithAccountID")
 	}
 	_ = rows.Scan(
 		&prevNodeRegistration.NodeID,
@@ -213,7 +221,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 		}
 		if rows.Next() {
 			// public key already registered
-			return errors.New("NodePublicKeyAlredyRegistered")
+			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}
 
@@ -238,21 +246,21 @@ func (tx *UpdateNodeRegistration) Validate() error {
 		effectiveBalanceToLock := tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
 		if effectiveBalanceToLock < 0 {
 			// cannot lock less than what previously locked
-			return errors.New("LockedBalanceLessThenPreviouslyLocked")
+			return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
 		}
 		if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
-			return errors.New("UserBalanceNotEnough")
+			return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 		}
 		// TODO: check minimum amount to be locked (at current height the min amount is = 0, but in future may change)
 	} else if accountBalance.SpendableBalance < tx.Fee {
-		return errors.New("UserBalanceNotEnough")
+		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 	}
 
 	if tx.Body.NodeAddress != "" {
 		if net.ParseIP(tx.Body.NodeAddress) == nil {
 			// not a valid ipv4 or ipv6 address. let's check if is a valid domain name
 			if _, err := url.Parse(tx.Body.NodeAddress); err != nil {
-				return errors.New("InvalidAddress")
+				return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
 			}
 		}
 	}

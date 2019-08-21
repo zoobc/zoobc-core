@@ -1,38 +1,52 @@
 package transaction
 
 import (
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 var senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
+
+// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
+var nodeSeed1 = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+var nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+	45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+var block1 = &model.Block{
+	ID:                   0,
+	PreviousBlockHash:    []byte{},
+	Height:               1,
+	Timestamp:            1562806389280,
+	BlockSeed:            []byte{},
+	BlockSignature:       []byte{},
+	CumulativeDifficulty: string(100000000),
+	SmithScale:           1,
+	PayloadLength:        0,
+	PayloadHash:          []byte{},
+	BlocksmithAddress:    senderAddress1,
+	TotalAmount:          100000000,
+	TotalFee:             10000000,
+	TotalCoinBase:        1,
+	Version:              0,
+}
 
 func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessage, poown *model.ProofOfOwnership,
 	txBody *model.NodeRegistrationTransactionBody, txBodyBytes []byte) {
-
+	blockHash, _ := coreUtil.GetBlockHash(block1)
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
-		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-			101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
-			107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75},
-		BlockHeight: 0,
+		BlockHash:      blockHash,
+		BlockHeight:    0,
 	}
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
-	poownSignature := crypto.NewSignature().Sign(
-		poownMessageBytes,
-		constant.NodeSignatureTypeDefault,
-		senderSeed1,
-	)
+	poownSignature := crypto.NewSignature().SignByNode(poownMessageBytes, nodeSeed1)
 	poown = &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
 		Signature:    poownSignature,
 	}
 	txBody = &model.NodeRegistrationTransactionBody{
-		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
-			63, 224, 101, 127, 241, 62, 152, 187, 255},
+		NodePublicKey:  nodePubKey1,
 		AccountAddress: senderAddress1,
 		NodeAddress:    "10.10.0.1",
 		LockedBalance:  10000000000,
@@ -47,27 +61,21 @@ func GetFixturesForNoderegistration() (poownMessage *model.ProofOfOwnershipMessa
 
 func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershipMessage, poown *model.ProofOfOwnership,
 	txBody *model.UpdateNodeRegistrationTransactionBody, txBodyBytes []byte) {
+	blockHash, _ := coreUtil.GetBlockHash(block1)
 
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
-		BlockHash: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-			101, 127, 241, 62, 152, 187, 255, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
-			107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75},
-		BlockHeight: 0,
+		BlockHash:      blockHash,
+		BlockHeight:    0,
 	}
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
-	poownSignature := crypto.NewSignature().Sign(
-		poownMessageBytes,
-		constant.NodeSignatureTypeDefault,
-		senderSeed1,
-	)
+	poownSignature := crypto.NewSignature().SignByNode(poownMessageBytes, nodeSeed1)
 	poown = &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
 		Signature:    poownSignature,
 	}
 	txBody = &model.UpdateNodeRegistrationTransactionBody{
-		NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43,
-			63, 224, 101, 127, 241, 62, 152, 187, 255},
+		NodePublicKey: nodePubKey1,
 		NodeAddress:   "10.10.0.1",
 		LockedBalance: 10000000000,
 		Poown:         poown,
@@ -82,8 +90,7 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 func GetFixturesForRemoveNoderegistration() (txBody *model.RemoveNodeRegistrationTransactionBody, txBodyBytes []byte) {
 
 	txBody = &model.RemoveNodeRegistrationTransactionBody{
-		NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86,
-			211, 123, 72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
+		NodePublicKey: nodePubKey1,
 	}
 	nr := RemoveNodeRegistration{
 		Body: txBody,
