@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -99,6 +101,14 @@ func (x *nodeHardwareServiceGetNodeHardwareClient) Recv() (*model.GetNodeHardwar
 // NodeHardwareServiceServer is the server API for NodeHardwareService service.
 type NodeHardwareServiceServer interface {
 	GetNodeHardware(NodeHardwareService_GetNodeHardwareServer) error
+}
+
+// UnimplementedNodeHardwareServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedNodeHardwareServiceServer struct {
+}
+
+func (*UnimplementedNodeHardwareServiceServer) GetNodeHardware(srv NodeHardwareService_GetNodeHardwareServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetNodeHardware not implemented")
 }
 
 func RegisterNodeHardwareServiceServer(s *grpc.Server, srv NodeHardwareServiceServer) {

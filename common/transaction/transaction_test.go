@@ -14,6 +14,7 @@ import (
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixturesForNoderegistration()
 	_, _, updateNodeRegistrationBody, updateNodeRegistrationBodyBytes := GetFixturesForUpdateNoderegistration()
+	removeNodeRegistrationBody, removeNodeRegistrationBodyBytes := GetFixturesForRemoveNoderegistration()
 
 	mockSetupAccountDatasetBody := &model.SetupAccountDatasetTransactionBody{
 		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
@@ -172,6 +173,32 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body:                  updateNodeRegistrationBody,
 				Height:                0,
 				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				QueryExecutor:         &query.Executor{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+		},
+		{
+			name: "wantRemoveNodeRegistration",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  0,
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_RemoveNodeRegistrationTransactionBody{
+						RemoveNodeRegistrationTransactionBody: removeNodeRegistrationBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 2, 0, 0}),
+					TransactionBodyBytes: removeNodeRegistrationBodyBytes,
+				},
+			},
+			want: &RemoveNodeRegistration{
+				Body:                  removeNodeRegistrationBody,
+				Height:                0,
+				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
