@@ -14,3 +14,7 @@ type HostHandler struct {
 func (hh *HostHandler) GetHostInfo(ctx context.Context, req *model.Empty) (*model.HostInfo, error) {
 	return hh.Service.GetHostInfo()
 }
+
+func (hh *HostHandler) GetHostPeers(context.Context, *model.Empty) (*model.GetHostPeersResponse, error) {
+	return hh.Service.GetHostPeers()
+}
