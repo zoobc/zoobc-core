@@ -111,7 +111,10 @@ func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHos
 	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
-			_ = runProxy(restPort, grpcPort)
+			err := runProxy(restPort, grpcPort)
+			if err != nil {
+				panic(err)
+			}
 		}()
 	}
 }
