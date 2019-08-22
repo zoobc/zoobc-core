@@ -2,7 +2,7 @@ package crypto
 
 import (
 	"bytes"
-	"encoding/hex"
+	"encoding/base64"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -24,7 +24,7 @@ func VerifyAuthAPI(
 		authTimestamp   uint64
 	)
 	signature := NewSignature()
-	authBytes, err := hex.DecodeString(auth)
+	authBytes, err := base64.StdEncoding.DecodeString(auth)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,6 @@ func VerifyAuthAPI(
 			"timestamp is in the past",
 		)
 	}
-	LastRequestTimestamp = authTimestamp
 	signatureValid := signature.VerifySignature(
 		authBytes[:constant.AuthRequestType+constant.AuthTimestamp],
 		authBytes[constant.AuthRequestType+constant.AuthTimestamp:],
@@ -52,5 +51,7 @@ func VerifyAuthAPI(
 	if !signatureValid {
 		return blocker.NewBlocker(blocker.ValidationErr, "request signature invalid")
 	}
+	// if signature valid, update last request timestamp
+	LastRequestTimestamp = authTimestamp
 	return nil
 }

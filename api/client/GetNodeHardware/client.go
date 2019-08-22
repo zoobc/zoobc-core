@@ -3,17 +3,16 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"encoding/base64"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/util"
-	"google.golang.org/grpc/metadata"
-	"time"
-
-	log "github.com/sirupsen/logrus"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"time"
 )
 
 func main() {
@@ -46,7 +45,8 @@ func main() {
 			buffer.Write(sig)
 
 			ctx := context.Background()
-			md := metadata.Pairs("authorization", hex.EncodeToString(buffer.Bytes()))
+
+			md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
 			ctx = metadata.NewOutgoingContext(ctx, md)
 			stream, err = c.GetNodeHardware(ctx)
 			log.Println("Sleeping...")
