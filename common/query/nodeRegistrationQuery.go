@@ -28,8 +28,17 @@ type (
 
 func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 	return &NodeRegistrationQuery{
-		Fields: []string{"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance", "queued",
-			"latest", "height"},
+		Fields: []string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+		},
 		TableName: "node_registry",
 	}
 }
@@ -118,4 +127,21 @@ func (*NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistra
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations
+}
+
+// Rollback delete records `WHERE block_height > "height"
+// and UPDATE latest of the `account_address` clause by `block_height`
+func (nr *NodeRegistrationQuery) Rollback(height uint32) (queries []string, args uint32) {
+	return []string{
+		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", nr.TableName, height),
+		fmt.Sprintf(`
+			UPDATE %s SET latest = 1 
+			WHERE height IN (
+				SELECT MAX(height) AS height FROM %s 
+				WHERE latest = 0 GROUP BY account_address
+			)`,
+			nr.TableName,
+			nr.TableName,
+		),
+	}, height
 }
