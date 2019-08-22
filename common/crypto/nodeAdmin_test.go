@@ -2,7 +2,7 @@ package crypto
 
 import (
 	"bytes"
-	"encoding/hex"
+	"encoding/base64"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -39,11 +39,11 @@ func setupVerifyAuthAPI() {
 		mockOwnerSeed,
 	)
 	bufferValid.Write(validSignature)
-	mockValidAuth = hex.EncodeToString(bufferValid.Bytes())
+	mockValidAuth = base64.StdEncoding.EncodeToString(bufferValid.Bytes())
 	bufferValid.Write([]byte{1, 2})
-	mockInvalidSignatureAuth = hex.EncodeToString(bufferValid.Bytes())
-	mockInvalidTimestampAuth = hex.EncodeToString(bufferInvalidTimestamp.Bytes())
-	mockInvalidRequestTypeAuth = hex.EncodeToString(bufferInvalidRequestType.Bytes())
+	mockInvalidSignatureAuth = base64.StdEncoding.EncodeToString(bufferValid.Bytes())
+	mockInvalidTimestampAuth = base64.StdEncoding.EncodeToString(bufferInvalidTimestamp.Bytes())
+	mockInvalidRequestTypeAuth = base64.StdEncoding.EncodeToString(bufferInvalidRequestType.Bytes())
 }
 
 func TestVerifyAuthAPI(t *testing.T) {
@@ -62,7 +62,7 @@ func TestVerifyAuthAPI(t *testing.T) {
 			name: "VerifyAuthAPI:fail-invalid-auth",
 			args: args{
 				ownerAddress: "",
-				auth:         "XXXX",
+				auth:         "aaaaaaa",
 				requestType:  0,
 			},
 			wantErr: true,
