@@ -257,9 +257,9 @@ func (tx *ClaimNodeRegistration) GetSize() uint32 {
 	// nodeAddressLength := 1
 	// nodeAddress := uint32(len([]byte(tx.Body.NodeAddress)))
 	// lockedBalance := 8
-	// //TODO: return bytes of ProofOfOwnership (message + signature) when implemented
-	// poown := 256
-	// return uint32(nodePublicKey+nodeAddressLength+lockedBalance+poown) + nodeAddress + nodeAddress
+	// ProofOfOwnership (message + signature)
+	// poown := util.GetProofOfOwnershipSize(true)
+	// return uint32(nodePublicKey+nodeAddressLength+lockedBalance)+poown + nodeAddress + nodeAddress
 	return 0
 }
 

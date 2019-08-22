@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"net"
-	"net/url"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -41,18 +40,18 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 			return err
 		}
 	}
+
 	// get the latest noderegistration by owner (sender account)
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
 	if err != nil {
-		// no nodes registered with this accountID
 		return err
-	} else if rows.Next() {
-		nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		prevNodeRegistration = nr[0]
 	}
 	defer rows.Close()
-	if prevNodeRegistration == nil {
-		return errors.New("NodeNotFoundWithAccountID")
+	if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
+		prevNodeRegistration = nr[0]
+	} else {
+		return errors.New("NodeNotFoundWithAccountAddress")
 	}
 
 	var lockedBalance int64
@@ -127,16 +126,16 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
-		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
+		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
 		if err != nil {
 			return err
-		} else if rows.Next() {
-			nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-			prevNodeRegistration = nr[0]
 		}
 		defer rows.Close()
-		if prevNodeRegistration == nil {
-			return errors.New("NodeNotFoundWithAccountID")
+		if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
+			prevNodeRegistration = nr[0]
+		} else {
+			return errors.New("NodeNotFoundWithAccountAddress")
 		}
 		// delta amount to be locked
 		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
@@ -192,14 +191,15 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	}
 
 	// check that sender is node's owner
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
 	if err != nil {
 		return err
 	}
 	if !rows.Next() {
 		// sender doesn't own any node
 		// note: any account can own exactly one node at the time, meaning that, if this query returns no rows,
-		return blocker.NewBlocker(blocker.ValidationErr, "NodeNotFoundWithAccountID")
+		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 	_ = rows.Scan(
 		&prevNodeRegistration.NodeID,
@@ -215,8 +215,9 @@ func (tx *UpdateNodeRegistration) Validate() error {
 
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered
-	if len(tx.Body.NodePublicKey) == 32 {
-		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey))
+	if len(tx.Body.NodePublicKey) > 0 {
+		qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry1, args1)
 		if err != nil {
 			return err
 		}
@@ -226,22 +227,6 @@ func (tx *UpdateNodeRegistration) Validate() error {
 		}
 	}
 
-	rows, err = tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress))
-
-	if err != nil {
-		return err
-	} else if rows.Next() {
-		_ = rows.Scan(
-			&accountBalance.AccountAddress,
-			&accountBalance.BlockHeight,
-			&accountBalance.SpendableBalance,
-			&accountBalance.Balance,
-			&accountBalance.PopRevenue,
-			&accountBalance.Latest,
-		)
-	}
-	defer rows.Close()
-
 	if tx.Body.LockedBalance > 0 {
 		// delta amount to be locked
 		effectiveBalanceToLock := tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
@@ -249,6 +234,22 @@ func (tx *UpdateNodeRegistration) Validate() error {
 			// cannot lock less than what previously locked
 			return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
 		}
+
+		qry2, args2 := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err = tx.QueryExecutor.ExecuteSelect(qry2, args2)
+		if err != nil {
+			return err
+		} else if rows.Next() {
+			_ = rows.Scan(
+				&accountBalance.AccountAddress,
+				&accountBalance.BlockHeight,
+				&accountBalance.SpendableBalance,
+				&accountBalance.Balance,
+				&accountBalance.PopRevenue,
+				&accountBalance.Latest,
+			)
+		}
+		defer rows.Close()
 		if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
 			return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 		}
@@ -259,10 +260,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 
 	if tx.Body.NodeAddress != "" {
 		if net.ParseIP(tx.Body.NodeAddress) == nil {
-			// not a valid ipv4 or ipv6 address. let's check if is a valid domain name
-			if _, err := url.Parse(tx.Body.NodeAddress); err != nil {
-				return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
-			}
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
 		}
 	}
 
@@ -274,23 +272,24 @@ func (tx *UpdateNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *UpdateNodeRegistration) GetSize() uint32 {
-	nodePublicKey := 32
-	nodeAddressLength := 1
-	nodeAddress := uint32(len([]byte(tx.Body.NodeAddress)))
-	lockedBalance := 8
-	//TODO: return bytes of ProofOfOwnership (message + signature) when implemented
-	poown := 256
-	return uint32(nodePublicKey+nodeAddressLength+lockedBalance+poown) + nodeAddress + nodeAddress
+	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
+	// (necessary to parse the bytes into tx body struct)
+	nodeAddress := constant.NodeAddressLength + uint32(len([]byte(tx.Body.NodeAddress)))
+	// ProofOfOwnership (message + signature)
+	poown := util.GetProofOfOwnershipSize(true)
+	return constant.NodePublicKey + constant.Balance + poown + nodeAddress
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	buffer := bytes.NewBuffer(txBodyBytes)
 	nodePublicKey := buffer.Next(32)
+	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
+	// (necessary to parse the bytes into tx body struct)
 	nodeAddressLength := util.ConvertBytesToUint32(
 		buffer.Next(int(constant.NodeAddressLength))) // uint32 length of next bytes to read
 	nodeAddress := buffer.Next(int(nodeAddressLength)) // based on nodeAddressLength
-	lockedBalance := util.ConvertBytesToUint64(buffer.Next(8))
+	lockedBalance := util.ConvertBytesToUint64(buffer.Next(int(constant.Balance)))
 	// parse ProofOfOwnership (message + signature) bytes
 	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	return &model.UpdateNodeRegistrationTransactionBody{
@@ -305,6 +304,8 @@ func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.Transact
 func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
+	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
+	// (necessary to parse the bytes into tx body struct)
 	addressLengthBytes := util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.NodeAddress))))
 	buffer.Write(addressLengthBytes)
 	buffer.Write([]byte(tx.Body.NodeAddress))

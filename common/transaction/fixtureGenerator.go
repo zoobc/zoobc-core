@@ -13,6 +13,8 @@ var senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 var nodeSeed1 = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 var nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 	45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+var nodePubKey2 = []byte{41, 235, 184, 214, 70, 23, 153, 89, 104, 41, 250, 248, 51, 7, 69, 89, 234,
+	181, 100, 163, 45, 69, 152, 70, 52, 201, 147, 70, 6, 242, 52, 220}
 var block1 = &model.Block{
 	ID:                   0,
 	PreviousBlockHash:    []byte{},

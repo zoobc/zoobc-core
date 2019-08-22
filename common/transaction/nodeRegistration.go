@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -116,6 +117,11 @@ func (tx *NodeRegistration) Validate() error {
 	var (
 		accountBalance model.AccountBalance
 	)
+
+	// formally validate tx body fields
+	if tx.Body.Poown == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
+	}
 
 	// validate poown
 	if err := tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {

@@ -340,7 +340,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 			fields: fields{
 				Height:                1,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockApplyConfirmedUndoUnconfirmedFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -356,7 +356,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 			fields: fields{
 				Height:                0,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockApplyConfirmedExecuteTransactionsFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -372,7 +372,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 			wantErr: false,
 			fields: fields{
 				Height:                0,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockApplyConfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -423,7 +423,7 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 			name:    "ApplyUnconfirmed:fail-{ExecuteTransactionFail}",
 			wantErr: true,
 			fields: fields{
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorApplyUnconfirmedExecuteTransactionFail{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -439,7 +439,7 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 			name:    "ApplyUnconfirmed:success",
 			wantErr: false,
 			fields: fields{
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorApplyUnconfirmedSuccess{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -490,7 +490,7 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:fail-{executeTransactionsFail}",
 			fields: fields{
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorUndoUnconfirmedExecuteTransactionsFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -504,7 +504,7 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:success",
 			fields: fields{
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorUndoUnconfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -537,11 +537,12 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 }
 
 func TestNodeRegistration_Validate(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
+	_, poown, _, _ := GetFixturesForNoderegistration()
 	bodyWithPoown := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
 	}
+	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
@@ -559,10 +560,22 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "Validate:fail-{PoownRequired}",
+			fields: fields{
+				Body:                bodyWithoutPoown,
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: true,
+		},
+		{
 			name: "Validate:fail-{PoownAuth}",
 			fields: fields{
 				Body:                bodyWithPoown,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
@@ -574,7 +587,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			name: "Validate:fail-{executeSelectFail}",
 			fields: fields{
 				Body:                bodyWithPoown,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
@@ -590,7 +603,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 					NodePublicKey: nodePubKey1,
 					LockedBalance: 10000,
 				},
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailBalanceNotEnough{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
@@ -603,7 +616,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			name: "Validate:fail-{failGetNode}",
 			fields: fields{
 				Body:                  bodyWithPoown,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -617,7 +630,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			name: "Validate:fail-{nodeExist}",
 			fields: fields{
 				Body:                  bodyWithPoown,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExist{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
@@ -631,7 +644,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			name: "Validate:success",
 			fields: fields{
 				Body:                  bodyWithPoown,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
