@@ -8,6 +8,7 @@ import (
 )
 
 var senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+var senderAddress2 = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
 
 // var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 var nodeSeed1 = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
@@ -87,6 +88,33 @@ func GetFixturesForUpdateNoderegistration() (poownMessage *model.ProofOfOwnershi
 	}
 	txBodyBytes = nr.GetBodyBytes()
 	return poownMessage, poown, txBody, txBodyBytes
+}
+
+func GetFixturesForClaimNoderegistration() (poown *model.ProofOfOwnership,
+	txBody *model.ClaimNodeRegistrationTransactionBody, txBodyBytes []byte) {
+
+	blockHash, _ := coreUtil.GetBlockHash(block1)
+	poownMessage := &model.ProofOfOwnershipMessage{
+		AccountAddress: senderAddress1,
+		BlockHash:      blockHash,
+		BlockHeight:    0,
+	}
+	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poownMessage)
+	poownSignature := crypto.NewSignature().SignByNode(poownMessageBytes, nodeSeed1)
+	poown = &model.ProofOfOwnership{
+		MessageBytes: poownMessageBytes,
+		Signature:    poownSignature,
+	}
+	txBody = &model.ClaimNodeRegistrationTransactionBody{
+		NodePublicKey:  nodePubKey1,
+		AccountAddress: senderAddress2,
+		Poown:          poown,
+	}
+	nr := ClaimNodeRegistration{
+		Body: txBody,
+	}
+	txBodyBytes = nr.GetBodyBytes()
+	return
 }
 
 func GetFixturesForRemoveNoderegistration() (txBody *model.RemoveNodeRegistrationTransactionBody, txBodyBytes []byte) {

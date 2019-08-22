@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -14,7 +16,9 @@ type ClaimNodeRegistration struct {
 	Height                uint32
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
+	AuthPoown             auth.ProofOfOwnershipValidationInterface
 }
 
 func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
@@ -157,92 +161,41 @@ func (tx *ClaimNodeRegistration) UndoApplyUnconfirmed() error {
 
 // Validate validate node registration transaction and tx body
 func (tx *ClaimNodeRegistration) Validate() error {
-	// var (
-	// 	accountBalance       model.AccountBalance
-	// 	prevNodeRegistration model.NodeRegistration
-	// )
-	// // formally validate tx body fields
-	// if tx.Body.Poown == nil {
-	// 	return errors.New("PoownRequired")
-	// }
-	// // TODO: validate poown when implemented
-	// //
-	// //
+	// validate proof of ownership
+	if tx.Body.Poown == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
+	}
+	if err := tx.AuthPoown.ValidateProofOfOwnership(
+		tx.Body.Poown, tx.Body.NodePublicKey,
+		tx.QueryExecutor,
+		tx.BlockQuery); err != nil {
+		return err
+	}
 
-	// // check that sender is node's owner
-	// rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress))
-	// if err != nil {
-	// 	return err
-	// }
-	// if !rows.Next() {
-	// 	// sender doesn't own any node
-	// 	// note: any account can own exactly one node at the time, meaning that, if this query returns no rows,
-	// 	return errors.New("NodeNotFoundWithAccountID")
-	// }
-	// _ = rows.Scan(
-	// 	&prevNodeRegistration.NodeID,
-	// 	&prevNodeRegistration.NodePublicKey,
-	// 	&prevNodeRegistration.AccountAddress,
-	// 	&prevNodeRegistration.RegistrationHeight,
-	// 	&prevNodeRegistration.NodeAddress,
-	// 	&prevNodeRegistration.LockedBalance,
-	// 	&prevNodeRegistration.Queued,
-	// 	&prevNodeRegistration.Latest,
-	// 	&prevNodeRegistration.Height)
-	// defer rows.Close()
+	// check that sender is node's owner
+	if tx.Body.AccountAddress == "" {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
+	}
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		// account address has already an active node registration (either queued or not)
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountAlreadyNodeOwner")
+	}
 
-	// // validate node public key, if we are updating that field
-	// // note: node pub key must be not already registered
-	// if len(tx.Body.NodePublicKey) == 32 {
-	// 	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey))
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	if rows.Next() {
-	// 		// public key already registered
-	// 		return errors.New("NodePublicKeyAlredyRegistered")
-	// 	}
-	// }
-
-	// rows, err = tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress))
-
-	// if err != nil {
-	// 	return err
-	// } else if rows.Next() {
-	// 	_ = rows.Scan(
-	// 		&accountBalance.AccountAddress,
-	// 		&accountBalance.BlockHeight,
-	// 		&accountBalance.SpendableBalance,
-	// 		&accountBalance.Balance,
-	// 		&accountBalance.PopRevenue,
-	// 		&accountBalance.Latest,
-	// 	)
-	// }
-	// defer rows.Close()
-
-	// if tx.Body.LockedBalance > 0 {
-	// 	// delta amount to be locked
-	// 	effectiveBalanceToLock := tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
-	// 	if effectiveBalanceToLock < 0 {
-	// 		// cannot lock less than what previously locked
-	// 		return errors.New("LockedBalanceLessThenPreviouslyLocked")
-	// 	}
-	// 	if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
-	// 		return errors.New("UserBalanceNotEnough")
-	// 	}
-	// 	// TODO: check minimum amount to be locked (at current height the min amount is = 0, but in future may change)
-	// } else if accountBalance.SpendableBalance < tx.Fee {
-	// 	return errors.New("UserBalanceNotEnough")
-	// }
-
-	// if tx.Body.NodeAddress != "" {
-	// 	if net.ParseIP(tx.Body.NodeAddress) == nil {
-	// 		// not a valid ipv4 or ipv6 address. let's check if is a valid domain name
-	// 		if _, err := url.Parse(tx.Body.NodeAddress); err != nil {
-	// 			return errors.New("InvalidAddress")
-	// 		}
-	// 	}
-	// }
+	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
+	rows, err = tx.QueryExecutor.ExecuteSelect(qry1, args1)
+	if err != nil {
+		return err
+	}
+	if rows.Next() {
+		// public key already registered
+		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
+	}
 
 	return nil
 }

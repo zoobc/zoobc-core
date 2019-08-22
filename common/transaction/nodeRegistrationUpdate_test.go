@@ -334,7 +334,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Validate:fail-{PoownAuth}",
+			name: "Validate:fail-{InvalidPoown}",
 			fields: fields{
 				Body:      txBodyInvalidPoown,
 				AuthPoown: &mockAuthPoown{success: false},
