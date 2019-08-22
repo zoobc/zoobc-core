@@ -3,7 +3,7 @@ package interceptor
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -51,7 +51,7 @@ func (*mockServerStreamSuccess) Context() context.Context {
 	)
 	buffer.Write(sig)
 	ctx := context.Background()
-	md := metadata.Pairs("authorization", hex.EncodeToString(buffer.Bytes()))
+	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
 	ctx = metadata.NewIncomingContext(ctx, md)
 	return ctx
 }
@@ -83,7 +83,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 	)
 	buffer.Write(sig)
 	ctx := context.Background()
-	md := metadata.Pairs("authorization", hex.EncodeToString(buffer.Bytes()))
+	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
 	ctx = metadata.NewIncomingContext(ctx, md)
 	return ctx
 }
