@@ -23,6 +23,7 @@ type NodeRegistration struct {
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
+	AuthPoown             auth.ProofOfOwnershipValidationInterface
 }
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
@@ -117,7 +118,7 @@ func (tx *NodeRegistration) Validate() error {
 	)
 
 	// validate poown
-	if err := auth.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
+	if err := tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
 		return err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -14,6 +15,10 @@ import (
 )
 
 type (
+	mockAuthPoown struct {
+		success bool
+		auth.ProofOfOwnershipValidation
+	}
 	// validate mock
 	mockExecutorValidateFailExecuteSelectFail struct {
 		query.Executor
@@ -59,6 +64,18 @@ type (
 		mockExecutorValidateSuccess
 	}
 )
+
+func (mk *mockAuthPoown) ValidateProofOfOwnership(
+	poown *model.ProofOfOwnership,
+	nodePublicKey []byte,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) error {
+	if mk.success {
+		return nil
+	}
+	return errors.New("MockedError")
+}
 
 func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:selectFail")
@@ -534,12 +551,25 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AuthPoown             auth.ProofOfOwnershipValidationInterface
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		wantErr bool
 	}{
+		{
+			name: "Validate:fail-{PoownAuth}",
+			fields: fields{
+				Body:                bodyWithPoown,
+				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: true,
+		},
 		{
 			name: "Validate:fail-{executeSelectFail}",
 			fields: fields{
@@ -548,6 +578,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: true},
 			},
 			wantErr: true,
 		},
@@ -564,6 +595,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				Fee:                 1,
+				AuthPoown:           &mockAuthPoown{success: true},
 			},
 			wantErr: true,
 		},
@@ -577,6 +609,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
 			},
 			wantErr: true,
 		},
@@ -590,6 +623,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
 			},
 			wantErr: true,
 		},
@@ -603,6 +637,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
 			},
 			wantErr: false,
 		},
@@ -618,6 +653,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AuthPoown:             tt.fields.AuthPoown,
 			}
 			if err := tx.Validate(); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)

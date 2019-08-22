@@ -12,8 +12,23 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
+type (
+	ProofOfOwnershipValidationInterface interface {
+		ValidateProofOfOwnership(
+			poown *model.ProofOfOwnership,
+			nodePublicKey []byte,
+			queryExecutor query.ExecutorInterface,
+			blockQuery query.BlockQueryInterface,
+		) error
+	}
+
+	// Signature object handle signing and verifying different signature
+	ProofOfOwnershipValidation struct {
+	}
+)
+
 // ValidateProofOfOwnership validates a proof of ownership message
-func ValidateProofOfOwnership(
+func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
 	poown *model.ProofOfOwnership,
 	nodePublicKey []byte,
 	queryExecutor query.ExecutorInterface,
@@ -21,7 +36,7 @@ func ValidateProofOfOwnership(
 ) error {
 
 	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
-		return blocker.NewBlocker(blocker.AppErr, "InvalidSignature")
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
 
 	message, err := util.ParseProofOfOwnershipMessageBytes(poown.MessageBytes)
@@ -36,7 +51,7 @@ func ValidateProofOfOwnership(
 	}
 	// Expiration, in number of blocks, of a proof of ownership message
 	if lastBlock.Height-message.BlockHeight > constant.ProofOfOwnershipExpiration {
-		return blocker.NewBlocker(blocker.AppErr, "ProofOfOwnershipExpired")
+		return blocker.NewBlocker(blocker.ValidationErr, "ProofOfOwnershipExpired")
 	}
 
 	poownBlockRef, err := util.GetBlockByHeight(message.BlockHeight, queryExecutor, blockQuery)
@@ -48,7 +63,7 @@ func ValidateProofOfOwnership(
 		return err
 	}
 	if !bytes.Equal(poownBlockHashRef, message.BlockHash) {
-		return blocker.NewBlocker(blocker.AppErr, "InvalidProofOfOwnershipBlockHash")
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 	}
 	return nil
 }
