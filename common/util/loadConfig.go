@@ -18,7 +18,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("dbName", "spinechain.db")
 	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("apiRPCPort", 8080)
-	viper.SetDefault("apiHTTPPort", 8000)
+	viper.SetDefault("apiHTTPPort", 0)
 	viper.SetConfigName(name)
 	viper.SetConfigType(extension)
 	viper.AddConfigPath(path)
