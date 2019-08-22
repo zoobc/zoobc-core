@@ -81,7 +81,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
 		Queued:             prevNodeRegistration.Queued,
-		AccountAddress:     tx.SenderAddress,
+		AccountAddress:     prevNodeRegistration.AccountAddress,
 	}
 
 	var effectiveBalanceToLock int64
@@ -122,7 +122,8 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		prevNodeRegistration *model.NodeRegistration
 	)
 
-	// update sender balance by reducing his spendable balance of the tx fee
+	// update sender balance by reducing his spendable balance of the tx fee + new balance to be lock
+	// (delta between old locked balance and updatee locked balance)
 	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
@@ -147,7 +148,6 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 			"account_address": tx.SenderAddress,
 		},
 	)
-	// add row to node_registry table
 	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
 		return err
@@ -283,7 +283,7 @@ func (tx *UpdateNodeRegistration) GetSize() uint32 {
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (*UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
 	buffer := bytes.NewBuffer(txBodyBytes)
-	nodePublicKey := buffer.Next(32)
+	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
 	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
 	// (necessary to parse the bytes into tx body struct)
 	nodeAddressLength := util.ConvertBytesToUint32(
