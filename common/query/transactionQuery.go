@@ -120,8 +120,8 @@ func (txr TransactionQuery) GetTransactionByBlockId(blockId int64) ([]*model.Tra
 	var txs []*model.Transaction
 	for rows.Next() {
 		var tx model.Transaction
-		err = rows.Scan(&tx.Version, &tx.ID, &tx.BlockID, &tx.Height, &tx.SenderAccountAddressLength, &tx.SenderAccountAddress,
-			&tx.RecipientAccountAddressLength, &tx.RecipientAccountAddress, &tx.TransactionType, &tx.Fee, &tx.Timestamp, &tx.TransactionHash, &tx.TransactionBodyLength, &tx.TransactionBodyBytes,
+		err = rows.Scan(&tx.Version, &tx.ID, &tx.BlockID, &tx.Height, &tx.SenderAccountAddress,
+			&tx.RecipientAccountAddress, &tx.TransactionType, &tx.Fee, &tx.Timestamp, &tx.TransactionHash, &tx.TransactionBodyLength, &tx.TransactionBodyBytes,
 			&tx.TransactionBody, &tx.Signature, &tx.XXX_NoUnkeyedLiteral, &tx.XXX_unrecognized, &tx.XXX_sizecache)
 		txs = append(txs, &tx)
 	}

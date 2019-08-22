@@ -279,6 +279,8 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 		bss.P2pService.DisconnectPeer(peer)
 	}
 
+	commonBlock, _ := bss.BlockService.GetLastBlock() //GET THE LAST BLOCK BEFORE FORK BLOCKS APPLIED
+
 	forkBlocks := []*model.Block{}
 	for _, block := range blocksToBeProcessed {
 		if block.Height == 0 {
@@ -303,7 +305,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 
 	if len(forkBlocks) > 0 {
 		log.Println("processing fork blocks %v", forkBlocks)
-		ProcessFork(forkBlocks, commonBlock)
+		bss.ForkingProcess.ProcessFork(forkBlocks, commonBlock)
 	}
 	return nil
 }

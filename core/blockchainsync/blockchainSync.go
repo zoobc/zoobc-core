@@ -16,19 +16,13 @@ type Service struct {
 
 	PeerHasMore bool
 
-<<<<<<< HEAD:core/blockchainsync/blockchainSync.go
-	ChainType    chaintype.ChainType
-	BlockService service.BlockServiceInterface
-	P2pService   p2p.ServiceInterface
-=======
-	ChainType          contract.ChainType
+	ChainType          chaintype.ChainType
 	BlockService       service.BlockServiceInterface
-	P2pService         p2p.P2pServiceInterface
+	P2pService         p2p.ServiceInterface
 	LastBlock          model.Block
 	TransactionService service.TransactionServiceInterface
 	TransactionQuery   query.TransactionQueryInterface
 	ForkingProcess     ForkingProcess
->>>>>>> 8a8946e... applying rollback from spinechain template:core/blockchainSync/blockchainSync.go
 }
 
 func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface) *Service {

@@ -1,4 +1,4 @@
-package blockchainSync
+package blockchainsync
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/zoobc/zoobc-core/common/contract"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	utils "github.com/zoobc/zoobc-core/core/util"
@@ -38,7 +38,7 @@ type (
 		PrunableTransactions []int64
 
 		IsScanning           bool
-		Chaintype            contract.ChainType
+		Chaintype            chaintype.ChainType
 		isScanningBlockchain bool
 
 		LastBlock model.Block
@@ -46,7 +46,7 @@ type (
 )
 
 //The main function to process the forked blocks
-func (bss *BlockchainSyncService) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block) error {
+func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block) error {
 	var forkBlocksID []int64
 	for _, block := range forkBlocks {
 		forkBlocksID = append(forkBlocksID, block.ID)
@@ -117,7 +117,7 @@ func (bss *BlockchainSyncService) ProcessFork(forkBlocks []*model.Block, commonB
 }
 
 //This function will remove the block in current Chain until commonBlock is reached
-func (bss *BlockchainSyncService) PopOff(commonBlock *model.Block) []*model.Block {
+func (bss *Service) PopOff(commonBlock *model.Block) []*model.Block {
 
 	if !bss.TransactionService.IsInTransaction() {
 		bss.TransactionService.BeginTransaction()
@@ -172,7 +172,7 @@ func (bss *BlockchainSyncService) PopOff(commonBlock *model.Block) []*model.Bloc
 	return poppedBlocks
 }
 
-func (bss *BlockchainSyncService) popLastBlock() (*model.Block, error) {
+func (bss *Service) popLastBlock() (*model.Block, error) {
 	block, _ := bss.BlockService.GetLastBlock()
 	blockid := block.GetID()
 
@@ -187,12 +187,12 @@ func (bss *BlockchainSyncService) popLastBlock() (*model.Block, error) {
 }
 
 //Set the latest block according to inputed block
-func (bss *BlockchainSyncService) SetLastBlock(block *model.Block) error {
+func (bss *Service) SetLastBlock(block *model.Block) error {
 	bss.LastBlock = *block
 	return nil
 }
 
-func (bss *BlockchainSyncService) HasBlock(id int64) bool {
+func (bss *Service) HasBlock(id int64) bool {
 	block, _ := bss.BlockService.GetBlockByID(id)
 	if block.GetID() == -1 {
 		return false
@@ -200,7 +200,7 @@ func (bss *BlockchainSyncService) HasBlock(id int64) bool {
 	return true
 }
 
-func (bss *BlockchainSyncService) LoadTransactions() {
+func (bss *Service) LoadTransactions() {
 	if bss.LastBlock.Transactions == nil {
 		// txs, _ := TransactionRepository(bss.ChainType).GetTransactionByBlockId(b.LastBlock.GetID())
 		txs, _ := bss.TransactionQuery.GetTransactionByBlockId(bss.LastBlock.GetID())
@@ -208,7 +208,7 @@ func (bss *BlockchainSyncService) LoadTransactions() {
 	}
 }
 
-func (bss *BlockchainSyncService) popOffWithRescan(height uint32) {
+func (bss *Service) popOffWithRescan(height uint32) {
 	bss.ForkingProcess.scheduleScan(0, false)
 	currentBlock, _ := bss.BlockService.GetBlockByHeight(height)
 	currentID := currentBlock.GetID()
@@ -217,7 +217,7 @@ func (bss *BlockchainSyncService) popOffWithRescan(height uint32) {
 	bss.ForkingProcess.scan(0, false)
 }
 
-func (bss *BlockchainSyncService) scan(height uint32, validate bool) error {
+func (bss *Service) scan(height uint32, validate bool) error {
 	// bss.ChainType.WriteLock()
 	// defer bss.ChainType.WriteUnlock()
 
@@ -352,11 +352,11 @@ func (bss *BlockchainSyncService) scan(height uint32, validate bool) error {
 	// lastRestoreTime = 0
 }
 
-func (bss *BlockchainSyncService) scheduleScan(height uint32, validate bool) {
+func (bss *Service) scheduleScan(height uint32, validate bool) {
 	bss.TransactionService.ScheduleScan(height, validate)
 }
 
-func (bss *BlockchainSyncService) getMinRollbackHeight() uint32 {
+func (bss *Service) getMinRollbackHeight() uint32 {
 	// TODO:
 	// perform the correct calculation
 	lastblock, _ := bss.BlockService.GetLastBlock() //need to add handling error if failed

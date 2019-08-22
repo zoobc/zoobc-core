@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/contract"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -30,7 +29,7 @@ type (
 	TransactionService struct {
 		Db               *sql.DB
 		QueryExecutor    query.ExecutorInterface
-		Chaintype        contract.ChainType
+		Chaintype        chaintype.ChainType
 		TransactionQuery query.TransactionQueryInterface
 		BlockService     BlockServiceInterface
 		dbTx             *sql.Tx
