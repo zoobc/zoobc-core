@@ -11,3 +11,7 @@ func GetChainType(ctNum int32) contract.ChainType {
 		return &MainChain{}
 	}
 }
+
+func test() {
+
+}

@@ -293,7 +293,7 @@ func (bss *BlockchainSyncService) downloadFromPeer(feederPeer *model.Peer, commo
 
 	if len(forkBlocks) > 0 {
 		// log.Println("processing fork blocks %v", forkBlocks)
-		// processFork(forkBlocks)
+		// ProcessFork(forkBlocks,commonBlock)
 	}
 	return nil
 }

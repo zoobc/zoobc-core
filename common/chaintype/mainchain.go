@@ -1,7 +1,10 @@
 package chaintype
 
 // MainChain is struct should has methods in below
-type MainChain struct{}
+type (
+	MainChain struct {
+	}
+)
 
 // GetTypeInt return the value of the chain type in int
 func (*MainChain) GetTypeInt() int32 {

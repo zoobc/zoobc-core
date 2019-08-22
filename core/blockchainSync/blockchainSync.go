@@ -3,6 +3,7 @@ package blockchainSync
 import (
 	"github.com/zoobc/zoobc-core/common/contract"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
 )
@@ -15,9 +16,13 @@ type BlockchainSyncService struct {
 
 	PeerHasMore bool
 
-	ChainType    contract.ChainType
-	BlockService service.BlockServiceInterface
-	P2pService   p2p.P2pServiceInterface
+	ChainType          contract.ChainType
+	BlockService       service.BlockServiceInterface
+	P2pService         p2p.P2pServiceInterface
+	LastBlock          model.Block
+	TransactionService service.TransactionServiceInterface
+	TransactionQuery   query.TransactionQueryInterface
+	ForkingProcess     ForkingProcess
 }
 
 func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.P2pServiceInterface) *BlockchainSyncService {
