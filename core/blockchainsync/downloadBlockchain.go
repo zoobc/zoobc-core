@@ -302,13 +302,8 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 	}
 
 	if len(forkBlocks) > 0 {
-<<<<<<< HEAD:core/blockchainsync/downloadBlockchain.go
-		log.Println("processing fork blocks...")
-		bss.processFork(forkBlocks)
-=======
-		// log.Println("processing fork blocks %v", forkBlocks)
-		// ProcessFork(forkBlocks,commonBlock)
->>>>>>> 8a8946e... applying rollback from spinechain template:core/blockchainSync/downloadBlockchain.go
+		log.Println("processing fork blocks %v", forkBlocks)
+		ProcessFork(forkBlocks, commonBlock)
 	}
 	return nil
 }
