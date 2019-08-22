@@ -9,3 +9,7 @@ func GetChainType(ctNum int32) ChainType {
 		return &MainChain{}
 	}
 }
+
+func test() {
+
+}
