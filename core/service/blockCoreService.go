@@ -216,10 +216,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 	// apply transactions and remove them from mempool
 	transactions := block.GetTransactions()
 	if len(transactions) > 0 {
-		for _, tx := range block.GetTransactions() {
+		for index, tx := range block.GetTransactions() {
 			// assign block id and block height to tx
 			tx.BlockID = block.ID
 			tx.Height = block.Height
+			tx.TransactionIndex = uint32(index) + 1
 			// validate the transaction
 			if err := util.ValidateTransaction(tx, bs.QueryExecutor, bs.AccountBalanceQuery, true); err != nil {
 				return err
@@ -495,7 +496,7 @@ func (bs *BlockService) AddGenesis() error {
 		payloadLength                        uint32
 		digest                               = sha3.New512()
 	)
-	for _, tx := range GetGenesisTransactions(bs.Chaintype) {
+	for index, tx := range GetGenesisTransactions(bs.Chaintype) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
 		_, _ = digest.Write(txBytes)
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
@@ -505,6 +506,7 @@ func (bs *BlockService) AddGenesis() error {
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
 		payloadLength += txType.GetSize()
+		tx.TransactionIndex = uint32(index) + 1
 		blockTransactions = append(blockTransactions, tx)
 	}
 	payloadHash := digest.Sum([]byte{})
