@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	utils "github.com/zoobc/zoobc-core/core/util"
@@ -25,23 +26,6 @@ type (
 		scheduleScan(height uint32, validate bool)
 		getMinRollbackHeight() uint32
 		SetIsScanning(isScanning bool)
-	}
-
-	blockchainService struct {
-		GetMoreBlocks        bool
-		IsDownloading        bool // only for status
-		LastBlockchainFeeder *model.Peer
-
-		PeerHasMore bool
-
-		IsRestoring          bool // for restoring prunabledata
-		PrunableTransactions []int64
-
-		IsScanning           bool
-		Chaintype            chaintype.ChainType
-		isScanningBlockchain bool
-
-		LastBlock model.Block
 	}
 )
 
@@ -75,9 +59,10 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 				fmt.Printf("fork block to push2\n")
 				err := bss.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
-					// feederPeer.Blacklist("error in pushing peer's block in fork")
-					//TODO:
-					//RESPONSE BACK IF PUSHING BLOCK ENCOUNTERING ERROR
+					blocker.NewBlocker(
+						blocker.AuthErr,
+						"error when pushing peer's block in fork",
+					)
 				}
 				pushedForkBlocks = pushedForkBlocks + 1
 			}
@@ -154,8 +139,10 @@ func (bss *Service) PopOff(commonBlock *model.Block) []*model.Block {
 		}
 	}
 
+	//	TODO:
+	//	NEED TO IMPLEMENT DERIVED TABLES
 	// if err == nil {
-	// 	err = service.service.TransactionService.RollbackDerivedTables(commonBlock.GetHeight()) //ask about how derived table works
+	// 	err = service.service.TransactionService.RollbackDerivedTables(commonBlock.GetHeight())
 	// 	// _ = DbTransactionalService(chaintype).ClearCache() //need to implement ClearCache
 	// 	err = service.CommitTransaction()
 	// }
@@ -177,7 +164,10 @@ func (bss *Service) popLastBlock() (*model.Block, error) {
 	blockid := block.GetID()
 
 	if block.GetID() == bss.ChainType.GetGenesisBlockID() {
-		return nil, errors.New("Cannot pop off Genesis block")
+		return nil, blocker.NewBlocker(
+			blocker.AuthErr,
+			"Failed to pop off because it's Genesis Block",
+		)
 	}
 
 	previousBlock, _ := bss.TransactionService.DeleteBlocksFrom(blockid)
@@ -202,8 +192,20 @@ func (bss *Service) HasBlock(id int64) bool {
 
 func (bss *Service) LoadTransactions() {
 	if bss.LastBlock.Transactions == nil {
-		// txs, _ := TransactionRepository(bss.ChainType).GetTransactionByBlockId(b.LastBlock.GetID())
-		txs, _ := bss.TransactionQuery.GetTransactionByBlockId(bss.LastBlock.GetID())
+		transactionQ, transactionArg := bss.TransactionQuery.GetTransactionsByBlockID(bss.LastBlock.GetID())
+		// rows, err = bss.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+		rows, err := bss.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+		if err != nil {
+			blocker.NewBlocker(
+				blocker.AuthErr,
+				"Error when getting transaction to loaded",
+			)
+		}
+
+		var txs []*model.Transaction
+		for rows.Next() {
+			txs = bss.TransactionQuery.BuildModel(txs, rows)
+		}
 		bss.LastBlock.Transactions = txs
 	}
 }
@@ -364,6 +366,6 @@ func (bss *Service) getMinRollbackHeight() uint32 {
 	return util.MaxUint32(currentHeight-720, 0) //NEED TO ADD MAX_ROLLBACK VARIABLE TO CONSTANT LATER AND CHANGE THE VALUE TO VARIABLE
 }
 
-func (bs blockchainService) SetIsScanning(isScanning bool) {
+func (bs *Service) SetIsScanning(isScanning bool) {
 	bs.isScanningBlockchain = isScanning
 }

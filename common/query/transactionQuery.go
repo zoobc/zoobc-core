@@ -2,7 +2,6 @@ package query
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -19,7 +18,6 @@ type (
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
 		DeleteTransactions(id int64) string
-		GetTransactionByBlockId(blockId int64) ([]*model.Transaction, error)
 	}
 
 	TransactionQuery struct {
@@ -102,32 +100,7 @@ func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string,
 
 // DeleteTransactions. delete some transactions according to timestamp
 func (tq *TransactionQuery) DeleteTransactions(id int64) string {
-	return fmt.Sprintf("DELETE FROM %v WHERE timestamp >= (SELECT timestamp FROM %v WHERE ID = %v)", tq.getTableName(), tq.getTableName(), id)
-}
-
-func (txr TransactionQuery) GetTransactionByBlockId(blockId int64) ([]*model.Transaction, error) {
-
-	query := fmt.Sprintf("SELECT ID, DEADLINE, RECIPIENT_PUBLIC_KEY, AMOUNT, FEE, FULL_HASH, HEIGHT, "+
-		"BLOCK_ID, SIGNATURE, TIMESTAMP, TYPE, SUBTYPE, SENDER_PUBLIC_KEY, BLOCK_TIMESTAMP, REFERENCED_TRANSACTION_FULL_HASH, "+
-		"ATTACHMENT_BYTES, VERSION, EC_BLOCK_HEIGHT, EC_BLOCK_ID "+
-		"FROM %s WHERE BLOCK_ID = ?", txr.TableName)
-
-	rows, err := txr.Db.Query(query, blockId)
-	defer rows.Close()
-	if err != nil {
-		return nil, errors.New("error querying transaction")
-	}
-	var txs []*model.Transaction
-	for rows.Next() {
-		var tx model.Transaction
-		err = rows.Scan(&tx.Version, &tx.ID, &tx.BlockID, &tx.Height, &tx.SenderAccountAddress,
-			&tx.RecipientAccountAddress, &tx.TransactionType, &tx.Fee, &tx.Timestamp, &tx.TransactionHash, &tx.TransactionBodyLength, &tx.TransactionBodyBytes,
-			&tx.TransactionBody, &tx.Signature, &tx.XXX_NoUnkeyedLiteral, &tx.XXX_unrecognized, &tx.XXX_sizecache)
-		txs = append(txs, &tx)
-	}
-
-	return txs, nil
-
+	return fmt.Sprintf("DELETE FROM %v WHERE height >= (SELECT height FROM %v WHERE ID = %v)", tq.getTableName(), tq.getTableName(), id)
 }
 
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields

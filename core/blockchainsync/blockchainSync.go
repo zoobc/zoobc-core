@@ -9,6 +9,7 @@ import (
 )
 
 type Service struct {
+	isScanningBlockchain       bool
 	NeedGetMoreBlocks          bool
 	IsDownloading              bool // only for status
 	LastBlockchainFeeder       *model.Peer
@@ -23,6 +24,7 @@ type Service struct {
 	TransactionService service.TransactionServiceInterface
 	TransactionQuery   query.TransactionQueryInterface
 	ForkingProcess     ForkingProcess
+	QueryExecutor      query.ExecutorInterface
 }
 
 func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface) *Service {
