@@ -131,10 +131,12 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (queries []string, args ui
 	return []string{
 		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", q.TableName, height),
 		fmt.Sprintf(`
-			UPDATE %s SET latest = 1 
-			WHERE block_height IN (
-				SELECT MAX(block_height) AS block_height FROM %s 
-				WHERE latest = 0 GROUP BY account_address
+			UPDATE %s SET latest = 1
+			WHERE (block_height || '_' || account_address) IN (
+				SELECT (MAX(block_height) || '_' || account_address) as con
+				FROM %s
+				WHERE latest = 0
+				GROUP BY account_address
 			)`,
 			q.TableName,
 			q.TableName,

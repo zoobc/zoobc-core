@@ -172,11 +172,14 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 			wantQueries: []string{
 				"DELETE FROM account_balance WHERE block_height > 1",
 				fmt.Sprintf(`
-			UPDATE account_balance SET latest = 1 
-			WHERE block_height IN (
-				SELECT MAX(block_height) AS block_height FROM %s 
-				WHERE latest = 0 GROUP BY account_address
+			UPDATE %s SET latest = 1
+			WHERE (block_height || '_' || account_address) IN (
+				SELECT (MAX(block_height) || '_' || account_address) as con
+				FROM %s
+				WHERE latest = 0
+				GROUP BY account_address
 			)`,
+					mockAccountBalanceQuery.TableName,
 					mockAccountBalanceQuery.TableName,
 				),
 			},
