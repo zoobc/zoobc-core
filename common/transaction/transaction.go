@@ -103,6 +103,18 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
 			}
+		case 1:
+			removeAccountDatasetTransactionBody := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+
+			return &RemoveAccountDataset{
+				Body:                removeAccountDatasetTransactionBody.(*model.RemoveAccountDatasetTransactionBody),
+				Fee:                 tx.Fee,
+				SenderAddress:       tx.GetSenderAccountAddress(),
+				Height:              tx.GetHeight(),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       ts.Executor,
+			}
 		default:
 			return nil
 		}

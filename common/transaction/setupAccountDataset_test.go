@@ -12,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
-// var db, mock, _ = sqlmock.New()
 type (
 	executorSetupAccountDatasetApplyConfirmedSuccess struct {
 		query.Executor
@@ -528,6 +527,7 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 }
 
 func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
+
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
