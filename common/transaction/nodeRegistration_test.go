@@ -542,6 +542,11 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
 	}
+	txBody := &model.NodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+		NodeAddress:   "10.10.10.1",
+	}
 	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
@@ -641,9 +646,23 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Validate:success",
+			name: "Validate:fail-{InvalidNodeAddress}",
 			fields: fields{
 				Body:                  bodyWithPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:success",
+			fields: fields{
+				Body:                  txBody,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),

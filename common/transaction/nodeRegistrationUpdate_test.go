@@ -302,6 +302,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		Poown:         poown,
 		LockedBalance: int64(1000000000),
 	}
+	txBodyWithInvalidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
+		Poown:       poown,
+		NodeAddress: "http/google.com",
+	}
 	txBodyWithInvalidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:       poown,
 		NodeAddress: "10.10.10.x",
@@ -309,6 +313,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	txBodyWithValidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:       poown,
 		NodeAddress: "10.10.10.10",
+	}
+	txBodyWithValidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
+		Poown:       poown,
+		NodeAddress: "https://google.com",
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
@@ -432,6 +440,19 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Validate:fail-{UpdateNodeAddress.InvalidURI}",
+			fields: fields{
+				Body:                  txBodyWithInvalidNodeURI,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccessRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
 			name: "Validate:fail-{UpdateNodeAddress.InvalidIP}",
 			fields: fields{
 				Body:                  txBodyWithInvalidNodeAddress,
@@ -443,6 +464,19 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
 			wantErr: true,
+		},
+		{
+			name: "Validate:success-{UpdateNodeAddressValidURI}",
+			fields: fields{
+				Body:                  txBodyWithValidNodeURI,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccessRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: false,
 		},
 		{
 			name: "Validate:success-{UpdateNodeAddress}",

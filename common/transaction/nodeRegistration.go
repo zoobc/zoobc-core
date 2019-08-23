@@ -2,6 +2,8 @@ package transaction
 
 import (
 	"bytes"
+	"net"
+	"net/url"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -157,6 +159,14 @@ func (tx *NodeRegistration) Validate() error {
 	if nodeRow.Next() {
 		return blocker.NewBlocker(blocker.AppErr, "NodeAlreadyRegistered")
 	}
+
+	_, err = url.ParseRequestURI(tx.Body.NodeAddress)
+	if err != nil {
+		if net.ParseIP(tx.Body.NodeAddress) == nil {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
+		}
+	}
+
 	return nil
 }
 
