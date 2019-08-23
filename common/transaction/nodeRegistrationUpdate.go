@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"bytes"
-	"errors"
 	"net"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -51,7 +50,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
 		prevNodeRegistration = nr[0]
 	} else {
-		return errors.New("NodeNotFoundWithAccountAddress")
+		return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 	}
 
 	var lockedBalance int64
@@ -136,7 +135,7 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
 			prevNodeRegistration = nr[0]
 		} else {
-			return errors.New("NodeNotFoundWithAccountAddress")
+			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 		}
 		// delta amount to be locked
 		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance

@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -48,7 +47,7 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
 		prevNodeRegistration = nr[0]
 	} else {
-		return errors.New("NodePublicKeyNotRegistered")
+		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
 	}
 
 	nodeRegistration := &model.NodeRegistration{

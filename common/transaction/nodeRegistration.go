@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"bytes"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -146,7 +145,7 @@ func (tx *NodeRegistration) Validate() error {
 	defer rows.Close()
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
-		return errors.New("UserBalanceNotEnough")
+		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
@@ -156,7 +155,7 @@ func (tx *NodeRegistration) Validate() error {
 	}
 	defer nodeRow.Close()
 	if nodeRow.Next() {
-		return errors.New("node already registered")
+		return blocker.NewBlocker(blocker.AppErr, "NodeAlreadyRegistered")
 	}
 	return nil
 }
