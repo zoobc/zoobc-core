@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -28,31 +29,22 @@ func TestNewAccountBalanceQuery(t *testing.T) {
 	}
 }
 
-var mockAccountBalanceQuery = &AccountBalanceQuery{
-	Fields: []string{
-		"account_address",
-		"block_height",
-		"spendable_balance",
-		"balance",
-		"pop_revenue",
-		"latest",
-	},
-	TableName: "account_balance",
-}
+var (
+	mockAccountBalanceQuery = NewAccountBalanceQuery()
 
-var causedFields = map[string]interface{}{
-	"account_address": "BCZ",
-	"block_height":    uint32(1),
-}
-
-var mockAccountBalance = &model.AccountBalance{
-	AccountAddress:   "BCZ",
-	BlockHeight:      0,
-	SpendableBalance: 0,
-	Balance:          0,
-	PopRevenue:       0,
-	Latest:           true,
-}
+	causedFields = map[string]interface{}{
+		"account_address": "BCZ",
+		"block_height":    uint32(1),
+	}
+	mockAccountBalance = &model.AccountBalance{
+		AccountAddress:   "BCZ",
+		BlockHeight:      0,
+		SpendableBalance: 0,
+		Balance:          0,
+		PopRevenue:       0,
+		Latest:           true,
+	}
+)
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
@@ -156,4 +148,58 @@ func TestAccountBalanceQuery_BuildModel(t *testing.T) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccountBalance)
 		}
 	})
+}
+
+func TestAccountBalanceQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name        string
+		fields      fields
+		args        args
+		wantQueries []string
+		wantArgs    uint32
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountBalanceQuery),
+			args:   args{height: uint32(1)},
+			wantQueries: []string{
+				"DELETE FROM account_balance WHERE block_height > 1",
+				fmt.Sprintf(`
+			UPDATE %s SET latest = 1
+			WHERE (block_height || '_' || account_address) IN (
+				SELECT (MAX(block_height) || '_' || account_address) as con
+				FROM %s
+				WHERE latest = 0
+				GROUP BY account_address
+			)`,
+					mockAccountBalanceQuery.TableName,
+					mockAccountBalanceQuery.TableName,
+				),
+			},
+			wantArgs: uint32(1),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotQueries, gotArgs := q.Rollback(tt.args.height)
+			if !reflect.DeepEqual(gotQueries, tt.wantQueries) {
+				t.Errorf("Rollback() gotQueries = \n%v, want \n%v", gotQueries, tt.wantQueries)
+				return
+			}
+			if gotArgs != tt.wantArgs {
+				t.Errorf("Rollback() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
 }
