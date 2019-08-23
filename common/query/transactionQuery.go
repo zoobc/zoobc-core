@@ -43,6 +43,7 @@ func NewTransactionQuery(chaintype chaintype.ChainType) *TransactionQuery {
 			"transaction_body_bytes",
 			"signature",
 			"version",
+			"transaction_index",
 		},
 		TableName: "\"transaction\"",
 		ChainType: chaintype,
@@ -111,7 +112,8 @@ func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 		&tx.TransactionBodyLength,
 		&tx.TransactionBodyBytes,
 		&tx.Signature,
-		tx.Version,
+		&tx.Version,
+		&tx.TransactionIndex,
 	}
 }
 
@@ -132,6 +134,7 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 			&tx.TransactionBodyBytes,
 			&tx.Signature,
 			&tx.Version,
+			&tx.TransactionIndex,
 		)
 		txs = append(txs, &tx)
 	}
