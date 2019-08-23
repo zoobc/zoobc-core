@@ -52,12 +52,14 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		NodeID:             prevNodeRegistration.NodeID,
 		LockedBalance:      0,
 		Height:             tx.Height,
-		NodeAddress:        prevNodeRegistration.NodeAddress,
+		NodeAddress:        "",
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
 		Queued:             true,
-		AccountAddress:     prevNodeRegistration.AccountAddress,
+		// We can't just set accountAddress to an empty string,
+		// otherwise it could trigger an error when parsing the transaction from its bytes
+		AccountAddress: "00000000000000000000000000000000000000000000",
 	}
 	// update sender balance by refunding the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
