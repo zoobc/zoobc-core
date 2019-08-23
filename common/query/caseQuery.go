@@ -20,6 +20,8 @@ type (
 		NotEqual(column string, value interface{}) string
 		Between(column string, start, end interface{}) string
 		NotBetween(column string, start, end interface{}) string
+		OrderBy(column string, order CaseQueryOrder) *CaseQuery
+		Limit(limit uint32) *CaseQuery
 		Paginate(limit, currentPage uint32) *CaseQuery
 		Build() (query string, args []interface{})
 	}
@@ -29,6 +31,13 @@ type (
 		Query *bytes.Buffer
 		Args  []interface{}
 	}
+
+	CaseQueryOrder string
+)
+
+const (
+	OrderDesc CaseQueryOrder = "DESC"
+	OrderAsc  CaseQueryOrder = "ASC"
 )
 
 // Select build buffer query string
@@ -98,6 +107,23 @@ func (fq *CaseQuery) Between(column string, start, end interface{}) string {
 func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 	fq.Args = append(fq.Args, start, end)
 	return fmt.Sprintf("%s NOT BETWEEN ? AND ? ", column)
+}
+
+func (fq *CaseQuery) OrderBy(column string, order CaseQueryOrder) *CaseQuery {
+	if order != OrderAsc && order != OrderDesc {
+		order = OrderDesc
+	}
+	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order))
+	return fq
+}
+
+func (fq *CaseQuery) Limit(limit uint32) *CaseQuery {
+	if limit == 0 {
+		limit = 1
+	}
+	fq.Query.WriteString("limit ? ")
+	fq.Args = append(fq.Args, limit)
+	return fq
 }
 
 // Paginate represents `limit = ? offset = ?`
