@@ -109,10 +109,23 @@ func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				property:                "Admin",
 			},
-			wantQuery: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires,latest " +
+			wantQuery: "SELECT " +
+				"setter_account_address, " +
+				"recipient_account_address, " +
+				"property, " +
+				"height, " +
+				"value, " +
+				"timestamp_starts, " +
+				"timestamp_expires, " +
+				"latest " +
 				"FROM account_dataset " +
-				"WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = 1 ORDER BY height DESC LIMIT 1",
-			wantArgs: []interface{}{"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J", "Admin"},
+				"WHERE " +
+				"latest = ?  AND setter_account_address = ? AND recipient_account_address = ? AND property = ? " +
+				"AND timestamp_starts <> timestamp_expires " +
+				"ORDER BY height DESC limit ? ",
+			wantArgs: []interface{}{
+				1, "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J", "Admin", uint32(1),
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -121,6 +134,7 @@ func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 			if gotQuery != tt.wantQuery {
 				t.Errorf("AccountDatasetsQuery.GetLastDataset() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
 			}
+
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("AccountDatasetsQuery.GetLastDataset() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
 			}
@@ -157,14 +171,14 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 		) 
 		WHERE %s AND latest = 1
 	`,
-				mockDatasetQuery.getTableName(),
+				mockDatasetQuery.TableName,
 				strings.Join(mockDatasetQuery.OrdinaryFields[:3], ","),
 				mockDataset.GetValue(),
 				mockDataset.GetTimestampStarts(),
 				mockDataset.GetTimestampExpires(),
 				mockDataset.GetTimestampStarts(),
 				mockDataset.GetTimestampStarts(),
-				mockDatasetQuery.getTableName(),
+				mockDatasetQuery.TableName,
 				fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
 				fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
 			)}, append(mockDatasetQuery.ExtractModel(mockDataset)[:4], mockDatasetQuery.ExtractModel(mockDataset)[:4]...)...),
@@ -173,8 +187,7 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 		SELECT %s,
 			%d + IFNULL((
 				SELECT CASE
-					WHEN timestamp_expires - %d < 0
-						THEN 0
+					WHEN timestamp_expires - %d < 0 THEN 0
 					ELSE timestamp_expires - %d END
 				FROM %s
 				WHERE %s AND latest = 1
@@ -186,22 +199,22 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 			WHERE %s
 		)
 	`,
-					mockDatasetQuery.getTableName(),
+					mockDatasetQuery.TableName,
 					strings.Join(mockDatasetQuery.getFields(), ", "),
 					fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockDatasetQuery.getFields()[:6])-1)),
 					mockDataset.GetTimestampExpires(),
 					mockDataset.GetTimestampStarts(),
 					mockDataset.GetTimestampStarts(),
-					mockDatasetQuery.getTableName(),
+					mockDatasetQuery.TableName,
 					fmt.Sprintf("%s != ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
 					mockDatasetQuery.PrimaryFields[0],
-					mockDatasetQuery.getTableName(),
+					mockDatasetQuery.TableName,
 					fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
 				)}, append(mockDatasetQuery.ExtractModel(mockDataset)[:6],
 					append(mockDatasetQuery.ExtractModel(mockDataset)[:4], mockDatasetQuery.ExtractModel(mockDataset)[:4]...)...)...),
 				append([]interface{}{fmt.Sprintf(
 					"UPDATE %s SET latest = false WHERE %s AND latest = 1",
-					mockDatasetQuery.getTableName(),
+					mockDatasetQuery.TableName,
 					fmt.Sprintf("%s != ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")), // where clause
 				)},
 					mockDatasetQuery.ExtractModel(mockDataset)[:4]...,
@@ -213,6 +226,62 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mockDatasetQuery.AddDataset(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("AccountDatasetsQuery.AddDataset() = \n%v, want \n%v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccountDatasetsQuery_RemoveDataset(t *testing.T) {
+	var want [][]interface{}
+
+	type args struct {
+		dataset *model.AccountDataset
+	}
+	tests := []struct {
+		name string
+		args args
+		want [][]interface{}
+	}{
+		{
+			name: "success",
+			args: args{
+				dataset: mockDataset,
+			},
+			want: append(want, append([]interface{}{fmt.Sprintf(
+				"UPDATE %s SET %s WHERE %s AND latest = true",
+				mockDatasetQuery.TableName,
+				fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.OrdinaryFields, " = ?, ")),
+				fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
+			)}, append(mockDatasetQuery.ExtractModel(mockDataset)[4:], mockDatasetQuery.ExtractModel(mockDataset)[:4]...)...),
+				append([]interface{}{fmt.Sprintf(`
+		INSERT INTO %s (%s)
+		SELECT %s
+		WHERE NOT EXISTS (
+			SELECT %s FROM %s
+			WHERE %s
+		)
+	`,
+					mockDatasetQuery.TableName,
+					strings.Join(mockDatasetQuery.getFields(), ", "),
+					fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockDatasetQuery.getFields())-1)),
+					mockDatasetQuery.PrimaryFields[0],
+					mockDatasetQuery.TableName,
+					fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
+				)}, append(mockDatasetQuery.ExtractModel(mockDataset), mockDatasetQuery.ExtractModel(mockDataset)[:4]...)...),
+				append([]interface{}{fmt.Sprintf(
+					"UPDATE %s SET latest = false WHERE %s AND latest = 1",
+					mockDatasetQuery.TableName,
+					fmt.Sprintf("%s != ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")), // where clause
+				)},
+					mockDatasetQuery.ExtractModel(mockDataset)[:4]...,
+				),
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mockDatasetQuery.RemoveDataset(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountDatasetsQuery.RemoveDataset() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
