@@ -120,6 +120,10 @@ func (m *Migration) Init() error {
 				"latest" INTEGER,
 				PRIMARY KEY("setter_account_address","recipient_account_address", "property", "height")
 			);`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "transaction_index" INTEGER AFTER "version"
+			`,
 		}
 		return nil
 	}

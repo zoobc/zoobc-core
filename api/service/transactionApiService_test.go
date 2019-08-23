@@ -502,6 +502,7 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, args ...inter
 					[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 					[]byte{0, 0, 0, 0, 0, 0, 0},
 					1,
+					1,
 				),
 			)
 	}
@@ -586,6 +587,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
 						Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 						Version:                 1,
+						TransactionIndex:        1,
 					},
 				},
 			},
@@ -633,7 +635,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(qStr string, args ...interf
 			[]byte{1, 1},
 			8,
 			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-			[]byte{0, 0, 0, 0, 0, 0, 0}, 1,
+			[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
 		),
 	)
 	return db.Query("")
@@ -710,6 +712,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
 				Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 				Version:                 1,
+				TransactionIndex:        1,
 			},
 		},
 	}
