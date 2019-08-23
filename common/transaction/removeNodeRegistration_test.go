@@ -279,8 +279,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 	_, bodyBytes := GetFixturesForRemoveNoderegistration()
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
-		NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86,
-			211, 123, 72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
+		NodePublicKey: nodePubKey1,
 	}
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
