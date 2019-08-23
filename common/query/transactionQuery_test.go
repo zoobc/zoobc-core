@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"encoding/binary"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -29,7 +30,10 @@ var (
 		TransactionBodyLength:   88,
 		TransactionBodyBytes:    make([]byte, 88),
 		Signature:               make([]byte, 68),
+		TransactionIndex:        1,
 	}
+	// mockTransactionRow represent a transaction row for test purpose only
+	// copy just the values only,
 	mockTransactionRow = []interface{}{
 		-1273123123,
 		-123123123123,
@@ -43,6 +47,7 @@ var (
 		88,
 		make([]byte, 88),
 		make([]byte, 68),
+		1,
 		1,
 	}
 )
@@ -224,11 +229,10 @@ func TestTransactionQuery_InsertTransaction(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{tx: mockTransaction},
-			wantStr: "INSERT INTO \"transaction\" (" +
-				"id, block_id, block_height, sender_account_address, recipient_account_address, " +
-				"transaction_type, fee, timestamp, transaction_hash, transaction_body_length, " +
-				"transaction_body_bytes, signature, version) " +
-				"VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantStr: fmt.Sprintf("INSERT INTO \"transaction\" (%s) VALUES(?%s)",
+				strings.Join(mockTransactionQuery.Fields, ", "),
+				strings.Repeat(", ?", len(mockTransactionQuery.Fields)-1),
+			),
 			wantArgs: mockTransactionQuery.ExtractModel(mockTransaction),
 		},
 	}
@@ -271,10 +275,9 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{blockID: int64(1)},
-			wantStr: "SELECT id, block_id, block_height, sender_account_address, " +
-				"recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, " +
-				"signature, version from \"transaction\" WHERE block_id = ?",
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ?",
+				strings.Join(mockTransactionQuery.Fields, ", "),
+			),
 			wantArgs: []interface{}{int64(1)},
 		},
 	}
@@ -318,6 +321,7 @@ func (*mockQueryExecutorBuildMmodel) ExecuteSelect(query string, args ...interfa
 			88,
 			make([]byte, 88),
 			make([]byte, 68),
+			1,
 			1,
 		),
 	)
