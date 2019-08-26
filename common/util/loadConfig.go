@@ -19,6 +19,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("apiRPCPort", 8080)
 	viper.SetDefault("apiHTTPPort", 0)
+	viper.SetDefault("logLevels", []string{"error", "fatal", "panic"})
 	viper.SetConfigName(name)
 	viper.SetConfigType(extension)
 	viper.AddConfigPath(path)
