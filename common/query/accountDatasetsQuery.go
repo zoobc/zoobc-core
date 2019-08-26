@@ -1,7 +1,6 @@
 package query
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -56,9 +55,7 @@ func (adq *AccountDatasetsQuery) GetDatasetsByRecipientAccountAddress(accountRec
 
 func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{}) {
 	caseArgs := []interface{}{accountSetter, accountRecipient, property}
-	cq := CaseQuery{
-		Query: bytes.NewBuffer([]byte{}),
-	}
+	cq := NewCaseQuery()
 	cq.Select(adq.TableName, adq.GetFields()...)
 	// where caluse : setter_account_address, recipient_account_address, property, lasted
 	cq.Where(cq.Equal("latest", true))
