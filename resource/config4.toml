@@ -1,5 +1,8 @@
 dbPath = "./resource/"
 dbName = "zoobc_4.db"
+configPath = "./resource/"
+nodeKeyFile = "node_keys.json"
+
 
 # Peer
 peerPort=8004
