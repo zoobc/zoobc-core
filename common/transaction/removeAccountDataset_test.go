@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"regexp"
+	"strings"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -98,21 +99,49 @@ func (*executorRemoveAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr st
 	return errors.New("MockedError")
 }
 
-func (*executorRemoveAccountDatasetValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
+func (*executorRemoveAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	switch strings.Contains(qStr, "account_balance") {
+	case true:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
+				"BCZ",
+				1,
+				1,
+				1,
+				0,
+				true,
+			),
+		)
+	default:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewAccountDatasetsQuery().GetFields()).AddRow(
+				"BCZ",
+				1,
+				100,
+				10,
+				0,
+				11,
+				1,
+				true,
+			),
+		)
 	}
-	defer db.Close()
 
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
-		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 50, 50, 0, 1))
-	return db.Query(qStr, 1)
+	return db.QueryRow(qStr)
 }
 
 func (*executorRemoveAccountDatasetValidateFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
+}
+
+func (*executorRemoveAccountDatasetValidateFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewAccountDatasetsQuery().GetFields()),
+	)
+
+	return db.QueryRow(qStr)
 }
 
 func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
@@ -384,7 +413,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Validate:BalanceNotEnough",
+			name: "Validate:noRow",
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,

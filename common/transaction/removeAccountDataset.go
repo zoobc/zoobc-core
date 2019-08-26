@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -124,8 +125,9 @@ That specs:
 func (tx *RemoveAccountDataset) Validate() error {
 
 	var (
-		accountBalance  model.AccountBalance
-		accountDatasets []*model.AccountDataset
+		accountBalance model.AccountBalance
+		accountDataset model.AccountDataset
+		err            error
 	)
 
 	/*
@@ -137,33 +139,23 @@ func (tx *RemoveAccountDataset) Validate() error {
 		tx.Body.GetRecipientAccountAddress(),
 		tx.Body.GetProperty(),
 	)
-	rows, err := tx.QueryExecutor.ExecuteSelect(datasetQ, datasetArg...)
+	row := tx.QueryExecutor.ExecuteSelectRow(datasetQ, datasetArg...)
+	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "Remove Account Dataset, Dataset does not exist ")
+		}
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-
-	accountDatasets = tx.AccountDatasetQuery.BuildModel(accountDatasets, rows)
-	if len(accountDatasets) == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "Remove Account Dataset, Dataset does not exist ")
 	}
 
 	// check balance account sender
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, errBalanceQ := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
-	if errBalanceQ != nil {
-		return blocker.NewBlocker(blocker.DBErr, errBalanceQ.Error())
-	} else if rows.Next() {
-		_ = rows.Scan(
-			&accountBalance.AccountAddress,
-			&accountBalance.BlockHeight,
-			&accountBalance.SpendableBalance,
-			&accountBalance.Balance,
-			&accountBalance.PopRevenue,
-			&accountBalance.Latest,
-		)
+	row = tx.QueryExecutor.ExecuteSelectRow(senderQ, senderArg)
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-	if accountBalance.SpendableBalance < tx.Fee {
+	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "RemoveAccountDataset, user balance not enough")
 	}
 	return nil

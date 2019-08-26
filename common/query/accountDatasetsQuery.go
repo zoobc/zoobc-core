@@ -23,6 +23,7 @@ type (
 		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) []*model.AccountDataset
+		Scan(dataset *model.AccountDataset, row *sql.Row) error
 	}
 )
 
@@ -47,7 +48,7 @@ func NewAccountDatasetsQuery() *AccountDatasetsQuery {
 
 func (adq *AccountDatasetsQuery) GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE recipient_account_address = ? AND latest = 1",
-			strings.Join(adq.getFields(), ","),
+			strings.Join(adq.GetFields(), ","),
 			adq.TableName,
 		),
 		accountRecipient
@@ -58,7 +59,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	cq := CaseQuery{
 		Query: bytes.NewBuffer([]byte{}),
 	}
-	cq.Select(adq.TableName, adq.getFields()...)
+	cq.Select(adq.TableName, adq.GetFields()...)
 	// where caluse : setter_account_address, recipient_account_address, property, lasted
 	cq.Where(cq.Equal("latest", true))
 	for k, v := range adq.PrimaryFields[:3] {
@@ -122,8 +123,8 @@ func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]i
 		)
 	`,
 		adq.TableName,
-		strings.Join(adq.getFields(), ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(adq.getFields()[:6])-1)),
+		strings.Join(adq.GetFields(), ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ?", len(adq.GetFields()[:6])-1)),
 		dataset.GetTimestampExpires(),
 		dataset.GetTimestampStarts(),
 		dataset.GetTimestampStarts(),
@@ -166,8 +167,8 @@ func (adq *AccountDatasetsQuery) RemoveDataset(dataset *model.AccountDataset) []
 		)
 	`,
 		adq.TableName,
-		strings.Join(adq.getFields(), ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(adq.getFields())-1)),
+		strings.Join(adq.GetFields(), ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ?", len(adq.GetFields())-1)),
 		adq.PrimaryFields[0],
 		adq.TableName,
 		fmt.Sprintf("%s = ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
@@ -235,7 +236,21 @@ func (adq *AccountDatasetsQuery) BuildModel(datasets []*model.AccountDataset, ro
 	return datasets
 }
 
-func (adq *AccountDatasetsQuery) getFields() []string {
+func (*AccountDatasetsQuery) Scan(dataset *model.AccountDataset, row *sql.Row) error {
+	err := row.Scan(
+		&dataset.SetterAccountAddress,
+		&dataset.RecipientAccountAddress,
+		&dataset.Property,
+		&dataset.Height,
+		&dataset.Value,
+		&dataset.TimestampStarts,
+		&dataset.TimestampExpires,
+		&dataset.Latest,
+	)
+	return err
+}
+
+func (adq *AccountDatasetsQuery) GetFields() []string {
 	return append(
 		adq.PrimaryFields,
 		adq.OrdinaryFields...,

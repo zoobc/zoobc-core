@@ -200,8 +200,8 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 		)
 	`,
 					mockDatasetQuery.TableName,
-					strings.Join(mockDatasetQuery.getFields(), ", "),
-					fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockDatasetQuery.getFields()[:6])-1)),
+					strings.Join(mockDatasetQuery.GetFields(), ", "),
+					fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockDatasetQuery.GetFields()[:6])-1)),
 					mockDataset.GetTimestampExpires(),
 					mockDataset.GetTimestampStarts(),
 					mockDataset.GetTimestampStarts(),
@@ -262,8 +262,8 @@ func TestAccountDatasetsQuery_RemoveDataset(t *testing.T) {
 		)
 	`,
 					mockDatasetQuery.TableName,
-					strings.Join(mockDatasetQuery.getFields(), ", "),
-					fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockDatasetQuery.getFields())-1)),
+					strings.Join(mockDatasetQuery.GetFields(), ", "),
+					fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockDatasetQuery.GetFields())-1)),
 					mockDatasetQuery.PrimaryFields[0],
 					mockDatasetQuery.TableName,
 					fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
