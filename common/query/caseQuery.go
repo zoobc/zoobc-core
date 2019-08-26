@@ -20,7 +20,7 @@ type (
 		NotEqual(column string, value interface{}) string
 		Between(column string, start, end interface{}) string
 		NotBetween(column string, start, end interface{}) string
-		OrderBy(column string, order CaseQueryOrder) *CaseQuery
+		OrderBy(column string, order caseQueryOrder) *CaseQuery
 		Limit(limit uint32) *CaseQuery
 		Paginate(limit, currentPage uint32) *CaseQuery
 		Build() (query string, args []interface{})
@@ -32,13 +32,26 @@ type (
 		Args  []interface{}
 	}
 
-	CaseQueryOrder string
+	caseQueryOrder struct {
+		Order string
+	}
 )
 
-const (
-	OrderDesc CaseQueryOrder = "DESC"
-	OrderAsc  CaseQueryOrder = "ASC"
+var (
+	OrderDesc = caseQueryOrder{
+		Order: "DESC",
+	}
+
+	OrderAsc = caseQueryOrder{
+		Order: "ASC",
+	}
 )
+
+func NewCaseQuery() CaseQuery {
+	return CaseQuery{
+		Query: bytes.NewBuffer([]byte{}),
+	}
+}
 
 // Select build buffer query string
 func (fq *CaseQuery) Select(tableName string, columns ...string) *CaseQuery {
@@ -109,11 +122,8 @@ func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 	return fmt.Sprintf("%s NOT BETWEEN ? AND ? ", column)
 }
 
-func (fq *CaseQuery) OrderBy(column string, order CaseQueryOrder) *CaseQuery {
-	if order != OrderAsc && order != OrderDesc {
-		order = OrderDesc
-	}
-	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order))
+func (fq *CaseQuery) OrderBy(column string, order caseQueryOrder) *CaseQuery {
+	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order.getString()))
 	return fq
 }
 
@@ -145,4 +155,8 @@ func (fq *CaseQuery) Paginate(limit, currentPage uint32) *CaseQuery {
 // And build buffer query string into string
 func (fq *CaseQuery) Build() (query string, args []interface{}) {
 	return fq.Query.String(), fq.Args
+}
+
+func (co *caseQueryOrder) getString() string {
+	return co.Order
 }
