@@ -124,7 +124,7 @@ func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 				"AND timestamp_starts <> timestamp_expires " +
 				"ORDER BY height DESC limit ? ",
 			wantArgs: []interface{}{
-				1, "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J", "Admin", uint32(1),
+				true, "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J", "Admin", uint32(1),
 			},
 		},
 	}
@@ -166,10 +166,10 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 					WHEN timestamp_expires - %d < 0 THEN 0
 					ELSE timestamp_expires - %d END 
 			FROM %s 
-			WHERE %s AND latest = 1
+			WHERE %s AND latest = true
 			ORDER BY height DESC LIMIT 1
 		) 
-		WHERE %s AND latest = 1
+		WHERE %s AND latest = true
 	`,
 				mockDatasetQuery.TableName,
 				strings.Join(mockDatasetQuery.OrdinaryFields[:3], ","),
@@ -190,10 +190,10 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 					WHEN timestamp_expires - %d < 0 THEN 0
 					ELSE timestamp_expires - %d END
 				FROM %s
-				WHERE %s AND latest = 1
+				WHERE %s AND latest = true
 				ORDER BY height DESC LIMIT 1
 			), 0),
-			1
+			true
 		WHERE NOT EXISTS (
 			SELECT %s FROM %s
 			WHERE %s
@@ -213,7 +213,7 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 				)}, append(mockDatasetQuery.ExtractModel(mockDataset)[:6],
 					append(mockDatasetQuery.ExtractModel(mockDataset)[:4], mockDatasetQuery.ExtractModel(mockDataset)[:4]...)...)...),
 				append([]interface{}{fmt.Sprintf(
-					"UPDATE %s SET latest = false WHERE %s AND latest = 1",
+					"UPDATE %s SET latest = false WHERE %s AND latest = true",
 					mockDatasetQuery.TableName,
 					fmt.Sprintf("%s != ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")), // where clause
 				)},
@@ -269,7 +269,7 @@ func TestAccountDatasetsQuery_RemoveDataset(t *testing.T) {
 					fmt.Sprintf("%s = ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")),
 				)}, append(mockDatasetQuery.ExtractModel(mockDataset), mockDatasetQuery.ExtractModel(mockDataset)[:4]...)...),
 				append([]interface{}{fmt.Sprintf(
-					"UPDATE %s SET latest = false WHERE %s AND latest = 1",
+					"UPDATE %s SET latest = false WHERE %s AND latest = true",
 					mockDatasetQuery.TableName,
 					fmt.Sprintf("%s != ? ", strings.Join(mockDatasetQuery.PrimaryFields, " = ? AND ")), // where clause
 				)},
