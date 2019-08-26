@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"strings"
@@ -344,4 +345,67 @@ func TestAccountDatasetsQuery_BuildModel(t *testing.T) {
 			t.Errorf("AccountDatasetsQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
 		}
 	})
+}
+
+type (
+	mockRowAccountDatasetQueryScan struct {
+		Executor
+	}
+)
+
+func (*mockRowAccountDatasetQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockDatasetQuery.GetFields()).AddRow(
+			"BCZ",
+			1,
+			100,
+			10,
+			0,
+			1,
+			0,
+			true,
+		),
+	)
+	return db.QueryRow("")
+}
+
+func TestAccountDatasetsQuery_Scan(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		dataset *model.AccountDataset
+		row     *sql.Row
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockDatasetQuery),
+			args: args{
+				dataset: mockDataset,
+				row:     (&mockRowAccountDatasetQueryScan{}).ExecuteSelectRow("", nil),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			if err := a.Scan(tt.args.dataset, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("AccountDatasetsQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

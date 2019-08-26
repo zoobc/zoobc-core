@@ -148,7 +148,7 @@ func (tx *RemoveAccountDataset) Validate() error {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	// check balance account sender
+	// check account balance sender
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	row = tx.QueryExecutor.ExecuteSelectRow(senderQ, senderArg)
 	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
