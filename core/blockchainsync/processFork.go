@@ -40,7 +40,10 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 		return err
 	}
 	beforeApplyCumulativeDifficulty := lastBlockBeforeProcess.CumulativeDifficulty
-	myPoppedOffBlocks := bss.ForkingProcess.PopOffTo(commonBlock)
+	myPoppedOffBlocks, err := bss.PopOffTo(commonBlock)
+	if err != nil {
+		return err
+	}
 
 	pushedForkBlocks := 0
 
@@ -74,7 +77,10 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 	// if after applying the fork blocks the cumulative difficulty is still less than current one
 	// only take the transactions to be processed, but later will get back to our own fork
 	if pushedForkBlocks > 0 && currentCumulativeDifficulty.Cmp(cumulativeDifficultyOriginalBefore) < 0 {
-		peerPoppedOffBlocks := bss.ForkingProcess.PopOffTo(commonBlock)
+		peerPoppedOffBlocks, err := bss.PopOffTo(commonBlock)
+		if err != nil {
+			return err
+		}
 		pushedForkBlocks = 0
 		for _, block := range peerPoppedOffBlocks {
 			bss.TransactionService.ProcessLater(block.Transactions)
@@ -112,7 +118,7 @@ func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
 	var err error
 
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	minRollbackHeight, err := bss.ForkingProcess.getMinRollbackHeight()
+	minRollbackHeight, err := bss.getMinRollbackHeight()
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -121,20 +127,20 @@ func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
 		return []*model.Block{}, nil
 	}
 
-	if !bss.ForkingProcess.HasBlock(commonBlock.GetID()) {
+	if !bss.HasBlock(commonBlock.GetID()) {
 		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, "the common block is not found")
 	}
 
 	poppedBlocks := []*model.Block{}
 	block, _ := bss.BlockService.GetLastBlock()
-	bss.ForkingProcess.LoadTransactions(block.ID)
+	bss.LoadTransactions(block.ID)
 	fmt.Sprintf("Rollback from block %v at height %v, withCommonBlock %v at height %v", block.GetID(), block.GetHeight(), commonBlock.GetID(), commonBlock.GetHeight())
 
 	genesisBlockID := bss.ChainType.GetGenesisBlockID()
 	for block.ID != commonBlock.ID && block.ID != genesisBlockID {
 		poppedBlocks = append(poppedBlocks, block)
 
-		block, err = bss.ForkingProcess.popLastBlock()
+		block, err = bss.popLastBlock()
 		if err != nil {
 			break
 		}
@@ -152,8 +158,8 @@ func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
 		// fmt.Sprintf("Error popping off to %v, %v", commonBlock.GetHeight(), err)
 		bss.TransactionService.RollbackTransaction()
 		lastBlock, _ := bss.BlockService.GetLastBlock()
-		bss.ForkingProcess.SetLastBlock(lastBlock)
-		bss.ForkingProcess.PopOffTo(lastBlock)
+		bss.SetLastBlock(lastBlock)
+		bss.PopOffTo(lastBlock)
 		return []*model.Block{}, err
 	}
 
@@ -171,7 +177,7 @@ func (bss *Service) popLastBlock() (*model.Block, error) {
 	}
 
 	previousBlock, _ := bss.TransactionService.DeleteBlocksFrom(block.ID)
-	bss.ForkingProcess.SetLastBlock(previousBlock)
+	bss.SetLastBlock(previousBlock)
 
 	return previousBlock, nil
 }
