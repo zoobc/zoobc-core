@@ -9,7 +9,8 @@ import (
 )
 
 type ServiceInterface interface {
-	InitService(myAddress string, port uint32, wellknownPeers []string, obsr *observer.Observer) (ServiceInterface, error)
+	InitService(myAddress string, port uint32, wellknownPeers []string,
+		obsr *observer.Observer, nodeSecretPhrase string) (ServiceInterface, error)
 	SetBlockServices(blockServices map[int32]coreService.BlockServiceInterface)
 	StartP2P()
 
@@ -28,9 +29,15 @@ type ServiceInterface interface {
 
 // InitP2P to initialize p2p strategy will used
 // TODO: Add Switcer Interface
-func InitP2P(myAddress string, port uint32, wellknownPeers []string, p2pType ServiceInterface,
-	obsr *observer.Observer) ServiceInterface {
-	p2pService, err := p2pType.InitService(myAddress, port, wellknownPeers, obsr)
+func InitP2P(
+	myAddress string,
+	port uint32,
+	wellknownPeers []string,
+	p2pType ServiceInterface,
+	obsr *observer.Observer,
+	nodeSecretPhrase string) ServiceInterface {
+	p2pService, err := p2pType.InitService(
+		myAddress, port, wellknownPeers, obsr, nodeSecretPhrase)
 	if err != nil {
 		log.Fatalf("Faild to initialize P2P service\nError : %v\n", err)
 	}

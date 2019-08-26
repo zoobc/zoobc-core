@@ -1,6 +1,7 @@
 package native
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,11 +17,14 @@ import (
 )
 
 // startServer to run p2p service as server
-func startServer(blockServices map[int32]coreService.BlockServiceInterface, obsr *observer.Observer) {
+func startServer(
+	blockServices map[int32]coreService.BlockServiceInterface,
+	obsr *observer.Observer,
+	nodeSecretPhrase string) {
 	port := hostServiceInstance.Host.GetInfo().GetPort()
 	listener := nativeUtil.ServerListener(int(port))
 	go func() {
-		_ = service.NewServerService(blockServices, obsr).StartListening(listener)
+		_ = service.NewServerService(blockServices, obsr, nodeSecretPhrase).StartListening(listener)
 	}()
 }
 
@@ -94,32 +98,25 @@ func updateBlacklistedStatus() {
 func sendBlock(block *model.Block) {
 	peers := hostServiceInstance.GetResolvedPeers()
 	for _, peer := range peers {
-		sendBlockHandler(peer, block)
+		go func() {
+			receipt, err := service.NewPeerServiceClient().SendBlock(peer, block)
+			if err != nil {
+				log.Warnf("sendBlockHandler Error accord %v\n", err)
+			}
+			fmt.Printf("receipt %v\n", receipt)
+		}()
 	}
-}
-
-func sendBlockHandler(destPeer *model.Peer, block *model.Block) {
-	go func() {
-		_, err := service.NewPeerServiceClient().SendBlock(destPeer, block)
-		if err != nil {
-			log.Warnf("sendBlockHandler Error accord %v\n", err)
-		}
-	}()
 }
 
 // sendTransaction send transaction to the list peer
 func sendTransactionBytes(transactionBytes []byte) {
 	peers := hostServiceInstance.GetResolvedPeers()
 	for _, peer := range peers {
-		sendTransactionBytesHandler(peer, transactionBytes)
+		go func() {
+			_, err := service.NewPeerServiceClient().SendTransaction(peer, transactionBytes)
+			if err != nil {
+				log.Warnf("sendTransactionBytesHandler Error accord %v\n", err)
+			}
+		}()
 	}
-}
-
-func sendTransactionBytesHandler(destPeer *model.Peer, transactionBytes []byte) {
-	go func() {
-		_, err := service.NewPeerServiceClient().SendTransaction(destPeer, transactionBytes)
-		if err != nil {
-			log.Warnf("sendTransactionBytesHandler Error accord %v\n", err)
-		}
-	}()
 }

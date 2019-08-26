@@ -92,7 +92,8 @@ func startP2pService() {
 	myAddress := viper.GetString("myAddress")
 	peerPort := viper.GetUint32("peerPort")
 	wellknownPeers := viper.GetStringSlice("wellknownPeers")
-	p2pServiceInstance = p2p.InitP2P(myAddress, peerPort, wellknownPeers, &p2pNative.Service{}, observerInstance)
+	p2pServiceInstance = p2p.InitP2P(
+		myAddress, peerPort, wellknownPeers, &p2pNative.Service{}, observerInstance, nodeSecretPhrase)
 	p2pServiceInstance.SetBlockServices(blockServices)
 
 	// run P2P service with any chaintype

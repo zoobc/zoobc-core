@@ -14,14 +14,19 @@ type Service struct {
 	HostService   *service.HostService
 	BlockServices map[int32]coreService.BlockServiceInterface
 	service.PeerServiceClient
-	Observer *observer.Observer
+	Observer         *observer.Observer
+	NodeSecretPhrase string
 }
 
 var hostServiceInstance *service.HostService
 
 // InitService to initialize services of the native strategy
-func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []string,
-	obsr *observer.Observer) (p2p.ServiceInterface, error) {
+func (s *Service) InitService(
+	myAddress string,
+	port uint32,
+	wellknownPeers []string,
+	obsr *observer.Observer,
+	nodeSecretPhrase string) (p2p.ServiceInterface, error) {
 	if s.HostService == nil {
 		knownPeersResult, err := nativeUtil.ParseKnownPeers(wellknownPeers)
 		if err != nil {
@@ -31,6 +36,7 @@ func (s *Service) InitService(myAddress string, port uint32, wellknownPeers []st
 		hostServiceInstance = service.CreateHostService(host)
 		s.HostService = hostServiceInstance
 		s.Observer = obsr
+		s.NodeSecretPhrase = nodeSecretPhrase
 	}
 	return s, nil
 }
@@ -61,7 +67,7 @@ func (s *Service) GetResolvedPeers() map[string]*model.Peer {
 
 // StartP2P to run all p2p Thread service
 func (s *Service) StartP2P() {
-	startServer(s.BlockServices, s.Observer)
+	startServer(s.BlockServices, s.Observer, s.NodeSecretPhrase)
 
 	// p2p thread
 	go resolvePeersThread()

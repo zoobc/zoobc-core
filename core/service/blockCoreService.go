@@ -54,6 +54,7 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		ReceivedBlockListener() observer.Listener
+		ReceiveBlock(block *model.Block, nodeSecretPhrase string) (*model.Receipt, error)
 	}
 
 	BlockService struct {
@@ -251,7 +252,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		return err
 	}
 	// broadcast block
-	bs.Observer.Notify(observer.BlockPushed, block, nil)
+	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	return nil
 
 }
@@ -588,5 +589,60 @@ func (bs *BlockService) ReceivedBlockListener() observer.Listener {
 				}
 			}
 		},
+	}
+}
+
+// ReceiveBlock handle the block received from connected peers
+func (bs *BlockService) ReceiveBlock(block *model.Block, nodeSecretPhrase string) (*model.Receipt, error) {
+	// make sure block has previous block hash
+	if block.GetPreviousBlockHash() != nil {
+		if bs.CheckSignatureBlock(block) {
+			lastBlock, err := bs.GetLastBlock()
+			if err != nil {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr,
+					"fail to get last block",
+				)
+			}
+
+			lastBlockByte, err := coreUtil.GetBlockByte(lastBlock, true)
+			if err != nil {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr,
+					"fail to get last block byte",
+				)
+			}
+			lastBlockHash := sha3.Sum512(lastBlockByte)
+
+			//  check equality last block hash with previous block hash from received block
+			if bytes.Equal(lastBlockHash[:], block.GetPreviousBlockHash()) {
+				err := bs.PushBlock(lastBlock, block, true)
+				if err != nil {
+					return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
+				}
+			}
+			// generate receipt and return as response
+			// todo: lastblock last applied block, or incoming block?
+			//secretPhrase := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+			nodeAddress := util.GetAddressFromSeed(nodeSecretPhrase)
+			receipt, err := util.GenerateReceipt( // todo: var
+				lastBlock,
+				block.BlocksmithAddress,
+				nodeAddress,
+				lastBlockHash[:],
+				constant.ReceiptDatumTypeBlock)
+			if err != nil {
+				return nil, err
+			}
+			receipt.RecipientSignature = bs.Signature.SignByNode(
+				util.GetUnsignedReceiptBytes(receipt),
+				nodeSecretPhrase,
+			)
+			if err != nil {
+				return nil, err
+			}
+			return receipt, nil
+
+		}
 	}
 }

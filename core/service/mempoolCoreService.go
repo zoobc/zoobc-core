@@ -111,7 +111,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return err
 	}
 	// broadcast transaction
-	mps.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), nil)
+	mps.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), mps.Chaintype)
 	return nil
 }
 
