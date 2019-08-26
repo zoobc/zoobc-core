@@ -36,29 +36,53 @@ func (h hooker) Levels() []logrus.Level {
 InitLogger is function that should be implemeneted with interceptor. That can centralized the log action.
 `[]logrus.Level` can inject dynamically switch on development or production mode
 */
-func InitLogger(path, filename string) (*logrus.Logger, error) {
-
-	_, err := os.Stat(path)
+func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) {
+	var (
+		logLevels []logrus.Level
+		logger    *logrus.Logger
+		err       error
+		logFile   *os.File
+	)
+	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
 		if err := os.Mkdir(path, os.ModePerm); err != nil {
 			return nil, err
 		}
 	}
 
-	logFile, err := os.OpenFile(path+filename, os.O_WRONLY|os.O_CREATE, 0600)
+	logFile, err = os.OpenFile(path+filename, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, err
 	}
 
-	Logger := logrus.New()
-	Logger.SetFormatter(&logrus.JSONFormatter{})
-	Logger.AddHook(&hooker{
-		Writer: logFile,
-		EntryLevels: []logrus.Level{
-			logrus.InfoLevel,
+	logger = logrus.New()
+	for _, v := range levels {
+		switch v {
+		case "info":
+			logLevels = append(logLevels, logrus.InfoLevel)
+		case "warn":
+			logLevels = append(logLevels, logrus.WarnLevel)
+		case "error":
+			logLevels = append(logLevels, logrus.ErrorLevel)
+		case "fatal":
+			logLevels = append(logLevels, logrus.FatalLevel)
+		case "panic":
+			logLevels = append(logLevels, logrus.PanicLevel)
+		}
+	}
+	if len(logLevels) < 1 {
+		logLevels = append(
+			logLevels,
+			logrus.PanicLevel,
+			logrus.FatalLevel,
 			logrus.ErrorLevel,
-		},
+		)
+	}
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.AddHook(&hooker{
+		Writer:      logFile,
+		EntryLevels: logLevels,
 	})
 
-	return Logger, nil
+	return logger, nil
 }

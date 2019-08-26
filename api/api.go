@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/zoobc/zoobc-core/common/interceptor"
 	"net"
 	"net/http"
+
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -30,8 +32,12 @@ var (
 )
 
 func init() {
-	var err error
-	if apiLogger, err = util.InitLogger(".log/", "debug.log"); err != nil {
+	var (
+		err       error
+		logLevels []string
+	)
+	logLevels = viper.GetStringSlice("logLevels")
+	if apiLogger, err = util.InitLogger(".log/", "debug.log", logLevels); err != nil {
 		panic(err)
 	}
 }
