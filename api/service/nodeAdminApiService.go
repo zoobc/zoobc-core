@@ -46,7 +46,7 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminServic
 		)
 
 		nodeAdminCoreService := coreService.NewNodeAdminService(queryExecutor,
-			query.NewBlockQuery(mainchain), crypto.NewSignature(), &coreService.NodeAdminService{}, blockService)
+			query.NewBlockQuery(mainchain), crypto.NewSignature(), blockService)
 		nodeAdminServiceInstance = &NodeAdminService{
 			Query:                queryExecutor,
 			NodeAdminCoreService: nodeAdminCoreService,

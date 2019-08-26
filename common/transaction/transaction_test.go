@@ -5,16 +5,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/util"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixturesForNoderegistration()
 	_, _, updateNodeRegistrationBody, updateNodeRegistrationBodyBytes := GetFixturesForUpdateNoderegistration()
 	removeNodeRegistrationBody, removeNodeRegistrationBodyBytes := GetFixturesForRemoveNoderegistration()
+	_, claimNodeRegistrationBody, claimNodeRegistrationBodyBytes := GetFixturesForClaimNoderegistration()
 
 	mockSetupAccountDatasetBody, mockBytesSetupAccountDataset := GetFixturesForSetupAccountDataset()
 	mockRemoveAccountDatasetBody, mockBytesRemoveAccountDataset := GetFixturesForRemoveAccountDataset()
@@ -192,6 +192,32 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &RemoveNodeRegistration{
 				Body:                  removeNodeRegistrationBody,
+				Height:                0,
+				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:         &query.Executor{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+		},
+		{
+			name: "wantClaimNodeRegistration",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  0,
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_ClaimNodeRegistrationTransactionBody{
+						ClaimNodeRegistrationTransactionBody: claimNodeRegistrationBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 3, 0, 0}),
+					TransactionBodyBytes: claimNodeRegistrationBodyBytes,
+				},
+			},
+			want: &ClaimNodeRegistration{
+				Body:                  claimNodeRegistrationBody,
 				Height:                0,
 				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				QueryExecutor:         &query.Executor{},
