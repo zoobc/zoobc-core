@@ -2,8 +2,8 @@ package util
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"golang.org/x/crypto/ed25519"
 
@@ -44,7 +44,10 @@ func GetPublicKeyFromSeed(seed string) []byte {
 func GetAddressFromPublicKey(publicKey []byte) (string, error) {
 	// public key should be 32 long
 	if len(publicKey) != 32 {
-		return "", errors.New("ErrInvalidPublicKeyLength")
+		return "", blocker.NewBlocker(
+			blocker.ServerError,
+			"invalid public key length",
+		)
 	}
 	// Make 33 byte buffer for Public Key + Checksum Byte
 	rawAddress := make([]byte, 33)
