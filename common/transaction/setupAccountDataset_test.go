@@ -96,17 +96,20 @@ func (*executorSetupAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr str
 	return errors.New("MockedError")
 }
 
-func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
+func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
+			"BCZ",
+			1,
+			1,
+			1,
+			0,
+			true,
+		),
+	)
 
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
-		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 50, 50, 0, 1))
-	return db.Query(qStr, 1)
+	return db.QueryRow(qStr)
 }
 
 func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
