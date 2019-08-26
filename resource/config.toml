@@ -14,4 +14,4 @@ ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 
 proofOfOwnershipReqTimeoutSec = 2
 # Log Levels
-logLevels=["info", "warn", "debug", "error"]
+logLevels=["warn", "fatal", "error", "panic"]
