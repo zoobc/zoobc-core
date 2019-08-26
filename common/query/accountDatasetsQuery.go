@@ -60,7 +60,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	}
 	cq.Select(adq.TableName, adq.getFields()...)
 	// where caluse : setter_account_address, recipient_account_address, property, lasted
-	cq.Where(cq.Equal("latest", 1))
+	cq.Where(cq.Equal("latest", true))
 	for k, v := range adq.PrimaryFields[:3] {
 		cq.And(cq.Equal(v, caseArgs[k]))
 	}
@@ -86,10 +86,10 @@ func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]i
 					WHEN timestamp_expires - %d < 0 THEN 0
 					ELSE timestamp_expires - %d END 
 			FROM %s 
-			WHERE %s AND latest = 1
+			WHERE %s AND latest = true
 			ORDER BY height DESC LIMIT 1
 		) 
-		WHERE %s AND latest = 1
+		WHERE %s AND latest = true
 	`,
 		adq.TableName,
 		strings.Join(adq.OrdinaryFields[:3], ","),
@@ -112,10 +112,10 @@ func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]i
 					WHEN timestamp_expires - %d < 0 THEN 0
 					ELSE timestamp_expires - %d END
 				FROM %s
-				WHERE %s AND latest = 1
+				WHERE %s AND latest = true
 				ORDER BY height DESC LIMIT 1
 			), 0),
-			1
+			true
 		WHERE NOT EXISTS (
 			SELECT %s FROM %s
 			WHERE %s
@@ -184,7 +184,7 @@ func (adq *AccountDatasetsQuery) RemoveDataset(dataset *model.AccountDataset) []
 
 func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []interface{} {
 	updateVersionQ := fmt.Sprintf(
-		"UPDATE %s SET latest = false WHERE %s AND latest = 1",
+		"UPDATE %s SET latest = false WHERE %s AND latest = true",
 		adq.TableName,
 		fmt.Sprintf("%s != ? ", strings.Join(adq.PrimaryFields, " = ? AND ")), // where clause
 	)

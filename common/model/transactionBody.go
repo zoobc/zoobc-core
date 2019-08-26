@@ -11,3 +11,4 @@ func (*RemoveNodeRegistrationTransactionBody) isTxBody() {}
 func (*EmptyTransactionBody) isTxBody()                  {}
 func (*SendMoneyTransactionBody) isTxBody()              {}
 func (*SetupAccountDatasetTransactionBody) isTxBody()    {}
+func (*RemoveAccountDatasetTransactionBody) isTxBody()   {}
