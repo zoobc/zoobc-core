@@ -11,6 +11,7 @@ func TestInitLogger(t *testing.T) {
 	type args struct {
 		path     string
 		filename string
+		levels   []string
 	}
 	tests := []struct {
 		name    string
@@ -26,7 +27,16 @@ func TestInitLogger(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantSuccess",
+			name: "wantSuccess:FullLevels",
+			args: args{
+				path:     "./testdata/",
+				filename: "test.log",
+				levels:   []string{"info", "warn", "error", "fatal", "panic"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantSuccess:NoLevels",
 			args: args{
 				path:     "./testdata/",
 				filename: "test.log",
@@ -36,7 +46,7 @@ func TestInitLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, _ := InitLogger(tt.args.path, tt.args.filename); (got == nil) != tt.wantErr {
+			if got, _ := InitLogger(tt.args.path, tt.args.filename, tt.args.levels); (got == nil) != tt.wantErr {
 				t.Errorf("InitLogger() = %v, wantError %v", tt.name, tt.wantErr)
 			}
 		})
