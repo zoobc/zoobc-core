@@ -381,5 +381,3 @@ func (bss *Service) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer,
 	}
 	return blocks, nil
 }
-
-func (bss *Service) processFork(forkBlocks []*model.Block) {}
