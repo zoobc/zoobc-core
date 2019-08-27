@@ -122,6 +122,8 @@ func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:co
 // mockQueryExecutorSuccess
 func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
 
+func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
+
 func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
