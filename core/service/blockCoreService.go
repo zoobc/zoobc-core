@@ -46,6 +46,7 @@ type (
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
+		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
@@ -301,22 +302,28 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	var (
-		blocks       []*model.Block
-		transactions []*model.Transaction
-	)
+	var blocks []*model.Block
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	if len(blocks) > 0 {
-		// get transaction of the block
-		transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blocks[0].ID)
-		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		blocks[0].Transactions = bs.TransactionQuery.BuildModel(transactions, rows)
+		blocks[0].Transactions = transactions
 		return blocks[0], nil
 	}
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "last block is not found")
+}
+
+// GetTransactionsByBlockID get transactions of the block
+func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
+	var transactions []*model.Transaction
+	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
+	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return bs.TransactionQuery.BuildModel(transactions, rows), nil
 }
 
 // GetLastBlock return the last pushed block

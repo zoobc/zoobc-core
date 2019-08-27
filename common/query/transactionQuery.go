@@ -88,14 +88,14 @@ func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64) string 
 
 // InsertTransaction inserts a new transaction into DB
 func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string, args []interface{}) {
-	var value = fmt.Sprintf("? %s", strings.Repeat(", ?", len(tq.Fields)-1))
+	var value = fmt.Sprintf("?%s", strings.Repeat(", ?", len(tq.Fields)-1))
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
 		tq.getTableName(), strings.Join(tq.Fields, ", "), value)
 	return query, tq.ExtractModel(tx)
 }
 
 func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s from %s WHERE block_id = ?", strings.Join(tq.Fields, ", "), tq.getTableName())
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ?", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
 }
 
@@ -146,4 +146,11 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 		txs = append(txs, &tx)
 	}
 	return txs
+}
+
+// Rollback delete records `WHERE height > "height"
+func (tq *TransactionQuery) Rollback(height uint32) (queries []string, args uint32) {
+	return []string{
+		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", tq.getTableName(), height),
+	}, height
 }

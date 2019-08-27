@@ -149,13 +149,13 @@ func (bss *Service) getPeerBlockchainInfo() error {
 	bss.BlockService.ChainWriteLock()
 	defer bss.BlockService.ChainWriteUnlock()
 
-	errDownload := bss.downloadFromPeer(peer, chainBlockIds)
+	errDownload := bss.downloadFromPeer(peer, chainBlockIds, commonBlock)
 	if errDownload != nil {
 		return errDownload
 	}
 
 	// TODO: analyze the importance of this mechanism
-	confirmBlockchainError := bss.confirmBlockchainState(peer, commonMilestoneBlockID)
+	confirmBlockchainError := bss.confirmBlockchainState(peer, commonMilestoneBlockID, commonBlock)
 	if confirmBlockchainError != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (bss *Service) getPeerBlockchainInfo() error {
 	return nil
 }
 
-func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBlockID int64) error {
+func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBlockID int64, commonBlock *model.Block) error {
 	confirmations := int32(0)
 	// counting the confirmations of the common block received with other peers he knows
 	for _, peerToCheck := range bss.P2pService.GetResolvedPeers() {
@@ -208,7 +208,7 @@ func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBloc
 		}
 
 		log.Println("Found a peer with better difficulty")
-		errDownload := bss.downloadFromPeer(peerToCheck, otherPeerChainBlockIds)
+		errDownload := bss.downloadFromPeer(peerToCheck, otherPeerChainBlockIds, commonBlock)
 		if errDownload != nil {
 			return errDownload
 		}
@@ -217,7 +217,7 @@ func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBloc
 	return nil
 }
 
-func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64) error {
+func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64, commonBlock *model.Block) error {
 	var peersTobeDeactivated []*model.Peer
 	segSize := constant.BlockDownloadSegSize
 
@@ -279,8 +279,6 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 		bss.P2pService.DisconnectPeer(peer)
 	}
 
-	commonBlock, _ := bss.BlockService.GetLastBlock() //GET THE LAST BLOCK BEFORE FORK BLOCKS APPLIED
-
 	forkBlocks := []*model.Block{}
 	for _, block := range blocksToBeProcessed {
 		if block.Height == 0 {
@@ -305,8 +303,8 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 	}
 
 	if len(forkBlocks) > 0 {
-		log.Println("processing fork blocks %v", forkBlocks)
-		err := bss.ForkingProcess.ProcessFork(forkBlocks, commonBlock)
+		log.Printf("processing %d fork blocks...\n", len(forkBlocks))
+		err := bss.ProcessFork(forkBlocks, commonBlock, feederPeer)
 		if err != nil {
 			return err
 		}
@@ -381,5 +379,3 @@ func (bss *Service) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer,
 	}
 	return blocks, nil
 }
-
-func (bss *Service) processFork(forkBlocks []*model.Block) {}

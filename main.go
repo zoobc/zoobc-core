@@ -158,7 +158,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
-	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance)
+	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance, queryExecutor)
 	mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 

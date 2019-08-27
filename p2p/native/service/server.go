@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/interceptor"
 	"net"
+
+	"github.com/zoobc/zoobc-core/common/interceptor"
 
 	log "github.com/sirupsen/logrus"
 
@@ -130,13 +131,14 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context,
 	// if `lastBlockID` is supplied
 	// check it the last `lastBlockID` got matches with the host's lastBlock then return the response as is
 	chainType := chaintype.GetChainType(req.ChainType)
+	lastBlockID := req.LastBlockID
+	lastMilestoneBlockID := req.LastMilestoneBlockID
+
 	blockService := ss.BlockServices[chainType.GetTypeInt()]
 	if blockService == nil {
 		return nil, errors.New("the block service is not set for this chaintype in this host")
 	}
 
-	lastBlockID := req.LastBlockID
-	lastMilestoneBlockID := req.LastMilestoneBlockID
 	if lastBlockID == 0 && lastMilestoneBlockID == 0 {
 		return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 	}
@@ -162,6 +164,7 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context,
 	limit := constant.CommonMilestoneBlockIdsLimit
 	if lastMilestoneBlockID != 0 {
 		lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID)
+		// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 		if err != nil {
 			return nil, err
 		}
@@ -173,27 +176,19 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context,
 		jump = 10
 	}
 
-	block, err := blockService.GetBlockByHeight(height)
-	if err != nil {
-		return nil, err
-	}
-	blockIDAtHeight := block.ID
 	blockIds := []int64{}
-	for {
-		limit--
-		if height > 0 && limit > 0 {
-			blockIds = append(blockIds, blockIDAtHeight)
-			height -= jump
-			block, err := blockService.GetBlockByHeight(height)
-			if err != nil {
-				return nil, err
-			}
-			blockIDAtHeight = block.ID
-		} else {
-			break
+	for ; height >= 0 && limit > 0; limit-- {
+		block, err := blockService.GetBlockByHeight(height)
+		if err != nil {
+			return nil, err
 		}
-		if limit < 1 {
+		blockIds = append(blockIds, block.ID)
+		if height == 0 {
 			break
+		} else if height < jump {
+			height = 0
+		} else {
+			height -= jump
 		}
 	}
 

@@ -2,51 +2,56 @@ package blockchainsync
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"math/big"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
 	utils "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
 	ForkingProcess interface {
 		ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block) error
-		PopOff(commonBlock *model.Block) []*model.Block
+		PopOffTo(commonBlock *model.Block) []*model.Block
 		popLastBlock() (*model.Block, error)
 		SetLastBlock(block *model.Block) error
 		HasBlock(id int64) bool
-		LoadTransactions()
-		popOffWithRescan(height uint32)
-		scan(height uint32, validate bool) error
+		LoadTransactions(block *model.Block)
 		scheduleScan(height uint32, validate bool)
-		getMinRollbackHeight() uint32
+		getMinRollbackHeight() (uint32, error)
 		SetIsScanning(isScanning bool)
 	}
 )
 
 //The main function to process the forked blocks
-func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block) error {
+func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error {
 	var forkBlocksID []int64
 	for _, block := range forkBlocks {
 		forkBlocksID = append(forkBlocksID, block.ID)
 	}
 
-	lastblocktemp, err := bss.BlockService.GetLastBlock()
+	lastBlockBeforeProcess, err := bss.BlockService.GetLastBlock()
 	if err != nil {
 		return err
 	}
-	beforeApplyCumulativeDifficulty := lastblocktemp.GetCumulativeDifficulty()
-
-	myPoppedOffBlocks := bss.ForkingProcess.PopOff(commonBlock)
+	beforeApplyCumulativeDifficulty := lastBlockBeforeProcess.CumulativeDifficulty
+	myPoppedOffBlocks, err := bss.PopOffTo(commonBlock)
+	if err != nil {
+		return err
+	}
 
 	pushedForkBlocks := 0
 
-	if lastblocktemp.GetID() == commonBlock.GetID() {
+	lastBlock, err := bss.BlockService.GetLastBlock()
+	if err != nil {
+		return err
+	}
+
+	if lastBlock.ID == commonBlock.ID {
 		// rebuilding the chain
 		for _, block := range forkBlocks {
 			lastBlock, err := bss.BlockService.GetLastBlock()
@@ -54,46 +59,55 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 				return err
 			}
 			lastBlockHash, err := utils.GetBlockHash(lastBlock)
-			// fmt.Printf("fork block to push %v with previous block %v, the current last block %v prev %v\n", block.GetID(), block.GetPreviousBlockID(), lastBlock.GetID(), lastBlock.GetPreviousBlockID())
-			if !bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
-				fmt.Printf("fork block to push2\n")
+			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				err := bss.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
-					blocker.NewBlocker(
-						blocker.AuthErr,
-						"error when pushing peer's block in fork",
-					)
+					// bss.P2pService.Blacklist(feederPeer)
+					log.Warnf("\n\nPushBlock err %v\n\n", err)
+					break
 				}
-				pushedForkBlocks = pushedForkBlocks + 1
+				pushedForkBlocks++
 			}
 		}
+	}
 
-		peerCumulativeDifficulty, _ := new(big.Int).SetString("", 10)
-		peerCumulativeDifficultyOriginalBefore, _ := new(big.Int).SetString(beforeApplyCumulativeDifficulty, 10)
+	currentLastBlock, err := bss.BlockService.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	currentCumulativeDifficulty, _ := new(big.Int).SetString(currentLastBlock.CumulativeDifficulty, 10)
+	cumulativeDifficultyOriginalBefore, _ := new(big.Int).SetString(beforeApplyCumulativeDifficulty, 10)
 
-		if pushedForkBlocks > 0 && peerCumulativeDifficulty.Cmp(peerCumulativeDifficultyOriginalBefore) < 0 {
-			peerPoppedOffBlocks := bss.ForkingProcess.PopOff(commonBlock)
-			pushedForkBlocks = 0
-			for _, block := range peerPoppedOffBlocks {
-				blockTransaction := block.GetTransactions()
-				bss.TransactionService.ProcessLater(blockTransaction)
+	// if after applying the fork blocks the cumulative difficulty is still less than current one
+	// only take the transactions to be processed, but later will get back to our own fork
+	if pushedForkBlocks > 0 && currentCumulativeDifficulty.Cmp(cumulativeDifficultyOriginalBefore) < 0 {
+		peerPoppedOffBlocks, err := bss.PopOffTo(commonBlock)
+		if err != nil {
+			return err
+		}
+		pushedForkBlocks = 0
+		for _, block := range peerPoppedOffBlocks {
+			bss.ProcessLater(block.Transactions)
+		}
+	}
+
+	// if no fork blocks succesfully applied, go back to our fork
+	// other wise, just take the transactions of our popped blocks to be processed later
+	if pushedForkBlocks == 0 {
+		log.Println("Did not accept any blocks from peer, pushing back my blocks")
+		for _, block := range myPoppedOffBlocks {
+			lastBlock, err := bss.BlockService.GetLastBlock()
+			if err != nil {
+				return err
+			}
+			errPushBlock := bss.BlockService.PushBlock(lastBlock, block, false)
+			if errPushBlock != nil {
+				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
 		}
-
-		if pushedForkBlocks == 0 {
-			// HostService(chaintype).Host.Log("Did not accept any blocks from peer, pushing back my blocks")
-			// feederPeer.Blacklist("Did not accept any blocks from peer, pushing back my blocks")
-			for _, block := range myPoppedOffBlocks {
-				lastBlock, err := bss.BlockService.GetLastBlock()
-				if err != nil {
-					return err
-				}
-				bss.BlockService.PushBlock(lastBlock, block, false)
-			}
-		} else {
-			for _, block := range myPoppedOffBlocks {
-				bss.TransactionService.ProcessLater(block.GetTransactions())
-			}
+	} else {
+		for _, block := range myPoppedOffBlocks {
+			bss.ProcessLater(block.Transactions)
 		}
 	}
 
@@ -101,271 +115,111 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 
 }
 
-//This function will remove the block in current Chain until commonBlock is reached
-func (bss *Service) PopOff(commonBlock *model.Block) []*model.Block {
+// PopOffTo will remove the block in current Chain until commonBlock is reached
+func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
+	// blockchain lock has been implemented by the Download Blockchain, so no additional lock is needed
+	var err error
 
-	if !bss.TransactionService.IsInTransaction() {
-		bss.TransactionService.BeginTransaction()
-		defer bss.TransactionService.EndTransaction()
-		return bss.ForkingProcess.PopOff(commonBlock)
+	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
+	minRollbackHeight, err := bss.getMinRollbackHeight()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+	if commonBlock.Height < minRollbackHeight {
+		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork pocess
+		return []*model.Block{}, nil
 	}
 
-	lastblock, err := bss.BlockService.GetLastBlock()
-	currentHeight := lastblock.GetHeight()
-
-	//If currentHigh is lower than minimal height required for rollback then
-	if currentHeight < bss.ForkingProcess.getMinRollbackHeight() {
-		bss.ForkingProcess.popOffWithRescan(commonBlock.GetHeight() + 1)
-		return []*model.Block{}
-	}
-
-	if !bss.ForkingProcess.HasBlock(commonBlock.GetID()) {
-		return []*model.Block{}
+	if !bss.HasBlock(commonBlock.GetID()) {
+		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, "the common block is not found")
 	}
 
 	poppedBlocks := []*model.Block{}
 	block, _ := bss.BlockService.GetLastBlock()
-	bss.ForkingProcess.LoadTransactions()
-	fmt.Sprintf("Rollback from block %v at height %v, withCommonBlock %v at height %v", block.GetID(), block.GetHeight(), commonBlock.GetID(), commonBlock.GetHeight())
+	block = bss.LoadTransactions(block)
 
-	// var err error
-	genesisBlockid := bss.ChainType.GetGenesisBlockID()
-	for block.GetID() != commonBlock.GetID() && block.GetID() != genesisBlockid {
+	genesisBlockID := bss.ChainType.GetGenesisBlockID()
+	for block.ID != commonBlock.ID && block.ID != genesisBlockID && block.Height-1 > 0 {
 		poppedBlocks = append(poppedBlocks, block)
 
-		block, err = bss.ForkingProcess.popLastBlock()
+		block, err = bss.BlockService.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			break
 		}
+		block = bss.LoadTransactions(block)
 	}
 
+	derivedTables := query.GetDerivedQuery(bss.ChainType)
+	errTx := bss.QueryExecutor.BeginTx()
+	if errTx != nil {
+		return []*model.Block{}, errTx
+	}
+
+	for _, dTable := range derivedTables {
+		queries, _ := dTable.Rollback(commonBlock.Height)
+		for _, query := range queries {
+			errTx = bss.QueryExecutor.ExecuteTransaction(query)
+			if errTx != nil {
+				_ = bss.QueryExecutor.RollbackTx()
+				return []*model.Block{}, errTx
+			}
+		}
+	}
+	errTx = bss.QueryExecutor.CommitTx()
+	if errTx != nil {
+		return []*model.Block{}, errTx
+	}
 	//	TODO:
-	//	NEED TO IMPLEMENT DERIVED TABLES
+	//	NEED TO IMPLEMENT DERIVED TABLES ROLLBACK
 	// if err == nil {
-	// 	err = service.service.TransactionService.RollbackDerivedTables(commonBlock.GetHeight())
+	// 	err = service.service.RollbackDerivedTables(commonBlock.GetHeight())
 	// 	// _ = DbTransactionalService(chaintype).ClearCache() //need to implement ClearCache
 	// 	err = service.CommitTransaction()
 	// }
 
-	if err != nil {
-		// fmt.Sprintf("Error popping off to %v, %v", commonBlock.GetHeight(), err)
-		bss.TransactionService.RollbackTransaction()
-		lastBlock, _ := bss.BlockService.GetLastBlock()
-		bss.ForkingProcess.SetLastBlock(lastBlock)
-		bss.ForkingProcess.PopOff(lastBlock)
-		return []*model.Block{}
+	blockIds := []int64{}
+	for _, block := range poppedBlocks {
+		blockIds = append(blockIds, block.ID)
 	}
-
-	return poppedBlocks
-}
-
-func (bss *Service) popLastBlock() (*model.Block, error) {
-	block, _ := bss.BlockService.GetLastBlock()
-	blockid := block.GetID()
-
-	if block.GetID() == bss.ChainType.GetGenesisBlockID() {
-		return nil, blocker.NewBlocker(
-			blocker.AuthErr,
-			"Failed to pop off because it's Genesis Block",
-		)
-	}
-
-	previousBlock, _ := bss.TransactionService.DeleteBlocksFrom(blockid)
-	bss.ForkingProcess.SetLastBlock(previousBlock)
-
-	return previousBlock, nil
-}
-
-//Set the latest block according to inputed block
-func (bss *Service) SetLastBlock(block *model.Block) error {
-	bss.LastBlock = *block
-	return nil
+	return poppedBlocks, nil
 }
 
 func (bss *Service) HasBlock(id int64) bool {
 	block, _ := bss.BlockService.GetBlockByID(id)
-	if block.GetID() == -1 {
+	if block == nil {
 		return false
 	}
 	return true
 }
 
-func (bss *Service) LoadTransactions() {
-	if bss.LastBlock.Transactions == nil {
-		transactionQ, transactionArg := bss.TransactionQuery.GetTransactionsByBlockID(bss.LastBlock.GetID())
-		// rows, err = bss.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
-		rows, err := bss.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
-		if err != nil {
-			blocker.NewBlocker(
-				blocker.AuthErr,
-				"Error when getting transaction to loaded",
-			)
-		}
-
-		var txs []*model.Transaction
-		for rows.Next() {
-			txs = bss.TransactionQuery.BuildModel(txs, rows)
-		}
-		bss.LastBlock.Transactions = txs
+func (bss *Service) LoadTransactions(block *model.Block) *model.Block {
+	if block.Transactions == nil {
+		txs, _ := bss.BlockService.GetTransactionsByBlockID(block.ID)
+		block.Transactions = txs
 	}
-}
-
-func (bss *Service) popOffWithRescan(height uint32) {
-	bss.ForkingProcess.scheduleScan(0, false)
-	currentBlock, _ := bss.BlockService.GetBlockByHeight(height)
-	currentID := currentBlock.GetID()
-	lastBlock, _ := bss.TransactionService.DeleteBlocksFrom(currentID)
-	bss.ForkingProcess.SetLastBlock(lastBlock)
-	bss.ForkingProcess.scan(0, false)
-}
-
-func (bss *Service) scan(height uint32, validate bool) error {
-	// bss.ChainType.WriteLock()
-	// defer bss.ChainType.WriteUnlock()
-
-	if !bss.TransactionService.IsInTransaction() {
-		bss.TransactionService.BeginTransaction()
-		bss.TransactionService.EndTransaction()
-		// TODO:
-		// defer BlockListener().RemoveListener(checksumListener(), Event.BLOCK_SCANNED)
-
-		if validate {
-			// TODO:
-			// BlockListener().AddListener(checksumListener(), Event.BLOCK_SCANNED)
-			bss.ForkingProcess.scan(height, validate)
-		}
-		return nil
-	}
-
-	bss.ForkingProcess.scheduleScan(height, validate)
-
-	if height < 0 || (height > 0 && height < bss.ForkingProcess.getMinRollbackHeight()) {
-		if height > 0 && height < bss.ForkingProcess.getMinRollbackHeight() {
-			// HostService(chaintype).Host.Log(fmt.Sprintf("Rollback to height less than %v is not supported, doing a full scan", height))
-		}
-		height = 0
-	}
-	// HostService(chaintype).Host.Log(fmt.Sprintf("Scanning the blockchain starting from height %v", height))
-
-	bss.ForkingProcess.SetIsScanning(true)
-	defer bss.ForkingProcess.SetIsScanning(false)
-
-	bcHeight := bss.LastBlock.GetHeight()
-	// Question: why +1?
-	if height > bcHeight+1 {
-		// HostService(chaintype).Host.Log(fmt.Sprintf("Rollback height %v exceeds the blockchain height of %v, no scan needed", height-1, bcHeight))
-		bss.TransactionService.ScanFinish()
-		bss.TransactionService.CommitTransaction()
-		return nil
-	}
-
-	// service.TransactionService(bss.ChainType).RollbackDerivedTables(height - 1)
-	bss.TransactionService.ClearCache()
-	bss.TransactionService.CommitTransaction()
-	// HostService(chaintype).Host.Log("The derived tables has been rolled back as part of scan")
-
-	currentBlock, _ := bss.TransactionService.GetBlockAtHeight(height)
-	// TODO:
-	// BlockListener().Notify(currentBlock, Event.RESCAN_BEGIN)
-
-	// TODO: confirm this logic
-	if height == 0 {
-		bss.ForkingProcess.SetLastBlock(currentBlock)
-		// TODO:
-		// Evaluate the use of this line
-		// models.AccountRepository(chaintype).AddOrGetAccount(constant.GENESIS_PUBLIC_KEY)
-	} else {
-		bss.ForkingProcess.SetLastBlock(currentBlock)
-	}
-
-	hasMore := true
-	heightToRetrieve := height
-	for hasMore == true {
-		blocksToIterate, err := bss.BlockService.GetBlocksFromHeight(height, 50000)
-		heightToRetrieve = heightToRetrieve + uint32(len(blocksToIterate))
-		if len(blocksToIterate) < 1 {
-			hasMore = false
-		}
-
-		var blockError error
-		for _, block := range blocksToIterate {
-			if blockError != nil {
-				bss.ForkingProcess.LoadTransactions()
-				bss.TransactionService.ProcessLater(currentBlock.GetTransactions())
-				continue
-			}
-
-			// TODO:
-			// loading block's transaction if needed
-
-			if block.GetID() != currentBlock.GetID() || block.GetHeight() > bss.LastBlock.GetHeight()+1 {
-				return errors.New("Database blocks in the wrong order!")
-			}
-			currentBlock = block
-			// TODO:
-			// BlockListener().Notify(block, event.BEFORE_BLOCK_ACCEPT)
-			bss.ForkingProcess.SetLastBlock(block)
-			// TODO:
-			// evaluate change of accept() to pushBlock()
-			// accept(block)
-			// BlockService(bss.ChainType).PushBlock(&block)
-			bss.TransactionService.ClearCache()
-			bss.TransactionService.CommitTransaction()
-			// TODO:
-			// BlockListener().Notify(block, event.AFTER_BLOCK_ACCEPT)
-
-			if err != nil {
-				bss.TransactionService.RollbackTransaction()
-				// HostService(chaintype).Host.Log("Failure in the scan procedure")
-				// HostService(chaintype).Host.Log(fmt.Sprintf("%v", err))
-				if currentBlock.GetID() != -1 {
-					bss.ForkingProcess.LoadTransactions()
-					bss.TransactionService.ProcessLater(currentBlock.GetTransactions())
-				}
-				blockError = err
-			}
-		}
-
-		if blockError != nil {
-			lastBlock, _ := bss.TransactionService.DeleteBlocksFrom(currentBlock.GetID())
-			bss.ForkingProcess.SetLastBlock(lastBlock)
-			bss.ForkingProcess.PopOff(lastBlock)
-			break
-		}
-
-		// TODO:
-		// BlockListener().Notify(currentBlock, event.BLOCK_SCANNED)
-	}
-
-	bss.TransactionService.ScanFinish()
-	bss.TransactionService.CommitTransaction()
-	// TODO:
-	// BlockListener().Notify(currentBlock, event.RESCAN_END)
-	// HostService(chaintype).Host.Log(fmt.Sprintf("...done at height %v", BlockchainService(chaintype).GetHeight()))
-
-	if height == 0 && validate {
-		// HostService(chaintype).Host.Log("Successfully performed full rescan with validation")
-	}
-
-	return nil
-
-	// TODO:
-	// analyze
-	// lastRestoreTime = 0
+	return block
 }
 
 func (bss *Service) scheduleScan(height uint32, validate bool) {
-	bss.TransactionService.ScheduleScan(height, validate)
+	bss.ScheduleScan(height, validate)
 }
 
-func (bss *Service) getMinRollbackHeight() uint32 {
-	// TODO:
-	// perform the correct calculation
-	lastblock, _ := bss.BlockService.GetLastBlock() //need to add handling error if failed
-	currentHeight := lastblock.GetHeight()
-	return util.MaxUint32(currentHeight-720, 0) //NEED TO ADD MAX_ROLLBACK VARIABLE TO CONSTANT LATER AND CHANGE THE VALUE TO VARIABLE
+func (bss *Service) getMinRollbackHeight() (uint32, error) {
+	lastblock, err := bss.BlockService.GetLastBlock()
+	if err != nil {
+		return 0, err
+	}
+	currentHeight := lastblock.Height
+	if currentHeight < constant.MinRollbackBlocks {
+		return 0, nil
+	}
+	return currentHeight - constant.MinRollbackBlocks, nil
 }
 
 func (bs *Service) SetIsScanning(isScanning bool) {
 	bs.isScanningBlockchain = isScanning
 }
+
+func (bss *Service) ProcessLater(transaction []*model.Transaction) {}
+
+func (bss *Service) ScheduleScan(height uint32, validate bool) {}
