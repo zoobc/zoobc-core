@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -41,6 +41,14 @@ func NewNodeAdminService(
 func (nas *NodeAdminService) GenerateProofOfOwnership(
 	accountAddress string) (*model.ProofOfOwnership, error) {
 
+	// get the node seed (private key)
+	nodeKeyConfig := util.NewNodeKeyConfig()
+	nodeKeys, _ := nodeKeyConfig.ParseKeysFile()
+	nodeKey := nodeKeyConfig.GetLastNodeKey(nodeKeys)
+	if nodeKey == nil {
+		return nil, blocker.NewBlocker(blocker.AppErr, "MissingNodePrivateKey")
+	}
+
 	lastBlock, err := nas.BlockService.GetLastBlock()
 	if err != nil {
 		return nil, err
@@ -55,9 +63,9 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 		BlockHash:      lastBlockHash,
 		BlockHeight:    lastBlock.Height,
 	}
+
 	messageBytes := commonUtils.GetProofOfOwnershipMessageBytes(poownMessage)
-	nodeSecretPhrase := viper.GetString("nodeSecretPhrase")
-	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeSecretPhrase)
+	poownSignature := crypto.NewSignature().SignByNode(messageBytes, nodeKey.Seed)
 	return &model.ProofOfOwnership{
 		MessageBytes: messageBytes,
 		Signature:    poownSignature,

@@ -31,7 +31,7 @@ func NewNodeKeyConfig() *NodeKeyConfig {
 		return nil
 	}
 	return &NodeKeyConfig{
-		filePath: filepath.Join(configPath, nodeKeysFileName),
+		filePath: filepath.Join("../../", configPath, nodeKeysFileName),
 	}
 }
 
