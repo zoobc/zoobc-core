@@ -243,7 +243,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		if block.Height != 0 {
 			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
 				log.Errorf("Can't delete Mempool Transactions: %s", err)
-				bs.QueryExecutor.RollbackTx()
+				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
 		}
