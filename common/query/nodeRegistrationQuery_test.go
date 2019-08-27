@@ -206,7 +206,7 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 				"DELETE FROM account_balance WHERE height > 1",
 				`
 			UPDATE account_balance SET latest = 1
-			WHERE height || '_' || id) IN (
+			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM account_balance
 				WHERE latest = 0

@@ -151,6 +151,6 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 // Rollback delete records `WHERE height > "height"
 func (tq *TransactionQuery) Rollback(height uint32) (queries []string, args uint32) {
 	return []string{
-		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", tq.TableName, height),
+		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", tq.getTableName(), height),
 	}, height
 }

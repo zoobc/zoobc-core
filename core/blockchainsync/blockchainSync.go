@@ -27,11 +27,12 @@ type Service struct {
 	QueryExecutor      query.ExecutorInterface
 }
 
-func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface) *Service {
+func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface, queryExecutor query.ExecutorInterface) *Service {
 	return &Service{
 		NeedGetMoreBlocks: true,
 		ChainType:         blockService.GetChainType(),
 		BlockService:      blockService,
 		P2pService:        p2pService,
+		QueryExecutor:     queryExecutor,
 	}
 }

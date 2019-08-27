@@ -133,10 +133,10 @@ func (*NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistra
 // and UPDATE latest of the `account_address` clause by `block_height`
 func (nr *NodeRegistrationQuery) Rollback(height uint32) (queries []string, args uint32) {
 	return []string{
-		fmt.Sprintf("DELETE FROM %s WHERE height > %d", nr.TableName, height),
+		fmt.Sprintf("DELETE FROM %s WHERE height > %d", nr.getTableName(), height),
 		fmt.Sprintf(`
 			UPDATE %s SET latest = 1
-			WHERE height || '_' || id) IN (
+			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
 				WHERE latest = 0

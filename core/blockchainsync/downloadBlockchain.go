@@ -303,7 +303,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 	}
 
 	if len(forkBlocks) > 0 {
-		log.Println("processing fork blocks %v", forkBlocks)
+		log.Printf("processing %d fork blocks...\n", len(forkBlocks))
 		err := bss.ProcessFork(forkBlocks, commonBlock, feederPeer)
 		if err != nil {
 			return err
