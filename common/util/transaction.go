@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -141,10 +142,6 @@ func ValidateTransaction(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	verifySignature bool,
 ) error {
-	// don't validate genesis transactions
-	if tx.Height == 0 {
-		return nil
-	}
 	if tx.Fee <= 0 {
 		return errors.New("TxFeeZero")
 	}

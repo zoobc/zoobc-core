@@ -117,6 +117,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 			Executor: queryExecutor,
 		},
 		query.NewAccountBalanceQuery(),
+		query.NewTransactionQuery(mainchain),
 		observerInstance,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService

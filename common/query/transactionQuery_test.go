@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -365,6 +365,74 @@ func TestTransactionQuery_BuildModel(t *testing.T) {
 			}
 			if got := tr.BuildModel(tt.args.txs, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BuildModel() = \n%v, want \n%v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	mockRowTransactionQueryScan struct {
+		Executor
+	}
+)
+
+func (*mockRowTransactionQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockTransactionQuery.Fields).AddRow(
+			-1273123123,
+			-123123123123,
+			1,
+			"senderAccountAddress",
+			"recipientAccountAddress",
+			binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
+			1,
+			10000,
+			make([]byte, 200),
+			88,
+			make([]byte, 88),
+			make([]byte, 68),
+			1,
+			1,
+		),
+	)
+	return db.QueryRow("")
+}
+
+func TestTransactionQuery_Scan(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		tx  *model.Transaction
+		row *sql.Row
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockTransactionQuery),
+			args: args{
+				tx:  &model.Transaction{},
+				row: (&mockRowTransactionQueryScan{}).ExecuteSelectRow("", ""),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tr := &TransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if err := tr.Scan(tt.args.tx, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("TransactionQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

@@ -57,6 +57,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
+		query.NewTransactionQuery(&chaintype.MainChain{}),
 		observer.NewObserver())
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

@@ -221,11 +221,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			tx.BlockID = block.ID
 			tx.Height = block.Height
 			tx.TransactionIndex = uint32(index) + 1
-			// validate the transaction
-			if err := util.ValidateTransaction(tx, bs.QueryExecutor, bs.AccountBalanceQuery, true); err != nil {
-				_ = bs.QueryExecutor.RollbackTx()
-				return err
-			}
+
 			// validate tx body and apply/perform transaction-specific logic
 			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed()
 			if err == nil {
