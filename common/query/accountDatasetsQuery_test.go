@@ -409,3 +409,58 @@ func TestAccountDatasetsQuery_Scan(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountDatasetsQuery_Rollback(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name        string
+		fields      fields
+		args        args
+		wantQueries []string
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockDatasetQuery),
+			args: args{
+				height: 5,
+			},
+			wantQueries: []string{
+				fmt.Sprintf("DELETE FROM %s WHERE height > %d", mockDatasetQuery.TableName, 5),
+				fmt.Sprintf(`
+			UPDATE %s SET latest = 1
+			WHERE (%s) IN (
+				SELECT (%s) as con
+				FROM %s
+				WHERE latest = 0
+				GROUP BY %s
+			)`,
+					mockDatasetQuery.TableName,
+					strings.Join(mockDatasetQuery.PrimaryFields, " || '_' || "),
+					fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], " || '_' || ")),
+					mockDatasetQuery.TableName,
+					strings.Join(mockDatasetQuery.PrimaryFields[:3], ", "),
+				),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			gotQueries := adq.Rollback(tt.args.height)
+			if !reflect.DeepEqual(gotQueries, tt.wantQueries) {
+				t.Errorf("AccountDatasetsQuery.Rollback() gotQueries = %v, want %v", gotQueries, tt.wantQueries)
+			}
+		})
+	}
+}
