@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -115,7 +114,7 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 	publicKey := commonUtils.GetPublicKeyFromSeed(seed)
 	nodeKey := &model.NodeKey{
 		Seed:      seed,
-		PublicKey: hex.EncodeToString(publicKey),
+		PublicKey: publicKey,
 	}
 
 	nodeKeys := make([]*model.NodeKey, 0)

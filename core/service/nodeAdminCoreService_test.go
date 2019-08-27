@@ -21,19 +21,21 @@ type (
 var (
 	nodeUtilfixtureNodeKeysJSON = []*model.NodeKey{
 		{
-			ID:        0,
-			PublicKey: "993a32c8073d6ce5cc30c79115637d4b312d7661db50f2f4648690f62590d587",
-			Seed:      "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
+			PublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			Seed: "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
 		},
 		{
-			ID:        1,
-			PublicKey: "000e06daaa363c3202428277e2eb7ecb050c98c2aa922b3fe0657ff13e98bbff",
-			Seed:      "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
+			ID: 1,
+			PublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12,
+				152, 194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
+			Seed: "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
 		},
 		{
-			ID:        2,
-			PublicKey: "8c7323339f16eac026686018504656d37b4834dd61793b979e5aa7116efd7a9e",
-			Seed:      "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
+			ID: 2,
+			PublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211,
+				123, 72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
+			Seed: "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
 		},
 	}
 )
@@ -156,9 +158,10 @@ func TestNodeAdminService_GetLastNodeKey(t *testing.T) {
 				nodeKeys: nodeUtilfixtureNodeKeysJSON,
 			},
 			want: &model.NodeKey{
-				ID:        2,
-				PublicKey: "8c7323339f16eac026686018504656d37b4834dd61793b979e5aa7116efd7a9e",
-				Seed:      "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
+				ID: 2,
+				PublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211,
+					123, 72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
+				Seed: "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
 			},
 		},
 		{
