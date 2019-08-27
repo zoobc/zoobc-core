@@ -17,6 +17,7 @@ type (
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
+		Scan(tx *model.Transaction, row *sql.Row) error
 	}
 
 	TransactionQuery struct {
@@ -139,6 +140,26 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 		txs = append(txs, &tx)
 	}
 	return txs
+}
+
+func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
+	err := row.Scan(
+		&tx.ID,
+		&tx.BlockID,
+		&tx.Height,
+		&tx.SenderAccountAddress,
+		&tx.RecipientAccountAddress,
+		&tx.TransactionType,
+		&tx.Fee,
+		&tx.Timestamp,
+		&tx.TransactionHash,
+		&tx.TransactionBodyLength,
+		&tx.TransactionBodyBytes,
+		&tx.Signature,
+		&tx.Version,
+		&tx.TransactionIndex,
+	)
+	return err
 }
 
 // Rollback delete records `WHERE height > "height"

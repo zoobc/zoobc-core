@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -332,14 +332,6 @@ func TestValidateTransaction(t *testing.T) {
 				queryExecutor:       &mockQueryExecutorSuccess{},
 				accountBalanceQuery: query.NewAccountBalanceQuery(),
 				verifySignature:     false,
-			},
-		},
-		{
-			name: "ValidateTransaction:Genesis",
-			args: args{
-				tx: &model.Transaction{
-					Height: 0,
-				},
 			},
 		},
 		{
