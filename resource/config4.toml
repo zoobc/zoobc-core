@@ -11,7 +11,6 @@ wellknownPeers=["127.0.0.1:8002"]
 
 apiRPCPort=3004
 apiHTTPPort=3034
-# nodeSecretPhrase = "spree uplifted stapling quotable disfigure lair deduct untying timothy maggot cryptic unrigged"
 ownerAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
 
 proofOfOwnershipReqTimeoutSec = 1

@@ -24,6 +24,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
@@ -56,10 +57,17 @@ func init() {
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
-		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
 		ownerAccountAddress = viper.GetString("ownerAccountAddress")
+
+		// get the node seed (private key)
+		nodeKeyConfig := coreUtil.NewNodeKeyConfig()
+		nodeKeys, _ := nodeKeyConfig.ParseKeysFile()
+		nodeKey := nodeKeyConfig.GetLastNodeKey(nodeKeys)
+		if nodeKey != nil {
+			nodeSecretPhrase = nodeKey.Seed
+		}
 	}
 
 	dbInstance = database.NewSqliteDB()
