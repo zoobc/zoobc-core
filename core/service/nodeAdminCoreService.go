@@ -98,7 +98,7 @@ func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 
 // GetLastNodeKey retrieves the last node key object from the node_key configuration file
 func (*NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKey {
-	if nodeKeys == nil || len(nodeKeys) == 0 {
+	if len(nodeKeys) == 0 {
 		return nil
 	}
 	max := nodeKeys[0]

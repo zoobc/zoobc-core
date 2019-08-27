@@ -37,10 +37,11 @@ var (
 			220, 8, 90, 171, 165, 229, 238, 235, 181, 89, 60, 28, 124, 22, 201, 237, 143,
 			63, 59, 156, 133, 194, 189, 97, 150, 245, 96, 45, 192, 236, 109, 80, 14, 31, 243, 10},
 	}
+	nodeAdminAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 )
 
 func (*nodeAdminCoreServiceMocked) GenerateProofOfOwnership(
-	accountAddress string) (*model.ProofOfOwnership, error) {
+	nodeAdminAccountAddress string) (*model.ProofOfOwnership, error) {
 	return nodeAdminAPIServicePoown, nil
 }
 
@@ -53,9 +54,8 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 	if err := util.LoadConfig("../resource", "config", "toml"); err != nil {
 		logrus.Fatal(err)
 	}
-	accountAddress := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 	timestamp := time.Now().Unix()
-	message := append([]byte(accountAddress), util.ConvertUint64ToBytes(uint64(timestamp))...)
+	message := append([]byte(nodeAdminAccountAddress), util.ConvertUint64ToBytes(uint64(timestamp))...)
 	sig := crypto.NewSignature().Sign(message, 0, "concur vocalist"+
 		" rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 
@@ -64,10 +64,10 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
 	}
 	type args struct {
-		accountAddress string
-		timestamp      int64
-		signature      []byte
-		timeout        int64
+		nodeAdminAccountAddress string
+		timestamp               int64
+		signature               []byte
+		timeout                 int64
 	}
 	tests := []struct {
 		name    string
@@ -83,10 +83,10 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				Query:                &mockExecutorNodeAdminAPIServiceSuccess{},
 			},
 			args: args{
-				accountAddress: accountAddress,
-				timestamp:      time.Now().Unix(),
-				signature:      sig,
-				timeout:        10,
+				nodeAdminAccountAddress: nodeAdminAccountAddress,
+				timestamp:               time.Now().Unix(),
+				signature:               sig,
+				timeout:                 10,
 			},
 			want:    nodeAdminAPIServicePoown,
 			wantErr: false,
@@ -98,10 +98,10 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				Query:                &mockExecutorNodeAdminAPIServiceSuccess{},
 			},
 			args: args{
-				accountAddress: accountAddress,
-				timestamp:      time.Now().Unix() - viper.GetInt64("proofOfOwnershipReqTimeoutSec"),
-				signature:      sig,
-				timeout:        10,
+				nodeAdminAccountAddress: nodeAdminAccountAddress,
+				timestamp:               time.Now().Unix() - viper.GetInt64("proofOfOwnershipReqTimeoutSec"),
+				signature:               sig,
+				timeout:                 10,
 			},
 			wantErr: true,
 		},
@@ -112,7 +112,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				Query:                tt.fields.Query,
 				NodeAdminCoreService: tt.fields.NodeAdminCoreService,
 			}
-			got, err := nas.GetProofOfOwnership(tt.args.accountAddress, tt.args.timestamp, tt.args.signature, tt.args.timeout)
+			got, err := nas.GetProofOfOwnership(tt.args.nodeAdminAccountAddress, tt.args.timestamp, tt.args.signature, tt.args.timeout)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeAdminService.GetProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -128,9 +128,8 @@ func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
 	if err := util.LoadConfig("../resource", "config", "toml"); err != nil {
 		logrus.Fatal(err)
 	}
-	accountAddress := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 	timestamp := time.Now().Unix()
-	message := append([]byte(accountAddress), util.ConvertUint64ToBytes(uint64(timestamp))...)
+	message := append([]byte(nodeAdminAccountAddress), util.ConvertUint64ToBytes(uint64(timestamp))...)
 	sig := crypto.NewSignature().Sign(message, 0, "concur vocalist"+
 		" rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	invalidSig := crypto.NewSignature().Sign(message, 0, "concur vocalist"+
@@ -141,11 +140,11 @@ func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
 	}
 	type args struct {
-		seed           string
-		accountAddress string
-		timestamp      int64
-		signature      []byte
-		timeout        int64
+		seed                    string
+		nodeAdminAccountAddress string
+		timestamp               int64
+		signature               []byte
+		timeout                 int64
 	}
 	tests := []struct {
 		name    string
@@ -170,11 +169,11 @@ func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
 				Query:                &mockExecutorNodeAdminAPIServiceSuccess{},
 			},
 			args: args{
-				seed:           "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
-				accountAddress: accountAddress,
-				timestamp:      time.Now().Unix(),
-				signature:      sig,
-				timeout:        10,
+				seed:                    "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
+				nodeAdminAccountAddress: nodeAdminAccountAddress,
+				timestamp:               time.Now().Unix(),
+				signature:               sig,
+				timeout:                 10,
 			},
 			want: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
@@ -187,11 +186,11 @@ func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
 				Query:                &mockExecutorNodeAdminAPIServiceSuccess{},
 			},
 			args: args{
-				seed:           "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
-				accountAddress: accountAddress,
-				timestamp:      time.Now().Unix(),
-				signature:      invalidSig,
-				timeout:        10,
+				seed:                    "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
+				nodeAdminAccountAddress: nodeAdminAccountAddress,
+				timestamp:               time.Now().Unix(),
+				signature:               invalidSig,
+				timeout:                 10,
 			},
 			wantErr: true,
 		},
@@ -202,7 +201,7 @@ func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
 				Query:                tt.fields.Query,
 				NodeAdminCoreService: tt.fields.NodeAdminCoreService,
 			}
-			got, err := n.GenerateNodeKey(tt.args.accountAddress, tt.args.timestamp, tt.args.signature, tt.args.timeout, tt.args.seed)
+			got, err := n.GenerateNodeKey(tt.args.nodeAdminAccountAddress, tt.args.timestamp, tt.args.signature, tt.args.timeout, tt.args.seed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeAdminService.GenerateNodeKey() error = %v, wantErr %v", err, tt.wantErr)
 				return
