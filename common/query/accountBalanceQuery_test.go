@@ -1,12 +1,12 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
-
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -44,7 +44,17 @@ var (
 		PopRevenue:       0,
 		Latest:           true,
 	}
+	mockAccountBalanceRow = []interface{}{
+		"BCZ",
+		1,
+		100,
+		10,
+		0,
+		true,
+	}
 )
+
+var _ = mockAccountBalanceRow
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
@@ -199,6 +209,66 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 			}
 			if gotArgs != tt.wantArgs {
 				t.Errorf("Rollback() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+type (
+	mockRowBalanceQueryScan struct {
+		Executor
+	}
+)
+
+func (*mockRowBalanceQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockAccountBalanceQuery.Fields).AddRow(
+			"BCZ",
+			1,
+			100,
+			10,
+			0,
+			true,
+		),
+	)
+	return db.QueryRow("")
+}
+
+func TestAccountBalanceQuery_Scan(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountBalance *model.AccountBalance
+		row            *sql.Row
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountBalanceQuery),
+			args: args{
+				accountBalance: mockAccountBalance,
+				row:            (&mockRowBalanceQueryScan{}).ExecuteSelectRow("", nil),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if err := a.Scan(tt.args.accountBalance, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("AccountBalanceQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

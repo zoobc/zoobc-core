@@ -128,3 +128,32 @@ func GetFixturesForRemoveNoderegistration() (txBody *model.RemoveNodeRegistratio
 	txBodyBytes = nr.GetBodyBytes()
 	return txBody, txBodyBytes
 }
+
+func GetFixturesForSetupAccountDataset() (txBody *model.SetupAccountDatasetTransactionBody, txBodyBytes []byte) {
+	txBody = &model.SetupAccountDatasetTransactionBody{
+		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Property:                "Admin",
+		Value:                   "Welcome",
+		MuchTime:                123,
+	}
+
+	sa := SetupAccountDataset{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixturesForRemoveAccountDataset() (txBody *model.RemoveAccountDatasetTransactionBody, txBodyBytes []byte) {
+	txBody = &model.RemoveAccountDatasetTransactionBody{
+		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Property:                "Admin",
+		Value:                   "Good bye",
+	}
+
+	ra := RemoveAccountDataset{
+		Body: txBody,
+	}
+	return txBody, ra.GetBodyBytes()
+}

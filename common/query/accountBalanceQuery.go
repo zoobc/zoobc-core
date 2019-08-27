@@ -22,6 +22,7 @@ type (
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
 		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance
+		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
 	}
 )
 
@@ -123,6 +124,19 @@ func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, 
 		accountBalances = append(accountBalances, &accountBalance)
 	}
 	return accountBalances
+}
+
+// Scan similar with `sql.Scan`
+func (*AccountBalanceQuery) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
+	err := row.Scan(
+		&accountBalance.AccountAddress,
+		&accountBalance.BlockHeight,
+		&accountBalance.SpendableBalance,
+		&accountBalance.Balance,
+		&accountBalance.PopRevenue,
+		&accountBalance.Latest,
+	)
+	return err
 }
 
 // Rollback delete records `WHERE block_height > "height"

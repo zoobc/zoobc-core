@@ -3,8 +3,9 @@ package transaction
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/transaction"
 
@@ -17,9 +18,10 @@ import (
 )
 
 var txTypeMap = map[string][]byte{
-	"sendMoney":    {1, 0, 0, 0},
-	"registerNode": {2, 0, 0, 0},
-	"setupDataset": {3, 0, 0, 0},
+	"sendMoney":            {1, 0, 0, 0},
+	"registerNode":         {2, 0, 0, 0},
+	"setupAccountDataset":  {3, 0, 0, 0},
+	"removeAccountDataset": {3, 1, 0, 0},
 }
 
 func GenerateTransactionBytes(logger *logrus.Logger,
@@ -113,7 +115,7 @@ func getTransaction(txType []byte) *model.Transaction {
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}
-	case util.ConvertBytesToUint32(txTypeMap["setupDataset"]):
+	case util.ConvertBytesToUint32(txTypeMap["setupAccountDataset"]):
 		txBody := &model.SetupAccountDatasetTransactionBody{
 			SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
@@ -126,7 +128,7 @@ func getTransaction(txType []byte) *model.Transaction {
 		}).GetBodyBytes()
 		return &model.Transaction{
 			Version:                 1,
-			TransactionType:         util.ConvertBytesToUint32(txTypeMap["setupDataset"]),
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["setupAccountDataset"]),
 			Timestamp:               time.Now().Unix(),
 			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
@@ -134,6 +136,29 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
 				SetupAccountDatasetTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["removeAccountDataset"]):
+		txBody := &model.RemoveAccountDatasetTransactionBody{
+			SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Property:                "Member",
+			Value:                   "Good bye",
+		}
+		txBodyBytes := (&transaction.RemoveAccountDataset{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["removeAccountDataset"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_RemoveAccountDatasetTransactionBody{
+				RemoveAccountDatasetTransactionBody: txBody,
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}
