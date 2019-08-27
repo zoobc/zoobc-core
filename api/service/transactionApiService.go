@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"time"
@@ -101,9 +100,7 @@ func (ts *TransactionService) GetTransactions(
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
-	caseQuery := query.CaseQuery{
-		Query: bytes.NewBuffer([]byte{}),
-	}
+	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
 	accountAddress := params.GetAccountAddress()

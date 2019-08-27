@@ -16,13 +16,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	removeNodeRegistrationBody, removeNodeRegistrationBodyBytes := GetFixturesForRemoveNoderegistration()
 	_, claimNodeRegistrationBody, claimNodeRegistrationBodyBytes := GetFixturesForClaimNoderegistration()
 
-	mockSetupAccountDatasetBody := &model.SetupAccountDatasetTransactionBody{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "Welcome",
-		MuchTime:                123,
-	}
+	mockSetupAccountDatasetBody, mockBytesSetupAccountDataset := GetFixturesForSetupAccountDataset()
+	mockRemoveAccountDatasetBody, mockBytesRemoveAccountDataset := GetFixturesForRemoveAccountDataset()
 
 	type fields struct {
 		Executor query.ExecutorInterface
@@ -238,25 +233,45 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					SenderAccountAddress:    mockSetupAccountDatasetBody.GetSetterAccountAddress(),
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
 						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{3, 0, 0, 0}),
-					TransactionBodyBytes: []byte{
-						44, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107, 68, 101, 66, 86,
-						70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 44, 0, 0, 0, 66, 67,
-						90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118,
-						66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 5, 0, 0, 0, 65, 100, 109, 105, 110, 7, 0,
-						0, 0, 87, 101, 108, 99, 111, 109, 101, 123, 0, 0, 0, 0, 0, 0, 0,
-					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{3, 0, 0, 0}),
+					TransactionBodyBytes: mockBytesSetupAccountDataset,
 				},
 			},
 			want: &SetupAccountDataset{
 				Body:                mockSetupAccountDatasetBody,
 				Height:              5,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       mockSetupAccountDatasetBody.GetSetterAccountAddress(),
+				QueryExecutor:       &query.Executor{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+			},
+		},
+		{
+			name: "wantRemoveDataset",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_RemoveAccountDatasetTransactionBody{
+						RemoveAccountDatasetTransactionBody: mockRemoveAccountDatasetBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{3, 1, 0, 0}),
+					TransactionBodyBytes: mockBytesRemoveAccountDataset,
+				},
+			},
+			want: &RemoveAccountDataset{
+				Body:                mockRemoveAccountDatasetBody,
+				Height:              5,
+				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -269,7 +284,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Executor: tt.fields.Executor,
 			}
 			if got := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("TypeSwitcher.GetTransactionType() = %v, want %v", got, tt.want)
+				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
