@@ -6,10 +6,12 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
-	nodeUtilfixtureNodeKeysJSON = []*NodeKey{
+	nodeUtilfixtureNodeKeysJSON = []*model.NodeKey{
 		{
 			ID:        0,
 			PublicKey: "993a32c8073d6ce5cc30c79115637d4b312d7661db50f2f4648690f62590d587",
@@ -35,7 +37,7 @@ func TestNodeKeyConfig_ParseKeysFile(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []*NodeKey
+		want    []*model.NodeKey
 		wantErr bool
 		errText string
 	}{
@@ -91,20 +93,20 @@ func TestNodeKeyConfig_GetLastNodeKey(t *testing.T) {
 		filePath string
 	}
 	type args struct {
-		nodeKeys []*NodeKey
+		nodeKeys []*model.NodeKey
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
-		want   *NodeKey
+		want   *model.NodeKey
 	}{
 		{
 			name: "GetLastNodeKey:success",
 			args: args{
 				nodeKeys: nodeUtilfixtureNodeKeysJSON,
 			},
-			want: &NodeKey{
+			want: &model.NodeKey{
 				ID:        2,
 				PublicKey: "8c7323339f16eac026686018504656d37b4834dd61793b979e5aa7116efd7a9e",
 				Seed:      "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
@@ -193,14 +195,14 @@ func TestNodeKeyConfig_GenerateNodeKey(t *testing.T) {
 
 	// extra checks
 	file, _ = ioutil.ReadFile(tmpFilePath)
-	data := make([]*NodeKey, 0)
+	data := make([]*model.NodeKey, 0)
 	_ = json.Unmarshal(file, &data)
 	if len(data) != len(nodeUtilfixtureNodeKeysJSON)+1 {
 		t.Errorf("NodeKeyConfig.GenerateNodeKey() data appended incorrectly to node keys file %s", tmpFilePath)
 	}
 	os.Remove(tmpFilePath)
 	file, _ = ioutil.ReadFile(tmpFilePath2)
-	data = make([]*NodeKey, 0)
+	data = make([]*model.NodeKey, 0)
 	_ = json.Unmarshal(file, &data)
 	if len(data) != 1 {
 		t.Errorf("NodeKeyConfig.GenerateNodeKey() data appended incorrectly to node keys file %s", tmpFilePath2)
