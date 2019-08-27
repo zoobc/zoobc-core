@@ -10,6 +10,8 @@ wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3002
 apiHTTPPort=3032
+apiReqTimeoutSec=2
+
 ownerAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 
 proofOfOwnershipReqTimeoutSec = 1

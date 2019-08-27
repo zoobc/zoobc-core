@@ -85,6 +85,7 @@ func (nas *NodeAdminService) GetProofOfOwnership(accountAddress string, timestam
 	return poown, nil
 }
 
+// GenerateNodeKey api to request the node to generate a new key pairs
 func (nas *NodeAdminService) GenerateNodeKey(accountAddress string, timestamp int64,
 	signature []byte, timeout int64, seed string) ([]byte, error) {
 

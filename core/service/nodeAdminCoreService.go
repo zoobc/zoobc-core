@@ -40,11 +40,11 @@ func NewNodeAdminService(
 	blockService BlockServiceInterface,
 	nodeKeyFilePath string) *NodeAdminService {
 	return &NodeAdminService{
-		queryExecutor,
-		blockQuery,
-		signature,
-		blockService,
-		nodeKeyFilePath,
+		QueryExecutor: queryExecutor,
+		BlockQuery:    blockQuery,
+		Signature:     signature,
+		BlockService:  blockService,
+		FilePath:      nodeKeyFilePath,
 	}
 }
 
@@ -119,6 +119,7 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 	}
 
 	nodeKeys := make([]*model.NodeKey, 0)
+
 	_, err := os.Stat(nas.FilePath)
 	if !(err != nil && os.IsNotExist(err)) {
 		// if there are previous keys, get the new id

@@ -47,16 +47,16 @@ func main() {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(1))
 	buffer.Write(sig)
-	response, err := c.GetProofOfOwnership(context.Background(), &rpc_model.GetProofOfOwnershipRequest{
+	response, err := c.GenerateNodeKey(context.Background(), &rpc_model.GenerateNodeKeyRequest{
 		AccountAddress: accountAddress,
-		Timestamp:      time.Now().Unix(),
+		Timestamp:      timestamp,
 		Signature:      sig,
 	})
 
 	if err != nil {
-		log.Fatalf("error calling remote.GetProofOfOwnership: %s", err)
+		log.Fatalf("error calling remote.GenerateNodeKey: %s", err)
 	}
 
-	log.Printf("response from remote.GetProofOfOwnership(): %v", response)
+	log.Printf("response from remote.GenerateNodeKey(): %v", response)
 
 }
