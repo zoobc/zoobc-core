@@ -56,6 +56,9 @@ func (nk *NodeKeyConfig) ParseKeysFile() ([]*NodeKey, error) {
 
 // GetLastNodeKey retrieves the last node key object from the node_key configuration file
 func (*NodeKeyConfig) GetLastNodeKey(nodeKeys []*NodeKey) *NodeKey {
+	if nodeKeys == nil || len(nodeKeys) == 0 {
+		return nil
+	}
 	max := nodeKeys[0]
 	for _, nodeKey := range nodeKeys {
 		if nodeKey.ID > max.ID {

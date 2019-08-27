@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -121,6 +121,8 @@ func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:co
 
 // mockQueryExecutorSuccess
 func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
+
+func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
 
 func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
@@ -1346,7 +1348,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...inter
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
 		"Version",
-	}).AddRow(2392517098252617169, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}).AddRow(-3642175946793918273, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	return db.Query("")
 }
 

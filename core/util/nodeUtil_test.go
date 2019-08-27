@@ -110,6 +110,13 @@ func TestNodeKeyConfig_GetLastNodeKey(t *testing.T) {
 				Seed:      "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
 			},
 		},
+		{
+			name: "GetLastNodeKey:success-{return nil when node_keys file don't exist}",
+			args: args{
+				nodeKeys: nil,
+			},
+			want: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

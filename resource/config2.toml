@@ -14,3 +14,5 @@ apiHTTPPort=3032
 ownerAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 
 proofOfOwnershipReqTimeoutSec = 1
+# Log Levels
+logLevels=["warn", "fatal", "error", "panic"]

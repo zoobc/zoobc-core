@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
-	"github.com/zoobc/zoobc-core/common/interceptor"
 	"sync"
+
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -46,7 +48,8 @@ var once sync.Once
 func NewPeerServiceClient() PeerServiceClientInterface {
 	once.Do(func() {
 		if PeerServiceClientInstance == nil {
-			apiLogger, _ = util.InitLogger(".log/", "debugP2PClient.log")
+			logLevels := viper.GetStringSlice("logLevels")
+			apiLogger, _ = util.InitLogger(".log/", "debugP2PClient.log", logLevels)
 			PeerServiceClientInstance = &PeerServiceClient{
 				Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
 					conn, err := grpc.Dial(
