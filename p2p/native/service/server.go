@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/interceptor"
 	"net"
+
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 
 	log "github.com/sirupsen/logrus"
 
@@ -34,8 +36,12 @@ type ServerService struct {
 var serverServiceInstance *ServerService
 
 func init() {
-	var err error
-	if apiLogger, err = util.InitLogger(".log/", "debugP2P.log"); err != nil {
+	var (
+		err       error
+		logLevels []string
+	)
+	logLevels = viper.GetStringSlice("logLevels")
+	if apiLogger, err = util.InitLogger(".log/", "debugP2P.log", logLevels); err != nil {
 		panic(err)
 	}
 }
