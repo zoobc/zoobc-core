@@ -139,7 +139,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	if err != nil {
 		return err
 	}
-	// TODO: validate Transaction will always return nil, because parsedTx.Height always 0
+
 	if err := util.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
@@ -182,6 +182,15 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			// compute transaction expiration time
 			txExpirationTime := blockTimestamp + constant.TransactionExpirationOffset
 			if blockTimestamp > 0 && tx.Timestamp > txExpirationTime {
+				continue
+			}
+
+			parsedTx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+			if err != nil {
+				continue
+			}
+
+			if err := util.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 				continue
 			}
 

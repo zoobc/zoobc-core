@@ -656,55 +656,6 @@ func TestBlockService_PushBlock(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "PushBlock:ApplyConfirmedFailed",
-			fields: fields{
-				Chaintype:          &chaintype.MainChain{},
-				QueryExecutor:      &mockQueryExecutorSuccess{},
-				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
-				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
-				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-				ActionTypeSwitcher: &transaction.TypeSwitcher{},
-				Observer:           observer.NewObserver(),
-			},
-			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					SmithScale:           10,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithAddress:    "",
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                1,
-					Timestamp:         12000,
-					Version:           1,
-					PreviousBlockHash: []byte{},
-					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
-					TotalAmount:       0,
-					TotalFee:          0,
-					TotalCoinBase:     0,
-					Transactions: []*model.Transaction{
-						{
-							Height: 0,
-						},
-					},
-					PayloadHash:    []byte{},
-					BlockSignature: []byte{},
-				},
-			},
-			wantErr: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
