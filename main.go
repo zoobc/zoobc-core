@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -24,23 +25,23 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
 )
 
 var (
-	dbPath, dbName, nodeSecretPhrase string
-	dbInstance                       *database.SqliteDB
-	db                               *sql.DB
-	apiRPCPort, apiHTTPPort          int
-	p2pServiceInstance               p2p.ServiceInterface
-	queryExecutor                    *query.Executor
-	observerInstance                 *observer.Observer
-	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
-	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	ownerAccountAddress              string
+	dbPath, dbName, configPath,
+	nodeKeyFile, nodeSecretPhrase string
+	dbInstance              *database.SqliteDB
+	db                      *sql.DB
+	apiRPCPort, apiHTTPPort int
+	p2pServiceInstance      p2p.ServiceInterface
+	queryExecutor           *query.Executor
+	observerInstance        *observer.Observer
+	blockServices           = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices         = make(map[int32]service.MempoolServiceInterface)
+	ownerAccountAddress     string
 )
 
 func init() {
@@ -62,9 +63,18 @@ func init() {
 		ownerAccountAddress = viper.GetString("ownerAccountAddress")
 
 		// get the node seed (private key)
-		nodeKeyConfig := coreUtil.NewNodeKeyConfig()
-		nodeKeys, _ := nodeKeyConfig.ParseKeysFile()
-		nodeKey := nodeKeyConfig.GetLastNodeKey(nodeKeys)
+		configPath = viper.GetString("configPath")
+		nodeKeyFile = viper.GetString("nodeKeyFile")
+		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, filepath.Join(configPath, nodeKeyFile))
+		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+		if err != nil {
+			// generate a node private key if there aren't already configured
+			seed := util.GetSecureRandomSeed()
+			if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
+				logrus.Fatal(err)
+			}
+		}
+		nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 		if nodeKey != nil {
 			nodeSecretPhrase = nodeKey.Seed
 		}
