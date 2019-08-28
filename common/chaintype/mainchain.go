@@ -25,5 +25,5 @@ func (*MainChain) GetName() string {
 
 // GetGenesisBlockID return the block ID of genesis block in the chain
 func (*MainChain) GetGenesisBlockID() int64 {
-	return -3642175946793918273
+	return -7040029069285428872
 }

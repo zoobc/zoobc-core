@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -14,8 +17,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"testing"
-	"time"
 )
 
 var (
@@ -90,7 +91,8 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 
 func TestNewServerInterceptor(t *testing.T) {
 	type args struct {
-		logger *logrus.Logger
+		logger              *logrus.Logger
+		ownerAccountAddress string
 	}
 	tests := []struct {
 		name        string
@@ -101,7 +103,8 @@ func TestNewServerInterceptor(t *testing.T) {
 		{
 			name: "wantRecover",
 			args: args{
-				logger: logrus.New(),
+				logger:              logrus.New(),
+				ownerAccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 			},
 			want: func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 				return nil, status.Errorf(codes.Internal, "there's something wrong")
@@ -121,7 +124,7 @@ func TestNewServerInterceptor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewServerInterceptor(tt.args.logger)
+			got := NewServerInterceptor(tt.args.logger, tt.args.ownerAccountAddress)
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewInterceptor() = %v, want %v", got, tt.want)
 			}

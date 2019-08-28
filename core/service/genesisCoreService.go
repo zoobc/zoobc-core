@@ -37,7 +37,7 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 					Version:                 1,
 					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
 					Height:                  0,
-					Timestamp:               1562806389280,
+					Timestamp:               1562806389,
 					SenderAccountAddress:    constant.GenesisAccountAddress,
 					RecipientAccountAddress: receiver,
 					Fee:                     0,
