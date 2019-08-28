@@ -34,7 +34,6 @@ var (
 			220, 8, 90, 171, 165, 229, 238, 235, 181, 89, 60, 28, 124, 22, 201, 237, 143,
 			63, 59, 156, 133, 194, 189, 97, 150, 245, 96, 45, 192, 236, 109, 80, 14, 31, 243, 10},
 	}
-	nodeAdminAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 )
 
 func (*nodeAdminCoreServiceMocked) GenerateProofOfOwnership(

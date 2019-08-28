@@ -31,17 +31,18 @@ import (
 )
 
 var (
-	dbPath, dbName, configPath,
-	nodeKeyFile, nodeSecretPhrase string
-	dbInstance                           *database.SqliteDB
-	db                                   *sql.DB
-	apiRPCPort, apiHTTPPort              int
-	p2pServiceInstance                   p2p.ServiceInterface
-	queryExecutor                        *query.Executor
-	observerInstance                     *observer.Observer
-	blockServices                        = make(map[int32]coreService.BlockServiceInterface)
-	mempoolServices                      = make(map[int32]service.MempoolServiceInterface)
-	ownerAccountAddress, nodeKeyFilePath string
+	dbPath, dbName,
+	nodeSecretPhrase string
+	dbInstance              *database.SqliteDB
+	db                      *sql.DB
+	apiRPCPort, apiHTTPPort int
+	p2pServiceInstance      p2p.ServiceInterface
+	queryExecutor           *query.Executor
+	observerInstance        *observer.Observer
+	blockServices           = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices         = make(map[int32]service.MempoolServiceInterface)
+	ownerAccountAddress     string
+	nodeKeyFilePath         string
 )
 
 func init() {
@@ -65,11 +66,7 @@ func init() {
 		configPath := viper.GetString("configPath")
 		nodeKeyFile := viper.GetString("nodeKeyFile")
 		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
-
-		// get the node seed (private key)
-		configPath = viper.GetString("configPath")
-		nodeKeyFile = viper.GetString("nodeKeyFile")
-		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, filepath.Join(configPath, nodeKeyFile))
+		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 		if err != nil {
 			// generate a node private key if there aren't already configured
