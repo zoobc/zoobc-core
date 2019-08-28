@@ -141,19 +141,25 @@ func (*AccountBalanceQuery) Scan(accountBalance *model.AccountBalance, row *sql.
 
 // Rollback delete records `WHERE block_height > "height"
 // and UPDATE latest of the `account_address` clause by `block_height`
-func (q *AccountBalanceQuery) Rollback(height uint32) (queries []string, args uint32) {
-	return []string{
-		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", q.TableName, height),
-		fmt.Sprintf(`
-			UPDATE %s SET latest = 1
+func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", q.TableName),
+			[]interface{}{height},
+		},
+		{
+			fmt.Sprintf(`
+			UPDATE %s SET latest = ?
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM %s
 				WHERE latest = 0
 				GROUP BY account_address
 			)`,
-			q.TableName,
-			q.TableName,
-		),
-	}, height
+				q.TableName,
+				q.TableName,
+			),
+			[]interface{}{1},
+		},
+	}
 }
