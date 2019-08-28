@@ -163,21 +163,22 @@ func authRequest(ctx context.Context, method, ownerAddress string) error {
 		// unprotected service, by pass the auth checking
 		requestType = -1
 	}
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return blocker.NewBlocker(
-			blocker.AuthErr,
-			"metadata not provided",
-		)
-	}
-	authSlice := md.Get("authorization")
-	if authSlice == nil {
-		return blocker.NewBlocker(
-			blocker.AuthErr,
-			"authorization metadata not provided",
-		)
-	}
+
 	if requestType > -1 {
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return blocker.NewBlocker(
+				blocker.AuthErr,
+				"metadata not provided",
+			)
+		}
+		authSlice := md.Get("authorization")
+		if authSlice == nil {
+			return blocker.NewBlocker(
+				blocker.AuthErr,
+				"authorization metadata not provided",
+			)
+		}
 		// validate request
 		// todo: this is verifying against whatever owner address is in the config file, update this
 		// todo: to follow how `claim` node work.

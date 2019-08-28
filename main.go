@@ -33,15 +33,15 @@ import (
 var (
 	dbPath, dbName, configPath,
 	nodeKeyFile, nodeSecretPhrase string
-	dbInstance              *database.SqliteDB
-	db                      *sql.DB
-	apiRPCPort, apiHTTPPort int
-	p2pServiceInstance      p2p.ServiceInterface
-	queryExecutor           *query.Executor
-	observerInstance        *observer.Observer
-	blockServices           = make(map[int32]coreService.BlockServiceInterface)
-	mempoolServices         = make(map[int32]service.MempoolServiceInterface)
-	ownerAccountAddress     string
+	dbInstance                           *database.SqliteDB
+	db                                   *sql.DB
+	apiRPCPort, apiHTTPPort              int
+	p2pServiceInstance                   p2p.ServiceInterface
+	queryExecutor                        *query.Executor
+	observerInstance                     *observer.Observer
+	blockServices                        = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices                      = make(map[int32]service.MempoolServiceInterface)
+	ownerAccountAddress, nodeKeyFilePath string
 )
 
 func init() {
@@ -61,6 +61,10 @@ func init() {
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
 		ownerAccountAddress = viper.GetString("ownerAccountAddress")
+
+		configPath := viper.GetString("configPath")
+		nodeKeyFile := viper.GetString("nodeKeyFile")
+		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
 
 		// get the node seed (private key)
 		configPath = viper.GetString("configPath")
@@ -94,7 +98,7 @@ func init() {
 	observerInstance = observer.NewObserver()
 }
 
-func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress string) {
+func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress, nodeKeyFilePath string) {
 	startP2pService()
 	api.Start(
 		apiRPCPort,
@@ -103,6 +107,7 @@ func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress st
 		p2pServiceInstance,
 		blockServices,
 		ownerAccountAddress,
+		nodeKeyFilePath,
 	)
 }
 
@@ -191,7 +196,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	startServices(queryExecutor, ownerAccountAddress)
+	startServices(queryExecutor, ownerAccountAddress, nodeKeyFilePath)
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true

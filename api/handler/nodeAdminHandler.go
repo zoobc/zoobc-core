@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 
-	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -17,8 +16,7 @@ type NodeAdminHandler struct {
 // GetPoown handles request to get data of a proof of ownership
 func (gp *NodeAdminHandler) GetProofOfOwnership(ctx context.Context,
 	req *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error) {
-	ownerAccountAddress := viper.GetString("ownerAccountAddress")
-	response, err := gp.Service.GetProofOfOwnership(ownerAccountAddress)
+	response, err := gp.Service.GetProofOfOwnership()
 	if err != nil {
 		return nil, err
 	}

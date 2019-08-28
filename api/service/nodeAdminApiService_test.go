@@ -55,13 +55,9 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 		Query                query.ExecutorInterface
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
 	}
-	type args struct {
-		nodeAdminAccountAddress string
-	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		want    *model.ProofOfOwnership
 		wantErr bool
 	}{
@@ -70,9 +66,6 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 			fields: fields{
 				NodeAdminCoreService: &nodeAdminCoreServiceMocked{},
 				Query:                &mockExecutorNodeAdminAPIServiceSuccess{},
-			},
-			args: args{
-				nodeAdminAccountAddress: nodeAdminAccountAddress,
 			},
 			want:    nodeAdminAPIServicePoown,
 			wantErr: false,
@@ -84,7 +77,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 				Query:                tt.fields.Query,
 				NodeAdminCoreService: tt.fields.NodeAdminCoreService,
 			}
-			got, err := nas.GetProofOfOwnership(tt.args.nodeAdminAccountAddress)
+			got, err := nas.GetProofOfOwnership()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeAdminService.GetProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				return

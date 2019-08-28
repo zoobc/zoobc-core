@@ -1,9 +1,6 @@
 package service
 
 import (
-	"path/filepath"
-
-	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -14,7 +11,7 @@ import (
 type (
 	// TransactionServiceInterface represents interface for TransactionService
 	NodeAdminServiceInterface interface {
-		GetProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error)
+		GetProofOfOwnership() (*model.ProofOfOwnership, error)
 		GenerateNodeKey(seed string) ([]byte, error)
 	}
 
@@ -22,13 +19,14 @@ type (
 	NodeAdminService struct {
 		Query                query.ExecutorInterface
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
+		ownerAccountAddress  string
 	}
 )
 
 var nodeAdminServiceInstance *NodeAdminService
 
 // NewBlockService create a singleton instance of BlockService
-func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminService {
+func NewNodeAdminService(queryExecutor query.ExecutorInterface, ownerAccountAddress, nodeKeyFilePath string) *NodeAdminService {
 	if nodeAdminServiceInstance == nil {
 		mainchain := &chaintype.MainChain{}
 		blockService := coreService.NewBlockService(
@@ -44,10 +42,6 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminServic
 			nil,
 		)
 
-		configPath := viper.GetString("configPath")
-		nodeKeyFile := viper.GetString("nodeKeyFile")
-		nodeKeyFilePath := filepath.Join(configPath, nodeKeyFile)
-
 		nodeAdminCoreService := coreService.NewNodeAdminService(queryExecutor,
 			query.NewBlockQuery(mainchain), crypto.NewSignature(), blockService, nodeKeyFilePath)
 		nodeAdminServiceInstance = &NodeAdminService{
@@ -59,8 +53,8 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface) *NodeAdminServic
 }
 
 // GetProofOfOwnership GetProof of ownership
-func (nas *NodeAdminService) GetProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error) {
-	poown, err := nas.NodeAdminCoreService.GenerateProofOfOwnership(accountAddress)
+func (nas *NodeAdminService) GetProofOfOwnership() (*model.ProofOfOwnership, error) {
+	poown, err := nas.NodeAdminCoreService.GenerateProofOfOwnership(nas.ownerAccountAddress)
 	if err != nil {
 		return nil, err
 	}
