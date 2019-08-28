@@ -656,55 +656,6 @@ func TestBlockService_PushBlock(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "PushBlock:ApplyConfirmedFailed",
-			fields: fields{
-				Chaintype:          &chaintype.MainChain{},
-				QueryExecutor:      &mockQueryExecutorSuccess{},
-				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
-				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
-				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-				ActionTypeSwitcher: &transaction.TypeSwitcher{},
-				Observer:           observer.NewObserver(),
-			},
-			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					SmithScale:           10,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithAddress:    "",
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                1,
-					Timestamp:         12000,
-					Version:           1,
-					PreviousBlockHash: []byte{},
-					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
-					TotalAmount:       0,
-					TotalFee:          0,
-					TotalCoinBase:     0,
-					Transactions: []*model.Transaction{
-						{
-							Height: 0,
-						},
-					},
-					PayloadHash:    []byte{},
-					BlockSignature: []byte{},
-				},
-			},
-			wantErr: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1348,7 +1299,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...inter
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
 		"Version",
-	}).AddRow(-3642175946793918273, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}).AddRow(-7040029069285428872, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	return db.Query("")
 }
 

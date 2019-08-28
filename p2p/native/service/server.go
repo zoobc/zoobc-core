@@ -68,8 +68,9 @@ func (ss *ServerService) StartListening(listener net.Listener) error {
 	}
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
+	ownerAccountAddress := viper.GetString("ownerAccountAddress")
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
 	)
 	service.RegisterP2PCommunicationServer(grpcServer, ss)
 	return grpcServer.Serve(listener)

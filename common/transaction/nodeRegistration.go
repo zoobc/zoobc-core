@@ -39,7 +39,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 			return err
 		}
 	}
-	//FIXME: missing NodeID
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
 		LockedBalance:      tx.Body.LockedBalance,

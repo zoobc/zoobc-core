@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -30,16 +31,18 @@ import (
 )
 
 var (
-	dbPath, dbName, nodeSecretPhrase string
-	dbInstance                       *database.SqliteDB
-	db                               *sql.DB
-	apiRPCPort, apiHTTPPort          int
-	p2pServiceInstance               p2p.ServiceInterface
-	queryExecutor                    *query.Executor
-	observerInstance                 *observer.Observer
-	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
-	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	ownerAccountAddress              string
+	dbPath, dbName,
+	nodeSecretPhrase string
+	dbInstance              *database.SqliteDB
+	db                      *sql.DB
+	apiRPCPort, apiHTTPPort int
+	p2pServiceInstance      p2p.ServiceInterface
+	queryExecutor           *query.Executor
+	observerInstance        *observer.Observer
+	blockServices           = make(map[int32]coreService.BlockServiceInterface)
+	mempoolServices         = make(map[int32]service.MempoolServiceInterface)
+	ownerAccountAddress     string
+	nodeKeyFilePath         string
 )
 
 func init() {
@@ -56,10 +59,26 @@ func init() {
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
-		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
 		ownerAccountAddress = viper.GetString("ownerAccountAddress")
+
+		configPath := viper.GetString("configPath")
+		nodeKeyFile := viper.GetString("nodeKeyFile")
+		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
+		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
+		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+		if err != nil {
+			// generate a node private key if there aren't already configured
+			seed := util.GetSecureRandomSeed()
+			if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
+				logrus.Fatal(err)
+			}
+		}
+		nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+		if nodeKey != nil {
+			nodeSecretPhrase = nodeKey.Seed
+		}
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -76,7 +95,7 @@ func init() {
 	observerInstance = observer.NewObserver()
 }
 
-func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress string) {
+func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress, nodeKeyFilePath string) {
 	startP2pService()
 	api.Start(
 		apiRPCPort,
@@ -85,6 +104,7 @@ func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress st
 		p2pServiceInstance,
 		blockServices,
 		ownerAccountAddress,
+		nodeKeyFilePath,
 	)
 }
 
@@ -117,6 +137,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 			Executor: queryExecutor,
 		},
 		query.NewAccountBalanceQuery(),
+		query.NewTransactionQuery(mainchain),
 		observerInstance,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
@@ -172,7 +193,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	startServices(queryExecutor, ownerAccountAddress)
+	startServices(queryExecutor, ownerAccountAddress, nodeKeyFilePath)
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true

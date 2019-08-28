@@ -72,6 +72,7 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 	if account.AccountAddress == "" {
 		generator.Balance = big.NewInt(0)
 	} else {
+		// FIXME: till we use POS to compute the smithing power, we should add to the account balance, the locked funds (in node_registry)
 		accountEffectiveBalance := account.GetBalance()
 		generator.Balance = big.NewInt(int64(math.Max(0, float64(accountEffectiveBalance))))
 	}

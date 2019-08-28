@@ -195,25 +195,28 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 		name        string
 		fields      fields
 		args        args
-		wantQueries []string
-		wantArgs    uint32
+		wantQueries [][]interface{}
 	}{
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockAccountBalanceQuery),
 			args:   args{height: uint32(1)},
-			wantQueries: []string{
-				"DELETE FROM account_balance WHERE height > 1",
-				`
-			UPDATE account_balance SET latest = 1
+			wantQueries: [][]interface{}{
+				{
+					"DELETE FROM account_balance WHERE height > ?",
+					[]interface{}{uint32(1)},
+				},
+				{`
+			UPDATE account_balance SET latest = ?
 			WHERE height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM account_balance
 				WHERE latest = 0
 				GROUP BY id
 			)`,
+					[]interface{}{1},
+				},
 			},
-			wantArgs: uint32(1),
 		},
 	}
 	for _, tt := range tests {
@@ -222,12 +225,9 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQueries, gotArgs := nr.Rollback(tt.args.height)
+			gotQueries := nr.Rollback(tt.args.height)
 			if !reflect.DeepEqual(gotQueries, tt.wantQueries) {
-				t.Errorf("Rollback() gotQueries = %v, want %v", gotQueries, tt.wantQueries)
-			}
-			if gotArgs != tt.wantArgs {
-				t.Errorf("Rollback() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("Rollback() gotQueries = \n%v, want \n%v", gotQueries, tt.wantQueries)
 			}
 		})
 	}

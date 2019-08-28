@@ -17,6 +17,7 @@ type (
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
+		Scan(tx *model.Transaction, row *sql.Row) error
 	}
 
 	TransactionQuery struct {
@@ -141,9 +142,32 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 	return txs
 }
 
+func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
+	err := row.Scan(
+		&tx.ID,
+		&tx.BlockID,
+		&tx.Height,
+		&tx.SenderAccountAddress,
+		&tx.RecipientAccountAddress,
+		&tx.TransactionType,
+		&tx.Fee,
+		&tx.Timestamp,
+		&tx.TransactionHash,
+		&tx.TransactionBodyLength,
+		&tx.TransactionBodyBytes,
+		&tx.Signature,
+		&tx.Version,
+		&tx.TransactionIndex,
+	)
+	return err
+}
+
 // Rollback delete records `WHERE height > "height"
-func (tq *TransactionQuery) Rollback(height uint32) (queries []string, args uint32) {
-	return []string{
-		fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", tq.TableName, height),
-	}, height
+func (tq *TransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", tq.TableName),
+			[]interface{}{height},
+		},
+	}
 }
