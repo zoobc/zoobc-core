@@ -212,18 +212,21 @@ func TestBlockQuery_Rollback(t *testing.T) {
 		height uint32
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantStr  []string
-		wantArgs uint32
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
 	}{
 		{
-			name:     "wantSuccess",
-			fields:   fields(*mockBlockQuery),
-			args:     args{height: uint32(1)},
-			wantStr:  []string{"DELETE FROM block WHERE height > 1"},
-			wantArgs: uint32(1),
+			name:   "wantSuccess",
+			fields: fields(*mockBlockQuery),
+			args:   args{height: uint32(1)},
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM block WHERE height > ?",
+					[]interface{}{uint32(1)},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -233,13 +236,10 @@ func TestBlockQuery_Rollback(t *testing.T) {
 				TableName: tt.fields.TableName,
 				ChainType: tt.fields.ChainType,
 			}
-			gotStr, gotArgs := bq.Rollback(tt.args.height)
-			if !reflect.DeepEqual(gotStr, tt.wantStr) {
-				t.Errorf("Rollback() = %v, want %v", gotStr, tt.wantStr)
+			multiQueries := bq.Rollback(tt.args.height)
+			if !reflect.DeepEqual(multiQueries, tt.wantMultiQueries) {
+				t.Errorf("Rollback() = %v, want %v", multiQueries, tt.wantMultiQueries)
 				return
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("Rollback() = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
