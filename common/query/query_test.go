@@ -24,6 +24,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewTransactionQuery(chaintype.GetChainType(0)),
 				NewNodeRegistrationQuery(),
 				NewAccountBalanceQuery(),
+				NewAccountDatasetsQuery(),
 			},
 		},
 	}
