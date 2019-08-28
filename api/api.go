@@ -45,7 +45,7 @@ func init() {
 func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
