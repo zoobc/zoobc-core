@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -36,13 +36,14 @@ func main() {
 		log.Fatalf("did not connect: %s", err)
 	}
 	defer conn.Close()
+
 	c := rpcService.NewNodeAdminServiceClient(conn)
 
 	signature := crypto.Signature{}
 	accountSeed := "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 	currentTime := uint64(time.Now().Unix())
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetProofOfOwnership)))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GeneratetNodeKey)))
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig := signature.Sign(
 		buffer.Bytes(),
@@ -54,12 +55,12 @@ func main() {
 	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
-	response, err := c.GetProofOfOwnership(ctx, &rpcModel.GetProofOfOwnershipRequest{})
+	response, err := c.GenerateNodeKey(ctx, &rpcModel.GenerateNodeKeyRequest{})
 
 	if err != nil {
-		log.Fatalf("error calling remote.GetProofOfOwnership: %s", err)
+		log.Fatalf("error calling remote.GenerateNodeKey: %s", err)
 	}
 
-	log.Printf("response from remote.GetProofOfOwnership(): %v", response)
+	log.Printf("response from remote.GenerateNodeKey(): %v", response)
 
 }
