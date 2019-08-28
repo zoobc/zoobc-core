@@ -254,22 +254,27 @@ func (adq *AccountDatasetsQuery) GetFields() []string {
 	)
 }
 
-func (adq *AccountDatasetsQuery) Rollback(height uint32) []string {
-	return []string{
-		fmt.Sprintf("DELETE FROM %s WHERE height > %d", adq.TableName, height),
-		fmt.Sprintf(`
-			UPDATE %s SET latest = 1
-			WHERE (%s) IN (
-				SELECT (%s) as con
-				FROM %s
-				WHERE latest = 0
-				GROUP BY %s
-			)`,
-			adq.TableName,
-			strings.Join(adq.PrimaryFields, " || '_' || "),
-			fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(adq.PrimaryFields[:3], " || '_' || ")),
-			adq.TableName,
-			strings.Join(adq.PrimaryFields[:3], ", "),
-		),
+func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", adq.TableName),
+			[]interface{}{height},
+		},
+		{
+			fmt.Sprintf(`
+				UPDATE %s SET latest = 1
+				WHERE (%s) IN (
+					SELECT (%s) as con
+					FROM %s
+					WHERE latest = 0
+					GROUP BY %s
+				)`,
+				adq.TableName,
+				strings.Join(adq.PrimaryFields, " || '_' || "),
+				fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(adq.PrimaryFields[:3], " || '_' || ")),
+				adq.TableName,
+				strings.Join(adq.PrimaryFields[:3], ", "),
+			),
+		},
 	}
 }
