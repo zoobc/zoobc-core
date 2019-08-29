@@ -15,7 +15,7 @@ import (
 )
 
 type mockP2pServiceSuccess struct {
-	p2p.ServiceInterface
+	p2p.Peer2PeerServiceInterface
 }
 
 func (*mockP2pServiceSuccess) GetNextBlocks(destPeer *model.Peer, _ chaintype.ChainType,
@@ -47,7 +47,7 @@ func (*mockP2pServiceSuccess) GetCommonMilestoneBlockIDs(destPeer *model.Peer, _
 }
 
 type mockP2pServiceSuccessOneResult struct {
-	p2p.ServiceInterface
+	p2p.Peer2PeerServiceInterface
 }
 
 func (*mockP2pServiceSuccessOneResult) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
@@ -58,7 +58,7 @@ func (*mockP2pServiceSuccessOneResult) GetNextBlockIDs(destPeer *model.Peer, _ c
 }
 
 type mockP2pServiceSuccessNewResult struct {
-	p2p.ServiceInterface
+	p2p.Peer2PeerServiceInterface
 }
 
 func (*mockP2pServiceSuccessNewResult) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType,
@@ -69,7 +69,7 @@ func (*mockP2pServiceSuccessNewResult) GetNextBlockIDs(destPeer *model.Peer, _ c
 }
 
 type mockP2pServiceFail struct {
-	p2p.ServiceInterface
+	p2p.Peer2PeerServiceInterface
 }
 
 func (*mockP2pServiceFail) GetNextBlockIDs(destPeer *model.Peer, _ chaintype.ChainType, blockID int64,
@@ -119,7 +119,7 @@ func (*mockBlockServiceFail) GetLastBlock() (*model.Block, error) {
 
 func TestGetPeerCommonBlockID(t *testing.T) {
 	type args struct {
-		p2pService   p2p.ServiceInterface
+		p2pService   p2p.Peer2PeerServiceInterface
 		blockService coreService.BlockServiceInterface
 	}
 	tests := []struct {
@@ -176,7 +176,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 
 func TestGetBlockIdsAfterCommon(t *testing.T) {
 	type args struct {
-		p2pService   p2p.ServiceInterface
+		p2pService   p2p.Peer2PeerServiceInterface
 		blockService coreService.BlockServiceInterface
 	}
 

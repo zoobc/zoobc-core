@@ -1,7 +1,9 @@
-package service
+package rpcServer
 
 import (
 	"context"
+	"github.com/zoobc/zoobc-core/p2p/native/service"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
 	"reflect"
 	"testing"
 
@@ -57,16 +59,16 @@ func TestServerService_GetPeerInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hostServiceInstance = CreateHostService(tt.fields.Host)
+			service.hostServiceInstance = strategy.NewNativeStrategy(tt.fields.Host)
 			obsr := &observer.Observer{}
 			ss := NewServerService(nil, obsr)
 			got, err := ss.GetPeerInfo(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("HostService.GetPeerInfo() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NativeStrategy.GetPeerInfo() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("HostService.GetPeerInfo() = %v, want %v", got, tt.want)
+				t.Errorf("NativeStrategy.GetPeerInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -128,16 +130,16 @@ func TestServerService_GetMorePeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hostServiceInstance = CreateHostService(tt.fields.Host)
+			service.hostServiceInstance = strategy.NewNativeStrategy(tt.fields.Host)
 			obsr := &observer.Observer{}
 			ss := NewServerService(nil, obsr)
 			got, err := ss.GetMorePeers(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("HostService.GetMorePeers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NativeStrategy.GetMorePeers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("HostService.GetMorePeers() = %v, want %v", got, tt.want)
+				t.Errorf("NativeStrategy.GetMorePeers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -202,17 +204,17 @@ func TestServerService_SendPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ss := &ServerService{
+			ss := &P2PServerHandler{
 				Observer: tt.fields.Observer,
 			}
-			hostServiceInstance = CreateHostService(tt.fields.Host)
+			service.hostServiceInstance = strategy.NewNativeStrategy(tt.fields.Host)
 			got, err := ss.SendPeers(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ServerService.SendPeers() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("P2PServerHandler.SendPeers() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ServerService.SendPeers() = %v, want %v", got, tt.want)
+				t.Errorf("P2PServerHandler.SendPeers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -266,16 +268,16 @@ func TestServerService_SendBlock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ss := &ServerService{
+			ss := &P2PServerHandler{
 				Observer: tt.fields.Observer,
 			}
 			got, err := ss.SendBlock(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ServerService.SendBlock() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("P2PServerHandler.SendBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ServerService.SendBlock() = %v, want %v", got, tt.want)
+				t.Errorf("P2PServerHandler.SendBlock() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -321,16 +323,16 @@ func TestServerService_SendTransaction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ss := &ServerService{
+			ss := &P2PServerHandler{
 				Observer: tt.fields.Observer,
 			}
 			got, err := ss.SendTransaction(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ServerService.SendTransaction() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("P2PServerHandler.SendTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ServerService.SendTransaction() = %v, want %v", got, tt.want)
+				t.Errorf("P2PServerHandler.SendTransaction() = %v, want %v", got, tt.want)
 			}
 		})
 	}

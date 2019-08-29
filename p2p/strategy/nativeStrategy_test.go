@@ -1,4 +1,4 @@
-package service
+package strategy
 
 import (
 	"reflect"
@@ -8,11 +8,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-func changeMaxUnresolvedPeers(hostServiceInstance *HostService, newValue int32) {
+func changeMaxUnresolvedPeers(hostServiceInstance *NativeStrategy, newValue int32) {
 	hostServiceInstance.MaxUnresolvedPeers = newValue
 }
 
-func changeMaxResolvedPeers(hostServiceInstance *HostService, newValue int32) {
+func changeMaxResolvedPeers(hostServiceInstance *NativeStrategy, newValue int32) {
 	hostServiceInstance.MaxResolvedPeers = newValue
 }
 
@@ -67,10 +67,10 @@ func TestCreateHostService(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *HostService
+		want *NativeStrategy
 	}{
 		{
-			name: "Host:CreateHostService",
+			name: "Host:NewNativeStrategy",
 			args: args{
 				hostInstance: &model.Host{
 					Info: &model.Node{
@@ -80,7 +80,7 @@ func TestCreateHostService(t *testing.T) {
 					},
 				},
 			},
-			want: &HostService{
+			want: &NativeStrategy{
 				Host: &model.Host{
 					Info: &model.Node{
 						SharedAddress: "127.0.0.1",
@@ -95,8 +95,8 @@ func TestCreateHostService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CreateHostService(tt.args.hostInstance); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateHostService() = %v, want %v", got, tt.want)
+			if got := NewNativeStrategy(tt.args.hostInstance); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewNativeStrategy() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -109,7 +109,7 @@ func TestGetHostService(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *HostService
+		want    *NativeStrategy
 		wantErr bool
 	}{
 		{
@@ -123,7 +123,7 @@ func TestGetHostService(t *testing.T) {
 					},
 				},
 			},
-			want: &HostService{
+			want: &NativeStrategy{
 				Host: &model.Host{
 					Info: &model.Node{
 						SharedAddress: "127.0.0.1",
@@ -147,7 +147,7 @@ func TestGetHostService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			CreateHostService(tt.args.hostInstance)
+			NewNativeStrategy(tt.args.hostInstance)
 			got, err := GetHostService()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetHostService() error = %v, wantErr %v", err, tt.wantErr)
@@ -189,7 +189,7 @@ func TestGetResolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			if got := hs.GetResolvedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetResolvedPeers() = %v, want %v", got, tt.want)
 			}
@@ -222,7 +222,7 @@ func TestGetAnyResolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			if got := hs.GetAnyResolvedPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyResolvedPeer() = %v, want %v", got, tt.want)
 			}
@@ -274,7 +274,7 @@ func TestAddToResolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			err := hs.AddToResolvedPeer(tt.args.newPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToResolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -337,7 +337,7 @@ func TestRemoveResolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			err := hs.RemoveResolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveResolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -382,7 +382,7 @@ func TestGetUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			if got := hs.GetUnresolvedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetUnresolvedPeers() = %v, want %v", got, tt.want)
 			}
@@ -415,7 +415,7 @@ func TestGetAnyUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			if got := hs.GetAnyUnresolvedPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyUnresolvedPeer() = %v, want %v", got, tt.want)
 			}
@@ -467,7 +467,7 @@ func TestAddToUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			err := hs.AddToUnresolvedPeer(tt.args.newPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -538,7 +538,7 @@ func TestAddToUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			changeMaxUnresolvedPeers(hs, tt.args.MaxUnresolvedPeers)
 			err := hs.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -602,7 +602,7 @@ func TestRemoveUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			err := hs.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -647,7 +647,7 @@ func TestGetBlacklistedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			if got := hs.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -699,7 +699,7 @@ func TestAddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			err := hs.AddToBlacklistedPeer(tt.args.newPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -762,7 +762,7 @@ func TestRemoveBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			err := hs.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -805,7 +805,7 @@ func TestGetAnyKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hs := CreateHostService(tt.args.hostInstance)
+			hs := NewNativeStrategy(tt.args.hostInstance)
 			if got := hs.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -814,7 +814,7 @@ func TestGetAnyKnownPeer(t *testing.T) {
 }
 
 func TestGetExceedMaxUnresolvedPeers(t *testing.T) {
-	hs := CreateHostService(&model.Host{
+	hs := NewNativeStrategy(&model.Host{
 		UnresolvedPeers: make(map[string]*model.Peer),
 	})
 	changeMaxUnresolvedPeers(hs, 1)
@@ -843,7 +843,7 @@ func TestGetExceedMaxUnresolvedPeers(t *testing.T) {
 }
 
 func TestGetExceedMaxResolvedPeers(t *testing.T) {
-	hs := CreateHostService(&model.Host{
+	hs := NewNativeStrategy(&model.Host{
 		ResolvedPeers: make(map[string]*model.Peer),
 	})
 	changeMaxResolvedPeers(hs, 1)

@@ -623,7 +623,7 @@ func (bs *BlockService) ReceiveBlock(block *model.Block, nodeSecretPhrase string
 			}
 			// generate receipt and return as response
 			// todo: lastblock last applied block, or incoming block?
-			//secretPhrase := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+			// secretPhrase := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 			nodeAddress := util.GetAddressFromSeed(nodeSecretPhrase)
 			receipt, err := util.GenerateReceipt( // todo: var
 				lastBlock,
@@ -638,11 +638,14 @@ func (bs *BlockService) ReceiveBlock(block *model.Block, nodeSecretPhrase string
 				util.GetUnsignedReceiptBytes(receipt),
 				nodeSecretPhrase,
 			)
-			if err != nil {
-				return nil, err
-			}
 			return receipt, nil
-
 		}
+		return nil, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"block signature invalid")
 	}
+	return nil, blocker.NewBlocker(
+		blocker.BlockErr,
+		"last block hash does not match",
+	)
 }

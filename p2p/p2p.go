@@ -1,45 +1,189 @@
 package p2p
 
 import (
-	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
-	nativeService "github.com/zoobc/zoobc-core/p2p/native/service"
+	"github.com/zoobc/zoobc-core/p2p/rpcServer"
+	p2pService "github.com/zoobc/zoobc-core/p2p/service"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
-type ServiceInterface interface {
-	InitService(myAddress string, port uint32, wellknownPeers []string,
-		obsr *observer.Observer, nodeSecretPhrase string) (ServiceInterface, error)
-	SetBlockServices(blockServices map[int32]coreService.BlockServiceInterface)
-	StartP2P()
+type (
+	Peer2PeerServiceInterface interface {
+		StartP2P(
+			myAddress string,
+			peerPort uint32,
+			nodeSecretPhrase string,
+			queryExecutor query.ExecutorInterface,
+			blockServices map[int32]coreService.BlockServiceInterface,
+		)
+		SendBlockListener() observer.Listener
+		SendTransactionListener() observer.Listener
+	}
+	Peer2PeerService struct {
+		Host         *model.Host
+		PeerExplorer strategy.PeerExplorerStrategyInterface
+		Broadcaster  BroadcasterInterface
+	}
+)
 
-	GetHostInstance() *model.Host
-	DisconnectPeer(*model.Peer)
-
-	// GetAnyResolvedPeer Get any random connected peer
-	GetAnyResolvedPeer() *model.Peer
-	// GetResolvedPeers returns resolved peers in thread-safe manner
-	GetResolvedPeers() map[string]*model.Peer
-
-	SendBlockListener() observer.Listener
-	SendTransactionListener() observer.Listener
-	nativeService.PeerServiceClientInterface
+// InitService to initialize peer to peer service wrapper
+func NewP2PService(
+	host *model.Host,
+	broadcaster BroadcasterInterface,
+	peerExplorer strategy.PeerExplorerStrategyInterface,
+) (Peer2PeerServiceInterface, error) {
+	return &Peer2PeerService{
+		Host:         host,
+		Broadcaster:  broadcaster,
+		PeerExplorer: peerExplorer,
+	}, nil
 }
 
-// InitP2P to initialize p2p strategy will used
-// TODO: Add Switcer Interface
-func InitP2P(
+// StartP2P to run all p2p Thread service
+func (s *Peer2PeerService) StartP2P(
 	myAddress string,
-	port uint32,
-	wellknownPeers []string,
-	p2pType ServiceInterface,
-	obsr *observer.Observer,
-	nodeSecretPhrase string) ServiceInterface {
-	p2pService, err := p2pType.InitService(
-		myAddress, port, wellknownPeers, obsr, nodeSecretPhrase)
+	peerPort uint32,
+	nodeSecretPhrase string,
+	queryExecutor query.ExecutorInterface,
+	blockServices map[int32]coreService.BlockServiceInterface,
+) {
+	// initialize log
+	p2pLogger, err := util.InitLogger(".log/", "debug.log")
 	if err != nil {
-		log.Fatalf("Faild to initialize P2P service\nError : %v\n", err)
+		panic(err)
 	}
-	return p2pService
+	// peer to peer service layer | under p2p handler
+	p2pServerService := p2pService.NewP2PServerService(
+		s.PeerExplorer,
+		blockServices,
+		nodeSecretPhrase,
+	)
+	// start listening on peer port
+	go func() { // register handlers and listening to incoming p2p request
+		grpcServer := grpc.NewServer(
+			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(p2pLogger)),
+		)
+		service.RegisterP2PCommunicationServer(grpcServer, &rpcServer.P2PServerHandler{
+			Service: p2pServerService,
+		})
+		_ = grpcServer.Serve(p2pUtil.ServerListener(int(s.Host.GetInfo().GetPort())))
+	}()
+	// start p2p process threads
+	go s.resolvePeersThread()
+	go s.getMorePeersThread()
+	go s.updateBlacklistedStatus()
+}
+
+// resolvePeersThread to periodically try get response from peers in UnresolvedPeer list
+func (s *Peer2PeerService) resolvePeersThread() {
+	go s.PeerExplorer.ResolvePeers()
+	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		select {
+		case <-ticker.C:
+			go s.PeerExplorer.ResolvePeers()
+			go s.PeerExplorer.UpdateResolvedPeers()
+		case <-sigs:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+// getMorePeersThread to periodically request more peers from another node in Peers list
+func (s *Peer2PeerService) getMorePeersThread() {
+	go func() {
+		peer, err := s.PeerExplorer.GetMorePeersHandler()
+		if err != nil {
+			return
+		}
+		var myPeers []*model.Node
+		myResolvedPeers := s.PeerExplorer.GetResolvedPeers()
+		for _, peer := range myResolvedPeers {
+			myPeers = append(myPeers, peer.Info)
+		}
+		if peer == nil {
+			return
+		}
+		s.Broadcaster.SendMyPeers(
+			s.Host.Info,
+			peer,
+			myPeers,
+		)
+	}()
+	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		select {
+		case <-ticker.C:
+			go s.PeerExplorer.GetMorePeersHandler()
+		case <-sigs:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+// updateBlacklistedStatus to periodically check blacklisting time of black listed peer,
+// every 60sec if there are blacklisted peers to unblacklist
+func (s *Peer2PeerService) updateBlacklistedStatus() {
+	ticker := time.NewTicker(time.Duration(60) * time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				curTime := uint64(time.Now().Unix())
+				for _, p := range s.Host.GetBlacklistedPeers() {
+					if p.GetBlacklistingTime() > 0 &&
+						p.GetBlacklistingTime()+constant.BlacklistingPeriod <= curTime {
+						s.Host.KnownPeers[p2pUtil.GetFullAddressPeer(p)] = s.PeerExplorer.PeerUnblacklist(p)
+					}
+				}
+				break
+			case <-sigs:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+}
+
+// SendBlockListener setup listener for send block to the list peer
+func (s *Peer2PeerService) SendBlockListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			b := block.(*model.Block)
+			peers := s.PeerExplorer.GetResolvedPeers()
+			s.Broadcaster.SendBlock(b, peers)
+		},
+	}
+}
+
+// SendTransactionListener setup listener for transaction to the list peer
+func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionBytes interface{}, args interface{}) {
+			t := transactionBytes.([]byte)
+			peers := s.PeerExplorer.GetResolvedPeers()
+			s.Broadcaster.SendTransactionBytes(t, peers)
+		},
+	}
 }

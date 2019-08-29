@@ -3,6 +3,10 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/p2p/rpcClient"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +30,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
-	p2pNative "github.com/zoobc/zoobc-core/p2p/native"
 )
 
 var (
@@ -34,12 +37,18 @@ var (
 	dbInstance                       *database.SqliteDB
 	db                               *sql.DB
 	apiRPCPort, apiHTTPPort          int
-	p2pServiceInstance               p2p.ServiceInterface
+	peerPort                         uint32
+	p2pServiceInstance               p2p.Peer2PeerServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
 	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
 	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	ownerAccountAddress              string
+	peerServiceClient                rpcClient.PeerServiceClientInterface
+	broadcaster                      p2p.BroadcasterInterface
+	p2pHost                          *model.Host
+	peerExplorer                     strategy.PeerExplorerStrategyInterface
+	ownerAccountAddress, myAddress   string
+	wellknownPeers                   []string
 )
 
 func init() {
@@ -60,6 +69,9 @@ func init() {
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
 		ownerAccountAddress = viper.GetString("ownerAccountAddress")
+		myAddress = viper.GetString("myAddress")
+		peerPort = viper.GetUint32("peerPort")
+		wellknownPeers = viper.GetStringSlice("wellknownPeers")
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -74,10 +86,63 @@ func init() {
 
 	// initialize Oberver
 	observerInstance = observer.NewObserver()
+
+	initP2pInstance()
+
+	initObserverListeners()
 }
 
-func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress string) {
-	startP2pService()
+func initP2pInstance() {
+	// initialize peer client service
+	peerServiceClient = rpcClient.NewPeerServiceClient()
+
+	// init p2p instances
+	// initialize broadcaster instance
+	broadcaster = p2p.NewBroadcaster(
+		peerServiceClient,
+		queryExecutor,
+		query.NewReceiptQuery(
+			&chaintype.MainChain{},
+		),
+	)
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
+	if err != nil {
+		logrus.Fatal("fail to start p2p service")
+	}
+
+	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
+
+	// peer discovery strategy
+	peerExplorer = strategy.NewNativeStrategy(
+		p2pHost,
+	)
+	p2pServiceInstance, _ = p2p.NewP2PService(
+		p2pHost,
+		broadcaster,
+		peerExplorer,
+	)
+}
+
+func initObserverListeners() {
+	// init observer listeners
+	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	for _, blockService := range blockServices {
+		observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
+	}
+	for _, mempoolService := range mempoolServices {
+		observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
+	}
+}
+
+func startServices() {
+	p2pServiceInstance.StartP2P(
+		myAddress,
+		peerPort,
+		nodeSecretPhrase,
+		queryExecutor,
+		blockServices,
+	)
 	api.Start(
 		apiRPCPort,
 		apiHTTPPort,
@@ -88,23 +153,11 @@ func startServices(queryExecutor query.ExecutorInterface, ownerAccountAddress st
 	)
 }
 
-func startP2pService() {
-	myAddress := viper.GetString("myAddress")
-	peerPort := viper.GetUint32("peerPort")
-	wellknownPeers := viper.GetStringSlice("wellknownPeers")
-	p2pServiceInstance = p2p.InitP2P(
-		myAddress, peerPort, wellknownPeers, &p2pNative.Service{}, observerInstance, nodeSecretPhrase)
-	p2pServiceInstance.SetBlockServices(blockServices)
-
-	// run P2P service with any chaintype
-	go p2pServiceInstance.StartP2P()
-}
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
 		_ = processor.StartSmithing()
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)
 	}
-
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
@@ -159,7 +212,12 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
-	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(mainchainBlockService, p2pServiceInstance)
+	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
+		mainchainBlockService,
+		p2pServiceInstance,
+		peerServiceClient,
+		peerExplorer,
+	)
 	mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 
@@ -173,21 +231,11 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	startServices(queryExecutor, ownerAccountAddress)
+	startServices()
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
-
-	// observer
-	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
-	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	for _, blockService := range blockServices {
-		observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
-	}
-	for _, mempoolService := range mempoolServices {
-		observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
-	}
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

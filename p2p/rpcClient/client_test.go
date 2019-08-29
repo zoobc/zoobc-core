@@ -1,7 +1,8 @@
-package service
+package rpcClient
 
 import (
 	"context"
+	"github.com/zoobc/zoobc-core/p2p/rpcServer"
 	"net"
 	"reflect"
 	"testing"
@@ -9,14 +10,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/service"
-	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
+	nativeUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
 
 type (
 	mockServerService struct {
-		ServerService
+		rpcServer.P2PServerHandler
 	}
 )
 
