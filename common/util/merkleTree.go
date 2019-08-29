@@ -2,8 +2,9 @@ package util
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
+
+	"golang.org/x/crypto/sha3"
 )
 
 type opt struct {
@@ -56,7 +57,7 @@ func markleTree(c []opt) (leafHash, intermedHash, nodeHash, rootHash []byte) {
 				y1 = x1 + 1
 			}
 
-			dataBuffer := sha256.New()
+			dataBuffer := sha3.New256()
 			switch g {
 			case 0:
 				_, err := dataBuffer.Write([]byte(c[i].dataPiece))
@@ -108,28 +109,28 @@ func markleTree(c []opt) (leafHash, intermedHash, nodeHash, rootHash []byte) {
 // VerifyTree validates the hashes
 func VerifyTree(content string, leafHash, intermedHash, nodeHash, merkleRoot []byte) (bool, error) {
 
-	hLeaf := sha256.New()
+	hLeaf := sha3.New256()
 	_, err := hLeaf.Write([]byte(content))
 	if err != nil {
 		fmt.Printf("failed on leaf content \n")
 	}
 	contentHash := hLeaf.Sum(nil)
 
-	hIntermed := sha256.New()
+	hIntermed := sha3.New256()
 	_, err = hIntermed.Write(append(contentHash, leafHash...))
 	if err != nil {
 		fmt.Printf("failed on intermed \n")
 	}
 	intermedHashLeft := hIntermed.Sum(nil)
 
-	hNode := sha256.New()
+	hNode := sha3.New256()
 	_, err = hNode.Write(append(intermedHashLeft, intermedHash...))
 	if err != nil {
 		fmt.Printf("failed on node \n")
 	}
 	nodeHashLeft := hNode.Sum(nil)
 
-	hRoot := sha256.New()
+	hRoot := sha3.New256()
 	_, err = hRoot.Write(append(nodeHashLeft, nodeHash...))
 	if err != nil {
 		fmt.Printf("failed on root \n")
