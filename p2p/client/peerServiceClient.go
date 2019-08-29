@@ -1,4 +1,4 @@
-package rpcClient
+package client
 
 import (
 	"context"
@@ -21,8 +21,8 @@ type (
 		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
-		SendBlock(destPeer *model.Peer, block *model.Block) (*model.Receipt, error)
-		SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Receipt, error)
+		SendBlock(destPeer *model.Peer, senderPublicKey []byte, block *model.Block) (*model.Receipt, error)
+		SendTransaction(destPeer *model.Peer, senderPublicKey []byte, transactionBytes []byte) (*model.Receipt, error)
 
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
@@ -111,13 +111,14 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 }
 
 // SendBlock send block to selected peer
-func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Receipt, error) {
+func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, senderPublicKey []byte, block *model.Block) (*model.Receipt, error) {
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	res, err := p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
-		Block: block,
+		SenderPublicKey: senderPublicKey,
+		Block:           block,
 	})
 	if err != nil {
 		return nil, err
@@ -126,12 +127,13 @@ func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block
 }
 
 // SendTransaction send transaction to selected peer
-func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Receipt, error) {
+func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, senderPublicKey []byte, transactionBytes []byte) (*model.Receipt, error) {
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	res, err := p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
+		SenderPublicKey:  senderPublicKey,
 		TransactionBytes: transactionBytes,
 	})
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/p2p/rpcClient"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
@@ -16,22 +16,26 @@ type (
 		SendMyPeers(srcPeer *model.Node, destPeer *model.Peer, peers []*model.Node)
 	}
 
+	// Broadcaster is list of p2p communication that'll require node to collect receipt
 	Broadcaster struct {
-		PeerServiceClient rpcClient.PeerServiceClientInterface
-		QueryExecutor     query.ExecutorInterface
-		ReceiptQuery      query.ReceiptQueryInterface
+		BroadcasterNodePublicKey []byte
+		PeerServiceClient        client.PeerServiceClientInterface
+		QueryExecutor            query.ExecutorInterface
+		ReceiptQuery             query.ReceiptQueryInterface
 	}
 )
 
 func NewBroadcaster(
-	peerServiceClient rpcClient.PeerServiceClientInterface,
+	peerServiceClient client.PeerServiceClientInterface,
 	queryExecutor query.ExecutorInterface,
 	receiptQuery query.ReceiptQueryInterface,
+	nodePublicKey []byte,
 ) *Broadcaster {
 	return &Broadcaster{
-		PeerServiceClient: peerServiceClient,
-		QueryExecutor:     queryExecutor,
-		ReceiptQuery:      receiptQuery,
+		PeerServiceClient:        peerServiceClient,
+		QueryExecutor:            queryExecutor,
+		ReceiptQuery:             receiptQuery,
+		BroadcasterNodePublicKey: nodePublicKey,
 	}
 }
 
@@ -39,7 +43,7 @@ func NewBroadcaster(
 func (bc *Broadcaster) SendBlock(block *model.Block, peers map[string]*model.Peer) {
 	for _, peer := range peers {
 		go func() {
-			receipt, err := bc.PeerServiceClient.SendBlock(peer, block)
+			receipt, err := bc.PeerServiceClient.SendBlock(peer, bc.BroadcasterNodePublicKey, block)
 			if err != nil {
 				log.Warnf("sendBlockHandler Error accord %v\n", err)
 				return
@@ -58,10 +62,17 @@ func (bc *Broadcaster) SendBlock(block *model.Block, peers map[string]*model.Pee
 func (bc *Broadcaster) SendTransactionBytes(transactionBytes []byte, peers map[string]*model.Peer) {
 	for _, peer := range peers {
 		go func() {
-			_, err := bc.PeerServiceClient.SendTransaction(peer, transactionBytes)
+			receipt, err := bc.PeerServiceClient.SendTransaction(peer, bc.BroadcasterNodePublicKey, transactionBytes)
 			if err != nil {
 				log.Warnf("sendTransactionBytesHandler Error accord %v\n", err)
+				return
 			}
+			insertReceiptQ, insertReceiptArg := bc.ReceiptQuery.InsertReceipt(receipt)
+			res, err := bc.QueryExecutor.ExecuteStatement(insertReceiptQ, insertReceiptArg...)
+			if err != nil {
+				log.Warnf("fail to save receipt")
+			}
+			log.Infof("receipt saved - result: %v\n", res)
 		}()
 	}
 }

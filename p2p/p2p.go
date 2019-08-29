@@ -9,7 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
-	"github.com/zoobc/zoobc-core/p2p/rpcServer"
+	"github.com/zoobc/zoobc-core/p2p/handler"
 	p2pService "github.com/zoobc/zoobc-core/p2p/service"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
@@ -28,6 +28,7 @@ type (
 			nodeSecretPhrase string,
 			queryExecutor query.ExecutorInterface,
 			blockServices map[int32]coreService.BlockServiceInterface,
+			mempoolServices map[int32]coreService.MempoolServiceInterface,
 		)
 		// exposed api list
 		GetHostInfo() *model.Host
@@ -65,16 +66,19 @@ func (s *Peer2PeerService) StartP2P(
 	nodeSecretPhrase string,
 	queryExecutor query.ExecutorInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
+	mempoolServices map[int32]coreService.MempoolServiceInterface,
 ) {
 	// initialize log
 	p2pLogger, err := util.InitLogger(".log/", "debug.log")
 	if err != nil {
 		panic(err)
 	}
+
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
 		s.PeerExplorer,
 		blockServices,
+		mempoolServices,
 		nodeSecretPhrase,
 	)
 	// start listening on peer port
@@ -82,7 +86,7 @@ func (s *Peer2PeerService) StartP2P(
 		grpcServer := grpc.NewServer(
 			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(p2pLogger)),
 		)
-		service.RegisterP2PCommunicationServer(grpcServer, &rpcServer.P2PServerHandler{
+		service.RegisterP2PCommunicationServer(grpcServer, &handler.P2PServerHandler{
 			Service: p2pServerService,
 		})
 		_ = grpcServer.Serve(p2pUtil.ServerListener(int(s.Host.GetInfo().GetPort())))

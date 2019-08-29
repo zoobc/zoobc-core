@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/zoobc/zoobc-core/common/interceptor"
+	"github.com/zoobc/zoobc-core/observer"
 	"net"
 	"net/http"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc"
 )
 
@@ -51,7 +51,9 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
-		observer.NewObserver())
+		crypto.NewSignature(),
+		observer.NewObserver(),
+	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		apiLogger.Fatalf("failed to listen: %v\n", err)
@@ -72,7 +74,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 			crypto.NewSignature(),
 			actionTypeSwitcher,
 			mempoolService,
-			apiLogger,
+			observer.NewObserver(),
 		),
 	})
 	// Set GRPC handler for Transactions requests

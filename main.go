@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/p2p/rpcClient"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"os"
@@ -43,7 +43,7 @@ var (
 	observerInstance                 *observer.Observer
 	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
 	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	peerServiceClient                rpcClient.PeerServiceClientInterface
+	peerServiceClient                client.PeerServiceClientInterface
 	broadcaster                      p2p.BroadcasterInterface
 	p2pHost                          *model.Host
 	peerExplorer                     strategy.PeerExplorerStrategyInterface
@@ -93,8 +93,9 @@ func init() {
 }
 
 func initP2pInstance() {
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	// initialize peer client service
-	peerServiceClient = rpcClient.NewPeerServiceClient()
+	peerServiceClient = client.NewPeerServiceClient()
 
 	// init p2p instances
 	// initialize broadcaster instance
@@ -104,6 +105,7 @@ func initP2pInstance() {
 		query.NewReceiptQuery(
 			&chaintype.MainChain{},
 		),
+		nodePublicKey,
 	)
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {
@@ -127,12 +129,6 @@ func initObserverListeners() {
 	// init observer listeners
 	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	for _, blockService := range blockServices {
-		observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
-	}
-	for _, mempoolService := range mempoolServices {
-		observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())
-	}
 }
 
 func startServices() {
@@ -142,6 +138,7 @@ func startServices() {
 		nodeSecretPhrase,
 		queryExecutor,
 		blockServices,
+		mempoolServices,
 	)
 	api.Start(
 		apiRPCPort,
@@ -171,7 +168,8 @@ func startMainchain(mainchainSyncChannel chan bool) {
 			Executor: queryExecutor,
 		},
 		query.NewAccountBalanceQuery(),
-		observerInstance,
+		crypto.NewSignature(),
+		observer.NewObserver(),
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 

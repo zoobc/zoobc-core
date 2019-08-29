@@ -1,5 +1,10 @@
 package strategy
 
+/**
+strategy package includes different peer to peer management strategy that we'll use
+in zoobc.
+*/
+
 import "github.com/zoobc/zoobc-core/common/model"
 
 type (

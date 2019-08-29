@@ -53,8 +53,12 @@ type (
 		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
-		ReceivedBlockListener() observer.Listener
-		ReceiveBlock(block *model.Block, nodeSecretPhrase string) (*model.Receipt, error)
+		ReceiveBlock(
+			senderPublicKey []byte,
+			lastBlock,
+			block *model.Block,
+			nodeSecretPhrase string,
+		) (*model.Receipt, error)
 	}
 
 	BlockService struct {
@@ -563,47 +567,15 @@ func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
 	return false
 }
 
-// ReceivedBlockListener handle received block from another node
-func (bs *BlockService) ReceivedBlockListener() observer.Listener {
-	return observer.Listener{
-		OnNotify: func(block interface{}, args interface{}) {
-			receivedBlock := block.(*model.Block)
-			// make sure block has previous block hash
-			if receivedBlock.GetPreviousBlockHash() != nil {
-				if bs.CheckSignatureBlock(receivedBlock) {
-					lastBlock, err := bs.GetLastBlock()
-					if err != nil {
-						return
-					}
-
-					lastBlockByte, _ := coreUtil.GetBlockByte(lastBlock, true)
-					lastBlockHash := sha3.Sum512(lastBlockByte)
-
-					//  check equality last block hash with previous block hash from received block
-					if bytes.Equal(lastBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
-						err := bs.PushBlock(lastBlock, receivedBlock, true)
-						if err != nil {
-							return
-						}
-					}
-				}
-			}
-		},
-	}
-}
-
 // ReceiveBlock handle the block received from connected peers
-func (bs *BlockService) ReceiveBlock(block *model.Block, nodeSecretPhrase string) (*model.Receipt, error) {
+func (bs *BlockService) ReceiveBlock(
+	senderPublicKey []byte,
+	lastBlock, block *model.Block,
+	nodeSecretPhrase string,
+) (*model.Receipt, error) {
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() != nil {
 		if bs.CheckSignatureBlock(block) {
-			lastBlock, err := bs.GetLastBlock()
-			if err != nil {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr,
-					"fail to get last block",
-				)
-			}
 
 			lastBlockByte, err := coreUtil.GetBlockByte(lastBlock, true)
 			if err != nil {
@@ -615,20 +587,24 @@ func (bs *BlockService) ReceiveBlock(block *model.Block, nodeSecretPhrase string
 			lastBlockHash := sha3.Sum512(lastBlockByte)
 
 			//  check equality last block hash with previous block hash from received block
-			if bytes.Equal(lastBlockHash[:], block.GetPreviousBlockHash()) {
-				err := bs.PushBlock(lastBlock, block, true)
-				if err != nil {
-					return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
-				}
+			if !bytes.Equal(lastBlockHash[:], block.GetPreviousBlockHash()) {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr,
+					"previous block hash does not match with last block hash",
+				)
+			}
+			err = bs.PushBlock(lastBlock, block, true)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
 			}
 			// generate receipt and return as response
 			// todo: lastblock last applied block, or incoming block?
 			// secretPhrase := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
-			nodeAddress := util.GetAddressFromSeed(nodeSecretPhrase)
+			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 			receipt, err := util.GenerateReceipt( // todo: var
 				lastBlock,
-				block.BlocksmithAddress,
-				nodeAddress,
+				senderPublicKey,
+				nodePublicKey,
 				lastBlockHash[:],
 				constant.ReceiptDatumTypeBlock)
 			if err != nil {

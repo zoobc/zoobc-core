@@ -317,7 +317,9 @@ func (bss *DownloadBlockchainService) getPeerCommonBlockID(peer *model.Peer) (in
 	}
 	lastBlockID := lastBlock.ID
 	for {
-		commonMilestoneBlockIDResponse, err := bss.PeerServiceClient.GetCommonMilestoneBlockIDs(peer, bss.ChainType, lastBlockID, lastMilestoneBlockID)
+		commonMilestoneBlockIDResponse, err := bss.PeerServiceClient.GetCommonMilestoneBlockIDs(
+			peer, bss.ChainType, lastBlockID, lastMilestoneBlockID,
+		)
 		if err != nil {
 			log.Warnf("failed to get common milestone from the peer: %v\n", err)
 			bss.PeerExplorer.DisconnectPeer(peer)

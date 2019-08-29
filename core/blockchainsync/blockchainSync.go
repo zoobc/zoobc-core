@@ -5,7 +5,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
-	"github.com/zoobc/zoobc-core/p2p/rpcClient"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
 
@@ -20,14 +20,14 @@ type DownloadBlockchainService struct {
 	ChainType         chaintype.ChainType
 	BlockService      service.BlockServiceInterface
 	P2pService        p2p.Peer2PeerServiceInterface
-	PeerServiceClient rpcClient.PeerServiceClientInterface
+	PeerServiceClient client.PeerServiceClientInterface
 	PeerExplorer      strategy.PeerExplorerStrategyInterface
 }
 
 func NewBlockchainSyncService(
 	blockService service.BlockServiceInterface,
 	p2pService p2p.Peer2PeerServiceInterface,
-	peerServiceClient rpcClient.PeerServiceClientInterface,
+	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 ) *DownloadBlockchainService {
 	return &DownloadBlockchainService{

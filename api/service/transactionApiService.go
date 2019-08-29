@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/observer"
 	"time"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -35,7 +34,7 @@ type (
 		Signature          crypto.SignatureInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
-		Log                *logrus.Logger
+		Observer           *observer.Observer
 	}
 )
 
@@ -47,7 +46,7 @@ func NewTransactionService(
 	signature crypto.SignatureInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	mempoolService service.MempoolServiceInterface,
-	log *logrus.Logger,
+	observer *observer.Observer,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -55,7 +54,7 @@ func NewTransactionService(
 			Signature:          signature,
 			ActionTypeSwitcher: txTypeSwitcher,
 			MempoolService:     mempoolService,
-			Log:                log,
+			Observer:           observer,
 		}
 	}
 	return transactionServiceInstance
@@ -198,6 +197,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, err
 	}
 
+	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
 	// return parsed transaction
 	return tx, nil
 }

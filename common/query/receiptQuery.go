@@ -28,8 +28,8 @@ type (
 func NewReceiptQuery(chaintype chaintype.ChainType) *ReceiptQuery {
 	return &ReceiptQuery{
 		Fields: []string{
-			"sender_account_address",
-			"recipient_account_address",
+			"sender_public_key",
+			"recipient_public_key",
 			"datum_type",
 			"datum_hash",
 			"reference_block_height",
@@ -70,8 +70,8 @@ func (rq *ReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args 
 // ExtractModel extract the model struct fields to the order of ReceiptQuery.Fields
 func (*ReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
 	return []interface{}{
-		&receipt.SenderAccountAddress,
-		&receipt.RecipientAccountAddress,
+		&receipt.SenderPublicKey,
+		&receipt.RecipientPublicKey,
 		&receipt.DatumType,
 		&receipt.DatumHash,
 		&receipt.ReferenceBlockHeight,
@@ -85,8 +85,8 @@ func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*mo
 	for rows.Next() {
 		var receipt model.Receipt
 		_ = rows.Scan(
-			&receipt.SenderAccountAddress,
-			&receipt.RecipientAccountAddress,
+			&receipt.SenderPublicKey,
+			&receipt.RecipientPublicKey,
 			&receipt.DatumType,
 			&receipt.DatumHash,
 			&receipt.ReferenceBlockHeight,

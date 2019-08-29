@@ -1,4 +1,4 @@
-package rpcServer
+package handler
 
 import (
 	"context"
@@ -13,7 +13,7 @@ type P2PServerHandler struct {
 	Service service2.P2PServerServiceInterface
 }
 
-func NewServerService(
+func NewP2PServerHandler(
 	p2pServerService service2.P2PServerServiceInterface,
 ) *P2PServerHandler {
 	return &P2PServerHandler{
@@ -96,11 +96,14 @@ func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNex
 
 // SendBlock receive block from other node and calling BlockReceived Event
 func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.Receipt, error) {
-	return ss.Service.SendBlock(chaintype.GetChainType(req.ChainType), req.Block)
+	// todo: validate request
+	return ss.Service.SendBlock(
+		chaintype.GetChainType(req.ChainType), req.Block, req.SenderPublicKey)
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
 func (ss *P2PServerHandler) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Receipt, error) {
-	//ss.Observer.Notify(observer.TransactionReceived, req.GetTransactionBytes(), nil)
-	return &model.Receipt{}, nil
+	return ss.Service.SendTransaction(
+		chaintype.GetChainType(req.ChainType), req.TransactionBytes, req.SenderPublicKey,
+	)
 }

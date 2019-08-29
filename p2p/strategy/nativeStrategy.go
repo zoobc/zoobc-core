@@ -2,7 +2,7 @@ package strategy
 
 import (
 	"errors"
-	"github.com/zoobc/zoobc-core/p2p/rpcClient"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	"sync"
 	"time"
 
@@ -288,7 +288,7 @@ func (hs *NativeStrategy) UpdateResolvedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (hs *NativeStrategy) resolvePeer(destPeer *model.Peer) {
-	_, err := rpcClient.NewPeerServiceClient().GetPeerInfo(destPeer)
+	_, err := client.NewPeerServiceClient().GetPeerInfo(destPeer)
 	if err != nil {
 		// TODO: add mechanism to blacklist failing peers
 		hs.DisconnectPeer(destPeer)
@@ -305,7 +305,7 @@ func (hs *NativeStrategy) resolvePeer(destPeer *model.Peer) {
 func (hs *NativeStrategy) GetMorePeersHandler() (*model.Peer, error) {
 	peer := hs.GetAnyResolvedPeer()
 	if peer != nil {
-		newPeers, err := rpcClient.NewPeerServiceClient().GetMorePeers(peer)
+		newPeers, err := client.NewPeerServiceClient().GetMorePeers(peer)
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 			return nil, err
