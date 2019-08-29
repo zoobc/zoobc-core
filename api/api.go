@@ -36,7 +36,7 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
+func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
@@ -106,7 +106,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
+func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
 	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0

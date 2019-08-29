@@ -29,6 +29,12 @@ type (
 			queryExecutor query.ExecutorInterface,
 			blockServices map[int32]coreService.BlockServiceInterface,
 		)
+		// exposed api list
+		GetHostInfo() *model.Host
+		GetResolvedPeers() map[string]*model.Peer
+		GetUnresolvedPeers() map[string]*model.Peer
+
+		// event listener that relate to p2p communication
 		SendBlockListener() observer.Listener
 		SendTransactionListener() observer.Listener
 	}
@@ -52,7 +58,7 @@ func NewP2PService(
 	}, nil
 }
 
-// StartP2P to run all p2p Thread service
+// StartP2P initiate all p2p dependencies and run all p2p thread service
 func (s *Peer2PeerService) StartP2P(
 	myAddress string,
 	peerPort uint32,
@@ -85,6 +91,21 @@ func (s *Peer2PeerService) StartP2P(
 	go s.resolvePeersThread()
 	go s.getMorePeersThread()
 	go s.updateBlacklistedStatus()
+}
+
+// GetHostInfo exposed the p2p host information to the client
+func (s *Peer2PeerService) GetHostInfo() *model.Host {
+	return s.Host
+}
+
+// GetResolvedPeers exposed current node resolved peer list
+func (s *Peer2PeerService) GetResolvedPeers() map[string]*model.Peer {
+	return s.PeerExplorer.GetResolvedPeers()
+}
+
+// GetUnresolvedPeers exposed current node unresolved peer list.
+func (s *Peer2PeerService) GetUnresolvedPeers() map[string]*model.Peer {
+	return s.PeerExplorer.GetUnresolvedPeers()
 }
 
 // resolvePeersThread to periodically try get response from peers in UnresolvedPeer list
