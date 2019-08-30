@@ -159,7 +159,9 @@ func (s *Peer2PeerService) getMorePeersThread() {
 	for {
 		select {
 		case <-ticker.C:
-			go s.PeerExplorer.GetMorePeersHandler()
+			go func() {
+				_, _ = s.PeerExplorer.GetMorePeersHandler()
+			}()
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -201,7 +203,10 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			chainType := args.(chaintype.ChainType)
 			for _, peer := range peers {
-				go s.PeerServiceClient.SendBlock(peer, b, chainType)
+				p := peer
+				go func() {
+					_, _ = s.PeerServiceClient.SendBlock(p, b, chainType)
+				}()
 			}
 		},
 	}
@@ -215,7 +220,10 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 			chainType := args.(chaintype.ChainType)
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
-				go s.PeerServiceClient.SendTransaction(peer, t, chainType)
+				p := peer
+				go func() {
+					_, _ = s.PeerServiceClient.SendTransaction(p, t, chainType)
+				}()
 			}
 		},
 	}

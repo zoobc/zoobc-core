@@ -43,7 +43,7 @@ func (bss *DownloadBlockchainService) GetMoreBlocksThread(runNext chan bool) {
 	}
 }
 
-func (bss DownloadBlockchainService) getMoreBlocks(runNext chan bool) {
+func (bss *DownloadBlockchainService) getMoreBlocks(runNext chan bool) {
 	log.Info("Get more blocks...")
 	// notify observer about start of blockchain download of this specific chain
 
