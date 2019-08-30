@@ -128,7 +128,12 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	// Get Transactions
-	caseQuery.Paginate(params.GetLimit(), params.GetPage())
+	page := params.GetPagination()
+	caseQuery.Paginate(page.GetLimit(), page.GetPage()).
+		OrderBy(
+			page.GetOrderField(),
+			caseQuery.AssertOrderBy(page.GetOrderBy()),
+		)
 	selectQuery, args = caseQuery.Build()
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {

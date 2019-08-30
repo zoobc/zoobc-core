@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
@@ -20,7 +22,8 @@ type (
 		NotEqual(column string, value interface{}) string
 		Between(column string, start, end interface{}) string
 		NotBetween(column string, start, end interface{}) string
-		OrderBy(column string, order caseQueryOrder) *CaseQuery
+		OrderBy(column string, order *caseQueryOrder) *CaseQuery
+		AssertOrderBy(by *model.OrderBy) *caseQueryOrder
 		Limit(limit uint32) *CaseQuery
 		Paginate(limit, currentPage uint32) *CaseQuery
 		Build() (query string, args []interface{})
@@ -38,11 +41,11 @@ type (
 )
 
 var (
-	OrderDesc = caseQueryOrder{
+	OrderDesc = &caseQueryOrder{
 		Order: "DESC",
 	}
 
-	OrderAsc = caseQueryOrder{
+	OrderAsc = &caseQueryOrder{
 		Order: "ASC",
 	}
 )
@@ -122,9 +125,19 @@ func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 	return fmt.Sprintf("%s NOT BETWEEN ? AND ? ", column)
 }
 
-func (fq *CaseQuery) OrderBy(column string, order caseQueryOrder) *CaseQuery {
+func (fq *CaseQuery) OrderBy(column string, order *caseQueryOrder) *CaseQuery {
 	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order.getString()))
 	return fq
+}
+func (*CaseQuery) AssertOrderBy(by model.OrderBy) *caseQueryOrder {
+	switch by.String() {
+	case "ASC":
+		return OrderAsc
+	case "DSC":
+		return OrderDesc
+	default:
+		return OrderDesc
+	}
 }
 
 func (fq *CaseQuery) Limit(limit uint32) *CaseQuery {
