@@ -108,7 +108,11 @@ func (ts *TransactionService) GetTransactions(
 		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
 			Or(caseQuery.Equal("recipient_account_address", accountAddress))
 	}
-
+	timestampStart := params.GetTimestampStart()
+	timestampEnd := params.GetTimestampEnd()
+	if timestampStart > 0 {
+		caseQuery.And(caseQuery.Between("timestamp", timestampStart, timestampEnd))
+	}
 	selectQuery, args = caseQuery.Build()
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
@@ -129,11 +133,13 @@ func (ts *TransactionService) GetTransactions(
 
 	// Get Transactions
 	page := params.GetPagination()
-	caseQuery.Paginate(page.GetLimit(), page.GetPage()).
-		OrderBy(
-			page.GetOrderField(),
-			caseQuery.AssertOrderBy(page.GetOrderBy()),
-		)
+	if page.GetOrderField() == "" {
+		caseQuery.OrderBy("timestamp", page.GetOrderBy())
+	} else {
+		caseQuery.OrderBy(page.GetOrderField(), page.GetOrderBy())
+	}
+	caseQuery.Paginate(page.GetLimit(), page.GetPage())
+
 	selectQuery, args = caseQuery.Build()
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {
