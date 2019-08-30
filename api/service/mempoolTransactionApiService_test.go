@@ -121,13 +121,39 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Success",
+			name: "SuccessWithoutAccountAddress",
 			fields: fields{
 				Query: &mockQueryExecutorGetMempoolTXs{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params:    &model.GetMempoolTransactionsRequest{},
+			},
+			want: &model.GetMempoolTransactionsResponse{
+				Total: 1,
+				MempoolTransactions: []*model.MempoolTransaction{
+					{
+						ID:                      1,
+						FeePerByte:              1,
+						ArrivalTimestamp:        1000,
+						SenderAccountAddress:    "accountA",
+						RecipientAccountAddress: "accountA",
+						TransactionBytes:        make([]byte, 88),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "SuccessWithAccountAddress",
+			fields: fields{
+				Query: &mockQueryExecutorGetMempoolTXs{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				params: &model.GetMempoolTransactionsRequest{
+					Address: "accountA",
+				},
 			},
 			want: &model.GetMempoolTransactionsResponse{
 				Total: 1,
