@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -20,12 +19,11 @@ type (
 	ReceiptQuery struct {
 		Fields    []string
 		TableName string
-		ChainType chaintype.ChainType
 	}
 )
 
 // NewTransactionQuery returns TransactionQuery instance
-func NewReceiptQuery(chaintype chaintype.ChainType) *ReceiptQuery {
+func NewReceiptQuery() *ReceiptQuery {
 	return &ReceiptQuery{
 		Fields: []string{
 			"sender_public_key",
@@ -38,7 +36,6 @@ func NewReceiptQuery(chaintype chaintype.ChainType) *ReceiptQuery {
 			"recipient_signature",
 		},
 		TableName: "receipt",
-		ChainType: chaintype,
 	}
 }
 

@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -9,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/handler"
 	p2pService "github.com/zoobc/zoobc-core/p2p/service"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -40,22 +42,22 @@ type (
 		SendTransactionListener() observer.Listener
 	}
 	Peer2PeerService struct {
-		Host         *model.Host
-		PeerExplorer strategy.PeerExplorerStrategyInterface
-		Broadcaster  BroadcasterInterface
+		Host              *model.Host
+		PeerExplorer      strategy.PeerExplorerStrategyInterface
+		PeerServiceClient client.PeerServiceClientInterface
 	}
 )
 
 // InitService to initialize peer to peer service wrapper
 func NewP2PService(
 	host *model.Host,
-	broadcaster BroadcasterInterface,
+	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
-		Host:         host,
-		Broadcaster:  broadcaster,
-		PeerExplorer: peerExplorer,
+		Host:              host,
+		PeerServiceClient: peerServiceClient,
+		PeerExplorer:      peerExplorer,
 	}, nil
 }
 
@@ -145,8 +147,8 @@ func (s *Peer2PeerService) getMorePeersThread() {
 		if peer == nil {
 			return
 		}
-		s.Broadcaster.SendMyPeers(
-			s.Host.Info,
+		myPeers = append(myPeers, s.Host.GetInfo())
+		_, _ = s.PeerServiceClient.SendPeers(
 			peer,
 			myPeers,
 		)
@@ -197,7 +199,10 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 		OnNotify: func(block interface{}, args interface{}) {
 			b := block.(*model.Block)
 			peers := s.PeerExplorer.GetResolvedPeers()
-			s.Broadcaster.SendBlock(b, peers)
+			chainType := args.(chaintype.ChainType)
+			for _, peer := range peers {
+				go s.PeerServiceClient.SendBlock(peer, b, chainType)
+			}
 		},
 	}
 }
@@ -207,8 +212,11 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(transactionBytes interface{}, args interface{}) {
 			t := transactionBytes.([]byte)
+			chainType := args.(chaintype.ChainType)
 			peers := s.PeerExplorer.GetResolvedPeers()
-			s.Broadcaster.SendTransactionBytes(t, peers)
+			for _, peer := range peers {
+				go s.PeerServiceClient.SendTransaction(peer, t, chainType)
+			}
 		},
 	}
 }

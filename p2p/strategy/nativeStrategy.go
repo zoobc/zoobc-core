@@ -16,6 +16,7 @@ import (
 // NativeStrategy represent data service node as server
 type NativeStrategy struct {
 	Host                 *model.Host
+	PeerServiceClient    client.PeerServiceClientInterface
 	ResolvedPeersLock    sync.RWMutex
 	UnresolvedPeersLock  sync.RWMutex
 	BlacklistedPeersLock sync.RWMutex
@@ -25,9 +26,11 @@ type NativeStrategy struct {
 
 func NewNativeStrategy(
 	host *model.Host,
+	peerServiceClient client.PeerServiceClientInterface,
 ) *NativeStrategy {
 	return &NativeStrategy{
 		Host:               host,
+		PeerServiceClient:  peerServiceClient,
 		MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
 		MaxResolvedPeers:   constant.MaxResolvedPeers,
 	}
@@ -288,7 +291,7 @@ func (hs *NativeStrategy) UpdateResolvedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (hs *NativeStrategy) resolvePeer(destPeer *model.Peer) {
-	_, err := client.NewPeerServiceClient().GetPeerInfo(destPeer)
+	_, err := hs.PeerServiceClient.GetPeerInfo(destPeer)
 	if err != nil {
 		// TODO: add mechanism to blacklist failing peers
 		hs.DisconnectPeer(destPeer)
@@ -305,7 +308,7 @@ func (hs *NativeStrategy) resolvePeer(destPeer *model.Peer) {
 func (hs *NativeStrategy) GetMorePeersHandler() (*model.Peer, error) {
 	peer := hs.GetAnyResolvedPeer()
 	if peer != nil {
-		newPeers, err := client.NewPeerServiceClient().GetMorePeers(peer)
+		newPeers, err := hs.PeerServiceClient.GetMorePeers(peer)
 		if err != nil {
 			log.Warnf("getMorePeers Error accord %v\n", err)
 			return nil, err

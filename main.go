@@ -44,7 +44,6 @@ var (
 	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
 	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
 	peerServiceClient                client.PeerServiceClientInterface
-	broadcaster                      p2p.BroadcasterInterface
 	p2pHost                          *model.Host
 	peerExplorer                     strategy.PeerExplorerStrategyInterface
 	ownerAccountAddress, myAddress   string
@@ -95,18 +94,13 @@ func init() {
 func initP2pInstance() {
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	// initialize peer client service
-	peerServiceClient = client.NewPeerServiceClient()
-
-	// init p2p instances
-	// initialize broadcaster instance
-	broadcaster = p2p.NewBroadcaster(
-		peerServiceClient,
+	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
-		query.NewReceiptQuery(
-			&chaintype.MainChain{},
-		),
+		query.NewReceiptQuery(),
 		nodePublicKey,
 	)
+
+	// init p2p instances
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {
 		logrus.Fatal("fail to start p2p service")
@@ -117,10 +111,11 @@ func initP2pInstance() {
 	// peer discovery strategy
 	peerExplorer = strategy.NewNativeStrategy(
 		p2pHost,
+		peerServiceClient,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
-		broadcaster,
+		peerServiceClient,
 		peerExplorer,
 	)
 }

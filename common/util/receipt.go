@@ -11,8 +11,7 @@ import (
 // todo: andy-shi88: receipt merkle root value is not assigned yet
 func GenerateReceipt(
 	referenceBlock *model.Block,
-	senderPublicKey, recipientPublicKey []byte,
-	datumHash []byte,
+	senderPublicKey, recipientPublicKey, datumHash []byte,
 	datumType uint32,
 ) (*model.Receipt, error) {
 	refBlockHash, _ := GetBlockHash(referenceBlock)

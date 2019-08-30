@@ -362,7 +362,7 @@ func (bss *DownloadBlockchainService) getBlockIdsAfterCommon(peer *model.Peer, c
 
 func (bss *DownloadBlockchainService) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer,
 	blockIds []int64, start, stop uint32) ([]*model.Block, error) {
-	blocks := []*model.Block{}
+	var blocks []*model.Block
 	nextBlocksResponse, err := bss.PeerServiceClient.GetNextBlocks(peerUsed, bss.ChainType, blockIds[start:stop], blockIds[start])
 	nextBlocks := nextBlocksResponse.NextBlocks
 	nextBlocksLength := uint32(len(nextBlocks))
