@@ -64,7 +64,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	}
 	// it's removed dataset when timestamp_starts = timestamp_expires
 	cq.And("timestamp_starts <> timestamp_expires ")
-	cq.OrderBy("height", OrderDesc)
+	cq.OrderBy("height", model.OrderBy_DESC)
 	cq.Limit(1)
 
 	return cq.Build()
