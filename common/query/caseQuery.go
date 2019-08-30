@@ -75,7 +75,6 @@ func (fq *CaseQuery) And(query ...string) *CaseQuery {
 // Or represents `expressionFoo OR expressionBar`
 func (fq *CaseQuery) Or(expression ...string) *CaseQuery {
 	if !strings.Contains(fq.Query.String(), "WHERE") {
-		fmt.Println(fq.Query.String())
 		fq.Query.WriteString("WHERE 1=1 ")
 	}
 	fq.Query.WriteString(fmt.Sprintf("OR %s ", strings.Join(expression, "OR ")))
