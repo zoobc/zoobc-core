@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -14,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"time"
 )
 
 func main() {
