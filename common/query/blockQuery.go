@@ -11,6 +11,7 @@ import (
 
 type (
 	BlockQueryInterface interface {
+		Rollback(height uint32) (queries []string, args uint32)
 		GetBlocks(height, size uint32) string
 		GetLastBlock() string
 		GetGenesisBlock() string

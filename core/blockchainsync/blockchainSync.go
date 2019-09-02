@@ -23,8 +23,9 @@ type Service struct {
 	LastBlock          model.Block
 	TransactionService service.TransactionServiceInterface
 	TransactionQuery   query.TransactionQueryInterface
-	ForkingProcess     ForkingProcess
+	ForkingProcess     ForkingProcessInterface
 	QueryExecutor      query.ExecutorInterface
+	BlockQuery         query.BlockQueryInterface
 }
 
 func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface, queryExecutor query.ExecutorInterface) *Service {

@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
@@ -13,6 +15,10 @@ import (
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
 )
+
+type mockQueryServiceSuccess struct {
+	query.ExecutorInterface
+}
 
 type mockP2pServiceSuccess struct {
 	p2p.ServiceInterface
@@ -121,6 +127,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 	type args struct {
 		p2pService   p2p.ServiceInterface
 		blockService coreService.BlockServiceInterface
+		queryService query.ExecutorInterface
 	}
 	tests := []struct {
 		name    string
@@ -133,6 +140,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceSuccess{},
 				blockService: &mockBlockServiceSuccess{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want:    int64(1),
 			wantErr: false,
@@ -142,6 +150,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceSuccess{},
 				blockService: &mockBlockServiceFail{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want:    int64(0),
 			wantErr: true,
@@ -151,6 +160,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceFail{},
 				blockService: &mockBlockServiceSuccess{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want:    int64(0),
 			wantErr: true,
@@ -159,7 +169,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blockchainSyncService := NewBlockchainSyncService(tt.args.blockService, tt.args.p2pService)
+			blockchainSyncService := NewBlockchainSyncService(tt.args.blockService, tt.args.p2pService, tt.args.queryService)
 			got, err := blockchainSyncService.getPeerCommonBlockID(
 				&model.Peer{},
 			)
@@ -178,6 +188,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 	type args struct {
 		p2pService   p2p.ServiceInterface
 		blockService coreService.BlockServiceInterface
+		queryService query.ExecutorInterface
 	}
 
 	tests := []struct {
@@ -190,6 +201,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceSuccessNewResult{},
 				blockService: &mockBlockServiceSuccess{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want: []int64{3, 4},
 		},
@@ -198,6 +210,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceSuccess{},
 				blockService: &mockBlockServiceSuccess{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want: []int64{2, 3, 4},
 		},
@@ -206,6 +219,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceSuccessOneResult{},
 				blockService: &mockBlockServiceSuccess{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want: []int64{1},
 		},
@@ -214,6 +228,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 			args: args{
 				p2pService:   &mockP2pServiceFail{},
 				blockService: &mockBlockServiceSuccess{},
+				queryService: &mockQueryServiceSuccess{},
 			},
 			want: []int64{},
 		},
@@ -221,7 +236,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blockchainSyncService := NewBlockchainSyncService(tt.args.blockService, tt.args.p2pService)
+			blockchainSyncService := NewBlockchainSyncService(tt.args.blockService, tt.args.p2pService, tt.args.queryService)
 			got := blockchainSyncService.getBlockIdsAfterCommon(
 				&model.Peer{},
 				0,
@@ -235,7 +250,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 
 func TestGetNextBlocks(t *testing.T) {
 	blockService := coreService.NewBlockService(&chaintype.MainChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	blockchainSyncService := NewBlockchainSyncService(blockService, &mockP2pServiceSuccess{})
+	blockchainSyncService := NewBlockchainSyncService(blockService, &mockP2pServiceSuccess{}, &mockQueryServiceSuccess{})
 	type args struct {
 		maxNextBlocks uint32
 		peerUsed      *model.Peer

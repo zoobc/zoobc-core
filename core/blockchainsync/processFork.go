@@ -14,13 +14,13 @@ import (
 )
 
 type (
-	ForkingProcess interface {
+	ForkingProcessInterface interface {
 		ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block) error
-		PopOffTo(commonBlock *model.Block) []*model.Block
+		PopOffToBlock(commonBlock *model.Block) []*model.Block
 		popLastBlock() (*model.Block, error)
 		SetLastBlock(block *model.Block) error
 		HasBlock(id int64) bool
-		LoadTransactions(block *model.Block)
+		LoadTransactions(block *model.Block) *model.Block
 		scheduleScan(height uint32, validate bool)
 		getMinRollbackHeight() (uint32, error)
 		SetIsScanning(isScanning bool)
@@ -39,7 +39,7 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 		return err
 	}
 	beforeApplyCumulativeDifficulty := lastBlockBeforeProcess.CumulativeDifficulty
-	myPoppedOffBlocks, err := bss.PopOffTo(commonBlock)
+	myPoppedOffBlocks, err := bss.PopOffToBlock(commonBlock)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 	// if after applying the fork blocks the cumulative difficulty is still less than current one
 	// only take the transactions to be processed, but later will get back to our own fork
 	if pushedForkBlocks > 0 && currentCumulativeDifficulty.Cmp(cumulativeDifficultyOriginalBefore) < 0 {
-		peerPoppedOffBlocks, err := bss.PopOffTo(commonBlock)
+		peerPoppedOffBlocks, err := bss.PopOffToBlock(commonBlock)
 		if err != nil {
 			return err
 		}
@@ -115,8 +115,8 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 
 }
 
-// PopOffTo will remove the block in current Chain until commonBlock is reached
-func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
+// PopOffToBlock will remove the block in current Chain until commonBlock is reached
+func (bss *Service) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	// blockchain lock has been implemented by the Download Blockchain, so no additional lock is needed
 	var err error
 
@@ -135,7 +135,13 @@ func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
 	}
 
 	poppedBlocks := []*model.Block{}
-	block, _ := bss.BlockService.GetLastBlock()
+	block, err := bss.BlockService.GetLastBlock()
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockNotFoundErr,
+			"Last block is not found",
+		)
+	}
 	block = bss.LoadTransactions(block)
 
 	genesisBlockID := bss.ChainType.GetGenesisBlockID()
@@ -144,8 +150,12 @@ func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
 
 		block, err = bss.BlockService.GetBlockByHeight(block.Height - 1)
 		if err != nil {
-			break
+			return nil, err
 		}
+
+		// if block.Height == 1 {
+		// 	break
+		// }
 		block = bss.LoadTransactions(block)
 	}
 
@@ -156,6 +166,9 @@ func (bss *Service) PopOffTo(commonBlock *model.Block) ([]*model.Block, error) {
 	}
 
 	for _, dTable := range derivedTables {
+		if commonBlock.Height == 0 {
+			break
+		}
 		queries, _ := dTable.Rollback(commonBlock.Height)
 		for _, query := range queries {
 			errTx = bss.QueryExecutor.ExecuteTransaction(query)
