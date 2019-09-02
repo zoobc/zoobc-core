@@ -441,7 +441,3 @@ func (*ReceivedTransactionListenerMockTypeAction) ApplyUnconfirmed() error {
 func (*ReceivedTransactionListenerMockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
 	return &ReceivedTransactionListenerMockTypeAction{}
 }
-
-func testOnNotifyTransactionListener(fn observer.OnNotify, txBytes []byte) {
-	fn(txBytes, nil)
-}

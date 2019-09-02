@@ -555,18 +555,6 @@ func (bs *BlockService) CheckGenesis() bool {
 	return true
 }
 
-// CheckSignatureBlock check signature of block
-func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
-	if block.GetBlockSignature() != nil {
-		blockUnsignedByte, err := coreUtil.GetBlockByte(block, false)
-		if err != nil {
-			return false
-		}
-		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), block.GetBlocksmithAddress())
-	}
-	return false
-}
-
 // ReceiveBlock handle the block received from connected peers
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
@@ -575,8 +563,8 @@ func (bs *BlockService) ReceiveBlock(
 ) (*model.Receipt, error) {
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() != nil {
-		if bs.CheckSignatureBlock(block) {
-
+		blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
+		if bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), block.GetBlocksmithAddress()) {
 			lastBlockByte, err := coreUtil.GetBlockByte(lastBlock, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(
@@ -601,11 +589,12 @@ func (bs *BlockService) ReceiveBlock(
 			// todo: lastblock last applied block, or incoming block?
 			// secretPhrase := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+			blockHash, _ := util.GetBlockHash(block)
 			receipt, err := util.GenerateReceipt( // todo: var
 				lastBlock,
 				senderPublicKey,
 				nodePublicKey,
-				lastBlockHash[:],
+				blockHash,
 				constant.ReceiptDatumTypeBlock)
 			if err != nil {
 				return nil, err
@@ -614,6 +603,12 @@ func (bs *BlockService) ReceiveBlock(
 				util.GetUnsignedReceiptBytes(receipt),
 				nodeSecretPhrase,
 			)
+			fmt.Printf("receipt.Receipint %v\n", receipt.RecipientPublicKey)
+			fmt.Printf("receipt.DatumHash %v\n", receipt.DatumHash)
+			fmt.Printf("receipt.Signature: %v\n", receipt.RecipientSignature)
+			fmt.Printf("referenceBlockHeight: %v\n", receipt.ReferenceBlockHeight)
+			fmt.Printf("receipt.referenceBlockHash: %v\n", receipt.ReceiptMerkleRoot)
+
 			return receipt, nil
 		}
 		return nil, blocker.NewBlocker(

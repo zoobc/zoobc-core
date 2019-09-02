@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"golang.org/x/crypto/sha3"
 	"sort"
@@ -18,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -252,21 +250,14 @@ func (mps *MempoolService) ReceivedTransaction(
 		log.Warnf("error committing db transaction: %v", err)
 		return nil, err
 	}
-	lastBlockByte, err := coreUtil.GetBlockByte(lastBlock, true)
-	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			"fail to get last block byte",
-		)
-	}
-	lastBlockHash := sha3.Sum512(lastBlockByte)
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	// generate receipt
+	receivedTxHash := sha3.Sum512(receivedTxBytes)
 	receipt, err := util.GenerateReceipt( // todo: var
 		lastBlock,
 		senderPublicKey,
 		nodePublicKey,
-		lastBlockHash[:],
+		receivedTxHash[:],
 		constant.ReceiptDatumTypeTransaction)
 	if err != nil {
 		return nil, err
