@@ -5,6 +5,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/observer"
 	"reflect"
 	"strings"
 	"testing"
@@ -204,6 +205,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
 		Log                *logrus.Logger
+		Observer           *observer.Observer
 	}
 	type args struct {
 		chaintype chaintype.ChainType
@@ -411,6 +413,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				Query:              &mockTransactionExecutorSuccess{},
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceSuccess{},
+				Observer:           observer.NewObserver(),
 				Log:                mockLog,
 			},
 			args: args{
@@ -454,6 +457,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
+				Observer:           tt.fields.Observer,
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {

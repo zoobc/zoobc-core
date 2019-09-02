@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"testing"
@@ -132,6 +133,7 @@ func TestNewMempoolService(t *testing.T) {
 		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		obsr                *observer.Observer
+		signature           crypto.SignatureInterface
 	}
 
 	test := struct {
@@ -156,6 +158,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
+		test.args.signature,
 		test.args.obsr,
 	)
 	if !reflect.DeepEqual(got, test.want) {

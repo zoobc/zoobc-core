@@ -1346,7 +1346,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...inter
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
 		"Version",
-	}).AddRow(2392517098252617169, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}).AddRow((&chaintype.MainChain{}).GetGenesisBlockID(), []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	return db.Query("")
 }
 
@@ -1487,127 +1487,6 @@ func TestBlockService_CheckSignatureBlock(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestBlockService_ReceivedBlockListener(t *testing.T) {
-	type (
-		fields struct {
-			Chaintype           chaintype.ChainType
-			QueryExecutor       query.ExecutorInterface
-			BlockQuery          query.BlockQueryInterface
-			MempoolQuery        query.MempoolQueryInterface
-			TransactionQuery    query.TransactionQueryInterface
-			Signature           crypto.SignatureInterface
-			MempoolService      MempoolServiceInterface
-			ActionTypeSwitcher  transaction.TypeActionSwitcher
-			AccountBalanceQuery query.AccountBalanceQueryInterface
-			Observer            *observer.Observer
-		}
-		args struct {
-			block *model.Block
-		}
-	)
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   observer.Listener
-	}{
-		{
-			name: "wantLastBlockAndPrevBlockNotEqual",
-			fields: fields{
-				Signature:        &mockSignature{},
-				QueryExecutor:    &mockQueryExecutorSuccess{},
-				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-			},
-			args: args{
-				&model.Block{
-					ID:                   0,
-					Height:               0,
-					Version:              1,
-					CumulativeDifficulty: "",
-					SmithScale:           0,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            12345678,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					PayloadLength:        0,
-					BlockSignature:       []byte{},
-				},
-			},
-			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {
-
-				},
-			},
-		},
-		{
-			name: "wantGetLasBlockFail",
-			fields: fields{
-				Signature:        &mockSignature{},
-				QueryExecutor:    &mockQueryExecuteNotNil{},
-				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-			},
-			args: args{
-				&model.Block{
-					ID:                   0,
-					Height:               0,
-					Version:              1,
-					CumulativeDifficulty: "",
-					SmithScale:           0,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            12345678,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					PayloadLength:        0,
-					BlockSignature:       []byte{},
-				},
-			},
-			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {
-
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Signature:           tt.fields.Signature,
-				MempoolService:      tt.fields.MempoolService,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Observer:            tt.fields.Observer,
-			}
-
-			got := bs.ReceivedBlockListener()
-			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
-				t.Errorf("BlockService.ReceivedBlockListener() = %v, want %v", got, tt.want)
-			}
-			testOnNotifyBlockListener(got.OnNotify, tt.args.block)
-		})
-	}
-}
-
-func testOnNotifyBlockListener(fn observer.OnNotify, block *model.Block) {
-	fn(block, nil)
 }
 
 func TestBlockService_GetBlockByHeight(t *testing.T) {
