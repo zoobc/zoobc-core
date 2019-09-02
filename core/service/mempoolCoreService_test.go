@@ -3,6 +3,8 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"testing"
@@ -114,14 +116,18 @@ func buildTransaction(timestamp int64, sender, recipient string) *model.Transact
 		TransactionBodyLength:   0,
 		TransactionBodyBytes:    make([]byte, 0),
 		TransactionBody:         nil,
-		Signature:               make([]byte, 64),
+		Signature:               make([]byte, 68),
 	}
 }
 
 func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
 	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 
-	txBytes, _ := util.GetTransactionBytes(tx, true)
+	txBytes, _ := util.GetTransactionBytes(tx, false)
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.NodeSignatureTypeDefault,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	tx.Signature = signature
+	txBytes, _ = util.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
 		FeePerByte:              1,
