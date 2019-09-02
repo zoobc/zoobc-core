@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
