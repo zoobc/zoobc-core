@@ -1,9 +1,10 @@
 package crypto
 
 import (
-	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 func TestNewSignature(t *testing.T) {

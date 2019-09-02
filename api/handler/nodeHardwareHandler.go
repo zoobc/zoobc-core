@@ -1,9 +1,10 @@
 package handler
 
 import (
+	"io"
+
 	"github.com/zoobc/zoobc-core/api/service"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
-	"io"
 	"time"
 )
 

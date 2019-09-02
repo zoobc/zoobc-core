@@ -92,13 +92,9 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 
 	address := params.GetAddress()
 	if address != "" {
-		if timestampStart > 0 {
-			caseQuery.And(caseQuery.Equal("sender_account_address", address)).
-				Or(caseQuery.Equal("recipient_account_address", address))
-		} else {
-			caseQuery.Where(caseQuery.Equal("sender_account_address", address)).
-				Or(caseQuery.Equal("recipient_account_address", address))
-		}
+		caseQuery.And(caseQuery.Equal("sender_account_address", address)).
+			Or(caseQuery.Equal("recipient_account_address", address))
+
 	}
 
 	// count first
@@ -119,9 +115,15 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	}
 
 	// select records
-	caseQuery.Paginate(params.GetLimit(), params.GetPage())
-	selectQuery, args = caseQuery.Build()
+	page := params.GetPagination()
+	if page.GetOrderField() == "" {
+		caseQuery.OrderBy("arrival_timestamp", page.GetOrderBy())
+	} else {
+		caseQuery.OrderBy(page.GetOrderField(), page.GetOrderBy())
+	}
+	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 
+	selectQuery, args = caseQuery.Build()
 	rows, err = ut.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {
 		return nil, err
