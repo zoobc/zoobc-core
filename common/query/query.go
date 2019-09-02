@@ -17,5 +17,6 @@ func GetDerivedQuery(chainType chaintype.ChainType) []DerivedQuery {
 		NewTransactionQuery(chainType),
 		NewNodeRegistrationQuery(),
 		NewAccountBalanceQuery(),
+		NewAccountDatasetsQuery(),
 	}
 }
