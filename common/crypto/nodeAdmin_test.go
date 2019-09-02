@@ -28,12 +28,12 @@ func setupVerifyAuthAPI() {
 	bufferValid = bytes.NewBuffer([]byte{})
 	bufferInvalidRequestType = bytes.NewBuffer([]byte{})
 	bufferInvalidTimestamp = bytes.NewBuffer([]byte{})
-	bufferValid.Write(util.ConvertUint32ToBytes(0))
 	bufferValid.Write(util.ConvertUint64ToBytes(10000))
-	bufferInvalidRequestType.Write(util.ConvertUint32ToBytes(10000))
+	bufferValid.Write(util.ConvertUint32ToBytes(0))
 	bufferInvalidRequestType.Write(util.ConvertUint64ToBytes(10000))
-	bufferInvalidTimestamp.Write(util.ConvertUint32ToBytes(0))
+	bufferInvalidRequestType.Write(util.ConvertUint32ToBytes(10000))
 	bufferInvalidTimestamp.Write(util.ConvertUint64ToBytes(0))
+	bufferInvalidTimestamp.Write(util.ConvertUint32ToBytes(0))
 	validSignature := (&Signature{}).Sign(
 		bufferValid.Bytes(),
 		constant.NodeSignatureTypeDefault,

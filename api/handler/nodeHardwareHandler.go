@@ -5,6 +5,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/api/service"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"time"
 )
 
 type NodeHardwareHandler struct {
@@ -14,21 +15,22 @@ type NodeHardwareHandler struct {
 func (nhh *NodeHardwareHandler) GetNodeHardware(
 	stream rpcService.NodeHardwareService_GetNodeHardwareServer,
 ) error {
+	in, err := stream.Recv()
+	if err == io.EOF {
+		return nil
+	}
+	if in == nil {
+		return nil
+	}
 	for {
-		in, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if in == nil {
-			return nil
-		}
 		nodeHardware, err := nhh.Service.GetNodeHardware(in)
 		if err != nil {
 			return err
 		}
 		err = stream.Send(nodeHardware)
 		if err != nil {
-			return err
+			return err // close connection if sending response to client result in error
 		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }
