@@ -46,8 +46,8 @@ func main() {
 		for {
 			currentTime := uint64(time.Now().Unix())
 			buffer := bytes.NewBuffer([]byte{})
-			buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
 			buffer.Write(util.ConvertUint64ToBytes(currentTime))
+			buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
 			sig := signature.Sign(
 				buffer.Bytes(),
 				constant.NodeSignatureTypeDefault,

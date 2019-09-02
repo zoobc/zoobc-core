@@ -20,8 +20,8 @@ func VerifyAuthAPI(
 	requestType model.RequestType) error {
 	// parse
 	var (
-		authRequestType int32
 		authTimestamp   uint64
+		authRequestType int32
 	)
 	signature := NewSignature()
 	authBytes, err := base64.StdEncoding.DecodeString(auth)
@@ -29,8 +29,8 @@ func VerifyAuthAPI(
 		return err
 	}
 	authBytesBuffer := bytes.NewBuffer(authBytes)
-	authRequestType = int32(util.ConvertBytesToUint32(authBytesBuffer.Next(constant.AuthRequestType)))
 	authTimestamp = util.ConvertBytesToUint64(authBytesBuffer.Next(constant.AuthTimestamp))
+	authRequestType = int32(util.ConvertBytesToUint32(authBytesBuffer.Next(constant.AuthRequestType)))
 	if authRequestType != int32(requestType) {
 		return blocker.NewBlocker(
 			blocker.RequestParameterErr,
