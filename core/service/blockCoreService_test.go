@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
-	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -1705,9 +1704,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
-	syncWG := sync.WaitGroup{}
 	type fields struct {
-		chainWriteLock      sync.WaitGroup
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
@@ -1743,7 +1740,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				chainWriteLock:      sync.WaitGroup{},
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
@@ -1770,7 +1766,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				chainWriteLock:      sync.WaitGroup{},
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
@@ -1797,7 +1792,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				chainWriteLock:      sync.WaitGroup{},
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
@@ -1826,7 +1820,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				chainWriteLock:      sync.WaitGroup{},
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
@@ -1855,7 +1848,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				chainWriteLock:      sync.WaitGroup{},
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
@@ -1891,7 +1883,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				chainWriteLock:      sync.WaitGroup{},
 				Chaintype:           &chaintype.MainChain{},
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
@@ -1927,10 +1918,10 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 		},
 	}
+	// test
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				chainWriteLock:      syncWG,
 				Chaintype:           tt.fields.Chaintype,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				BlockQuery:          tt.fields.BlockQuery,

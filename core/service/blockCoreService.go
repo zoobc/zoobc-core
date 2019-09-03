@@ -62,7 +62,7 @@ type (
 	}
 
 	BlockService struct {
-		chainWriteLock      sync.WaitGroup
+		sync.WaitGroup
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
@@ -144,12 +144,12 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock() {
-	bs.chainWriteLock.Add(1)
+	bs.Add(1)
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock() {
-	bs.chainWriteLock.Done()
+	bs.Done()
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -205,7 +205,7 @@ func (*BlockService) VerifySeed(
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bool) error {
 	// needLock indicates the push block needs to be protected
 	if needLock {
-		bs.chainWriteLock.Wait()
+		bs.Wait()
 	}
 	if previousBlock.GetID() != -1 {
 		block.Height = previousBlock.GetHeight() + 1
