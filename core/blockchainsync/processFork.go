@@ -112,7 +112,6 @@ func (bss *Service) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Bl
 	}
 
 	return nil
-
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
