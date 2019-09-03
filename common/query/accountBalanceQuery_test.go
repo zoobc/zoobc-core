@@ -1,11 +1,11 @@
 package query
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -28,31 +28,32 @@ func TestNewAccountBalanceQuery(t *testing.T) {
 	}
 }
 
-var mockAccountBalanceQuery = &AccountBalanceQuery{
-	Fields: []string{
-		"account_address",
-		"block_height",
-		"spendable_balance",
-		"balance",
-		"pop_revenue",
-		"latest",
-	},
-	TableName: "account_balance",
-}
+var (
+	mockAccountBalanceQuery = NewAccountBalanceQuery()
 
-var causedFields = map[string]interface{}{
-	"account_address": "BCZ",
-	"block_height":    uint32(1),
-}
+	causedFields = map[string]interface{}{
+		"account_address": "BCZ",
+		"block_height":    uint32(1),
+	}
+	mockAccountBalance = &model.AccountBalance{
+		AccountAddress:   "BCZ",
+		BlockHeight:      0,
+		SpendableBalance: 0,
+		Balance:          0,
+		PopRevenue:       0,
+		Latest:           true,
+	}
+	mockAccountBalanceRow = []interface{}{
+		"BCZ",
+		1,
+		100,
+		10,
+		0,
+		true,
+	}
+)
 
-var mockAccountBalance = &model.AccountBalance{
-	AccountAddress:   "BCZ",
-	BlockHeight:      0,
-	SpendableBalance: 0,
-	Balance:          0,
-	PopRevenue:       0,
-	Latest:           true,
-}
+var _ = mockAccountBalanceRow
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
@@ -156,4 +157,113 @@ func TestAccountBalanceQuery_BuildModel(t *testing.T) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccountBalance)
 		}
 	})
+}
+
+func TestAccountBalanceQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountBalanceQuery),
+			args:   args{height: uint32(1)},
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM account_balance WHERE block_height > ?",
+					[]interface{}{uint32(1)},
+				},
+				{`
+			UPDATE account_balance SET latest = ?
+			WHERE (block_height || '_' || account_address) IN (
+				SELECT (MAX(block_height) || '_' || account_address) as con
+				FROM account_balance
+				WHERE latest = 0
+				GROUP BY account_address
+			)`,
+					[]interface{}{1},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if gotMultiQueries := q.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
+				t.Errorf("Rollbacks() = \n%v, want \n%v", gotMultiQueries, tt.wantMultiQueries)
+			}
+		})
+	}
+}
+
+type (
+	mockRowBalanceQueryScan struct {
+		Executor
+	}
+)
+
+func (*mockRowBalanceQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockAccountBalanceQuery.Fields).AddRow(
+			"BCZ",
+			1,
+			100,
+			10,
+			0,
+			true,
+		),
+	)
+	return db.QueryRow("")
+}
+
+func TestAccountBalanceQuery_Scan(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountBalance *model.AccountBalance
+		row            *sql.Row
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountBalanceQuery),
+			args: args{
+				accountBalance: mockAccountBalance,
+				row:            (&mockRowBalanceQueryScan{}).ExecuteSelectRow("", nil),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if err := a.Scan(tt.args.accountBalance, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("AccountBalanceQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

@@ -1,9 +1,10 @@
 package service
 
 import (
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 )
 
 var (

@@ -1,5 +1,7 @@
 dbPath = "./resource/"
 dbName = "zoobc_3.db"
+configPath = "./resource/"
+nodeKeyFile = "node_keys.json"
 
 # Peer
 peerPort=8003
@@ -8,7 +10,10 @@ wellknownPeers=["127.0.0.1:8002"]
 
 apiRPCPort=3003
 apiHTTPPort=3033
-# nodeSecretPhrase = "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix"
+apiReqTimeoutSec=2
+
 ownerAccountAddress = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
 
 proofOfOwnershipReqTimeoutSec = 1
+# Log Levels
+logLevels=["warn", "fatal", "error", "panic"]

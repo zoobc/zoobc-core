@@ -3,9 +3,10 @@ package util
 import (
 	"bytes"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -85,15 +86,18 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	if sign {
 		var err error
 		//TODO: implement below logic to allow multiple signature algorithm to work
-		// first 2 bytes of signature are the signature length
+		// first 4 bytes of signature are the signature type
 		// signatureLengthBytes, err := ReadTransactionBytes(buffer, 2)
 		// if err != nil {
 		// 	return nil, err
 		// }
 		// signatureLength := int(ConvertBytesToUint32(signatureLengthBytes))
-		sig, err = ReadTransactionBytes(buffer, int(constant.AccountSignature))
+		sig, err = ReadTransactionBytes(buffer, int(constant.SignatureType+constant.AccountSignature))
 		if err != nil {
-			return nil, errors.New("TrasnsactionSignatureNotExist")
+			return nil, blocker.NewBlocker(
+				blocker.ParserErr,
+				"no transaction signature",
+			)
 		}
 	}
 	// compute and return tx hash and ID too
@@ -133,58 +137,6 @@ func ReadAccountAddress(accountType uint32, buf *bytes.Buffer) []byte {
 	default:
 		return buf.Next(int(constant.AccountAddress)) // default to zoobc account address
 	}
-}
-
-func ValidateTransaction(
-	tx *model.Transaction,
-	queryExecutor query.ExecutorInterface,
-	accountBalanceQuery query.AccountBalanceQueryInterface,
-	verifySignature bool,
-) error {
-	// don't validate genesis transactions
-	if tx.Height == 0 {
-		return nil
-	}
-	if tx.Fee <= 0 {
-		return errors.New("TxFeeZero")
-	}
-	if tx.SenderAccountAddress == "" {
-		return errors.New("TxSenderEmpty")
-	}
-
-	// validate sender account
-	sqlQ, arg := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	rows, err := queryExecutor.ExecuteSelect(sqlQ, arg)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	res := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
-	if len(res) == 0 {
-		return errors.New("TxSenderNotFound")
-	}
-	senderAccountBalance := res[0]
-	if senderAccountBalance.SpendableBalance < tx.Fee {
-		return errors.New("TxAccountBalanceNotEnough")
-	}
-
-	// formally validate transaction body
-	if len(tx.TransactionBodyBytes) != int(tx.TransactionBodyLength) {
-		return errors.New("TxInvalidBodyFormat")
-	}
-
-	//FIXME: comemented out for now because gives circular dependency (both this and crypto packages import common/util)..
-	// transactionBytes, err := GetTransactionBytes(tx, true)
-	// if err != nil {
-	// 	return err
-	// }
-	// if verifySignature {
-	// 	if !crypto.NewSignature().VerifySignature(transactionBytes, tx.Signature, tx.SenderAccountType, tx.SenderAccountAddress) {
-	// 		return errors.New("TxInvalidSignature")
-	// 	}
-	// }
-
-	return nil
 }
 
 func ReadTransactionBytes(buf *bytes.Buffer, nBytes int) ([]byte, error) {

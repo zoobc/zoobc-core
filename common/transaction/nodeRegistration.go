@@ -2,8 +2,11 @@ package transaction
 
 import (
 	"bytes"
-	"errors"
+	"net"
+	"net/url"
 
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -20,7 +23,9 @@ type NodeRegistration struct {
 	Height                uint32
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
+	AuthPoown             auth.ProofOfOwnershipValidationInterface
 }
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
@@ -34,7 +39,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 			return err
 		}
 	}
-	//FIXME: missing NodeID
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
 		LockedBalance:      tx.Body.LockedBalance,
@@ -113,6 +117,17 @@ func (tx *NodeRegistration) Validate() error {
 	var (
 		accountBalance model.AccountBalance
 	)
+
+	// formally validate tx body fields
+	if tx.Body.Poown == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
+	}
+
+	// validate poown
+	if err := tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
+		return err
+	}
+
 	// check balance
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
@@ -131,7 +146,7 @@ func (tx *NodeRegistration) Validate() error {
 	defer rows.Close()
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
-		return errors.New("UserBalanceNotEnough")
+		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
@@ -141,8 +156,16 @@ func (tx *NodeRegistration) Validate() error {
 	}
 	defer nodeRow.Close()
 	if nodeRow.Next() {
-		return errors.New("node already registered")
+		return blocker.NewBlocker(blocker.AppErr, "NodeAlreadyRegistered")
 	}
+
+	_, err = url.ParseRequestURI(tx.Body.NodeAddress)
+	if err != nil {
+		if net.ParseIP(tx.Body.NodeAddress) == nil {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
+		}
+	}
+
 	return nil
 }
 

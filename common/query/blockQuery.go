@@ -139,3 +139,13 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 	}
 	return blocks
 }
+
+// Rollback delete records `WHERE height > "height"`
+func (bq *BlockQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", bq.TableName),
+			[]interface{}{height},
+		},
+	}
+}

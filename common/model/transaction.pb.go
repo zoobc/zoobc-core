@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -43,9 +44,11 @@ type Transaction struct {
 	//	*Transaction_NodeRegistrationTransactionBody
 	//	*Transaction_UpdateNodeRegistrationTransactionBody
 	//	*Transaction_RemoveNodeRegistrationTransactionBody
+	//	*Transaction_ClaimNodeRegistrationTransactionBody
 	//	*Transaction_SetupAccountDatasetTransactionBody
+	//	*Transaction_RemoveAccountDatasetTransactionBody
 	TransactionBody      isTransaction_TransactionBody `protobuf_oneof:"TransactionBody"`
-	Signature            []byte                        `protobuf:"bytes,20,opt,name=Signature,proto3" json:"Signature,omitempty"`
+	Signature            []byte                        `protobuf:"bytes,22,opt,name=Signature,proto3" json:"Signature,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
 	XXX_unrecognized     []byte                        `json:"-"`
 	XXX_sizecache        int32                         `json:"-"`
@@ -191,8 +194,16 @@ type Transaction_RemoveNodeRegistrationTransactionBody struct {
 	RemoveNodeRegistrationTransactionBody *RemoveNodeRegistrationTransactionBody `protobuf:"bytes,18,opt,name=removeNodeRegistrationTransactionBody,proto3,oneof"`
 }
 
+type Transaction_ClaimNodeRegistrationTransactionBody struct {
+	ClaimNodeRegistrationTransactionBody *ClaimNodeRegistrationTransactionBody `protobuf:"bytes,19,opt,name=claimNodeRegistrationTransactionBody,proto3,oneof"`
+}
+
 type Transaction_SetupAccountDatasetTransactionBody struct {
-	SetupAccountDatasetTransactionBody *SetupAccountDatasetTransactionBody `protobuf:"bytes,19,opt,name=setupAccountDatasetTransactionBody,proto3,oneof"`
+	SetupAccountDatasetTransactionBody *SetupAccountDatasetTransactionBody `protobuf:"bytes,20,opt,name=setupAccountDatasetTransactionBody,proto3,oneof"`
+}
+
+type Transaction_RemoveAccountDatasetTransactionBody struct {
+	RemoveAccountDatasetTransactionBody *RemoveAccountDatasetTransactionBody `protobuf:"bytes,21,opt,name=removeAccountDatasetTransactionBody,proto3,oneof"`
 }
 
 func (*Transaction_EmptyTransactionBody) isTransaction_TransactionBody() {}
@@ -205,7 +216,11 @@ func (*Transaction_UpdateNodeRegistrationTransactionBody) isTransaction_Transact
 
 func (*Transaction_RemoveNodeRegistrationTransactionBody) isTransaction_TransactionBody() {}
 
+func (*Transaction_ClaimNodeRegistrationTransactionBody) isTransaction_TransactionBody() {}
+
 func (*Transaction_SetupAccountDatasetTransactionBody) isTransaction_TransactionBody() {}
+
+func (*Transaction_RemoveAccountDatasetTransactionBody) isTransaction_TransactionBody() {}
 
 func (m *Transaction) GetTransactionBody() isTransaction_TransactionBody {
 	if m != nil {
@@ -249,9 +264,23 @@ func (m *Transaction) GetRemoveNodeRegistrationTransactionBody() *RemoveNodeRegi
 	return nil
 }
 
+func (m *Transaction) GetClaimNodeRegistrationTransactionBody() *ClaimNodeRegistrationTransactionBody {
+	if x, ok := m.GetTransactionBody().(*Transaction_ClaimNodeRegistrationTransactionBody); ok {
+		return x.ClaimNodeRegistrationTransactionBody
+	}
+	return nil
+}
+
 func (m *Transaction) GetSetupAccountDatasetTransactionBody() *SetupAccountDatasetTransactionBody {
 	if x, ok := m.GetTransactionBody().(*Transaction_SetupAccountDatasetTransactionBody); ok {
 		return x.SetupAccountDatasetTransactionBody
+	}
+	return nil
+}
+
+func (m *Transaction) GetRemoveAccountDatasetTransactionBody() *RemoveAccountDatasetTransactionBody {
+	if x, ok := m.GetTransactionBody().(*Transaction_RemoveAccountDatasetTransactionBody); ok {
+		return x.RemoveAccountDatasetTransactionBody
 	}
 	return nil
 }
@@ -271,7 +300,9 @@ func (*Transaction) XXX_OneofWrappers() []interface{} {
 		(*Transaction_NodeRegistrationTransactionBody)(nil),
 		(*Transaction_UpdateNodeRegistrationTransactionBody)(nil),
 		(*Transaction_RemoveNodeRegistrationTransactionBody)(nil),
+		(*Transaction_ClaimNodeRegistrationTransactionBody)(nil),
 		(*Transaction_SetupAccountDatasetTransactionBody)(nil),
+		(*Transaction_RemoveAccountDatasetTransactionBody)(nil),
 	}
 }
 
@@ -346,10 +377,12 @@ func (m *SendMoneyTransactionBody) GetAmount() int64 {
 }
 
 type NodeRegistrationTransactionBody struct {
-	NodePublicKey        []byte            `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
-	AccountAddress       string            `protobuf:"bytes,2,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
-	NodeAddress          string            `protobuf:"bytes,3,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
-	LockedBalance        int64             `protobuf:"varint,4,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
+	NodePublicKey  []byte `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+	AccountAddress string `protobuf:"bytes,2,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
+	NodeAddress    string `protobuf:"bytes,3,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
+	// Funds to be locked to register the node
+	LockedBalance int64 `protobuf:"varint,4,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
+	// Proof of ownership (message + signature)
 	Poown                *ProofOfOwnership `protobuf:"bytes,5,opt,name=Poown,proto3" json:"Poown,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
@@ -417,9 +450,11 @@ func (m *NodeRegistrationTransactionBody) GetPoown() *ProofOfOwnership {
 }
 
 type UpdateNodeRegistrationTransactionBody struct {
-	NodePublicKey        []byte            `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
-	NodeAddress          string            `protobuf:"bytes,2,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
-	LockedBalance        int64             `protobuf:"varint,3,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
+	NodePublicKey []byte `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+	NodeAddress   string `protobuf:"bytes,2,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
+	// Funds to be locked to register the node
+	LockedBalance int64 `protobuf:"varint,3,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
+	// Proof of ownership (message + signature)
 	Poown                *ProofOfOwnership `protobuf:"bytes,4,opt,name=Poown,proto3" json:"Poown,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
@@ -479,6 +514,45 @@ func (m *UpdateNodeRegistrationTransactionBody) GetPoown() *ProofOfOwnership {
 	return nil
 }
 
+type RemoveNodeRegistrationTransactionBody struct {
+	NodePublicKey        []byte   `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RemoveNodeRegistrationTransactionBody) Reset()         { *m = RemoveNodeRegistrationTransactionBody{} }
+func (m *RemoveNodeRegistrationTransactionBody) String() string { return proto.CompactTextString(m) }
+func (*RemoveNodeRegistrationTransactionBody) ProtoMessage()    {}
+func (*RemoveNodeRegistrationTransactionBody) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8333001f09b34082, []int{5}
+}
+
+func (m *RemoveNodeRegistrationTransactionBody) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Unmarshal(m, b)
+}
+func (m *RemoveNodeRegistrationTransactionBody) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Marshal(b, m, deterministic)
+}
+func (m *RemoveNodeRegistrationTransactionBody) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Merge(m, src)
+}
+func (m *RemoveNodeRegistrationTransactionBody) XXX_Size() int {
+	return xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Size(m)
+}
+func (m *RemoveNodeRegistrationTransactionBody) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoveNodeRegistrationTransactionBody.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoveNodeRegistrationTransactionBody proto.InternalMessageInfo
+
+func (m *RemoveNodeRegistrationTransactionBody) GetNodePublicKey() []byte {
+	if m != nil {
+		return m.NodePublicKey
+	}
+	return nil
+}
+
 type SetupAccountDatasetTransactionBody struct {
 	// Account Address that set Dataset
 	SetterAccountAddress string `protobuf:"bytes,1,opt,name=SetterAccountAddress,proto3" json:"SetterAccountAddress,omitempty"`
@@ -499,7 +573,7 @@ func (m *SetupAccountDatasetTransactionBody) Reset()         { *m = SetupAccount
 func (m *SetupAccountDatasetTransactionBody) String() string { return proto.CompactTextString(m) }
 func (*SetupAccountDatasetTransactionBody) ProtoMessage()    {}
 func (*SetupAccountDatasetTransactionBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{5}
+	return fileDescriptor_8333001f09b34082, []int{6}
 }
 
 func (m *SetupAccountDatasetTransactionBody) XXX_Unmarshal(b []byte) error {
@@ -555,41 +629,125 @@ func (m *SetupAccountDatasetTransactionBody) GetMuchTime() uint64 {
 	return 0
 }
 
-type RemoveNodeRegistrationTransactionBody struct {
-	NodePublicKey        []byte   `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+type RemoveAccountDatasetTransactionBody struct {
+	// Account Address that set Dataset
+	SetterAccountAddress string `protobuf:"bytes,1,opt,name=SetterAccountAddress,proto3" json:"SetterAccountAddress,omitempty"`
+	// Account Address that got property of Dataset
+	RecipientAccountAddress string `protobuf:"bytes,2,opt,name=RecipientAccountAddress,proto3" json:"RecipientAccountAddress,omitempty"`
+	// Property name
+	Property string `protobuf:"bytes,3,opt,name=Property,proto3" json:"Property,omitempty"`
+	// Value of property
+	Value                string   `protobuf:"bytes,4,opt,name=Value,proto3" json:"Value,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *RemoveNodeRegistrationTransactionBody) Reset()         { *m = RemoveNodeRegistrationTransactionBody{} }
-func (m *RemoveNodeRegistrationTransactionBody) String() string { return proto.CompactTextString(m) }
-func (*RemoveNodeRegistrationTransactionBody) ProtoMessage()    {}
-func (*RemoveNodeRegistrationTransactionBody) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{6}
+func (m *RemoveAccountDatasetTransactionBody) Reset()         { *m = RemoveAccountDatasetTransactionBody{} }
+func (m *RemoveAccountDatasetTransactionBody) String() string { return proto.CompactTextString(m) }
+func (*RemoveAccountDatasetTransactionBody) ProtoMessage()    {}
+func (*RemoveAccountDatasetTransactionBody) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8333001f09b34082, []int{7}
 }
 
-func (m *RemoveNodeRegistrationTransactionBody) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Unmarshal(m, b)
+func (m *RemoveAccountDatasetTransactionBody) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoveAccountDatasetTransactionBody.Unmarshal(m, b)
 }
-func (m *RemoveNodeRegistrationTransactionBody) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Marshal(b, m, deterministic)
+func (m *RemoveAccountDatasetTransactionBody) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoveAccountDatasetTransactionBody.Marshal(b, m, deterministic)
 }
-func (m *RemoveNodeRegistrationTransactionBody) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Merge(m, src)
+func (m *RemoveAccountDatasetTransactionBody) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoveAccountDatasetTransactionBody.Merge(m, src)
 }
-func (m *RemoveNodeRegistrationTransactionBody) XXX_Size() int {
-	return xxx_messageInfo_RemoveNodeRegistrationTransactionBody.Size(m)
+func (m *RemoveAccountDatasetTransactionBody) XXX_Size() int {
+	return xxx_messageInfo_RemoveAccountDatasetTransactionBody.Size(m)
 }
-func (m *RemoveNodeRegistrationTransactionBody) XXX_DiscardUnknown() {
-	xxx_messageInfo_RemoveNodeRegistrationTransactionBody.DiscardUnknown(m)
+func (m *RemoveAccountDatasetTransactionBody) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoveAccountDatasetTransactionBody.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_RemoveNodeRegistrationTransactionBody proto.InternalMessageInfo
+var xxx_messageInfo_RemoveAccountDatasetTransactionBody proto.InternalMessageInfo
 
-func (m *RemoveNodeRegistrationTransactionBody) GetNodePublicKey() []byte {
+func (m *RemoveAccountDatasetTransactionBody) GetSetterAccountAddress() string {
+	if m != nil {
+		return m.SetterAccountAddress
+	}
+	return ""
+}
+
+func (m *RemoveAccountDatasetTransactionBody) GetRecipientAccountAddress() string {
+	if m != nil {
+		return m.RecipientAccountAddress
+	}
+	return ""
+}
+
+func (m *RemoveAccountDatasetTransactionBody) GetProperty() string {
+	if m != nil {
+		return m.Property
+	}
+	return ""
+}
+
+func (m *RemoveAccountDatasetTransactionBody) GetValue() string {
+	if m != nil {
+		return m.Value
+	}
+	return ""
+}
+
+type ClaimNodeRegistrationTransactionBody struct {
+	NodePublicKey  []byte `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+	AccountAddress string `protobuf:"bytes,2,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
+	// Proof of ownership (message + signature)
+	Poown                *ProofOfOwnership `protobuf:"bytes,3,opt,name=Poown,proto3" json:"Poown,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *ClaimNodeRegistrationTransactionBody) Reset()         { *m = ClaimNodeRegistrationTransactionBody{} }
+func (m *ClaimNodeRegistrationTransactionBody) String() string { return proto.CompactTextString(m) }
+func (*ClaimNodeRegistrationTransactionBody) ProtoMessage()    {}
+func (*ClaimNodeRegistrationTransactionBody) Descriptor() ([]byte, []int) {
+	return fileDescriptor_8333001f09b34082, []int{8}
+}
+
+func (m *ClaimNodeRegistrationTransactionBody) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ClaimNodeRegistrationTransactionBody.Unmarshal(m, b)
+}
+func (m *ClaimNodeRegistrationTransactionBody) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ClaimNodeRegistrationTransactionBody.Marshal(b, m, deterministic)
+}
+func (m *ClaimNodeRegistrationTransactionBody) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ClaimNodeRegistrationTransactionBody.Merge(m, src)
+}
+func (m *ClaimNodeRegistrationTransactionBody) XXX_Size() int {
+	return xxx_messageInfo_ClaimNodeRegistrationTransactionBody.Size(m)
+}
+func (m *ClaimNodeRegistrationTransactionBody) XXX_DiscardUnknown() {
+	xxx_messageInfo_ClaimNodeRegistrationTransactionBody.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ClaimNodeRegistrationTransactionBody proto.InternalMessageInfo
+
+func (m *ClaimNodeRegistrationTransactionBody) GetNodePublicKey() []byte {
 	if m != nil {
 		return m.NodePublicKey
+	}
+	return nil
+}
+
+func (m *ClaimNodeRegistrationTransactionBody) GetAccountAddress() string {
+	if m != nil {
+		return m.AccountAddress
+	}
+	return ""
+}
+
+func (m *ClaimNodeRegistrationTransactionBody) GetPoown() *ProofOfOwnership {
+	if m != nil {
+		return m.Poown
 	}
 	return nil
 }
@@ -607,7 +765,7 @@ func (m *GetTransactionRequest) Reset()         { *m = GetTransactionRequest{} }
 func (m *GetTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionRequest) ProtoMessage()    {}
 func (*GetTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{7}
+	return fileDescriptor_8333001f09b34082, []int{9}
 }
 
 func (m *GetTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -637,19 +795,20 @@ func (m *GetTransactionRequest) GetID() int64 {
 
 // GetTransactions return GetTransactionsResponse
 type GetTransactionsRequest struct {
-	Limit                uint32   `protobuf:"varint,1,opt,name=Limit,proto3" json:"Limit,omitempty"`
-	Page                 uint32   `protobuf:"varint,2,opt,name=Page,proto3" json:"Page,omitempty"`
-	AccountAddress       string   `protobuf:"bytes,3,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	AccountAddress       string      `protobuf:"bytes,3,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
+	TimestampStart       int64       `protobuf:"varint,4,opt,name=TimestampStart,proto3" json:"TimestampStart,omitempty"`
+	TimestampEnd         int64       `protobuf:"varint,5,opt,name=TimestampEnd,proto3" json:"TimestampEnd,omitempty"`
+	Pagination           *Pagination `protobuf:"bytes,6,opt,name=Pagination,proto3" json:"Pagination,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *GetTransactionsRequest) Reset()         { *m = GetTransactionsRequest{} }
 func (m *GetTransactionsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionsRequest) ProtoMessage()    {}
 func (*GetTransactionsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{8}
+	return fileDescriptor_8333001f09b34082, []int{10}
 }
 
 func (m *GetTransactionsRequest) XXX_Unmarshal(b []byte) error {
@@ -670,25 +829,32 @@ func (m *GetTransactionsRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetTransactionsRequest proto.InternalMessageInfo
 
-func (m *GetTransactionsRequest) GetLimit() uint32 {
-	if m != nil {
-		return m.Limit
-	}
-	return 0
-}
-
-func (m *GetTransactionsRequest) GetPage() uint32 {
-	if m != nil {
-		return m.Page
-	}
-	return 0
-}
-
 func (m *GetTransactionsRequest) GetAccountAddress() string {
 	if m != nil {
 		return m.AccountAddress
 	}
 	return ""
+}
+
+func (m *GetTransactionsRequest) GetTimestampStart() int64 {
+	if m != nil {
+		return m.TimestampStart
+	}
+	return 0
+}
+
+func (m *GetTransactionsRequest) GetTimestampEnd() int64 {
+	if m != nil {
+		return m.TimestampEnd
+	}
+	return 0
+}
+
+func (m *GetTransactionsRequest) GetPagination() *Pagination {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
 }
 
 type GetTransactionsResponse struct {
@@ -705,7 +871,7 @@ func (m *GetTransactionsResponse) Reset()         { *m = GetTransactionsResponse
 func (m *GetTransactionsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetTransactionsResponse) ProtoMessage()    {}
 func (*GetTransactionsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{9}
+	return fileDescriptor_8333001f09b34082, []int{11}
 }
 
 func (m *GetTransactionsResponse) XXX_Unmarshal(b []byte) error {
@@ -753,7 +919,7 @@ func (m *PostTransactionRequest) Reset()         { *m = PostTransactionRequest{}
 func (m *PostTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*PostTransactionRequest) ProtoMessage()    {}
 func (*PostTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{10}
+	return fileDescriptor_8333001f09b34082, []int{12}
 }
 
 func (m *PostTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -792,7 +958,7 @@ func (m *PostTransactionResponse) Reset()         { *m = PostTransactionResponse
 func (m *PostTransactionResponse) String() string { return proto.CompactTextString(m) }
 func (*PostTransactionResponse) ProtoMessage()    {}
 func (*PostTransactionResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{11}
+	return fileDescriptor_8333001f09b34082, []int{13}
 }
 
 func (m *PostTransactionResponse) XXX_Unmarshal(b []byte) error {
@@ -834,7 +1000,7 @@ func (m *SendTransactionRequest) Reset()         { *m = SendTransactionRequest{}
 func (m *SendTransactionRequest) String() string { return proto.CompactTextString(m) }
 func (*SendTransactionRequest) ProtoMessage()    {}
 func (*SendTransactionRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_8333001f09b34082, []int{12}
+	return fileDescriptor_8333001f09b34082, []int{14}
 }
 
 func (m *SendTransactionRequest) XXX_Unmarshal(b []byte) error {
@@ -882,8 +1048,10 @@ func init() {
 	proto.RegisterType((*SendMoneyTransactionBody)(nil), "model.SendMoneyTransactionBody")
 	proto.RegisterType((*NodeRegistrationTransactionBody)(nil), "model.NodeRegistrationTransactionBody")
 	proto.RegisterType((*UpdateNodeRegistrationTransactionBody)(nil), "model.UpdateNodeRegistrationTransactionBody")
-	proto.RegisterType((*SetupAccountDatasetTransactionBody)(nil), "model.SetupAccountDatasetTransactionBody")
 	proto.RegisterType((*RemoveNodeRegistrationTransactionBody)(nil), "model.RemoveNodeRegistrationTransactionBody")
+	proto.RegisterType((*SetupAccountDatasetTransactionBody)(nil), "model.SetupAccountDatasetTransactionBody")
+	proto.RegisterType((*RemoveAccountDatasetTransactionBody)(nil), "model.RemoveAccountDatasetTransactionBody")
+	proto.RegisterType((*ClaimNodeRegistrationTransactionBody)(nil), "model.ClaimNodeRegistrationTransactionBody")
 	proto.RegisterType((*GetTransactionRequest)(nil), "model.GetTransactionRequest")
 	proto.RegisterType((*GetTransactionsRequest)(nil), "model.GetTransactionsRequest")
 	proto.RegisterType((*GetTransactionsResponse)(nil), "model.GetTransactionsResponse")

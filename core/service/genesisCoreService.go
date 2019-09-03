@@ -12,15 +12,17 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// 1 ZOO = 100000000 ZOOBIT, node only know the zoobit representation, zoo representation is handled by frontend
 var genesisFundReceiver = []map[string]int64{ // address : amount | public key hex
-	{"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE": 10000000}, // 04264418e6f758dc777c33957fd652e048ef388bff51e5b84d505027fead1ca9
-	{"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN": 10000000}, // 04266749faa93f9b6a15094c4d89037815455a76f254aeef2ebe4e445a538e0b
-	{"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J": 10000000}, // 04264a2ef814619d4a2b1fa3b45f4aa09b248d53ef07d8e92237f3cc8eb30d6d
+	{"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE": 1000000000000}, // 04264418e6f758dc777c33957fd652e048ef388bff51e5b84d505027fead1ca9
+	{"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN": 1000000000000}, // 04266749faa93f9b6a15094c4d89037815455a76f254aeef2ebe4e445a538e0b
+	{"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J": 1000000000000}, // 04264a2ef814619d4a2b1fa3b45f4aa09b248d53ef07d8e92237f3cc8eb30d6d
+	{"nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd": 10000000000},   // Wallet Develop
 }
 
 var genesisSignature = []byte{
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 }
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the

@@ -3,14 +3,16 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -48,6 +50,7 @@ var (
 	peerExplorer                     strategy.PeerExplorerStrategyInterface
 	ownerAccountAddress, myAddress   string
 	wellknownPeers                   []string
+	nodeKeyFilePath                  string
 )
 
 func init() {
@@ -64,13 +67,29 @@ func init() {
 	} else {
 		dbPath = viper.GetString("dbPath")
 		dbName = viper.GetString("dbName")
-		nodeSecretPhrase = viper.GetString("nodeSecretPhrase")
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		apiHTTPPort = viper.GetInt("apiHTTPPort")
 		ownerAccountAddress = viper.GetString("ownerAccountAddress")
 		myAddress = viper.GetString("myAddress")
 		peerPort = viper.GetUint32("peerPort")
 		wellknownPeers = viper.GetStringSlice("wellknownPeers")
+
+		configPath := viper.GetString("configPath")
+		nodeKeyFile := viper.GetString("nodeKeyFile")
+		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
+		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
+		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+		if err != nil {
+			// generate a node private key if there aren't already configured
+			seed := util.GetSecureRandomSeed()
+			if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
+				logrus.Fatal(err)
+			}
+		}
+		nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+		if nodeKey != nil {
+			nodeSecretPhrase = nodeKey.Seed
+		}
 	}
 
 	dbInstance = database.NewSqliteDB()
@@ -142,6 +161,7 @@ func startServices() {
 		p2pServiceInstance,
 		blockServices,
 		ownerAccountAddress,
+		nodeKeyFilePath,
 	)
 }
 
@@ -164,7 +184,8 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		},
 		query.NewAccountBalanceQuery(),
 		crypto.NewSignature(),
-		observer.NewObserver(),
+		query.NewTransactionQuery(mainchain),
+		observerInstance,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 

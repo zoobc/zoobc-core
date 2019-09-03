@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
@@ -20,6 +22,8 @@ type (
 		NotEqual(column string, value interface{}) string
 		Between(column string, start, end interface{}) string
 		NotBetween(column string, start, end interface{}) string
+		OrderBy(column string, order model.OrderBy) *CaseQuery
+		Limit(limit uint32) *CaseQuery
 		Paginate(limit, currentPage uint32) *CaseQuery
 		Build() (query string, args []interface{})
 	}
@@ -30,6 +34,13 @@ type (
 		Args  []interface{}
 	}
 )
+
+// NewCaseQuery initiate New `CaseQuery`
+func NewCaseQuery() CaseQuery {
+	return CaseQuery{
+		Query: bytes.NewBuffer([]byte{}),
+	}
+}
 
 // Select build buffer query string
 func (fq *CaseQuery) Select(tableName string, columns ...string) *CaseQuery {
@@ -54,12 +65,18 @@ func (fq *CaseQuery) Where(query ...string) *CaseQuery {
 
 // And represents `expressionFoo AND expressionBar`
 func (fq *CaseQuery) And(query ...string) *CaseQuery {
+	if !strings.Contains(fq.Query.String(), "WHERE") {
+		fq.Query.WriteString("WHERE 1=1 ")
+	}
 	fq.Query.WriteString(fmt.Sprintf("AND %s", strings.Join(query, "AND ")))
 	return fq
 }
 
 // Or represents `expressionFoo OR expressionBar`
 func (fq *CaseQuery) Or(expression ...string) *CaseQuery {
+	if !strings.Contains(fq.Query.String(), "WHERE") {
+		fq.Query.WriteString("WHERE 1=1 ")
+	}
 	fq.Query.WriteString(fmt.Sprintf("OR %s ", strings.Join(expression, "OR ")))
 	return fq
 }
@@ -100,6 +117,22 @@ func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 	return fmt.Sprintf("%s NOT BETWEEN ? AND ? ", column)
 }
 
+// OrderBy represents `... ORDER BY column DESC|ASC`
+func (fq *CaseQuery) OrderBy(column string, order model.OrderBy) *CaseQuery {
+	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order.String()))
+	return fq
+}
+
+// Limit represents `... LIMIT ...`
+func (fq *CaseQuery) Limit(limit uint32) *CaseQuery {
+	if limit == 0 {
+		limit = 1
+	}
+	fq.Query.WriteString("limit ? ")
+	fq.Args = append(fq.Args, limit)
+	return fq
+}
+
 // Paginate represents `limit = ? offset = ?`
 // default limit = 30, page start from 1
 func (fq *CaseQuery) Paginate(limit, currentPage uint32) *CaseQuery {
@@ -110,7 +143,7 @@ func (fq *CaseQuery) Paginate(limit, currentPage uint32) *CaseQuery {
 		currentPage = 1
 	}
 	offset := (currentPage - 1) * limit
-	fq.Query.WriteString("limit ? offset ?")
+	fq.Query.WriteString("limit ? offset ? ")
 	fq.Args = append(fq.Args, limit, offset)
 	return fq
 }

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"github.com/zoobc/zoobc-core/observer"
@@ -100,9 +99,7 @@ func (ts *TransactionService) GetTransactions(
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
-	caseQuery := query.CaseQuery{
-		Query: bytes.NewBuffer([]byte{}),
-	}
+	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
 	accountAddress := params.GetAccountAddress()
@@ -110,7 +107,11 @@ func (ts *TransactionService) GetTransactions(
 		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
 			Or(caseQuery.Equal("recipient_account_address", accountAddress))
 	}
-
+	timestampStart := params.GetTimestampStart()
+	timestampEnd := params.GetTimestampEnd()
+	if timestampStart > 0 {
+		caseQuery.And(caseQuery.Between("timestamp", timestampStart, timestampEnd))
+	}
 	selectQuery, args = caseQuery.Build()
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
@@ -130,7 +131,14 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	// Get Transactions
-	caseQuery.Paginate(params.GetLimit(), params.GetPage())
+	page := params.GetPagination()
+	if page.GetOrderField() == "" {
+		caseQuery.OrderBy("timestamp", page.GetOrderBy())
+	} else {
+		caseQuery.OrderBy(page.GetOrderField(), page.GetOrderBy())
+	}
+	caseQuery.Paginate(page.GetLimit(), page.GetPage())
+
 	selectQuery, args = caseQuery.Build()
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {

@@ -11,32 +11,27 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 )
 
-var mockBlockQuery = &BlockQuery{
-	Fields: []string{"id", "previous_block_hash", "height", "timestamp", "block_seed", "block_signature", "cumulative_difficulty",
-		"smith_scale", "payload_length", "payload_hash", "blocksmith_address", "total_amount", "total_fee", "total_coinbase", "version",
-	},
-	TableName: "block",
-	ChainType: &chaintype.MainChain{},
-}
-
-var mockBlock = &model.Block{
-	ID:                   1,
-	Height:               0,
-	BlockSeed:            []byte{1, 2, 3},
-	BlockSignature:       []byte{1, 2, 3, 4, 5},
-	BlocksmithAddress:    "BCZ",
-	CumulativeDifficulty: "0",
-	PayloadHash:          []byte{},
-	PayloadLength:        1,
-	PreviousBlockHash:    []byte{},
-	SmithScale:           0,
-	Timestamp:            1000,
-	TotalAmount:          1000,
-	TotalCoinBase:        0,
-	TotalFee:             1,
-	Transactions:         nil,
-	Version:              1,
-}
+var (
+	mockBlockQuery = NewBlockQuery(chaintype.GetChainType(0))
+	mockBlock      = &model.Block{
+		ID:                   1,
+		Height:               0,
+		BlockSeed:            []byte{1, 2, 3},
+		BlockSignature:       []byte{1, 2, 3, 4, 5},
+		BlocksmithAddress:    "BCZ",
+		CumulativeDifficulty: "0",
+		PayloadHash:          []byte{},
+		PayloadLength:        1,
+		PreviousBlockHash:    []byte{},
+		SmithScale:           0,
+		Timestamp:            1000,
+		TotalAmount:          1000,
+		TotalCoinBase:        0,
+		TotalFee:             1,
+		Transactions:         nil,
+		Version:              1,
+	}
+)
 
 func TestNewBlockQuery(t *testing.T) {
 	type args struct {
@@ -205,4 +200,47 @@ func TestBlockQuery_BuildModel(t *testing.T) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockBlock)
 		}
 	})
+}
+
+func TestBlockQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockBlockQuery),
+			args:   args{height: uint32(1)},
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM block WHERE height > ?",
+					[]interface{}{uint32(1)},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BlockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			multiQueries := bq.Rollback(tt.args.height)
+			if !reflect.DeepEqual(multiQueries, tt.wantMultiQueries) {
+				t.Errorf("Rollback() = %v, want %v", multiQueries, tt.wantMultiQueries)
+				return
+			}
+		})
+	}
 }

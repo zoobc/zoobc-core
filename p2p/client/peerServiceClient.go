@@ -3,20 +3,20 @@ package client
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
-	"github.com/zoobc/zoobc-core/common/query"
-	"google.golang.org/grpc"
-
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc"
 )
 
 type (
-	// PeerServiceClientInterface acts as interface for PeerServiceClient
+	//  PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
@@ -57,7 +57,8 @@ func NewPeerServiceClient(
 	receiptQuery query.ReceiptQueryInterface,
 	nodePublicKey []byte,
 ) PeerServiceClientInterface {
-	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log")
+	logLevels := viper.GetStringSlice("logLevels")
+	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log", logLevels)
 	// set to current struct log
 	return &PeerServiceClient{
 		Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {

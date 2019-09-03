@@ -8,23 +8,20 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-var mockNodeRegistrationQuery = &NodeRegistrationQuery{
-	Fields: []string{"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance", "queued",
-		"latest", "height"},
-	TableName: "node_registry",
-}
-
-var mockNodeRegistry = &model.NodeRegistration{
-	NodeID:             1,
-	NodePublicKey:      []byte{1},
-	AccountAddress:     "BCZ",
-	RegistrationHeight: 1,
-	NodeAddress:        "127.0.0.1",
-	LockedBalance:      10000,
-	Queued:             true,
-	Latest:             true,
-	Height:             0,
-}
+var (
+	mockNodeRegistrationQuery = NewNodeRegistrationQuery()
+	mockNodeRegistry          = &model.NodeRegistration{
+		NodeID:             1,
+		NodePublicKey:      []byte{1},
+		AccountAddress:     "BCZ",
+		RegistrationHeight: 1,
+		NodeAddress:        "127.0.0.1",
+		LockedBalance:      10000,
+		Queued:             true,
+		Latest:             true,
+		Height:             0,
+	}
+)
 
 func TestNewNodeRegistrationQuery(t *testing.T) {
 	tests := []struct {
@@ -184,4 +181,54 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByID(t *testing.T) {
 			t.Errorf("argument not match:\nget: %v\nwant: %v", arg, wantArg)
 		}
 	})
+}
+
+func TestNodeRegistrationQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name        string
+		fields      fields
+		args        args
+		wantQueries [][]interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountBalanceQuery),
+			args:   args{height: uint32(1)},
+			wantQueries: [][]interface{}{
+				{
+					"DELETE FROM account_balance WHERE height > ?",
+					[]interface{}{uint32(1)},
+				},
+				{`
+			UPDATE account_balance SET latest = ?
+			WHERE height || '_' || id) IN (
+				SELECT (MAX(height) || '_' || id) as con
+				FROM account_balance
+				WHERE latest = 0
+				GROUP BY id
+			)`,
+					[]interface{}{1},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nr := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotQueries := nr.Rollback(tt.args.height)
+			if !reflect.DeepEqual(gotQueries, tt.wantQueries) {
+				t.Errorf("Rollback() gotQueries = \n%v, want \n%v", gotQueries, tt.wantQueries)
+			}
+		})
+	}
 }
