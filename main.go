@@ -51,6 +51,7 @@ var (
 	ownerAccountAddress, myAddress   string
 	wellknownPeers                   []string
 	nodeKeyFilePath                  string
+	smithing                         bool
 )
 
 func init() {
@@ -73,7 +74,7 @@ func init() {
 		myAddress = viper.GetString("myAddress")
 		peerPort = viper.GetUint32("peerPort")
 		wellknownPeers = viper.GetStringSlice("wellknownPeers")
-
+		smithing = viper.GetBool("smithing")
 		configPath := viper.GetString("configPath")
 		nodeKeyFile := viper.GetString("nodeKeyFile")
 		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
@@ -223,7 +224,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		}
 	}
 
-	if len(nodeSecretPhrase) > 0 {
+	if smithing {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
