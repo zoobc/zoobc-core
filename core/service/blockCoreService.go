@@ -587,10 +587,9 @@ func (bs *BlockService) ReceiveBlock(
 			}
 			// generate receipt and return as response
 			// todo: lastblock last applied block, or incoming block?
-			// secretPhrase := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 			blockHash, _ := util.GetBlockHash(block)
-			receipt, err := util.GenerateReceipt( // todo: var
+			receipt, err := util.GenerateReceipt(
 				lastBlock,
 				senderPublicKey,
 				nodePublicKey,
@@ -603,12 +602,6 @@ func (bs *BlockService) ReceiveBlock(
 				util.GetUnsignedReceiptBytes(receipt),
 				nodeSecretPhrase,
 			)
-			fmt.Printf("receipt.Receipint %v\n", receipt.RecipientPublicKey)
-			fmt.Printf("receipt.DatumHash %v\n", receipt.DatumHash)
-			fmt.Printf("receipt.Signature: %v\n", receipt.RecipientSignature)
-			fmt.Printf("referenceBlockHeight: %v\n", receipt.ReferenceBlockHeight)
-			fmt.Printf("receipt.referenceBlockHash: %v\n", receipt.ReceiptMerkleRoot)
-
 			return receipt, nil
 		}
 		return nil, blocker.NewBlocker(

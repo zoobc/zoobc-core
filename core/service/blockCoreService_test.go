@@ -1863,6 +1863,41 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
+			name: "ReceiveBlock:pushBlockFail}",
+			args: args{
+				senderPublicKey: []byte{1, 3, 4, 5, 6},
+				lastBlock: &model.Block{
+					BlockSignature:       []byte{},
+					CumulativeDifficulty: "123",
+					SmithScale:           123,
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{
+						110, 241, 173, 42, 162, 49, 119, 54, 246, 123, 56, 160, 45, 219, 249, 31, 21, 93, 131, 114, 209, 187, 128, 99, 139, 84,
+						176, 96, 89, 96, 240, 91, 45, 214, 36, 51, 99, 78, 99, 18, 39, 136, 131, 36, 34, 188, 130, 86, 190, 136, 177, 47, 61,
+						252, 205, 6, 225, 70, 188, 201, 201, 77, 165, 122,
+					},
+					BlockSignature: nil,
+					SmithScale:     1,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockQueryExecutorFail{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            observer.NewObserver(),
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
 			name: "ReceiveBlock:success}",
 			args: args{
 				senderPublicKey: []byte{1, 3, 4, 5, 6},
