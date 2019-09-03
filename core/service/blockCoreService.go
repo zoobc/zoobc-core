@@ -254,7 +254,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		return err
 	}
 	// broadcast block
-	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	if block.Height > 0 {
+		bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	}
 	return nil
 
 }
@@ -533,7 +535,6 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
-	fmt.Printf("\n\ngenesis block: %v\n\n ", block)
 	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
 	if err != nil {
 		log.Fatal("PushGenesisBlock:fail")
@@ -608,6 +609,6 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	return nil, blocker.NewBlocker(
 		blocker.BlockErr,
-		"last block hash does not match",
+		"last block hash does not exist",
 	)
 }
