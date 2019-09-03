@@ -91,9 +91,9 @@ func (s *Peer2PeerService) StartP2P(
 		grpcServer := grpc.NewServer(
 			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(p2pLogger, ownerAddress)),
 		)
-		service.RegisterP2PCommunicationServer(grpcServer, &handler.P2PServerHandler{
-			Service: p2pServerService,
-		})
+		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
+			p2pServerService,
+		))
 		_ = grpcServer.Serve(p2pUtil.ServerListener(int(s.Host.GetInfo().GetPort())))
 	}()
 	// start p2p process threads
