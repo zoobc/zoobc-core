@@ -3,12 +3,13 @@ package interceptor
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc/metadata"
-	"runtime"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -54,11 +55,11 @@ func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 			if logger != nil {
 				switch {
 				case err != nil:
-					logger.WithFields(fields).Error(fmt.Sprint(err))
+					// logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errHandler != nil:
-					logger.WithFields(fields).Warning(errHandler)
+					// logger.WithFields(fields).Warning(errHandler)
 				default:
-					logger.WithFields(fields).Info("success")
+					// logger.WithFields(fields).Info("success")
 				}
 			}
 		}()
@@ -105,11 +106,11 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 			if logger != nil {
 				switch {
 				case err != nil:
-					logger.WithFields(fields).Error(fmt.Sprint(err))
+					// logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errInvoker != nil:
-					logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
+					// logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
 				default:
-					logger.WithFields(fields).Info("success")
+					// logger.WithFields(fields).Info("success")
 				}
 			}
 		}()

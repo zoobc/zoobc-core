@@ -4,12 +4,12 @@ dbName = "zoobc.db"
 # Peer
 peerPort=8001
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=[]
 
 apiRPCPort=7000
 # comment out or set to 0 to disable http proxy, only enable in dev mode
 apiHTTPPort=3031
-nodeSecretPhrase = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+# nodeSecretPhrase = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 
 proofOfOwnershipReqTimeoutSec = 2

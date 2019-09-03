@@ -45,13 +45,19 @@ var (
 func init() {
 	var (
 		configPostfix string
+		configPath    string
 		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
+	flag.StringVar(&configPath, "config-path", "", "Usage")
 	flag.Parse()
 
-	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
+	if configPath == "" {
+		configPath = "./resource"
+	}
+
+	if err := util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
 		logrus.Fatal(err)
 	} else {
 		dbPath = viper.GetString("dbPath")
