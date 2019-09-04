@@ -17,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
 	"github.com/zoobc/zoobc-core/core/service"
 
-	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
@@ -39,10 +38,11 @@ var (
 	p2pServiceInstance      p2p.ServiceInterface
 	queryExecutor           *query.Executor
 	observerInstance        *observer.Observer
-	blockServices           = make(map[int32]coreService.BlockServiceInterface)
+	blockServices           = make(map[int32]service.BlockServiceInterface)
 	mempoolServices         = make(map[int32]service.MempoolServiceInterface)
 	ownerAccountAddress     string
 	nodeKeyFilePath         string
+	nodeRegistrationService service.NodeRegistrationServiceInterface
 )
 
 func init() {
@@ -56,31 +56,19 @@ func init() {
 
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
 		logrus.Fatal(err)
-	} else {
-		dbPath = viper.GetString("dbPath")
-		dbName = viper.GetString("dbName")
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		apiHTTPPort = viper.GetInt("apiHTTPPort")
-		ownerAccountAddress = viper.GetString("ownerAccountAddress")
-
-		configPath := viper.GetString("configPath")
-		nodeKeyFile := viper.GetString("nodeKeyFile")
-		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
-		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
-		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
-		if err != nil {
-			// generate a node private key if there aren't already configured
-			seed := util.GetSecureRandomSeed()
-			if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
-				logrus.Fatal(err)
-			}
-		}
-		nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
-		if nodeKey != nil {
-			nodeSecretPhrase = nodeKey.Seed
-		}
+		return
 	}
 
+	dbPath = viper.GetString("dbPath")
+	dbName = viper.GetString("dbName")
+	apiRPCPort = viper.GetInt("apiRPCPort")
+	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	ownerAccountAddress = viper.GetString("ownerAccountAddress")
+
+	configPath := viper.GetString("configPath")
+	nodeKeyFile := viper.GetString("nodeKeyFile")
+
+	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		logrus.Fatal(err)
@@ -90,6 +78,29 @@ func init() {
 		logrus.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
+
+	// get the node private key
+	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
+	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
+	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+	if err != nil {
+		// generate a node private key if there aren't already configured
+		seed := util.GetSecureRandomSeed()
+		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
+			logrus.Fatal(err)
+		}
+	}
+	nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+	if nodeKey != nil {
+		nodeSecretPhrase = nodeKey.Seed
+	}
+
+	// initialize nodeRegistration service
+	nodeRegistrationService = service.NewNodeRegistrationService(
+		queryExecutor,
+		query.NewAccountBalanceQuery(),
+		query.NewNodeRegistrationQuery(),
+	)
 
 	// initialize Oberver
 	observerInstance = observer.NewObserver()
@@ -204,6 +215,9 @@ func main() {
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 	for _, blockService := range blockServices {
 		observerInstance.AddListener(observer.BlockReceived, blockService.ReceivedBlockListener())
+		if _, ok := blockService.GetChainType().(*chaintype.MainChain); ok {
+			observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
+		}
 	}
 	for _, mempoolService := range mempoolServices {
 		observerInstance.AddListener(observer.TransactionReceived, mempoolService.ReceivedTransactionListener())

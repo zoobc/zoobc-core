@@ -1,17 +1,21 @@
 package service
 
 import (
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
 	// NodeRegistrationServiceInterface represents interface for NodeRegistrationService
 	NodeRegistrationServiceInterface interface {
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
-		AdmitNode(nodeRegistration *model.NodeRegistration, height uint32) error
+		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		KickOutNode(nodeRegistration *model.NodeRegistration, height uint32) error
+		NodeRegistryListener() observer.Listener
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -19,6 +23,8 @@ type (
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		// mockable variables
+		NodeAdmittanceCycle uint32
 	}
 )
 
@@ -31,6 +37,7 @@ func NewNodeRegistrationService(
 		QueryExecutor:         queryExecutor,
 		AccountBalanceQuery:   accountBalanceQuery,
 		NodeRegistrationQuery: nodeRegistrationQuery,
+		NodeAdmittanceCycle:   constant.NodeAdmittanceCycle,
 	}
 }
 
@@ -107,4 +114,27 @@ func (nrs *NodeRegistrationService) KickOutNode(nodeRegistration *model.NodeRegi
 	}
 
 	return nil
+}
+
+// NodeRegistryListener handle node admission/expulsion after a block is pushed, at regular interval
+func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			pushedBlock := block.(*model.Block)
+			if pushedBlock.Height%nrs.NodeAdmittanceCycle != 0 {
+				return
+			}
+			nodeRegistrations, err := nrs.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
+			if err != nil {
+				log.Errorf("Can't get list of nodes from node registry: %s", err)
+				return
+			}
+			err = nrs.AdmitNodes(nodeRegistrations, pushedBlock.Height)
+			if err != nil {
+				log.Errorf("Can't admit nodes to registry: %s", err)
+				return
+			}
+			//TODO: kickout nodes with zero score when reputation score is implemented
+		},
+	}
 }

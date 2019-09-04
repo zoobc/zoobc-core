@@ -10,6 +10,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -17,6 +18,9 @@ type (
 		query.Executor
 	}
 	nrsMockQueryExecutorFailNoNodeRegistered struct {
+		query.Executor
+	}
+	nrsMockQueryExecutorFailNodeRegistryListener struct {
 		query.Executor
 	}
 )
@@ -47,7 +51,30 @@ var (
 		Latest:             true,
 		Height:             200,
 	}
+	blockAdmittanceHeight1 uint32 = 1440
+	nrsBlock1                     = &model.Block{
+		ID:                   0,
+		Height:               blockAdmittanceHeight1,
+		Version:              1,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		PreviousBlockHash:    []byte{},
+		BlockSeed:            []byte{},
+		BlocksmithAddress:    "BCZ",
+		Timestamp:            12345678,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Transactions:         []*model.Transaction{},
+		PayloadHash:          []byte{},
+		PayloadLength:        0,
+		BlockSignature:       []byte{},
+	}
 )
+
+func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("MockedError")
+}
 
 func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -295,4 +322,79 @@ func TestNodeRegistrationService_KickOutNode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNodeRegistrationService_NodeRegistryListener(t *testing.T) {
+	type (
+		fields struct {
+			QueryExecutor         query.ExecutorInterface
+			AccountBalanceQuery   query.AccountBalanceQueryInterface
+			NodeRegistrationQuery query.NodeRegistrationQueryInterface
+			NodeAdmittanceCycle   uint32
+		}
+		args struct {
+			block *model.Block
+		}
+	)
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   observer.Listener
+	}{
+		{
+			name: "NodeRegistryListener:success",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				NodeAdmittanceCycle:   blockAdmittanceHeight1,
+			},
+			args: args{
+				block: nrsBlock1,
+			},
+			want: observer.Listener{
+				OnNotify: func(data interface{}, args interface{}) {
+
+				},
+			},
+		},
+		{
+			name: "NodeRegistryListener:success-{noAdmittanceBlock}",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorFailNodeRegistryListener{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				NodeAdmittanceCycle:   blockAdmittanceHeight1 + 1,
+			},
+			args: args{
+				block: nrsBlock1,
+			},
+			want: observer.Listener{
+				OnNotify: func(data interface{}, args interface{}) {
+
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				NodeAdmittanceCycle:   tt.fields.NodeAdmittanceCycle,
+			}
+
+			got := nrs.NodeRegistryListener()
+			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
+				t.Errorf("NodeRegistrationService.NodeRegistryListener() = %v, want %v", got, tt.want)
+			}
+			testOnNotifyPushBlockListener(got.OnNotify, tt.args.block)
+		})
+	}
+}
+
+func testOnNotifyPushBlockListener(fn observer.OnNotify, block *model.Block) {
+	fn(block, nil)
 }
