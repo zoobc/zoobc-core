@@ -22,7 +22,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
 	"github.com/zoobc/zoobc-core/core/service"
 
-	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 
 	"github.com/spf13/viper"
@@ -43,7 +42,7 @@ var (
 	p2pServiceInstance               p2p.Peer2PeerServiceInterface
 	queryExecutor                    *query.Executor
 	observerInstance                 *observer.Observer
-	blockServices                    = make(map[int32]coreService.BlockServiceInterface)
+	blockServices                    = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
 	peerServiceClient                client.PeerServiceClientInterface
 	p2pHost                          *model.Host
@@ -52,6 +51,7 @@ var (
 	wellknownPeers                   []string
 	nodeKeyFilePath                  string
 	smithing                         bool
+	nodeRegistrationService          service.NodeRegistrationServiceInterface
 )
 
 func init() {
@@ -65,34 +65,22 @@ func init() {
 
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
 		logrus.Fatal(err)
-	} else {
-		dbPath = viper.GetString("dbPath")
-		dbName = viper.GetString("dbName")
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		apiHTTPPort = viper.GetInt("apiHTTPPort")
-		ownerAccountAddress = viper.GetString("ownerAccountAddress")
-		myAddress = viper.GetString("myAddress")
-		peerPort = viper.GetUint32("peerPort")
-		wellknownPeers = viper.GetStringSlice("wellknownPeers")
-		smithing = viper.GetBool("smithing")
-		configPath := viper.GetString("configPath")
-		nodeKeyFile := viper.GetString("nodeKeyFile")
-		nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
-		nodeAdminKeysService := coreService.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
-		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
-		if err != nil {
-			// generate a node private key if there aren't already configured
-			seed := util.GetSecureRandomSeed()
-			if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
-				logrus.Fatal(err)
-			}
-		}
-		nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
-		if nodeKey != nil {
-			nodeSecretPhrase = nodeKey.Seed
-		}
 	}
 
+	dbPath = viper.GetString("dbPath")
+	dbName = viper.GetString("dbName")
+	apiRPCPort = viper.GetInt("apiRPCPort")
+	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	ownerAccountAddress = viper.GetString("ownerAccountAddress")
+	myAddress = viper.GetString("myAddress")
+	peerPort = viper.GetUint32("peerPort")
+	wellknownPeers = viper.GetStringSlice("wellknownPeers")
+
+	configPath := viper.GetString("configPath")
+	nodeKeyFile := viper.GetString("nodeKeyFile")
+	smithing = viper.GetBool("smithing")
+
+	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		logrus.Fatal(err)
@@ -102,6 +90,29 @@ func init() {
 		logrus.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
+
+	// get the node private key
+	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
+	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
+	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+	if err != nil {
+		// generate a node private key if there aren't already configured
+		seed := util.GetSecureRandomSeed()
+		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
+			logrus.Fatal(err)
+		}
+	}
+	nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+	if nodeKey != nil {
+		nodeSecretPhrase = nodeKey.Seed
+	}
+
+	// initialize nodeRegistration service
+	nodeRegistrationService = service.NewNodeRegistrationService(
+		queryExecutor,
+		query.NewAccountBalanceQuery(),
+		query.NewNodeRegistrationQuery(),
+	)
 
 	// initialize Oberver
 	observerInstance = observer.NewObserver()

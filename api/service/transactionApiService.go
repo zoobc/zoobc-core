@@ -3,20 +3,18 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/observer"
 	"time"
+
+	"github.com/zoobc/zoobc-core/observer"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/service"
-
 	"github.com/zoobc/zoobc-core/common/crypto"
-
-	"github.com/zoobc/zoobc-core/common/util"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/service"
 )
 
 type (
@@ -112,6 +110,12 @@ func (ts *TransactionService) GetTransactions(
 	if timestampStart > 0 {
 		caseQuery.And(caseQuery.Between("timestamp", timestampStart, timestampEnd))
 	}
+
+	transcationType := params.GetTransactionType()
+	if transcationType > 0 {
+		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
+	}
+
 	selectQuery, args = caseQuery.Build()
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
