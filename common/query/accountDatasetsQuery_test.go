@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -405,6 +405,63 @@ func TestAccountDatasetsQuery_Scan(t *testing.T) {
 			}
 			if err := a.Scan(tt.args.dataset, tt.args.row); (err != nil) != tt.wantErr {
 				t.Errorf("AccountDatasetsQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAccountDatasetsQuery_Rollback(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		height uint32
+	}
+	var want [][]interface{}
+	var height = uint32(5)
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   [][]interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockDatasetQuery),
+			args: args{
+				height: height,
+			},
+			want: append(want,
+				[]interface{}{fmt.Sprintf("DELETE FROM %s WHERE height > ?", mockDatasetQuery.TableName), []interface{}{height}},
+				[]interface{}{fmt.Sprintf(`
+				UPDATE %s SET latest = 1
+				WHERE (%s) IN (
+					SELECT (%s) as con
+					FROM %s
+					WHERE latest = 0
+					GROUP BY %s
+				)`,
+					mockDatasetQuery.TableName,
+					strings.Join(mockDatasetQuery.PrimaryFields, " || '_' || "),
+					fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], " || '_' || ")),
+					mockDatasetQuery.TableName,
+					strings.Join(mockDatasetQuery.PrimaryFields[:3], ", "),
+				)},
+			),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			if got := adq.Rollback(tt.args.height); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountDatasetsQuery.Rollback() = \n%v \nwant \n%v", got, tt.want)
 			}
 		})
 	}

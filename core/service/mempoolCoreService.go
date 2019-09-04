@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"sort"
 	"time"
 
@@ -140,7 +141,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return err
 	}
 
-	if err := util.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+	if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
 
@@ -190,7 +191,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 
-			if err := util.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+			if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 				continue
 			}
 

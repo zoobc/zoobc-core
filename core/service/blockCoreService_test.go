@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -1299,7 +1299,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...inter
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase",
 		"Version",
-	}).AddRow(-7040029069285428872, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	}).AddRow((&chaintype.MainChain{}).GetGenesisBlockID(), []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
 	return db.Query("")
 }
 

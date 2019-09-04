@@ -19,9 +19,6 @@ func main() {
 		logrus.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
-		}
 	}
 
 	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
@@ -34,8 +31,10 @@ func main() {
 
 	response, err := c.GetTransactions(context.Background(), &rpcModel.GetTransactionsRequest{
 		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		Limit:          1,
-		Page:           0,
+		Pagination: &rpcModel.Pagination{
+			Limit: 1,
+			Page:  0,
+		},
 	})
 
 	if err != nil {

@@ -64,7 +64,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	}
 	// it's removed dataset when timestamp_starts = timestamp_expires
 	cq.And("timestamp_starts <> timestamp_expires ")
-	cq.OrderBy("height", OrderDesc)
+	cq.OrderBy("height", model.OrderBy_DESC)
 	cq.Limit(1)
 
 	return cq.Build()
@@ -252,4 +252,29 @@ func (adq *AccountDatasetsQuery) GetFields() []string {
 		adq.PrimaryFields,
 		adq.OrdinaryFields...,
 	)
+}
+
+func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", adq.TableName),
+			[]interface{}{height},
+		},
+		{
+			fmt.Sprintf(`
+				UPDATE %s SET latest = 1
+				WHERE (%s) IN (
+					SELECT (%s) as con
+					FROM %s
+					WHERE latest = 0
+					GROUP BY %s
+				)`,
+				adq.TableName,
+				strings.Join(adq.PrimaryFields, " || '_' || "),
+				fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(adq.PrimaryFields[:3], " || '_' || ")),
+				adq.TableName,
+				strings.Join(adq.PrimaryFields[:3], ", "),
+			),
+		},
+	}
 }

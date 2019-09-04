@@ -141,6 +141,22 @@ func TestCaseQuery_And(t *testing.T) {
 				Args:  argsWant,
 			},
 		},
+		{
+			name: "AndWithoutWHERE",
+			fields: fields{
+				Query: bytes.NewBufferString("SELECT id, name FROM account "),
+				Args:  argsWant,
+			},
+			args: args{
+				expression: []string{
+					"name = ? ",
+				},
+			},
+			want: &CaseQuery{
+				Query: bytes.NewBufferString("SELECT id, name FROM account WHERE 1=1 AND name = ? "),
+				Args:  argsWant,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -185,6 +201,22 @@ func TestCaseQuery_Or(t *testing.T) {
 			},
 			want: &CaseQuery{
 				Query: bytes.NewBufferString("SELECT id, name FROM account WHERE id = ? OR name = ? "),
+				Args:  argsWant,
+			},
+		},
+		{
+			name: "OrWithoutWHERE",
+			fields: fields{
+				Query: bytes.NewBufferString("SELECT id, name FROM account "),
+				Args:  argsWant,
+			},
+			args: args{
+				expression: []string{
+					"name = ?",
+				},
+			},
+			want: &CaseQuery{
+				Query: bytes.NewBufferString("SELECT id, name FROM account WHERE 1=1 OR name = ? "),
 				Args:  argsWant,
 			},
 		},
