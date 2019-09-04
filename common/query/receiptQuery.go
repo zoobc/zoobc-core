@@ -35,7 +35,7 @@ func NewReceiptQuery() *ReceiptQuery {
 			"receipt_merkle_root",
 			"recipient_signature",
 		},
-		TableName: "receipt",
+		TableName: "node_receipt",
 	}
 }
 

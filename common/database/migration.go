@@ -125,7 +125,7 @@ func (m *Migration) Init() error {
 				ADD COLUMN "transaction_index" INTEGER AFTER "version"
 			`,
 			`
-			CREATE TABLE IF NOT EXISTS "receipt" (
+			CREATE TABLE IF NOT EXISTS "node_receipt" (
 				"sender_public_key" BLOB, 
 				"recipient_public_key" BLOB,
 				"datum_type" INTEGER,
