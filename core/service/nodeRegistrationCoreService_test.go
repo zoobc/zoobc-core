@@ -136,28 +136,6 @@ func (*nrsMockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{})
 
 func (*nrsMockQueryExecutorSuccess) CommitTx() error { return nil }
 
-// var (
-// 	nodeRegistrationFixture = []*model.NodeKey{
-// 		{
-// 			PublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-// 				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-// 			Seed: "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
-// 		},
-// 		{
-// 			ID: 1,
-// 			PublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12,
-// 				152, 194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-// 			Seed: "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
-// 		},
-// 		{
-// 			ID: 2,
-// 			PublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211,
-// 				123, 72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
-// 			Seed: "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
-// 		},
-// 	}
-// )
-
 func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
