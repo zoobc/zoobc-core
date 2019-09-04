@@ -134,6 +134,10 @@ func (*nrsMockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{})
 	return nil
 }
 
+func (*nrsMockQueryExecutorSuccess) BeginTx() error { return nil }
+
+func (*nrsMockQueryExecutorSuccess) RollbackTx() error { return nil }
+
 func (*nrsMockQueryExecutorSuccess) CommitTx() error { return nil }
 
 func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {

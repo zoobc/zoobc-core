@@ -74,8 +74,10 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		}
 		queries = append(queries, newQ)
 	}
+	_ = nrs.QueryExecutor.BeginTx()
 	err := nrs.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
+		_ = nrs.QueryExecutor.RollbackTx()
 		return err
 	}
 
@@ -104,8 +106,10 @@ func (nrs *NodeRegistrationService) KickOutNode(nodeRegistration *model.NodeRegi
 	queries := append(append([][]interface{}{}, updateAccountBalanceQ...),
 		append([]interface{}{updateNodeQ}, updateNodeArg...),
 	)
+	_ = nrs.QueryExecutor.BeginTx()
 	err := nrs.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
+		_ = nrs.QueryExecutor.RollbackTx()
 		return err
 	}
 
