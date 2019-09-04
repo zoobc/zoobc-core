@@ -232,3 +232,14 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *testing.T) {
+	t.Run("GetNodeRegistrationsByHighestLockedBalance", func(t *testing.T) {
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(2)
+		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued," +
+			" latest, height FROM node_registry WHERE locked_balance > 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 2"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

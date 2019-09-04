@@ -16,6 +16,7 @@ type (
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetNodeRegistrationsByHighestLockedBalance(limit uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
 	}
@@ -92,6 +93,12 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKe
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %s AND latest=1",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress), []interface{}{accountAddress}
+}
+
+// GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
+func (nr *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
+		strings.Join(nr.Fields, ", "), nr.getTableName(), limit)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
