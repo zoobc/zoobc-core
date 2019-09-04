@@ -17,15 +17,12 @@ type Service struct {
 
 	PeerHasMore bool
 
-	ChainType          chaintype.ChainType
-	BlockService       service.BlockServiceInterface
-	P2pService         p2p.ServiceInterface
-	LastBlock          model.Block
-	TransactionService service.TransactionServiceInterface
-	TransactionQuery   query.TransactionQueryInterface
-	ForkingProcess     ForkingProcessInterface
-	QueryExecutor      query.ExecutorInterface
-	BlockQuery         query.BlockQueryInterface
+	ChainType        chaintype.ChainType
+	BlockService     service.BlockServiceInterface
+	P2pService       p2p.ServiceInterface
+	LastBlock        model.Block
+	ForkingProcessor ForkingProcessorInterface
+	QueryExecutor    query.ExecutorInterface
 }
 
 func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface, queryExecutor query.ExecutorInterface) *Service {
@@ -35,5 +32,10 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pSer
 		BlockService:      blockService,
 		P2pService:        p2pService,
 		QueryExecutor:     queryExecutor,
+		ForkingProcessor: &ForkingProcessor{
+			ChainType:     blockService.GetChainType(),
+			BlockService:  blockService,
+			QueryExecutor: queryExecutor,
+		},
 	}
 }

@@ -19,11 +19,7 @@ type mockServiceBlockSuccess struct {
 }
 
 type mockServiceForkingProcessSuccess struct {
-	ForkingProcessInterface
-}
-
-type mockServiceTransactionSuccess struct {
-	service.TransactionServiceInterface
+	ForkingProcessorInterface
 }
 
 type mockServiceChainType struct {
@@ -53,7 +49,7 @@ type mockServiceBlockFailGetTransactionsByBlockID struct {
 
 //FORKING SERVICE FAILS
 type mockServiceForkingProcessFail struct {
-	ForkingProcessInterface
+	ForkingProcessorInterface
 }
 
 //SERVICE QUERY EXECUTOR FAILS
@@ -276,7 +272,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 		BlockService         service.BlockServiceInterface
 		P2pService           p2p.ServiceInterface
 		LastBlock            model.Block
-		ForkingProcess       ForkingProcessInterface
+		ForkingProcessor     ForkingProcessorInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	type args struct {
@@ -294,10 +290,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock successfully return common block",
 			fields: fields{
-				BlockService:   &mockServiceBlockSuccess{},
-				ForkingProcess: &mockServiceForkingProcessSuccess{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutor{},
+				BlockService:     &mockServiceBlockSuccess{},
+				ForkingProcessor: &mockServiceForkingProcessSuccess{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutor{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -453,10 +449,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on getting LastBlock",
 			fields: fields{
-				BlockService:   &mockServiceBlockFailGetLastBlock{},
-				ForkingProcess: &mockServiceForkingProcessSuccess{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutor{},
+				BlockService:     &mockServiceBlockFailGetLastBlock{},
+				ForkingProcessor: &mockServiceForkingProcessSuccess{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutor{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -482,10 +478,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on getting BlockByHeight",
 			fields: fields{
-				BlockService:   &mockServiceBlockFailGetBlockByHeight{},
-				ForkingProcess: &mockServiceForkingProcessSuccess{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutor{},
+				BlockService:     &mockServiceBlockFailGetBlockByHeight{},
+				ForkingProcessor: &mockServiceForkingProcessSuccess{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutor{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -511,10 +507,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on getting BlockByID",
 			fields: fields{
-				BlockService:   &mockServiceBlockFailGetBlockByID{},
-				ForkingProcess: &mockServiceForkingProcessSuccess{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutor{},
+				BlockService:     &mockServiceBlockFailGetBlockByID{},
+				ForkingProcessor: &mockServiceForkingProcessSuccess{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutor{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -541,10 +537,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on Getting Minimal Height For Rollback",
 			fields: fields{
-				BlockService:   &mockServiceBlockSuccess{},
-				ForkingProcess: &mockServiceForkingProcessFail{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutor{},
+				BlockService:     &mockServiceBlockSuccess{},
+				ForkingProcessor: &mockServiceForkingProcessFail{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutor{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -571,10 +567,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on BeginTx function",
 			fields: fields{
-				BlockService:   &mockServiceBlockSuccess{},
-				ForkingProcess: &mockServiceForkingProcessFail{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutorBeginTXFail{},
+				BlockService:     &mockServiceBlockSuccess{},
+				ForkingProcessor: &mockServiceForkingProcessFail{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutorBeginTXFail{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -600,10 +596,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error when committing transaction",
 			fields: fields{
-				BlockService:   &mockServiceBlockSuccess{},
-				ForkingProcess: &mockServiceForkingProcessFail{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutorCommitTXFail{},
+				BlockService:     &mockServiceBlockSuccess{},
+				ForkingProcessor: &mockServiceForkingProcessFail{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutorCommitTXFail{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -629,10 +625,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error when executing Transactions",
 			fields: fields{
-				BlockService:   &mockServiceBlockSuccess{},
-				ForkingProcess: &mockServiceForkingProcessFail{},
-				ChainType:      &mockServiceChainType{},
-				QueryExecutor:  &mockServiceQueryExecutorExecuteTransFail{},
+				BlockService:     &mockServiceBlockSuccess{},
+				ForkingProcessor: &mockServiceForkingProcessFail{},
+				ChainType:        &mockServiceChainType{},
+				QueryExecutor:    &mockServiceQueryExecutorExecuteTransFail{},
 				LastBlock: model.Block{
 					ID:     40,
 					Height: 69,
@@ -664,10 +660,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 				BlockService:         tt.fields.BlockService,
 				P2pService:           tt.fields.P2pService,
 				LastBlock:            tt.fields.LastBlock,
-				ForkingProcess:       tt.fields.ForkingProcess,
+				ForkingProcessor:     tt.fields.ForkingProcessor,
 				QueryExecutor:        tt.fields.QueryExecutor,
 			}
-			got, err := bss.PopOffToBlock(tt.args.commonBlock)
+			got, err := bss.ForkingProcessor.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.PopOffToBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -221,7 +221,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 	var peersTobeDeactivated []*model.Peer
 	segSize := constant.BlockDownloadSegSize
 
-	stop := uint32(len(chainBlockIds) - 1)
+	stop := uint32(len(chainBlockIds))
 
 	var peersSlice []*model.Peer
 	for _, peer := range bss.P2pService.GetResolvedPeers() {
@@ -304,7 +304,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 
 	if len(forkBlocks) > 0 {
 		log.Printf("processing %d fork blocks...\n", len(forkBlocks))
-		err := bss.ProcessFork(forkBlocks, commonBlock, feederPeer)
+		err := bss.ForkingProcessor.ProcessFork(forkBlocks, commonBlock, feederPeer)
 		if err != nil {
 			return err
 		}
