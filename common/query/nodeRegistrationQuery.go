@@ -19,6 +19,7 @@ type (
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
+		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	NodeRegistrationQuery struct {
