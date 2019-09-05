@@ -117,7 +117,6 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	}
 
 	return nil
-
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached

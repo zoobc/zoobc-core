@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -70,7 +69,7 @@ func (*mockServiceForkingProcessSuccess) getMinRollbackHeight() (uint32, error) 
 
 //Mock function for Block interface
 func (*mockServiceBlockSuccess) GetLastBlock() (*model.Block, error) {
-	return &model.Block{ID: 58, Height: 66}, nil
+	return &model.Block{ID: 58, Height: 800}, nil
 }
 
 func (*mockServiceBlockSuccess) GetBlockByHeight(height uint32) (*model.Block, error) {
@@ -183,7 +182,7 @@ func (*mockServiceBlockFailGetBlockByHeight) GetTransactionsByBlockID(blockID in
 
 //Mock Function Block Service GetBlockByID fail
 func (*mockServiceBlockFailGetBlockByID) GetLastBlock() (*model.Block, error) {
-	return &model.Block{ID: 58, Height: 66}, nil
+	return &model.Block{ID: 58, Height: 800}, nil
 }
 
 func (*mockServiceBlockFailGetBlockByID) GetBlockByHeight(height uint32) (*model.Block, error) {
@@ -666,6 +665,233 @@ func TestService_PopOffToBlock(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Service.PopOffToBlock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestService_HasBlock(t *testing.T) {
+	type fields struct {
+		BlockService service.BlockServiceInterface
+	}
+	type args struct {
+		id int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "HasBlock Success",
+			fields: fields{
+				BlockService: &mockServiceBlockSuccess{},
+			},
+			args: args{id: 851235534234277675},
+			want: true,
+		},
+		{
+			name: "HasBlock Failed",
+			fields: fields{
+				BlockService: &mockServiceBlockFailGetBlockByID{},
+			},
+			args: args{id: 851235534234277675},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &Service{
+				BlockService: tt.fields.BlockService,
+			}
+			if got := bss.HasBlock(tt.args.id); got != tt.want {
+				t.Errorf("Service.HasBlock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestService_getMinRollbackHeight(t *testing.T) {
+	type fields struct {
+		BlockService service.BlockServiceInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    uint32
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "GetMinROllbackHeight Successfull",
+			fields: fields{
+				BlockService: &mockServiceBlockSuccess{},
+			},
+			want:    80,
+			wantErr: false,
+		},
+		{
+			name: "GetMinROllbackHeight Failed",
+			fields: fields{
+				BlockService: &mockServiceBlockFailGetLastBlock{},
+			},
+			want:    0,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &Service{
+				BlockService: tt.fields.BlockService,
+			}
+			got, err := bss.getMinRollbackHeight()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Service.getMinRollbackHeight() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Service.getMinRollbackHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestService_LoadTransactions(t *testing.T) {
+	type fields struct {
+		BlockService service.BlockServiceInterface
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *model.Block
+	}{
+		// TODO: Add test cases.
+		{
+			name: "LoadTransaction Test Successfull",
+			fields: fields{
+				BlockService: &mockServiceBlockSuccess{},
+			},
+			args: args{
+				block: &model.Block{
+					ID:     40,
+					Height: 69,
+				},
+			},
+			want: &model.Block{
+				ID:     40,
+				Height: 69,
+				Transactions: []*model.Transaction{
+					{
+						Version: 1,
+						ID:      789,
+						BlockID: 40,
+						Height:  69,
+					},
+				},
+			},
+		}, {
+			name: "LoadTransaction Test Transaction Already Exists",
+			fields: fields{
+				BlockService: &mockServiceBlockSuccess{},
+			},
+			args: args{
+				block: &model.Block{
+					ID:     40,
+					Height: 69,
+					Transactions: []*model.Transaction{
+						{
+							Version: 1,
+							ID:      789,
+							BlockID: 40,
+							Height:  69,
+						},
+					},
+				},
+			},
+			want: &model.Block{
+				ID:     40,
+				Height: 69,
+				Transactions: []*model.Transaction{
+					{
+						Version: 1,
+						ID:      789,
+						BlockID: 40,
+						Height:  69,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &Service{
+				BlockService: tt.fields.BlockService,
+			}
+			if got := bss.LoadTransactions(tt.args.block); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Service.LoadTransactions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestService_ProcessFork(t *testing.T) {
+	type fields struct {
+		isScanningBlockchain       bool
+		NeedGetMoreBlocks          bool
+		IsDownloading              bool
+		LastBlockchainFeeder       *model.Peer
+		LastBlockchainFeederHeight uint32
+		PeerHasMore                bool
+		ChainType                  chaintype.ChainType
+		BlockService               service.BlockServiceInterface
+		P2pService                 p2p.ServiceInterface
+		LastBlock                  model.Block
+		TransactionService         service.TransactionServiceInterface
+		TransactionQuery           query.TransactionQueryInterface
+		ForkingProcess             ForkingProcessInterface
+		QueryExecutor              query.ExecutorInterface
+		BlockQuery                 query.BlockQueryInterface
+	}
+	type args struct {
+		forkBlocks  []*model.Block
+		commonBlock *model.Block
+		feederPeer  *model.Peer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &Service{
+				isScanningBlockchain:       tt.fields.isScanningBlockchain,
+				NeedGetMoreBlocks:          tt.fields.NeedGetMoreBlocks,
+				IsDownloading:              tt.fields.IsDownloading,
+				LastBlockchainFeeder:       tt.fields.LastBlockchainFeeder,
+				LastBlockchainFeederHeight: tt.fields.LastBlockchainFeederHeight,
+				PeerHasMore:                tt.fields.PeerHasMore,
+				ChainType:                  tt.fields.ChainType,
+				BlockService:               tt.fields.BlockService,
+				P2pService:                 tt.fields.P2pService,
+				LastBlock:                  tt.fields.LastBlock,
+				TransactionService:         tt.fields.TransactionService,
+				TransactionQuery:           tt.fields.TransactionQuery,
+				ForkingProcess:             tt.fields.ForkingProcess,
+				QueryExecutor:              tt.fields.QueryExecutor,
+				BlockQuery:                 tt.fields.BlockQuery,
+			}
+			if err := bss.ProcessFork(tt.args.forkBlocks, tt.args.commonBlock, tt.args.feederPeer); (err != nil) != tt.wantErr {
+				t.Errorf("Service.ProcessFork() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
