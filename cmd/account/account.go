@@ -5,7 +5,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/tyler-smith/go-bip39"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -20,8 +19,7 @@ private key both in bytes and hex representation + the secret phrase
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] == "generate" {
-				entropy, _ := bip39.NewEntropy(128)
-				seed, _ := bip39.NewMnemonic(entropy)
+				seed := util.GetSecureRandomSeed()
 				privateKey, _ := util.GetPrivateKeyFromSeed(seed)
 				publicKey := privateKey[32:]
 				address, _ := util.GetAddressFromPublicKey(publicKey)

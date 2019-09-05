@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -36,6 +37,7 @@ type (
 		MempoolQuery        query.MempoolQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
 		Observer            *observer.Observer
 	}
 )
@@ -47,6 +49,7 @@ func NewMempoolService(
 	mempoolQuery query.MempoolQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	transactionQuery query.TransactionQueryInterface,
 	obsr *observer.Observer,
 ) *MempoolService {
 	return &MempoolService{
@@ -55,6 +58,7 @@ func NewMempoolService(
 		MempoolQuery:        mempoolQuery,
 		ActionTypeSwitcher:  actionTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
+		TransactionQuery:    transactionQuery,
 		Observer:            obsr,
 	}
 }
@@ -116,17 +120,32 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 }
 
 func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
-	// TODO : check if transaction already inserted in Transaction Table. Is needed?
-	tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+	var (
+		tx       model.Transaction
+		parsedTx *model.Transaction
+		err      error
+	)
+
+	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.ID)
+	row := mps.QueryExecutor.ExecuteSelectRow(transactionQ)
+	err = mps.TransactionQuery.Scan(&tx, row)
+	if tx.ID != 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "Mempool Validate, transaction already exist in block")
+	}
+	if err != sql.ErrNoRows {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	parsedTx, err = util.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
 		return err
 	}
-	if err := util.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+
+	if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
 
-	if err := mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
-
+	if err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx).Validate(); err != nil {
 		return err
 	}
 	return nil
@@ -164,6 +183,15 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			// compute transaction expiration time
 			txExpirationTime := blockTimestamp + constant.TransactionExpirationOffset
 			if blockTimestamp > 0 && tx.Timestamp > txExpirationTime {
+				continue
+			}
+
+			parsedTx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+			if err != nil {
+				continue
+			}
+
+			if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 				continue
 			}
 

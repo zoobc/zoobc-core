@@ -23,7 +23,7 @@ NewServerInterceptor function can use to inject middlewares like:
 	- validate `authentication` if needed
 With `recover()` function can handle re-run the app while got panic or error
 */
-func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
+func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req interface{},
@@ -63,6 +63,12 @@ func NewServerInterceptor(logger *logrus.Logger) grpc.UnaryServerInterceptor {
 				}
 			}
 		}()
+
+		// authorize request
+		err := authRequest(ctx, info.FullMethod, ownerAddress)
+		if err != nil {
+			return nil, err
+		}
 
 		resp, errHandler = handler(ctx, req)
 		return resp, errHandler
@@ -129,17 +135,37 @@ func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
 		srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler,
 	) error {
 		var (
-			errHandler  error
-			requestType model.RequestType
+			errHandler error
 		)
-		switch info.FullMethod {
-		case "/service.NodeHardwareService/GetNodeHardware":
-			requestType = model.RequestType_GetNodeHardware
-		default:
-			// unprotected service, by pass the auth checking
-			requestType = -1
+		err := authRequest(ss.Context(), info.FullMethod, ownerAddress)
+		if err != nil {
+			return err
 		}
-		md, ok := metadata.FromIncomingContext(ss.Context())
+
+		errHandler = handler(srv, ss)
+		return errHandler
+	}
+}
+
+// authRequest shared logic to authorize an off-chain api requests
+func authRequest(ctx context.Context, method, ownerAddress string) error {
+	var (
+		requestType model.RequestType
+	)
+	switch method {
+	case "/service.NodeHardwareService/GetNodeHardware":
+		requestType = model.RequestType_GetNodeHardware
+	case "/service.NodeAdminService/GetProofOfOwnership":
+		requestType = model.RequestType_GetProofOfOwnership
+	case "/service.NodeAdminService/GenerateNodeKey":
+		requestType = model.RequestType_GeneratetNodeKey
+	default:
+		// unprotected service, by pass the auth checking
+		requestType = -1
+	}
+
+	if requestType > -1 {
+		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return blocker.NewBlocker(
 				blocker.AuthErr,
@@ -153,20 +179,16 @@ func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
 				"authorization metadata not provided",
 			)
 		}
-		if requestType > -1 {
-			// validate request
-			// todo: this is verifying against whatever owner address is in the config file, update this
-			// todo: to follow how `claim` node work.
-			err := crypto.VerifyAuthAPI(
-				ownerAddress,
-				authSlice[0],
-				requestType)
-			if err != nil {
-				return err
-			}
+		// validate request
+		// todo: this is verifying against whatever owner address is in the config file, update this
+		// todo: to follow how `claim` node work.
+		err := crypto.VerifyAuthAPI(
+			ownerAddress,
+			authSlice[0],
+			requestType)
+		if err != nil {
+			return err
 		}
-
-		errHandler = handler(srv, ss)
-		return errHandler
 	}
+	return nil
 }

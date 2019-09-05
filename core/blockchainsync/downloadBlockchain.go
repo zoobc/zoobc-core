@@ -18,6 +18,11 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
+type (
+	BlockchainDownloadInterface interface{}
+	BlockchainDownloader        struct{}
+)
+
 func (bss *Service) Start(runNext chan bool) {
 	if bss.ChainType == nil {
 		log.Fatal("no chaintype")

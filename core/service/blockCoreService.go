@@ -222,10 +222,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			tx.BlockID = block.ID
 			tx.Height = block.Height
 			tx.TransactionIndex = uint32(index) + 1
-			// validate the transaction
-			if err := util.ValidateTransaction(tx, bs.QueryExecutor, bs.AccountBalanceQuery, true); err != nil {
-				return err
-			}
+
 			// validate tx body and apply/perform transaction-specific logic
 			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed()
 			if err == nil {
@@ -243,6 +240,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		if block.Height != 0 {
 			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
 				log.Errorf("Can't delete Mempool Transactions: %s", err)
+				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
 		}

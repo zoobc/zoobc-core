@@ -7,12 +7,11 @@ import (
 	"regexp"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
-// var db, mock, _ = sqlmock.New()
 type (
 	executorSetupAccountDatasetApplyConfirmedSuccess struct {
 		query.Executor
@@ -97,20 +96,25 @@ func (*executorSetupAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr str
 	return errors.New("MockedError")
 }
 
-func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
+func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
+			"BCZ",
+			1,
+			1,
+			1,
+			0,
+			true,
+		),
+	)
 
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
-		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 50, 50, 0, 1))
-	return db.Query(qStr, 1)
+	return db.QueryRow(qStr)
 }
 
 func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
+	mockSetupAccountDatasetTransactionBody, _ := GetFixturesForSetupAccountDataset()
+
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
@@ -128,14 +132,9 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 		{
 			name: "success",
 			fields: fields{
-				Body: &model.SetupAccountDatasetTransactionBody{
-					SetterAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					MuchTime:             2000,
-					Property:             "Admin",
-					Value:                "Welcome",
-				},
+				Body:                mockSetupAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor: &executorSetupAccountDatasetApplyConfirmedSuccess{
@@ -151,7 +150,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                &model.SetupAccountDatasetTransactionBody{},
 				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
 				Height:              3,
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -168,7 +167,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                &model.SetupAccountDatasetTransactionBody{},
 				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
 				Height:              0,
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -528,6 +527,7 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 }
 
 func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
+
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64

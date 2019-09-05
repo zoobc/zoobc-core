@@ -14,9 +14,14 @@ type TransactionHandler struct {
 }
 
 // GetTransaction handles request to get data of a single Transaction
-func (th *TransactionHandler) GetTransaction(ctx context.Context, req *model.GetTransactionRequest) (*model.Transaction, error) {
-	var transaction *model.Transaction
-	var err error
+func (th *TransactionHandler) GetTransaction(
+	ctx context.Context,
+	req *model.GetTransactionRequest,
+) (*model.Transaction, error) {
+	var (
+		transaction *model.Transaction
+		err         error
+	)
 	chainType := chaintype.GetChainType(0)
 	transaction, err = th.Service.GetTransaction(chainType, req)
 	if err != nil {
@@ -46,8 +51,10 @@ func (th *TransactionHandler) GetTransactions(
 }
 
 // PostTransaction handle transaction submitted by client
-func (th *TransactionHandler) PostTransaction(ctx context.Context,
-	req *model.PostTransactionRequest) (*model.PostTransactionResponse, error) {
+func (th *TransactionHandler) PostTransaction(
+	ctx context.Context,
+	req *model.PostTransactionRequest,
+) (*model.PostTransactionResponse, error) {
 	chainType := chaintype.GetChainType(0)
 	transaction, err := th.Service.PostTransaction(chainType, req)
 	if err != nil {

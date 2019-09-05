@@ -171,14 +171,8 @@ func (fp *ForkingProcessor) PopOffToBlock(commonBlock *model.Block) ([]*model.Bl
 		if commonBlock.Height == 0 {
 			break
 		}
-		queries, _ := dTable.Rollback(commonBlock.Height)
-		for _, query := range queries {
-			errTx = fp.QueryExecutor.ExecuteTransaction(query)
-			if errTx != nil {
-				_ = fp.QueryExecutor.RollbackTx()
-				return []*model.Block{}, errTx
-			}
-		}
+		queries := dTable.Rollback(commonBlock.Height)
+		errTx = fp.QueryExecutor.ExecuteTransactions(queries)
 	}
 	errTx = fp.QueryExecutor.CommitTx()
 	if errTx != nil {

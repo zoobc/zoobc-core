@@ -3,6 +3,8 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"testing"
@@ -25,6 +27,8 @@ type (
 var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
 	"recipient_account_address FROM mempool WHERE id = :id"
 
+// var getAccountB
+
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -41,6 +45,11 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interfa
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	case getTxByIDQuery:
 		return nil, errors.New("MempoolTransactionNotFound")
+	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
+		"FROM account_balance WHERE account_address = ? AND latest = 1":
+		mockedRows := sqlmock.NewRows([]string{"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"})
+		mockedRows.AddRow("BCZ", 1, 1000, 10000, nil, 1)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	}
 
 	rows, _ := db.Query(qe)
@@ -107,13 +116,18 @@ func buildTransaction(timestamp int64, sender, recipient string) *model.Transact
 		TransactionBodyLength:   0,
 		TransactionBodyBytes:    make([]byte, 0),
 		TransactionBody:         nil,
-		Signature:               make([]byte, 64),
+		Signature:               make([]byte, 68),
 	}
 }
 
 func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
 	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
-	txBytes, _ := util.GetTransactionBytes(tx, true)
+
+	txBytes, _ := util.GetTransactionBytes(tx, false)
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.NodeSignatureTypeDefault,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	tx.Signature = signature
+	txBytes, _ = util.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
 		FeePerByte:              1,
@@ -131,6 +145,7 @@ func TestNewMempoolService(t *testing.T) {
 		mempoolQuery        query.MempoolQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
+		transactionQuery    query.TransactionQueryInterface
 		obsr                *observer.Observer
 	}
 
@@ -156,6 +171,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
+		test.args.transactionQuery,
 		test.args.obsr,
 	)
 	if !reflect.DeepEqual(got, test.want) {
@@ -165,9 +181,10 @@ func TestNewMempoolService(t *testing.T) {
 
 func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype     chaintype.ChainType
-		QueryExecutor query.ExecutorInterface
-		MempoolQuery  query.MempoolQueryInterface
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		AccountBalanceQuery query.AccountBalanceQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -178,9 +195,10 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 		{
 			name: "GetMempoolTransactions:Success",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorSuccess{},
+				Chaintype:           &chaintype.MainChain{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:       &mockMempoolQueryExecutorSuccess{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
 			want: []*model.MempoolTransaction{
 				{
@@ -229,9 +247,10 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 		{
 			name: "GetMempoolTransactions:Fail",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockMempoolQueryExecutorFail{},
+				Chaintype:           &chaintype.MainChain{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:       &mockMempoolQueryExecutorFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
 			want:    nil,
 			wantErr: true,
@@ -240,9 +259,10 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				MempoolQuery:  tt.fields.MempoolQuery,
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 			}
 			got, err := mps.GetMempoolTransactions()
 			if (err != nil) != tt.wantErr {
@@ -320,10 +340,11 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		MempoolQuery       query.MempoolQueryInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
 	}
 	type args struct {
 		blockTimestamp int64
@@ -338,10 +359,11 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 		{
 			name: "SelectTransactionsFromMempool:Success",
 			fields: fields{
-				Chaintype:          &chaintype.MainChain{},
-				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
-				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				Chaintype:           &chaintype.MainChain{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:       &mockMempoolQueryExecutorSuccess{},
+				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
 			args: args{
 				blockTimestamp: 1562893106,
@@ -394,10 +416,11 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 			}
 			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp)
 			if (err != nil) != tt.wantErr {
@@ -509,4 +532,169 @@ func TestMempoolService_ReceivedTransactionListener(t *testing.T) {
 
 func testOnNotifyTransactionListener(fn observer.OnNotify, txBytes []byte) {
 	fn(txBytes, nil)
+}
+
+type (
+	mockExecutorValidateMempoolTransactionSuccess struct {
+		query.Executor
+	}
+	mockExecutorValidateMempoolTransactionSuccessNoRow struct {
+		query.Executor
+	}
+	mockExecutorValidateMempoolTransactionFail struct {
+		query.Executor
+	}
+)
+
+func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).AddRow(
+			1,
+			2774809487,
+			1,
+			1,
+			"BCZ-Sender",
+			"BCZ-Recipient",
+			0,
+			1,
+			23445959,
+			make([]byte, 32),
+			0,
+			make([]byte, 0),
+			nil,
+			make([]byte, 64),
+		),
+	)
+	return db.QueryRow(qStr)
+}
+
+func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields),
+	)
+	return db.QueryRow(qStr)
+}
+func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	balanceQ := query.NewAccountBalanceQuery()
+
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
+		sqlmock.NewRows(balanceQ.Fields).AddRow(
+			"BCZ",
+			100,
+			1000,
+			10000,
+			100,
+			1,
+		),
+	)
+	return db.Query(qStr)
+}
+
+func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnError(errors.New("mocked err"))
+	return db.QueryRow(qStr)
+}
+
+func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockExecutorValidateMempoolTransactionFail : mocked Err")
+}
+
+func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+	}
+	type args struct {
+		mpTx *model.MempoolTransaction
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
+				MempoolQuery:        nil,
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantErr:TransactionExisted",
+			fields: fields{
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccess{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:TransactionExisted",
+			fields: fields{
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockExecutorValidateMempoolTransactionFail{},
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+			},
+			args: args{
+				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:ParseFail",
+			fields: fields{
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+			},
+			args: args{
+				mpTx: &model.MempoolTransaction{
+					ID: 12,
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+			}
+			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
+				t.Errorf("MempoolService.ValidateMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

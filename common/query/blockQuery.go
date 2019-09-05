@@ -11,7 +11,7 @@ import (
 
 type (
 	BlockQueryInterface interface {
-		Rollback(height uint32) (queries []string, args uint32)
+		Rollback(height uint32) (multiQueries [][]interface{})
 		GetBlocks(height, size uint32) string
 		GetLastBlock() string
 		GetGenesisBlock() string
@@ -142,8 +142,11 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 }
 
 // Rollback delete records `WHERE height > "height"`
-func (bq *BlockQuery) Rollback(height uint32) (queries []string, args uint32) {
-	return []string{
-		fmt.Sprintf("DELETE FROM %s WHERE height > %d", bq.getTableName(), height),
-	}, height
+func (bq *BlockQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", bq.TableName),
+			[]interface{}{height},
+		},
+	}
 }

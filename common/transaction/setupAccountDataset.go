@@ -135,27 +135,17 @@ func (tx *SetupAccountDataset) Validate() error {
 		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
 	}
 
-	// check balance
+	// check account balance sender
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
+	row := tx.QueryExecutor.ExecuteSelectRow(senderQ, senderArg)
+	err := tx.AccountBalanceQuery.Scan(&accountBalance, row)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	} else if rows.Next() {
-		_ = rows.Scan(
-			&accountBalance.AccountAddress,
-			&accountBalance.BlockHeight,
-			&accountBalance.SpendableBalance,
-			&accountBalance.Balance,
-			&accountBalance.PopRevenue,
-			&accountBalance.Latest,
-		)
 	}
-	defer rows.Close()
 	// TODO: transaction fee + (expiration time fee)
-	if accountBalance.SpendableBalance < tx.Fee {
+	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, user balance not enough")
 	}
-
 	return nil
 }
 

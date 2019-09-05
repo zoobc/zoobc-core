@@ -654,16 +654,12 @@ func TestService_PopOffToBlock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &Service{
-				isScanningBlockchain: tt.fields.isScanningBlockchain,
-				ChainType:            tt.fields.ChainType,
-				BlockService:         tt.fields.BlockService,
-				P2pService:           tt.fields.P2pService,
-				LastBlock:            tt.fields.LastBlock,
-				ForkingProcessor:     tt.fields.ForkingProcessor,
-				QueryExecutor:        tt.fields.QueryExecutor,
+			fp := &ForkingProcessor{
+				ChainType:     tt.fields.ChainType,
+				BlockService:  tt.fields.BlockService,
+				QueryExecutor: tt.fields.QueryExecutor,
 			}
-			got, err := bss.ForkingProcessor.PopOffToBlock(tt.args.commonBlock)
+			got, err := fp.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.PopOffToBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return

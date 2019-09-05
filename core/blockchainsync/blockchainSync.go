@@ -20,7 +20,6 @@ type Service struct {
 	ChainType        chaintype.ChainType
 	BlockService     service.BlockServiceInterface
 	P2pService       p2p.ServiceInterface
-	LastBlock        model.Block
 	ForkingProcessor ForkingProcessorInterface
 	QueryExecutor    query.ExecutorInterface
 }

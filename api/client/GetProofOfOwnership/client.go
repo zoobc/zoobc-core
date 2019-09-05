@@ -3,19 +3,21 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	rpc_model "github.com/zoobc/zoobc-core/common/model"
-	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	rpcModel "github.com/zoobc/zoobc-core/common/model"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func main() {
@@ -34,21 +36,25 @@ func main() {
 		log.Fatalf("did not connect: %s", err)
 	}
 	defer conn.Close()
+	c := rpcService.NewNodeAdminServiceClient(conn)
 
-	c := rpc_service.NewNodeAdminServiceClient(conn)
-
-	sig := crypto.NewSignature().Sign([]byte("BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"),
-		constant.NodeSignatureTypeDefault,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	signature := crypto.Signature{}
+	accountSeed := "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
+	currentTime := uint64(time.Now().Unix())
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(1))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetProofOfOwnership)))
+	buffer.Write(util.ConvertUint64ToBytes(currentTime))
+	sig := signature.Sign(
+		buffer.Bytes(),
+		constant.NodeSignatureTypeDefault,
+		accountSeed,
+	)
 	buffer.Write(sig)
-	newSig := buffer.Bytes()
-	response, err := c.GetProofOfOwnership(context.Background(), &rpc_model.GetProofOfOwnershipRequest{
-		AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		Timestamp:      time.Now().Unix(),
-		Signature:      newSig,
-	})
+	ctx := context.Background()
+	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	response, err := c.GetProofOfOwnership(ctx, &rpcModel.GetProofOfOwnershipRequest{})
 
 	if err != nil {
 		log.Fatalf("error calling remote.GetProofOfOwnership: %s", err)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 
 	log "github.com/sirupsen/logrus"
@@ -35,8 +36,12 @@ type ServerService struct {
 var serverServiceInstance *ServerService
 
 func init() {
-	var err error
-	if apiLogger, err = util.InitLogger(".log/", "debugP2P.log"); err != nil {
+	var (
+		err       error
+		logLevels []string
+	)
+	logLevels = viper.GetStringSlice("logLevels")
+	if apiLogger, err = util.InitLogger(".log/", "debugP2P.log", logLevels); err != nil {
 		panic(err)
 	}
 }
@@ -63,8 +68,9 @@ func (ss *ServerService) StartListening(listener net.Listener) error {
 	}
 
 	apiLogger.Info("P2P: Listening to grpc communication...")
+	ownerAccountAddress := viper.GetString("ownerAccountAddress")
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
 	)
 	service.RegisterP2PCommunicationServer(grpcServer, ss)
 	return grpcServer.Serve(listener)

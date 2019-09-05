@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/zoobc/zoobc-core/common/interceptor"
 	"net"
 	"net/http"
+
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/interceptor"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -30,16 +32,20 @@ var (
 )
 
 func init() {
-	var err error
-	if apiLogger, err = util.InitLogger(".log/", "debug.log"); err != nil {
+	var (
+		err       error
+		logLevels []string
+	)
+	logLevels = viper.GetStringSlice("logLevels")
+	if apiLogger, err = util.InitLogger(".log/", "debug.log", logLevels); err != nil {
 		panic(err)
 	}
 }
 
 func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
+	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
@@ -51,6 +57,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
+		query.NewTransactionQuery(&chaintype.MainChain{}),
 		observer.NewObserver())
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -83,19 +90,21 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
 		Service: service.NewAccountBalanceService(queryExecutor, query.NewAccountBalanceQuery()),
 	})
+	// Set GRPC handler for mempool requests
 	rpcService.RegisterMempoolServiceServer(grpcServer, &handler.MempoolTransactionHandler{
 		Service: service.NewMempoolTransactionsService(queryExecutor),
 	})
+	// Set GRPC handler for node admin requests
 	rpcService.RegisterNodeAdminServiceServer(grpcServer, &handler.NodeAdminHandler{
-		Service: service.NewNodeAdminService(queryExecutor),
+		Service: service.NewNodeAdminService(queryExecutor, ownerAccountAddress, nodefilePath),
 	})
+	// Set GRPC handler for unconfirmed
 	rpcService.RegisterNodeHardwareServiceServer(grpcServer, &handler.NodeHardwareHandler{
 		Service: service.NewNodeHardwareService(
 			ownerAccountAddress,
 			crypto.NewSignature(),
 		),
 	})
-	// Set GRPC handler for unconfirmed
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -107,8 +116,8 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 
 // Start starts api servers in the given port and passing query executor
 func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress string) {
-	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress)
+	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
+	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
 			err := runProxy(restPort, grpcPort)

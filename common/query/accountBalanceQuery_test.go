@@ -1,12 +1,11 @@
 package query
 
 import (
-	"fmt"
+	"database/sql"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -44,7 +43,17 @@ var (
 		PopRevenue:       0,
 		Latest:           true,
 	}
+	mockAccountBalanceRow = []interface{}{
+		"BCZ",
+		1,
+		100,
+		10,
+		0,
+		true,
+	}
 )
+
+var _ = mockAccountBalanceRow
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
@@ -159,31 +168,31 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 		height uint32
 	}
 	tests := []struct {
-		name        string
-		fields      fields
-		args        args
-		wantQueries []string
-		wantArgs    uint32
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
 	}{
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockAccountBalanceQuery),
 			args:   args{height: uint32(1)},
-			wantQueries: []string{
-				"DELETE FROM account_balance WHERE block_height > 1",
-				fmt.Sprintf(`
-			UPDATE %s SET latest = 1
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM account_balance WHERE block_height > ?",
+					[]interface{}{uint32(1)},
+				},
+				{`
+			UPDATE account_balance SET latest = ?
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
-				FROM %s
+				FROM account_balance
 				WHERE latest = 0
 				GROUP BY account_address
 			)`,
-					mockAccountBalanceQuery.TableName,
-					mockAccountBalanceQuery.TableName,
-				),
+					[]interface{}{1},
+				},
 			},
-			wantArgs: uint32(1),
 		},
 	}
 	for _, tt := range tests {
@@ -192,13 +201,68 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQueries, gotArgs := q.Rollback(tt.args.height)
-			if !reflect.DeepEqual(gotQueries, tt.wantQueries) {
-				t.Errorf("Rollback() gotQueries = \n%v, want \n%v", gotQueries, tt.wantQueries)
-				return
+			if gotMultiQueries := q.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
+				t.Errorf("Rollbacks() = \n%v, want \n%v", gotMultiQueries, tt.wantMultiQueries)
 			}
-			if gotArgs != tt.wantArgs {
-				t.Errorf("Rollback() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+		})
+	}
+}
+
+type (
+	mockRowBalanceQueryScan struct {
+		Executor
+	}
+)
+
+func (*mockRowBalanceQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockAccountBalanceQuery.Fields).AddRow(
+			"BCZ",
+			1,
+			100,
+			10,
+			0,
+			true,
+		),
+	)
+	return db.QueryRow("")
+}
+
+func TestAccountBalanceQuery_Scan(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountBalance *model.AccountBalance
+		row            *sql.Row
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountBalanceQuery),
+			args: args{
+				accountBalance: mockAccountBalance,
+				row:            (&mockRowBalanceQueryScan{}).ExecuteSelectRow("", nil),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if err := a.Scan(tt.args.accountBalance, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("AccountBalanceQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
