@@ -21,7 +21,7 @@ func TestAllMerkle(t *testing.T) {
 		}
 		result, err := merkle.GenerateMerkleRoot(hashes)
 		if err != nil {
-			t.Errorf("error occured when generating merkle root: %v", err)
+			t.Errorf("error occurred when generating merkle root: %v", err)
 		}
 		nH := merkle.GetIntermediateHashes(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), 0)
 		verRes := merkle.VerifyLeaf(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), result, nH)
