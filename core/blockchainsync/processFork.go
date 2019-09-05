@@ -22,7 +22,6 @@ type (
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		HasBlock(id int64) bool
 		LoadTransactions(block *model.Block) *model.Block
-		scheduleScan(height uint32, validate bool)
 		getMinRollbackHeight() (uint32, error)
 	}
 	ForkingProcessor struct {
@@ -199,10 +198,6 @@ func (fp *ForkingProcessor) LoadTransactions(block *model.Block) *model.Block {
 		block.Transactions = txs
 	}
 	return block
-}
-
-func (fp *ForkingProcessor) scheduleScan(height uint32, validate bool) {
-	fp.ScheduleScan(height, validate)
 }
 
 func (fp *ForkingProcessor) getMinRollbackHeight() (uint32, error) {

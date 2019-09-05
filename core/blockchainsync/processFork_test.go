@@ -703,10 +703,10 @@ func TestService_HasBlock(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &Service{
+			fp := &ForkingProcessor{
 				BlockService: tt.fields.BlockService,
 			}
-			if got := bss.HasBlock(tt.args.id); got != tt.want {
+			if got := fp.HasBlock(tt.args.id); got != tt.want {
 				t.Errorf("Service.HasBlock() = %v, want %v", got, tt.want)
 			}
 		})
@@ -743,10 +743,10 @@ func TestService_getMinRollbackHeight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &Service{
+			fp := &ForkingProcessor{
 				BlockService: tt.fields.BlockService,
 			}
-			got, err := bss.getMinRollbackHeight()
+			got, err := fp.getMinRollbackHeight()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Service.getMinRollbackHeight() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -830,10 +830,10 @@ func TestService_LoadTransactions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &Service{
+			fp := &ForkingProcessor{
 				BlockService: tt.fields.BlockService,
 			}
-			if got := bss.LoadTransactions(tt.args.block); !reflect.DeepEqual(got, tt.want) {
+			if got := fp.LoadTransactions(tt.args.block); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Service.LoadTransactions() = %v, want %v", got, tt.want)
 			}
 		})
@@ -852,9 +852,8 @@ func TestService_ProcessFork(t *testing.T) {
 		BlockService               service.BlockServiceInterface
 		P2pService                 p2p.ServiceInterface
 		LastBlock                  model.Block
-		TransactionService         service.TransactionServiceInterface
 		TransactionQuery           query.TransactionQueryInterface
-		ForkingProcess             ForkingProcessInterface
+		ForkingProcess             ForkingProcessorInterface
 		QueryExecutor              query.ExecutorInterface
 		BlockQuery                 query.BlockQueryInterface
 	}
@@ -873,24 +872,12 @@ func TestService_ProcessFork(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &Service{
-				isScanningBlockchain:       tt.fields.isScanningBlockchain,
-				NeedGetMoreBlocks:          tt.fields.NeedGetMoreBlocks,
-				IsDownloading:              tt.fields.IsDownloading,
-				LastBlockchainFeeder:       tt.fields.LastBlockchainFeeder,
-				LastBlockchainFeederHeight: tt.fields.LastBlockchainFeederHeight,
-				PeerHasMore:                tt.fields.PeerHasMore,
-				ChainType:                  tt.fields.ChainType,
-				BlockService:               tt.fields.BlockService,
-				P2pService:                 tt.fields.P2pService,
-				LastBlock:                  tt.fields.LastBlock,
-				TransactionService:         tt.fields.TransactionService,
-				TransactionQuery:           tt.fields.TransactionQuery,
-				ForkingProcess:             tt.fields.ForkingProcess,
-				QueryExecutor:              tt.fields.QueryExecutor,
-				BlockQuery:                 tt.fields.BlockQuery,
+			fp := &ForkingProcessor{
+				ChainType:     tt.fields.ChainType,
+				BlockService:  tt.fields.BlockService,
+				QueryExecutor: tt.fields.QueryExecutor,
 			}
-			if err := bss.ProcessFork(tt.args.forkBlocks, tt.args.commonBlock, tt.args.feederPeer); (err != nil) != tt.wantErr {
+			if err := fp.ProcessFork(tt.args.forkBlocks, tt.args.commonBlock, tt.args.feederPeer); (err != nil) != tt.wantErr {
 				t.Errorf("Service.ProcessFork() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
