@@ -14,11 +14,12 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (float32
 		)
 	}
 
+	// Maximum score will get when create a block
 	maxBlockScore := float32(constant.MaxReceipt) * constant.LinkedReceiptScore
-	halfMaxScore := maxBlockScore / 2
+	halfMaxBlockScore := maxBlockScore / 2
 
 	blockScore := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
-	ratioScore := (blockScore - halfMaxScore) / halfMaxScore
+	ratioScore := (blockScore - halfMaxBlockScore) / halfMaxBlockScore
 
 	scoreChangeOfANode := ratioScore * constant.MaxScoreChange
 	return scoreChangeOfANode, nil
