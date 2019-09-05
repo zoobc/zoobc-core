@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/sha3"
 	"math"
 	"reflect"
@@ -14,12 +15,18 @@ type MerkleRoot struct {
 
 // GenerateMerkleRoot generate the root of merkle and build the tree in MerkleRoot.HashTree
 // return only the root
-func (mr *MerkleRoot) GenerateMerkleRoot(items []*bytes.Buffer) *bytes.Buffer {
-	treeLevelLength := int(math.Log2(float64(len(items)))) + 1
-	mr.HashTree = make([][]*bytes.Buffer, treeLevelLength)
+func (mr *MerkleRoot) GenerateMerkleRoot(items []*bytes.Buffer) (*bytes.Buffer, error) {
+	treeLevelLength := math.Log2(float64(len(items))) + 1
+	if treeLevelLength != float64(int64(treeLevelLength)) {
+		return nil, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"wrong element length, it should be power of two",
+		)
+	}
+	mr.HashTree = make([][]*bytes.Buffer, int(treeLevelLength))
 	mr.HashTree[0] = items
 	result := mr.merkle(items)
-	return result
+	return result, nil
 }
 
 // merkle take slice of leaf node hashes and recursively build the merkle root
