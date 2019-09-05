@@ -10,7 +10,7 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (float32
 	if (linkedReceipt + unlinkedReceipt) > constant.MaxReceipt {
 		return 0, blocker.NewBlocker(
 			blocker.ValidationErr,
-			"CalculateScoreParticipation, the number of receipt exceeds",
+			"CalculateParticipationScore, the number of receipt exceeds",
 		)
 	}
 
@@ -18,8 +18,8 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (float32
 	halfMaxScore := maxBlockScore / 2
 
 	blockScore := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
-	comparionScore := (blockScore - halfMaxScore) / halfMaxScore
+	ratioScore := (blockScore - halfMaxScore) / halfMaxScore
 
-	scoreChangeOfANode := comparionScore * constant.MaxScoreChange
+	scoreChangeOfANode := ratioScore * constant.MaxScoreChange
 	return scoreChangeOfANode, nil
 }
