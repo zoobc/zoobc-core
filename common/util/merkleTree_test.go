@@ -23,7 +23,7 @@ func TestAllMerkle(t *testing.T) {
 		if err != nil {
 			t.Errorf("error occured when generating merkle root: %v", err)
 		}
-		nH := merkle.GetNecessaryHashes(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), 0)
+		nH := merkle.GetIntermediateHashes(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), 0)
 		verRes := merkle.VerifyLeaf(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), result, nH)
 		if !verRes {
 			t.Errorf("nh: %v\nresult: %v\nverres: %v", nH, base64.StdEncoding.EncodeToString(result.Bytes()), verRes)

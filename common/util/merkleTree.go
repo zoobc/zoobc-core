@@ -49,10 +49,10 @@ func (mr *MerkleRoot) hash(a, b *bytes.Buffer, level int32) *bytes.Buffer {
 	return res
 }
 
-// GetNecessaryHashes crawl the hashes that are needed to verify the `leafHash`
+// GetIntermediateHashes crawl the hashes that are needed to verify the `leafHash`
 // leafIndex is index of the leaf node passed, it should be stored to avoid `n` complexity just for finding level 0
 // node hash
-func (mr *MerkleRoot) GetNecessaryHashes(leafHash *bytes.Buffer, leafIndex int32) []*bytes.Buffer {
+func (mr *MerkleRoot) GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex int32) []*bytes.Buffer {
 	var (
 		lastParentHashIndex int
 		necessaryHashes     []*bytes.Buffer
