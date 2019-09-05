@@ -2,143 +2,88 @@ package util
 
 import (
 	"bytes"
-	"fmt"
-
 	"golang.org/x/crypto/sha3"
+	"math"
+	"reflect"
 )
 
-type opt struct {
-	dataPiece string
-	Hash      []byte
+type MerkleRoot struct {
+	// HashTree store the whole tree, only filled after calling `GenerateMerkleRoot`
+	HashTree [][]*bytes.Buffer
 }
 
-type intermed struct {
-	Hash []byte
+// GenerateMerkleRoot generate the root of merkle and build the tree in MerkleRoot.HashTree
+// return only the root
+func (mr *MerkleRoot) GenerateMerkleRoot(items []*bytes.Buffer) *bytes.Buffer {
+	treeLevelLength := int(math.Log2(float64(len(items)))) + 1
+	mr.HashTree = make([][]*bytes.Buffer, treeLevelLength)
+	mr.HashTree[0] = items
+	result := mr.merkle(items)
+	return result
 }
 
-type node struct {
-	Hash []byte
+// merkle take slice of leaf node hashes and recursively build the merkle root
+func (mr *MerkleRoot) merkle(items []*bytes.Buffer) *bytes.Buffer {
+	itemLength := len(items)
+	if itemLength == 1 {
+		return items[0]
+	}
+	return mr.hash(mr.merkle(items[:itemLength/2]), mr.merkle(items[itemLength/2:]),
+		int32(math.Log2(float64(itemLength))))
 }
 
-type root struct {
-	Hash []byte
+// hash function take the 2 data to be hashed for building merkle tree
+func (mr *MerkleRoot) hash(a, b *bytes.Buffer, level int32) *bytes.Buffer {
+	digest := sha3.New256()
+	_, _ = digest.Write(a.Bytes())
+	_, _ = digest.Write(b.Bytes())
+	res := bytes.NewBuffer(digest.Sum([]byte{}))
+	mr.HashTree[level] = append(mr.HashTree[level], res)
+	return res
 }
 
-func markleTree(c []opt) (leafHash, intermedHash, nodeHash, rootHash []byte) {
-	var intermeds []intermed
-	var nodes []node
-	var roots []root
-	var rootsOdd []root
-	var pLength, n int
-
-	n = len(c)
-	k := n % 2
-
-	for g := 0; g < 4; g++ {
-
-		switch g {
-		case 0:
-			pLength = n
-		case 1:
-			pLength = n / 2
-		case 2:
-			pLength = (n / 2) / 2
-		case 3:
-			pLength = ((n / 2) / 2) / 2
-		}
-
-		var x1, y1, v1 int
-		for i := 0; i < pLength; i++ {
-			if i != 0 {
-				x1 = v1 + 1
-				y1 = x1 + 1
+// GetNecessaryHashes crawl the hashes that are needed to verify the `leafHash`
+// leafIndex is index of the leaf node passed, it should be stored to avoid `n` complexity just for finding level 0
+// node hash
+func (mr *MerkleRoot) GetNecessaryHashes(leafHash *bytes.Buffer, leafIndex int32) []*bytes.Buffer {
+	var (
+		lastParentHashIndex int
+		necessaryHashes     []*bytes.Buffer
+	)
+	for j := 0; j < len(mr.HashTree)-1; j++ {
+		if j == 0 {
+			if reflect.DeepEqual(leafHash.Bytes(), mr.HashTree[j][leafIndex].Bytes()) {
+				if (leafIndex+1)%2 == 0 {
+					necessaryHashes = append(necessaryHashes, mr.HashTree[j][leafIndex-1])
+				} else {
+					necessaryHashes = append(necessaryHashes, mr.HashTree[j][leafIndex+1])
+				}
+				lastParentHashIndex = int(math.Ceil(float64(leafIndex) / 2))
+				continue
+			}
+		} else {
+			if (lastParentHashIndex+1)%2 == 0 {
+				necessaryHashes = append(necessaryHashes, mr.HashTree[j][lastParentHashIndex-1])
 			} else {
-				x1 = 0
-				y1 = x1 + 1
+				necessaryHashes = append(necessaryHashes, mr.HashTree[j][lastParentHashIndex+1])
 			}
-
-			dataBuffer := sha3.New256()
-			switch g {
-			case 0:
-				_, err := dataBuffer.Write([]byte(c[i].dataPiece))
-				if err != nil {
-					fmt.Printf("failed on leaf \n")
-				}
-				c[i].Hash = dataBuffer.Sum(nil)
-
-			case 1:
-				_, err := dataBuffer.Write(append(c[x1].Hash, c[y1].Hash...))
-				if err != nil {
-					fmt.Printf("failed on intermed \n")
-				}
-				intermeds = append(intermeds, intermed{dataBuffer.Sum(nil)})
-
-			case 2:
-				_, err := dataBuffer.Write(append(intermeds[x1].Hash, intermeds[y1].Hash...))
-				if err != nil {
-					fmt.Printf("failed on node \n")
-				}
-				nodes = append(nodes, node{dataBuffer.Sum(nil)})
-
-			case 3:
-				_, err := dataBuffer.Write(append(nodes[x1].Hash, nodes[y1].Hash...))
-				if err != nil {
-					fmt.Printf("failed on root \n")
-				}
-				roots = append(roots, root{dataBuffer.Sum(nil)})
-				if k != 0 {
-					_, err := dataBuffer.Write(append(roots[0].Hash, c[len(c)-1].dataPiece...))
-					if err != nil {
-						fmt.Printf("failed on root odd \n")
-					}
-					rootsOdd = append(rootsOdd, root{dataBuffer.Sum(nil)})
-				}
-
-			}
-
-			v1 = x1 + 1
+			lastParentHashIndex = int(math.Ceil(float64(lastParentHashIndex) / 2))
 		}
-	}
-	if k != 0 {
 
-		return c[1].Hash, intermeds[1].Hash, nodes[1].Hash, rootsOdd[0].Hash
 	}
-	return c[1].Hash, intermeds[1].Hash, nodes[1].Hash, roots[0].Hash
+	return necessaryHashes
 }
 
-// VerifyTree validates the hashes
-func VerifyTree(content string, leafHash, intermedHash, nodeHash, merkleRoot []byte) (bool, error) {
-
-	hLeaf := sha3.New256()
-	_, err := hLeaf.Write([]byte(content))
-	if err != nil {
-		fmt.Printf("failed on leaf content \n")
+// VerifyLeaf take a leaf hash and the merkle root to verify if the leaf hash, hashed with every hash
+// in the necessaryHashes will match the merkle root or not.
+func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes.Buffer) bool {
+	digest := sha3.New256()
+	lastHash := leaf.Bytes()
+	for _, nh := range necessaryHashes {
+		digest.Reset()
+		_, _ = digest.Write(lastHash)
+		_, _ = digest.Write(nh.Bytes())
+		lastHash = digest.Sum([]byte{})
 	}
-	contentHash := hLeaf.Sum(nil)
-
-	hIntermed := sha3.New256()
-	_, err = hIntermed.Write(append(contentHash, leafHash...))
-	if err != nil {
-		fmt.Printf("failed on intermed \n")
-	}
-	intermedHashLeft := hIntermed.Sum(nil)
-
-	hNode := sha3.New256()
-	_, err = hNode.Write(append(intermedHashLeft, intermedHash...))
-	if err != nil {
-		fmt.Printf("failed on node \n")
-	}
-	nodeHashLeft := hNode.Sum(nil)
-
-	hRoot := sha3.New256()
-	_, err = hRoot.Write(append(nodeHashLeft, nodeHash...))
-	if err != nil {
-		fmt.Printf("failed on root \n")
-	}
-	rootHash := hRoot.Sum(nil)
-
-	if bytes.Equal(merkleRoot, rootHash) {
-		return true, nil
-	}
-	return false, nil
+	return reflect.DeepEqual(lastHash, root.Bytes())
 }
