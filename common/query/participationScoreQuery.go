@@ -52,8 +52,8 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 }
 
 // UpdateParticipationScore returns a slice of two queries.
-// 1st update all old reputation scores versions' latest field to 0
-// 2nd insert a new version of the reputation score with updated data
+// 1st update all old participation scores versions' latest field to 0
+// 2nd insert a new version of the participation score with updated data
 func (ps *ParticipationScoreQuery) UpdateParticipationScore(
 	participationScore *model.ParticipationScore) (str []string, args []interface{}) {
 	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE node_id = %d", ps.getTableName(), participationScore.NodeID)

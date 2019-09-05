@@ -67,6 +67,9 @@ run:
 
 issues:
   exclude-rules:
+    - text: "G202: SQL string concatenation"
+      linters:
+        - gosec
     - text: "G201: SQL string formatting"
       linters:
         - gosec
