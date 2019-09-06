@@ -13,8 +13,6 @@ type (
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
 		UpdateParticipationScore(participationScore *model.ParticipationScore) (str []string, args []interface{})
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
-		// GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
-		// GetParticipationScoreByAccountAddress(accountAddress string) (str string, args []interface{})
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) []*model.ParticipationScore
 		Rollback(height uint32) (multiQueries [][]interface{})
@@ -71,18 +69,6 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodeID(id int64) (str 
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND latest=1",
 		strings.Join(ps.Fields, ", "), ps.getTableName()), []interface{}{id}
 }
-
-// // GetParticipationScoreByNodePublicKey returns query string to get Node Registration by node public key
-// func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
-// 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
-// 		strings.Join(ps.Fields, ", "), ps.getTableName()), []interface{}{nodePublicKey}
-// }
-
-// // GetParticipationScoreByAccountID returns query string to get Node Registration by account public key
-// func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(accountAddress string) (str string, args []interface{}) {
-// 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %s AND latest=1",
-// 		strings.Join(ps.Fields, ", "), ps.getTableName(), accountAddress), []interface{}{accountAddress}
-// }
 
 // ExtractModel extract the model struct fields to the order of ParticipationScoreQuery.Fields
 func (*ParticipationScoreQuery) ExtractModel(ps *model.ParticipationScore) []interface{} {
