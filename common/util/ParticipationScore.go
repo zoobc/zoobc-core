@@ -6,7 +6,7 @@ import (
 )
 
 // TODO: For now calculation score in float, next the func should optimize to avoid miss calculation in each node
-func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (float32, error) {
+func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (int64, error) {
 	if (linkedReceipt + unlinkedReceipt) > constant.MaxReceipt {
 		return 0, blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -15,12 +15,13 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (float32
 	}
 
 	// Maximum score will get when create a block
-	maxBlockScore := float32(constant.MaxReceipt) * constant.LinkedReceiptScore
+	maxBlockScore := int64(float32(constant.MaxReceipt) * constant.LinkedReceiptScore * constant.SkalarReceiptScore)
 	halfMaxBlockScore := maxBlockScore / 2
 
-	blockScore := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
-	ratioScore := (blockScore - halfMaxBlockScore) / halfMaxBlockScore
+	linkedBlockScore := (float32(linkedReceipt) * constant.LinkedReceiptScore * constant.SkalarReceiptScore)
+	unlinkedBlockScore := (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.SkalarReceiptScore)
+	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
 
-	scoreChangeOfANode := ratioScore * constant.MaxScoreChange
+	scoreChangeOfANode := ((blockScore - halfMaxBlockScore) * constant.MaxScoreChange) / halfMaxBlockScore
 	return scoreChangeOfANode, nil
 }

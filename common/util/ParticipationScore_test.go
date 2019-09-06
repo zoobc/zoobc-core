@@ -14,7 +14,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    float32
+		want    int64
 		wantErr bool
 	}{
 		{
@@ -23,7 +23,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				linkedReceipt:   constant.MaxReceipt - 13,
 				unlinkedReceipt: 13,
 			},
-			want:    0.25,
+			want:    250000,
 			wantErr: false,
 		},
 		{
