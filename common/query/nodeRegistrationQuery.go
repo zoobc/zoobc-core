@@ -136,7 +136,7 @@ func (nr *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inter
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE height > ?", nr.TableName),
-			[]interface{}{height},
+			height,
 		},
 		{
 			fmt.Sprintf(`
@@ -150,7 +150,7 @@ func (nr *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inter
 				nr.TableName,
 				nr.TableName,
 			),
-			[]interface{}{1},
+			1,
 		},
 	}
 }

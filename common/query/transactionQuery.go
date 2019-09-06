@@ -174,7 +174,7 @@ func (tq *TransactionQuery) Rollback(height uint32) (multiQueries [][]interface{
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", tq.getTableName()),
-			[]interface{}{height},
+			height,
 		},
 	}
 }
