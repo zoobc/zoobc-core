@@ -64,7 +64,6 @@ func (m *Migration) Init() error {
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
 				"version" INTEGER,
-				"transaction_index" INTEGER,
 				PRIMARY KEY("id")
 			);`,
 			`
@@ -74,7 +73,8 @@ func (m *Migration) Init() error {
 				"spendable_balance"	INTEGER,
 				"balance"	INTEGER,
 				"pop_revenue"	INTEGER,
-				"latest"	INTEGER
+				"latest"	INTEGER,
+				PRIMARY KEY("account_address","block_height")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "main_block" (
@@ -120,6 +120,10 @@ func (m *Migration) Init() error {
 				"latest" INTEGER,
 				PRIMARY KEY("setter_account_address","recipient_account_address", "property", "height")
 			);`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "transaction_index" INTEGER AFTER "version"
+			`,
 		}
 		return nil
 	}
