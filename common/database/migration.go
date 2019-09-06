@@ -122,8 +122,15 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "transaction_index" INTEGER AFTER "version"
-			`,
+				ADD COLUMN "transaction_index" INTEGER AFTER "version";`,
+			`
+			CREATE TABLE IF NOT EXISTS "participation_score"(
+				"node_id" INTEGER,
+				"score" INTEGER,
+				"latest" INTEGER,
+				"height" INTEGER,
+				PRIMARY KEY("node_id", "height")
+			);`,
 		}
 		return nil
 	}

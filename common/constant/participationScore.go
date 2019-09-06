@@ -9,4 +9,6 @@ const (
 	MaxScoreChange float32 = 10
 	// MaxReceipt the maximum receipt will publish in every block
 	MaxReceipt uint32 = 20
+	// MaxParticipationScore maximum achievable score
+	MaxParticipationScore int64 = 1000000
 )
