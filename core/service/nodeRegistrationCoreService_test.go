@@ -80,8 +80,8 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, args .
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance," +
-		" queued, latest, height FROM node_registry WHERE locked_balance > 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -105,8 +105,8 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance," +
-		" queued, latest, height FROM node_registry WHERE locked_balance > 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -205,9 +205,10 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 
 func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	}
 	type args struct {
 		nodeRegistrations []*model.NodeRegistration
@@ -222,9 +223,10 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 		{
 			name: "AdmitNodes:success",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{
@@ -237,9 +239,10 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 		{
 			name: "AdmitNodes:fail-{NoNodesToBeAdmitted}",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{},
@@ -251,9 +254,10 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 			}
 			if err := nrs.AdmitNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.AdmitNodes() error = %v, wantErr %v", err, tt.wantErr)
@@ -262,57 +266,14 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	}
 }
 
-func TestNodeRegistrationService_KickOutNode(t *testing.T) {
-	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	}
-	type args struct {
-		nodeRegistration *model.NodeRegistration
-		height           uint32
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "KickOutNode:success",
-			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			args: args{
-				nodeRegistration: nrsRegisteredNode1,
-				height:           300,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrs := &NodeRegistrationService{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-			}
-			if err := nrs.KickOutNode(tt.args.nodeRegistration, tt.args.height); (err != nil) != tt.wantErr {
-				t.Errorf("NodeRegistrationService.KickOutNode() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestNodeRegistrationService_NodeRegistryListener(t *testing.T) {
 	type (
 		fields struct {
-			QueryExecutor         query.ExecutorInterface
-			AccountBalanceQuery   query.AccountBalanceQueryInterface
-			NodeRegistrationQuery query.NodeRegistrationQueryInterface
-			NodeAdmittanceCycle   uint32
+			QueryExecutor           query.ExecutorInterface
+			AccountBalanceQuery     query.AccountBalanceQueryInterface
+			NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+			ParticipationScoreQuery query.ParticipationScoreQueryInterface
+			NodeAdmittanceCycle     uint32
 		}
 		args struct {
 			block *model.Block
@@ -327,10 +288,11 @@ func TestNodeRegistrationService_NodeRegistryListener(t *testing.T) {
 		{
 			name: "NodeRegistryListener:success",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeAdmittanceCycle:   blockAdmittanceHeight1,
+				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				NodeAdmittanceCycle:     blockAdmittanceHeight1,
 			},
 			args: args{
 				block: nrsBlock1,
@@ -344,28 +306,28 @@ func TestNodeRegistrationService_NodeRegistryListener(t *testing.T) {
 		{
 			name: "NodeRegistryListener:success-{noAdmittanceBlock}",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorFailNodeRegistryListener{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeAdmittanceCycle:   blockAdmittanceHeight1 + 1,
+				QueryExecutor:           &nrsMockQueryExecutorFailNodeRegistryListener{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				NodeAdmittanceCycle:     blockAdmittanceHeight1 + 1,
 			},
 			args: args{
 				block: nrsBlock1,
 			},
 			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {
-
-				},
+				OnNotify: func(data interface{}, args interface{}) {},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				NodeAdmittanceCycle:   tt.fields.NodeAdmittanceCycle,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
 			}
 
 			got := nrs.NodeRegistryListener()
@@ -379,4 +341,53 @@ func TestNodeRegistrationService_NodeRegistryListener(t *testing.T) {
 
 func testOnNotifyPushBlockListener(fn observer.OnNotify, block *model.Block) {
 	fn(block, nil)
+}
+
+func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
+	type fields struct {
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeAdmittanceCycle     uint32
+	}
+	type args struct {
+		nodeRegistrations []*model.NodeRegistration
+		height            uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ExpelNodes:success",
+			fields: fields{
+				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+			},
+			args: args{
+				nodeRegistrations: []*model.NodeRegistration{nrsRegisteredNode1},
+				height:            300,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
+			}
+			if err := nrs.ExpelNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.ExpelNodes() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
