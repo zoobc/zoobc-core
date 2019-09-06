@@ -125,6 +125,14 @@ func (m *Migration) Init() error {
 				ADD COLUMN "transaction_index" INTEGER AFTER "version"
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "participation_score"(
+				"node_id" INTEGER,
+				"score" INTEGER,
+				"latest" INTEGER,
+				"height" INTEGER,
+				PRIMARY KEY("node_id", "height")
+			);`,
+			`
 			CREATE TABLE IF NOT EXISTS "node_receipt" (
 				"sender_public_key" BLOB, 
 				"recipient_public_key" BLOB,

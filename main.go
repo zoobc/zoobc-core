@@ -112,6 +112,7 @@ func init() {
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
+		query.NewParticipationScoreQuery(),
 	)
 
 	// initialize Oberver
