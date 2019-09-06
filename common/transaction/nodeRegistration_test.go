@@ -565,8 +565,22 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "Validate:success-{GenesisHeight}",
+			fields: fields{
+				Height:              0,
+				Body:                bodyWithoutPoown,
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: false,
+		},
+		{
 			name: "Validate:fail-{PoownRequired}",
 			fields: fields{
+				Height:              1,
 				Body:                bodyWithoutPoown,
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
@@ -579,6 +593,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{PoownAuth}",
 			fields: fields{
+				Height:              1,
 				Body:                bodyWithPoown,
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
@@ -591,6 +606,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{executeSelectFail}",
 			fields: fields{
+				Height:              1,
 				Body:                bodyWithPoown,
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
@@ -603,6 +619,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{balanceNotEnough}",
 			fields: fields{
+				Height: 1,
 				Body: &model.NodeRegistrationTransactionBody{
 					Poown:         poown,
 					NodePublicKey: nodePubKey1,
@@ -620,6 +637,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{failGetNode}",
 			fields: fields{
+				Height:                1,
 				Body:                  bodyWithPoown,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeFail{},
@@ -634,6 +652,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{nodeExist}",
 			fields: fields{
+				Height:                1,
 				Body:                  bodyWithPoown,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExist{},
@@ -648,6 +667,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{InvalidNodeAddress}",
 			fields: fields{
+				Height:                1,
 				Body:                  bodyWithPoown,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
@@ -662,6 +682,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:success",
 			fields: fields{
+				Height:                1,
 				Body:                  txBody,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
