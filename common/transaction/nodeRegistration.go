@@ -67,6 +67,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
 		append([]interface{}{insertNodeQ}, insertNodeArg...),
 	)
+	// STEFFFFFFFFFFFFFFFFFFFFF
 	// TODO: insert default participation score for nodes that are registered at genesis height
 	// if tx.Height == 0 {
 	// 	ps := &model.ParticipationScore{
