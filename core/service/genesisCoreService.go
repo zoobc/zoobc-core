@@ -36,7 +36,7 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 					},
 				},
 				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.Amount)),
-				Signature:            constant.GenesisSignature,
+				Signature:            constant.GenesisBlockSignature,
 			}
 
 			transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
@@ -93,7 +93,7 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 			NodeRegistrationTransactionBody: nodeRegistration.Body,
 		},
 		TransactionBodyBytes: nodeRegistration.GetBodyBytes(),
-		Signature:            constant.GenesisSignature,
+		Signature:            constant.GenesisBlockSignature,
 	}
 
 	transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
@@ -102,6 +102,7 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 	}
 	transactionHash := sha3.Sum256(transactionBytes)
 	genesisTx.TransactionHash = transactionHash[:]
+	genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
 	return genesisTx
 }
 
