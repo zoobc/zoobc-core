@@ -16,16 +16,17 @@ import (
 
 // NodeRegistration Implement service layer for (new) node registration's transaction
 type NodeRegistration struct {
-	ID                    int64
-	Body                  *model.NodeRegistrationTransactionBody
-	Fee                   int64
-	SenderAddress         string
-	Height                uint32
-	AccountBalanceQuery   query.AccountBalanceQueryInterface
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	BlockQuery            query.BlockQueryInterface
-	QueryExecutor         query.ExecutorInterface
-	AuthPoown             auth.ProofOfOwnershipValidationInterface
+	ID                      int64
+	Body                    *model.NodeRegistrationTransactionBody
+	Fee                     int64
+	SenderAddress           string
+	Height                  uint32
+	AccountBalanceQuery     query.AccountBalanceQueryInterface
+	NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+	BlockQuery              query.BlockQueryInterface
+	ParticipationScoreQuery query.ParticipationScoreQueryInterface
+	QueryExecutor           query.ExecutorInterface
+	AuthPoown               auth.ProofOfOwnershipValidationInterface
 }
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
@@ -67,21 +68,18 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
 		append([]interface{}{insertNodeQ}, insertNodeArg...),
 	)
-	// STEFFFFFFFFFFFFFFFFFFFFF
-	// TODO: insert default participation score for nodes that are registered at genesis height
-	// if tx.Height == 0 {
-	// 	ps := &model.ParticipationScore{
-	// 		NodeID: tx.ID,
-	// 		Score:  constant.MaxParticipationScore / 10,
-	// 		Latest: true,
-	// 		Height: 0,
-	// 	}
-	// 	insertParticipationScoreQ, insertParticipationScoreArg := tx.ParticipationScoreQuery.InsertParticipationScore(ps)
-	// 	newQ := []interface{}{
-	// 		insertParticipationScoreQ, insertParticipationScoreArg,
-	// 	}
-	// 	queries = append(queries, newQ)
-	// }
+	// insert default participation score for nodes that are registered at genesis height
+	if tx.Height == 0 {
+		ps := &model.ParticipationScore{
+			NodeID: tx.ID,
+			Score:  constant.MaxParticipationScore / 10,
+			Latest: true,
+			Height: 0,
+		}
+		insertParticipationScoreQ, insertParticipationScoreArg := tx.ParticipationScoreQuery.InsertParticipationScore(ps)
+		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
+		queries = append(queries, newQ)
+	}
 
 	err := tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {

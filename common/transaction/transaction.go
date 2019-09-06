@@ -56,14 +56,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 		case 0:
 			nodeRegistrationBody := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
 			return &NodeRegistration{
-				ID:                    tx.ID, // assign tx ID to nodeID
-				Body:                  nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				QueryExecutor:         ts.Executor,
+				ID:                      tx.ID, // assign tx ID to nodeID
+				Body:                    nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
+				Fee:                     tx.Fee,
+				SenderAddress:           tx.GetSenderAccountAddress(),
+				Height:                  tx.GetHeight(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				QueryExecutor:           ts.Executor,
 			}
 		case 1:
 			nodeRegistrationBody := new(UpdateNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
