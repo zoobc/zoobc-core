@@ -3,7 +3,7 @@
 package constant
 
 const (
-	GenesisBlocID int64 = -5061068901394437496
+	GenesisBlockID int64 = -8343094219130037548
 )
 
 var (
