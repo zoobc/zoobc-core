@@ -5,7 +5,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 )
 
-// TODO: For now calculation score in float, next the func should optimize to avoid miss calculation in each node
+// CalculateParticipationScore to calculate score change of node
 func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) (int64, error) {
 	if (linkedReceipt + unlinkedReceipt) > constant.MaxReceipt {
 		return 0, blocker.NewBlocker(
