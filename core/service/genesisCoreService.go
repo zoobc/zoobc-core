@@ -19,14 +19,14 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
-		for _, fundReceiver := range constant.GenesisFundReceiver {
+		for _, fundReceiver := range constant.MainchainGenesisFundReceivers {
 			// send funds from genesis account to the fund receiver
 			genesisTx := &model.Transaction{
 				Version:                 1,
 				TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
 				Height:                  0,
 				Timestamp:               1562806389,
-				SenderAccountAddress:    constant.GenesisAccountAddress,
+				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
 				RecipientAccountAddress: fundReceiver.AccountAddress,
 				Fee:                     0,
 				TransactionBodyLength:   8,
@@ -36,7 +36,7 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 					},
 				},
 				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.Amount)),
-				Signature:            constant.GenesisBlockSignature,
+				Signature:            constant.MainchainGenesisBlockSignature,
 			}
 
 			transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
@@ -85,7 +85,7 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 		TransactionType:         util.ConvertBytesToUint32([]byte{2, 0, 0, 0}),
 		Height:                  0,
 		Timestamp:               1562806389,
-		SenderAccountAddress:    constant.GenesisAccountAddress,
+		SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
 		RecipientAccountAddress: accountAddress,
 		Fee:                     0,
 		TransactionBodyLength:   nodeRegistration.GetSize(),
@@ -93,7 +93,7 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 			NodeRegistrationTransactionBody: nodeRegistration.Body,
 		},
 		TransactionBodyBytes: nodeRegistration.GetBodyBytes(),
-		Signature:            constant.GenesisBlockSignature,
+		Signature:            constant.MainchainGenesisBlockSignature,
 	}
 
 	transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
@@ -110,7 +110,7 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 func AddGenesisAccount(executor query.ExecutorInterface) error {
 	// add genesis account
 	genesisAccountBalance := model.AccountBalance{
-		AccountAddress:   constant.GenesisAccountAddress,
+		AccountAddress:   constant.MainchainGenesisAccountAddress,
 		BlockHeight:      0,
 		SpendableBalance: 0,
 		Balance:          0,
