@@ -4,99 +4,109 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/p2p"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
-	BlockchainDownloadInterface interface{}
-	BlockchainDownloader        struct{}
+	BlockchainDownloadInterface interface {
+		SetIsDownloading(newValue bool)
+		IsDownloadFinish(currentLastBlock *model.Block) bool
+		GetPeerBlockchainInfo() error
+	}
+	BlockchainDownloader struct {
+		IsDownloading              bool // only for status
+		LastBlockchainFeeder       *model.Peer
+		LastBlockchainFeederHeight uint32
+		PeerHasMore                bool
+		ChainType                  chaintype.ChainType
+
+		BlockService service.BlockServiceInterface
+		P2pService   p2p.ServiceInterface
+	}
 )
 
-func (bss *Service) Start(runNext chan bool) {
-	if bss.ChainType == nil {
-		log.Fatal("no chaintype")
-	}
-	if bss.P2pService == nil {
-		log.Fatal("no p2p service defined")
-	}
-	bss.GetMoreBlocksThread(runNext)
-}
-
-func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	for {
-		select {
-		case download := <-runNext:
-			if download {
-				go bss.getMoreBlocks(runNext)
-			}
-		case <-sigs:
-			return
-		}
-	}
-}
-
-func (bss Service) getMoreBlocks(runNext chan bool) {
-	log.Info("Get more blocks...")
-	// notify observer about start of blockchain download of this specific chain
-
-	lastBlock, err := bss.BlockService.GetLastBlock()
+func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) bool {
+	currentHeight := currentLastBlock.Height
+	currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
+	afterDownloadLastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
-		log.Fatal(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
+		log.Warnf("failed to get the last block state after block download")
+		return false
 	}
-	if lastBlock == nil {
-		log.Fatal("There is no genesis block found")
+	heightAfterDownload := afterDownloadLastBlock.Height
+	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
+	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+		return true
 	}
-	initialHeight := lastBlock.Height
-	for bss.NeedGetMoreBlocks {
-		currentLastBlock, err := bss.BlockService.GetLastBlock()
-		if err != nil {
-			log.Error(err)
-			continue
-		}
-		currentHeight := currentLastBlock.Height
-		err = bss.getPeerBlockchainInfo()
-		if err != nil {
-			log.Warnf("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
-		}
-		afterDownloadLastBlock, err := bss.BlockService.GetLastBlock()
-		if err != nil {
-			log.Warnf("failed to get the last block state after block download")
-			continue
-		}
-		heightAfterDownload := afterDownloadLastBlock.Height
-		if currentHeight > 0 && currentHeight == heightAfterDownload {
-			bss.IsDownloading = false
-			log.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), heightAfterDownload-initialHeight)
-			break
-		}
-		break
-	}
-
-	// TODO: Handle interruption and other exceptions
-	time.Sleep(constant.GetMoreBlocksDelay * time.Second)
-	runNext <- true
+	return false
 }
 
-func (bss *Service) getPeerBlockchainInfo() error {
-	bss.PeerHasMore = true
-	peer := bss.P2pService.GetAnyResolvedPeer()
+func (bd *BlockchainDownloader) SetIsDownloading(newValue bool) {
+	bd.IsDownloading = newValue
+}
+
+// func (bd *BlockchainDownloader) getMoreBlocks(runNext chan bool) {
+// 	log.Info("Get more blocks...")
+// 	// notify observer about start of blockchain download of this specific chain
+
+// 	lastBlock, err := bd.BlockService.GetLastBlock()
+// 	if err != nil {
+// 		log.Fatal(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
+// 	}
+// 	if lastBlock == nil {
+// 		log.Fatal("There is no genesis block found")
+// 	}
+// 	initialHeight := lastBlock.Height
+// 	for {
+// 		currentLastBlock, err := bd.BlockService.GetLastBlock()
+// 		if err != nil {
+// 			log.Error(err)
+// 			continue
+// 		}
+// 		currentHeight := currentLastBlock.Height
+// 		currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
+// 		err = bd.GetPeerBlockchainInfo()
+// 		if err != nil {
+// 			log.Warnf("\nfailed to GetPeerBlockchainInfo: %v\n\n", err)
+// 		}
+// 		afterDownloadLastBlock, err := bd.BlockService.GetLastBlock()
+// 		if err != nil {
+// 			log.Warnf("failed to get the last block state after block download")
+// 			continue
+// 		}
+// 		heightAfterDownload := afterDownloadLastBlock.Height
+// 		cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
+// 		if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+// 			bd.IsDownloading = false
+// 			log.Infof("Finished %s blockchain download: %d blocks pulled", bd.ChainType.GetName(), heightAfterDownload-initialHeight)
+// 			break
+// 		}
+// 		// break
+// 	}
+
+// 	// TODO: Handle interruption and other exceptions
+// 	time.Sleep(constant.GetMoreBlocksDelay * time.Second)
+// 	runNext <- true
+// }
+
+func (bd *BlockchainDownloader) GetPeerBlockchainInfo() error {
+	bd.PeerHasMore = true
+	peer := bd.P2pService.GetAnyResolvedPeer()
 	if peer == nil {
 		return errors.New("no connected peer can be found")
 	}
-	peerCumulativeDifficultyResponse, err := bss.P2pService.GetCumulativeDifficulty(peer, bss.ChainType)
+	peerCumulativeDifficultyResponse, err := bd.P2pService.GetCumulativeDifficulty(peer, bd.ChainType)
 	if err != nil {
 		return fmt.Errorf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err)
 	}
@@ -104,7 +114,7 @@ func (bss *Service) getPeerBlockchainInfo() error {
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	peerHeight := peerCumulativeDifficultyResponse.Height
 
-	lastBlock, err := bss.BlockService.GetLastBlock()
+	lastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
 		return err
 	}
@@ -118,26 +128,26 @@ func (bss *Service) getPeerBlockchainInfo() error {
 
 	// this is to set the status of download blockchain process
 	if peerHeight > 0 {
-		bss.LastBlockchainFeeder = peer
-		bss.LastBlockchainFeederHeight = peerHeight
+		bd.LastBlockchainFeeder = peer
+		bd.LastBlockchainFeederHeight = peerHeight
 	}
 
-	commonMilestoneBlockID := bss.ChainType.GetGenesisBlockID()
+	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
 	if lastBlockID != commonMilestoneBlockID {
 		var err error
-		commonMilestoneBlockID, err = bss.getPeerCommonBlockID(peer)
+		commonMilestoneBlockID, err = bd.getPeerCommonBlockID(peer)
 		if err != nil {
 			return err
 		}
 	}
 
-	chainBlockIds := bss.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
-	if len(chainBlockIds) < 2 || !bss.PeerHasMore {
+	chainBlockIds := bd.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
+	if len(chainBlockIds) < 2 || !bd.PeerHasMore {
 		return errors.New("the peer does not have more updated chain")
 	}
 
 	commonBlockID := chainBlockIds[0]
-	commonBlock, err := bss.BlockService.GetBlockByID(commonBlockID)
+	commonBlock, err := bd.BlockService.GetBlockByID(commonBlockID)
 	if err != nil {
 		log.Warnf("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
 		return err
@@ -146,25 +156,25 @@ func (bss *Service) getPeerBlockchainInfo() error {
 		return errors.New("invalid common block")
 	}
 
-	if !bss.IsDownloading && bss.LastBlockchainFeederHeight-commonBlock.GetHeight() > 10 {
+	if !bd.IsDownloading && bd.LastBlockchainFeederHeight-commonBlock.GetHeight() > 10 {
 		log.Println("Blockchain download in progress")
-		bss.IsDownloading = true
+		bd.IsDownloading = true
 	}
 
-	bss.BlockService.ChainWriteLock()
-	defer bss.BlockService.ChainWriteUnlock()
+	bd.BlockService.ChainWriteLock()
+	defer bd.BlockService.ChainWriteUnlock()
 
-	errDownload := bss.downloadFromPeer(peer, chainBlockIds, commonBlock)
+	errDownload := bd.downloadFromPeer(peer, chainBlockIds, commonBlock)
 	if errDownload != nil {
 		return errDownload
 	}
 
 	// TODO: analyze the importance of this mechanism
-	confirmBlockchainError := bss.confirmBlockchainState(peer, commonMilestoneBlockID, commonBlock)
+	confirmBlockchainError := bd.confirmBlockchainState(peer, commonMilestoneBlockID, commonBlock)
 	if confirmBlockchainError != nil {
 		return err
 	}
-	newLastBlock, err := bss.BlockService.GetLastBlock()
+	newLastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
 		return err
 	}
@@ -175,17 +185,17 @@ func (bss *Service) getPeerBlockchainInfo() error {
 	return nil
 }
 
-func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBlockID int64, commonBlock *model.Block) error {
+func (bd *BlockchainDownloader) confirmBlockchainState(peer *model.Peer, commonMilestoneBlockID int64, commonBlock *model.Block) error {
 	confirmations := int32(0)
 	// counting the confirmations of the common block received with other peers he knows
-	for _, peerToCheck := range bss.P2pService.GetResolvedPeers() {
+	for _, peerToCheck := range bd.P2pService.GetResolvedPeers() {
 		if confirmations >= constant.DefaultNumberOfForkConfirmations {
 			break
 		}
 
 		// if the host found other peer with better difficulty
-		otherPeerChainBlockIds := bss.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
-		currentLastBlock, err := bss.BlockService.GetLastBlock()
+		otherPeerChainBlockIds := bd.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
+		currentLastBlock, err := bd.BlockService.GetLastBlock()
 		if err != nil {
 			return err
 		}
@@ -194,7 +204,7 @@ func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBloc
 			confirmations++
 			continue
 		}
-		otherPeerCommonBlock, err := bss.BlockService.GetBlockByID(otherPeerChainBlockIds[0])
+		otherPeerCommonBlock, err := bd.BlockService.GetBlockByID(otherPeerChainBlockIds[0])
 		if err != nil {
 			return err
 		}
@@ -202,7 +212,7 @@ func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBloc
 			continue
 		}
 
-		otherPeerCumulativeDifficultyResponse, err := bss.P2pService.GetCumulativeDifficulty(peerToCheck, bss.ChainType)
+		otherPeerCumulativeDifficultyResponse, err := bd.P2pService.GetCumulativeDifficulty(peerToCheck, bd.ChainType)
 		if err != nil || otherPeerCumulativeDifficultyResponse.CumulativeDifficulty == "" {
 			continue
 		}
@@ -213,7 +223,7 @@ func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBloc
 		}
 
 		log.Println("Found a peer with better difficulty")
-		errDownload := bss.downloadFromPeer(peerToCheck, otherPeerChainBlockIds, commonBlock)
+		errDownload := bd.downloadFromPeer(peerToCheck, otherPeerChainBlockIds, commonBlock)
 		if errDownload != nil {
 			return errDownload
 		}
@@ -222,14 +232,14 @@ func (bss *Service) confirmBlockchainState(peer *model.Peer, commonMilestoneBloc
 	return nil
 }
 
-func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64, commonBlock *model.Block) error {
+func (bd *BlockchainDownloader) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64, commonBlock *model.Block) error {
 	var peersTobeDeactivated []*model.Peer
 	segSize := constant.BlockDownloadSegSize
 
 	stop := uint32(len(chainBlockIds))
 
 	var peersSlice []*model.Peer
-	for _, peer := range bss.P2pService.GetResolvedPeers() {
+	for _, peer := range bd.P2pService.GetResolvedPeers() {
 		peersSlice = append(peersSlice, peer)
 	}
 
@@ -252,7 +262,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 
 		// TODO: apply retry mechanism
 		startTime := time.Now()
-		nextBlocks, err := bss.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
+		nextBlocks, err := bd.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
 			start, commonUtil.MinUint32(start+segSize, stop))
 		if err != nil {
 			log.Warn(err)
@@ -281,7 +291,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 	}
 
 	for _, peer := range peersTobeDeactivated {
-		bss.P2pService.DisconnectPeer(peer)
+		bd.P2pService.DisconnectPeer(peer)
 	}
 
 	forkBlocks := []*model.Block{}
@@ -289,16 +299,16 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 		if block.Height == 0 {
 			continue
 		}
-		lastBlock, err := bss.BlockService.GetLastBlock()
+		lastBlock, err := bd.BlockService.GetLastBlock()
 		if err != nil {
 			return err
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
 		if lastBlock.ID == previousBlockID {
-			err := bss.BlockService.PushBlock(lastBlock, block, false)
+			err := bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
-				// bss.P2pService.Blacklist(peer)
+				// bd.P2pService.Blacklist(peer)
 				log.Warnln("failed to push block from peer:", err)
 			}
 		} else {
@@ -309,7 +319,7 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 
 	if len(forkBlocks) > 0 {
 		log.Printf("processing %d fork blocks...\n", len(forkBlocks))
-		err := bss.ForkingProcessor.ProcessFork(forkBlocks, commonBlock, feederPeer)
+		err := bd.ForkingProcessor.ProcessFork(forkBlocks, commonBlock, feederPeer)
 		if err != nil {
 			return err
 		}
@@ -317,23 +327,23 @@ func (bss *Service) downloadFromPeer(feederPeer *model.Peer, chainBlockIds []int
 	return nil
 }
 
-func (bss *Service) getPeerCommonBlockID(peer *model.Peer) (int64, error) {
+func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, error) {
 	lastMilestoneBlockID := int64(0)
-	lastBlock, err := bss.BlockService.GetLastBlock()
+	lastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
 		log.Errorf("failed to get blockchain last block: %v\n", err)
 		return 0, err
 	}
 	lastBlockID := lastBlock.ID
 	for {
-		commonMilestoneBlockIDResponse, err := bss.P2pService.GetCommonMilestoneBlockIDs(peer, bss.ChainType, lastBlockID, lastMilestoneBlockID)
+		commonMilestoneBlockIDResponse, err := bd.P2pService.GetCommonMilestoneBlockIDs(peer, bd.ChainType, lastBlockID, lastMilestoneBlockID)
 		if err != nil {
 			log.Warnf("failed to get common milestone from the peer: %v\n", err)
-			bss.P2pService.DisconnectPeer(peer)
+			bd.P2pService.DisconnectPeer(peer)
 			return 0, err
 		}
 		for _, blockID := range commonMilestoneBlockIDResponse.BlockIds {
-			_, err := bss.BlockService.GetBlockByID(blockID)
+			_, err := bd.BlockService.GetBlockByID(blockID)
 			if err == nil {
 				return blockID, nil
 			}
@@ -346,15 +356,15 @@ func (bss *Service) getPeerCommonBlockID(peer *model.Peer) (int64, error) {
 	}
 }
 
-func (bss *Service) getBlockIdsAfterCommon(peer *model.Peer, commonMilestoneBlockID int64) []int64 {
-	blockIds, err := bss.P2pService.GetNextBlockIDs(peer, bss.ChainType, commonMilestoneBlockID, constant.PeerGetBlocksLimit)
+func (bd *BlockchainDownloader) getBlockIdsAfterCommon(peer *model.Peer, commonMilestoneBlockID int64) []int64 {
+	blockIds, err := bd.P2pService.GetNextBlockIDs(peer, bd.ChainType, commonMilestoneBlockID, constant.PeerGetBlocksLimit)
 	if err != nil {
 		return []int64{}
 	}
 
 	newBlockIDIdx := 0
 	for idx, blockID := range blockIds.BlockIds {
-		_, err := bss.BlockService.GetBlockByID(blockID)
+		_, err := bd.BlockService.GetBlockByID(blockID)
 		// mark the new block ID starting where it is not found
 		if err != nil {
 			break
@@ -367,10 +377,10 @@ func (bss *Service) getBlockIdsAfterCommon(peer *model.Peer, commonMilestoneBloc
 	return blockIds.BlockIds[newBlockIDIdx:]
 }
 
-func (bss *Service) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer,
+func (bd *BlockchainDownloader) getNextBlocks(maxNextBlocks uint32, peerUsed *model.Peer,
 	blockIds []int64, start, stop uint32) ([]*model.Block, error) {
 	blocks := []*model.Block{}
-	nextBlocksResponse, err := bss.P2pService.GetNextBlocks(peerUsed, bss.ChainType, blockIds[start:stop], blockIds[start])
+	nextBlocksResponse, err := bd.P2pService.GetNextBlocks(peerUsed, bd.ChainType, blockIds[start:stop], blockIds[start])
 	nextBlocks := nextBlocksResponse.NextBlocks
 	nextBlocksLength := uint32(len(nextBlocks))
 	if nextBlocksLength > maxNextBlocks {
