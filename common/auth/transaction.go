@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"

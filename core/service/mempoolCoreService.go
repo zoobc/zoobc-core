@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/auth"
 	"sort"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/auth"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"

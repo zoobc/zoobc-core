@@ -16,7 +16,6 @@ import (
 )
 
 type (
-
 	// Blocksmith is wrapper for the account in smithing process
 	Blocksmith struct {
 		NodePublicKey  []byte

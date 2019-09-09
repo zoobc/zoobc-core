@@ -2,10 +2,10 @@ package handler
 
 import (
 	"io"
+	"time"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
-	"time"
 )
 
 type NodeHardwareHandler struct {

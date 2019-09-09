@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"net/url"
 
@@ -62,6 +63,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
 		append([]interface{}{insertNodeQ}, insertNodeArg...),
 	)
+	fmt.Println(queries)
 	// add row to node_registry table
 	err := tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {

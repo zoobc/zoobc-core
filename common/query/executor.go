@@ -7,7 +7,6 @@ import (
 )
 
 type (
-
 	// ExecutorInterface interface
 	ExecutorInterface interface {
 		BeginTx() error
