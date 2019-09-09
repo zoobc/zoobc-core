@@ -27,6 +27,7 @@ type (
 
 //The main function to process the forked blocks
 func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error {
+	log.Info("processing %d fork blocks...\n", len(forkBlocks))
 	var forkBlocksID []int64
 	for _, block := range forkBlocks {
 		forkBlocksID = append(forkBlocksID, block.ID)
