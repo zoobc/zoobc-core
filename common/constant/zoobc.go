@@ -1,5 +1,5 @@
 package constant
 
 const (
-	OneZBC int64 = 10000000
+	OneZBC int64 = 100000000
 )
