@@ -512,10 +512,10 @@ func (bs *BlockService) AddGenesis() error {
 		1,
 		nil,
 		make([]byte, 64),
-		constant.GenesisAccountAddress,
+		constant.MainchainGenesisAccountAddress,
 		"",
 		0,
-		constant.GenesisBlockTimestamp,
+		constant.MainchainGenesisBlockTimestamp,
 		totalAmount,
 		totalFee,
 		totalCoinBase,
@@ -524,7 +524,7 @@ func (bs *BlockService) AddGenesis() error {
 		payloadLength,
 		constant.InitialSmithScale,
 		big.NewInt(0),
-		constant.GenesisBlockSignature,
+		constant.MainchainGenesisBlockSignature,
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)

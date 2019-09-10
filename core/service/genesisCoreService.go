@@ -8,22 +8,10 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
-
-// 1 ZOO = 100000000 ZOOBIT, node only know the zoobit representation, zoo representation is handled by frontend
-var genesisFundReceiver = []map[string]int64{ // address : amount | public key hex
-	{"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE": 1000000000000}, // 04264418e6f758dc777c33957fd652e048ef388bff51e5b84d505027fead1ca9
-	{"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN": 1000000000000}, // 04266749faa93f9b6a15094c4d89037815455a76f254aeef2ebe4e445a538e0b
-	{"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J": 1000000000000}, // 04264a2ef814619d4a2b1fa3b45f4aa09b248d53ef07d8e92237f3cc8eb30d6d
-	{"nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd": 10000000000},   // Wallet Develop
-}
-
-var genesisSignature = []byte{
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-}
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
@@ -31,36 +19,39 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
-		for _, fundReceiver := range genesisFundReceiver {
-			for receiver, amount := range fundReceiver {
-				genesisTx := &model.Transaction{
-					Version:                 1,
-					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-					Height:                  0,
-					Timestamp:               1562806389,
-					SenderAccountAddress:    constant.GenesisAccountAddress,
-					RecipientAccountAddress: receiver,
-					Fee:                     0,
-					TransactionBodyLength:   8,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: amount,
-						},
+		for _, fundReceiver := range constant.MainchainGenesisFundReceivers {
+			// send funds from genesis account to the fund receiver
+			genesisTx := &model.Transaction{
+				Version:                 1,
+				TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
+				Height:                  0,
+				Timestamp:               1562806389,
+				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
+				RecipientAccountAddress: fundReceiver.AccountAddress,
+				Fee:                     0,
+				TransactionBodyLength:   8,
+				TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+					SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+						Amount: fundReceiver.Amount,
 					},
-					TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(amount)),
-					Signature:            genesisSignature,
-				}
-
-				transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
-				if err != nil {
-					//TODO: return error instead?
-					log.Fatal(err)
-				}
-				transactionHash := sha3.Sum256(transactionBytes)
-				genesisTx.TransactionHash = transactionHash[:]
-				genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
-				genesisTxs = append(genesisTxs, genesisTx)
+				},
+				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.Amount)),
+				Signature:            constant.MainchainGenesisBlockSignature,
 			}
+
+			transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+			if err != nil {
+				log.Fatal(err)
+			}
+			transactionHash := sha3.Sum256(transactionBytes)
+			genesisTx.TransactionHash = transactionHash[:]
+			genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
+			genesisTxs = append(genesisTxs, genesisTx)
+
+			// register the node for the fund receiver
+			genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(fundReceiver.AccountAddress, fundReceiver.NodeAddress,
+				fundReceiver.LockedBalance, fundReceiver.NodePublicKey)
+			genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
 		}
 
 		return genesisTxs
@@ -69,11 +60,57 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 	}
 }
 
+// GetGenesisNodeRegistrationTx given a fundReceiver, returns a nodeRegistrationTransaction for genesis block
+func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBalance int64, nodePublicKey []byte) *model.Transaction {
+	// generate a dummy proof of ownership (avoiding to add conditions to tx parsebytes, for genesis block only)
+	poownMessage := &model.ProofOfOwnershipMessage{
+		AccountAddress: accountAddress,
+		BlockHash:      make([]byte, 32),
+		BlockHeight:    0,
+	}
+	nodeRegistration := transaction.NodeRegistration{
+		Body: &model.NodeRegistrationTransactionBody{
+			AccountAddress: accountAddress,
+			LockedBalance:  lockedBalance,
+			NodeAddress:    nodeAddress,
+			NodePublicKey:  nodePublicKey,
+			Poown: &model.ProofOfOwnership{
+				MessageBytes: util.GetProofOfOwnershipMessageBytes(poownMessage),
+				Signature:    make([]byte, int(constant.NodeSignature+constant.SignatureType)),
+			},
+		},
+	}
+	genesisTx := &model.Transaction{
+		Version:                 1,
+		TransactionType:         util.ConvertBytesToUint32([]byte{2, 0, 0, 0}),
+		Height:                  0,
+		Timestamp:               1562806389,
+		SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
+		RecipientAccountAddress: accountAddress,
+		Fee:                     0,
+		TransactionBodyLength:   nodeRegistration.GetSize(),
+		TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
+			NodeRegistrationTransactionBody: nodeRegistration.Body,
+		},
+		TransactionBodyBytes: nodeRegistration.GetBodyBytes(),
+		Signature:            constant.MainchainGenesisBlockSignature,
+	}
+
+	transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	transactionHash := sha3.Sum256(transactionBytes)
+	genesisTx.TransactionHash = transactionHash[:]
+	genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
+	return genesisTx
+}
+
 // AddGenesisAccount create genesis account into `account` and `account_balance` table
 func AddGenesisAccount(executor query.ExecutorInterface) error {
 	// add genesis account
 	genesisAccountBalance := model.AccountBalance{
-		AccountAddress:   constant.GenesisAccountAddress,
+		AccountAddress:   constant.MainchainGenesisAccountAddress,
 		BlockHeight:      0,
 		SpendableBalance: 0,
 		Balance:          0,
