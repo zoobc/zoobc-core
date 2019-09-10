@@ -33,12 +33,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		queries [][]interface{}
 	)
 
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
 		LockedBalance:      tx.Body.LockedBalance,

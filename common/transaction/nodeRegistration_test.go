@@ -336,22 +336,6 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "ApplyConfirmed:fail-{undoUnconfirmedFail}",
-			wantErr: true,
-			fields: fields{
-				Height:                1,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockApplyConfirmedUndoUnconfirmedFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
-				Body: &model.NodeRegistrationTransactionBody{
-					LockedBalance: 10000,
-				},
-			},
-		},
-		{
 			name:    "ApplyConfirmed:fail-{executeTransactionsFail}",
 			wantErr: true,
 			fields: fields{
