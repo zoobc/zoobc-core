@@ -48,6 +48,9 @@ linters-settings:
       - dupImport # https://github.com/go-critic/go-critic/issues/845
       - exitAfterDefer
       - importShadow
+  funlen:
+    l: 50
+    s: 55
 
 linters:
   enable-all: true
@@ -70,6 +73,12 @@ issues:
     - text: "G202: SQL string concatenation"
       linters:
         - gosec
+    - text: "is too long"
+      linters:
+        - funlen
+    - text: "has too many statements"
+      linters:
+        - funlen
     - text: "has 2 occurrences, make it a constant"
       linters:
         - goconst
