@@ -16,22 +16,25 @@ import (
 
 // NodeRegistration Implement service layer for (new) node registration's transaction
 type NodeRegistration struct {
-	ID                    int64
-	Body                  *model.NodeRegistrationTransactionBody
-	Fee                   int64
-	SenderAddress         string
-	Height                uint32
-	AccountBalanceQuery   query.AccountBalanceQueryInterface
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	BlockQuery            query.BlockQueryInterface
-	QueryExecutor         query.ExecutorInterface
-	AuthPoown             auth.ProofOfOwnershipValidationInterface
+	ID                      int64
+	Body                    *model.NodeRegistrationTransactionBody
+	Fee                     int64
+	SenderAddress           string
+	Height                  uint32
+	AccountBalanceQuery     query.AccountBalanceQueryInterface
+	NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+	BlockQuery              query.BlockQueryInterface
+	ParticipationScoreQuery query.ParticipationScoreQueryInterface
+	QueryExecutor           query.ExecutorInterface
+	AuthPoown               auth.ProofOfOwnershipValidationInterface
 }
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
 		queries [][]interface{}
+		queued  bool
 	)
+	queued = tx.Height > 0
 
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
@@ -41,10 +44,10 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: tx.Height,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		Queued:             true,
+		Queued:             queued,
 		AccountAddress:     tx.Body.AccountAddress,
 	}
-	// update sender balance by reducing his spendable balance of the tx fee
+	// update sender balance by reducing his spendable balance of the tx fee and locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-(tx.Body.LockedBalance + tx.Fee),
 		map[string]interface{}{
@@ -56,7 +59,19 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
 		append([]interface{}{insertNodeQ}, insertNodeArg...),
 	)
-	// add row to node_registry table
+	// insert default participation score for nodes that are registered at genesis height
+	if tx.Height == 0 {
+		ps := &model.ParticipationScore{
+			NodeID: tx.ID,
+			Score:  constant.MaxParticipationScore / 10,
+			Latest: true,
+			Height: 0,
+		}
+		insertParticipationScoreQ, insertParticipationScoreArg := tx.ParticipationScoreQuery.InsertParticipationScore(ps)
+		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
+		queries = append(queries, newQ)
+	}
+
 	err := tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
@@ -111,6 +126,11 @@ func (tx *NodeRegistration) Validate() error {
 	var (
 		accountBalance model.AccountBalance
 	)
+
+	// no need to validate node registration transaction for genesis block
+	if tx.Height == 0 {
+		return nil
+	}
 
 	// formally validate tx body fields
 	if tx.Body.Poown == nil {

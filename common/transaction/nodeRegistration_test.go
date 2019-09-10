@@ -321,14 +321,15 @@ func (*mockApplyConfirmedSuccess) ExecuteTransactions(queries [][]interface{}) e
 
 func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 	type fields struct {
-		Body                  *model.NodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         string
-		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlockQuery            query.BlockQueryInterface
-		QueryExecutor         query.ExecutorInterface
+		Body                    *model.NodeRegistrationTransactionBody
+		Fee                     int64
+		SenderAddress           string
+		Height                  uint32
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		QueryExecutor           query.ExecutorInterface
 	}
 	tests := []struct {
 		name    string
@@ -339,13 +340,14 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 			name:    "ApplyConfirmed:fail-{executeTransactionsFail}",
 			wantErr: true,
 			fields: fields{
-				Height:                0,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockApplyConfirmedExecuteTransactionsFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
+				Height:                  0,
+				SenderAddress:           senderAddress1,
+				QueryExecutor:           &mockApplyConfirmedExecuteTransactionsFail{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Fee:                     1,
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
@@ -355,13 +357,14 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 			name:    "ApplyConfirmed:success",
 			wantErr: false,
 			fields: fields{
-				Height:                0,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockApplyConfirmedSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
+				Height:                  0,
+				SenderAddress:           senderAddress1,
+				QueryExecutor:           &mockApplyConfirmedSuccess{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Fee:                     1,
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
@@ -371,14 +374,15 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &NodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				BlockQuery:            tt.fields.BlockQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
+				Body:                    tt.fields.Body,
+				Fee:                     tt.fields.Fee,
+				SenderAddress:           tt.fields.SenderAddress,
+				Height:                  tt.fields.Height,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -549,8 +553,22 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "Validate:success-{GenesisHeight}",
+			fields: fields{
+				Height:              0,
+				Body:                bodyWithoutPoown,
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: false,
+		},
+		{
 			name: "Validate:fail-{PoownRequired}",
 			fields: fields{
+				Height:              1,
 				Body:                bodyWithoutPoown,
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
@@ -563,6 +581,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{PoownAuth}",
 			fields: fields{
+				Height:              1,
 				Body:                bodyWithPoown,
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
@@ -575,6 +594,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{executeSelectFail}",
 			fields: fields{
+				Height:              1,
 				Body:                bodyWithPoown,
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
@@ -587,6 +607,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{balanceNotEnough}",
 			fields: fields{
+				Height: 1,
 				Body: &model.NodeRegistrationTransactionBody{
 					Poown:         poown,
 					NodePublicKey: nodePubKey1,
@@ -604,6 +625,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{failGetNode}",
 			fields: fields{
+				Height:                1,
 				Body:                  bodyWithPoown,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeFail{},
@@ -618,6 +640,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{nodeExist}",
 			fields: fields{
+				Height:                1,
 				Body:                  bodyWithPoown,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExist{},
@@ -632,6 +655,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{InvalidNodeAddress}",
 			fields: fields{
+				Height:                1,
 				Body:                  bodyWithPoown,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
@@ -646,6 +670,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:success",
 			fields: fields{
+				Height:                1,
 				Body:                  txBody,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
