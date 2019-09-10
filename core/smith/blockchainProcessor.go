@@ -64,6 +64,10 @@ func NewBlocksmith(nodeSecretPhrase string) *Blocksmith {
 
 // CalculateSmith calculate seed, smithTime, and deadline
 func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Blocksmith) *Blocksmith {
+	//FIXME: implement logic based on participation score:
+	// 1. get the node's participation score: from participation_score table, by generator.NodePublicKey or generator.AccountAddress
+	// 2. use it for smithing: multiply by 1000 the value of ps, if we want to start with the same value below,
+	//    since the default ps is 100000
 	account := model.AccountBalance{
 		AccountAddress:   "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		Balance:          1000000000,
@@ -72,7 +76,6 @@ func (*BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Bl
 	if account.AccountAddress == "" {
 		generator.Balance = big.NewInt(0)
 	} else {
-		// FIXME: till we use POS to compute the smithing power, we should add to the account balance, the locked funds (in node_registry)
 		accountEffectiveBalance := account.GetBalance()
 		generator.Balance = big.NewInt(int64(math.Max(0, float64(accountEffectiveBalance))))
 	}

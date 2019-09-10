@@ -127,6 +127,9 @@ func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
 func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
+func (*mockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
@@ -595,14 +598,15 @@ func TestBlockService_VerifySeed(t *testing.T) {
 
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
-		Observer           *observer.Observer
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		Observer            *observer.Observer
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -617,10 +621,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 		{
 			name: "PushBlock:Transactions<0",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				Observer:      observer.NewObserver(),
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockQueryExecutorSuccess{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				Observer:            observer.NewObserver(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -660,14 +665,15 @@ func TestBlockService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				Observer:           tt.fields.Observer,
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Signature:           tt.fields.Signature,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				Observer:            tt.fields.Observer,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -1216,15 +1222,16 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		MempoolService     MempoolServiceInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
-		Observer           *observer.Observer
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		MempoolService      MempoolServiceInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		Observer            *observer.Observer
 	}
 	tests := []struct {
 		name    string
@@ -1234,15 +1241,16 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Chaintype:          &chaintype.MainChain{},
-				Signature:          &mockSignature{},
-				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-				MempoolService:     &mockMempoolServiceSelectFail{},
-				ActionTypeSwitcher: &mockTypeActionSuccess{},
-				QueryExecutor:      &mockQueryExecutorSuccess{},
-				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
-				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
-				Observer:           observer.NewObserver(),
+				Chaintype:           &chaintype.MainChain{},
+				Signature:           &mockSignature{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				MempoolService:      &mockMempoolServiceSelectFail{},
+				ActionTypeSwitcher:  &mockTypeActionSuccess{},
+				QueryExecutor:       &mockQueryExecutorSuccess{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				Observer:            observer.NewObserver(),
 			},
 			wantErr: false,
 		},
@@ -1250,15 +1258,16 @@ func TestBlockService_AddGenesis(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				MempoolService:     tt.fields.MempoolService,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				Observer:           tt.fields.Observer,
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Signature:           tt.fields.Signature,
+				MempoolService:      tt.fields.MempoolService,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				Observer:            tt.fields.Observer,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)

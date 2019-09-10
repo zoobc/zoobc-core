@@ -53,6 +53,7 @@ type (
 		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
+		GetCoinbase() int64
 		ReceivedBlockListener() observer.Listener
 	}
 
@@ -244,6 +245,21 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			}
 		}
 	}
+
+	// reward fees + totalCoinbase to blocksmith
+	accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
+		block.TotalFee+block.TotalCoinBase,
+		map[string]interface{}{
+			"account_address": block.BlocksmithAddress,
+			"block_height":    block.Height,
+		},
+	)
+	err = bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ)
+	if err != nil {
+		_ = bs.QueryExecutor.RollbackTx()
+		return err
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -424,8 +440,7 @@ func (bs *BlockService) GenerateBlock(
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
-		//TODO: missing coinbase calculation
-		payloadLength uint32
+		payloadLength                        uint32
 		// only for mainchain
 		sortedTx    []*model.Transaction
 		payloadHash []byte
@@ -435,6 +450,7 @@ func (bs *BlockService) GenerateBlock(
 	newBlockHeight := previousBlock.Height + 1
 
 	if _, ok := bs.Chaintype.(*chaintype.MainChain); ok {
+		totalCoinbase = bs.GetCoinbase()
 		mempoolTransactions, err := bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
@@ -587,4 +603,9 @@ func (bs *BlockService) ReceivedBlockListener() observer.Listener {
 			}
 		},
 	}
+}
+
+func (*BlockService) GetCoinbase() int64 {
+	//TODO: integrate this with POP algorithm
+	return 50 * constant.OneZBC
 }
