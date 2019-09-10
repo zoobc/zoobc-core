@@ -1,5 +1,7 @@
 package chaintype
 
+import "github.com/zoobc/zoobc-core/common/constant"
+
 // MainChain is struct should has methods in below
 type (
 	MainChain struct {
@@ -28,5 +30,5 @@ func (*MainChain) GetName() string {
 
 // GetGenesisBlockID return the block ID of genesis block in the chain
 func (*MainChain) GetGenesisBlockID() int64 {
-	return -5061068901394437496
+	return constant.MainchainGenesisBlockID
 }

@@ -16,6 +16,8 @@ type (
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string
+		GetNodeRegistrationsWithZeroScore(queued bool) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
 		Rollback(height uint32) (multiQueries [][]interface{})
@@ -93,6 +95,50 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKe
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %s AND latest=1",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress), []interface{}{accountAddress}
+}
+
+// GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
+// queued or not queued
+func (nr *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string {
+	var (
+		queuedInt int
+	)
+	if queued {
+		queuedInt = 1
+	} else {
+		queuedInt = 0
+	}
+	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND queued = %d AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
+		strings.Join(nr.Fields, ", "), nr.getTableName(), queuedInt, limit)
+}
+
+// GetNodeRegistrationsWithZeroScore returns query string to get the list of Node Registrations with zero participation score
+func (nr *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(queued bool) string {
+	var (
+		queuedInt int
+	)
+	nrTable := nr.getTableName()
+	nrTableAlias := "A"
+	psTable := NewParticipationScoreQuery().getTableName()
+	psTableAlias := "B"
+	nrTableFields := make([]string, 0)
+	for _, field := range nr.Fields {
+		nrTableFields = append(nrTableFields, nrTableAlias+"."+field)
+	}
+	if queued {
+		queuedInt = 1
+	} else {
+		queuedInt = 0
+	}
+
+	return fmt.Sprintf("SELECT %s FROM "+nrTable+" as "+nrTableAlias+" "+
+		"INNER JOIN "+psTable+" as "+psTableAlias+" ON "+nrTableAlias+".id = "+psTableAlias+".node_id "+
+		"WHERE "+psTableAlias+".score = 0 "+
+		"AND "+nrTableAlias+".latest=1 "+
+		"AND "+nrTableAlias+".queued=%d "+
+		"AND "+psTableAlias+".latest=1",
+		strings.Join(nrTableFields, ", "),
+		queuedInt)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
