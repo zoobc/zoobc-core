@@ -498,7 +498,7 @@ func (bs *BlockService) GenerateBlock(
 		payloadLength,
 		secretPhrase,
 	)
-	log.Printf("block forged: fee %d\n", totalFee)
+	log.Printf("block forged:  fee %d  coinbase %d\n", totalFee, totalCoinbase)
 	return block, nil
 }
 
