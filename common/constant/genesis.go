@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -116144346425939311
+	MainchainGenesisBlockID int64 = -1184178034802704146
 )
 
 var (
@@ -27,7 +27,7 @@ var (
 			AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance
-			Amount: 1000000000000,
+			Amount: 0,
 			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99,
 				125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 			NodeAddress:   "0.0.0.0",
@@ -38,7 +38,7 @@ var (
 			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance
-			Amount: 1000000000000,
+			Amount: 0,
 			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126,
 				203, 5, 12, 152, 194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
 			NodeAddress:   "0.0.0.0",
@@ -49,7 +49,7 @@ var (
 			AccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance
-			Amount: 1000000000000,
+			Amount: 0,
 			NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211, 123,
 				72, 52, 221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
 			NodeAddress:   "0.0.0.0",
