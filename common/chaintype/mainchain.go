@@ -3,10 +3,7 @@ package chaintype
 import "github.com/zoobc/zoobc-core/common/constant"
 
 // MainChain is struct should has methods in below
-type (
-	MainChain struct {
-	}
-)
+type MainChain struct{}
 
 // GetTypeInt return the value of the chain type in int
 func (*MainChain) GetTypeInt() int32 {
@@ -20,7 +17,7 @@ func (*MainChain) GetTablePrefix() string {
 
 // GetChainSmithingDelayTime return the value of chain smithing delay in second
 func (*MainChain) GetChainSmithingDelayTime() int64 {
-	return 5
+	return 60
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node

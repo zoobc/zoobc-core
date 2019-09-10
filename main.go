@@ -48,19 +48,19 @@ var (
 func init() {
 	var (
 		configPostfix string
-		configPath    string
+		configDir     string
 		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configPath, "config-path", "", "Usage")
+	flag.StringVar(&configDir, "config-path", "", "Usage")
 	flag.Parse()
 
-	if configPath == "" {
-		configPath = "./resource"
+	if configDir == "" {
+		configDir = "./resource"
 	}
 
-	if err := util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
+	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
 		logrus.Fatal(err)
 		return
 	}
