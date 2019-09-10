@@ -235,16 +235,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 				// undo unconfirmed
 				err = txType.UndoApplyUnconfirmed()
 				if err != nil {
-					_ = bs.QueryExecutor.RollbackTx()
-					return err
-				}
-				err = txType.Validate()
-				if err != nil {
+					rows.Close()
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
 				}
 			}
 			rows.Close()
+			err = txType.Validate()
+			if err != nil {
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
 			// validate tx body and apply/perform transaction-specific logic
 			err = txType.ApplyConfirmed()
 			if err == nil {
