@@ -25,13 +25,8 @@ type (
 	}
 )
 
-//The main function to process the forked blocks
+// ProcessFork processes the forked blocks
 func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error {
-	log.Info("processing %d fork blocks...\n", len(forkBlocks))
-	var forkBlocksID []int64
-	for _, block := range forkBlocks {
-		forkBlocksID = append(forkBlocksID, block.ID)
-	}
 
 	lastBlockBeforeProcess, err := fp.BlockService.GetLastBlock()
 	if err != nil {
@@ -57,7 +52,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				return err
 			}
-			lastBlockHash, err := utils.GetBlockHash(lastBlock)
+			lastBlockHash, _ := utils.GetBlockHash(lastBlock)
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				err := fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
@@ -91,7 +86,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	}
 
-	// if no fork blocks succesfully applied, go back to our fork
+	// if no fork blocks successfully applied, go back to our fork
 	// other wise, just take the transactions of our popped blocks to be processed later
 	if pushedForkBlocks == 0 {
 		log.Println("Did not accept any blocks from peer, pushing back my blocks")

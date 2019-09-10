@@ -169,8 +169,11 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blockchainSyncService := NewBlockchainSyncService(tt.args.blockService, tt.args.p2pService, tt.args.queryService)
-			got, err := blockchainSyncService.getPeerCommonBlockID(
+			blockchainDownloader := &BlockchainDownloader{
+				BlockService: tt.args.blockService,
+				P2pService:   tt.args.p2pService,
+			}
+			got, err := blockchainDownloader.getPeerCommonBlockID(
 				&model.Peer{},
 			)
 			if (err != nil) != tt.wantErr {
@@ -236,8 +239,11 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blockchainSyncService := NewBlockchainSyncService(tt.args.blockService, tt.args.p2pService, tt.args.queryService)
-			got := blockchainSyncService.getBlockIdsAfterCommon(
+			blockchainDownloader := &BlockchainDownloader{
+				BlockService: tt.args.blockService,
+				P2pService:   tt.args.p2pService,
+			}
+			got := blockchainDownloader.getBlockIdsAfterCommon(
 				&model.Peer{},
 				0,
 			)
@@ -250,7 +256,11 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 
 func TestGetNextBlocks(t *testing.T) {
 	blockService := coreService.NewBlockService(&chaintype.MainChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	blockchainSyncService := NewBlockchainSyncService(blockService, &mockP2pServiceSuccess{}, &mockQueryServiceSuccess{})
+	blockchainDownloader := &BlockchainDownloader{
+		BlockService: blockService,
+		P2pService:   &mockP2pServiceSuccess{},
+	}
+
 	type args struct {
 		maxNextBlocks uint32
 		peerUsed      *model.Peer
@@ -311,7 +321,7 @@ func TestGetNextBlocks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := blockchainSyncService.getNextBlocks(
+			got, err := blockchainDownloader.getNextBlocks(
 				tt.args.maxNextBlocks,
 				tt.args.peerUsed,
 				tt.args.blockIDs,

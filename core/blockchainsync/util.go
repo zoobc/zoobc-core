@@ -2,9 +2,9 @@ package blockchainsync
 
 import "github.com/zoobc/zoobc-core/common/constant"
 
-func getMinRollbackHeight(currentHeight uint32) (uint32, error) {
+func getMinRollbackHeight(currentHeight uint32) uint32 {
 	if currentHeight < constant.MinRollbackBlocks {
-		return 0, nil
+		return 0
 	}
-	return currentHeight - constant.MinRollbackBlocks, nil
+	return currentHeight - constant.MinRollbackBlocks
 }

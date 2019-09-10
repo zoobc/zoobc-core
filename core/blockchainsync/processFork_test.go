@@ -1,7 +1,6 @@
 package blockchainsync
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -12,7 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 )
 
-//ALL SERVICE SUCCESS
+// ALL SERVICE SUCCESS
 type mockServiceBlockSuccess struct {
 	service.BlockServiceInterface
 }
@@ -29,7 +28,7 @@ type mockServiceQueryExecutor struct {
 	query.ExecutorInterface
 }
 
-//BLOCK SERVICE FAILS
+// BLOCK SERVICE FAILS
 type mockServiceBlockFailGetLastBlock struct {
 	service.BlockServiceInterface
 }
@@ -42,16 +41,12 @@ type mockServiceBlockFailGetBlockByID struct {
 	service.BlockServiceInterface
 }
 
-type mockServiceBlockFailGetTransactionsByBlockID struct {
-	service.BlockServiceInterface
-}
-
-//FORKING SERVICE FAILS
+// FORKING SERVICE FAILS
 type mockServiceForkingProcessFail struct {
 	ForkingProcessorInterface
 }
 
-//SERVICE QUERY EXECUTOR FAILS
+// SERVICE QUERY EXECUTOR FAILS
 type mockServiceQueryExecutorBeginTXFail struct {
 	query.ExecutorInterface
 }
@@ -62,18 +57,18 @@ type mockServiceQueryExecutorCommitTXFail struct {
 	query.ExecutorInterface
 }
 
-//Function mock for Forking interface
+// Function mock for Forking interface
 func (*mockServiceForkingProcessSuccess) getMinRollbackHeight() (uint32, error) {
 	return 20, nil
 }
 
-//Mock function for Block interface
+// Mock function for Block interface
 func (*mockServiceBlockSuccess) GetLastBlock() (*model.Block, error) {
-	return &model.Block{ID: 58, Height: 800}, nil
+	return &model.Block{ID: 58, Height: 66}, nil
 }
 
 func (*mockServiceBlockSuccess) GetBlockByHeight(height uint32) (*model.Block, error) {
-	return &model.Block{ID: 57, Height: height}, nil
+	return &model.Block{ID: 58, Height: height}, nil
 }
 
 func (*mockServiceBlockSuccess) GetBlockByID(int64) (*model.Block, error) {
@@ -91,7 +86,7 @@ func (*mockServiceBlockSuccess) GetTransactionsByBlockID(blockID int64) ([]*mode
 	return transaction, nil
 }
 
-//Mock Function for Chaintype Interface
+// Mock Function for Chaintype Interface
 func (*mockServiceChainType) GetGenesisBlockID() int64 {
 	return 1
 }
@@ -112,12 +107,12 @@ func (*mockServiceChainType) GetTypeInt() int32 {
 	return 0
 }
 
-//Mock Function for Query Executor Interface
+// Mock Function for Query Executor Interface
 func (*mockServiceQueryExecutor) BeginTx() error {
 	return nil
 }
 
-func (*mockServiceQueryExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
+func (*mockServiceQueryExecutor) ExecuteTransactions(qStr [][]interface{}) error {
 	return nil
 }
 
@@ -125,8 +120,8 @@ func (*mockServiceQueryExecutor) CommitTx() error {
 	return nil
 }
 
-//MOCK BLOCK SERVICES FUNCTION FAILS
-//Mock Function Block Services GetLastBlock Fail
+// MOCK BLOCK SERVICES FUNCTION FAILS
+// Mock Function Block Services GetLastBlock Fail
 func (*mockServiceBlockFailGetLastBlock) GetLastBlock() (*model.Block, error) {
 	return nil, blocker.NewBlocker(
 		blocker.AuthErr,
@@ -153,7 +148,7 @@ func (*mockServiceBlockFailGetLastBlock) GetTransactionsByBlockID(blockID int64)
 	return transaction, nil
 }
 
-//Mock Function Block Service Fail GetBLockByHeight Fail
+// Mock Function Block Service Fail GetBLockByHeight Fail
 func (*mockServiceBlockFailGetBlockByHeight) GetLastBlock() (*model.Block, error) {
 	return &model.Block{ID: 58, Height: 66}, nil
 }
@@ -180,13 +175,13 @@ func (*mockServiceBlockFailGetBlockByHeight) GetTransactionsByBlockID(blockID in
 	return transaction, nil
 }
 
-//Mock Function Block Service GetBlockByID fail
+// Mock Function Block Service GetBlockByID fail
 func (*mockServiceBlockFailGetBlockByID) GetLastBlock() (*model.Block, error) {
 	return &model.Block{ID: 58, Height: 800}, nil
 }
 
 func (*mockServiceBlockFailGetBlockByID) GetBlockByHeight(height uint32) (*model.Block, error) {
-	return &model.Block{ID: 57, Height: height}, nil
+	return &model.Block{ID: 58, Height: height}, nil
 }
 
 func (*mockServiceBlockFailGetBlockByID) GetBlockByID(int64) (*model.Block, error) {
@@ -207,7 +202,7 @@ func (*mockServiceBlockFailGetBlockByID) GetTransactionsByBlockID(blockID int64)
 	return transaction, nil
 }
 
-//FORKING PPROCESS SERVICE FAIL
+// FORKING PPROCESS SERVICE FAIL
 func (*mockServiceForkingProcessFail) getMinRollbackHeight() (uint32, error) {
 	return 0, blocker.NewBlocker(
 		blocker.AuthErr,
@@ -215,8 +210,8 @@ func (*mockServiceForkingProcessFail) getMinRollbackHeight() (uint32, error) {
 	)
 }
 
-//QUERY EXECUTOR SERVICE FAILS
-//BEGIN TX FUNC FAIL
+// QUERY EXECUTOR SERVICE FAILS
+// BEGIN TX FUNC FAIL
 func (*mockServiceQueryExecutorBeginTXFail) BeginTx() error {
 	return blocker.NewBlocker(
 		blocker.AuthErr,
@@ -232,15 +227,15 @@ func (*mockServiceQueryExecutorBeginTXFail) CommitTx() error {
 	return nil
 }
 
-//EXECUTE TRANSACTION FAIL
+// EXECUTE TRANSACTION FAIL
 func (*mockServiceQueryExecutorExecuteTransFail) BeginTx() error {
 	return nil
 }
 
-func (*mockServiceQueryExecutorExecuteTransFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+func (*mockServiceQueryExecutorExecuteTransFail) ExecuteTransactions(queries [][]interface{}) error {
 	return blocker.NewBlocker(
 		blocker.AuthErr,
-		"failed to execute Transaction",
+		"failed to execute Transactions",
 	)
 }
 
@@ -248,12 +243,12 @@ func (*mockServiceQueryExecutorExecuteTransFail) CommitTx() error {
 	return nil
 }
 
-//COMMITX FAIL
+// COMMITX FAIL
 func (*mockServiceQueryExecutorCommitTXFail) BeginTx() error {
 	return nil
 }
 
-func (*mockServiceQueryExecutorCommitTXFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+func (*mockServiceQueryExecutorCommitTXFail) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
 
@@ -264,585 +259,8 @@ func (*mockServiceQueryExecutorCommitTXFail) CommitTx() error {
 	)
 }
 
-func TestService_PopOffToBlock(t *testing.T) {
-	type fields struct {
-		isScanningBlockchain bool
-		ChainType            chaintype.ChainType
-		BlockService         service.BlockServiceInterface
-		P2pService           p2p.ServiceInterface
-		LastBlock            model.Block
-		ForkingProcessor     ForkingProcessorInterface
-		QueryExecutor        query.ExecutorInterface
-	}
-	type args struct {
-		commonBlock *model.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*model.Block
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-		//BLOCK SERVICES FAILS
-		{
-			name: "want:TestService_PopOffToBlock successfully return common block",
-			fields: fields{
-				BlockService:     &mockServiceBlockSuccess{},
-				ForkingProcessor: &mockServiceForkingProcessSuccess{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutor{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want: []*model.Block{
-				{ID: 58, Height: 66,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 65,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 64,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 63,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 62,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 61,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 60,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 59,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 58,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 57,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 56,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 55,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 54,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 53,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 52,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 51,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 50,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 49,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 48,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 47,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 46,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 45,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 44,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 43,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 42,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 41,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 40,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 39,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 38,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 37,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 36,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 35,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 34,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 33,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 32,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 31,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 30,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 29,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 28,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 27,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 26,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 25,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 24,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 23,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 22,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 21,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 20,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 19,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 18,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 17,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 16,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 15,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 14,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 13,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 12,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 11,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 10,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 9,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 8,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 7,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 6,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 5,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 4,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 3,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}},
-				{ID: 57, Height: 2,
-					Transactions: []*model.Transaction{{Version: 1, ID: 789, BlockID: 40, Height: 69}}}},
-			wantErr: false,
-		},
-		{
-			name: "want:TestService_PopOffToBlock error on getting LastBlock",
-			fields: fields{
-				BlockService:     &mockServiceBlockFailGetLastBlock{},
-				ForkingProcessor: &mockServiceForkingProcessSuccess{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutor{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "want:TestService_PopOffToBlock error on getting BlockByHeight",
-			fields: fields{
-				BlockService:     &mockServiceBlockFailGetBlockByHeight{},
-				ForkingProcessor: &mockServiceForkingProcessSuccess{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutor{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "want:TestService_PopOffToBlock error on getting BlockByID",
-			fields: fields{
-				BlockService:     &mockServiceBlockFailGetBlockByID{},
-				ForkingProcessor: &mockServiceForkingProcessSuccess{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutor{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    []*model.Block{},
-			wantErr: true,
-		},
-		//FORKING SERVICE FAIL
-		{
-			name: "want:TestService_PopOffToBlock error on Getting Minimal Height For Rollback",
-			fields: fields{
-				BlockService:     &mockServiceBlockSuccess{},
-				ForkingProcessor: &mockServiceForkingProcessFail{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutor{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    []*model.Block{},
-			wantErr: true,
-		},
-		//SERVICE QUERY SERVICES FAIL
-		{
-			name: "want:TestService_PopOffToBlock error on BeginTx function",
-			fields: fields{
-				BlockService:     &mockServiceBlockSuccess{},
-				ForkingProcessor: &mockServiceForkingProcessFail{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutorBeginTXFail{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    []*model.Block{},
-			wantErr: true,
-		},
-		{
-			name: "want:TestService_PopOffToBlock error when committing transaction",
-			fields: fields{
-				BlockService:     &mockServiceBlockSuccess{},
-				ForkingProcessor: &mockServiceForkingProcessFail{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutorCommitTXFail{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    []*model.Block{},
-			wantErr: true,
-		},
-		{
-			name: "want:TestService_PopOffToBlock error when executing Transactions",
-			fields: fields{
-				BlockService:     &mockServiceBlockSuccess{},
-				ForkingProcessor: &mockServiceForkingProcessFail{},
-				ChainType:        &mockServiceChainType{},
-				QueryExecutor:    &mockServiceQueryExecutorExecuteTransFail{},
-				LastBlock: model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			args: args{
-				commonBlock: &model.Block{
-					ID:     70,
-					Height: 50,
-				},
-			},
-			want:    []*model.Block{},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fp := &ForkingProcessor{
-				ChainType:     tt.fields.ChainType,
-				BlockService:  tt.fields.BlockService,
-				QueryExecutor: tt.fields.QueryExecutor,
-			}
-			got, err := fp.PopOffToBlock(tt.args.commonBlock)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Service.PopOffToBlock() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Service.PopOffToBlock() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestService_HasBlock(t *testing.T) {
-	type fields struct {
-		BlockService service.BlockServiceInterface
-	}
-	type args struct {
-		id int64
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-		{
-			name: "HasBlock Success",
-			fields: fields{
-				BlockService: &mockServiceBlockSuccess{},
-			},
-			args: args{id: 851235534234277675},
-			want: true,
-		},
-		{
-			name: "HasBlock Failed",
-			fields: fields{
-				BlockService: &mockServiceBlockFailGetBlockByID{},
-			},
-			args: args{id: 851235534234277675},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fp := &ForkingProcessor{
-				BlockService: tt.fields.BlockService,
-			}
-			if got := fp.HasBlock(tt.args.id); got != tt.want {
-				t.Errorf("Service.HasBlock() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestService_getMinRollbackHeight(t *testing.T) {
-	type fields struct {
-		BlockService service.BlockServiceInterface
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    uint32
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-		{
-			name: "GetMinROllbackHeight Successfull",
-			fields: fields{
-				BlockService: &mockServiceBlockSuccess{},
-			},
-			want:    80,
-			wantErr: false,
-		},
-		{
-			name: "GetMinROllbackHeight Failed",
-			fields: fields{
-				BlockService: &mockServiceBlockFailGetLastBlock{},
-			},
-			want:    0,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fp := &ForkingProcessor{
-				BlockService: tt.fields.BlockService,
-			}
-			got, err := fp.getMinRollbackHeight()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Service.getMinRollbackHeight() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("Service.getMinRollbackHeight() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestService_LoadTransactions(t *testing.T) {
-	type fields struct {
-		BlockService service.BlockServiceInterface
-	}
-	type args struct {
-		block *model.Block
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *model.Block
-	}{
-		// TODO: Add test cases.
-		{
-			name: "LoadTransaction Test Successfull",
-			fields: fields{
-				BlockService: &mockServiceBlockSuccess{},
-			},
-			args: args{
-				block: &model.Block{
-					ID:     40,
-					Height: 69,
-				},
-			},
-			want: &model.Block{
-				ID:     40,
-				Height: 69,
-				Transactions: []*model.Transaction{
-					{
-						Version: 1,
-						ID:      789,
-						BlockID: 40,
-						Height:  69,
-					},
-				},
-			},
-		}, {
-			name: "LoadTransaction Test Transaction Already Exists",
-			fields: fields{
-				BlockService: &mockServiceBlockSuccess{},
-			},
-			args: args{
-				block: &model.Block{
-					ID:     40,
-					Height: 69,
-					Transactions: []*model.Transaction{
-						{
-							Version: 1,
-							ID:      789,
-							BlockID: 40,
-							Height:  69,
-						},
-					},
-				},
-			},
-			want: &model.Block{
-				ID:     40,
-				Height: 69,
-				Transactions: []*model.Transaction{
-					{
-						Version: 1,
-						ID:      789,
-						BlockID: 40,
-						Height:  69,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fp := &ForkingProcessor{
-				BlockService: tt.fields.BlockService,
-			}
-			if got := fp.LoadTransactions(tt.args.block); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Service.LoadTransactions() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestService_ProcessFork(t *testing.T) {
 	type fields struct {
-		isScanningBlockchain       bool
 		NeedGetMoreBlocks          bool
 		IsDownloading              bool
 		LastBlockchainFeeder       *model.Peer
@@ -873,9 +291,8 @@ func TestService_ProcessFork(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fp := &ForkingProcessor{
-				ChainType:     tt.fields.ChainType,
-				BlockService:  tt.fields.BlockService,
-				QueryExecutor: tt.fields.QueryExecutor,
+				ChainType:    tt.fields.ChainType,
+				BlockService: tt.fields.BlockService,
 			}
 			if err := fp.ProcessFork(tt.args.forkBlocks, tt.args.commonBlock, tt.args.feederPeer); (err != nil) != tt.wantErr {
 				t.Errorf("Service.ProcessFork() error = %v, wantErr %v", err, tt.wantErr)

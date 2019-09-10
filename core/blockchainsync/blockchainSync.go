@@ -18,17 +18,19 @@ import (
 
 type Service struct {
 	// isScanningBlockchain       bool
-	ChainType chaintype.ChainType
-
+	ChainType            chaintype.ChainType
+	P2pService           p2p.ServiceInterface
 	BlockService         service.BlockServiceInterface
 	BlockchainDownloader BlockchainDownloadInterface
 	ForkingProcessor     ForkingProcessorInterface
 }
 
-func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface, queryExecutor query.ExecutorInterface) *Service {
+func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface,
+	queryExecutor query.ExecutorInterface) *Service {
 	return &Service{
 		ChainType:    blockService.GetChainType(),
 		BlockService: blockService,
+		P2pService:   p2pService,
 		BlockchainDownloader: &BlockchainDownloader{
 			ChainType:    blockService.GetChainType(),
 			BlockService: blockService,
@@ -47,13 +49,12 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pSer
 }
 
 func (bss *Service) Start(runNext chan bool) {
-	// // TODO: restore this checking
-	// if bss.ChainType == nil {
-	// 	log.Fatal("no chaintype")
-	// }
-	// if bss.P2pService == nil {
-	// 	log.Fatal("no p2p service defined")
-	// }
+	if bss.ChainType == nil {
+		log.Fatal("no chaintype")
+	}
+	if bss.P2pService == nil {
+		log.Fatal("no p2p service defined")
+	}
 	bss.GetMoreBlocksThread(runNext)
 }
 
@@ -94,7 +95,8 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 			break
 		}
 
-		peerForkInfo, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds, peerBlockchainInfo.CommonBlock)
+		peerForkInfo, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
+			peerBlockchainInfo.CommonBlock)
 		if errDownload != nil {
 			log.Warnf("\nfailed to DownloadFromPeer: %v\n\n", err)
 			break
@@ -108,11 +110,27 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 			}
 		}
 
-		// TODO: fix ConfirmBlockchainState
-		// confirmBlockchainError := bss.BlockchainDownloader.ConfirmBlockchainState(peerBlockchainInfo.Peer, peerBlockchainInfo.CommonMilestoneBlockID, peerBlockchainInfo.CommonBlock)
-		// if confirmBlockchainError != nil {
-		// 	log.Warnf("\nfailed to ConfirmBlockchainState: %v\n\n", err)
-		// }
+		// confirming the node's blockchain state with other nodes
+		confirmations := int32(0)
+		// counting the confirmations of the common block received with other peers he knows
+		for _, peerToCheck := range bss.P2pService.GetResolvedPeers() {
+			if confirmations >= constant.DefaultNumberOfForkConfirmations {
+				break
+			}
+			otherPeerChainBlockIds, err := bss.BlockchainDownloader.ConfirmWithPeer(peerToCheck, peerBlockchainInfo.CommonMilestoneBlockID)
+			switch {
+			case err != nil:
+				log.Warn(err)
+			case len(otherPeerChainBlockIds) == 0:
+				_, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerToCheck, otherPeerChainBlockIds, peerBlockchainInfo.CommonBlock)
+				if errDownload != nil {
+					log.Warn(errDownload)
+				}
+			default:
+				confirmations++
+			}
+		}
+
 		newLastBlock, err := bss.BlockService.GetLastBlock()
 		if err != nil {
 			log.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)

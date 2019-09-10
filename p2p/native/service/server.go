@@ -183,17 +183,18 @@ func (ss *ServerService) GetCommonMilestoneBlockIDs(ctx context.Context,
 	}
 
 	blockIds := []int64{}
-	for ; height >= 0 && limit > 0; limit-- {
+	for ; limit > 0; limit-- {
 		block, err := blockService.GetBlockByHeight(height)
 		if err != nil {
 			return nil, err
 		}
 		blockIds = append(blockIds, block.ID)
-		if height == 0 {
+		switch {
+		case height == 0:
 			break
-		} else if height < jump {
+		case height < jump:
 			height = 0
-		} else {
+		default:
 			height -= jump
 		}
 	}

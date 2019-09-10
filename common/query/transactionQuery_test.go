@@ -186,7 +186,7 @@ func TestTransactionQuery_Rollback(t *testing.T) {
 			wantMultiQueries: [][]interface{}{
 				{
 					"DELETE FROM \"transaction\" WHERE block_height > ?",
-					[]interface{}{uint32(1)},
+					uint32(1),
 				},
 			},
 		},

@@ -19,49 +19,47 @@ type BlockPopper struct {
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
-func (fp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
+func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	// blockchain lock has been implemented by the Download Blockchain, so no additional lock is needed
 	var err error
 
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := fp.BlockService.GetLastBlock()
+	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return []*model.Block{}, err
 	}
-	minRollbackHeight, err := getMinRollbackHeight(lastBlock.Height)
-	if err != nil {
-		return []*model.Block{}, err
-	}
+	minRollbackHeight := getMinRollbackHeight(lastBlock.Height)
+
 	if commonBlock.Height < minRollbackHeight {
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork pocess
-		log.Warn("the node blockchain is experiencing hardfork, please manually delete the database to ")
+		log.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
 		return []*model.Block{}, nil
 	}
 
-	_, err = fp.BlockService.GetBlockByID(commonBlock.ID)
+	_, err = bp.BlockService.GetBlockByID(commonBlock.ID)
 	if err != nil {
-		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %s"))
+		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
 	poppedBlocks := []*model.Block{}
 	block := lastBlock
-	txs, _ := fp.BlockService.GetTransactionsByBlockID(block.ID)
+	txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 	block.Transactions = txs
 
-	genesisBlockID := fp.ChainType.GetGenesisBlockID()
+	genesisBlockID := bp.ChainType.GetGenesisBlockID()
 	for block.ID != commonBlock.ID && block.ID != genesisBlockID && block.Height-1 > 0 {
 		poppedBlocks = append(poppedBlocks, block)
 
-		block, err = fp.BlockService.GetBlockByHeight(block.Height - 1)
+		block, err = bp.BlockService.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			return nil, err
 		}
-		txs, _ := fp.BlockService.GetTransactionsByBlockID(block.ID)
+		txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 		block.Transactions = txs
 	}
 
-	derivedTables := query.GetDerivedQuery(fp.ChainType)
-	errTx := fp.QueryExecutor.BeginTx()
+	derivedTables := query.GetDerivedQuery(bp.ChainType)
+	errTx := bp.QueryExecutor.BeginTx()
 	if errTx != nil {
 		return []*model.Block{}, errTx
 	}
@@ -71,16 +69,14 @@ func (fp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 			break
 		}
 		queries := dTable.Rollback(commonBlock.Height)
-		errTx = fp.QueryExecutor.ExecuteTransactions(queries)
+		errTx = bp.QueryExecutor.ExecuteTransactions(queries)
+		if errTx != nil {
+			return []*model.Block{}, errTx
+		}
 	}
-	errTx = fp.QueryExecutor.CommitTx()
+	errTx = bp.QueryExecutor.CommitTx()
 	if errTx != nil {
 		return []*model.Block{}, errTx
-	}
-
-	blockIds := []int64{}
-	for _, block := range poppedBlocks {
-		blockIds = append(blockIds, block.ID)
 	}
 	return poppedBlocks, nil
 }
