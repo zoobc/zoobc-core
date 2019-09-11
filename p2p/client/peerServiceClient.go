@@ -1,30 +1,36 @@
-package service
+package client
 
 import (
 	"context"
-	"sync"
-
-	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/interceptor"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"google.golang.org/grpc"
-
+	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
-	nativeUtil "github.com/zoobc/zoobc-core/p2p/native/util"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc"
 )
 
 type (
-	// PeerServiceClientInterface acts as interface for PeerServiceClient
+	//  PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
-		SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error)
-		SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error)
+		SendBlock(
+			destPeer *model.Peer,
+			block *model.Block,
+			chainType chaintype.ChainType,
+		) (*model.Receipt, error)
+		SendTransaction(
+			destPeer *model.Peer,
+			transactionBytes []byte,
+			chainType chaintype.ChainType,
+		) (*model.Receipt, error)
 
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
@@ -34,38 +40,43 @@ type (
 	}
 	// PeerService represent peer service
 	PeerServiceClient struct {
-		Dialer Dialer
+		Dialer        Dialer
+		Logger        *log.Logger
+		QueryExecutor query.ExecutorInterface
+		ReceiptQuery  query.ReceiptQueryInterface
+		NodePublicKey []byte
 	}
 )
 
 // PeerService represent peer service
 type Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 
-var PeerServiceClientInstance *PeerServiceClient
-var once sync.Once
-
-// ClientPeerService to get instance of singleton peer service
-func NewPeerServiceClient() PeerServiceClientInterface {
-	once.Do(func() {
-		if PeerServiceClientInstance == nil {
-			logLevels := viper.GetStringSlice("logLevels")
-			apiLogger, _ = util.InitLogger(".log/", "debugP2PClient.log", logLevels)
-			PeerServiceClientInstance = &PeerServiceClient{
-				Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
-					conn, err := grpc.Dial(
-						nativeUtil.GetFullAddressPeer(destinationPeer),
-						grpc.WithInsecure(),
-						grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(apiLogger)),
-					)
-					if err != nil {
-						return nil, err
-					}
-					return conn, nil
-				},
+// ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
+func NewPeerServiceClient(
+	queryExecutor query.ExecutorInterface,
+	receiptQuery query.ReceiptQueryInterface,
+	nodePublicKey []byte,
+) PeerServiceClientInterface {
+	logLevels := viper.GetStringSlice("logLevels")
+	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log", logLevels)
+	// set to current struct log
+	return &PeerServiceClient{
+		Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
+			conn, err := grpc.Dial(
+				p2pUtil.GetFullAddressPeer(destinationPeer),
+				grpc.WithInsecure(),
+				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(apiLogger)),
+			)
+			if err != nil {
+				return nil, err
 			}
-		}
-	})
-	return PeerServiceClientInstance
+			return conn, nil
+		},
+		QueryExecutor: queryExecutor,
+		ReceiptQuery:  receiptQuery,
+		NodePublicKey: nodePublicKey,
+		Logger:        apiLogger,
+	}
 }
 
 // GetPeerInfo to get Peer info
@@ -112,38 +123,68 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 }
 
 // SendBlock send block to selected peer
-func (psc *PeerServiceClient) SendBlock(destPeer *model.Peer, block *model.Block) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendBlock(
+	destPeer *model.Peer,
+	block *model.Block,
+	chainType chaintype.ChainType,
+) (*model.Receipt, error) {
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
-	res, err := p2pClient.SendBlock(context.Background(), block)
-	if err != nil {
-		return nil, err
-	}
-	return res, err
-}
-
-// SendTransaction send transaction to selected peer
-func (psc *PeerServiceClient) SendTransaction(destPeer *model.Peer, transactionBytes []byte) (*model.Empty, error) {
-	connection, _ := psc.Dialer(destPeer)
-	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
-
-	res, err := p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
-		TransactionBytes: transactionBytes,
+	receipt, err := p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
+		SenderPublicKey: psc.NodePublicKey,
+		Block:           block,
+		ChainType:       chainType.GetTypeInt(),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return res, err
+	insertReceiptQ, insertReceiptArg := psc.ReceiptQuery.InsertReceipt(receipt)
+	_, err = psc.QueryExecutor.ExecuteStatement(insertReceiptQ, insertReceiptArg...)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.DBErr,
+			"fail to save receipt",
+		)
+	}
+	return receipt, err
+}
+
+// SendTransaction send transaction to selected peer
+func (psc *PeerServiceClient) SendTransaction(
+	destPeer *model.Peer,
+	transactionBytes []byte,
+	chainType chaintype.ChainType,
+) (*model.Receipt, error) {
+	connection, _ := psc.Dialer(destPeer)
+	defer connection.Close()
+	p2pClient := service.NewP2PCommunicationClient(connection)
+
+	receipt, err := p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
+		SenderPublicKey:  psc.NodePublicKey,
+		TransactionBytes: transactionBytes,
+		ChainType:        chainType.GetTypeInt(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	insertReceiptQ, insertReceiptArg := psc.ReceiptQuery.InsertReceipt(receipt)
+	_, err = psc.QueryExecutor.ExecuteStatement(insertReceiptQ, insertReceiptArg...)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.DBErr,
+			"fail to save receipt",
+		)
+	}
+	return receipt, err
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
 func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
 	chaintype chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error) {
 	connection, _ := grpc.Dial(
-		nativeUtil.GetFullAddressPeer(destPeer),
+		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
 		// grpc.WithUnaryInterceptor(),
 	)
@@ -153,7 +194,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
 		ChainType: chaintype.GetTypeInt(),
 	})
 	if err != nil {
-		log.Printf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -163,7 +204,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
 func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
 	lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
-		nativeUtil.GetFullAddressPeer(destPeer),
+		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
 		// grpc.WithUnaryInterceptor(),
 	)
@@ -175,7 +216,7 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, ch
 		LastMilestoneBlockID: lastMilestoneBlockID,
 	})
 	if err != nil {
-		log.Printf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -185,7 +226,7 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, ch
 func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType,
 	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
-		nativeUtil.GetFullAddressPeer(destPeer),
+		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
 		// grpc.WithUnaryInterceptor(),
 	)
@@ -197,7 +238,7 @@ func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype cha
 		Limit:     limit,
 	})
 	if err != nil {
-		log.Printf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -207,19 +248,20 @@ func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype cha
 func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype chaintype.ChainType, blockIds []int64,
 	blockID int64) (*model.BlocksData, error) {
 	connection, _ := grpc.Dial(
-		nativeUtil.GetFullAddressPeer(destPeer),
+		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
-		// grpc.WithUnaryInterceptor(),
 	)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
-	res, err := p2pClient.GetNextBlocks(context.Background(), &model.GetNextBlocksRequest{
-		ChainType: chaintype.GetTypeInt(),
-		BlockId:   blockID,
-		BlockIds:  blockIds,
-	})
+	res, err := p2pClient.GetNextBlocks(
+		context.Background(),
+		&model.GetNextBlocksRequest{
+			ChainType: chaintype.GetTypeInt(),
+			BlockId:   blockID,
+			BlockIds:  blockIds,
+		},
+	)
 	if err != nil {
-		log.Printf("could not greet %v: %v\n", nativeUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
