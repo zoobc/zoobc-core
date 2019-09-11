@@ -186,7 +186,6 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 
 			tx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
 			if err != nil {
-				log.Println(err)
 				continue
 			}
 			// compute transaction expiration time
@@ -201,10 +200,6 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			}
 
 			if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
-				continue
-			}
-
-			if err = mps.ActionTypeSwitcher.GetTransactionType(tx).Validate(); err != nil {
 				continue
 			}
 

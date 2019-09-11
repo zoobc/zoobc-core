@@ -33,14 +33,6 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		queries              [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
-
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	// get the latest noderegistration by owner (sender account)
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)

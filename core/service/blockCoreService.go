@@ -227,8 +227,32 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			tx.Height = block.Height
 			tx.TransactionIndex = uint32(index) + 1
 
+			// validate tx here
+			// check if is in mempool : if yes, undo unconfirmed
+			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), tx.ID)
+			if err != nil {
+				rows.Close()
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
+			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if rows.Next() {
+				// undo unconfirmed
+				err = txType.UndoApplyUnconfirmed()
+				if err != nil {
+					rows.Close()
+					_ = bs.QueryExecutor.RollbackTx()
+					return err
+				}
+			}
+			rows.Close()
+			err = txType.Validate()
+			if err != nil {
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
 			// validate tx body and apply/perform transaction-specific logic
-			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed()
+			err = txType.ApplyConfirmed()
 			if err == nil {
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -243,7 +267,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		}
 		if block.Height != 0 {
 			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
-				log.Errorf("Can't delete Mempool Transactions: %s", err)
 				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
