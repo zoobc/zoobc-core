@@ -67,7 +67,7 @@ var mockTransaction = &model.Transaction{
 func (*mockTypeAction) ApplyConfirmed() error {
 	return nil
 }
-func (*mockTypeAction) Validate() error {
+func (*mockTypeAction) Validate(bool) error {
 	return nil
 }
 func (*mockTypeAction) GetAmount() int64 {
@@ -97,7 +97,7 @@ func (*mockSignatureFail) VerifySignature(
 }
 
 // mockQueryExecutorScanFail
-func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
@@ -108,7 +108,7 @@ func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, args ...interface{}) 
 }
 
 // mockQueryExecutorNotNil
-func (*mockQueryExecuteNotNil) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecuteNotNil) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (*mockQueryExecuteNotNil) ExecuteSelect(qe string, args ...interface{}) (*s
 }
 
 // mockQueryExecutorFail
-func (*mockQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
@@ -142,7 +142,7 @@ func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interfa
 }
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -1071,7 +1071,7 @@ type (
 )
 
 // mockQueryExecutorMempoolSuccess
-func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -1340,7 +1340,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -1353,7 +1353,7 @@ func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(qe string, args ...inte
 	}))
 	return db.Query("")
 }
-func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err

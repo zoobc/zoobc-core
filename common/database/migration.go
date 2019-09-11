@@ -26,7 +26,7 @@ and initialize versions
 func (m *Migration) Init() error {
 
 	if m.Query != nil {
-		rows, _ := m.Query.ExecuteSelect("SELECT version FROM migration;")
+		rows, _ := m.Query.ExecuteSelect("SELECT version FROM migration;", false)
 		if rows != nil {
 			defer rows.Close()
 			var version int

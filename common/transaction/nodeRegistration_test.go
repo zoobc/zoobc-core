@@ -77,11 +77,11 @@ func (mk *mockAuthPoown) ValidateProofOfOwnership(
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:selectFail")
 }
 
-func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
@@ -103,7 +103,8 @@ func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(qe string, args .
 	return db.Query("")
 }
 
-func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -129,7 +130,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, a
 	return nil, errors.New("mockError:nodeFail")
 }
 
-func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -174,7 +175,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 	return db.Query("B")
 }
 
-func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -696,7 +697,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

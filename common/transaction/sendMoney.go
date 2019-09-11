@@ -117,8 +117,7 @@ That specs:
 	- If Genesis, sender and recipient allowed not exists,
 	- If Not Genesis,  sender and recipient must be exists, `sender.spendable_balance` must bigger than amount
 */
-func (tx *SendMoney) Validate() error {
-
+func (tx *SendMoney) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 	)
@@ -136,7 +135,7 @@ func (tx *SendMoney) Validate() error {
 		}
 
 		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
+		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, dbTx, senderArg)
 		if err != nil {
 			return err
 		} else if rows.Next() {

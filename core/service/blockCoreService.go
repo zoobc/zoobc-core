@@ -229,7 +229,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			tx.TransactionIndex = uint32(index) + 1
 			// validate tx here
 			// check if is in mempool : if yes, undo unconfirmed
-			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), tx.ID)
+			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
 			if err != nil {
 				rows.Close()
 				_ = bs.QueryExecutor.RollbackTx()
@@ -247,7 +247,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 			rows.Close()
 			if block.Height > 0 {
-				err = txType.Validate()
+				err = txType.Validate(true)
 				if err != nil {
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
@@ -287,7 +287,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 
 // GetBlockByID return the last pushed block
 func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -306,7 +306,7 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 
 func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
 	var blocks []*model.Block
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -321,7 +321,7 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock())
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock(), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -338,7 +338,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	if len(blocks) > 0 {
 		// get transaction of the block
 		transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blocks[0].ID)
-		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
@@ -350,7 +350,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -370,7 +370,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 
 // GetGenesis return the last pushed block
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock())
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock(), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -410,7 +410,7 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 // GetBlocks return all pushed blocks
 func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	var blocks []*model.Block
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
