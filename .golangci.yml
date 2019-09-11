@@ -59,6 +59,7 @@ linters:
     - prealloc
     - gochecknoglobals
     - gochecknoinits
+    - whitespace
 
 run:
   skip-dirs:
