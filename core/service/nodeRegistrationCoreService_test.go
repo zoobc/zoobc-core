@@ -547,7 +547,7 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			want: []*model.NodeRegistration{
-				&model.NodeRegistration{
+				{
 					NodeID:             int64(1),
 					NodePublicKey:      nrsNodePubKey1,
 					AccountAddress:     nrsAddress1,
