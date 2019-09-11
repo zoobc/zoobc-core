@@ -27,13 +27,6 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		nodereGistrations []*model.NodeRegistration
 	)
 
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
 	nodeRow, err := tx.QueryExecutor.ExecuteSelect(qry, args)
 	if err != nil {

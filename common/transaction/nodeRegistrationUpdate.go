@@ -33,14 +33,6 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		queries              [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
-
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	// get the latest noderegistration by owner (sender account)
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
@@ -116,7 +108,6 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNod
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
-
 	var (
 		err                  error
 		prevNodeRegistration *model.NodeRegistration

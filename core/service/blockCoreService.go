@@ -53,12 +53,17 @@ type (
 		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
-		ReceivedBlockListener() observer.Listener
+		ReceiveBlock(
+			senderPublicKey []byte,
+			lastBlock,
+			block *model.Block,
+			nodeSecretPhrase string,
+		) (*model.Receipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 	}
 
 	BlockService struct {
-		chainWriteLock          sync.WaitGroup
+		sync.WaitGroup
 		Chaintype               chaintype.ChainType
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
@@ -143,12 +148,12 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock() {
-	bs.chainWriteLock.Add(1)
+	bs.Add(1)
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock() {
-	bs.chainWriteLock.Done()
+	bs.Done()
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -204,7 +209,7 @@ func (*BlockService) VerifySeed(
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bool) error {
 	// needLock indicates the push block needs to be protected
 	if needLock {
-		bs.chainWriteLock.Wait()
+		bs.Wait()
 	}
 	if previousBlock.GetID() != -1 {
 		block.Height = previousBlock.GetHeight() + 1
@@ -226,8 +231,34 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			tx.Height = block.Height
 			tx.TransactionIndex = uint32(index) + 1
 
+			// validate tx here
+			// check if is in mempool : if yes, undo unconfirmed
+			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), tx.ID)
+			if err != nil {
+				rows.Close()
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
+			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if rows.Next() {
+				// undo unconfirmed
+				err = txType.UndoApplyUnconfirmed()
+				if err != nil {
+					rows.Close()
+					_ = bs.QueryExecutor.RollbackTx()
+					return err
+				}
+			}
+			rows.Close()
+			if block.Height > 0 {
+				err = txType.Validate()
+				if err != nil {
+					_ = bs.QueryExecutor.RollbackTx()
+					return err
+				}
+			}
 			// validate tx body and apply/perform transaction-specific logic
-			err := bs.ActionTypeSwitcher.GetTransactionType(tx).ApplyConfirmed()
+			err = txType.ApplyConfirmed()
 			if err == nil {
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -242,7 +273,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		}
 		if block.Height != 0 {
 			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
-				log.Errorf("Can't delete Mempool Transactions: %s", err)
 				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
@@ -253,7 +283,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		return err
 	}
 	// broadcast block
-	bs.Observer.Notify(observer.BlockPushed, block, nil)
+	if block.Height > 0 {
+		bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	}
 	return nil
 
 }
@@ -532,7 +564,6 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
-	fmt.Printf("\n\ngenesis block: %v\n\n ", block)
 	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
 	if err != nil {
 		log.Fatal("PushGenesisBlock:fail")
@@ -552,45 +583,63 @@ func (bs *BlockService) CheckGenesis() bool {
 	return true
 }
 
-// CheckSignatureBlock check signature of block
-func (bs *BlockService) CheckSignatureBlock(block *model.Block) bool {
-	if block.GetBlockSignature() != nil {
-		blockUnsignedByte, err := coreUtil.GetBlockByte(block, false)
-		if err != nil {
-			return false
-		}
-		return bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), block.GetBlocksmithAddress())
-	}
-	return false
-}
-
-// ReceivedBlockListener handle received block from another node
-func (bs *BlockService) ReceivedBlockListener() observer.Listener {
-	return observer.Listener{
-		OnNotify: func(block interface{}, args interface{}) {
-			receivedBlock := block.(*model.Block)
-			// make sure block has previous block hash
-			if receivedBlock.GetPreviousBlockHash() != nil {
-				if bs.CheckSignatureBlock(receivedBlock) {
-					lastBlock, err := bs.GetLastBlock()
-					if err != nil {
-						return
-					}
-
-					lastBlockByte, _ := coreUtil.GetBlockByte(lastBlock, true)
-					lastBlockHash := sha3.Sum512(lastBlockByte)
-
-					//  check equality last block hash with previous block hash from received block
-					if bytes.Equal(lastBlockHash[:], receivedBlock.GetPreviousBlockHash()) {
-						err := bs.PushBlock(lastBlock, receivedBlock, true)
-						if err != nil {
-							return
-						}
-					}
-				}
+// ReceiveBlock handle the block received from connected peers
+func (bs *BlockService) ReceiveBlock(
+	senderPublicKey []byte,
+	lastBlock, block *model.Block,
+	nodeSecretPhrase string,
+) (*model.Receipt, error) {
+	// make sure block has previous block hash
+	if block.GetPreviousBlockHash() != nil {
+		blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
+		if bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), block.GetBlocksmithAddress()) {
+			lastBlockByte, err := coreUtil.GetBlockByte(lastBlock, true)
+			if err != nil {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr,
+					"fail to get last block byte",
+				)
 			}
-		},
+			lastBlockHash := sha3.Sum512(lastBlockByte)
+
+			//  check equality last block hash with previous block hash from received block
+			if !bytes.Equal(lastBlockHash[:], block.GetPreviousBlockHash()) {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr,
+					"previous block hash does not match with last block hash",
+				)
+			}
+			err = bs.PushBlock(lastBlock, block, true)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
+			}
+			// generate receipt and return as response
+			// todo: lastblock last applied block, or incoming block?
+			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+			blockHash, _ := util.GetBlockHash(block)
+			receipt, err := util.GenerateReceipt(
+				lastBlock,
+				senderPublicKey,
+				nodePublicKey,
+				blockHash,
+				constant.ReceiptDatumTypeBlock)
+			if err != nil {
+				return nil, err
+			}
+			receipt.RecipientSignature = bs.Signature.SignByNode(
+				util.GetUnsignedReceiptBytes(receipt),
+				nodeSecretPhrase,
+			)
+			return receipt, nil
+		}
+		return nil, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"block signature invalid")
 	}
+	return nil, blocker.NewBlocker(
+		blocker.BlockErr,
+		"last block hash does not exist",
+	)
 }
 
 // GetParticipationScore handle received block from another node

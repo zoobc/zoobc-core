@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -19,6 +21,9 @@ import (
 
 type (
 	mockSignature struct {
+		crypto.Signature
+	}
+	mockSignatureFail struct {
 		crypto.Signature
 	}
 	mockQueryExecutorSuccess struct {
@@ -76,11 +81,19 @@ func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transact
 func (*mockSignature) SignByNode(payload []byte, nodeSeed string) []byte {
 	return []byte{}
 }
+
 func (*mockSignature) VerifySignature(
 	payload, signature []byte,
 	accountAddress string,
 ) bool {
 	return true
+}
+
+func (*mockSignatureFail) VerifySignature(
+	payload, signature []byte,
+	accountAddress string,
+) bool {
+	return false
 }
 
 // mockQueryExecutorScanFail
@@ -209,6 +222,11 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (
 			mockTransaction.Signature,
 			mockTransaction.Version,
 			mockTransaction.TransactionIndex))
+	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, recipient_account_address " +
+		"FROM mempool WHERE id = :id":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes", "SenderAccountAddress", "RecipientAccountAddress",
+		}))
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -1368,212 +1386,6 @@ func TestBlockService_CheckGenesis(t *testing.T) {
 	}
 }
 
-func TestBlockService_CheckSignatureBlock(t *testing.T) {
-	type fields struct {
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		BlockQuery          query.BlockQueryInterface
-		MempoolQuery        query.MempoolQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Signature           crypto.SignatureInterface
-		MempoolService      MempoolServiceInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-	}
-	type args struct {
-		block *model.Block
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		{
-			name: "wantFalse::BlockSignatureNil",
-			fields: fields{
-				Chaintype:        &chaintype.MainChain{},
-				QueryExecutor:    &mockQueryExecutorSuccess{},
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
-				Signature:        &mockSignature{},
-			},
-			args: args{
-				block: &model.Block{},
-			},
-			want: false,
-		},
-		{
-			name: "wantTrue::VerifySignature",
-			fields: fields{
-				Chaintype:        &chaintype.MainChain{},
-				QueryExecutor:    &mockQueryExecutorSuccess{},
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
-				Signature:        &mockSignature{},
-			},
-			args: args{
-				block: &model.Block{
-					Version:           1,
-					PreviousBlockHash: []byte{},
-					BlockSeed:         []byte{},
-					BlocksmithAddress: "BCZ",
-					Timestamp:         15875392,
-					TotalAmount:       0,
-					TotalFee:          0,
-					TotalCoinBase:     0,
-					Transactions:      []*model.Transaction{},
-					PayloadHash:       []byte{},
-					PayloadLength:     0,
-					BlockSignature:    []byte{},
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Signature:           tt.fields.Signature,
-				MempoolService:      tt.fields.MempoolService,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-			}
-			if got := bs.CheckSignatureBlock(tt.args.block); got != tt.want {
-				t.Errorf("BlockService.CheckSignatureBlock() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBlockService_ReceivedBlockListener(t *testing.T) {
-	type (
-		fields struct {
-			Chaintype           chaintype.ChainType
-			QueryExecutor       query.ExecutorInterface
-			BlockQuery          query.BlockQueryInterface
-			MempoolQuery        query.MempoolQueryInterface
-			TransactionQuery    query.TransactionQueryInterface
-			Signature           crypto.SignatureInterface
-			MempoolService      MempoolServiceInterface
-			ActionTypeSwitcher  transaction.TypeActionSwitcher
-			AccountBalanceQuery query.AccountBalanceQueryInterface
-			Observer            *observer.Observer
-		}
-		args struct {
-			block *model.Block
-		}
-	)
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   observer.Listener
-	}{
-		{
-			name: "wantLastBlockAndPrevBlockNotEqual",
-			fields: fields{
-				Signature:        &mockSignature{},
-				QueryExecutor:    &mockQueryExecutorSuccess{},
-				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-			},
-			args: args{
-				&model.Block{
-					ID:                   0,
-					Height:               0,
-					Version:              1,
-					CumulativeDifficulty: "",
-					SmithScale:           0,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            12345678,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					PayloadLength:        0,
-					BlockSignature:       []byte{},
-				},
-			},
-			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {
-
-				},
-			},
-		},
-		{
-			name: "wantGetLasBlockFail",
-			fields: fields{
-				Signature:        &mockSignature{},
-				QueryExecutor:    &mockQueryExecuteNotNil{},
-				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-			},
-			args: args{
-				&model.Block{
-					ID:                   0,
-					Height:               0,
-					Version:              1,
-					CumulativeDifficulty: "",
-					SmithScale:           0,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            12345678,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					PayloadLength:        0,
-					BlockSignature:       []byte{},
-				},
-			},
-			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {
-
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Signature:           tt.fields.Signature,
-				MempoolService:      tt.fields.MempoolService,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Observer:            tt.fields.Observer,
-			}
-
-			got := bs.ReceivedBlockListener()
-			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
-				t.Errorf("BlockService.ReceivedBlockListener() = %v, want %v", got, tt.want)
-			}
-			testOnNotifyBlockListener(got.OnNotify, tt.args.block)
-		})
-	}
-}
-
-func testOnNotifyBlockListener(fn observer.OnNotify, block *model.Block) {
-	fn(block, nil)
-}
-
 func TestBlockService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
@@ -1861,66 +1673,278 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 	}
 }
 
-func TestBlockService_GetParticipationScore(t *testing.T) {
+func TestBlockService_ReceiveBlock(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		Observer                *observer.Observer
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Signature           crypto.SignatureInterface
+		MempoolService      MempoolServiceInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Observer            *observer.Observer
 	}
 	type args struct {
-		nodePublicKey []byte
+		senderPublicKey  []byte
+		lastBlock        *model.Block
+		block            *model.Block
+		nodeSecretPhrase string
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    int64
+		want    *model.Receipt
 		wantErr bool
 	}{
 		{
-			name: "GetParticipationScore:Success", // All is good
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-			},
+			name: "ReceiveBlock:fail - {incoming block.previousBlockHash == nil}",
 			args: args{
-				nodePublicKey: nrsNodePubKey1,
+				senderPublicKey: nil,
+				lastBlock:       nil,
+				block: &model.Block{
+					PreviousBlockHash: nil,
+				},
+				nodeSecretPhrase: "",
 			},
-			want:    100000,
+			fields: fields{
+				Chaintype:           nil,
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           nil,
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:fail - {incoming block signature == nil}",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       nil,
+				block: &model.Block{
+					PreviousBlockHash: nil,
+					BlockSignature:    nil,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           nil,
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           nil,
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:fail - {signature validation fail}",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       nil,
+				block: &model.Block{
+					PreviousBlockHash: []byte{},
+					BlockSignature:    nil,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           nil,
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignatureFail{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:fail - {get last block byte error : no signature}",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock: &model.Block{
+					BlockSignature: nil,
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{},
+					BlockSignature:    nil,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           nil,
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:fail - {last block hash != previousBlockHash}",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock: &model.Block{
+					BlockSignature: []byte{},
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{},
+					BlockSignature:    nil,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           nil,
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:pushBlockFail}",
+			args: args{
+				senderPublicKey: []byte{1, 3, 4, 5, 6},
+				lastBlock: &model.Block{
+					BlockSignature:       []byte{},
+					CumulativeDifficulty: "123",
+					SmithScale:           123,
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{
+						110, 241, 173, 42, 162, 49, 119, 54, 246, 123, 56, 160, 45, 219, 249, 31, 21, 93, 131, 114, 209, 187, 128, 99, 139, 84,
+						176, 96, 89, 96, 240, 91, 45, 214, 36, 51, 99, 78, 99, 18, 39, 136, 131, 36, 34, 188, 130, 86, 190, 136, 177, 47, 61,
+						252, 205, 6, 225, 70, 188, 201, 201, 77, 165, 122,
+					},
+					BlockSignature: nil,
+					SmithScale:     1,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockQueryExecutorFail{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            observer.NewObserver(),
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:success}",
+			args: args{
+				senderPublicKey: []byte{1, 3, 4, 5, 6},
+				lastBlock: &model.Block{
+					BlockSignature:       []byte{},
+					CumulativeDifficulty: "123",
+					SmithScale:           123,
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{
+						110, 241, 173, 42, 162, 49, 119, 54, 246, 123, 56, 160, 45, 219, 249, 31, 21, 93, 131, 114, 209, 187, 128, 99, 139, 84,
+						176, 96, 89, 96, 240, 91, 45, 214, 36, 51, 99, 78, 99, 18, 39, 136, 131, 36, 34, 188, 130, 86, 190, 136, 177, 47, 61,
+						252, 205, 6, 225, 70, 188, 201, 201, 77, 165, 122,
+					},
+					BlockSignature: nil,
+					SmithScale:     1,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockQueryExecutorSuccess{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            observer.NewObserver(),
+			},
 			wantErr: false,
+			want: &model.Receipt{
+				SenderPublicKey: []byte{1, 3, 4, 5, 6},
+				RecipientPublicKey: []byte{
+					88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
+					223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
+				},
+				DatumType: constant.ReceiptDatumTypeBlock,
+				DatumHash: []byte{
+					166, 159, 115, 204, 162, 58, 154, 197, 200, 181, 103, 220, 24, 90, 117, 110, 151, 201, 130, 22, 79,
+					226, 88, 89, 224, 209, 220, 193, 71, 92, 128, 166, 21, 178, 18, 58, 241, 245, 249, 76, 17, 227, 233,
+					64, 44, 58, 197, 88, 245, 0, 25, 157, 149, 182, 211, 227, 1, 117, 133, 134, 40, 29, 205, 38,
+				},
+				ReferenceBlockHeight: 0,
+				ReferenceBlockHash: []byte{
+					110, 241, 173, 42, 162, 49, 119, 54, 246, 123, 56, 160, 45, 219, 249, 31, 21, 93, 131, 114, 209, 187,
+					128, 99, 139, 84, 176, 96, 89, 96, 240, 91, 45, 214, 36, 51, 99, 78, 99, 18, 39, 136, 131, 36, 34, 188,
+					130, 86, 190, 136, 177, 47, 61, 252, 205, 6, 225, 70, 188, 201, 201, 77, 165, 122,
+				},
+				ReceiptMerkleRoot:  nil,
+				RecipientSignature: []byte{},
+			},
 		},
 	}
+	// test
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				Observer:                tt.fields.Observer,
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Signature:           tt.fields.Signature,
+				MempoolService:      tt.fields.MempoolService,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Observer:            tt.fields.Observer,
 			}
-			got, err := bs.GetParticipationScore(tt.args.nodePublicKey)
+			got, err := bs.ReceiveBlock(tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.GetParticipationScore() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ReceiveBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("BlockService.GetParticipationScore() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ReceiveBlock() got = %v\nwant %v", got, tt.want)
 			}
 		})
 	}

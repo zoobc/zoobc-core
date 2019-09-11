@@ -16,14 +16,14 @@ type (
 	HostService struct {
 		Query         query.ExecutorInterface
 		BlockServices map[int32]coreService.BlockServiceInterface
-		P2pService    p2p.ServiceInterface
+		P2pService    p2p.Peer2PeerServiceInterface
 	}
 )
 
 var hostServiceInstance *HostService
 
-// NewHostService create a singleton instance of HostService
-func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.ServiceInterface,
+// NewHostService create a singleton instance of PeerExplorer
+func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface) HostServiceInterface {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{
@@ -36,7 +36,7 @@ func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Servic
 }
 
 func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
-	chainStatuses := []*model.ChainStatus{}
+	var chainStatuses []*model.ChainStatus
 	for chainType, blockService := range hs.BlockServices {
 		lastBlock, err := blockService.GetLastBlock()
 		if lastBlock == nil || err != nil {
@@ -49,15 +49,14 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		})
 	}
 	return &model.HostInfo{
-		Host:          hs.P2pService.GetHostInstance(),
+		Host:          hs.P2pService.GetHostInfo(),
 		ChainStatuses: chainStatuses,
 	}, nil
 }
 
 func (hs *HostService) GetHostPeers() (*model.GetHostPeersResponse, error) {
-	host := hs.P2pService.GetHostInstance()
 	return &model.GetHostPeersResponse{
-		ResolvedPeers:   host.GetResolvedPeers(),
-		UnresolvedPeers: host.GetUnresolvedPeers(),
+		ResolvedPeers:   hs.P2pService.GetResolvedPeers(),
+		UnresolvedPeers: hs.P2pService.GetUnresolvedPeers(),
 	}, nil
 }
