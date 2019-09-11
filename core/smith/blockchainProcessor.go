@@ -74,11 +74,10 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 		log.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
-		//TODO: default participation score is 1000 smaller than the old balance we used to use to smith
-		//      so unless we tweak the GetSmithTime, mainchain could be slower now
-		generator.Score = big.NewInt(int64(math.Max(0, float64(ps*1000000))))
+		//TODO: default participation score is 10000 smaller than the old balance we used to use to smith
+		//      so we multiply it by 10000 for now, to keep the same ratio
+		generator.Score = big.NewInt(int64(math.Max(0, float64(ps*10000))))
 	}
-
 	if generator.Score.Sign() == 0 {
 		generator.SmithTime = 0
 		generator.BlockSeed = big.NewInt(0)
