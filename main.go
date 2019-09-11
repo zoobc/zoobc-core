@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -55,7 +55,7 @@ func init() {
 	flag.Parse()
 
 	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 		return
 	}
 
@@ -71,11 +71,11 @@ func init() {
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 
@@ -87,7 +87,7 @@ func init() {
 		// generate a node private key if there aren't already configured
 		seed := util.GetSecureRandomSeed()
 		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
-			logrus.Fatal(err)
+			log.Fatal(err)
 		}
 	}
 	nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
@@ -139,6 +139,9 @@ func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
+	var (
+		blockSmithAddress string
+	)
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
 	mempoolService := service.NewMempoolService(
@@ -166,27 +169,35 @@ func startMainchain(mainchainSyncChannel chan bool) {
 			Executor: queryExecutor,
 		},
 		query.NewAccountBalanceQuery(),
+		query.NewParticipationScoreQuery(),
 		observerInstance,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
-	mainchainProcessor := smith.NewBlockchainProcessor(
-		mainchain,
-		smith.NewBlocksmith(nodeSecretPhrase),
-		mainchainBlockService,
-	)
-
-	if !mainchainProcessor.BlockService.CheckGenesis() { // Add genesis if not exist
+	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
-			logrus.Fatal("Fail to add genesis account")
+			log.Fatal("Fail to add genesis account")
 		}
 
-		if err := mainchainProcessor.BlockService.AddGenesis(); err != nil {
-			logrus.Fatal(err)
+		if err := mainchainBlockService.AddGenesis(); err != nil {
+			log.Fatal(err)
 		}
 	}
+
+	// no nodes registered with current node public key
+	nodeRegistration, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
+	if err != nil {
+		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
+	} else {
+		blockSmithAddress = nodeRegistration.AccountAddress
+	}
+	mainchainProcessor := smith.NewBlockchainProcessor(
+		mainchain,
+		smith.NewBlocksmith(nodeSecretPhrase, blockSmithAddress),
+		mainchainBlockService,
+	)
 
 	if len(nodeSecretPhrase) > 0 {
 		go startSmith(sleepPeriod, mainchainProcessor)
@@ -198,11 +209,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 func main() {
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 
 	if err := migration.Apply(); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	}
 
 	startServices(queryExecutor, ownerAccountAddress, nodeKeyFilePath)

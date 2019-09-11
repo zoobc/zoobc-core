@@ -211,16 +211,17 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		ct                  chaintype.ChainType
-		queryExecutor       query.ExecutorInterface
-		blockQuery          query.BlockQueryInterface
-		mempoolQuery        query.MempoolQueryInterface
-		transactionQuery    query.TransactionQueryInterface
-		signature           crypto.SignatureInterface
-		mempoolService      MempoolServiceInterface
-		txTypeSwitcher      transaction.TypeActionSwitcher
-		accountBalanceQuery query.AccountBalanceQueryInterface
-		obsr                *observer.Observer
+		ct                      chaintype.ChainType
+		queryExecutor           query.ExecutorInterface
+		blockQuery              query.BlockQueryInterface
+		mempoolQuery            query.MempoolQueryInterface
+		transactionQuery        query.TransactionQueryInterface
+		signature               crypto.SignatureInterface
+		mempoolService          MempoolServiceInterface
+		txTypeSwitcher          transaction.TypeActionSwitcher
+		accountBalanceQuery     query.AccountBalanceQueryInterface
+		participationScoreQuery query.ParticipationScoreQueryInterface
+		obsr                    *observer.Observer
 	}
 	tests := []struct {
 		name string
@@ -250,6 +251,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.mempoolService,
 				tt.args.txTypeSwitcher,
 				tt.args.accountBalanceQuery,
+				tt.args.participationScoreQuery,
 				tt.args.obsr,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)

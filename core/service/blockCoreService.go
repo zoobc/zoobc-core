@@ -54,20 +54,22 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		ReceivedBlockListener() observer.Listener
+		GetParticipationScore(accountAddress string) (int64, error)
 	}
 
 	BlockService struct {
-		chainWriteLock      sync.WaitGroup
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		BlockQuery          query.BlockQueryInterface
-		MempoolQuery        query.MempoolQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Signature           crypto.SignatureInterface
-		MempoolService      MempoolServiceInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Observer            *observer.Observer
+		chainWriteLock          sync.WaitGroup
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		Observer                *observer.Observer
 	}
 )
 
@@ -81,19 +83,21 @@ func NewBlockService(
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	participationScoreQuery query.ParticipationScoreQueryInterface,
 	obsr *observer.Observer,
 ) *BlockService {
 	return &BlockService{
-		Chaintype:           ct,
-		QueryExecutor:       queryExecutor,
-		BlockQuery:          blockQuery,
-		MempoolQuery:        mempoolQuery,
-		TransactionQuery:    transactionQuery,
-		Signature:           signature,
-		MempoolService:      mempoolService,
-		ActionTypeSwitcher:  txTypeSwitcher,
-		AccountBalanceQuery: accountBalanceQuery,
-		Observer:            obsr,
+		Chaintype:               ct,
+		QueryExecutor:           queryExecutor,
+		BlockQuery:              blockQuery,
+		MempoolQuery:            mempoolQuery,
+		TransactionQuery:        transactionQuery,
+		Signature:               signature,
+		MempoolService:          mempoolService,
+		ActionTypeSwitcher:      txTypeSwitcher,
+		AccountBalanceQuery:     accountBalanceQuery,
+		ParticipationScoreQuery: participationScoreQuery,
+		Observer:                obsr,
 	}
 }
 
@@ -587,4 +591,22 @@ func (bs *BlockService) ReceivedBlockListener() observer.Listener {
 			}
 		},
 	}
+}
+
+// GetParticipationScore handle received block from another node
+func (bs *BlockService) GetParticipationScore(accountAddress string) (int64, error) {
+	var (
+		participationScores []*model.ParticipationScore
+	)
+	participationScoreQ := bs.ParticipationScoreQuery.GetParticipationScoreByAccountAddress(accountAddress)
+	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ)
+	if err != nil {
+		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	participationScores = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
+	// if there aren't participation scores for this address/node, return 0
+	if len(participationScores) == 0 {
+		return 0, nil
+	}
+	return participationScores[0].Score, nil
 }
