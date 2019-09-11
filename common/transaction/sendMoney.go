@@ -37,13 +37,6 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		err error
 	)
 
-	if tx.Height > 0 {
-		err = tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	// insert / update recipient
 	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
 		tx.Body.Amount,

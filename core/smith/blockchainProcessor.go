@@ -145,7 +145,6 @@ func (blocksmith *Blocksmith) GetTimestamp(smithMax int64) int64 {
 	elapsed := smithMax - blocksmith.SmithTime
 	if elapsed > 3600 {
 		return smithMax
-
 	}
 	return blocksmith.SmithTime + 1
 }

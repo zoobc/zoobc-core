@@ -3,7 +3,7 @@ package util
 import (
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"strconv"
 	"strings"
@@ -14,43 +14,41 @@ import (
 
 // NewHost to initialize new server node
 func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
-	host := new(model.Host)
-	nodeInfo := new(model.Node)
-
-	nodeInfo.Address = address
-	nodeInfo.Port = port
-	host.Info = nodeInfo
-
 	knownPeersMap := make(map[string]*model.Peer)
 	unresolvedPeersMap := make(map[string]*model.Peer)
 	for _, peer := range knownPeers {
 		knownPeersMap[GetFullAddressPeer(peer)] = peer
-
 		// so that known peers and unresolved peer will have different reference of object
 		newPeer := *peer
 		unresolvedPeersMap[GetFullAddressPeer(peer)] = &newPeer
 	}
-	host.ResolvedPeers = make(map[string]*model.Peer)
-	host.KnownPeers = knownPeersMap
-	host.UnresolvedPeers = unresolvedPeersMap
-	return host
+	return &model.Host{
+		Info: &model.Node{
+			Address: address,
+			Port:    port,
+		},
+		ResolvedPeers:    make(map[string]*model.Peer),
+		UnresolvedPeers:  unresolvedPeersMap,
+		KnownPeers:       knownPeersMap,
+		BlacklistedPeers: nil,
+		Stopped:          false,
+	}
 }
 
 // NewKnownPeer to parse address & port into Peer structur
 func NewKnownPeer(address string, port int) *model.Peer {
-	peer := new(model.Peer)
-	nodeInfo := new(model.Node)
-
-	nodeInfo.Address = address
-	nodeInfo.Port = uint32(port)
-	peer.Info = nodeInfo
-	return peer
+	return &model.Peer{
+		Info: &model.Node{
+			Address: address,
+			Port:    uint32(port),
+		},
+	}
 }
 
 // ParseKnownPeers to parse list of string peers into list of Peer structur
 func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	var (
-		knownPeers = []*model.Peer{}
+		knownPeers []*model.Peer
 	)
 
 	for _, peerData := range peers {

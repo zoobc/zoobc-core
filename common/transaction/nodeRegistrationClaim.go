@@ -31,13 +31,6 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 		prevNodeRegistration *model.NodeRegistration
 	)
 
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry1, args1)
 	if err != nil {
