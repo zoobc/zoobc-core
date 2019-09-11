@@ -20,13 +20,12 @@ type (
 
 	// Blocksmith is wrapper for the account in smithing process
 	Blocksmith struct {
-		NodePublicKey  []byte
-		AccountAddress string
-		Score          *big.Int
-		SmithTime      int64
-		BlockSeed      *big.Int
-		SecretPhrase   string
-		deadline       uint32
+		NodePublicKey []byte
+		Score         *big.Int
+		SmithTime     int64
+		BlockSeed     *big.Int
+		SecretPhrase  string
+		deadline      uint32
 	}
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
@@ -54,40 +53,38 @@ func NewBlockchainProcessor(
 // InitGenerator initiate generator
 func NewBlocksmith(nodeSecretPhrase, accountAddress string) *Blocksmith {
 	blocksmith := &Blocksmith{
-		AccountAddress: accountAddress,
-		Score:          big.NewInt(constant.DefaultParticipationScore),
-		SecretPhrase:   nodeSecretPhrase,
-		NodePublicKey:  util.GetPublicKeyFromSeed(nodeSecretPhrase),
+		Score:         big.NewInt(constant.DefaultParticipationScore),
+		SecretPhrase:  nodeSecretPhrase,
+		NodePublicKey: util.GetPublicKeyFromSeed(nodeSecretPhrase),
 	}
 	return blocksmith
 }
 
 // CalculateSmith calculate seed, smithTime, and deadline
 func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Blocksmith) *Blocksmith {
-	//FIXME: implement logic based on participation score:
-	// 1. get the node's participation score: from participation_score table, by generator.NodePublicKey or generator.AccountAddress
-	// 2. use it for smithing: multiply by 1000 the value of ps, if we want to start with the same value below,
-	//    since the default ps is 100000
-	if generator.AccountAddress == "" {
+	// try to get the node's participation score (ps) from node public key
+	// if node is not registered, ps will be 0 and this node won't be able to smith
+	// the default ps is 100000, smithing could be slower than when using account balances
+	// since default balance was 1000 times higher than default ps
+	ps, err := bp.BlockService.GetParticipationScore(generator.NodePublicKey)
+	if ps == 0 {
+		log.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
+	}
+	if err != nil {
+		log.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
-		ps, err := bp.BlockService.GetParticipationScore(generator.AccountAddress)
-		if err != nil {
-			log.Errorf("Participation score calculation: %s", err)
-			generator.Score = big.NewInt(0)
-		} else {
-			//TODO: default participation score is 1000 smaller than the old balance we used to use to smith
-			//      so unless we tweak the GetSmithTime, mainchain could be slower now
-			generator.Score = big.NewInt(int64(math.Max(0, float64(ps))))
-		}
+		//TODO: default participation score is 1000 smaller than the old balance we used to use to smith
+		//      so unless we tweak the GetSmithTime, mainchain could be slower now
+		generator.Score = big.NewInt(int64(math.Max(0, float64(ps*1000000))))
 	}
 
 	if generator.Score.Sign() == 0 {
 		generator.SmithTime = 0
 		generator.BlockSeed = big.NewInt(0)
 	}
-	generatorPublicKey, _ := util.GetPublicKeyFromAddress(generator.AccountAddress)
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generatorPublicKey, lastBlock)
+
+	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock)
 	generator.SmithTime = coreUtil.GetSmithTime(generator.Score, generator.BlockSeed, lastBlock)
 	generator.deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
@@ -95,13 +92,18 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
+	var (
+		//TODO: should we just store node public key instead of a string that is a representation of
+		//      the node public key (but formatted as an accountAddress)?
+		generatorAccountAddress = util.GetAddressFromSeed(bp.Generator.SecretPhrase)
+	)
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return errors.New("Genesis:notAddedYet")
 	}
 	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
-	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountAddress != "" {
+	if lastBlock.GetID() != bp.LastBlockID {
 		if bp.Generator.SmithTime > smithMax {
 			log.Printf("skip forge\n")
 			return errors.New("SmithSkip")
@@ -125,7 +127,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				previousBlock,
 				bp.Generator.SecretPhrase,
 				timestamp,
-				bp.Generator.AccountAddress,
+				generatorAccountAddress,
 			)
 			if err != nil {
 				return err

@@ -54,7 +54,7 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		ReceivedBlockListener() observer.Listener
-		GetParticipationScore(accountAddress string) (int64, error)
+		GetParticipationScore(nodePublicKey []byte) (int64, error)
 	}
 
 	BlockService struct {
@@ -594,12 +594,12 @@ func (bs *BlockService) ReceivedBlockListener() observer.Listener {
 }
 
 // GetParticipationScore handle received block from another node
-func (bs *BlockService) GetParticipationScore(accountAddress string) (int64, error) {
+func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, error) {
 	var (
 		participationScores []*model.ParticipationScore
 	)
-	participationScoreQ := bs.ParticipationScoreQuery.GetParticipationScoreByAccountAddress(accountAddress)
-	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ)
+	participationScoreQ, args := bs.ParticipationScoreQuery.GetParticipationScoreByNodePublicKey(nodePublicKey)
+	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ, args...)
 	if err != nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

@@ -82,3 +82,14 @@ func TestParticipationScoreQuery_GetParticipationScoreByAccountAddress(t *testin
 		}
 	})
 }
+
+func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing.T) {
+	t.Run("GetParticipationScoreByNodePublicKey", func(t *testing.T) {
+		res, _ := mockParticipationScoreQuery.GetParticipationScoreByNodePublicKey([]byte{})
+		want := "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A " +
+			"INNER JOIN node_registry as B ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.queued=0 AND A.latest=1"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

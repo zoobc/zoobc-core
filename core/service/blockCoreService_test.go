@@ -140,6 +140,15 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (
 			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
+	case "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
+		"ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.queued=0 AND A.latest=1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"node_id",
+			"score",
+			"latest",
+			"height",
+		},
+		).AddRow(-1, 100000, true, 0))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -1847,6 +1856,71 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlocksFromHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_GetParticipationScore(t *testing.T) {
+	type fields struct {
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		Observer                *observer.Observer
+	}
+	type args struct {
+		nodePublicKey []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    int64
+		wantErr bool
+	}{
+		{
+			name: "GetParticipationScore:Success", // All is good
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				QueryExecutor:           &mockQueryExecutorSuccess{},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+			},
+			args: args{
+				nodePublicKey: nrsNodePubKey1,
+			},
+			want:    100000,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				Observer:                tt.fields.Observer,
+			}
+			got, err := bs.GetParticipationScore(tt.args.nodePublicKey)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.GetParticipationScore() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("BlockService.GetParticipationScore() = %v, want %v", got, tt.want)
 			}
 		})
 	}
