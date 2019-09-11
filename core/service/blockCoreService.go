@@ -246,10 +246,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 				}
 			}
 			rows.Close()
-			err = txType.Validate()
-			if err != nil {
-				_ = bs.QueryExecutor.RollbackTx()
-				return err
+			if block.Height > 0 {
+				err = txType.Validate()
+				if err != nil {
+					_ = bs.QueryExecutor.RollbackTx()
+					return err
+				}
 			}
 			// validate tx body and apply/perform transaction-specific logic
 			err = txType.ApplyConfirmed()
