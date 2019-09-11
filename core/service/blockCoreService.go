@@ -40,7 +40,7 @@ type (
 			timestamp int64,
 			blockSmithAccountAddress string,
 		) (*model.Block, error)
-		PushBlock(previousBlock, block *model.Block, needLock bool, broadcast bool) error
+		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
@@ -203,7 +203,7 @@ func (*BlockService) VerifySeed(
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bool, broadcast bool) error {
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
 	// needLock indicates the push block needs to be protected
 	if needLock {
 		bs.Wait()
