@@ -52,17 +52,16 @@ func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.Unary
 				fields["error"] = errHandler
 			}
 
-			//nolint
-			// if logger != nil {
-			// 	switch {
-			// 	case err != nil:
-			// 		logger.WithFields(fields).Error(fmt.Sprint(err))
-			// 	case errHandler != nil:
-			// 		logger.WithFields(fields).Warning(errHandler)
-			// 	default:
-			// 		logger.WithFields(fields).Info("success")
-			// 	}
-			// }
+			if logger != nil {
+				switch {
+				case err != nil:
+					logger.WithFields(fields).Error(fmt.Sprint(err))
+				case errHandler != nil:
+					logger.WithFields(fields).Warning(errHandler)
+				default:
+					logger.WithFields(fields).Info("success")
+				}
+			}
 		}()
 
 		// authorize request
@@ -111,17 +110,16 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 				fields["panic"] = fmt.Sprintf("%s %d", file, line)
 			}
 
-			//nolint
-			// if logger != nil {
-			// 	switch {
-			// 	case err != nil:
-			// 		logger.WithFields(fields).Error(fmt.Sprint(err))
-			// 	case errInvoker != nil:
-			// 		logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
-			// 	default:
-			// 		logger.WithFields(fields).Info("success")
-			// 	}
-			// }
+			if logger != nil {
+				switch {
+				case err != nil:
+					logger.WithFields(fields).Error(fmt.Sprint(err))
+				case errInvoker != nil:
+					logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
+				default:
+					logger.WithFields(fields).Info("success")
+				}
+			}
 		}()
 		errInvoker = invoker(ctx, method, req, reply, cc, opts...)
 		return errInvoker

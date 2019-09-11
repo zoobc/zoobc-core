@@ -19,7 +19,6 @@ type (
 		BuildModel(txs []*model.Transaction, rows *sql.Rows) []*model.Transaction
 		DeleteTransactions(id int64) string
 		Scan(tx *model.Transaction, row *sql.Row) error
-		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	TransactionQuery struct {

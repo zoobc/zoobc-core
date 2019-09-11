@@ -23,7 +23,6 @@ type (
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
 		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
-		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 )
 

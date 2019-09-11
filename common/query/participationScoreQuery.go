@@ -15,7 +15,6 @@ type (
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) []*model.ParticipationScore
-		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	ParticipationScoreQuery struct {

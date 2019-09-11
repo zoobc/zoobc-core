@@ -23,7 +23,6 @@ type (
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) []*model.AccountDataset
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
-		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 )
 
