@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"golang.org/x/crypto/sha3"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -28,7 +30,12 @@ type (
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
 		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
-		ReceivedTransactionListener() observer.Listener
+		ReceivedTransaction(
+			senderPublicKey,
+			receivedTxBytes []byte,
+			lastBlock *model.Block,
+			nodeSecretPhrase string,
+		) (*model.Receipt, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -38,6 +45,7 @@ type (
 		MempoolQuery        query.MempoolQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
 		TransactionQuery    query.TransactionQueryInterface
 		Observer            *observer.Observer
 	}
@@ -50,8 +58,9 @@ func NewMempoolService(
 	mempoolQuery query.MempoolQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
+	signature crypto.SignatureInterface,
 	transactionQuery query.TransactionQueryInterface,
-	obsr *observer.Observer,
+	observer *observer.Observer,
 ) *MempoolService {
 	return &MempoolService{
 		Chaintype:           ct,
@@ -59,8 +68,9 @@ func NewMempoolService(
 		MempoolQuery:        mempoolQuery,
 		ActionTypeSwitcher:  actionTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
+		Signature:           signature,
 		TransactionQuery:    transactionQuery,
-		Observer:            obsr,
+		Observer:            observer,
 	}
 }
 
@@ -115,8 +125,6 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	if err != nil {
 		return err
 	}
-	// broadcast transaction
-	mps.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), nil)
 	return nil
 }
 
@@ -206,67 +214,87 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 	return sortedTransactions, nil
 }
 
-func (mps *MempoolService) ReceivedTransactionListener() observer.Listener {
-	return observer.Listener{
-		OnNotify: func(transactionBytes interface{}, args interface{}) {
-			var (
-				err        error
-				receivedTx *model.Transaction
-				mempoolTx  *model.MempoolTransaction
-			)
-
-			receivedTxBytes := transactionBytes.([]byte)
-			receivedTx, err = util.ParseTransactionBytes(receivedTxBytes, true)
-			if err != nil {
-				return
-			}
-			mempoolTx = &model.MempoolTransaction{
-				// TODO: how to determine FeePerByte in mempool?
-				FeePerByte:              0,
-				ID:                      receivedTx.ID,
-				TransactionBytes:        receivedTxBytes,
-				ArrivalTimestamp:        time.Now().Unix(),
-				SenderAccountAddress:    receivedTx.SenderAccountAddress,
-				RecipientAccountAddress: receivedTx.RecipientAccountAddress,
-			}
-
-			// Validate received transaction
-			if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
-				log.Warnf("Invalid received transaction submitted: %v", err)
-				return
-			}
-
-			if err = mps.QueryExecutor.BeginTx(); err != nil {
-				log.Warnf("error opening db transaction %v", err)
-				return
-			}
-			// Apply Unconfirmed transaction
-			err = mps.ActionTypeSwitcher.GetTransactionType(receivedTx).ApplyUnconfirmed()
-			if err != nil {
-				log.Warnf("fail ApplyUnconfirmed tx: %v\n", err)
-				if err = mps.QueryExecutor.RollbackTx(); err != nil {
-					log.Warnf("error rolling back db transaction %v", err)
-					return
-				}
-				return
-			}
-
-			// Store to Mempool Transaction
-			if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
-				log.Warnf("error AddMempoolTransaction: %v\n", err)
-				if err = mps.QueryExecutor.RollbackTx(); err != nil {
-					log.Warnf("error rolling back db transaction %v", err)
-					return
-				}
-				return
-			}
-
-			if err = mps.QueryExecutor.CommitTx(); err != nil {
-				log.Warnf("error committing db transaction: %v", err)
-				return
-			}
-		},
+func (mps *MempoolService) ReceivedTransaction(
+	senderPublicKey,
+	receivedTxBytes []byte,
+	lastBlock *model.Block,
+	nodeSecretPhrase string,
+) (*model.Receipt, error) {
+	var (
+		err        error
+		receivedTx *model.Transaction
+		mempoolTx  *model.MempoolTransaction
+	)
+	receivedTx, err = util.ParseTransactionBytes(receivedTxBytes, true)
+	if err != nil {
+		return nil, err
 	}
+	mempoolTx = &model.MempoolTransaction{
+		// TODO: how to determine FeePerByte in mempool?
+		FeePerByte:              0,
+		ID:                      receivedTx.ID,
+		TransactionBytes:        receivedTxBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    receivedTx.SenderAccountAddress,
+		RecipientAccountAddress: receivedTx.RecipientAccountAddress,
+	}
+
+	// Validate received transaction
+	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
+		log.Warnf("Invalid received transaction submitted: %v", err)
+		return nil, err
+	}
+
+	if err = mps.QueryExecutor.BeginTx(); err != nil {
+		log.Warnf("error opening db transaction %v", err)
+		return nil, err
+	}
+	// Apply Unconfirmed transaction
+	err = mps.ActionTypeSwitcher.GetTransactionType(receivedTx).ApplyUnconfirmed()
+	if err != nil {
+		log.Warnf("fail ApplyUnconfirmed tx: %v\n", err)
+		if err = mps.QueryExecutor.RollbackTx(); err != nil {
+			log.Warnf("error rolling back db transaction %v", err)
+			return nil, err
+		}
+		return nil, err
+	}
+
+	// Store to Mempool Transaction
+	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
+		log.Warnf("error AddMempoolTransaction: %v\n", err)
+		if err = mps.QueryExecutor.RollbackTx(); err != nil {
+			log.Warnf("error rolling back db transaction %v", err)
+			return nil, err
+		}
+		return nil, err
+	}
+
+	if err = mps.QueryExecutor.CommitTx(); err != nil {
+		log.Warnf("error committing db transaction: %v", err)
+		return nil, err
+	}
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	// generate receipt
+	receivedTxHash := sha3.Sum512(receivedTxBytes)
+	receipt, err := util.GenerateReceipt( // todo: var
+		lastBlock,
+		senderPublicKey,
+		nodePublicKey,
+		receivedTxHash[:],
+		constant.ReceiptDatumTypeTransaction)
+	if err != nil {
+		return nil, err
+	}
+	receipt.RecipientSignature = mps.Signature.SignByNode(
+		util.GetUnsignedReceiptBytes(receipt),
+		nodeSecretPhrase,
+	)
+
+	// broadcast transaction
+	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
+
+	return receipt, nil
 }
 
 func transactionsContain(a []*model.MempoolTransaction, x *model.MempoolTransaction) bool {

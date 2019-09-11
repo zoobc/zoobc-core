@@ -108,7 +108,6 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNod
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
-
 	var (
 		err                  error
 		prevNodeRegistration *model.NodeRegistration
