@@ -122,7 +122,8 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "transaction_index" INTEGER;`,
+				ADD COLUMN "transaction_index" INTEGER AFTER "version"
+			`,
 			`
 			CREATE TABLE IF NOT EXISTS "participation_score"(
 				"node_id" INTEGER,
@@ -131,6 +132,18 @@ func (m *Migration) Init() error {
 				"height" INTEGER,
 				PRIMARY KEY("node_id", "height")
 			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_receipt" (
+				"sender_public_key" BLOB, 
+				"recipient_public_key" BLOB,
+				"datum_type" INTEGER,
+				"datum_hash" BLOB,
+				"reference_block_height" INTEGER,
+				"reference_block_hash" BLOB,
+				"receipt_merkle_root" BLOB,
+				"recipient_signature" BLOB
+			)
+			`,
 		}
 		return nil
 	}
