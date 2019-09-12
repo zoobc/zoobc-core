@@ -71,6 +71,9 @@ run:
 
 issues:
   exclude-rules:
+    - text: "Line contains TODO/BUG/FIXME"
+      linters:
+        - godox
     - text: "G202: SQL string concatenation"
       linters:
         - gosec
