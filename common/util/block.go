@@ -53,7 +53,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 
 	buffer.Write(block.BlocksmithPublicKey)
 	// FIXME: remove this comment after making sure the one below is a repetition and can be deleted
-	// buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
+	// buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithPublicKey)))))
 	// buffer.Write([]byte(block.GetBlocksmithAddress()))
 
 	buffer.Write(block.GetBlockSeed())
