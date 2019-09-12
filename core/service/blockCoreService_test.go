@@ -3,11 +3,13 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/constant"
+	"fmt"
 	"math/big"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -185,7 +187,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (
 			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height >= 0 " +
-		"LIMIT 100":
+		"ORDER BY height ASC LIMIT 100":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
@@ -936,6 +938,7 @@ func TestBlockService_GetBlocks(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			got, err := bs.GetBlocks()
+			fmt.Println(got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlocks() error = %v, wantErr %v", err, tt.wantErr)
 				return
