@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"math/big"
 	"reflect"
 	"regexp"
@@ -938,7 +937,6 @@ func TestBlockService_GetBlocks(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			got, err := bs.GetBlocks()
-			fmt.Println(got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlocks() error = %v, wantErr %v", err, tt.wantErr)
 				return
