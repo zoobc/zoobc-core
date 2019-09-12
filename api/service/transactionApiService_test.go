@@ -5,10 +5,11 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/observer"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/observer"
 
 	"github.com/sirupsen/logrus"
 
@@ -582,6 +583,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Page:  0,
 					},
 					AccountAddress: "accountA",
+					Height:         1,
 				},
 			},
 			want: &model.GetTransactionsResponse{
