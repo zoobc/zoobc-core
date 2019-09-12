@@ -142,7 +142,7 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 		return []int64{}, err
 	}
 	currentLastBlockCumulativeDifficulty, _ := new(big.Int).SetString(currentLastBlock.CumulativeDifficulty, 10)
-	if otherPeerChainBlockIds[0] == currentLastBlock.ID {
+	if len(otherPeerChainBlockIds) < 1 || otherPeerChainBlockIds[0] == currentLastBlock.ID {
 		return []int64{}, nil
 	}
 	otherPeerCommonBlock, err := bd.BlockService.GetBlockByID(otherPeerChainBlockIds[0])
