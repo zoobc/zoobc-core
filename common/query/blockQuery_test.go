@@ -74,7 +74,7 @@ func TestBlockQuery_GetBlocks(t *testing.T) {
 		q := mockBlockQuery.GetBlocks(0, 10)
 		wantQ := "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 			"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height " +
-			">= 0 LIMIT 10"
+			">= 0 ORDER BY height ASC LIMIT 10"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
