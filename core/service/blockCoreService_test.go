@@ -147,10 +147,10 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (
 	defer db.Close()
 	switch qe {
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
@@ -163,42 +163,42 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (
 		},
 		).AddRow(-1, 100000, true, 0))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1":
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block " +
 		"WHERE HEIGHT >= 0 ORDER BY HEIGHT LIMIT 2":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1).AddRow(
 			2, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
 		"height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block " +
 		"WHERE height = 0 LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
 			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
-		"payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height >= 0 " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height >= 0 " +
 		"LIMIT 100":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithAddress", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
 			AddRow(1, []byte{}, 0, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, "BCZ", 0, 0, 0, 1))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
 		"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
@@ -301,7 +301,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 		version             uint32
 		previousBlockHash   []byte
 		blockSeed           []byte
-		blocksmithAddress   string
+		blockSmithPublicKey   string
 		hash                string
 		previousBlockHeight uint32
 		timestamp           int64
@@ -329,7 +329,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				version:             1,
 				previousBlockHash:   []byte{},
 				blockSeed:           []byte{},
-				blocksmithAddress:   "",
+				blockSmithPublicKey:   "",
 				hash:                "hash",
 				previousBlockHeight: 0,
 				timestamp:           15875392,
@@ -345,7 +345,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				Version:           1,
 				PreviousBlockHash: []byte{},
 				BlockSeed:         []byte{},
-				BlocksmithAddress: "",
+				BlocksmithPublicKey: "",
 				Timestamp:         15875392,
 				TotalAmount:       0,
 				TotalFee:          0,
@@ -372,7 +372,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
-				tt.args.blocksmithAddress,
+				tt.args.blockSmithPublicKey,
 				tt.args.hash,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
@@ -404,7 +404,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		version              uint32
 		previousBlockHash    []byte
 		blockSeed            []byte
-		blocksmithAddress    string
+		blockSmithPublicKey    string
 		hash                 string
 		previousBlockHeight  uint32
 		timestamp            int64
@@ -434,7 +434,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				version:              1,
 				previousBlockHash:    []byte{},
 				blockSeed:            []byte{},
-				blocksmithAddress:    "",
+				blockSmithPublicKey:    "",
 				hash:                 "hash",
 				previousBlockHeight:  0,
 				timestamp:            15875392,
@@ -452,7 +452,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				Version:              1,
 				PreviousBlockHash:    []byte{},
 				BlockSeed:            []byte{},
-				BlocksmithAddress:    "",
+				BlocksmithPublicKey:    "",
 				Timestamp:            15875392,
 				TotalAmount:          0,
 				TotalFee:             0,
@@ -481,7 +481,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
-				tt.args.blocksmithAddress,
+				tt.args.blockSmithPublicKey,
 				tt.args.hash,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
@@ -660,7 +660,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					Version:              1,
 					PreviousBlockHash:    []byte{},
 					BlockSeed:            []byte{},
-					BlocksmithAddress:    "",
+					BlocksmithPublicKey:    "",
 					TotalAmount:          0,
 					TotalFee:             0,
 					TotalCoinBase:        0,
@@ -674,7 +674,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					Version:           1,
 					PreviousBlockHash: []byte{},
 					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
+					BlocksmithPublicKey: "",
 					TotalAmount:       0,
 					TotalFee:          0,
 					TotalCoinBase:     0,
@@ -740,7 +740,7 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 				SmithScale:           1,
 				PayloadLength:        2,
 				PayloadHash:          []byte{},
-				BlocksmithAddress:    "BCZ",
+				BlocksmithPublicKey:    "BCZ",
 				TotalAmount:          0,
 				Transactions: []*model.Transaction{
 					mockTransaction,
@@ -829,7 +829,7 @@ func TestBlockService_GetGenesisBlock(t *testing.T) {
 				SmithScale:           1,
 				PayloadLength:        2,
 				PayloadHash:          []byte{},
-				BlocksmithAddress:    "BCZ",
+				BlocksmithPublicKey:    "BCZ",
 				TotalAmount:          0,
 				TotalFee:             0,
 				TotalCoinBase:        0,
@@ -916,7 +916,7 @@ func TestBlockService_GetBlocks(t *testing.T) {
 					SmithScale:           1,
 					PayloadLength:        2,
 					PayloadHash:          []byte{},
-					BlocksmithAddress:    "BCZ",
+					BlocksmithPublicKey:    "BCZ",
 					TotalAmount:          0,
 					TotalFee:             0,
 					TotalCoinBase:        0,
@@ -1134,7 +1134,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 					Version:           1,
 					PreviousBlockHash: []byte{},
 					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
+					BlocksmithPublicKey: "",
 					Timestamp:         12344587645,
 					TotalAmount:       0,
 					TotalFee:          0,
@@ -1163,7 +1163,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 					Version:           1,
 					PreviousBlockHash: []byte{},
 					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
+					BlocksmithPublicKey: "",
 					Timestamp:         12344587645,
 					TotalAmount:       0,
 					TotalFee:          0,
@@ -1199,7 +1199,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 					Version:           1,
 					PreviousBlockHash: []byte{},
 					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
+					BlocksmithPublicKey: "",
 					Timestamp:         12344587645,
 					TotalAmount:       0,
 					TotalFee:          0,
@@ -1427,7 +1427,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				SmithScale:           1,
 				PayloadLength:        2,
 				PayloadHash:          []byte{},
-				BlocksmithAddress:    "BCZ",
+				BlocksmithPublicKey:    "BCZ",
 				TotalAmount:          0,
 				TotalFee:             0,
 				TotalCoinBase:        0,
@@ -1516,7 +1516,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				SmithScale:           1,
 				PayloadLength:        2,
 				PayloadHash:          []byte{},
-				BlocksmithAddress:    "BCZ",
+				BlocksmithPublicKey:    "BCZ",
 				TotalAmount:          0,
 				TotalFee:             0,
 				TotalCoinBase:        0,
@@ -1607,7 +1607,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 					SmithScale:           1,
 					PayloadLength:        2,
 					PayloadHash:          []byte{},
-					BlocksmithAddress:    "BCZ",
+					BlocksmithPublicKey:    "BCZ",
 					TotalAmount:          0,
 					TotalFee:             0,
 					TotalCoinBase:        0,
@@ -1624,7 +1624,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 					SmithScale:           1,
 					PayloadLength:        2,
 					PayloadHash:          []byte{},
-					BlocksmithAddress:    "BCZ",
+					BlocksmithPublicKey:    "BCZ",
 					TotalAmount:          0,
 					TotalFee:             0,
 					TotalCoinBase:        0,

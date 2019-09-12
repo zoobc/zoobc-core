@@ -60,7 +60,7 @@ var (
 		SmithScale:           0,
 		PreviousBlockHash:    []byte{},
 		BlockSeed:            []byte{},
-		BlocksmithAddress:    "BCZ",
+		BlocksmithPublicKey:  nrsNodePubKey1,
 		Timestamp:            12345678,
 		TotalAmount:          0,
 		TotalFee:             0,

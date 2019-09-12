@@ -5,9 +5,8 @@ package model
 
 import (
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -997,8 +996,6 @@ func (m *PostTransactionResponse) GetTransaction() *Transaction {
 // SendTransactionRequest request in p2pCommunication service
 type SendTransactionRequest struct {
 	TransactionBytes     []byte   `protobuf:"bytes,1,opt,name=TransactionBytes,proto3" json:"TransactionBytes,omitempty"`
-	ChainType            int32    `protobuf:"varint,2,opt,name=ChainType,proto3" json:"ChainType,omitempty"`
-	SenderPublicKey      []byte   `protobuf:"bytes,3,opt,name=SenderPublicKey,proto3" json:"SenderPublicKey,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1032,20 +1029,6 @@ var xxx_messageInfo_SendTransactionRequest proto.InternalMessageInfo
 func (m *SendTransactionRequest) GetTransactionBytes() []byte {
 	if m != nil {
 		return m.TransactionBytes
-	}
-	return nil
-}
-
-func (m *SendTransactionRequest) GetChainType() int32 {
-	if m != nil {
-		return m.ChainType
-	}
-	return 0
-}
-
-func (m *SendTransactionRequest) GetSenderPublicKey() []byte {
-	if m != nil {
-		return m.SenderPublicKey
 	}
 	return nil
 }

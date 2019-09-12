@@ -91,11 +91,6 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
-	var (
-		//TODO: should we just store node public key instead of a string that is a representation of
-		//      the node public key (but formatted as an accountAddress)?
-		generatorAccountAddress = util.GetAddressFromSeed(bp.Generator.SecretPhrase)
-	)
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return errors.New("Genesis:notAddedYet")
@@ -126,7 +121,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				previousBlock,
 				bp.Generator.SecretPhrase,
 				timestamp,
-				generatorAccountAddress,
 			)
 			if err != nil {
 				return err

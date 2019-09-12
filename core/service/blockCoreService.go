@@ -27,10 +27,10 @@ import (
 type (
 	BlockServiceInterface interface {
 		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
-		NewBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithAddress string, hash string,
+		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
-		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed []byte, blocksmithAddress string,
+		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
 			genesisSignature []byte) *model.Block
@@ -38,7 +38,6 @@ type (
 			previousBlock *model.Block,
 			secretPhrase string,
 			timestamp int64,
-			blockSmithAccountAddress string,
 		) (*model.Block, error)
 		PushBlock(previousBlock, block *model.Block, needLock bool) error
 		GetBlockByID(int64) (*model.Block, error)
@@ -110,8 +109,8 @@ func NewBlockService(
 func (bs *BlockService) NewBlock(
 	version uint32,
 	previousBlockHash,
-	blockSeed []byte,
-	blocksmithAddress, hash string,
+	blockSeed, blockSmithPublicKey []byte,, 
+	hash string,
 	previousBlockHeight uint32,
 	timestamp,
 	totalAmount,
@@ -126,7 +125,7 @@ func (bs *BlockService) NewBlock(
 		Version:           version,
 		PreviousBlockHash: previousBlockHash,
 		BlockSeed:         blockSeed,
-		BlocksmithAddress: blocksmithAddress,
+		BlocksmithPublicKey: blockSmithPublicKey,
 		Height:            previousBlockHeight,
 		Timestamp:         timestamp,
 		TotalAmount:       totalAmount,
@@ -160,7 +159,7 @@ func (bs *BlockService) ChainWriteUnlock() {
 func (bs *BlockService) NewGenesisBlock(
 	version uint32,
 	previousBlockHash, blockSeed []byte,
-	blocksmithAddress, hash string,
+	blockSmithPublicKey, hash string,
 	previousBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
@@ -174,7 +173,7 @@ func (bs *BlockService) NewGenesisBlock(
 		Version:              version,
 		PreviousBlockHash:    previousBlockHash,
 		BlockSeed:            blockSeed,
-		BlocksmithAddress:    blocksmithAddress,
+		BlocksmithPublicKey:    blockSmithPublicKey,
 		Height:               previousBlockHeight,
 		Timestamp:            timestamp,
 		TotalAmount:          totalAmount,
@@ -397,7 +396,7 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 			&lastBlock.SmithScale,
 			&lastBlock.PayloadLength,
 			&lastBlock.PayloadHash,
-			&lastBlock.BlocksmithAddress,
+			&lastBlock.BlocksmithPublicKey,
 			&lastBlock.TotalAmount,
 			&lastBlock.TotalFee,
 			&lastBlock.TotalCoinBase,
@@ -427,7 +426,7 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	for rows.Next() {
 		var block model.Block
 		err = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed, &block.BlockSignature,
-			&block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithAddress,
+			&block.CumulativeDifficulty, &block.SmithScale, &block.PayloadLength, &block.PayloadHash, &block.BlocksmithPublicKey,
 			&block.TotalAmount, &block.TotalFee, &block.TotalCoinBase, &block.Version)
 		if err != nil {
 			return nil, err
@@ -456,7 +455,6 @@ func (bs *BlockService) GenerateBlock(
 	previousBlock *model.Block,
 	secretPhrase string,
 	timestamp int64,
-	blockSmithAccountAddress string,
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
@@ -466,6 +464,7 @@ func (bs *BlockService) GenerateBlock(
 		sortedTx    []*model.Transaction
 		payloadHash []byte
 		digest      = sha3.New512()
+		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
 	)
 
 	newBlockHeight := previousBlock.Height + 1
@@ -495,7 +494,7 @@ func (bs *BlockService) GenerateBlock(
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	_, _ = digest.Write([]byte(blockSmithAccountAddress))
+	_, _ = digest.Write([]byte(blockSmithPublicKey))
 	blockSeed := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	previousBlockHash, err := coreUtil.GetBlockHash(previousBlock)
@@ -506,7 +505,7 @@ func (bs *BlockService) GenerateBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
-		blockSmithAccountAddress,
+		blockSmithPublicKey,
 		string(hash),
 		newBlockHeight,
 		timestamp,

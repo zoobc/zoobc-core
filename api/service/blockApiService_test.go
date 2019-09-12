@@ -20,6 +20,11 @@ func ResetBlockService() {
 	blockServiceInstance = nil
 }
 
+var (
+	basNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+)
+
 type (
 	mockQueryExecutorBlockByIDFail struct {
 		query.Executor
@@ -119,7 +124,7 @@ func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, args ...interfac
 			1,
 			1,
 			[]byte{4},
-			"smithAddress",
+			basNodePubKey1,
 			1,
 			1,
 			1,
@@ -162,7 +167,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				BlockSignature:       []byte{3},
 				CumulativeDifficulty: "cumulative",
 				SmithScale:           1,
-				BlocksmithAddress:    "smithAddress",
+				BlocksmithPublicKey:  basNodePubKey1,
 				PayloadLength:        1,
 				PayloadHash:          []byte{4},
 				TotalAmount:          1,
@@ -237,7 +242,7 @@ func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, args ...inte
 			1,
 			1,
 			[]byte{4},
-			"smithAddress",
+			basNodePubKey1,
 			1,
 			1,
 			1,
@@ -281,7 +286,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				BlockSignature:       []byte{3},
 				CumulativeDifficulty: "cumulative",
 				SmithScale:           1,
-				BlocksmithAddress:    "smithAddress",
+				BlocksmithPublicKey:  basNodePubKey1,
 				PayloadLength:        1,
 				PayloadHash:          []byte{4},
 				TotalAmount:          1,
@@ -356,7 +361,7 @@ func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, args ...interface{}
 			1,
 			1,
 			[]byte{4},
-			"smithAddress",
+			basNodePubKey1,
 			1,
 			1,
 			1,
@@ -405,7 +410,7 @@ func TestBlockService_GetBlocks(t *testing.T) {
 						BlockSignature:       []byte{3},
 						CumulativeDifficulty: "cumulative",
 						SmithScale:           1,
-						BlocksmithAddress:    "smithAddress",
+						BlocksmithPublicKey:  basNodePubKey1,
 						PayloadLength:        1,
 						PayloadHash:          []byte{4},
 						TotalAmount:          1,

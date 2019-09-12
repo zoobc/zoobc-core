@@ -2,11 +2,13 @@ package util
 
 import (
 	"bytes"
+	"fmt"
+	"math/big"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"golang.org/x/crypto/sha3"
-	"math/big"
 )
 
 // GetBlockIdFromHash returns blockID from given hash
@@ -48,8 +50,12 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
 	buffer.Write(block.PayloadHash)
-	buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
-	buffer.Write([]byte(block.GetBlocksmithAddress()))
+
+	buffer.Write(block.BlocksmithPublicKey)
+	// FIXME: remove this comment after making sure the one below is a repetition and can be deleted
+	// buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
+	// buffer.Write([]byte(block.GetBlocksmithAddress()))
+
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
 	if signed {
@@ -58,6 +64,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 		}
 		buffer.Write(block.BlockSignature)
 	}
+	fmt.Printf("%v", buffer.Bytes())
 	return buffer.Bytes(), nil
 }
 
