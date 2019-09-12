@@ -109,7 +109,7 @@ func NewBlockService(
 func (bs *BlockService) NewBlock(
 	version uint32,
 	previousBlockHash,
-	blockSeed, blockSmithPublicKey []byte,, 
+	blockSeed, blockSmithPublicKey []byte,
 	hash string,
 	previousBlockHeight uint32,
 	timestamp,
@@ -122,20 +122,20 @@ func (bs *BlockService) NewBlock(
 	secretPhrase string,
 ) *model.Block {
 	block := &model.Block{
-		Version:           version,
-		PreviousBlockHash: previousBlockHash,
-		BlockSeed:         blockSeed,
+		Version:             version,
+		PreviousBlockHash:   previousBlockHash,
+		BlockSeed:           blockSeed,
 		BlocksmithPublicKey: blockSmithPublicKey,
-		Height:            previousBlockHeight,
-		Timestamp:         timestamp,
-		TotalAmount:       totalAmount,
-		TotalFee:          totalFee,
-		TotalCoinBase:     totalCoinBase,
-		Transactions:      transactions,
-		PayloadHash:       payloadHash,
-		PayloadLength:     payloadLength,
+		Height:              previousBlockHeight,
+		Timestamp:           timestamp,
+		TotalAmount:         totalAmount,
+		TotalFee:            totalFee,
+		TotalCoinBase:       totalCoinBase,
+		Transactions:        transactions,
+		PayloadHash:         payloadHash,
+		PayloadLength:       payloadLength,
 	}
-	blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
+	blockUnsignedByte, _ := util.GetBlockByte(block, false)
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
 	return block
 }
@@ -158,8 +158,8 @@ func (bs *BlockService) ChainWriteUnlock() {
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
 func (bs *BlockService) NewGenesisBlock(
 	version uint32,
-	previousBlockHash, blockSeed []byte,
-	blockSmithPublicKey, hash string,
+	previousBlockHash, blockSeed, blockSmithPublicKey []byte,
+	hash string,
 	previousBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
@@ -173,7 +173,7 @@ func (bs *BlockService) NewGenesisBlock(
 		Version:              version,
 		PreviousBlockHash:    previousBlockHash,
 		BlockSeed:            blockSeed,
-		BlocksmithPublicKey:    blockSmithPublicKey,
+		BlocksmithPublicKey:  blockSmithPublicKey,
 		Height:               previousBlockHeight,
 		Timestamp:            timestamp,
 		TotalAmount:          totalAmount,
@@ -461,9 +461,9 @@ func (bs *BlockService) GenerateBlock(
 		//TODO: missing coinbase calculation
 		payloadLength uint32
 		// only for mainchain
-		sortedTx    []*model.Transaction
-		payloadHash []byte
-		digest      = sha3.New512()
+		sortedTx            []*model.Transaction
+		payloadHash         []byte
+		digest              = sha3.New512()
 		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
 	)
 
@@ -494,7 +494,7 @@ func (bs *BlockService) GenerateBlock(
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	_, _ = digest.Write([]byte(blockSmithPublicKey))
+	_, _ = digest.Write(blockSmithPublicKey)
 	blockSeed := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	previousBlockHash, err := coreUtil.GetBlockHash(previousBlock)
@@ -546,8 +546,8 @@ func (bs *BlockService) AddGenesis() error {
 	block := bs.NewGenesisBlock(
 		1,
 		nil,
-		make([]byte, 64),
-		constant.MainchainGenesisAccountAddress,
+		constant.MainchainGenesisBlockSeed,
+		constant.MainchainGenesisNodePublicKey,
 		"",
 		0,
 		constant.MainchainGenesisBlockTimestamp,
@@ -590,9 +590,9 @@ func (bs *BlockService) ReceiveBlock(
 ) (*model.Receipt, error) {
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() != nil {
-		blockUnsignedByte, _ := coreUtil.GetBlockByte(block, false)
-		if bs.Signature.VerifySignature(blockUnsignedByte, block.GetBlockSignature(), block.GetBlocksmithAddress()) {
-			lastBlockByte, err := coreUtil.GetBlockByte(lastBlock, true)
+		blockUnsignedByte, _ := util.GetBlockByte(block, false)
+		if bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
+			lastBlockByte, err := util.GetBlockByte(lastBlock, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(
 					blocker.BlockErr,
@@ -602,7 +602,7 @@ func (bs *BlockService) ReceiveBlock(
 			lastBlockHash := sha3.Sum512(lastBlockByte)
 
 			//  check equality last block hash with previous block hash from received block
-			if !bytes.Equal(lastBlockHash[:], block.GetPreviousBlockHash()) {
+			if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
 				return nil, blocker.NewBlocker(
 					blocker.BlockErr,
 					"previous block hash does not match with last block hash",

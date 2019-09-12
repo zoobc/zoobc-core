@@ -2,7 +2,6 @@ package util
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -64,7 +63,6 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 		}
 		buffer.Write(block.BlockSignature)
 	}
-	fmt.Printf("%v", buffer.Bytes())
 	return buffer.Bytes(), nil
 }
 
