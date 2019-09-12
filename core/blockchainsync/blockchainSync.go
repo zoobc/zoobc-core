@@ -13,28 +13,34 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/core/service"
-	"github.com/zoobc/zoobc-core/p2p"
+	"github.com/zoobc/zoobc-core/p2p/client"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
 
 type Service struct {
 	// isScanningBlockchain       bool
 	ChainType            chaintype.ChainType
-	P2pService           p2p.ServiceInterface
+	PeerServiceClient    client.PeerServiceClientInterface
+	PeerExplorer         strategy.PeerExplorerStrategyInterface
 	BlockService         service.BlockServiceInterface
 	BlockchainDownloader BlockchainDownloadInterface
 	ForkingProcessor     ForkingProcessorInterface
 }
 
-func NewBlockchainSyncService(blockService service.BlockServiceInterface, p2pService p2p.ServiceInterface,
+func NewBlockchainSyncService(blockService service.BlockServiceInterface,
+	peerServiceClient client.PeerServiceClientInterface,
+	peerExplorer strategy.PeerExplorerStrategyInterface,
 	queryExecutor query.ExecutorInterface) *Service {
 	return &Service{
-		ChainType:    blockService.GetChainType(),
-		BlockService: blockService,
-		P2pService:   p2pService,
+		ChainType:         blockService.GetChainType(),
+		BlockService:      blockService,
+		PeerServiceClient: peerServiceClient,
+		PeerExplorer:      peerExplorer,
 		BlockchainDownloader: &BlockchainDownloader{
-			ChainType:    blockService.GetChainType(),
-			BlockService: blockService,
-			P2pService:   p2pService,
+			ChainType:         blockService.GetChainType(),
+			BlockService:      blockService,
+			PeerServiceClient: peerServiceClient,
+			PeerExplorer:      peerExplorer,
 		},
 		ForkingProcessor: &ForkingProcessor{
 			ChainType:    blockService.GetChainType(),
@@ -52,7 +58,7 @@ func (bss *Service) Start(runNext chan bool) {
 	if bss.ChainType == nil {
 		log.Fatal("no chaintype")
 	}
-	if bss.P2pService == nil {
+	if bss.PeerServiceClient == nil || bss.PeerExplorer == nil {
 		log.Fatal("no p2p service defined")
 	}
 	bss.GetMoreBlocksThread(runNext)
@@ -113,7 +119,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 		// confirming the node's blockchain state with other nodes
 		confirmations := int32(0)
 		// counting the confirmations of the common block received with other peers he knows
-		for _, peerToCheck := range bss.P2pService.GetResolvedPeers() {
+		for _, peerToCheck := range bss.PeerExplorer.GetResolvedPeers() {
 			if confirmations >= constant.DefaultNumberOfForkConfirmations {
 				break
 			}

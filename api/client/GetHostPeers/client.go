@@ -47,5 +47,4 @@ func main() {
 	j, _ := json.MarshalIndent(response, "", "  ")
 
 	log.Printf("response from remote rpc_service.GetHostPeers(): %s", j)
-
 }

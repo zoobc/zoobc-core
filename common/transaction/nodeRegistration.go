@@ -34,17 +34,8 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		queries [][]interface{}
 		queued  bool
 	)
+	queued = tx.Height > 0
 
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-		queued = true
-	} else {
-		// node registration is not queued at genesis height
-		queued = false
-	}
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
 		LockedBalance:      tx.Body.LockedBalance,

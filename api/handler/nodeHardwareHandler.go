@@ -32,6 +32,6 @@ func (nhh *NodeHardwareHandler) GetNodeHardware(
 		if err != nil {
 			return err // close connection if sending response to client result in error
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(5 * time.Second)
 	}
 }

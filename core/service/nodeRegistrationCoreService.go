@@ -139,7 +139,6 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 			_ = nrs.QueryExecutor.RollbackTx()
 			return err
 		}
-
 	}
 	if err := nrs.QueryExecutor.CommitTx(); err != nil {
 		return blocker.NewBlocker(blocker.DBErr, "TxNotCommitted")
