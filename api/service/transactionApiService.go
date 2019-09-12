@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/zoobc/zoobc-core/observer"
@@ -67,6 +68,7 @@ func (ts *TransactionService) GetTransaction(
 		rows   *sql.Rows
 		txTemp []*model.Transaction
 	)
+
 	txQuery := query.NewTransactionQuery(chainType)
 	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
 	if err != nil {
@@ -100,6 +102,12 @@ func (ts *TransactionService) GetTransactions(
 	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
+	// Represent transaction fields
+	txFields := map[string]string{
+		"Height":  "block_height",
+		"BlockID": "block_id",
+	}
+
 	accountAddress := params.GetAccountAddress()
 	if accountAddress != "" {
 		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
@@ -115,6 +123,23 @@ func (ts *TransactionService) GetTransactions(
 	if transcationType > 0 {
 		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
 	}
+
+	page := params.GetPagination()
+	height := params.GetHeight()
+	if height != 0 {
+		caseQuery.And(caseQuery.Equal("block_height", height))
+		if page.GetLimit() == 0 {
+			page.Limit = math.MaxUint32
+		}
+	}
+
+	// Get Transactions Pagination & order
+	if page.GetOrderField() == "" {
+		caseQuery.OrderBy("timestamp", page.GetOrderBy())
+	} else {
+		caseQuery.OrderBy(txFields[page.GetOrderField()], page.GetOrderBy())
+	}
+	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 
 	selectQuery, args = caseQuery.Build()
 	// count first
@@ -134,16 +159,6 @@ func (ts *TransactionService) GetTransactions(
 		}
 	}
 
-	// Get Transactions
-	page := params.GetPagination()
-	if page.GetOrderField() == "" {
-		caseQuery.OrderBy("timestamp", page.GetOrderBy())
-	} else {
-		caseQuery.OrderBy(page.GetOrderField(), page.GetOrderBy())
-	}
-	caseQuery.Paginate(page.GetLimit(), page.GetPage())
-
-	selectQuery, args = caseQuery.Build()
 	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
 	if err != nil {
 		return nil, err
