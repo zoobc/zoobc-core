@@ -134,7 +134,7 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	// Get Transactions Pagination & order
-	if page.GetOrderField() == "" {
+	if page.GetOrderField() == "" || txFields[page.GetOrderField()] == "" {
 		caseQuery.OrderBy("timestamp", page.GetOrderBy())
 	} else {
 		caseQuery.OrderBy(txFields[page.GetOrderField()], page.GetOrderBy())
