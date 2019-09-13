@@ -65,7 +65,7 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 func getTransaction(txType []byte) *model.Transaction {
 	switch util.ConvertBytesToUint32(txType) {
 	case util.ConvertBytesToUint32(txTypeMap["sendMoney"]):
-		amount := int64(10000)
+		amount := int64(60000000)
 		return &model.Transaction{
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["sendMoney"]),

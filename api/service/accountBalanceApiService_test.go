@@ -27,7 +27,7 @@ type (
 
 var mockAccountBalanceQuery = query.NewAccountBalanceQuery()
 
-func (*mockExecutorGetAccountBalanceSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorGetAccountBalanceSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
@@ -37,11 +37,11 @@ func (*mockExecutorGetAccountBalanceSuccess) ExecuteSelect(qe string, args ...in
 	return rows, nil
 }
 
-func (*mockExecutorGetAccountBalanceFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorGetAccountBalanceFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
 }
 
-func (*mockExecutorGetAccountBalanceNotFound) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorGetAccountBalanceNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{

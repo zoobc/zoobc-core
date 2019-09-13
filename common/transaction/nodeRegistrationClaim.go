@@ -32,7 +32,7 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	)
 
 	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry1, args1)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (tx *ClaimNodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *ClaimNodeRegistration) Validate() error {
+func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	// validate proof of ownership
 	if tx.Body.Poown == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
@@ -130,7 +130,7 @@ func (tx *ClaimNodeRegistration) Validate() error {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
 	}
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (tx *ClaimNodeRegistration) Validate() error {
 	}
 
 	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	rows, err = tx.QueryExecutor.ExecuteSelect(qry1, args1)
+	rows, err = tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
 	if err != nil {
 		return err
 	}

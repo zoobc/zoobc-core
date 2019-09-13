@@ -119,16 +119,13 @@ That specs:
 	- Checking the expiration time
 	- Checking Spendable Balance sender
 */
-func (tx *SetupAccountDataset) Validate() error {
-
+func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 	)
-
 	if tx.Body.GetMuchTime() == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
 	}
-
 	// check account balance sender
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	row := tx.QueryExecutor.ExecuteSelectRow(senderQ, senderArg)

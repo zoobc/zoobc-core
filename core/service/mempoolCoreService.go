@@ -79,7 +79,7 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 	var rows *sql.Rows
 	var err error
 	sqlStr := mps.MempoolQuery.GetMempoolTransactions()
-	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr)
+	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr, false)
 	if err != nil {
 		log.Printf("GetMempoolTransactions fails %s\n", err)
 		return nil, err
@@ -92,7 +92,7 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 
 // GetMempoolTransaction return a mempool transaction by its ID
 func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransaction, error) {
-	rows, err := mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), id)
+	rows, err := mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), false, id)
 	if err != nil {
 		return &model.MempoolTransaction{
 			ID: -1,
@@ -154,7 +154,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return err
 	}
 
-	if err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx).Validate(); err != nil {
+	if err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx).Validate(false); err != nil {
 		return err
 	}
 	return nil
