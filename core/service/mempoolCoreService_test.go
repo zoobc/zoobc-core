@@ -30,7 +30,7 @@ var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_by
 
 // var getAccountB
 
-func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -77,7 +77,7 @@ type mockMempoolQueryExecutorFail struct {
 	query.Executor
 }
 
-func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -450,7 +450,7 @@ type (
 func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed() error {
 	return nil
 }
-func (*ReceivedTransactionListenerMockTypeAction) Validate() error {
+func (*ReceivedTransactionListenerMockTypeAction) Validate(bool) error {
 	return nil
 }
 func (*ReceivedTransactionListenerMockTypeAction) GetAmount() int64 {
@@ -507,7 +507,7 @@ func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelectRow(qStr
 	)
 	return db.QueryRow(qStr)
 }
-func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -532,7 +532,7 @@ func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelectRow(qStr string,
 	return db.QueryRow(qStr)
 }
 
-func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockExecutorValidateMempoolTransactionFail : mocked Err")
 }
 

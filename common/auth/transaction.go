@@ -25,7 +25,7 @@ func ValidateTransaction(
 
 	// validate sender account
 	sqlQ, arg := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	rows, err := queryExecutor.ExecuteSelect(sqlQ, arg)
+	rows, err := queryExecutor.ExecuteSelect(sqlQ, false, arg)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ func (tx *TXEmpty) ApplyUnconfirmed() error {
 func (tx *TXEmpty) UndoApplyUnconfirmed() error {
 	return nil
 }
-func (tx *TXEmpty) Validate() error {
+func (tx *TXEmpty) Validate(bool) error {
 	return nil
 }
 func (*TXEmpty) GetAmount() int64 {

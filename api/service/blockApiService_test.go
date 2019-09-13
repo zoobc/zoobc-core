@@ -38,11 +38,11 @@ type (
 	}
 )
 
-func (*mockQueryExecutorBlockByIDFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorBlockByIDFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
 }
 
-func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
@@ -53,7 +53,7 @@ func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, args ...inte
 	return rows, nil
 }
 
-func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
@@ -65,7 +65,7 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, args ...inter
 	return rows, nil
 }
 
-func (*mockQueryExecutorGetBlocksFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorGetBlocksFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
 }
 
@@ -101,7 +101,7 @@ type (
 	}
 )
 
-func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -219,7 +219,7 @@ type (
 	}
 )
 
-func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -338,7 +338,7 @@ type (
 	}
 )
 
-func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 

@@ -3,11 +3,12 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"math/big"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -66,7 +67,7 @@ var mockTransaction = &model.Transaction{
 func (*mockTypeAction) ApplyConfirmed() error {
 	return nil
 }
-func (*mockTypeAction) Validate() error {
+func (*mockTypeAction) Validate(bool) error {
 	return nil
 }
 func (*mockTypeAction) GetAmount() int64 {
@@ -96,7 +97,7 @@ func (*mockSignatureFail) VerifySignature(
 }
 
 // mockQueryExecutorScanFail
-func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
@@ -107,7 +108,7 @@ func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, args ...interface{}) 
 }
 
 // mockQueryExecutorNotNil
-func (*mockQueryExecuteNotNil) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecuteNotNil) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -118,7 +119,7 @@ func (*mockQueryExecuteNotNil) ExecuteSelect(qe string, args ...interface{}) (*s
 }
 
 // mockQueryExecutorFail
-func (*mockQueryExecutorFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
@@ -141,7 +142,7 @@ func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interfa
 }
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -624,6 +625,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 	type args struct {
 		previousBlock *model.Block
 		block         *model.Block
+		broadcast     bool
 	}
 	tests := []struct {
 		name    string
@@ -670,6 +672,50 @@ func TestBlockService_PushBlock(t *testing.T) {
 					PayloadHash:       []byte{},
 					BlockSignature:    []byte{},
 				},
+				broadcast: false,
+			},
+			wantErr: false,
+		},
+		{
+			name: "PushBlock:Transactions<0 : broadcast true",
+			fields: fields{
+				Chaintype:     &chaintype.MainChain{},
+				QueryExecutor: &mockQueryExecutorSuccess{},
+				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Observer:      observer.NewObserver(),
+			},
+			args: args{
+				previousBlock: &model.Block{
+					ID:                   0,
+					SmithScale:           10,
+					Timestamp:            10000,
+					CumulativeDifficulty: "10000",
+					Version:              1,
+					PreviousBlockHash:    []byte{},
+					BlockSeed:            []byte{},
+					BlocksmithAddress:    "",
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					BlockSignature:       []byte{},
+				},
+				block: &model.Block{
+					ID:                1,
+					Timestamp:         12000,
+					Version:           1,
+					PreviousBlockHash: []byte{},
+					BlockSeed:         []byte{},
+					BlocksmithAddress: "",
+					TotalAmount:       0,
+					TotalFee:          0,
+					TotalCoinBase:     0,
+					Transactions:      []*model.Transaction{},
+					PayloadHash:       []byte{},
+					BlockSignature:    []byte{},
+				},
+				broadcast: true,
 			},
 			wantErr: false,
 		},
@@ -686,7 +732,8 @@ func TestBlockService_PushBlock(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				Observer:           tt.fields.Observer,
 			}
-			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false); (err != nil) != tt.wantErr {
+			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false,
+				tt.args.broadcast); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -1024,7 +1071,7 @@ type (
 )
 
 // mockQueryExecutorMempoolSuccess
-func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -1293,7 +1340,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -1306,7 +1353,7 @@ func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(qe string, args ...inte
 	}))
 	return db.Query("")
 }
-func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err

@@ -125,7 +125,7 @@ func TestExecutor_ExecuteSelect(t *testing.T) {
 			qe := &Executor{
 				Db: tt.fields.Db,
 			}
-			_, err := qe.ExecuteSelect(tt.args.query)
+			_, err := qe.ExecuteSelect(tt.args.query, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Executor.ExecuteSelect() error = %v, wantErr %v", err, tt.wantErr)
 				return

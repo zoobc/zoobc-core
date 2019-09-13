@@ -54,7 +54,7 @@ func (*executorSetupAccountDatasetApplyConfirmedFail) ExecuteTransactions([][]in
 	return errors.New("MockedError")
 }
 
-func (*executorSetupAccountDatasetApplyUnconfirmedSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorSetupAccountDatasetApplyUnconfirmedSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (*executorSetupAccountDatasetApplyUnconfirmedSuccess) ExecuteTransaction(qS
 	return nil
 }
 
-func (*executorSetupAccountDatasetApplyUnconfirmedFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorSetupAccountDatasetApplyUnconfirmedFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -419,7 +419,7 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
