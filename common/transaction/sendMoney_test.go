@@ -55,7 +55,7 @@ func (*executorValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{
 
 	return db.QueryRow(qStr, 1, 2)
 }
-func (*executorValidateSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorValidateSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, args ...interf
 
 	return db.QueryRow(qStr, 1, 2)
 }
-func (*executorAccountCountSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorAccountCountSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -264,7 +264,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {

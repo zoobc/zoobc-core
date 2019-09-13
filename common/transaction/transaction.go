@@ -11,7 +11,8 @@ type (
 		ApplyConfirmed() error
 		ApplyUnconfirmed() error
 		UndoApplyUnconfirmed() error
-		Validate() error
+		// dbTx specify wether validation should read from transaction state or db state
+		Validate(dbTx bool) error
 		GetAmount() int64
 		GetSize() uint32
 		ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface

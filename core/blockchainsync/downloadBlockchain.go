@@ -246,7 +246,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
 		if lastBlock.ID == previousBlockID {
-			err := bd.BlockService.PushBlock(lastBlock, block, false)
+			err := bd.BlockService.PushBlock(lastBlock, block, false, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)

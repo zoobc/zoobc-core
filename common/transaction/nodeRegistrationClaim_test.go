@@ -47,7 +47,7 @@ func (mk *mockAuthPoownClaimNR) ValidateProofOfOwnership(
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued,"+
@@ -58,7 +58,8 @@ func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelect(qe strin
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
@@ -90,7 +91,8 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSele
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
@@ -131,7 +133,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteTransactions(queries [][
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
@@ -162,7 +164,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, args .
 	return nil, nil
 }
 
-func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
@@ -288,7 +290,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			err := tx.Validate()
+			err := tx.Validate(false)
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)

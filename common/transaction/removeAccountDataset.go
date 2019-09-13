@@ -116,8 +116,7 @@ That specs:
 	- Check existing Account Dataset
 	- Check Spendable Balance sender
 */
-func (tx *RemoveAccountDataset) Validate() error {
-
+func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 		accountDataset model.AccountDataset

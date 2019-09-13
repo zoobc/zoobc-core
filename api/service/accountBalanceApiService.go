@@ -32,7 +32,7 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 		accountBalances []*model.AccountBalance
 	)
 	accountBalanceQuery, arg := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(request.AccountAddress)
-	rows, err := abs.Executor.ExecuteSelect(accountBalanceQuery, arg)
+	rows, err := abs.Executor.ExecuteSelect(accountBalanceQuery, false, arg)
 
 	if err != nil {
 		return nil, err

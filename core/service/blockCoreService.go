@@ -40,7 +40,7 @@ type (
 			timestamp int64,
 			blockSmithAccountAddress string,
 		) (*model.Block, error)
-		PushBlock(previousBlock, block *model.Block, needLock bool) error
+		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
@@ -202,8 +202,9 @@ func (*BlockService) VerifySeed(
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
 }
 
-// PushBlock push block into blockchain
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bool) error {
+// PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
+// broadcast flag to `true`, and `false` otherwise
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
 	// needLock indicates the push block needs to be protected
 	if needLock {
 		bs.Wait()
@@ -227,10 +228,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			tx.BlockID = block.ID
 			tx.Height = block.Height
 			tx.TransactionIndex = uint32(index) + 1
-
 			// validate tx here
 			// check if is in mempool : if yes, undo unconfirmed
-			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), tx.ID)
+			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
 			if err != nil {
 				rows.Close()
 				_ = bs.QueryExecutor.RollbackTx()
@@ -248,7 +248,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			}
 			rows.Close()
 			if block.Height > 0 {
-				err = txType.Validate()
+				err = txType.Validate(true)
 				if err != nil {
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
@@ -280,16 +280,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		return err
 	}
 	// broadcast block
-	if block.Height > 0 {
+	if block.Height > 0 && broadcast {
 		bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	}
 	return nil
-
 }
 
 // GetBlockByID return the last pushed block
 func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -308,7 +307,7 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 
 func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
 	var blocks []*model.Block
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -323,7 +322,7 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock())
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock(), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -348,8 +347,10 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 // GetTransactionsByBlockID get transactions of the block
 func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
+
+	// get transaction of the block
 	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
-	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, transactionArg...)
+	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -358,7 +359,7 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -378,7 +379,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 
 // GetGenesis return the last pushed block
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock())
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock(), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -418,7 +419,7 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 // GetBlocks return all pushed blocks
 func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	var blocks []*model.Block
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100))
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100), false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -521,7 +522,6 @@ func (bs *BlockService) GenerateBlock(
 		payloadLength,
 		secretPhrase,
 	)
-	log.Printf("block forged: fee %d\n", totalFee)
 	return block, nil
 }
 
@@ -567,9 +567,9 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
-	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
+	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
 	if err != nil {
-		log.Fatal("PushGenesisBlock:fail")
+		log.Fatal("PushGenesisBlock:fail ", err)
 	}
 	return nil
 }
@@ -612,7 +612,7 @@ func (bs *BlockService) ReceiveBlock(
 					"previous block hash does not match with last block hash",
 				)
 			}
-			err = bs.PushBlock(lastBlock, block, true)
+			err = bs.PushBlock(lastBlock, block, true, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
 			}

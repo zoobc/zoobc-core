@@ -72,11 +72,11 @@ var (
 	}
 )
 
-func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
-func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -101,7 +101,7 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, args .
 	return rows, nil
 }
 
-func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
