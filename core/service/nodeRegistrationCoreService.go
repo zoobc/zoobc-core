@@ -49,7 +49,7 @@ func NewNodeRegistrationService(
 // SelectNodesToBeAdmitted Select n (=limit) nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, false)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(false)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}

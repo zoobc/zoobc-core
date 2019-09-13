@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -24,7 +25,7 @@ func ValidateTransaction(
 
 	// validate sender account
 	sqlQ, arg := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	rows, err := queryExecutor.ExecuteSelect(sqlQ, arg)
+	rows, err := queryExecutor.ExecuteSelect(sqlQ, false, arg)
 	if err != nil {
 		return err
 	}

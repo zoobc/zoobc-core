@@ -63,11 +63,11 @@ func (mk *mockAuthPoownRU) ValidateProofOfOwnership(
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:selectFail")
 }
 
-func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -79,7 +79,7 @@ func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, a
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
@@ -91,7 +91,7 @@ func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, args ...
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -148,7 +148,7 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 	return nil, nil
 }
 
-func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -195,7 +195,7 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 	return nil, nil
 }
 
-func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -502,7 +502,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

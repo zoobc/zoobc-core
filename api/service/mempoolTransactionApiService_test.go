@@ -54,15 +54,15 @@ type (
 	}
 )
 
-func (*mockQueryExecutorGetMempoolTXsFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorGetMempoolTXsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("want error")
 }
-func (*mockQueryExecutorGetMempoolTXsScanFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorGetMempoolTXsScanFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{"one", "two"}).AddRow(1, 2))
 	return db.Query(qStr)
 }
-func (*mockQueryExecutorGetMempoolTXs) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorGetMempoolTXs) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	switch strings.Contains(qStr, "total_record") {
 	case true:

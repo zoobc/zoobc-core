@@ -122,7 +122,7 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *NodeRegistration) Validate() error {
+func (tx *NodeRegistration) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 	)
@@ -144,7 +144,7 @@ func (tx *NodeRegistration) Validate() error {
 
 	// check balance
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
+	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, dbTx, senderArg)
 	if err != nil {
 		return err
 	} else if rows.Next() {
@@ -164,7 +164,7 @@ func (tx *NodeRegistration) Validate() error {
 	}
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, nodeArg...)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, dbTx, nodeArg...)
 	if err != nil {
 		return err
 	}

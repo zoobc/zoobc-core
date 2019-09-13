@@ -78,7 +78,7 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 // GetLastBlock TODO: this should be used by services instead of blockService.GetLastBlock
 func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) (*model.Block, error) {
 	qry := blockQuery.GetLastBlock()
-	rows, err := queryExecutor.ExecuteSelect(qry)
+	rows, err := queryExecutor.ExecuteSelect(qry, false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()
@@ -100,7 +100,7 @@ func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQ
 // GetBlockByHeight TODO: this should be used by services instead of blockService.GetLastBlock
 func GetBlockByHeight(height uint32, queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) (*model.Block, error) {
 	qry := blockQuery.GetBlockByHeight(height)
-	rows, err := queryExecutor.ExecuteSelect(qry)
+	rows, err := queryExecutor.ExecuteSelect(qry, false)
 	defer func() {
 		if rows != nil {
 			_ = rows.Close()

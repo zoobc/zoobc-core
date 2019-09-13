@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func (*mockExecutorInitFailRows) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorInitFailRows) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{

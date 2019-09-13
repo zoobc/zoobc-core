@@ -101,7 +101,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	selectQuery, args = caseQuery.Build()
 	countQuery = query.GetTotalRecordOfSelect(selectQuery)
 
-	rows, err = ut.Query.ExecuteSelect(countQuery, args...)
+	rows, err = ut.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 
 	selectQuery, args = caseQuery.Build()
-	rows, err = ut.Query.ExecuteSelect(selectQuery, args...)
+	rows, err = ut.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, err
 	}
