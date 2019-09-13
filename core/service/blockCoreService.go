@@ -39,7 +39,7 @@ type (
 			secretPhrase string,
 			timestamp int64,
 		) (*model.Block, error)
-		PushBlock(previousBlock, block *model.Block, needLock bool) error
+		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
@@ -204,8 +204,9 @@ func (*BlockService) VerifySeed(
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
 }
 
-// PushBlock push block into blockchain
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bool) error {
+// PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
+// broadcast flag to `true`, and `false` otherwise
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
 	// needLock indicates the push block needs to be protected
 	if needLock {
 		bs.Wait()
@@ -229,7 +230,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 			tx.BlockID = block.ID
 			tx.Height = block.Height
 			tx.TransactionIndex = uint32(index) + 1
-
 			// validate tx here
 			// check if is in mempool : if yes, undo unconfirmed
 			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), tx.ID)
@@ -282,11 +282,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock bo
 		return err
 	}
 	// broadcast block
-	if block.Height > 0 {
+	if block.Height > 0 && broadcast {
 		bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	}
 	return nil
-
 }
 
 // GetBlockByID return the last pushed block
@@ -563,7 +562,7 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
-	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true)
+	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
 	if err != nil {
 		log.Fatal("PushGenesisBlock:fail")
 	}
@@ -608,7 +607,7 @@ func (bs *BlockService) ReceiveBlock(
 					"previous block hash does not match with last block hash",
 				)
 			}
-			err = bs.PushBlock(lastBlock, block, true)
+			err = bs.PushBlock(lastBlock, block, true, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
 			}
