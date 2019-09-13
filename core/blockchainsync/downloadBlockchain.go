@@ -290,7 +290,7 @@ func (bss *DownloadBlockchainService) downloadFromPeer(feederPeer *model.Peer, c
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
 		if lastBlock.ID == previousBlockID {
-			err := bss.BlockService.PushBlock(lastBlock, block, false)
+			err := bss.BlockService.PushBlock(lastBlock, block, false, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bss.P2pService.Blacklist(peer)

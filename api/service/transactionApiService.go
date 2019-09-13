@@ -70,7 +70,7 @@ func (ts *TransactionService) GetTransaction(
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
-	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
+	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -144,7 +144,7 @@ func (ts *TransactionService) GetTransactions(
 	selectQuery, args = caseQuery.Build()
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ts.Query.ExecuteSelect(countQuery, args...)
+	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (ts *TransactionService) GetTransactions(
 		}
 	}
 
-	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
+	rows, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, err
 	}

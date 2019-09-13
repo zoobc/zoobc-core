@@ -34,7 +34,8 @@ type (
 	}
 )
 
-func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -71,7 +72,8 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess) ExecuteTransac
 	return nil
 }
 
-func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -108,7 +110,8 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteTransactio
 	return errors.New("MockdeError")
 }
 
-func (*mockExecutorValidateRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -141,7 +144,8 @@ func (*mockExecutorValidateRemoveNodeRegistrationSuccess) ExecuteSelect(qe strin
 	return nil, nil
 }
 
-func (*mockExecutorValidateRemoveNodeRegistrationFailGetRNode) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateRemoveNodeRegistrationFailGetRNode) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		return nil, errors.New("MockedError")
@@ -149,7 +153,8 @@ func (*mockExecutorValidateRemoveNodeRegistrationFailGetRNode) ExecuteSelect(qe 
 	return nil, nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -223,7 +228,8 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransacti
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		return nil, errors.New("MockedError")
@@ -405,7 +411,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

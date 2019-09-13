@@ -44,7 +44,7 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 		rows *sql.Rows
 	)
 	blockQuery := query.NewBlockQuery(chainType)
-	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id))
+	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id), false)
 	if err != nil {
 		fmt.Printf("GetBlockByID fails %v\n", err)
 		return nil, err
@@ -70,7 +70,7 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 	blockQuery := query.NewBlockQuery(chainType)
 
-	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height))
+	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
 		fmt.Printf("GetBlockByHeight fails %v\n", err)
 		return nil, err
@@ -89,7 +89,7 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	var err error
 	var blocks []*model.Block
 	blockQuery := query.NewBlockQuery(chainType)
-	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize))
+	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize), false)
 
 	if err != nil {
 		fmt.Printf("GetBlocks fails %v\n", err)

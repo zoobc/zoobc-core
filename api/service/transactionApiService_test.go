@@ -90,15 +90,15 @@ func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) transa
 	return &mockTxTypeSuccess{}
 }
 
-func (*mockTxTypeValidateFail) Validate() error {
+func (*mockTxTypeValidateFail) Validate(bool) error {
 	return errors.New("mockError:validateFail")
 }
 
-func (*mockTxTypeApplyUnconfirmedFail) Validate() error {
+func (*mockTxTypeApplyUnconfirmedFail) Validate(bool) error {
 	return nil
 }
 
-func (*mockTxTypeSuccess) Validate() error {
+func (*mockTxTypeSuccess) Validate(bool) error {
 	return nil
 }
 
@@ -130,11 +130,11 @@ func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.Mempool
 	return nil
 }
 
-func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:getTxsFail")
 }
 
-func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
@@ -486,10 +486,10 @@ type (
 	}
 )
 
-func (*mockQueryGetTransactionsFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("want error")
 }
-func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	switch strings.Contains(qStr, "total_record") {
 	case true:
@@ -636,7 +636,8 @@ type (
 	}
 )
 
-func (*mockQueryGetTransactionSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionSuccess) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).AddRow(

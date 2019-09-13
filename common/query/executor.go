@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"sync"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 )
 
 type (
@@ -12,7 +14,7 @@ type (
 	ExecutorInterface interface {
 		BeginTx() error
 		Execute(string) (sql.Result, error)
-		ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error)
+		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
@@ -98,17 +100,26 @@ And ***need to `Close()` the rows***.
 This function is necessary if you want to processing the rows,
 otherwise you can use `Execute` or `ExecuteTransactions`
 */
-func (qe *Executor) ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error) {
+func (qe *Executor) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	var (
 		err  error
 		rows *sql.Rows
 	)
-
-	rows, err = qe.Db.Query(query, args...)
+	if tx {
+		if qe.Tx != nil {
+			rows, err = qe.Tx.Query(query, args...)
+		} else {
+			return nil, blocker.NewBlocker(
+				blocker.DBErr,
+				"transacation need to be begun before read the transaction state",
+			)
+		}
+	} else {
+		rows, err = qe.Db.Query(query, args...)
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	return rows, nil
 }
 
@@ -161,7 +172,10 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 func (qe *Executor) CommitTx() error {
 	err := qe.Tx.Commit()
 
-	defer qe.Unlock() // either success or not struct access should be unlocked once done
+	defer func() {
+		qe.Unlock() // either success or not struct access should be unlocked once done
+		qe.Tx = nil
+	}()
 	if err != nil {
 		_ = qe.Tx.Rollback()
 		return err
@@ -172,6 +186,7 @@ func (qe *Executor) CommitTx() error {
 // RollbackTx rollback and unlock executor in case any single tx fail
 func (qe *Executor) RollbackTx() error {
 	err := qe.Tx.Rollback()
+	qe.Tx = nil
 	defer qe.Unlock()
 	return err
 }

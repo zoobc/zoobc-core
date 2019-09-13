@@ -57,7 +57,8 @@ func (*executorRemoveAccountDatasetApplyConfirmedFail) ExecuteTransactions([][]i
 	return errors.New("MockedError")
 }
 
-func (*executorRemoveAccountDatasetApplyUnconfirmedSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorRemoveAccountDatasetApplyUnconfirmedSuccess) ExecuteSelect(qStr string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -74,7 +75,8 @@ func (*executorRemoveAccountDatasetApplyUnconfirmedSuccess) ExecuteTransaction(q
 	return nil
 }
 
-func (*executorRemoveAccountDatasetApplyUnconfirmedFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorRemoveAccountDatasetApplyUnconfirmedFail) ExecuteSelect(qStr string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -131,7 +133,7 @@ func (*executorRemoveAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string
 	return db.QueryRow(qStr)
 }
 
-func (*executorRemoveAccountDatasetValidateFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*executorRemoveAccountDatasetValidateFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
@@ -440,7 +442,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveAccountDataset.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
