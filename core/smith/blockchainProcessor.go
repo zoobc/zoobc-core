@@ -2,11 +2,11 @@ package smith
 
 import (
 	"errors"
-	"log"
 	"math"
 	"math/big"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -98,7 +98,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	if lastBlock.GetID() != bp.LastBlockID || bp.Generator.AccountAddress != "" {
 		if bp.Generator.SmithTime > smithMax {
-			log.Printf("skip forge\n")
+			log.Info("skip forge")
 			return errors.New("SmithSkip")
 		}
 
@@ -135,6 +135,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			if err != nil {
 				return err
 			}
+			log.Printf("block forged: fee %d\n", block.TotalFee)
 			stop = true
 		}
 	}
