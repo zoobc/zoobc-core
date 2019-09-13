@@ -646,7 +646,7 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 		participationScores []*model.ParticipationScore
 	)
 	participationScoreQ, args := bs.ParticipationScoreQuery.GetParticipationScoreByNodePublicKey(nodePublicKey)
-	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ, args...)
+	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ, false, args...)
 	if err != nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

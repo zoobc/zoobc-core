@@ -12,7 +12,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -724,7 +723,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					Version:              1,
 					PreviousBlockHash:    []byte{},
 					BlockSeed:            []byte{},
-					BlocksmithAddress:    "",
+					BlocksmithPublicKey:  bcsNodePubKey1,
 					TotalAmount:          0,
 					TotalFee:             0,
 					TotalCoinBase:        0,
@@ -733,18 +732,18 @@ func TestBlockService_PushBlock(t *testing.T) {
 					BlockSignature:       []byte{},
 				},
 				block: &model.Block{
-					ID:                1,
-					Timestamp:         12000,
-					Version:           1,
-					PreviousBlockHash: []byte{},
-					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
-					TotalAmount:       0,
-					TotalFee:          0,
-					TotalCoinBase:     0,
-					Transactions:      []*model.Transaction{},
-					PayloadHash:       []byte{},
-					BlockSignature:    []byte{},
+					ID:                  1,
+					Timestamp:           12000,
+					Version:             1,
+					PreviousBlockHash:   []byte{},
+					BlockSeed:           []byte{},
+					BlocksmithPublicKey: bcsNodePubKey1,
+					TotalAmount:         0,
+					TotalFee:            0,
+					TotalCoinBase:       0,
+					Transactions:        []*model.Transaction{},
+					PayloadHash:         []byte{},
+					BlockSignature:      []byte{},
 				},
 				broadcast: true,
 			},

@@ -79,7 +79,7 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
 	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(nodePublicKey)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, args...)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
 		return nil, err
 	}
