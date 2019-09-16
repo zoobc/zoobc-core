@@ -6,7 +6,6 @@ jobs:
       - image: circleci/golang:1.12.0
     environment:
       - DEP_VERSION: 0.5.1
-      - GOLANGCI_LINT: 1.18.0
     steps:
       - run:
           name: Switch to SSH
