@@ -212,7 +212,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	if needLock {
 		bs.Wait()
 	}
-	if previousBlock.GetID() != -1 {
+	if previousBlock.GetID() != -1 && block.CumulativeDifficulty == "" && block.SmithScale == 0 {
 		block.Height = previousBlock.GetHeight() + 1
 		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}

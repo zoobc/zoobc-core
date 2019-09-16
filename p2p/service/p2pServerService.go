@@ -249,6 +249,8 @@ func (ps *P2PServerService) GetNextBlocks(
 			break
 		}
 
+		txs, _ := ps.BlockServices[chainType.GetTypeInt()].GetTransactionsByBlockID(block.ID)
+		block.Transactions = txs
 		blocksMessage = append(blocksMessage, block)
 	}
 	return &model.BlocksData{NextBlocks: blocksMessage}, nil
