@@ -63,7 +63,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	if tx.Height == 0 {
 		ps := &model.ParticipationScore{
 			NodeID: tx.ID,
-			Score:  constant.MaxParticipationScore / 10,
+			Score:  constant.DefaultParticipationScore,
 			Latest: true,
 			Height: 0,
 		}

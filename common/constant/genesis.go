@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -1184178034802704146
+	MainchainGenesisBlockID int64 = 6768983159067257041
 )
 
 var (
@@ -13,6 +13,8 @@ var (
 	MainchainGenesisBlockTimestamp = int64(1562117271)
 	MainchainGenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn" +
 		"_cXW7uPDVPOrnXuP98GEAUC7" // 042643fd5c5f3b64bd6b38882f7727fdc5d6eee3c354f3ab9d7b8ff7c1840140
+	MainchainGenesisBlockSeed     = make([]byte, 64)
+	MainchainGenesisNodePublicKey = make([]byte, 32)
 	// MainchainGenesisFundReceivers stake holders account data.
 	// Note: 1 ZOO = 100000000 ZOOBIT, node only know the zoobit representation, zoo representation is handled by frontend
 	MainchainGenesisFundReceivers = []struct {

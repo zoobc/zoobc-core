@@ -2,15 +2,14 @@
 package util
 
 import (
-	"bytes"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	commonUtils "github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -87,7 +86,7 @@ func CalculateSmithScale(previousBlock, block *model.Block, smithingDelayTime in
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
 		digest := sha3.New512()
-		blockByte, _ := GetBlockByte(block, true)
+		blockByte, _ := commonUtils.GetBlockByte(block, true)
 		_, _ = digest.Write(blockByte)
 		hash, _ := GetBlockHash(block)
 		block.ID = GetBlockIDFromHash(hash)
@@ -114,37 +113,12 @@ func GetBlockIDFromHash(blockHash []byte) int64 {
 // note: the block must be signed, otherwise this function returns an error
 func GetBlockHash(block *model.Block) ([]byte, error) {
 	digest := sha3.New512()
-	blockByte, _ := GetBlockByte(block, true)
+	blockByte, _ := commonUtils.GetBlockByte(block, true)
 	_, err := digest.Write(blockByte)
 	if err != nil {
 		return nil, err
 	}
 	return digest.Sum([]byte{}), nil
-}
-
-// GetBlockByte generate value for `Bytes` field if not assigned yet
-// return .`Bytes` if value assigned
-func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(block.GetVersion()))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTimestamp())))
-	buffer.Write(util.ConvertIntToBytes(len(block.GetTransactions())))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalFee())))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
-	buffer.Write(block.PayloadHash)
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
-	buffer.Write([]byte(block.GetBlocksmithAddress()))
-	buffer.Write(block.GetBlockSeed())
-	buffer.Write(block.GetPreviousBlockHash())
-	if signed {
-		if block.BlockSignature == nil {
-			return nil, blocker.NewBlocker(blocker.BlockErr, "invalid signature")
-		}
-		buffer.Write(block.BlockSignature)
-	}
-	return buffer.Bytes(), nil
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
@@ -157,15 +131,15 @@ func ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	}
 	// Verify Signature
 	sig := new(crypto.Signature)
-	blockByte, err := GetBlockByte(block, false)
+	blockByte, err := commonUtils.GetBlockByte(block, false)
 	if err != nil {
 		return err
 	}
 
-	if !sig.VerifySignature(
+	if !sig.VerifyNodeSignature(
 		blockByte,
 		block.BlockSignature,
-		block.BlocksmithAddress,
+		block.BlocksmithPublicKey,
 	) {
 		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 	}
