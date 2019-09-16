@@ -54,7 +54,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			}
 			lastBlockHash, _ := utils.GetBlockHash(lastBlock)
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
-				err := fp.BlockService.PushBlock(lastBlock, block, false)
+				err := fp.BlockService.PushBlock(lastBlock, block, false, false)
 				if err != nil {
 					// TODO: blacklist the wrong peer
 					// fp.P2pService.Blacklist(feederPeer)
@@ -95,7 +95,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				return err
 			}
-			errPushBlock := fp.BlockService.PushBlock(lastBlock, block, false)
+			errPushBlock := fp.BlockService.PushBlock(lastBlock, block, false, false)
 			if errPushBlock != nil {
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}

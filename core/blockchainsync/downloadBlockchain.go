@@ -326,13 +326,13 @@ func (bd *BlockchainDownloader) getNextBlocks(maxNextBlocks uint32, peerUsed *mo
 	blockIds []int64, start, stop uint32) ([]*model.Block, error) {
 	var blocks []*model.Block
 	nextBlocksResponse, err := bd.PeerServiceClient.GetNextBlocks(peerUsed, bd.ChainType, blockIds[start:stop], blockIds[start])
+	if err != nil {
+		return nil, err
+	}
 	nextBlocks := nextBlocksResponse.NextBlocks
 	nextBlocksLength := uint32(len(nextBlocks))
 	if nextBlocksLength > maxNextBlocks {
 		return nil, fmt.Errorf("too many blocks returned (%d blocks), possibly a rogue peer %v", nextBlocksLength, peerUsed.Info.Address)
-	}
-	if nextBlocks == nil || err != nil || nextBlocksLength == 0 {
-		return nil, err
 	}
 	if len(nextBlocks) > 0 {
 		return nextBlocks, nil
