@@ -5,8 +5,8 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -47,32 +47,41 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	blockQuery := query.NewBlockQuery(chainType)
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id), false)
 	if err != nil {
-		fmt.Printf("GetBlockByID fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
-		return nil, errors.New("BlockNotFound")
+		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
 	}
 
 	// get node registration related to current block's BlockSmith
+	block := bl[0]
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
-	rows, err = bs.Query.ExecuteSelect(nodeRegistrationQuery.GetNodeRegistrationByNodePublicKeyVersioned(bl.BlockSmithPublicKey, bl.Height), false)
+	qry, args := nodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
+	rows, err = bs.Query.ExecuteSelect(qry, false, args...)
 	if err != nil {
-		fmt.Printf("GetBlockByID fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 
 	nr = nodeRegistrationQuery.BuildModel(nr, rows)
 	if len(nr) == 0 {
-		return nil, errors.New("BlockNotFound")
+		return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
 	}
-	bl.BlocksmithAccountAddress = nr.AccountAddress
+	nodeRegistration := nr[0]
+	block.BlocksmithAccountAddress = nodeRegistration.AccountAddress
+	//FIXME: return mocked data, until underlying logic is implemented
+	block.TotalReward = block.TotalFee + 50 ^ 10*8
+	// ???
+	block.TotalReceipts = 99
+	// ???
+	block.ReceiptValue = 99
+	// once we have the receipt for this block we should be able to calculate this using util.CalculateParticipationScore
+	block.PopChange = -200
 
-	return bl[0], nil
+	return block, nil
 
 }
 
@@ -88,12 +97,12 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
-		fmt.Printf("GetBlockByHeight fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
+		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
 		return nil, errors.New("BlockNotFound")
 	}
 	return bl[0], nil
@@ -108,8 +117,7 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize), false)
 
 	if err != nil {
-		fmt.Printf("GetBlocks fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 	blocks = blockQuery.BuildModel(blocks, rows)
