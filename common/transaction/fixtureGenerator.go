@@ -27,7 +27,7 @@ var block1 = &model.Block{
 	SmithScale:           1,
 	PayloadLength:        0,
 	PayloadHash:          []byte{},
-	BlocksmithAddress:    senderAddress1,
+	BlocksmithPublicKey:  nodePubKey1,
 	TotalAmount:          100000000,
 	TotalFee:             10000000,
 	TotalCoinBase:        1,

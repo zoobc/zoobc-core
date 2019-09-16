@@ -13,4 +13,6 @@ const (
 	MaxReceipt uint32 = 20
 	// MaxParticipationScore maximum achievable score
 	MaxParticipationScore int64 = 1000000 * int64(ScalarReceiptScore)
+	// Starting score for newly registered nodes
+	DefaultParticipationScore int64 = MaxParticipationScore / 10
 )

@@ -13,6 +13,7 @@ type (
 		Sign(payload []byte, signatureType uint32, seed string) []byte
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) bool
+		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
 	}
 
 	// Signature object handle signing and verifying different signature

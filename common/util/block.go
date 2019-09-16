@@ -49,8 +49,12 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
 	buffer.Write(block.PayloadHash)
-	buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithAddress)))))
-	buffer.Write([]byte(block.GetBlocksmithAddress()))
+
+	buffer.Write(block.BlocksmithPublicKey)
+	// FIXME: remove this comment after making sure the one below is a repetition and can be deleted
+	// buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithPublicKey)))))
+	// buffer.Write([]byte(block.GetBlocksmithAddress()))
+
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
 	if signed {

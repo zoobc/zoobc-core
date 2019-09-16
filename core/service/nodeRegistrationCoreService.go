@@ -14,6 +14,7 @@ type (
 	NodeRegistrationServiceInterface interface {
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
+		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		NodeRegistryListener() observer.Listener
@@ -74,6 +75,21 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 	}
 
 	return nodeRegistrations, nil
+}
+
+func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
+	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(nodePublicKey)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if len(nodeRegistrations) == 0 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	}
+
+	return nodeRegistrations[0], nil
 }
 
 // AdmitNodes update given node registrations' queued field to false and set default participation score to it
