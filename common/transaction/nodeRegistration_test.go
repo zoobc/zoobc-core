@@ -199,7 +199,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		return db.Query("A")
 	}
 	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version"+
+		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -212,7 +212,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
@@ -237,7 +237,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		return db.Query("A")
 	}
 	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version"+
+		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block WHERE height = 0" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -250,7 +250,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",

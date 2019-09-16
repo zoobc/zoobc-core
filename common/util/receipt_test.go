@@ -1,10 +1,11 @@
 package util
 
 import (
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
@@ -32,7 +33,7 @@ var (
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
 		SmithScale:           0,
-		BlocksmithAddress:    "",
+		BlocksmithPublicKey:  []byte{},
 		TotalAmount:          0,
 		TotalFee:             0,
 		TotalCoinBase:        0,
