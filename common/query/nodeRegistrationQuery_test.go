@@ -256,3 +256,18 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsWithZeroScore(t *testing.T) {
 		}
 	})
 }
+
+func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKeyVersioned(t *testing.T) {
+	t.Run("GetNodeRegistrationByNodePublicKeyVersioned:success", func(t *testing.T) {
+		res, arg := mockNodeRegistrationQuery.GetNodeRegistrationByNodePublicKeyVersioned([]byte{1}, uint32(1))
+		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+			"queued, latest, height FROM node_registry WHERE node_public_key = ? AND height = ?"
+		wantArg := []interface{}{[]byte{1}, uint32(1)}
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+		if !reflect.DeepEqual(arg, wantArg) {
+			t.Errorf("argument not match:\nget: %v\nwant: %v", arg[0], wantArg[0])
+		}
+	})
+}

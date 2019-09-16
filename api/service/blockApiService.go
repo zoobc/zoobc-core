@@ -41,6 +41,7 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	var (
 		err  error
 		bl   []*model.Block
+		nr   []*model.NodeRegistration
 		rows *sql.Rows
 	)
 	blockQuery := query.NewBlockQuery(chainType)
@@ -55,6 +56,22 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	if len(bl) == 0 {
 		return nil, errors.New("BlockNotFound")
 	}
+
+	//FIXME: STEFFF restart from here once #233 is merged
+	// get node registration related to current block's BlockSmith
+	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
+	// rows, err = bs.Query.ExecuteSelect(nodeRegistrationQuery.GetNodeRegistrationByNodePublicKeyVersioned(bl.BlockSmithPublicKey, bl.Height), false)
+	// if err != nil {
+	// 	fmt.Printf("GetBlockByID fails %v\n", err)
+	// 	return nil, err
+	// }
+	// defer rows.Close()
+
+	nr = nodeRegistrationQuery.BuildModel(nr, rows)
+	if len(nr) == 0 {
+		return nil, errors.New("BlockNotFound")
+	}
+	bl.BlocksmithID = nr.AccountAddress
 
 	return bl[0], nil
 
