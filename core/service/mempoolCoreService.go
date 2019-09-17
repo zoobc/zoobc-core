@@ -282,7 +282,8 @@ func (mps *MempoolService) ReceivedTransaction(
 		senderPublicKey,
 		nodePublicKey,
 		receivedTxHash[:],
-		constant.ReceiptDatumTypeTransaction)
+		constant.ReceiptDatumTypeTransaction,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -6,14 +6,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"google.golang.org/grpc/metadata"
-
-	"github.com/sirupsen/logrus"
-
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 /*

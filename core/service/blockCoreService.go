@@ -617,7 +617,8 @@ func (bs *BlockService) ReceiveBlock(
 				senderPublicKey,
 				nodePublicKey,
 				blockHash,
-				constant.ReceiptDatumTypeBlock)
+				constant.ReceiptDatumTypeBlock,
+			)
 			if err != nil {
 				return nil, err
 			}
