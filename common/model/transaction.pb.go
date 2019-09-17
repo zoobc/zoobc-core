@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -794,11 +795,12 @@ func (m *GetTransactionRequest) GetID() int64 {
 
 // GetTransactions return GetTransactionsResponse
 type GetTransactionsRequest struct {
-	AccountAddress       string      `protobuf:"bytes,3,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
-	TimestampStart       int64       `protobuf:"varint,4,opt,name=TimestampStart,proto3" json:"TimestampStart,omitempty"`
-	TimestampEnd         int64       `protobuf:"varint,5,opt,name=TimestampEnd,proto3" json:"TimestampEnd,omitempty"`
-	TransactionType      uint32      `protobuf:"varint,6,opt,name=TransactionType,proto3" json:"TransactionType,omitempty"`
-	Pagination           *Pagination `protobuf:"bytes,7,opt,name=Pagination,proto3" json:"Pagination,omitempty"`
+	AccountAddress       string      `protobuf:"bytes,1,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
+	Height               uint32      `protobuf:"varint,2,opt,name=Height,proto3" json:"Height,omitempty"`
+	TimestampStart       int64       `protobuf:"varint,3,opt,name=TimestampStart,proto3" json:"TimestampStart,omitempty"`
+	TimestampEnd         int64       `protobuf:"varint,4,opt,name=TimestampEnd,proto3" json:"TimestampEnd,omitempty"`
+	TransactionType      uint32      `protobuf:"varint,5,opt,name=TransactionType,proto3" json:"TransactionType,omitempty"`
+	Pagination           *Pagination `protobuf:"bytes,6,opt,name=Pagination,proto3" json:"Pagination,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -834,6 +836,13 @@ func (m *GetTransactionsRequest) GetAccountAddress() string {
 		return m.AccountAddress
 	}
 	return ""
+}
+
+func (m *GetTransactionsRequest) GetHeight() uint32 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
 }
 
 func (m *GetTransactionsRequest) GetTimestampStart() int64 {
