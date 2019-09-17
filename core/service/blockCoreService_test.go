@@ -2040,7 +2040,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 	block := &model.Block{
 		ID:                   999,
-		PreviousBlockHash:    []byte{},
+		PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
 		Height:               1,
 		Timestamp:            1562806389280,
 		BlockSeed:            []byte{},
@@ -2103,7 +2103,8 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 			wantErr: false,
 			want: &model.BlockExtendedInfo{
 				ID:                       999,
-				PreviousBlockHash:        []byte{},
+				PreviousBlockHash:        []byte{1, 1, 1, 1, 1, 1, 1, 1},
+				PreviousBlockID:          72340172838076673,
 				Height:                   1,
 				Timestamp:                1562806389280,
 				BlockSeed:                []byte{},

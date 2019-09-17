@@ -680,13 +680,14 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	blExt.BlocksmithPublicKey = block.BlocksmithPublicKey
 	blExt.TotalAmount = block.TotalAmount
 	blExt.TotalFee = block.TotalFee
-	//FIXME: return mocked data, until underlying logic is implemented
-	blExt.TotalCoinBase = blExt.TotalFee + 50 ^ 10*8
 	blExt.Version = block.Version
 	blExt.PayloadLength = block.PayloadLength
 	blExt.PayloadHash = block.PayloadHash
+	//FIXME: return mocked data, until underlying logic is implemented
+	blExt.TotalCoinBase = blExt.TotalFee + 50 ^ 10*8
 
 	// computed fields
+	blExt.PreviousBlockID = util.GetBlockIDFromHash(block.PreviousBlockHash)
 
 	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
 	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
@@ -710,5 +711,6 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	blExt.ReceiptValue = 99
 	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
 	blExt.PopChange = -20
+
 	return blExt, nil
 }
