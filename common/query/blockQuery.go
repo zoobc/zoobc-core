@@ -61,7 +61,8 @@ func (bq *BlockQuery) getTableName() string {
 
 // GetBlocks returns query string to get multiple blocks
 func (bq *BlockQuery) GetBlocks(height, size uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d LIMIT %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height, size)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d ORDER BY height ASC LIMIT %d",
+		strings.Join(bq.Fields, ", "), bq.getTableName(), height, size)
 }
 
 func (bq *BlockQuery) GetLastBlock() string {
