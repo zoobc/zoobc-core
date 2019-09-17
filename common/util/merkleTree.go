@@ -2,10 +2,11 @@ package util
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"golang.org/x/crypto/sha3"
 	"math"
 	"reflect"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"golang.org/x/crypto/sha3"
 )
 
 type MerkleRoot struct {
@@ -35,8 +36,10 @@ func (mr *MerkleRoot) merkle(items []*bytes.Buffer) *bytes.Buffer {
 	if itemLength == 1 {
 		return items[0]
 	}
-	return mr.hash(mr.merkle(items[:itemLength/2]), mr.merkle(items[itemLength/2:]),
-		int32(math.Log2(float64(itemLength))))
+	return mr.hash(
+		mr.merkle(items[:itemLength/2]), mr.merkle(items[itemLength/2:]),
+		int32(math.Log2(float64(itemLength))),
+	)
 }
 
 // hash function take the 2 data to be hashed for building merkle tree

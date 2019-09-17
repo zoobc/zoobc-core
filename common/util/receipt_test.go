@@ -1,10 +1,11 @@
 package util
 
 import (
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
