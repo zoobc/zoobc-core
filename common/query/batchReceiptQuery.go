@@ -8,12 +8,14 @@ import (
 )
 
 type (
+	// BatchReceiptQueryInterface interface for BatchReceiptQuery
 	BatchReceiptQueryInterface interface {
 		InsertBatchReceipt(receipt *model.Receipt) (qStr string, args []interface{})
 		GetBatchReceipts() string
 		RemoveBatchReceipts() string
 		ExtractModel(receipt *model.Receipt) []interface{}
 	}
+	// BatchReceiptQuery us query for BatchReceipt
 	BatchReceiptQuery struct {
 		Fields    []string
 		TableName string

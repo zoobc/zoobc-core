@@ -86,7 +86,11 @@ func TestBatchReceiptQuery_InsertBatchReceipt(t *testing.T) {
 			args: args{
 				receipt: mockBatchReceipt,
 			},
-			wantQStr: "INSERT INTO batch_receipt",
+			wantQStr: fmt.Sprintf(
+				"INSERT INTO batch_receipt (%s) VALUES(%s)",
+				strings.Join(mockBatchQuery.Fields, ", "),
+				fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockBatchQuery.Fields)-1)),
+			),
 			wantArgs: mockBatchQuery.ExtractModel(mockBatchReceipt),
 		},
 	}
@@ -98,7 +102,7 @@ func TestBatchReceiptQuery_InsertBatchReceipt(t *testing.T) {
 			}
 			gotQStr, gotArgs := br.InsertBatchReceipt(tt.args.receipt)
 			if gotQStr != tt.wantQStr {
-				t.Errorf("BatchReceiptQuery.InsertBatchReceipt() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
+				t.Errorf("BatchReceiptQuery.InsertBatchReceipt() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("BatchReceiptQuery.InsertBatchReceipt() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
