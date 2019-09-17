@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"time"
 
 	"github.com/zoobc/zoobc-core/observer"
@@ -67,6 +68,7 @@ func (ts *TransactionService) GetTransaction(
 		rows   *sql.Rows
 		txTemp []*model.Transaction
 	)
+
 	txQuery := query.NewTransactionQuery(chainType)
 	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID), false)
 	if err != nil {
@@ -100,6 +102,12 @@ func (ts *TransactionService) GetTransactions(
 	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
+	// Represent transaction fields
+	txFields := map[string]string{
+		"Height":  "block_height",
+		"BlockID": "block_id",
+	}
+
 	accountAddress := params.GetAccountAddress()
 	if accountAddress != "" {
 		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
@@ -116,7 +124,16 @@ func (ts *TransactionService) GetTransactions(
 		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
 	}
 
+	page := params.GetPagination()
+	height := params.GetHeight()
+	if height != 0 {
+		caseQuery.And(caseQuery.Equal("block_height", height))
+		if page.GetLimit() == 0 {
+			page.Limit = math.MaxUint32
+		}
+	}
 	selectQuery, args = caseQuery.Build()
+
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
@@ -134,16 +151,15 @@ func (ts *TransactionService) GetTransactions(
 		}
 	}
 
-	// Get Transactions
-	page := params.GetPagination()
-	if page.GetOrderField() == "" {
+	// Get Transactions with Pagination
+	if page.GetOrderField() == "" || txFields[page.GetOrderField()] == "" {
 		caseQuery.OrderBy("timestamp", page.GetOrderBy())
 	} else {
-		caseQuery.OrderBy(page.GetOrderField(), page.GetOrderBy())
+		caseQuery.OrderBy(txFields[page.GetOrderField()], page.GetOrderBy())
 	}
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
-
 	selectQuery, args = caseQuery.Build()
+
 	rows, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, err
