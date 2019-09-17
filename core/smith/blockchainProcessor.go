@@ -133,6 +133,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			// if validated push
 			err = bp.BlockService.PushBlock(previousBlock, block, true, true)
 			if err != nil {
+				log.Warn("pushBlock err ", block.Height, " ", err)
 				return err
 			}
 			log.Printf("block forged: fee %d\n", block.TotalFee)

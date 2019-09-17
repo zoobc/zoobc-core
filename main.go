@@ -187,7 +187,10 @@ func startServices() {
 
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
-		_ = processor.StartSmithing()
+		err := processor.StartSmithing()
+		if err != nil {
+			log.Warn("Smith error: ", err)
+		}
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)
 	}
 }
