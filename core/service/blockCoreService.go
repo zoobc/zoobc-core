@@ -221,7 +221,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err := bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		bs.QueryExecutor.RollbackTx()
+		_ = bs.QueryExecutor.RollbackTx()
 		return err
 	}
 	// apply transactions and remove them from mempool
