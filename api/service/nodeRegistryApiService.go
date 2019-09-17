@@ -43,8 +43,14 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields[1:]...)
 	caseQuery.Where(caseQuery.Equal("latest", 1))
-	selectQuery, args = caseQuery.Build()
+	caseQuery.And(caseQuery.Equal("queued", params.GetQueued()))
+	caseQuery.And(caseQuery.GreaterEqual("registration_height", params.GetMinRegistrationHeight()))
+	if maxHeight > 0 {
+		caseQuery.And(caseQuery.LessEqual("registration_height", maxHeight))
+	}
+
 	// count first
+	selectQuery, args = caseQuery.Build()
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rows, err = ns.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
@@ -67,11 +73,6 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 		}
 	}
 
-	caseQuery.And(caseQuery.Equal("queued", params.GetQueued()))
-	caseQuery.And(caseQuery.GreaterEqual("registration_height", params.GetMinRegistrationHeight()))
-	if maxHeight > 0 {
-		caseQuery.And(caseQuery.LessEqual("registration_height", maxHeight))
-	}
 	if page.GetOrderField() == "" {
 		caseQuery.OrderBy("registration_height", page.GetOrderBy())
 	} else {
