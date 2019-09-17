@@ -108,6 +108,10 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 			crypto.NewSignature(),
 		),
 	})
+	// Set GRPC handler for node registry request
+	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
+		Service: service.NewNodeRegistryService(queryExecutor),
+	})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
