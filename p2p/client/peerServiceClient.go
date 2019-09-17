@@ -1,11 +1,13 @@
 package client
 
 import (
+	"bytes"
 	"context"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -25,12 +27,12 @@ type (
 			destPeer *model.Peer,
 			block *model.Block,
 			chainType chaintype.ChainType,
-		) (*model.Receipt, error)
+		) error
 		SendTransaction(
 			destPeer *model.Peer,
 			transactionBytes []byte,
 			chainType chaintype.ChainType,
-		) (*model.Receipt, error)
+		) error
 
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
@@ -40,11 +42,13 @@ type (
 	}
 	// PeerService represent peer service
 	PeerServiceClient struct {
-		Dialer        Dialer
-		Logger        *log.Logger
-		QueryExecutor query.ExecutorInterface
-		ReceiptQuery  query.ReceiptQueryInterface
-		NodePublicKey []byte
+		Dialer            Dialer
+		Logger            *log.Logger
+		QueryExecutor     query.ExecutorInterface
+		ReceiptQuery      query.ReceiptQueryInterface
+		BatchReceiptQuery query.BatchReceiptQueryInterface
+		MerkleTreeQuery   query.MerkleTreeQueryInterface
+		NodePublicKey     []byte
 	}
 )
 
@@ -56,6 +60,8 @@ func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
 	receiptQuery query.ReceiptQueryInterface,
 	nodePublicKey []byte,
+	batchReceiptQuery query.BatchReceiptQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 ) PeerServiceClientInterface {
 	logLevels := viper.GetStringSlice("logLevels")
 	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log", logLevels)
@@ -72,10 +78,12 @@ func NewPeerServiceClient(
 			}
 			return conn, nil
 		},
-		QueryExecutor: queryExecutor,
-		ReceiptQuery:  receiptQuery,
-		NodePublicKey: nodePublicKey,
-		Logger:        apiLogger,
+		QueryExecutor:     queryExecutor,
+		ReceiptQuery:      receiptQuery,
+		BatchReceiptQuery: batchReceiptQuery,
+		MerkleTreeQuery:   merkleTreeQuery,
+		NodePublicKey:     nodePublicKey,
+		Logger:            apiLogger,
 	}
 }
 
@@ -122,33 +130,96 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 	return res, err
 }
 
-// SendBlock send block to selected peer
+// SendBlock send block to selected peer, got Receipt
 func (psc *PeerServiceClient) SendBlock(
 	destPeer *model.Peer,
 	block *model.Block,
 	chainType chaintype.ChainType,
-) (*model.Receipt, error) {
+) error {
+
+	var (
+		count          uint32
+		err            error
+		receipt        *model.Receipt
+		merkleRoot     util.MerkleRoot
+		hashedReceipts []*bytes.Buffer
+		queries        [][]interface{}
+	)
+
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
+
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
-	receipt, err := p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
+	receipt, err = p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
 		SenderPublicKey: psc.NodePublicKey,
 		Block:           block,
 		ChainType:       chainType.GetTypeInt(),
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	insertReceiptQ, insertReceiptArg := psc.ReceiptQuery.InsertReceipt(receipt)
-	_, err = psc.QueryExecutor.ExecuteStatement(insertReceiptQ, insertReceiptArg...)
+
+	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(receipt)
+	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.DBErr,
-			"fail to save receipt",
-		)
+		return err
 	}
-	return receipt, err
+
+	countBatchReceiptQ := query.GetTotalRecordOfSelect(psc.BatchReceiptQuery.GetBatchReceipts())
+	err = psc.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count >= constant.ReceiptBatchMaximum {
+		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts()
+		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		queries = make([][]interface{}, count)
+		for rows.Next() {
+			r := new(model.Receipt)
+			err = rows.Scan(&r)
+			if err != nil {
+				return err
+			}
+
+			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(receipt)
+			queries = append(queries, []interface{}{
+				insertReceiptQ,
+				insertReceiptArgs,
+			})
+
+			hashedReceipts = append(
+				hashedReceipts,
+				bytes.NewBuffer(util.GetSignedReceiptBytes(r)),
+			)
+
+		}
+
+		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
+		if err != nil {
+			return err
+		}
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(merkleRoot.HashTree)
+		queries = append(queries, []interface{}{
+			insertMerkleTreeQ,
+			insertMerkleTreeArgs,
+		})
+
+		err = psc.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
 }
 
 // SendTransaction send transaction to selected peer
@@ -156,33 +227,94 @@ func (psc *PeerServiceClient) SendTransaction(
 	destPeer *model.Peer,
 	transactionBytes []byte,
 	chainType chaintype.ChainType,
-) (*model.Receipt, error) {
+) error {
+	var (
+		count          uint32
+		err            error
+		receipt        *model.Receipt
+		merkleRoot     util.MerkleRoot
+		hashedReceipts []*bytes.Buffer
+		queries        [][]interface{}
+	)
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
-	receipt, err := p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
+	receipt, err = p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
 		SenderPublicKey:  psc.NodePublicKey,
 		TransactionBytes: transactionBytes,
 		ChainType:        chainType.GetTypeInt(),
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	insertReceiptQ, insertReceiptArg := psc.ReceiptQuery.InsertReceipt(receipt)
-	_, err = psc.QueryExecutor.ExecuteStatement(insertReceiptQ, insertReceiptArg...)
+
+	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(receipt)
+	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.DBErr,
-			"fail to save receipt",
-		)
+		return err
 	}
-	return receipt, err
+
+	countBatchReceiptQ := query.GetTotalRecordOfSelect(psc.BatchReceiptQuery.GetBatchReceipts())
+	err = psc.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count >= constant.ReceiptBatchMaximum {
+		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts()
+		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		queries = make([][]interface{}, count)
+		for rows.Next() {
+			r := new(model.Receipt)
+			err = rows.Scan(&r)
+			if err != nil {
+				return err
+			}
+
+			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(receipt)
+			queries = append(queries, []interface{}{
+				insertReceiptQ,
+				insertReceiptArgs,
+			})
+
+			hashedReceipts = append(
+				hashedReceipts,
+				bytes.NewBuffer(util.GetSignedReceiptBytes(r)),
+			)
+
+		}
+
+		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
+		if err != nil {
+			return err
+		}
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(merkleRoot.HashTree)
+		queries = append(queries, []interface{}{
+			insertMerkleTreeQ,
+			insertMerkleTreeArgs,
+		})
+
+		err = psc.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+	return nil
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
-func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
-	chaintype chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error) {
+func (psc PeerServiceClient) GetCumulativeDifficulty(
+	destPeer *model.Peer,
+	chaintype chaintype.ChainType,
+) (*model.GetCumulativeDifficultyResponse, error) {
 	connection, _ := grpc.Dial(
 		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -201,8 +333,11 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(destPeer *model.Peer,
 }
 
 // GetCommonMilestoneBlockIDs request the blockIds that may act as milestone block
-func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
-	lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
+	destPeer *model.Peer,
+	chaintype chaintype.ChainType,
+	lastBlockID, lastMilestoneBlockID int64,
+) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -223,8 +358,12 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(destPeer *model.Peer, ch
 }
 
 // GetNextBlockIDs request the blockIds of the next blocks requested
-func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType,
-	blockID int64, limit uint32) (*model.BlockIdsResponse, error) {
+func (psc PeerServiceClient) GetNextBlockIDs(
+	destPeer *model.Peer,
+	chaintype chaintype.ChainType,
+	blockID int64,
+	limit uint32,
+) (*model.BlockIdsResponse, error) {
 	connection, _ := grpc.Dial(
 		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
@@ -245,8 +384,12 @@ func (psc PeerServiceClient) GetNextBlockIDs(destPeer *model.Peer, chaintype cha
 }
 
 // GetNextBlocks request the next blocks matching the array of blockIds
-func (psc PeerServiceClient) GetNextBlocks(destPeer *model.Peer, chaintype chaintype.ChainType, blockIds []int64,
-	blockID int64) (*model.BlocksData, error) {
+func (psc PeerServiceClient) GetNextBlocks(
+	destPeer *model.Peer,
+	chaintype chaintype.ChainType,
+	blockIds []int64,
+	blockID int64,
+) (*model.BlocksData, error) {
 	connection, _ := grpc.Dial(
 		p2pUtil.GetFullAddressPeer(destPeer),
 		grpc.WithInsecure(),
