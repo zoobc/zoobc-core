@@ -132,16 +132,8 @@ func (ts *TransactionService) GetTransactions(
 			page.Limit = math.MaxUint32
 		}
 	}
-
-	// Get Transactions Pagination & order
-	if page.GetOrderField() == "" || txFields[page.GetOrderField()] == "" {
-		caseQuery.OrderBy("timestamp", page.GetOrderBy())
-	} else {
-		caseQuery.OrderBy(txFields[page.GetOrderField()], page.GetOrderBy())
-	}
-	caseQuery.Paginate(page.GetLimit(), page.GetPage())
-
 	selectQuery, args = caseQuery.Build()
+
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
@@ -158,6 +150,15 @@ func (ts *TransactionService) GetTransactions(
 			return &model.GetTransactionsResponse{}, err
 		}
 	}
+
+	// Get Transactions with Pagination
+	if page.GetOrderField() == "" || txFields[page.GetOrderField()] == "" {
+		caseQuery.OrderBy("timestamp", page.GetOrderBy())
+	} else {
+		caseQuery.OrderBy(txFields[page.GetOrderField()], page.GetOrderBy())
+	}
+	caseQuery.Paginate(page.GetLimit(), page.GetPage())
+	selectQuery, args = caseQuery.Build()
 
 	rows, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
