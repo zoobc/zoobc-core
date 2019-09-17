@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	coreService "github.com/zoobc/zoobc-core/core/service"
 )
 
 // ResetBlockService resets the singleton back to nil, used in test case teardown
@@ -26,6 +27,9 @@ var (
 )
 
 type (
+	mockBlockService struct {
+		coreService.BlockService
+	}
 	mockQueryExecutorBlockByIDFail struct {
 		query.Executor
 	}
@@ -42,6 +46,10 @@ type (
 		query.Executor
 	}
 )
+
+func (*mockBlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+	return &model.BlockExtendedInfo{}, nil
+}
 
 func (*mockQueryExecutorBlockByIDFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
@@ -72,32 +80,6 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args
 
 func (*mockQueryExecutorGetBlocksFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
-}
-
-func TestNewBlockService(t *testing.T) {
-	db, _, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("error while opening database connection")
-	}
-	defer db.Close()
-
-	tests := []struct {
-		name string
-		want *BlockService
-	}{
-		{
-			name: "NewBlockService:InitiateBlockServiceInstance",
-			want: &BlockService{Query: query.NewQueryExecutor(db)},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockService(query.NewQueryExecutor(db)); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
-			}
-			defer ResetBlockService()
-		})
-	}
 }
 
 type (
@@ -135,7 +117,8 @@ func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ..
 }
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
-		Query query.ExecutorInterface
+		Query             query.ExecutorInterface
+		BlockCoreServices map[int32]coreService.BlockServiceInterface
 	}
 	type args struct {
 		chainType chaintype.ChainType
@@ -145,41 +128,31 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.Block
+		want    *model.BlockExtendedInfo
 		wantErr bool
 	}{
 		{
 			name: "GetBlockByID:success",
 			fields: fields{
 				Query: &mockQueryGetBlockByIDSuccess{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
 				id:        1,
 			},
 			wantErr: false,
-			want: &model.Block{
-				ID:                   1,
-				PreviousBlockHash:    []byte{1},
-				Height:               1,
-				Timestamp:            10000,
-				BlockSeed:            []byte{2},
-				BlockSignature:       []byte{3},
-				CumulativeDifficulty: "cumulative",
-				SmithScale:           1,
-				BlocksmithPublicKey:  basNodePubKey1,
-				PayloadLength:        1,
-				PayloadHash:          []byte{4},
-				TotalAmount:          1,
-				TotalFee:             1,
-				TotalCoinBase:        1,
-				Version:              1,
-			},
+			want:    &model.BlockExtendedInfo{},
 		},
 		{
 			name: "GetBlockByID:fail-{ExecuteSelectFail}",
 			fields: fields{
 				Query: &mockQueryExecutorBlockByIDFail{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -192,6 +165,9 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 			name: "GetBlockByID:fail-{Block.ID notfound}",
 			fields: fields{
 				Query: &mockQueryExecutorBlockByIDNotFound{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -204,7 +180,8 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Query: tt.fields.Query,
+				Query:             tt.fields.Query,
+				BlockCoreServices: tt.fields.BlockCoreServices,
 			}
 			got, err := bs.GetBlockByID(tt.args.chainType, tt.args.id)
 			if (err != nil) != tt.wantErr {
@@ -254,7 +231,8 @@ func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, arg
 
 func TestBlockService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
-		Query query.ExecutorInterface
+		Query             query.ExecutorInterface
+		BlockCoreServices map[int32]coreService.BlockServiceInterface
 	}
 	type args struct {
 		chainType chaintype.ChainType
@@ -264,41 +242,31 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.Block
+		want    *model.BlockExtendedInfo
 		wantErr bool
 	}{
 		{
 			name: "GetBlockByHeight:success",
 			fields: fields{
 				Query: &mockQueryGetBlockByHeightSuccess{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
 				height:    1,
 			},
 			wantErr: false,
-			want: &model.Block{
-				ID:                   1,
-				PreviousBlockHash:    []byte{1},
-				Height:               1,
-				Timestamp:            10000,
-				BlockSeed:            []byte{2},
-				BlockSignature:       []byte{3},
-				CumulativeDifficulty: "cumulative",
-				SmithScale:           1,
-				BlocksmithPublicKey:  basNodePubKey1,
-				PayloadLength:        1,
-				PayloadHash:          []byte{4},
-				TotalAmount:          1,
-				TotalFee:             1,
-				TotalCoinBase:        1,
-				Version:              1,
-			},
+			want:    &model.BlockExtendedInfo{},
 		},
 		{
 			name: "GetBlockByHeight:fail-{ExecuteSelectFail}",
 			fields: fields{
 				Query: &mockQueryExecutorBlockByIDFail{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -311,6 +279,9 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 			name: "GetBlockByHeight:fail-{Block.ID notfound}",
 			fields: fields{
 				Query: &mockQueryExecutorBlockByIDNotFound{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -323,7 +294,8 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Query: tt.fields.Query,
+				Query:             tt.fields.Query,
+				BlockCoreServices: tt.fields.BlockCoreServices,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.chainType, tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -373,7 +345,8 @@ func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, args ...in
 
 func TestBlockService_GetBlocks(t *testing.T) {
 	type fields struct {
-		Query query.ExecutorInterface
+		Query             query.ExecutorInterface
+		BlockCoreServices map[int32]coreService.BlockServiceInterface
 	}
 	type args struct {
 		chainType chaintype.ChainType
@@ -391,6 +364,9 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			name: "GetBlocks:success",
 			fields: fields{
 				Query: &mockQueryGetBlocksSuccess{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -400,25 +376,7 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			want: &model.GetBlocksResponse{
 				Height: 1,
 				Count:  1,
-				Blocks: []*model.Block{
-					{
-						ID:                   1,
-						PreviousBlockHash:    []byte{1},
-						Height:               1,
-						Timestamp:            10000,
-						BlockSeed:            []byte{2},
-						BlockSignature:       []byte{3},
-						CumulativeDifficulty: "cumulative",
-						SmithScale:           1,
-						BlocksmithPublicKey:  basNodePubKey1,
-						PayloadLength:        1,
-						PayloadHash:          []byte{4},
-						TotalAmount:          1,
-						TotalFee:             1,
-						TotalCoinBase:        1,
-						Version:              1,
-					},
-				},
+				Blocks: []*model.BlockExtendedInfo{{}},
 			},
 			wantErr: false,
 		},
@@ -426,6 +384,9 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			name: "GetBlocks:success",
 			fields: fields{
 				Query: &mockQueryExecutorGetBlocksFail{},
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &mockBlockService{},
+				},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -439,7 +400,8 @@ func TestBlockService_GetBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Query: tt.fields.Query,
+				Query:             tt.fields.Query,
+				BlockCoreServices: tt.fields.BlockCoreServices,
 			}
 			got, err := bs.GetBlocks(tt.args.chainType, tt.args.blockSize, tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -448,6 +410,47 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewBlockService(t *testing.T) {
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error while opening database connection")
+	}
+	defer db.Close()
+
+	type args struct {
+		queryExecutor     query.ExecutorInterface
+		blockCoreServices map[int32]coreService.BlockServiceInterface
+	}
+	tests := []struct {
+		name string
+		args args
+		want *BlockService
+	}{
+		{
+			name: "NewBlockService:InitiateBlockServiceInstance",
+			args: args{
+				queryExecutor: query.NewQueryExecutor(db),
+				blockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &coreService.BlockService{},
+				},
+			},
+			want: &BlockService{
+				Query: query.NewQueryExecutor(db),
+				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
+					0: &coreService.BlockService{},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewBlockService(tt.args.queryExecutor, tt.args.blockCoreServices); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})
 	}

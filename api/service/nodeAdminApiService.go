@@ -41,6 +41,7 @@ func NewNodeAdminService(queryExecutor query.ExecutorInterface, ownerAccountAddr
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 
 		nodeAdminCoreService := coreService.NewNodeAdminService(queryExecutor,

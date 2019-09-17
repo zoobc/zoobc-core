@@ -219,6 +219,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		},
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
 		observerInstance,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService

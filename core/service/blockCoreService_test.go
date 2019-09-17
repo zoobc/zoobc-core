@@ -8,10 +8,9 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -38,6 +37,9 @@ type (
 	mockQueryExecutorFail struct {
 		query.Executor
 	}
+	mockQueryExecutorNotFound struct {
+		query.Executor
+	}
 	mockTypeAction struct {
 		transaction.SendMoney
 	}
@@ -47,6 +49,7 @@ type (
 )
 
 var (
+	bcsAddress1    = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 	bcsNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsBlock1 = &model.Block{
@@ -126,6 +129,25 @@ func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, tx bool, args ...inte
 	return rows, nil
 }
 
+// mockQueryExecutorNotFound
+func (*mockQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, latest, height " +
+		"FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"Version"},
+		))
+	default:
+		return nil, errors.New("mockQueryExecutorNotFound - InvalidQuery")
+	}
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
 // mockQueryExecutorNotNil
 func (*mockQueryExecuteNotNil) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
@@ -165,6 +187,11 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, latest, height " +
+		"FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
+			"account_address", "registration_height", "node_address", "locked_balance", "queued", "latest", "height",
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
 	case "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -267,6 +294,7 @@ func TestNewBlockService(t *testing.T) {
 		txTypeSwitcher          transaction.TypeActionSwitcher
 		accountBalanceQuery     query.AccountBalanceQueryInterface
 		participationScoreQuery query.ParticipationScoreQueryInterface
+		nodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		obsr                    *observer.Observer
 	}
 	tests := []struct {
@@ -298,6 +326,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.txTypeSwitcher,
 				tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery,
+				tt.args.nodeRegistrationQuery,
 				tt.args.obsr,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
@@ -2003,6 +2032,122 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ReceiveBlock() got = %v\nwant %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
+	block := &model.Block{
+		ID:                   999,
+		PreviousBlockHash:    []byte{},
+		Height:               1,
+		Timestamp:            1562806389280,
+		BlockSeed:            []byte{},
+		BlockSignature:       []byte{},
+		CumulativeDifficulty: string(100000000),
+		SmithScale:           1,
+		PayloadLength:        0,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey:  bcsNodePubKey1,
+		TotalAmount:          100000000,
+		TotalFee:             10000000,
+		TotalCoinBase:        1,
+		Version:              0,
+	}
+	type fields struct {
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		Observer                *observer.Observer
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.BlockExtendedInfo
+		wantErr bool
+	}{
+		{
+			name: "GetBlockExtendedInfo:fail - {VersionedNodeRegistrationNotFound}",
+			args: args{
+				block: block,
+			},
+			fields: fields{
+				QueryExecutor:         &mockQueryExecutorNotFound{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "GetBlockExtendedInfo:success",
+			args: args{
+				block: block,
+			},
+			fields: fields{
+				QueryExecutor:         &mockQueryExecutorSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			wantErr: false,
+			want: &model.BlockExtendedInfo{
+				ID:                       999,
+				PreviousBlockHash:        []byte{},
+				Height:                   1,
+				Timestamp:                1562806389280,
+				BlockSeed:                []byte{},
+				BlockSignature:           []byte{},
+				CumulativeDifficulty:     string(100000000),
+				SmithScale:               1,
+				PayloadLength:            0,
+				PayloadHash:              []byte{},
+				BlocksmithPublicKey:      bcsNodePubKey1,
+				TotalAmount:              100000000,
+				TotalFee:                 10000000,
+				TotalCoinBase:            block.TotalFee + 50 ^ 10*8,
+				Version:                  0,
+				BlocksmithAccountAddress: bcsAddress1,
+				TotalReward:              block.TotalFee + 50 ^ 10*8,
+				TotalReceipts:            99,
+				ReceiptValue:             99,
+				PopChange:                -20,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Observer:                tt.fields.Observer,
+			}
+			got, err := bs.GetBlockExtendedInfo(tt.args.block)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.GetBlockExtendedInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.GetBlockExtendedInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
