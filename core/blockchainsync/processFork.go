@@ -3,6 +3,7 @@ package blockchainsync
 import (
 	"bytes"
 	"math/big"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -54,7 +55,13 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			}
 			lastBlockHash, _ := utils.GetBlockHash(lastBlock)
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
-				err := fp.BlockService.PushBlock(lastBlock, block, false, false)
+				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+				if err != nil {
+					// TODO: analyze the mechanism of blacklisting peer here
+					// bd.P2pService.Blacklist(peer)
+					log.Warnf("failed to verify block %v from peer: %s\n", block.ID, err)
+				}
+				err = fp.BlockService.PushBlock(lastBlock, block, false, false)
 				if err != nil {
 					// TODO: blacklist the wrong peer
 					// fp.P2pService.Blacklist(feederPeer)
@@ -95,8 +102,14 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				return err
 			}
-			errPushBlock := fp.BlockService.PushBlock(lastBlock, block, false, false)
-			if errPushBlock != nil {
+			blockErr := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			if blockErr != nil {
+				// TODO: analyze the mechanism of blacklisting peer here
+				// bd.P2pService.Blacklist(peer)
+				log.Warnf("failed to verify block %v from peer: %s\n", block.ID, blockErr)
+			}
+			blockErr = fp.BlockService.PushBlock(lastBlock, block, false, false)
+			if blockErr != nil {
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
 		}
@@ -109,6 +122,10 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	return nil
 }
 
-func (fp *ForkingProcessor) ProcessLater(transaction []*model.Transaction) {}
+func (fp *ForkingProcessor) ProcessLater(transaction []*model.Transaction) {
+	// TODO: putting back the rolled back transaction to the
+}
 
-func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {}
+func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
+	// TODO: analyze if this mechanism is necessary
+}

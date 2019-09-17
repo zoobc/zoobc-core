@@ -246,7 +246,13 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
 		if lastBlock.ID == previousBlockID {
-			err := bd.BlockService.PushBlock(lastBlock, block, false, false)
+			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			if err != nil {
+				// TODO: analyze the mechanism of blacklisting peer here
+				// bd.P2pService.Blacklist(peer)
+				log.Warnf("failed to verify block %v from peer: %s\n", block.ID, err)
+			}
+			err = bd.BlockService.PushBlock(lastBlock, block, false, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)

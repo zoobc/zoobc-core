@@ -126,7 +126,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				return err
 			}
 			// validate
-			err = coreUtil.ValidateBlock(block, previousBlock, timestamp) // err / !err
+			err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
 			if err != nil {
 				return err
 			}

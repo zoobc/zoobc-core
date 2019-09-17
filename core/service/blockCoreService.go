@@ -21,6 +21,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
+	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -39,6 +40,7 @@ type (
 			secretPhrase string,
 			timestamp int64,
 		) (*model.Block, error)
+		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
 		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
@@ -203,6 +205,46 @@ func (*BlockService) VerifySeed(
 	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
 	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
+}
+
+// ValidateBlock validate block to be pushed into the blockchain
+func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	if block.GetTimestamp() > curTime+15 {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
+	}
+	if coreUtil.GetBlockID(block) == 0 {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid ID")
+	}
+	// Verify Signature
+	sig := new(crypto.Signature)
+	blockByte, err := commonUtils.GetBlockByte(block, false)
+	if err != nil {
+		return err
+	}
+
+	if !sig.VerifyNodeSignature(
+		blockByte,
+		block.BlockSignature,
+		block.BlocksmithPublicKey,
+	) {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
+	}
+	// Verify previous block hash
+	previousBlockIDFromHash := new(big.Int)
+	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
+		block.PreviousBlockHash[7],
+		block.PreviousBlockHash[6],
+		block.PreviousBlockHash[5],
+		block.PreviousBlockHash[4],
+		block.PreviousBlockHash[3],
+		block.PreviousBlockHash[2],
+		block.PreviousBlockHash[1],
+		block.PreviousBlockHash[0],
+	}).Int64()
+	if previousLastBlock.ID != previousBlockIDFromHashInt {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
+	}
+	return nil
 }
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
