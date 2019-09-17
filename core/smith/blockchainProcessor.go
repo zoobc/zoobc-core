@@ -99,8 +99,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	if lastBlock.GetID() != bp.LastBlockID {
 		if bp.Generator.SmithTime > smithMax {
-			log.Info("skip forge")
-			return errors.New("SmithSkip")
+			return errors.New("skip forge")
 		}
 
 		timestamp := bp.Generator.GetTimestamp(smithMax)
