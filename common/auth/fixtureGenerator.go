@@ -7,29 +7,30 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
-var senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-
-// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
-var nodeSeed1 = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
-var nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-	45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-var block1 = &model.Block{
-	ID:                   0,
-	PreviousBlockHash:    []byte{},
-	Height:               1,
-	Timestamp:            1562806389280,
-	BlockSeed:            []byte{},
-	BlockSignature:       []byte{},
-	CumulativeDifficulty: string(100000000),
-	SmithScale:           1,
-	PayloadLength:        0,
-	PayloadHash:          []byte{},
-	BlocksmithAddress:    senderAddress1,
-	TotalAmount:          100000000,
-	TotalFee:             10000000,
-	TotalCoinBase:        1,
-	Version:              0,
-}
+var (
+	senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+	// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
+	nodeSeed1   = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+	nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+	block1 = &model.Block{
+		ID:                   0,
+		PreviousBlockHash:    []byte{},
+		Height:               1,
+		Timestamp:            1562806389280,
+		BlockSeed:            []byte{},
+		BlockSignature:       []byte{},
+		CumulativeDifficulty: string(100000000),
+		SmithScale:           1,
+		PayloadLength:        0,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey:  nodePubKey1,
+		TotalAmount:          100000000,
+		TotalFee:             10000000,
+		TotalCoinBase:        1,
+		Version:              0,
+	}
+)
 
 func GetFixturesProofOfOwnershipValidation(height uint32, hash []byte, block *model.Block) (poown *model.ProofOfOwnership) {
 	if block == nil {

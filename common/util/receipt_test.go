@@ -33,7 +33,7 @@ var (
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
 		SmithScale:           0,
-		BlocksmithAddress:    "",
+		BlocksmithPublicKey:  []byte{},
 		TotalAmount:          0,
 		TotalFee:             0,
 		TotalCoinBase:        0,

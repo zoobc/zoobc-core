@@ -583,6 +583,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Page:  0,
 					},
 					AccountAddress: "accountA",
+					Height:         1,
 				},
 			},
 			want: &model.GetTransactionsResponse{

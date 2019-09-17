@@ -9,127 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-var mockBlockValidSignature = &model.Block{
-	ID:        1,
-	Height:    0,
-	BlockSeed: []byte{1, 2, 3},
-	BlockSignature: []byte{
-		0, 0, 0, 0, 131, 245, 139, 208, 104, 104, 139, 152, 250, 103, 59, 182, 252, 147, 93, 12, 9, 4, 161, 17, 28, 70, 176, 87, 32,
-		154, 148, 182, 65, 107, 4, 51, 129, 163, 16, 224, 214, 56, 72, 228, 204, 250, 61, 134, 253, 233, 131, 2, 41, 59, 205, 5, 22,
-		118, 219, 204, 119, 111, 65, 173, 121, 219, 77, 14,
-	},
-	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-	CumulativeDifficulty: "0",
-	PayloadHash:          []byte{},
-	PayloadLength:        1,
-	PreviousBlockHash: []byte{
-		0, 0, 0, 0, 0, 0, 0, 0,
-	},
-	SmithScale:    0,
-	Timestamp:     1000,
-	TotalAmount:   1000,
-	TotalCoinBase: 0,
-	TotalFee:      1,
-	Transactions:  nil,
-	Version:       1,
-}
-
-var mockBlockZeroID = &model.Block{
-	ID:        0,
-	Height:    0,
-	BlockSeed: []byte{1, 2, 3},
-	BlockSignature: []byte{
-		0, 0, 0, 0, 186, 94, 104, 188, 20, 86, 116, 3, 115, 173, 143, 37, 41, 248, 134, 75, 167, 131, 189, 249, 17, 150,
-		240, 103, 44, 27, 239, 66, 176, 71, 71, 254, 42, 248, 246, 15, 220, 80, 209, 242, 146, 163, 95, 40, 62, 120, 28,
-		226, 158, 234, 253, 46, 174, 223, 98, 53, 160, 186, 124, 154, 72, 61, 64, 1,
-	},
-	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-	CumulativeDifficulty: "0",
-	PayloadHash:          []byte{},
-	PayloadLength:        1,
-	PreviousBlockHash: []byte{
-		0, 0, 0, 0, 0, 0, 0, 0,
-	},
-	SmithScale:    0,
-	Timestamp:     1000,
-	TotalAmount:   1000,
-	TotalCoinBase: 0,
-	TotalFee:      1,
-	Transactions:  nil,
-	Version:       1,
-}
-
-var mockBlockPrevious = &model.Block{
-	ID:        0,
-	Height:    0,
-	BlockSeed: []byte{1, 2, 3},
-	BlockSignature: []byte{
-		0, 0, 0, 0, 143, 169, 160, 83, 125, 53, 38, 84, 54, 90, 232, 190, 87, 217, 90, 227, 249, 241, 3, 200, 204, 47,
-		221, 191, 151, 232, 111, 241, 248, 69, 82, 203, 75, 128, 164, 45, 162, 105, 166, 1, 81, 113, 65, 8, 71, 19, 26,
-		20, 3, 49, 192, 244, 20, 155, 96, 242, 195, 19, 108, 251, 100, 55, 153, 12,
-	},
-	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-	CumulativeDifficulty: "0",
-	PayloadHash:          []byte{},
-	PayloadLength:        1,
-	PreviousBlockHash:    []byte{},
-	SmithScale:           0,
-	Timestamp:            1000,
-	TotalAmount:          1000,
-	TotalCoinBase:        0,
-	TotalFee:             1,
-	Transactions:         nil,
-	Version:              1,
-}
-
-var mockBlockInvalidPrevious = &model.Block{
-	ID:        100,
-	Height:    0,
-	BlockSeed: []byte{1, 2, 3},
-	BlockSignature: []byte{
-		0, 0, 0, 0, 143, 169, 160, 83, 125, 53, 38, 84, 54, 90, 232, 190, 87, 217, 90, 227, 249, 241, 3, 200, 204, 47,
-		221, 191, 151, 232, 111, 241, 248, 69, 82, 203, 75, 128, 164, 45, 162, 105, 166, 1, 81, 113, 65, 8, 71, 19, 26,
-		20, 3, 49, 192, 244, 20, 155, 96, 242, 195, 19, 108, 251, 100, 55, 153, 12,
-	},
-	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-	CumulativeDifficulty: "0",
-	PayloadHash:          []byte{},
-	PayloadLength:        1,
-	PreviousBlockHash:    []byte{},
-	SmithScale:           0,
-	Timestamp:            1000,
-	TotalAmount:          1000,
-	TotalCoinBase:        0,
-	TotalFee:             1,
-	Transactions:         nil,
-	Version:              1,
-}
-
-var mockBlockInvalidSignature = &model.Block{
-	ID:        1,
-	Height:    0,
-	BlockSeed: []byte{1, 2, 3},
-	BlockSignature: []byte{
-		186, 94, 104, 188, 20, 86, 116, 3, 115, 173, 143, 37, 41, 248, 134, 75, 167, 131, 189, 249, 17, 150,
-		240, 103, 44, 27, 239, 66, 176, 71, 71, 254, 42, 248, 246, 15, 220, 80, 209, 242, 146, 163, 95, 40, 62, 120, 28,
-		226, 158, 234, 253, 46, 174, 223, 98, 53, 160, 186, 124, 154, 72, 61, 64, 1,
-	},
-	BlocksmithAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-	CumulativeDifficulty: "0",
-	PayloadHash:          []byte{},
-	PayloadLength:        1,
-	PreviousBlockHash: []byte{
-		0, 0, 0, 0, 0, 0, 0, 0,
-	},
-	SmithScale:    0,
-	Timestamp:     1000,
-	TotalAmount:   1000,
-	TotalCoinBase: 0,
-	TotalFee:      1,
-	Transactions:  nil,
-	Version:       1,
-}
-
 func TestGetBlockSeed(t *testing.T) {
 	resultOne, _ := new(big.Int).SetString("17294717645224993457", 10)
 	resulTwo, _ := new(big.Int).SetString("12040414258978844097", 10)
@@ -240,7 +119,7 @@ func TestCalculateSmithScale(t *testing.T) {
 					Version:              1,
 					PreviousBlockHash:    []byte{},
 					BlockSeed:            []byte{},
-					BlocksmithAddress:    "",
+					BlocksmithPublicKey:  []byte{},
 					Timestamp:            15875392,
 					TotalAmount:          0,
 					TotalFee:             0,
@@ -251,16 +130,16 @@ func TestCalculateSmithScale(t *testing.T) {
 					SmithScale:           108080,
 				},
 				block: &model.Block{
-					Version:           1,
-					PreviousBlockHash: []byte{},
-					BlockSeed:         []byte{},
-					BlocksmithAddress: "",
-					Timestamp:         15875392,
-					TotalAmount:       0,
-					TotalFee:          0,
-					TotalCoinBase:     0,
-					Transactions:      []*model.Transaction{},
-					PayloadHash:       []byte{},
+					Version:             1,
+					PreviousBlockHash:   []byte{},
+					BlockSeed:           []byte{},
+					BlocksmithPublicKey: []byte{},
+					Timestamp:           15875392,
+					TotalAmount:         0,
+					TotalFee:            0,
+					TotalCoinBase:       0,
+					Transactions:        []*model.Transaction{},
+					PayloadHash:         []byte{},
 				},
 				smithingDelayTime: 10,
 			},
@@ -268,7 +147,7 @@ func TestCalculateSmithScale(t *testing.T) {
 				Version:              1,
 				PreviousBlockHash:    []byte{},
 				BlockSeed:            []byte{},
-				BlocksmithAddress:    "",
+				BlocksmithPublicKey:  []byte{},
 				Timestamp:            15875392,
 				TotalAmount:          0,
 				TotalFee:             0,
@@ -305,7 +184,7 @@ func TestGetBlockID(t *testing.T) {
 					Version:              1,
 					PreviousBlockHash:    []byte{},
 					BlockSeed:            []byte{},
-					BlocksmithAddress:    "",
+					BlocksmithPublicKey:  []byte{},
 					Timestamp:            15875392,
 					TotalAmount:          0,
 					TotalFee:             0,
@@ -317,7 +196,7 @@ func TestGetBlockID(t *testing.T) {
 					SmithScale:           54040,
 				},
 			},
-			want: 2302495433703223211,
+			want: -3024391177923659831,
 		},
 		{
 			name: "GetBlockID:two",
@@ -326,7 +205,7 @@ func TestGetBlockID(t *testing.T) {
 					Version:              1,
 					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
 					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
-					BlocksmithAddress:    "",
+					BlocksmithPublicKey:  []byte{},
 					Timestamp:            15875592,
 					TotalAmount:          0,
 					TotalFee:             0,
@@ -338,180 +217,13 @@ func TestGetBlockID(t *testing.T) {
 					SmithScale:           48985,
 				},
 			},
-			want: -3939633329194296199,
+			want: 852549058466146818,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetBlockID(tt.args.block); got != tt.want {
 				t.Errorf("GetBlockID() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetBlockByte(t *testing.T) {
-	type args struct {
-		block *model.Block
-		sign  bool
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []byte
-		wantErr bool
-	}{
-		{
-			name: "GetBlockByte:one",
-			args: args{
-				block: &model.Block{
-					Version:              1,
-					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
-					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            15875592,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					CumulativeDifficulty: "355353517378119",
-					SmithScale:           48985,
-				},
-				sign: false,
-			},
-			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 66, 67, 90, 2, 65, 76, 32, 76, 12, 12, 34, 65, 76, 1,
-				2, 4, 5, 67, 89, 86, 3, 6, 22},
-			wantErr: false,
-		},
-		{
-			name: "GetBlockByte:withSignature",
-			args: args{
-				block: &model.Block{
-					Version:              1,
-					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
-					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            15875592,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					CumulativeDifficulty: "355353517378119",
-					BlockSignature:       []byte{1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21},
-					SmithScale:           48985,
-				},
-				sign: true,
-			},
-			want: []byte{
-				1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 66, 67, 90, 2, 65, 76, 32, 76, 12, 12, 34, 65, 76, 1, 2, 4, 5, 67, 89, 86,
-				3, 6, 22, 1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21,
-			},
-			wantErr: false,
-		},
-		{
-			name: "GetBlockByte:error-{sign true without signature}",
-			args: args{
-				block: &model.Block{
-					Version:              1,
-					PreviousBlockHash:    []byte{1, 2, 4, 5, 67, 89, 86, 3, 6, 22},
-					BlockSeed:            []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
-					BlocksmithAddress:    "BCZ",
-					Timestamp:            15875592,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					CumulativeDifficulty: "355353517378119",
-					SmithScale:           48985,
-				},
-				sign: true,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetBlockByte(tt.args.block, tt.args.sign)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetBlockByte() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetBlockByte() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestValidateBlock(t *testing.T) {
-	type args struct {
-		block             *model.Block
-		previousLastBlock *model.Block
-		curTime           int64
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "wantSuccess:ErrorNil",
-			args: args{
-				block:             mockBlockValidSignature,
-				previousLastBlock: mockBlockPrevious,
-				curTime:           12345678,
-			},
-			wantErr: false,
-		},
-		{
-			name: "wantError:InvalidTimestamp",
-			args: args{
-				block: &model.Block{
-					Timestamp: 23456789,
-				},
-				previousLastBlock: &model.Block{},
-				curTime:           12345678,
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantError:InvalidSignature",
-			args: args{
-				block:             mockBlockInvalidSignature,
-				previousLastBlock: mockBlockPrevious,
-				curTime:           12345678,
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantError:InvalidPrevious",
-			args: args{
-				block:             mockBlockValidSignature,
-				previousLastBlock: mockBlockInvalidPrevious,
-				curTime:           12345678,
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantError:ZeroID",
-			args: args{
-				block:             mockBlockZeroID,
-				previousLastBlock: mockBlockInvalidPrevious,
-				curTime:           12345678,
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateBlock(tt.args.block, tt.args.previousLastBlock, tt.args.curTime); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
