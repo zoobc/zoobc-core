@@ -26,11 +26,9 @@ and initialize versions
 func (m *Migration) Init() error {
 
 	if m.Query != nil {
-		rows, _ := m.Query.ExecuteSelect("SELECT version FROM migration;", false)
-		if rows != nil {
-			defer rows.Close()
-			var version int
-			_ = rows.Scan(&version)
+		var version int
+		err := m.Query.ExecuteSelectRow("SELECT version FROM migration;").Scan(&version)
+		if err == nil {
 			m.CurrentVersion = &version
 		}
 
@@ -157,10 +155,9 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
-			CREATE TABLE IF NOT EXISTS "merke_tree" (
+			CREATE TABLE IF NOT EXISTS "merkle_tree" (
 				"id" BLOB,
-				"tree" BLOB,
-				PRIMARY KEY("node_id")
+				"tree" BLOB
 			)
 			`,
 		}
@@ -178,20 +175,24 @@ func (m *Migration) Apply() error {
 
 	var (
 		migrations = m.Versions
+		err        error
 	)
 
 	if m.CurrentVersion != nil {
-		migrations = m.Versions[*m.CurrentVersion:]
+		migrations = m.Versions[*m.CurrentVersion+1:]
 	}
 
-	for version, query := range migrations {
-		version := version
+	for v, query := range migrations {
+		version := v
 		_ = m.Query.BeginTx()
-		_ = m.Query.ExecuteTransaction(query)
+		err = m.Query.ExecuteTransaction(query)
+		if err != nil {
+			return err
+		}
 
 		if m.CurrentVersion != nil {
 			_ = m.Query.ExecuteTransaction(`UPDATE "migration"
-				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion)
+				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion+1)
 		} else {
 			_ = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
@@ -202,10 +203,11 @@ func (m *Migration) Apply() error {
 					0,
 					datetime('now')
 				);
-				`)
+			`)
 		}
-		err := m.Query.CommitTx()
+
 		m.CurrentVersion = &version
+		err := m.Query.CommitTx()
 		if err != nil {
 			return err
 		}
