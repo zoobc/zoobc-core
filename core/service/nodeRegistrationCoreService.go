@@ -1,6 +1,8 @@
 package service
 
 import (
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,6 +19,7 @@ type (
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
+		GetActiveNodes() ([]*model.Blocksmith, error)
 		NodeRegistryListener() observer.Listener
 	}
 
@@ -161,6 +164,30 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	}
 
 	return nil
+}
+
+// GetActiveNodes get list of currently participating nodes
+func (nrs *NodeRegistrationService) GetActiveNodes() ([]*model.Blocksmith, error) {
+	var (
+		activeNodes []*model.Blocksmith
+	)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			nr            model.Blocksmith
+			nrScoreString string
+		)
+		_ = rows.Scan(
+			&nr.NodePublicKey,
+			&nrScoreString)
+		nr.Score, _ = new(big.Int).SetString(nrScoreString, 10)
+		activeNodes = append(activeNodes, &nr)
+	}
+	return activeNodes, nil
 }
 
 // NodeRegistryListener handle node admission/expulsion after a block is pushed, at regular interval

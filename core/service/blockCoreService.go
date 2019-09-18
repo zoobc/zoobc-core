@@ -26,7 +26,7 @@ import (
 
 type (
 	BlockServiceInterface interface {
-		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
+		VerifySeed(seed, score *big.Int, previousBlock *model.Block, timestamp int64) bool
 		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
@@ -56,6 +56,7 @@ type (
 			senderPublicKey []byte,
 			lastBlock,
 			block *model.Block,
+			sortedBlocksmiths []*model.Blocksmith,
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
@@ -193,15 +194,18 @@ func (bs *BlockService) NewGenesisBlock(
 // Can be used to check who's smithing the next block (lastBlock) or if last forged block
 // (previousBlock) is acceptable by the network (meaning has been smithed by a valid blocksmith).
 func (*BlockService) VerifySeed(
-	seed, balance *big.Int,
+	seed, score *big.Int,
 	previousBlock *model.Block,
 	timestamp int64,
 ) bool {
 	elapsedTime := timestamp - previousBlock.GetTimestamp()
-	effectiveSmithScale := new(big.Int).Mul(balance, big.NewInt(previousBlock.GetSmithScale()))
+	if elapsedTime <= 0 {
+		return false
+	}
+	effectiveSmithScale := new(big.Int).Mul(score, big.NewInt(previousBlock.GetSmithScale()))
 	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
 	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
-	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
+	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
 }
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
@@ -493,8 +497,12 @@ func (bs *BlockService) GenerateBlock(
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	_, _ = digest.Write(blockSmithPublicKey)
-	blockSeed := digest.Sum([]byte{})
+
+	seedHash := digest.Sum([]byte{})
+	seedPayload := bytes.NewBuffer([]byte{})
+	seedPayload.Write(blockSmithPublicKey)
+	seedPayload.Write(seedHash)
+	blockSeed := bs.Signature.SignByNode(seedPayload.Bytes(), secretPhrase)
 	digest.Reset() // reset the digest
 	previousBlockHash, err := coreUtil.GetBlockHash(previousBlock)
 	if err != nil {
@@ -585,6 +593,7 @@ func (bs *BlockService) CheckGenesis() bool {
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
+	sortedBlocksmiths []*model.Blocksmith,
 	nodeSecretPhrase string,
 ) (*model.Receipt, error) {
 	// make sure block has previous block hash
@@ -598,7 +607,7 @@ func (bs *BlockService) ReceiveBlock(
 					"fail to get last block byte",
 				)
 			}
-			lastBlockHash := sha3.Sum512(lastBlockByte)
+			lastBlockHash := sha3.Sum256(lastBlockByte)
 
 			//  check equality last block hash with previous block hash from received block
 			if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
@@ -607,6 +616,7 @@ func (bs *BlockService) ReceiveBlock(
 					"previous block hash does not match with last block hash",
 				)
 			}
+			// check if the block broadcaster is the valid blocksmith
 			err = bs.PushBlock(lastBlock, block, true, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")

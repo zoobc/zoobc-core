@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/model"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/core/service"
 )
@@ -11,7 +13,7 @@ import (
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
 		ct           chaintype.ChainType
-		blocksmith   *Blocksmith
+		blocksmith   *model.Blocksmith
 		blockService service.BlockServiceInterface
 	}
 	tests := []struct {
@@ -23,13 +25,13 @@ func TestNewBlockchainProcessor(t *testing.T) {
 			name: "wantSuccess",
 			args: args{
 				ct:           &chaintype.MainChain{},
-				blocksmith:   &Blocksmith{},
+				blocksmith:   &model.Blocksmith{},
 				blockService: &service.BlockService{},
 			},
 			want: &BlockchainProcessor{
 				Chaintype:    &chaintype.MainChain{},
 				BlockService: &service.BlockService{},
-				Generator:    &Blocksmith{},
+				Generator:    &model.Blocksmith{},
 			},
 		},
 	}

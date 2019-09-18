@@ -13,6 +13,7 @@ type (
 		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) (str []string, args []interface{})
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
+		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
@@ -77,6 +78,13 @@ func (nr *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model.
 func (nr *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND latest=1 LIMIT %d",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), registrationHeight, size)
+}
+
+// GetActiveNodeRegistrations
+func (nr *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
+	return fmt.Sprintf("SELECT nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
+		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE nr.latest = 1 AND nr.queued = 0",
+		nr.getTableName(), NewParticipationScoreQuery().TableName)
 }
 
 // GetNodeRegistrationByID returns query string to get Node Registration by node public key

@@ -53,6 +53,8 @@ var (
 	nodeKeyFilePath                  string
 	smithing                         bool
 	nodeRegistrationService          service.NodeRegistrationServiceInterface
+	mainchainProcessor               *smith.BlockchainProcessor
+	sortedBlocksmiths                []*model.Blocksmith
 )
 
 func init() {
@@ -120,8 +122,6 @@ func init() {
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()
-
-	initObserverListeners()
 }
 
 func initP2pInstance() {
@@ -148,6 +148,7 @@ func initP2pInstance() {
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
+		sortedBlocksmiths,
 		peerServiceClient,
 		peerExplorer,
 	)
@@ -156,7 +157,10 @@ func initP2pInstance() {
 func initObserverListeners() {
 	// init observer listeners
 	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(sortedBlocksmiths))
+	observerInstance.AddListener(observer.BlockReceived, mainchainProcessor.SortBlocksmith(sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+
 }
 
 func startServices() {
@@ -182,16 +186,13 @@ func startServices() {
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
 		_ = processor.StartSmithing()
-		time.Sleep(time.Duration(sleepPeriod) * time.Second)
+		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
 	}
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
-	var (
-		blockSmithAddress string
-	)
 	mainchain := &chaintype.MainChain{}
-	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
+	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
 		mainchain,
 		queryExecutor,
@@ -236,18 +237,18 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	}
 
 	// no nodes registered with current node public key
-	nodeRegistration, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
+	_, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	if err != nil {
 		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
-	} else {
-		blockSmithAddress = nodeRegistration.AccountAddress
 	}
-	mainchainProcessor := smith.NewBlockchainProcessor(
+	mainchainProcessor = smith.NewBlockchainProcessor(
 		mainchain,
-		smith.NewBlocksmith(nodeSecretPhrase, blockSmithAddress),
+		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
 		mainchainBlockService,
+		nodeRegistrationService,
 	)
 
+	initObserverListeners()
 	if len(nodeSecretPhrase) > 0 && smithing {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
@@ -275,7 +276,6 @@ func main() {
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything

@@ -1,6 +1,11 @@
 package p2p
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,10 +22,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 type (
@@ -46,17 +47,20 @@ type (
 		Host              *model.Host
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		PeerServiceClient client.PeerServiceClientInterface
+		SortedBlocksmiths []*model.Blocksmith
 	}
 )
 
 // InitService to initialize peer to peer service wrapper
 func NewP2PService(
 	host *model.Host,
+	sortedBlocksmiths []*model.Blocksmith,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		Host:              host,
+		SortedBlocksmiths: sortedBlocksmiths,
 		PeerServiceClient: peerServiceClient,
 		PeerExplorer:      peerExplorer,
 	}, nil
@@ -83,6 +87,7 @@ func (s *Peer2PeerService) StartP2P(
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,
+		s.SortedBlocksmiths,
 		nodeSecretPhrase,
 	)
 	// start listening on peer port
