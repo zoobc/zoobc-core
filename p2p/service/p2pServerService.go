@@ -52,7 +52,7 @@ type (
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		BlockServices     map[int32]coreService.BlockServiceInterface
 		MempoolServices   map[int32]coreService.MempoolServiceInterface
-		SortedBlocksmiths []*model.Blocksmith
+		SortedBlocksmiths *[]model.Blocksmith
 		NodeSecretPhrase  string
 	}
 )
@@ -61,7 +61,7 @@ func NewP2PServerService(
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
-	sortedBlocksmiths []*model.Blocksmith,
+	sortedBlocksmiths *[]model.Blocksmith,
 	nodeSecretPhrase string,
 ) *P2PServerService {
 	return &P2PServerService{

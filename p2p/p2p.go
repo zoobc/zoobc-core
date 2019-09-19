@@ -47,14 +47,14 @@ type (
 		Host              *model.Host
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		PeerServiceClient client.PeerServiceClientInterface
-		SortedBlocksmiths []*model.Blocksmith
+		SortedBlocksmiths *[]model.Blocksmith
 	}
 )
 
 // InitService to initialize peer to peer service wrapper
 func NewP2PService(
 	host *model.Host,
-	sortedBlocksmiths []*model.Blocksmith,
+	sortedBlocksmiths *[]model.Blocksmith,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
