@@ -122,7 +122,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	} else {
 		for _, block := range myPoppedOffBlocks {
-			fp.ProcessLater(block.Transactions)
+			_ = fp.ProcessLater(block.Transactions)
 		}
 	}
 

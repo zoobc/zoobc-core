@@ -70,7 +70,7 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
 			Timestamp:               time.Now().Unix(),
-			SenderAccountAddress:    "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Fee:                     1,
 			TransactionBodyLength:   8,
@@ -87,7 +87,7 @@ func getTransaction(txType []byte) *model.Transaction {
 			poowMessage,
 			"prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy")
 		txBody := &model.NodeRegistrationTransactionBody{
-			AccountAddress: "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			NodePublicKey: []byte{
 				0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
 				101, 127, 241, 62, 152, 187, 255,
@@ -106,7 +106,7 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["registerNode"]),
 			Timestamp:               time.Now().Unix(),
-			SenderAccountAddress:    "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Fee:                     1,
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
@@ -117,7 +117,7 @@ func getTransaction(txType []byte) *model.Transaction {
 		}
 	case util.ConvertBytesToUint32(txTypeMap["setupAccountDataset"]):
 		txBody := &model.SetupAccountDatasetTransactionBody{
-			SetterAccountAddress:    "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Property:                "Member",
 			Value:                   "Welcome to the jungle",
@@ -130,7 +130,7 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["setupAccountDataset"]),
 			Timestamp:               time.Now().Unix(),
-			SenderAccountAddress:    "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Fee:                     1,
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
@@ -141,7 +141,7 @@ func getTransaction(txType []byte) *model.Transaction {
 		}
 	case util.ConvertBytesToUint32(txTypeMap["removeAccountDataset"]):
 		txBody := &model.RemoveAccountDatasetTransactionBody{
-			SetterAccountAddress:    "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Property:                "Member",
 			Value:                   "Good bye",
@@ -153,7 +153,7 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["removeAccountDataset"]),
 			Timestamp:               time.Now().Unix(),
-			SenderAccountAddress:    "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			Fee:                     1,
 			TransactionBodyLength:   uint32(len(txBodyBytes)),

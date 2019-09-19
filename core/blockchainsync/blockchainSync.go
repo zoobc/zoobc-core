@@ -115,6 +115,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 			}
 
 			var newLastBlock *model.Block
+			var getNewLastBlock error
 			if needDownloadBlock {
 				peerForkInfo, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
 					peerBlockchainInfo.CommonBlock)
@@ -133,7 +134,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 				}
 
 				// confirming the node's blockchain state with other nodes
-				confirmations := int32(0)
+				var confirmations int32
 				// counting the confirmations of the common block received with other peers he knows
 				for _, peerToCheck := range bss.PeerExplorer.GetResolvedPeers() {
 					if confirmations >= constant.DefaultNumberOfForkConfirmations {
@@ -154,10 +155,9 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 					}
 				}
 
-				var err error
-				newLastBlock, err = bss.BlockService.GetLastBlock()
-				if err != nil {
-					log.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)
+				newLastBlock, getNewLastBlock = bss.BlockService.GetLastBlock()
+				if getNewLastBlock != nil {
+					log.Warnf("\nfailed to getMoreBlocks: %v\n\n", getNewLastBlock)
 					break
 				}
 

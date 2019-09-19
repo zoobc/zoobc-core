@@ -20,9 +20,6 @@ type BlockPopper struct {
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
 func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
-	// blockchain lock has been implemented by the Download Blockchain, so no additional lock is needed
-	var err error
-
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
@@ -58,17 +55,17 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		block.Transactions = txs
 	}
 
-	derivedTables := query.GetDerivedQuery(bp.ChainType)
+	derivedQueries := query.GetDerivedQuery(bp.ChainType)
 	errTx := bp.QueryExecutor.BeginTx()
 	if errTx != nil {
 		return []*model.Block{}, errTx
 	}
 
-	for _, dTable := range derivedTables {
+	for _, dQuery := range derivedQueries {
 		if commonBlock.Height == 0 {
 			break
 		}
-		queries := dTable.Rollback(commonBlock.Height)
+		queries := dQuery.Rollback(commonBlock.Height)
 		errTx = bp.QueryExecutor.ExecuteTransactions(queries)
 		if errTx != nil {
 			return []*model.Block{}, errTx
