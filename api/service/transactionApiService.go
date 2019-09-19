@@ -128,7 +128,7 @@ func (ts *TransactionService) GetTransactions(
 	height := params.GetHeight()
 	if height != 0 {
 		caseQuery.And(caseQuery.Equal("block_height", height))
-		if page.GetLimit() == 0 {
+		if page != nil && page.GetLimit() == 0 {
 			page.Limit = math.MaxUint32
 		}
 	}
