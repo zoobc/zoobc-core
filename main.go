@@ -54,7 +54,7 @@ var (
 	smithing                         bool
 	nodeRegistrationService          service.NodeRegistrationServiceInterface
 	mainchainProcessor               *smith.BlockchainProcessor
-	sortedBlocksmiths                []*model.Blocksmith
+	sortedBlocksmiths                []model.Blocksmith
 )
 
 func init() {
@@ -148,7 +148,7 @@ func initP2pInstance() {
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
-		sortedBlocksmiths,
+		&sortedBlocksmiths,
 		peerServiceClient,
 		peerExplorer,
 	)
@@ -156,9 +156,9 @@ func initP2pInstance() {
 
 func initObserverListeners() {
 	// init observer listeners
-	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
-	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(sortedBlocksmiths))
-	observerInstance.AddListener(observer.BlockReceived, mainchainProcessor.SortBlocksmith(sortedBlocksmiths))
+	// broadcast block will be different than other listener implementation, since there are few exception condition
+	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 
 }
@@ -223,7 +223,14 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		observerInstance,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+	mainchainProcessor = smith.NewBlockchainProcessor(
+		mainchain,
+		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
+		mainchainBlockService,
+		nodeRegistrationService,
+	)
 
+	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 
 		// genesis account will be inserted in the very beginning
@@ -241,14 +248,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	if err != nil {
 		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
 	}
-	mainchainProcessor = smith.NewBlockchainProcessor(
-		mainchain,
-		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
-		mainchainBlockService,
-		nodeRegistrationService,
-	)
 
-	initObserverListeners()
 	if len(nodeSecretPhrase) > 0 && smithing {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
