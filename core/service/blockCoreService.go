@@ -468,7 +468,7 @@ func (bs *BlockService) GenerateBlock(
 		// only for mainchain
 		sortedTx            []*model.Transaction
 		payloadHash         []byte
-		digest              = sha3.New512()
+		digest              = sha3.New256()
 		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
 	)
 
@@ -536,7 +536,7 @@ func (bs *BlockService) AddGenesis() error {
 		totalAmount, totalFee, totalCoinBase int64
 		blockTransactions                    []*model.Transaction
 		payloadLength                        uint32
-		digest                               = sha3.New512()
+		digest                               = sha3.New256()
 	)
 	for index, tx := range GetGenesisTransactions(bs.Chaintype) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
