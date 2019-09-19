@@ -105,6 +105,18 @@ func (fq *CaseQuery) NotEqual(column string, value interface{}) string {
 	return fmt.Sprintf("%s <> ? ", column)
 }
 
+// GreaterEqual represents `column >= value`
+func (fq *CaseQuery) GreaterEqual(column string, value interface{}) string {
+	fq.Args = append(fq.Args, value)
+	return fmt.Sprintf("%s >= ? ", column)
+}
+
+// LessEqual represents `column <= value`
+func (fq *CaseQuery) LessEqual(column string, value interface{}) string {
+	fq.Args = append(fq.Args, value)
+	return fmt.Sprintf("%s <= ? ", column)
+}
+
 // Between represents `column BETWEEN foo AND bar`
 func (fq *CaseQuery) Between(column string, start, end interface{}) string {
 	fq.Args = append(fq.Args, start, end)

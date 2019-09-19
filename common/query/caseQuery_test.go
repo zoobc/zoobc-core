@@ -452,6 +452,113 @@ func TestCaseQuery_NotEqual(t *testing.T) {
 	}
 }
 
+func TestCaseQuery_GreaterEqual(t *testing.T) {
+	type fields struct {
+		Query *bytes.Buffer
+		Args  []interface{}
+	}
+	type args struct {
+		column string
+		value  interface{}
+	}
+	var argsWant []interface{}
+	argsWant = append(argsWant, 2)
+
+	tests := []struct {
+		name          string
+		fields        fields
+		args          args
+		want          string
+		wantCaseQuery *CaseQuery
+	}{
+		{
+			name: "GreaterEqual",
+			fields: fields{
+				Query: bytes.NewBufferString(""),
+			},
+			args: args{
+				column: "id",
+				value:  2,
+			},
+			want: "id >= ? ",
+			wantCaseQuery: &CaseQuery{
+				Query: bytes.NewBufferString("WHERE id >= ?  "),
+				Args:  argsWant,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fq := &CaseQuery{
+				Query: tt.fields.Query,
+				Args:  tt.fields.Args,
+			}
+			got := fq.GreaterEqual(tt.args.column, tt.args.value)
+			if got != tt.want {
+				t.Errorf("CaseQuery.GreaterEqual() = %v, want %v", got, tt.want)
+			}
+			fq.Where(got)
+			if !reflect.DeepEqual(fq, tt.wantCaseQuery) {
+				t.Errorf("CaseQuery.NotEqual() = %v, want %v", fq, tt.wantCaseQuery)
+			}
+		})
+	}
+}
+
+func TestCaseQuery_LessEqual(t *testing.T) {
+	type fields struct {
+		Query *bytes.Buffer
+		Args  []interface{}
+	}
+	type args struct {
+		column string
+		value  interface{}
+	}
+	var argsWant []interface{}
+	argsWant = append(argsWant, 2)
+
+	tests := []struct {
+		name          string
+		fields        fields
+		args          args
+		want          string
+		wantCaseQuery *CaseQuery
+	}{
+		{
+			name: "LessEqual",
+			fields: fields{
+				Query: bytes.NewBufferString(""),
+			},
+			args: args{
+				column: "id",
+				value:  2,
+			},
+			want: "id <= ? ",
+			wantCaseQuery: &CaseQuery{
+				Query: bytes.NewBufferString("WHERE id <= ?  "),
+				Args:  argsWant,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fq := &CaseQuery{
+				Query: tt.fields.Query,
+				Args:  tt.fields.Args,
+			}
+			got := fq.LessEqual(tt.args.column, tt.args.value)
+			if got != tt.want {
+				t.Errorf("CaseQuery.LessEqual() = %v, want %v", got, tt.want)
+			}
+
+			fq.Where(got)
+			if !reflect.DeepEqual(fq, tt.wantCaseQuery) {
+				t.Errorf("CaseQuery.NotEqual() = %v, want %v", fq, tt.wantCaseQuery)
+			}
+		})
+	}
+}
+
 func TestCaseQuery_Between(t *testing.T) {
 	type fields struct {
 		Query *bytes.Buffer
