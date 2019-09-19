@@ -7,11 +7,15 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	utils "github.com/zoobc/zoobc-core/core/util"
 
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
@@ -20,9 +24,12 @@ type (
 		ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error
 	}
 	ForkingProcessor struct {
-		ChainType    chaintype.ChainType
-		BlockService service.BlockServiceInterface
-		BlockPopper  *BlockPopper
+		ChainType          chaintype.ChainType
+		BlockService       service.BlockServiceInterface
+		BlockPopper        *BlockPopper
+		QueryExecutor      query.ExecutorInterface
+		ActionTypeSwitcher transaction.TypeActionSwitcher
+		MempoolService     service.MempoolServiceInterface
 	}
 )
 
@@ -89,7 +96,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 		pushedForkBlocks = 0
 		for _, block := range peerPoppedOffBlocks {
-			fp.ProcessLater(block.Transactions)
+			_ = fp.ProcessLater(block.Transactions)
 		}
 	}
 
@@ -122,8 +129,57 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	return nil
 }
 
-func (fp *ForkingProcessor) ProcessLater(transaction []*model.Transaction) {
-	// TODO: putting back the rolled back transaction to the
+func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
+	for _, tx := range txs {
+		// Validate Tx
+		txType := fp.ActionTypeSwitcher.GetTransactionType(tx)
+
+		txBytes, err := commonUtil.GetTransactionBytes(tx, true)
+
+		if err != nil {
+			return err
+		}
+
+		// Save to mempool
+		mpTx := &model.MempoolTransaction{
+			FeePerByte:              constant.TxFeePerByte,
+			ID:                      tx.ID,
+			TransactionBytes:        txBytes,
+			ArrivalTimestamp:        time.Now().Unix(),
+			SenderAccountAddress:    tx.SenderAccountAddress,
+			RecipientAccountAddress: tx.RecipientAccountAddress,
+		}
+
+		if err := fp.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+			return err
+		}
+		// Apply Unconfirmed
+		err = fp.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		err = txType.ApplyUnconfirmed()
+		if err != nil {
+			errRollback := fp.QueryExecutor.RollbackTx()
+			if errRollback != nil {
+				return errRollback
+			}
+			return err
+		}
+		err = fp.MempoolService.AddMempoolTransaction(mpTx)
+		if err != nil {
+			errRollback := fp.QueryExecutor.RollbackTx()
+			if errRollback != nil {
+				return err
+			}
+			return err
+		}
+		err = fp.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {

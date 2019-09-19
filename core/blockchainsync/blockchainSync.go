@@ -9,6 +9,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/transaction"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -31,7 +32,9 @@ type Service struct {
 func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
-	queryExecutor query.ExecutorInterface) *Service {
+	queryExecutor query.ExecutorInterface,
+	mempoolService service.MempoolServiceInterface,
+	txActionSwitcher transaction.TypeActionSwitcher) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
 		BlockService:      blockService,
@@ -44,8 +47,11 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 			PeerExplorer:      peerExplorer,
 		},
 		ForkingProcessor: &ForkingProcessor{
-			ChainType:    blockService.GetChainType(),
-			BlockService: blockService,
+			ChainType:          blockService.GetChainType(),
+			BlockService:       blockService,
+			QueryExecutor:      queryExecutor,
+			ActionTypeSwitcher: txActionSwitcher,
+			MempoolService:     mempoolService,
 			BlockPopper: &BlockPopper{
 				ChainType:     blockService.GetChainType(),
 				BlockService:  blockService,

@@ -215,6 +215,10 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
+	actionSwitcher := &transaction.TypeSwitcher{
+		Executor: queryExecutor,
+	}
+
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
 		queryExecutor,
@@ -223,9 +227,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewTransactionQuery(mainchain),
 		crypto.NewSignature(),
 		mempoolService,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		observerInstance,
@@ -265,6 +267,8 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		peerServiceClient,
 		peerExplorer,
 		queryExecutor,
+		mempoolService,
+		actionSwitcher,
 	)
 	mainchainSynchronizer.Start(mainchainSyncChannel)
 }
