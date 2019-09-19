@@ -133,19 +133,19 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		blocker.SmithingErr, "generator is not set")
 }
 
-func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths []*model.Blocksmith) observer.Listener {
+func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args interface{}) {
 			// fetch valid blocksmiths
 			lastBlock := block.(*model.Block)
-			var blocksmiths []*model.Blocksmith
+			var blocksmiths []model.Blocksmith
 			activeBlocksmiths, err := bp.NodeRegistrationService.GetActiveNodes()
 			if err != nil {
 				return
 			}
 			for _, blocksmith := range activeBlocksmiths {
 				if blocksmith.Score.Cmp(big.NewInt(0)) > 0 {
-					blocksmiths = append(blocksmiths, blocksmith)
+					blocksmiths = append(blocksmiths, *blocksmith)
 				}
 			}
 			// sort blocksmiths
@@ -158,7 +158,6 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths []*model.Blocksm
 				resJ := new(big.Int).Mul(bj.Score, new(big.Int).SetInt64(
 					nodePKJ.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
 				res := resI.Cmp(resJ)
-
 				if res == 0 {
 					// compare node public key
 					res = nodePKI.Cmp(nodePKJ)
@@ -166,7 +165,7 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths []*model.Blocksm
 				// ascending sort
 				return res < 0
 			})
-			sortedBlocksmiths = blocksmiths
+			*sortedBlocksmiths = blocksmiths
 		},
 	}
 }

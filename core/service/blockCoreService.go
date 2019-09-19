@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strconv"
 	"sync"
 
@@ -56,7 +57,7 @@ type (
 			senderPublicKey []byte,
 			lastBlock,
 			block *model.Block,
-			sortedBlocksmiths []*model.Blocksmith,
+			sortedBlocksmiths *[]model.Blocksmith,
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
@@ -286,9 +287,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		return err
 	}
 	// broadcast block
-	if block.Height > 0 && broadcast {
-		bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	if broadcast {
+		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
+	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	return nil
 }
 
@@ -593,7 +595,7 @@ func (bs *BlockService) CheckGenesis() bool {
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
-	sortedBlocksmiths []*model.Blocksmith,
+	sortedBlocksmiths *[]model.Blocksmith,
 	nodeSecretPhrase string,
 ) (*model.Receipt, error) {
 	// make sure block has previous block hash
@@ -617,6 +619,18 @@ func (bs *BlockService) ReceiveBlock(
 				)
 			}
 			// check if the block broadcaster is the valid blocksmith
+			index := -1 // use index to determine if is in list, and who to punish
+			for i, bs := range *sortedBlocksmiths {
+				if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
+					index = i
+					break
+				}
+			}
+			if index < 0 {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr, "invalid blocksmith")
+			}
+			// base on index we can calculate punishment and reward
 			err = bs.PushBlock(lastBlock, block, true, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
