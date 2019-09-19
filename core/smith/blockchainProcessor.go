@@ -129,8 +129,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		}
 		stop = true
 	}
-	return blocker.NewBlocker(
-		blocker.SmithingErr, "generator is not set")
 }
 
 func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener {

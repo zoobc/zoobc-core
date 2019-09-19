@@ -586,7 +586,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 					Timestamp:  0,
 					SmithScale: 10,
 				},
-				timestamp: 301,
+				timestamp: 3601,
 			},
 			want: true,
 		},
@@ -1902,10 +1902,10 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 					SmithScale:           123,
 				},
 				block: &model.Block{
+					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
 					PreviousBlockHash: []byte{
-						110, 241, 173, 42, 162, 49, 119, 54, 246, 123, 56, 160, 45, 219, 249, 31, 21, 93, 131, 114, 209, 187, 128, 99, 139, 84,
-						176, 96, 89, 96, 240, 91, 45, 214, 36, 51, 99, 78, 99, 18, 39, 136, 131, 36, 34, 188, 130, 86, 190, 136, 177, 47, 61,
-						252, 205, 6, 225, 70, 188, 201, 201, 77, 165, 122,
+						133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
+						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255,
 					},
 					BlockSignature: nil,
 					SmithScale:     1,
@@ -1937,12 +1937,11 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 					SmithScale:           123,
 				},
 				block: &model.Block{
-					PreviousBlockHash: []byte{171, 151, 97, 182, 195, 114, 160, 194, 182, 157, 152, 236, 26, 16, 145, 136,
-						136, 145, 129, 126, 153, 116, 42, 145, 11, 219, 134, 134, 126, 102, 67, 37, 199, 230, 106, 228,
-						155, 179, 29, 171, 162, 97, 220, 240, 235, 24, 210, 88, 253, 88, 107, 20, 49, 252, 218, 165,
-						146, 229, 152, 181, 41, 159, 1, 192},
-					BlockSignature: nil,
-					SmithScale:     1,
+					PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
+						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255},
+					BlockSignature:      nil,
+					SmithScale:          1,
+					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
 				},
 				nodeSecretPhrase: "",
 			},
@@ -1967,15 +1966,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				},
 				DatumType: constant.ReceiptDatumTypeBlock,
 				DatumHash: []byte{
-					166, 159, 115, 204, 162, 58, 154, 197, 200, 181, 103, 220, 24, 90, 117, 110, 151, 201, 130, 22, 79,
-					226, 88, 89, 224, 209, 220, 193, 71, 92, 128, 166, 21, 178, 18, 58, 241, 245, 249, 76, 17, 227, 233,
-					64, 44, 58, 197, 88, 245, 0, 25, 157, 149, 182, 211, 227, 1, 117, 133, 134, 40, 29, 205, 38,
+					167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77, 228,
+					59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74,
 				},
 				ReferenceBlockHeight: 0,
-				ReferenceBlockHash: []byte{171, 151, 97, 182, 195, 114, 160, 194, 182, 157, 152, 236, 26, 16, 145, 136,
-					136, 145, 129, 126, 153, 116, 42, 145, 11, 219, 134, 134, 126, 102, 67, 37, 199, 230, 106, 228,
-					155, 179, 29, 171, 162, 97, 220, 240, 235, 24, 210, 88, 253, 88, 107, 20, 49, 252, 218, 165,
-					146, 229, 152, 181, 41, 159, 1, 192},
+				ReferenceBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
+					169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255},
 				ReceiptMerkleRoot:  nil,
 				RecipientSignature: []byte{},
 			},
@@ -1996,7 +1992,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				Observer:            tt.fields.Observer,
 			}
-			got, err := bs.ReceiveBlock(tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
+			got, err := bs.ReceiveBlock(
+				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, &[]model.Blocksmith{
+					{
+						NodePublicKey: []byte{1, 3, 4, 5, 6},
+					},
+				}, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReceiveBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
