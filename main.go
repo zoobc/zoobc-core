@@ -248,6 +248,16 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mainchainBlockService,
 	)
 
+	// Check computer/node local time. Comparing with last block timestamp
+	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
+	lastBlock, err := mainchainBlockService.GetLastBlock()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if time.Now().Unix() < lastBlock.GetTimestamp() {
+		log.Fatal("Your computer clock is behind from the correct time")
+	}
+
 	if len(nodeSecretPhrase) > 0 && smithing {
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
