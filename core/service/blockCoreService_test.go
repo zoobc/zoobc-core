@@ -268,6 +268,7 @@ func TestNewBlockService(t *testing.T) {
 		accountBalanceQuery     query.AccountBalanceQueryInterface
 		participationScoreQuery query.ParticipationScoreQueryInterface
 		obsr                    *observer.Observer
+		sortedBlocksmiths       *[]model.Blocksmith
 	}
 	tests := []struct {
 		name string
@@ -277,12 +278,14 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				ct:   &chaintype.MainChain{},
-				obsr: observer.NewObserver(),
+				ct:                &chaintype.MainChain{},
+				obsr:              observer.NewObserver(),
+				sortedBlocksmiths: &([]model.Blocksmith{}),
 			},
 			want: &BlockService{
-				Chaintype: &chaintype.MainChain{},
-				Observer:  observer.NewObserver(),
+				Chaintype:         &chaintype.MainChain{},
+				Observer:          observer.NewObserver(),
+				SortedBlocksmiths: &([]model.Blocksmith{}),
 			},
 		},
 	}
@@ -299,6 +302,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery,
 				tt.args.obsr,
+				tt.args.sortedBlocksmiths,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
@@ -1748,6 +1752,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		Observer            *observer.Observer
+		SortedBlocksmiths   *[]model.Blocksmith
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -1783,6 +1788,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            nil,
+				SortedBlocksmiths:   nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -1809,6 +1815,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            nil,
+				SortedBlocksmiths:   nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -1832,6 +1839,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            nil,
+				SortedBlocksmiths:   nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -1860,6 +1868,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            nil,
+				SortedBlocksmiths:   nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -1888,6 +1897,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            nil,
+				SortedBlocksmiths:   nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -1923,6 +1933,11 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            observer.NewObserver(),
+				SortedBlocksmiths: &[]model.Blocksmith{
+					{
+						NodePublicKey: []byte{1, 3, 4, 5, 6},
+					},
+				},
 			},
 			wantErr: true,
 			want:    nil,
@@ -1956,6 +1971,11 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Observer:            observer.NewObserver(),
+				SortedBlocksmiths: &[]model.Blocksmith{
+					{
+						NodePublicKey: []byte{1, 3, 4, 5, 6},
+					},
+				},
 			},
 			wantErr: false,
 			want: &model.Receipt{
@@ -1991,13 +2011,10 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				Observer:            tt.fields.Observer,
+				SortedBlocksmiths:   tt.fields.SortedBlocksmiths,
 			}
 			got, err := bs.ReceiveBlock(
-				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, &[]model.Blocksmith{
-					{
-						NodePublicKey: []byte{1, 3, 4, 5, 6},
-					},
-				}, tt.args.nodeSecretPhrase)
+				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReceiveBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
