@@ -1,0 +1,31 @@
+# Tested with: balena build --deviceType raspberrypi3 --arch armv7hf --logs
+# Alternative: env CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go build -v -a -tags 'netgo' -ldflags '-linkmode external -extldflags "-static"'
+
+FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine-golang:1.12-build as builder
+RUN [ "cross-build-start" ]
+RUN go get -u github.com/golang/dep/cmd/dep
+WORKDIR /go/src/github.com/zoobc/zoobc-core
+COPY Gopkg.lock Gopkg.toml .
+RUN /go/bin/dep ensure -v --vendor-only
+COPY . .
+### Use go-sqlite3's libsqlite3.c (takes additional time to compile):
+#RUN CGO_ENABLED=1 go install -v -x -tags 'netgo' -ldflags '-linkmode external -extldflags "-static"'
+#RUN CGO_ENABLED=1 go install -v -tags 'netgo'
+### Use system's libsqlite3.so (precompiled):
+RUN install_packages sqlite-dev
+#RUN CGO_ENABLED=1 go install -v -x -tags 'netgo libsqlite3' -ldflags '-linkmode external -extldflags "-static"'
+RUN CGO_ENABLED=1 go install -v -tags 'netgo libsqlite3'
+RUN [ "cross-build-end" ]
+
+### Static build requires no runtime:
+#FROM scratch
+#ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+### Non-static build requires the alpine musl runtime:
+FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine:run
+RUN [ "cross-build-start" ]
+RUN install_packages sqlite-libs
+RUN [ "cross-build-end" ]
+COPY --from=builder /etc/nsswitch.conf /etc/nsswitch.conf
+COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
+COPY --from=builder /go/bin/zoobc-core /bin/zoobc-core
+CMD ["/bin/zoobc-core"]
