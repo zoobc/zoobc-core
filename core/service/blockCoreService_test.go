@@ -146,6 +146,8 @@ func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (
 }
 func (*mockQueryExecutorFail) BeginTx() error { return nil }
 
+func (*mockQueryExecutorFail) RollbackTx() error { return nil }
+
 func (*mockQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:deleteMempoolFail")
 }
