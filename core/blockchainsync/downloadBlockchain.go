@@ -71,12 +71,18 @@ func (bd *BlockchainDownloader) SetIsDownloading(newValue bool) {
 }
 
 func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, error) {
+	var (
+		err                              error
+		peerCumulativeDifficultyResponse *model.GetCumulativeDifficultyResponse
+		lastBlock, commonBlock           *model.Block
+	)
+
 	bd.PeerHasMore = true
 	peer := bd.PeerExplorer.GetAnyResolvedPeer()
 	if peer == nil {
 		return nil, errors.New("no connected peer can be found")
 	}
-	peerCumulativeDifficultyResponse, err := bd.PeerServiceClient.GetCumulativeDifficulty(peer, bd.ChainType)
+	peerCumulativeDifficultyResponse, err = bd.PeerServiceClient.GetCumulativeDifficulty(peer, bd.ChainType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err)
 	}
@@ -84,7 +90,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	peerHeight := peerCumulativeDifficultyResponse.Height
 
-	lastBlock, err := bd.BlockService.GetLastBlock()
+	lastBlock, err = bd.BlockService.GetLastBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +104,6 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 
 	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
 	if lastBlockID != commonMilestoneBlockID {
-		var err error
 		commonMilestoneBlockID, err = bd.getPeerCommonBlockID(peer)
 		if err != nil {
 			return nil, err
@@ -111,7 +116,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	}
 
 	commonBlockID := chainBlockIds[0]
-	commonBlock, err := bd.BlockService.GetBlockByID(commonBlockID)
+	commonBlock, err = bd.BlockService.GetBlockByID(commonBlockID)
 	if err != nil {
 		log.Warnf("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
 		return nil, err
@@ -137,9 +142,15 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 // returns (otherPeerChainBlockIds: []int64, error)
 // if otherPeerChainBlockIds has member, it means that there are blocks to download from the peer
 func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonMilestoneBlockID int64) ([]int64, error) {
+	var (
+		err                                    error
+		currentLastBlock, otherPeerCommonBlock *model.Block
+		otherPeerCumulativeDifficultyResponse  *model.GetCumulativeDifficultyResponse
+	)
+
 	// if the host found other peer with better difficulty
 	otherPeerChainBlockIds := bd.getBlockIdsAfterCommon(peerToCheck, commonMilestoneBlockID)
-	currentLastBlock, err := bd.BlockService.GetLastBlock()
+	currentLastBlock, err = bd.BlockService.GetLastBlock()
 	if err != nil {
 		return []int64{}, err
 	}
@@ -147,7 +158,7 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 	if len(otherPeerChainBlockIds) < 1 || otherPeerChainBlockIds[0] == currentLastBlock.ID {
 		return []int64{}, nil
 	}
-	otherPeerCommonBlock, err := bd.BlockService.GetBlockByID(otherPeerChainBlockIds[0])
+	otherPeerCommonBlock, err = bd.BlockService.GetBlockByID(otherPeerChainBlockIds[0])
 	if err != nil {
 		return []int64{}, err
 	}
@@ -157,7 +168,7 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 				constant.MinRollbackBlocks))
 	}
 
-	otherPeerCumulativeDifficultyResponse, err := bd.PeerServiceClient.GetCumulativeDifficulty(peerToCheck, bd.ChainType)
+	otherPeerCumulativeDifficultyResponse, err = bd.PeerServiceClient.GetCumulativeDifficulty(peerToCheck, bd.ChainType)
 	if err != nil || otherPeerCumulativeDifficultyResponse.CumulativeDifficulty == "" {
 		return []int64{}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("error in peer %s cumulative difficulty",
 			peerToCheck.GetInfo().Address))
@@ -174,12 +185,14 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 
 func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64,
 	commonBlock *model.Block) (*PeerForkInfo, error) {
-	var peersTobeDeactivated []*model.Peer
+	var (
+		peersTobeDeactivated []*model.Peer
+		peersSlice           []*model.Peer
+	)
 	segSize := constant.BlockDownloadSegSize
 
 	stop := uint32(len(chainBlockIds))
 
-	var peersSlice []*model.Peer
 	for _, peer := range bd.PeerExplorer.GetResolvedPeers() {
 		peersSlice = append(peersSlice, peer)
 	}
