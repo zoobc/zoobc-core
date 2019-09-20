@@ -235,6 +235,16 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		}
 	}
 
+	// Check computer/node local time. Comparing with last block timestamp
+	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
+	lastBlock, err := mainchainBlockService.GetLastBlock()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if time.Now().Unix() < lastBlock.GetTimestamp() {
+		log.Fatal("Your computer clock is behind from the correct time")
+	}
+
 	// no nodes registered with current node public key
 	nodeRegistration, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	if err != nil {
@@ -247,16 +257,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		smith.NewBlocksmith(nodeSecretPhrase, blockSmithAddress),
 		mainchainBlockService,
 	)
-
-	// Check computer/node local time. Comparing with last block timestamp
-	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
-	lastBlock, err := mainchainBlockService.GetLastBlock()
-	if err != nil {
-		log.Fatal(err)
-	}
-	if time.Now().Unix() < lastBlock.GetTimestamp() {
-		log.Fatal("Your computer clock is behind from the correct time")
-	}
 
 	if len(nodeSecretPhrase) > 0 && smithing {
 		go startSmith(sleepPeriod, mainchainProcessor)
