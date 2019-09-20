@@ -258,7 +258,7 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE height > ?", adq.TableName),
-			[]interface{}{height},
+			height,
 		},
 		{
 			fmt.Sprintf(`

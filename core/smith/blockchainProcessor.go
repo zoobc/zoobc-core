@@ -12,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -118,7 +119,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			return err
 		}
 		// validate
-		err = coreUtil.ValidateBlock(block, previousBlock, timestamp) // err / !err
+		err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
 		if err != nil {
 			return err
 		}

@@ -22,6 +22,7 @@ var (
 	ParserErr           TypeBlocker = "ParserErr"
 	ServerError         TypeBlocker = "ServerError"
 	SmithingErr         TypeBlocker = "SmithingErr"
+	ChainValidationErr  TypeBlocker = "ChainValidationErr"
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {
