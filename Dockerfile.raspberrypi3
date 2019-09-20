@@ -22,26 +22,28 @@ RUN cd /musl-cross-make \
   && make install
 RUN go get -u github.com/golang/dep/cmd/dep
 WORKDIR /go/src/github.com/zoobc/zoobc-core
-COPY Gopkg.lock Gopkg.toml .
+COPY Gopkg.lock Gopkg.toml ./
 RUN /go/bin/dep ensure -v --vendor-only
 COPY . .
 ### Use go-sqlite3's libsqlite3.c (takes additional time to compile):
-#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags 'netgo' -ldflags '-linkmode external -extldflags "-static"'
-RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags 'netgo'
+RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags 'netgo' -ldflags '-linkmode external -extldflags "-static"'
+#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags 'netgo'
 ### Use system's libsqlite3.so (precompiled):
 #RUN install_packages sqlite-dev
 #RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags 'netgo linsqlite3' -ldflags '-linkmode external -extldflags "-static"'
 #RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags 'netgo libsqlite3'
 
+
 ### Static build requires no runtime:
-#FROM scratch
+FROM arm32v7/busybox:musl
 #ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ### Non-static build requires the alpine musl runtime:
-FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine:run
+#FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine:run
 #RUN [ "cross-build-start" ]
 #RUN install_packages sqlite-libs
 #RUN [ "cross-build-end" ]
 COPY --from=builder /etc/nsswitch.conf /etc/nsswitch.conf
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
 COPY --from=builder /go/bin/linux_arm/zoobc-core /bin/zoobc-core
-CMD ["/bin/zoobc-core"]
+COPY resource/ /data/zoobc-core
+CMD ["/bin/zoobc-core", "--config-path=/data/zoobc-core", "--config-postfix=Raspi"]

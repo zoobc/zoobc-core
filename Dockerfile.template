@@ -5,7 +5,7 @@ FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine-golang:1.12-build as builder
 RUN [ "cross-build-start" ]
 RUN go get -u github.com/golang/dep/cmd/dep
 WORKDIR /go/src/github.com/zoobc/zoobc-core
-COPY Gopkg.lock Gopkg.toml .
+COPY Gopkg.lock Gopkg.toml ./
 RUN /go/bin/dep ensure -v --vendor-only
 COPY . .
 ### Use go-sqlite3's libsqlite3.c (takes additional time to compile):
@@ -16,6 +16,7 @@ RUN install_packages sqlite-dev
 #RUN CGO_ENABLED=1 go install -v -x -tags 'netgo libsqlite3' -ldflags '-linkmode external -extldflags "-static"'
 RUN CGO_ENABLED=1 go install -v -tags 'netgo libsqlite3'
 RUN [ "cross-build-end" ]
+
 
 ### Static build requires no runtime:
 #FROM scratch
@@ -28,4 +29,5 @@ RUN [ "cross-build-end" ]
 COPY --from=builder /etc/nsswitch.conf /etc/nsswitch.conf
 COPY --from=builder /etc/ssl/certs/ /etc/ssl/certs
 COPY --from=builder /go/bin/zoobc-core /bin/zoobc-core
-CMD ["/bin/zoobc-core"]
+COPY resource/ /data/zoobc-core
+CMD ["/bin/zoobc-core", "--config-path=/data/zoobc-core", "--config-postfix=Raspi"]
