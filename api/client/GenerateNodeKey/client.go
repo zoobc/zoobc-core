@@ -47,7 +47,7 @@ func main() {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig := signature.Sign(
 		buffer.Bytes(),
-		constant.NodeSignatureTypeDefault,
+		constant.SignatureTypeDefault,
 		accountSeed,
 	)
 	buffer.Write(sig)

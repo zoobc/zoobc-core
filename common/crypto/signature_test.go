@@ -41,7 +41,7 @@ func TestSignature_Sign(t *testing.T) {
 			name: "Sign:valid",
 			args: args{
 				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				signatureType: constant.NodeSignatureTypeDefault,
+				signatureType: constant.SignatureTypeDefault,
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			want: []byte{0, 0, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
