@@ -160,7 +160,8 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			RecipientAccountAddress: tx.RecipientAccountAddress,
 		}
 
-		if err = fp.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+		err = fp.MempoolService.ValidateMempoolTransaction(mpTx)
+		if err != nil {
 			return err
 		}
 		// Apply Unconfirmed
