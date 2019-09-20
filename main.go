@@ -58,13 +58,19 @@ var (
 func init() {
 	var (
 		configPostfix string
+		configDir     string
 		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
+	flag.StringVar(&configDir, "config-path", "", "Usage")
 	flag.Parse()
 
-	if err := util.LoadConfig("./resource", "config"+configPostfix, "toml"); err != nil {
+	if configDir == "" {
+		configDir = "./resource"
+	}
+
+	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
 		log.Fatal(err)
 	}
 
@@ -181,7 +187,10 @@ func startServices() {
 
 func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 	for {
-		_ = processor.StartSmithing()
+		err := processor.StartSmithing()
+		if err != nil {
+			log.Warn("Smith error: ", err)
+		}
 		time.Sleep(time.Duration(sleepPeriod) * time.Second)
 	}
 }
@@ -206,6 +215,10 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
+	actionSwitcher := &transaction.TypeSwitcher{
+		Executor: queryExecutor,
+	}
+
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
 		queryExecutor,
@@ -214,9 +227,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewTransactionQuery(mainchain),
 		crypto.NewSignature(),
 		mempoolService,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
@@ -254,9 +265,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
 		mainchainBlockService,
-		p2pServiceInstance,
 		peerServiceClient,
 		peerExplorer,
+		queryExecutor,
+		mempoolService,
+		actionSwitcher,
 	)
 	mainchainSynchronizer.Start(mainchainSyncChannel)
 }

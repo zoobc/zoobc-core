@@ -40,6 +40,6 @@ func main() {
 		log.Fatalf("error calling rpc_service.GetBlockByID: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.GetBlockByID(): %s", response)
+	log.Printf("response from remote rpc_service.ID(): %s", response)
 
 }
