@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -93,7 +94,7 @@ func (m *Migration) Init() error {
 				"version" INTEGER,
 				"payload_length" INTEGER,
 				"payload_hash" BLOB,
-				PRIMARY KEY("id")
+				UNIQUE("height")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
@@ -166,15 +167,25 @@ func (m *Migration) Apply() error {
 	}
 
 	for version, query := range migrations {
+		var err error
 		version := version
-		_ = m.Query.BeginTx()
-		_ = m.Query.ExecuteTransaction(query)
+		err = m.Query.BeginTx()
+		if err != nil {
+			log.Warn(err)
+		}
+		err = m.Query.ExecuteTransaction(query)
+		if err != nil {
+			log.Warn(err)
+		}
 
 		if m.CurrentVersion != nil {
-			_ = m.Query.ExecuteTransaction(`UPDATE "migration"
+			err = m.Query.ExecuteTransaction(`UPDATE "migration"
 				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion)
+			if err != nil {
+				log.Warn(err)
+			}
 		} else {
-			_ = m.Query.ExecuteTransaction(`
+			err = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
 					"version",
 					"created_date"
@@ -184,8 +195,11 @@ func (m *Migration) Apply() error {
 					datetime('now')
 				);
 				`)
+			if err != nil {
+				log.Warn(err)
+			}
 		}
-		err := m.Query.CommitTx()
+		err = m.Query.CommitTx()
 		m.CurrentVersion = &version
 		if err != nil {
 			return err

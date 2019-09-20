@@ -145,7 +145,7 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", q.TableName),
-			[]interface{}{height},
+			height,
 		},
 		{
 			fmt.Sprintf(`
@@ -159,7 +159,7 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 				q.TableName,
 				q.TableName,
 			),
-			[]interface{}{1},
+			1,
 		},
 	}
 }

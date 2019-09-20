@@ -11,4 +11,5 @@ const (
 	PeerGetBlocksLimit               uint32        = 1440
 	CommonMilestoneBlockIdsLimit     int32         = 10
 	SafeBlockGap                     uint32        = 1440
+	MinRollbackBlocks                uint32        = 720
 )

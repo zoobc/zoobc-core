@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -129,6 +130,10 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 			"the block service is not set for this chaintype in this host",
 		)
 	}
+
+	if lastBlockID == 0 && lastMilestoneBlockID == 0 {
+		return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockID has to be supplied")
+	}
 	myLastBlock, err := blockService.GetLastBlock()
 	if err != nil || myLastBlock == nil {
 		return nil, blocker.NewBlocker(
@@ -136,12 +141,14 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 			"failed to get last block",
 		)
 	}
+	myLastBlockID := myLastBlock.ID
+	myBlockchainHeight := myLastBlock.Height
 
 	if _, err := blockService.GetBlockByID(lastBlockID); err == nil {
 		preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
 			BlockIds: []int64{lastBlockID},
 		}
-		if lastBlockID == myLastBlock.ID {
+		if lastBlockID == myLastBlockID {
 			preparedResponse.Last = true
 		}
 		return preparedResponse, nil
@@ -151,40 +158,34 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 	limit := constant.CommonMilestoneBlockIdsLimit
 	if lastMilestoneBlockID != 0 {
 		lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID)
+		// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 		if err != nil {
 			return nil, err
 		}
 		height = lastMilestoneBlock.GetHeight()
-		jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myLastBlock.Height, 1))
+		jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myBlockchainHeight, 1))
 	} else if lastBlockID != 0 {
 		// TODO: analyze difference of height jump
-		height = myLastBlock.Height
+		height = myBlockchainHeight
 		jump = 10
 	}
 
-	block, err := blockService.GetBlockByHeight(height)
-	if err != nil {
-		return nil, err
-	}
-	blockIDAtHeight := block.ID
-
-	for {
-		limit--
-		if height > 0 && limit > 0 {
-			blockIds = append(blockIds, blockIDAtHeight)
+	for ; limit > 0; limit-- {
+		block, err := blockService.GetBlockByHeight(height)
+		if err != nil {
+			return nil, err
+		}
+		blockIds = append(blockIds, block.ID)
+		switch {
+		case height == 0:
+			break
+		case height < jump:
+			height = 0
+		default:
 			height -= jump
-			block, err := blockService.GetBlockByHeight(height)
-			if err != nil {
-				return nil, err
-			}
-			blockIDAtHeight = block.ID
-		} else {
-			break
-		}
-		if limit < 1 {
-			break
 		}
 	}
+
 	return &model.GetCommonMilestoneBlockIdsResponse{BlockIds: blockIds}, nil
 }
 
@@ -248,6 +249,8 @@ func (ps *P2PServerService) GetNextBlocks(
 			break
 		}
 
+		txs, _ := ps.BlockServices[chainType.GetTypeInt()].GetTransactionsByBlockID(block.ID)
+		block.Transactions = txs
 		blocksMessage = append(blocksMessage, block)
 	}
 	return &model.BlocksData{NextBlocks: blocksMessage}, nil
