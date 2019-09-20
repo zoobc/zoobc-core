@@ -49,11 +49,10 @@ type (
 	}
 
 	P2PServerService struct {
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		BlockServices     map[int32]coreService.BlockServiceInterface
-		MempoolServices   map[int32]coreService.MempoolServiceInterface
-		SortedBlocksmiths *[]model.Blocksmith
-		NodeSecretPhrase  string
+		PeerExplorer     strategy.PeerExplorerStrategyInterface
+		BlockServices    map[int32]coreService.BlockServiceInterface
+		MempoolServices  map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase string
 	}
 )
 
@@ -61,15 +60,13 @@ func NewP2PServerService(
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
-	sortedBlocksmiths *[]model.Blocksmith,
 	nodeSecretPhrase string,
 ) *P2PServerService {
 	return &P2PServerService{
-		PeerExplorer:      peerExplorer,
-		BlockServices:     blockServices,
-		MempoolServices:   mempoolServices,
-		SortedBlocksmiths: sortedBlocksmiths,
-		NodeSecretPhrase:  nodeSecretPhrase,
+		PeerExplorer:     peerExplorer,
+		BlockServices:    blockServices,
+		MempoolServices:  mempoolServices,
+		NodeSecretPhrase: nodeSecretPhrase,
 	}
 }
 
@@ -271,7 +268,7 @@ func (ps *P2PServerService) SendBlock(
 		)
 	}
 	receipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
-		senderPublicKey, lastBlock, block, ps.SortedBlocksmiths, ps.NodeSecretPhrase,
+		senderPublicKey, lastBlock, block, ps.NodeSecretPhrase,
 	)
 	if err != nil {
 		return nil, err

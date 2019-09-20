@@ -57,7 +57,6 @@ type (
 			senderPublicKey []byte,
 			lastBlock,
 			block *model.Block,
-			sortedBlocksmiths *[]model.Blocksmith,
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
@@ -76,6 +75,7 @@ type (
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		Observer                *observer.Observer
+		SortedBlocksmiths       *[]model.Blocksmith
 	}
 )
 
@@ -91,6 +91,7 @@ func NewBlockService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	obsr *observer.Observer,
+	sortedBlocksmiths *[]model.Blocksmith,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:               ct,
@@ -104,6 +105,7 @@ func NewBlockService(
 		AccountBalanceQuery:     accountBalanceQuery,
 		ParticipationScoreQuery: participationScoreQuery,
 		Observer:                obsr,
+		SortedBlocksmiths:       sortedBlocksmiths,
 	}
 }
 
@@ -595,7 +597,6 @@ func (bs *BlockService) CheckGenesis() bool {
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
-	sortedBlocksmiths *[]model.Blocksmith,
 	nodeSecretPhrase string,
 ) (*model.Receipt, error) {
 	// make sure block has previous block hash
@@ -620,7 +621,7 @@ func (bs *BlockService) ReceiveBlock(
 			}
 			// check if the block broadcaster is the valid blocksmith
 			index := -1 // use index to determine if is in list, and who to punish
-			for i, bs := range *sortedBlocksmiths {
+			for i, bs := range *bs.SortedBlocksmiths {
 				if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
 					index = i
 					break

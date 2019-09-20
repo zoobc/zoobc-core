@@ -47,20 +47,17 @@ type (
 		Host              *model.Host
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		PeerServiceClient client.PeerServiceClientInterface
-		SortedBlocksmiths *[]model.Blocksmith
 	}
 )
 
 // InitService to initialize peer to peer service wrapper
 func NewP2PService(
 	host *model.Host,
-	sortedBlocksmiths *[]model.Blocksmith,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		Host:              host,
-		SortedBlocksmiths: sortedBlocksmiths,
 		PeerServiceClient: peerServiceClient,
 		PeerExplorer:      peerExplorer,
 	}, nil
@@ -87,7 +84,6 @@ func (s *Peer2PeerService) StartP2P(
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,
-		s.SortedBlocksmiths,
 		nodeSecretPhrase,
 	)
 	// start listening on peer port

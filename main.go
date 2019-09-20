@@ -148,7 +148,6 @@ func initP2pInstance() {
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
-		&sortedBlocksmiths,
 		peerServiceClient,
 		peerExplorer,
 	)
@@ -221,6 +220,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		observerInstance,
+		&sortedBlocksmiths,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 	mainchainProcessor = smith.NewBlockchainProcessor(

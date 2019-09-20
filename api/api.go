@@ -99,8 +99,12 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	})
 	// Set GRPC handler for node admin requests
 	rpcService.RegisterNodeAdminServiceServer(grpcServer, &handler.NodeAdminHandler{
-		Service: service.NewNodeAdminService(queryExecutor, ownerAccountAddress, nodefilePath),
+		Service: service.NewNodeAdminService(
+			queryExecutor,
+			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
+			nodefilePath),
 	})
+
 	// Set GRPC handler for unconfirmed
 	rpcService.RegisterNodeHardwareServiceServer(grpcServer, &handler.NodeHardwareHandler{
 		Service: service.NewNodeHardwareService(
