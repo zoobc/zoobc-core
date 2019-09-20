@@ -33,4 +33,4 @@ ADD https://raw.githubusercontent.com/step-/JSON.awk/1.3/JSON.awk /usr/bin/JSON.
 COPY entry.sh /usr/bin/entry.sh
 ENTRYPOINT ["/usr/bin/entry.sh"]
 COPY resource/ /data/zoobc-core
-CMD ["/bin/zoobc-core", "--config-path=/data/zoobc-core", "--config-postfix=Raspi"]
+CMD ["/bin/zoobc-core"]
