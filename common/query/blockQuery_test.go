@@ -226,8 +226,8 @@ func TestBlockQuery_Rollback(t *testing.T) {
 			args:   args{height: uint32(1)},
 			wantMultiQueries: [][]interface{}{
 				{
-					"DELETE FROM block WHERE height > ?",
-					[]interface{}{uint32(1)},
+					"DELETE FROM main_block WHERE height > ?",
+					uint32(1),
 				},
 			},
 		},

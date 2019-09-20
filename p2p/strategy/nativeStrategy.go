@@ -2,9 +2,10 @@ package strategy
 
 import (
 	"errors"
-	"github.com/zoobc/zoobc-core/p2p/client"
 	"sync"
 	"time"
+
+	"github.com/zoobc/zoobc-core/p2p/client"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -260,7 +261,7 @@ func (hs *NativeStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(hs.GetResolvedPeers())) - hs.MaxResolvedPeers + 1
 }
 
-// ResolvePeers looping unresolve peers and adding to (resolve) Peers if get response
+// ResolvePeers looping unresolved peers and adding to (resolve) Peers if get response
 func (hs *NativeStrategy) ResolvePeers() {
 	exceedMaxResolvedPeers := hs.GetExceedMaxResolvedPeers()
 	resolvingCount := int32(0)

@@ -16,7 +16,8 @@ type (
 		GetTransactions(limit uint32, offset uint64) string
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
-		BuildModel(transactions []*model.Transaction, rows *sql.Rows) []*model.Transaction
+		BuildModel(txs []*model.Transaction, rows *sql.Rows) []*model.Transaction
+		DeleteTransactions(id int64) string
 		Scan(tx *model.Transaction, row *sql.Row) error
 	}
 
@@ -98,6 +99,11 @@ func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string,
 	return query, []interface{}{blockID}
 }
 
+// DeleteTransactions. delete some transactions according to timestamp
+func (tq *TransactionQuery) DeleteTransactions(id int64) string {
+	return fmt.Sprintf("DELETE FROM %v WHERE height >= (SELECT height FROM %v WHERE ID = %v)", tq.getTableName(), tq.getTableName(), id)
+}
+
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
 func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 	return []interface{}{
@@ -166,8 +172,8 @@ func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
 func (tq *TransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", tq.TableName),
-			[]interface{}{height},
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", tq.getTableName()),
+			height,
 		},
 	}
 }
