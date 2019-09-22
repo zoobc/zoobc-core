@@ -162,10 +162,6 @@ func (*NodeRegistrationQuery) ExtractModel(nr *model.NodeRegistration) []interfa
 	}
 }
 
-// func appendColumnPointers(basicColumnPointers, ignoredAggregateColumns []interface ) []interface {
-// 	return append
-// }
-
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
 func (nr *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration {
