@@ -32,7 +32,7 @@ func GetBlockIDFromHash(blockHash []byte) int64 {
 // GetBlockHash return the block's bytes hash.
 // note: the block must be signed, otherwise this function returns an error
 func GetBlockHash(block *model.Block) ([]byte, error) {
-	digest := sha3.New512()
+	digest := sha3.New256()
 	blockByte, _ := GetBlockByte(block, true)
 	_, err := digest.Write(blockByte)
 	if err != nil {
