@@ -273,7 +273,20 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 }
 
 func TestGetNextBlocks(t *testing.T) {
-	blockService := coreService.NewBlockService(&chaintype.MainChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	blockService := coreService.NewBlockService(
+		&chaintype.MainChain{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&[]model.Blocksmith{})
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,
 		PeerServiceClient: &mockP2pServiceSuccess{},

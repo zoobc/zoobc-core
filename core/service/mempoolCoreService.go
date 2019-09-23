@@ -276,7 +276,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	// generate receipt
-	receivedTxHash := sha3.Sum512(receivedTxBytes)
+	receivedTxHash := sha3.Sum256(receivedTxBytes)
 	receipt, err := util.GenerateReceipt( // todo: var
 		lastBlock,
 		senderPublicKey,

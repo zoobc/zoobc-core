@@ -26,28 +26,19 @@ type (
 var nodeAdminServiceInstance *NodeAdminService
 
 // NewBlockService create a singleton instance of BlockService
-func NewNodeAdminService(queryExecutor query.ExecutorInterface, ownerAccountAddress, nodeKeyFilePath string) *NodeAdminService {
+func NewNodeAdminService(
+	queryExecutor query.ExecutorInterface,
+	blockService coreService.BlockServiceInterface,
+	ownerAccountAddress, nodeKeyFilePath string,
+) *NodeAdminService {
 	if nodeAdminServiceInstance == nil {
 		mainchain := &chaintype.MainChain{}
-		blockService := coreService.NewBlockService(
-			mainchain,
-			queryExecutor,
-			query.NewBlockQuery(mainchain),
-			nil,
-			query.NewTransactionQuery(mainchain),
-			crypto.NewSignature(),
-			nil,
-			nil,
-			nil,
-			nil,
-			nil,
-		)
-
 		nodeAdminCoreService := coreService.NewNodeAdminService(queryExecutor,
 			query.NewBlockQuery(mainchain), crypto.NewSignature(), blockService, nodeKeyFilePath)
 		nodeAdminServiceInstance = &NodeAdminService{
 			Query:                queryExecutor,
 			NodeAdminCoreService: nodeAdminCoreService,
+			ownerAccountAddress:  ownerAccountAddress,
 		}
 	}
 	return nodeAdminServiceInstance
