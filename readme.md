@@ -64,3 +64,9 @@ go build -o zoobc
 ### Contributing
 
 please refer to [contribute.md](contribute.md) and [code of conduct](code_of_conduct.md).
+
+### GRPC web proxy for browser
+[link](https://github.com/improbable-eng/grpc-web/tree/master/go/grpcwebproxy)
+```
+nohup grpcwebproxy --backend_addr=localhost:7000 --run_tls_server=false --allow_all_origins --server_http_debug_port=7001 --server_http_max_write_timeout 1h & 
+```

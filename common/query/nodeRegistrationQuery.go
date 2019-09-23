@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -13,6 +14,7 @@ type (
 		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) (str []string, args []interface{})
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
+		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
@@ -21,6 +23,7 @@ type (
 		GetNodeRegistrationsWithZeroScore(queued bool) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
+		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith
 	}
 
 	NodeRegistrationQuery struct {
@@ -77,6 +80,13 @@ func (nr *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model.
 func (nr *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND latest=1 LIMIT %d",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), registrationHeight, size)
+}
+
+// GetActiveNodeRegistrations
+func (nr *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
+	return fmt.Sprintf("SELECT nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
+		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE nr.latest = 1 AND nr.queued = 0",
+		nr.getTableName(), NewParticipationScoreQuery().TableName)
 }
 
 // GetNodeRegistrationByID returns query string to get Node Registration by node public key
@@ -182,6 +192,22 @@ func (*NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistra
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations
+}
+
+func (*NodeRegistrationQuery) BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith {
+	for rows.Next() {
+		var (
+			blocksmith  model.Blocksmith
+			scoreString string
+		)
+		_ = rows.Scan(
+			&blocksmith.NodePublicKey,
+			&scoreString,
+		)
+		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
+		blocksmiths = append(blocksmiths, &blocksmith)
+	}
+	return blocksmiths
 }
 
 // Rollback delete records `WHERE block_height > `height`
