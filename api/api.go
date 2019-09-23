@@ -102,7 +102,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		Service: service.NewNodeAdminService(
 			queryExecutor,
 			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
-			nodefilePath),
+			ownerAccountAddress, nodefilePath),
 	})
 
 	// Set GRPC handler for unconfirmed

@@ -29,7 +29,7 @@ var nodeAdminServiceInstance *NodeAdminService
 func NewNodeAdminService(
 	queryExecutor query.ExecutorInterface,
 	blockService coreService.BlockServiceInterface,
-	nodeKeyFilePath string,
+	ownerAccountAddress, nodeKeyFilePath string,
 ) *NodeAdminService {
 	if nodeAdminServiceInstance == nil {
 		mainchain := &chaintype.MainChain{}
