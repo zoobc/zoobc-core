@@ -15,6 +15,7 @@ type (
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string
 		GetNodeRegistrationsWithZeroScore(queued bool) string
@@ -88,6 +89,14 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string, 
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
 		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey}
+}
+
+// GetLastVersionedNodeRegistrationByPublicKey returns query string to get Node Registration
+// by node public key at a given height (versioned)
+func (nr *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte,
+	height uint32) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
+		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey, height}
 }
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
