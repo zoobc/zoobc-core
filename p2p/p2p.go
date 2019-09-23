@@ -227,6 +227,7 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				p := peer
 				go func() {
 					_ = s.PeerServiceClient.SendTransaction(p, t, chainType)
+
 				}()
 			}
 		},

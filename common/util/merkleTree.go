@@ -97,3 +97,22 @@ func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes
 	}
 	return reflect.DeepEqual(lastHash, root.Bytes())
 }
+
+// ToBytes build []byte from HashTree which is a [][]*bytes.Buffer
+func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
+	var (
+		r, t *bytes.Buffer
+	)
+	t = bytes.NewBuffer([]byte{})
+	r = bytes.NewBuffer([]byte{})
+
+	for k, buffer := range mr.HashTree {
+		for _, nestBuf := range buffer {
+			t.Write(nestBuf.Bytes())
+			if k < len(mr.HashTree) {
+				r.Write(nestBuf.Bytes())
+			}
+		}
+	}
+	return r.Bytes(), t.Bytes()
+}

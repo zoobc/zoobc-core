@@ -33,7 +33,6 @@ type (
 			transactionBytes []byte,
 			chainType chaintype.ChainType,
 		) error
-
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
 			astMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
@@ -138,12 +137,8 @@ func (psc *PeerServiceClient) SendBlock(
 ) error {
 
 	var (
-		count          uint32
-		err            error
-		receipt        *model.Receipt
-		merkleRoot     util.MerkleRoot
-		hashedReceipts []*bytes.Buffer
-		queries        [][]interface{}
+		err     error
+		receipt *model.Receipt
 	)
 
 	connection, _ := psc.Dialer(destPeer)
@@ -160,66 +155,8 @@ func (psc *PeerServiceClient) SendBlock(
 		return err
 	}
 
-	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(receipt)
-	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
-	if err != nil {
-		return err
-	}
-
-	countBatchReceiptQ := query.GetTotalRecordOfSelect(psc.BatchReceiptQuery.GetBatchReceipts())
-	err = psc.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
-	if err != nil {
-		return err
-	}
-
-	if count >= constant.ReceiptBatchMaximum {
-		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts()
-		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		queries = make([][]interface{}, count)
-		for rows.Next() {
-			r := new(model.Receipt)
-			err = rows.Scan(&r)
-			if err != nil {
-				return err
-			}
-
-			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(receipt)
-			queries = append(queries, []interface{}{
-				insertReceiptQ,
-				insertReceiptArgs,
-			})
-
-			hashedReceipts = append(
-				hashedReceipts,
-				bytes.NewBuffer(util.GetSignedReceiptBytes(r)),
-			)
-
-		}
-
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
-		if err != nil {
-			return err
-		}
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(merkleRoot.HashTree)
-		queries = append(queries, []interface{}{
-			insertMerkleTreeQ,
-			insertMerkleTreeArgs,
-		})
-
-		err = psc.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	return nil
+	err = psc.storeReceipt(receipt)
+	return err
 }
 
 // SendTransaction send transaction to selected peer
@@ -229,12 +166,8 @@ func (psc *PeerServiceClient) SendTransaction(
 	chainType chaintype.ChainType,
 ) error {
 	var (
-		count          uint32
-		err            error
-		receipt        *model.Receipt
-		merkleRoot     util.MerkleRoot
-		hashedReceipts []*bytes.Buffer
-		queries        [][]interface{}
+		err     error
+		receipt *model.Receipt
 	)
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
@@ -248,66 +181,8 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-
-	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(receipt)
-	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
-	if err != nil {
-		return err
-	}
-
-	countBatchReceiptQ := query.GetTotalRecordOfSelect(psc.BatchReceiptQuery.GetBatchReceipts())
-	err = psc.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
-	if err != nil {
-		return err
-	}
-
-	if count >= constant.ReceiptBatchMaximum {
-		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts()
-		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		queries = make([][]interface{}, count)
-		for rows.Next() {
-			r := new(model.Receipt)
-			err = rows.Scan(&r)
-			if err != nil {
-				return err
-			}
-
-			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(receipt)
-			queries = append(queries, []interface{}{
-				insertReceiptQ,
-				insertReceiptArgs,
-			})
-
-			hashedReceipts = append(
-				hashedReceipts,
-				bytes.NewBuffer(util.GetSignedReceiptBytes(r)),
-			)
-
-		}
-
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
-		if err != nil {
-			return err
-		}
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(merkleRoot.HashTree)
-		queries = append(queries, []interface{}{
-			insertMerkleTreeQ,
-			insertMerkleTreeArgs,
-		})
-
-		err = psc.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-	return nil
+	err = psc.storeReceipt(receipt)
+	return err
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
@@ -408,4 +283,86 @@ func (psc PeerServiceClient) GetNextBlocks(
 		return nil, err
 	}
 	return res, err
+}
+
+// storeReceipt function will decider storing receipt into node_receipt or batch_receipt
+func (psc *PeerServiceClient) storeReceipt(receipt *model.Receipt) error {
+
+	var (
+		err            error
+		count          uint32
+		queries        [][]interface{}
+		receipts       []*model.Receipt
+		hashedReceipts []*bytes.Buffer
+		merkleRoot     util.MerkleRoot
+	)
+	err = psc.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(receipt)
+	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
+	if err != nil {
+		return err
+	}
+	err = psc.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+
+	countBatchReceiptQ := query.GetTotalRecordOfSelect(
+		psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0),
+	)
+	err = psc.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count >= constant.ReceiptBatchMaximum {
+		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
+		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		queries = make([][]interface{}, (constant.ReceiptBatchMaximum*2)+1)
+		receipts = psc.BatchReceiptQuery.BuildModel(receipts, rows)
+		for k, r := range receipts {
+			unrefReceipt := r
+			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(unrefReceipt)
+			queries[k] = append([]interface{}{insertReceiptQ}, insertReceiptArgs...)
+			removeBatchReceiptQ, removeBatchReceiptArgs := psc.BatchReceiptQuery.RemoveBatchReceiptByRoot(unrefReceipt.ReceiptMerkleRoot)
+			queries[constant.ReceiptBatchMaximum+1] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
+			hashedReceipts = append(
+				hashedReceipts,
+				bytes.NewBuffer(util.GetSignedReceiptBytes(unrefReceipt)),
+			)
+		}
+
+		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
+		if err != nil {
+			return err
+		}
+		rootMerkle, treeMerkle := merkleRoot.ToBytes()
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle)
+		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
+
+		err = psc.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		err = psc.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			return err
+		}
+		err = psc.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return nil
 }
