@@ -357,6 +357,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 		totalFee            int64
 		totalCoinBase       int64
 		transactions        []*model.Transaction
+		blockReceipts       []*model.BlockReceipt
 		payloadHash         []byte
 		payloadLength       uint32
 		secretPhrase        string
@@ -385,6 +386,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				totalFee:            0,
 				totalCoinBase:       0,
 				transactions:        []*model.Transaction{},
+				blockReceipts:       []*model.BlockReceipt{},
 				payloadHash:         []byte{},
 				payloadLength:       0,
 				secretPhrase:        "secretphrase",
@@ -399,6 +401,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				TotalFee:            0,
 				TotalCoinBase:       0,
 				Transactions:        []*model.Transaction{},
+				BlockReceipts:       []*model.BlockReceipt{},
 				PayloadHash:         []byte{},
 				PayloadLength:       0,
 				BlockSignature:      []byte{},
@@ -428,6 +431,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.totalFee,
 				tt.args.totalCoinBase,
 				tt.args.transactions,
+				tt.args.blockReceipts,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
 				tt.args.secretPhrase,
@@ -460,6 +464,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		totalFee             int64
 		totalCoinBase        int64
 		transactions         []*model.Transaction
+		blockReceipts        []*model.BlockReceipt
 		payloadHash          []byte
 		payloadLength        uint32
 		smithScale           int64
@@ -490,6 +495,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				totalFee:             0,
 				totalCoinBase:        0,
 				transactions:         []*model.Transaction{},
+				blockReceipts:        []*model.BlockReceipt{},
 				payloadHash:          []byte{},
 				payloadLength:        8,
 				smithScale:           0,
@@ -506,6 +512,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				TotalFee:             0,
 				TotalCoinBase:        0,
 				Transactions:         []*model.Transaction{},
+				BlockReceipts:        []*model.BlockReceipt{},
 				PayloadHash:          []byte{},
 				PayloadLength:        8,
 				SmithScale:           0,
@@ -537,6 +544,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.totalFee,
 				tt.args.totalCoinBase,
 				tt.args.transactions,
+				tt.args.blockReceipts,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
 				tt.args.smithScale,
