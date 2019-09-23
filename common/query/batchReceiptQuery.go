@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -11,9 +12,11 @@ type (
 	// BatchReceiptQueryInterface interface for BatchReceiptQuery
 	BatchReceiptQueryInterface interface {
 		InsertBatchReceipt(receipt *model.Receipt) (qStr string, args []interface{})
-		GetBatchReceipts() string
-		RemoveBatchReceipts() string
+		GetBatchReceipts(limit uint32, offset uint64) string
+		RemoveBatchReceiptByRoot(merkleRoot []byte) (qStr string, args []interface{})
 		ExtractModel(receipt *model.Receipt) []interface{}
+		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
+		Scan(receipt *model.Receipt, rows *sql.Row) error
 	}
 	// BatchReceiptQuery us query for BatchReceipt
 	BatchReceiptQuery struct {
@@ -55,13 +58,31 @@ func (br *BatchReceiptQuery) InsertBatchReceipt(receipt *model.Receipt) (qStr st
 }
 
 // GetBatchReceipts build select query for `batch_receipt` table
-func (br *BatchReceiptQuery) GetBatchReceipts() string {
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(br.Fields, ", "), br.getTableName())
+func (br *BatchReceiptQuery) GetBatchReceipts(limit uint32, offset uint64) string {
+	query := fmt.Sprintf(
+		"SELECT %s FROM %s ",
+		strings.Join(br.Fields, ", "),
+		br.getTableName(),
+	)
+	newLimit := limit
+	if limit == 0 {
+		newLimit = uint32(10)
+	}
+	query += fmt.Sprintf(
+		"ORDER BY reference_block_height LIMIT %d OFFSET %d",
+		newLimit,
+		offset,
+	)
+	return query
 }
 
-// RemoveBatchReceipts build delete query for `batch_receipt` table
-func (br *BatchReceiptQuery) RemoveBatchReceipts() string {
-	return fmt.Sprintf("DELETE FROM %s", br.TableName)
+// RemoveBatchReceiptByRoot build delete query  for `batch_receipt` table by `receipt_merkle_root`
+func (br *BatchReceiptQuery) RemoveBatchReceiptByRoot(root []byte) (qStr string, args []interface{}) {
+	return fmt.Sprintf(
+			"DELETE FROM %s WHERE receipt_merkle_root = ?",
+			br.getTableName(),
+		),
+		[]interface{}{root}
 }
 
 // ExtractModel extract the model struct fields to the order of BatchReceiptQuery.Fields
@@ -76,4 +97,40 @@ func (*BatchReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
 		&receipt.ReceiptMerkleRoot,
 		&receipt.RecipientSignature,
 	}
+}
+
+// BuildModel extract __*sql.Rows__ into []*model.Receipt
+func (*BatchReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt {
+
+	for rows.Next() {
+		var receipt model.Receipt
+		_ = rows.Scan(
+			&receipt.SenderPublicKey,
+			&receipt.RecipientPublicKey,
+			&receipt.DatumType,
+			&receipt.DatumHash,
+			&receipt.ReferenceBlockHeight,
+			&receipt.ReferenceBlockHash,
+			&receipt.ReceiptMerkleRoot,
+			&receipt.RecipientSignature,
+		)
+
+		receipts = append(receipts, &receipt)
+	}
+	return receipts
+}
+func (*BatchReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
+
+	err := row.Scan(
+		&receipt.SenderPublicKey,
+		&receipt.RecipientPublicKey,
+		&receipt.DatumType,
+		&receipt.DatumHash,
+		&receipt.ReferenceBlockHeight,
+		&receipt.ReferenceBlockHash,
+		&receipt.ReceiptMerkleRoot,
+		&receipt.RecipientSignature,
+	)
+	return err
+
 }
