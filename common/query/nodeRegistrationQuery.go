@@ -143,7 +143,7 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(queued bool) 
 
 // GetNodeRegistryAtHeight returns unique latest node registry record at specific height
 func (nr *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s, max(height) FROM %s where height <= %d GROUP BY id ORDER BY height DESC",
+	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND queued == 0 GROUP BY id ORDER BY height DESC",
 		strings.Join(nr.Fields, ", "), nr.getTableName(), height)
 }
 
@@ -168,10 +168,10 @@ func (nr *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegis
 	columns, _ := rows.Columns()
 	var (
 		ignoredAggregateColumns, basicFieldsReceiver []interface{}
-		dumpString                                   *string
+		dumpString                                   string
 	)
 	for i := 0; i < len(columns)-len(nr.Fields); i++ {
-		ignoredAggregateColumns = append(ignoredAggregateColumns, dumpString)
+		ignoredAggregateColumns = append(ignoredAggregateColumns, &dumpString)
 	}
 
 	for rows.Next() {
@@ -189,7 +189,7 @@ func (nr *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegis
 			&nr.Height,
 		)
 		basicFieldsReceiver = append(basicFieldsReceiver, ignoredAggregateColumns...)
-		_ = rows.Scan(basicFieldsReceiver)
+		_ = rows.Scan(basicFieldsReceiver...)
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations

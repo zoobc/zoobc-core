@@ -177,6 +177,21 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"height",
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND queued == 0 GROUP BY id ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+			"max_height",
+		},
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, false, true, 200, 200))
 	default:
 		return nil, errors.New("InvalidQuery")
 	}
@@ -587,6 +602,79 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistrationService.SelectNodesToBeExpelled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		AccountBalanceQuery   query.AccountBalanceQueryInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.NodeRegistration
+		wantErr bool
+	}{
+		{
+			name: "GetNodeRegistryAtHeight:success",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				height: 1,
+			},
+			want: []*model.NodeRegistration{
+				&model.NodeRegistration{
+					NodeID:             int64(1),
+					NodePublicKey:      nrsNodePubKey1,
+					AccountAddress:     nrsAddress1,
+					RegistrationHeight: 10,
+					NodeAddress:        "10.10.10.10",
+					LockedBalance:      100000000,
+					Queued:             false,
+					Latest:             true,
+					Height:             200,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GetNodeRegistryAtHeight:fail-{NoNodeRegistered}",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				height: 1,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+			}
+			got, err := nrs.GetNodeRegistryAtHeight(tt.args.height)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}
