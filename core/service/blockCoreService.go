@@ -725,20 +725,25 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 
 	// block extra (computed) info
 
-	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
-	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
+	if block.Height > 0 {
+		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+		qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
+		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		defer rows.Close()
 
-	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if len(nr) == 0 {
-		return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+		nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+		if len(nr) == 0 {
+			return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+		}
+		nodeRegistration := nr[0]
+		blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
+	} else {
+		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-	nodeRegistration := nr[0]
-	blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
+
 	// Total number of receipts at a block height
 	blExt.TotalReceipts = 99
 	// ???

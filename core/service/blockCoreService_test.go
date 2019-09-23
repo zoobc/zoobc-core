@@ -2055,6 +2055,23 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 		TotalCoinBase:        1,
 		Version:              0,
 	}
+	genesisBlock := &model.Block{
+		ID:                   999,
+		PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
+		Height:               0,
+		Timestamp:            1562806389280,
+		BlockSeed:            []byte{},
+		BlockSignature:       []byte{},
+		CumulativeDifficulty: string(100000000),
+		SmithScale:           1,
+		PayloadLength:        0,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey:  bcsNodePubKey1,
+		TotalAmount:          100000000,
+		TotalFee:             10000000,
+		TotalCoinBase:        1,
+		Version:              0,
+	}
 	type fields struct {
 		Chaintype               chaintype.ChainType
 		QueryExecutor           query.ExecutorInterface
@@ -2090,6 +2107,40 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 			},
 			wantErr: true,
 			want:    nil,
+		},
+		{
+			name: "GetBlockExtendedInfo:success-{genesisBlock}",
+			args: args{
+				block: genesisBlock,
+			},
+			fields: fields{
+				QueryExecutor:         &mockQueryExecutorSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			wantErr: false,
+			want: &model.BlockExtendedInfo{
+				Block: &model.Block{
+					ID:                   999,
+					PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					Height:               0,
+					Timestamp:            1562806389280,
+					BlockSeed:            []byte{},
+					BlockSignature:       []byte{},
+					CumulativeDifficulty: string(100000000),
+					SmithScale:           1,
+					PayloadLength:        0,
+					PayloadHash:          []byte{},
+					BlocksmithPublicKey:  bcsNodePubKey1,
+					TotalAmount:          100000000,
+					TotalFee:             10000000,
+					TotalCoinBase:        block.TotalFee + 50 ^ 10*8,
+					Version:              0,
+				},
+				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
+				TotalReceipts:            99,
+				ReceiptValue:             99,
+				PopChange:                -20,
+			},
 		},
 		{
 			name: "GetBlockExtendedInfo:success",
