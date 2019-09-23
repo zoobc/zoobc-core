@@ -255,8 +255,18 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		}
 	}
 
+	// Check computer/node local time. Comparing with last block timestamp
+	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
+	lastBlock, err := mainchainBlockService.GetLastBlock()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if time.Now().Unix() < lastBlock.GetTimestamp() {
+		log.Fatal("Your computer clock is behind from the correct time")
+	}
+
 	// no nodes registered with current node public key
-	_, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
+	_, err = nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	if err != nil {
 		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
 	}
