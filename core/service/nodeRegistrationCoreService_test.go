@@ -634,7 +634,7 @@ func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
 				height: 1,
 			},
 			want: []*model.NodeRegistration{
-				&model.NodeRegistration{
+				{
 					NodeID:             int64(1),
 					NodePublicKey:      nrsNodePubKey1,
 					AccountAddress:     nrsAddress1,
