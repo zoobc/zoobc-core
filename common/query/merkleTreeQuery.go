@@ -1,7 +1,6 @@
 package query
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 )
@@ -9,7 +8,7 @@ import (
 type (
 	// MerkleTreeQueryInterface contain builder func for MerkleTree
 	MerkleTreeQueryInterface interface {
-		InsertMerkleTree(tree [][]*bytes.Buffer) (qStr string, args []interface{})
+		InsertMerkleTree(root, tree []byte) (qStr string, args []interface{})
 	}
 	// MerkleTreeQuery fields and table name
 	MerkleTreeQuery struct {
@@ -38,13 +37,13 @@ func (mrQ *MerkleTreeQuery) getTableName() string {
 }
 
 // InsertMerkleTree func build insert Query for MerkleTree
-func (mrQ *MerkleTreeQuery) InsertMerkleTree(tree [][]*bytes.Buffer) (qStr string, args []interface{}) {
+func (mrQ *MerkleTreeQuery) InsertMerkleTree(root, tree []byte) (qStr string, args []interface{}) {
 
 	return fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES(%s)",
 			mrQ.getTableName(),
 			strings.Join(mrQ.Fields, ", "),
-			fmt.Sprintf("?%s", strings.Repeat("?, ", len(mrQ.Fields)-1)),
+			fmt.Sprintf("?%s", strings.Repeat(",? ", len(mrQ.Fields)-1)),
 		),
-		[]interface{}{tree[:len(tree)-1], tree}
+		[]interface{}{root, tree}
 }

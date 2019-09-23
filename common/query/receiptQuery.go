@@ -11,9 +11,11 @@ import (
 type (
 	ReceiptQueryInterface interface {
 		InsertReceipt(receipt *model.Receipt) (str string, args []interface{})
+		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(limit uint32, offset uint64) string
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
+		Scan(receipt *model.Receipt, row *sql.Row) error
 	}
 
 	ReceiptQuery struct {
@@ -58,10 +60,37 @@ func (rq *ReceiptQuery) GetReceipts(limit uint32, offset uint64) string {
 
 // InsertReceipts inserts a new receipts into DB
 func (rq *ReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args []interface{}) {
-	var value = fmt.Sprintf("? %s", strings.Repeat(", ?", len(rq.Fields)-1))
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
-		rq.getTableName(), strings.Join(rq.Fields, ", "), value)
-	return query, rq.ExtractModel(receipt)
+
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		rq.getTableName(),
+		strings.Join(rq.Fields, ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(rq.Fields)-1)),
+	), rq.ExtractModel(receipt)
+}
+
+// InsertReceipts build query for bulk store receipts
+func (rq *ReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, args []interface{}) {
+
+	var (
+		query  string
+		values []interface{}
+	)
+
+	query = fmt.Sprintf(
+		"INSERT INTO %s (%s) ",
+		rq.getTableName(),
+		strings.Join(rq.Fields, ", "),
+	)
+
+	for k, receipt := range receipts {
+		query += fmt.Sprintf("VALUES(?%s)", strings.Repeat(",? ", len(rq.Fields)-1))
+		if k < len(receipts)-1 {
+			query += ", "
+		}
+		values = append(values, rq.ExtractModel(receipt)...)
+	}
+	return query, values
 }
 
 // ExtractModel extract the model struct fields to the order of ReceiptQuery.Fields
@@ -94,4 +123,20 @@ func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*mo
 		receipts = append(receipts, &receipt)
 	}
 	return receipts
+}
+
+func (*ReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
+
+	err := row.Scan(
+		&receipt.SenderPublicKey,
+		&receipt.RecipientPublicKey,
+		&receipt.DatumType,
+		&receipt.DatumHash,
+		&receipt.ReferenceBlockHeight,
+		&receipt.ReferenceBlockHash,
+		&receipt.ReceiptMerkleRoot,
+		&receipt.RecipientSignature,
+	)
+	return err
+
 }
