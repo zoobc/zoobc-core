@@ -110,8 +110,18 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	accountAddress := params.GetAccountAddress()
+	page := params.GetPagination()
+	height := params.GetHeight()
+
+	if height != 0 {
+		caseQuery.Where(caseQuery.Equal("block_height", height))
+		if page != nil && page.GetLimit() == 0 {
+			page.Limit = math.MaxUint32
+		}
+	}
+
 	if accountAddress != "" {
-		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
+		caseQuery.And(caseQuery.Equal("sender_account_address", accountAddress)).
 			Or(caseQuery.Equal("recipient_account_address", accountAddress))
 	}
 	timestampStart := params.GetTimestampStart()
@@ -123,15 +133,6 @@ func (ts *TransactionService) GetTransactions(
 	transcationType := params.GetTransactionType()
 	if transcationType > 0 {
 		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
-	}
-
-	page := params.GetPagination()
-	height := params.GetHeight()
-	if height != 0 {
-		caseQuery.And(caseQuery.Equal("block_height", height))
-		if page != nil && page.GetLimit() == 0 {
-			page.Limit = math.MaxUint32
-		}
 	}
 	selectQuery, args = caseQuery.Build()
 
