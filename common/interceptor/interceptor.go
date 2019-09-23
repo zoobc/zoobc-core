@@ -109,6 +109,7 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 				_, file, line, _ := runtime.Caller(4)
 				fields["panic"] = fmt.Sprintf("%s %d", file, line)
 			}
+
 			if logger != nil {
 				switch {
 				case err != nil:

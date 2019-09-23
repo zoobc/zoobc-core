@@ -33,13 +33,13 @@ func main() {
 	c := rpc_service.NewBlockServiceClient(conn)
 
 	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		ID: -8875736238633164302,
+		ID: 7339863030352842209,
 	})
 
 	if err != nil {
 		log.Fatalf("error calling rpc_service.GetBlockByID: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.GetBlockByID(): %s", response)
+	log.Printf("response from remote rpc_service.ID(): %s", response)
 
 }

@@ -179,7 +179,7 @@ func TestBlockQuery_BuildModel(t *testing.T) {
 		defer db.Close()
 		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithID", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
+			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
 			AddRow(mockBlock.ID,
 				mockBlock.PreviousBlockHash,
 				mockBlock.Height,
@@ -226,8 +226,8 @@ func TestBlockQuery_Rollback(t *testing.T) {
 			args:   args{height: uint32(1)},
 			wantMultiQueries: [][]interface{}{
 				{
-					"DELETE FROM block WHERE height > ?",
-					[]interface{}{uint32(1)},
+					"DELETE FROM main_block WHERE height > ?",
+					uint32(1),
 				},
 			},
 		},

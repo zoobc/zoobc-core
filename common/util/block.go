@@ -12,6 +12,10 @@ import (
 
 // GetBlockIdFromHash returns blockID from given hash
 func GetBlockIDFromHash(blockHash []byte) int64 {
+	// mainly for testing
+	if len(blockHash) < 8 {
+		return -1
+	}
 	res := new(big.Int)
 	return res.SetBytes([]byte{
 		blockHash[7],

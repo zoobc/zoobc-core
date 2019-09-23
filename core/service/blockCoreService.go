@@ -21,6 +21,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
+	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -39,12 +40,14 @@ type (
 			secretPhrase string,
 			timestamp int64,
 		) (*model.Block, error)
+		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
 		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
+		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		AddGenesis() error
@@ -59,6 +62,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
+		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
 	}
 
 	BlockService struct {
@@ -73,6 +77,7 @@ type (
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Observer                *observer.Observer
 	}
 )
@@ -88,6 +93,7 @@ func NewBlockService(
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	obsr *observer.Observer,
 ) *BlockService {
 	return &BlockService{
@@ -101,6 +107,7 @@ func NewBlockService(
 		ActionTypeSwitcher:      txTypeSwitcher,
 		AccountBalanceQuery:     accountBalanceQuery,
 		ParticipationScoreQuery: participationScoreQuery,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
 		Observer:                obsr,
 	}
 }
@@ -204,6 +211,46 @@ func (*BlockService) VerifySeed(
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
 }
 
+// ValidateBlock validate block to be pushed into the blockchain
+func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	if block.GetTimestamp() > curTime+15 {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
+	}
+	if coreUtil.GetBlockID(block) == 0 {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid ID")
+	}
+	// Verify Signature
+	sig := new(crypto.Signature)
+	blockByte, err := commonUtils.GetBlockByte(block, false)
+	if err != nil {
+		return err
+	}
+
+	if !sig.VerifyNodeSignature(
+		blockByte,
+		block.BlockSignature,
+		block.BlocksmithPublicKey,
+	) {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
+	}
+	// Verify previous block hash
+	previousBlockIDFromHash := new(big.Int)
+	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
+		block.PreviousBlockHash[7],
+		block.PreviousBlockHash[6],
+		block.PreviousBlockHash[5],
+		block.PreviousBlockHash[4],
+		block.PreviousBlockHash[3],
+		block.PreviousBlockHash[2],
+		block.PreviousBlockHash[1],
+		block.PreviousBlockHash[0],
+	}).Int64()
+	if previousLastBlock.ID != previousBlockIDFromHashInt {
+		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
+	}
+	return nil
+}
+
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
@@ -211,7 +258,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	if needLock {
 		bs.Wait()
 	}
-	if previousBlock.GetID() != -1 {
+	if previousBlock.GetID() != -1 && block.CumulativeDifficulty == "" && block.SmithScale == 0 {
 		block.Height = previousBlock.GetHeight() + 1
 		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
 	}
@@ -220,6 +267,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err := bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
+		_ = bs.QueryExecutor.RollbackTx()
 		return err
 	}
 	// apply transactions and remove them from mempool
@@ -333,22 +381,30 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	var (
-		blocks       []*model.Block
-		transactions []*model.Transaction
-	)
+	var blocks []*model.Block
 	blocks = bs.BlockQuery.BuildModel(blocks, rows)
 	if len(blocks) > 0 {
-		// get transaction of the block
-		transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blocks[0].ID)
-		rows, err = bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		blocks[0].Transactions = bs.TransactionQuery.BuildModel(transactions, rows)
+		blocks[0].Transactions = transactions
 		return blocks[0], nil
 	}
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "last block is not found")
+}
+
+// GetTransactionsByBlockID get transactions of the block
+func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
+	var transactions []*model.Transaction
+
+	// get transaction of the block
+	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
+	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return bs.TransactionQuery.BuildModel(transactions, rows), nil
 }
 
 // GetLastBlock return the last pushed block
@@ -516,7 +572,6 @@ func (bs *BlockService) GenerateBlock(
 		payloadLength,
 		secretPhrase,
 	)
-	log.Printf("block forged: fee %d\n", totalFee)
 	return block, nil
 }
 
@@ -564,7 +619,7 @@ func (bs *BlockService) AddGenesis() error {
 	block.ID = coreUtil.GetBlockID(block)
 	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
 	if err != nil {
-		log.Fatal("PushGenesisBlock:fail")
+		log.Fatal("PushGenesisBlock:fail ", err)
 	}
 	return nil
 }
@@ -656,4 +711,40 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 		return 0, nil
 	}
 	return participationScores[0].Score, nil
+}
+
+// GetParticipationScore handle received block from another node
+func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+	var (
+		blExt = &model.BlockExtendedInfo{}
+		nr    []*model.NodeRegistration
+	)
+	blExt.Block = block
+	//FIXME: return mocked data, until underlying logic is implemented
+	blExt.Block.TotalCoinBase = blExt.Block.TotalFee + 50 ^ 10*8
+
+	// block extra (computed) info
+
+	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
+	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+	if len(nr) == 0 {
+		return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+	}
+	nodeRegistration := nr[0]
+	blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
+	// Total number of receipts at a block height
+	blExt.TotalReceipts = 99
+	// ???
+	blExt.ReceiptValue = 99
+	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
+	blExt.PopChange = -20
+
+	return blExt, nil
 }

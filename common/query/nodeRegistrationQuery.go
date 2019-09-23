@@ -15,12 +15,12 @@ type (
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string
 		GetNodeRegistrationsWithZeroScore(queued bool) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
-		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	NodeRegistrationQuery struct {
@@ -89,6 +89,14 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string, 
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
 		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey}
+}
+
+// GetLastVersionedNodeRegistrationByPublicKey returns query string to get Node Registration
+// by node public key at a given height (versioned)
+func (nr *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte,
+	height uint32) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
+		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey, height}
 }
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
@@ -182,12 +190,12 @@ func (nr *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inter
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE height > ?", nr.TableName),
-			[]interface{}{height},
+			height,
 		},
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE height || '_' || id) IN (
+			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
 				WHERE latest = 0
@@ -196,7 +204,7 @@ func (nr *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inter
 				nr.TableName,
 				nr.TableName,
 			),
-			[]interface{}{1},
+			1,
 		},
 	}
 }

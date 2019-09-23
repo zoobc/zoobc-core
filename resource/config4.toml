@@ -1,13 +1,13 @@
 dbPath = "./resource/"
 dbName = "zoobc_4.db"
 configPath = "./resource/"
-nodeKeyFile = "node_keys.json"
+nodeKeyFile = "node_keys_4.json"
 
 
 # Peer
 peerPort=8004
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=[]
 
 apiRPCPort=3004
 apiHTTPPort=3034
