@@ -38,6 +38,7 @@ func NewNodeAdminService(
 		nodeAdminServiceInstance = &NodeAdminService{
 			Query:                queryExecutor,
 			NodeAdminCoreService: nodeAdminCoreService,
+			ownerAccountAddress:  ownerAccountAddress,
 		}
 	}
 	return nodeAdminServiceInstance
