@@ -138,7 +138,7 @@ func (s *Peer2PeerService) resolvePeersThread() {
 
 // getMorePeersThread to periodically request more peers from another node in Peers list
 func (s *Peer2PeerService) getMorePeersThread() {
-	go func() {
+	syncPeers := func() {
 		peer, err := s.PeerExplorer.GetMorePeersHandler()
 		if err != nil {
 			return
@@ -156,7 +156,8 @@ func (s *Peer2PeerService) getMorePeersThread() {
 			peer,
 			myPeers,
 		)
-	}()
+	}
+	go syncPeers()
 	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -164,7 +165,7 @@ func (s *Peer2PeerService) getMorePeersThread() {
 		select {
 		case <-ticker.C:
 			go func() {
-				_, _ = s.PeerExplorer.GetMorePeersHandler()
+				go syncPeers()
 			}()
 		case <-sigs:
 			ticker.Stop()
