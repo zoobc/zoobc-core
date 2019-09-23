@@ -1,8 +1,6 @@
 package service
 
 import (
-	"math/big"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -176,17 +174,7 @@ func (nrs *NodeRegistrationService) GetActiveNodes() ([]*model.Blocksmith, error
 		return nil, err
 	}
 	defer rows.Close()
-	for rows.Next() {
-		var (
-			nr            model.Blocksmith
-			nrScoreString string
-		)
-		_ = rows.Scan(
-			&nr.NodePublicKey,
-			&nrScoreString)
-		nr.Score, _ = new(big.Int).SetString(nrScoreString, 10)
-		activeNodes = append(activeNodes, &nr)
-	}
+	activeNodes = nrs.NodeRegistrationQuery.BuildBlocksmith(activeNodes, rows)
 	return activeNodes, nil
 }
 

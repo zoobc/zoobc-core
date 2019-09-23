@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -22,6 +23,7 @@ type (
 		GetNodeRegistrationsWithZeroScore(queued bool) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
+		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith
 	}
 
 	NodeRegistrationQuery struct {
@@ -190,6 +192,22 @@ func (*NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistra
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations
+}
+
+func (*NodeRegistrationQuery) BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith {
+	for rows.Next() {
+		var (
+			blocksmith  model.Blocksmith
+			scoreString string
+		)
+		_ = rows.Scan(
+			&blocksmith.NodePublicKey,
+			&scoreString,
+		)
+		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
+		blocksmiths = append(blocksmiths, &blocksmith)
+	}
+	return blocksmiths
 }
 
 // Rollback delete records `WHERE block_height > `height`
