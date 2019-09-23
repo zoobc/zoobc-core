@@ -73,7 +73,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 
 	// Set GRPC handler for Block requests
 	rpcService.RegisterBlockServiceServer(grpcServer, &handler.BlockHandler{
-		Service: service.NewBlockService(queryExecutor),
+		Service: service.NewBlockService(queryExecutor, blockServices),
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{

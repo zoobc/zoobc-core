@@ -230,6 +230,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		&sortedBlocksmiths,
 	)
