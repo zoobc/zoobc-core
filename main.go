@@ -266,7 +266,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	}
 
 	// no nodes registered with current node public key
-	_, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
+	_, err = nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	if err != nil {
 		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
 	}
