@@ -191,10 +191,12 @@ func (m *Migration) Apply() error {
 		if err != nil {
 			return err
 		}
-
 		if m.CurrentVersion != nil {
-			_ = m.Query.ExecuteTransaction(`UPDATE "migration"
+			err = m.Query.ExecuteTransaction(`UPDATE "migration"
 				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion+1)
+			if err != nil {
+				return err
+			}
 		} else {
 			err = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
@@ -206,6 +208,9 @@ func (m *Migration) Apply() error {
 					datetime('now')
 				);
 			`)
+			if err != nil {
+				return err
+			}
 		}
 
 		m.CurrentVersion = &version
