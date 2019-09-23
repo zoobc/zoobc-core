@@ -724,7 +724,6 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	blExt.Block.TotalCoinBase = blExt.Block.TotalFee + 50 ^ 10*8
 
 	// block extra (computed) info
-	blExt.PreviousBlockID = util.GetBlockIDFromHash(block.PreviousBlockHash)
 
 	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
 	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
@@ -740,9 +739,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	}
 	nodeRegistration := nr[0]
 	blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
-	//FIXME: TotalReward and TotalCoinBase are the same thing. remove this after synced with explorer app
-	blExt.TotalReward = blExt.Block.TotalCoinBase
-	// ???
+	// Total number of receipts at a block height
 	blExt.TotalReceipts = 99
 	// ???
 	blExt.ReceiptValue = 99

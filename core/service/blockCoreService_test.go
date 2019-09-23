@@ -2120,11 +2120,9 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					Version:              0,
 				},
 				BlocksmithAccountAddress: bcsAddress1,
-				TotalReward:              block.TotalFee + 50 ^ 10*8,
 				TotalReceipts:            99,
 				ReceiptValue:             99,
 				PopChange:                -20,
-				PreviousBlockID:          72340172838076673,
 			},
 		},
 	}
