@@ -6,11 +6,11 @@ import (
 	"math/big"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/util"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -98,8 +98,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	if lastBlock.GetID() != bp.LastBlockID {
 		if bp.Generator.SmithTime > smithMax {
-			log.Printf("skip forge\n")
-			return errors.New("SmithSkip")
+			return errors.New("skip forge")
 		}
 
 		timestamp := bp.Generator.GetTimestamp(smithMax)
@@ -125,15 +124,17 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				return err
 			}
 			// validate
-			err = coreUtil.ValidateBlock(block, previousBlock, timestamp) // err / !err
+			err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
 			if err != nil {
 				return err
 			}
 			// if validated push
 			err = bp.BlockService.PushBlock(previousBlock, block, true, true)
 			if err != nil {
+				log.Warn("pushBlock err ", block.Height, " ", err)
 				return err
 			}
+			log.Printf("block forged: fee %d\n", block.TotalFee)
 			stop = true
 		}
 	}

@@ -20,7 +20,6 @@ type (
 		GetNodeRegistrationsWithZeroScore(queued bool) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
-		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	NodeRegistrationQuery struct {
@@ -182,12 +181,12 @@ func (nr *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inter
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE height > ?", nr.TableName),
-			[]interface{}{height},
+			height,
 		},
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE height || '_' || id) IN (
+			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
 				WHERE latest = 0
@@ -196,7 +195,7 @@ func (nr *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inter
 				nr.TableName,
 				nr.TableName,
 			),
-			[]interface{}{1},
+			1,
 		},
 	}
 }

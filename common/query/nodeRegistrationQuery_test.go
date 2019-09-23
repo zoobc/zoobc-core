@@ -204,17 +204,17 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 			wantQueries: [][]interface{}{
 				{
 					"DELETE FROM account_balance WHERE height > ?",
-					[]interface{}{uint32(1)},
+					uint32(1),
 				},
 				{`
 			UPDATE account_balance SET latest = ?
-			WHERE height || '_' || id) IN (
+			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM account_balance
 				WHERE latest = 0
 				GROUP BY id
 			)`,
-					[]interface{}{1},
+					1,
 				},
 			},
 		},

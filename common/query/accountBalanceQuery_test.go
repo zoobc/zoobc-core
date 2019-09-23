@@ -180,7 +180,7 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 			wantMultiQueries: [][]interface{}{
 				{
 					"DELETE FROM account_balance WHERE block_height > ?",
-					[]interface{}{uint32(1)},
+					uint32(1),
 				},
 				{`
 			UPDATE account_balance SET latest = ?
@@ -190,7 +190,7 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 				WHERE latest = 0
 				GROUP BY account_address
 			)`,
-					[]interface{}{1},
+					1,
 				},
 			},
 		},

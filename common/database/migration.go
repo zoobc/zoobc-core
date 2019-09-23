@@ -91,7 +91,7 @@ func (m *Migration) Init() error {
 				"version" INTEGER,
 				"payload_length" INTEGER,
 				"payload_hash" BLOB,
-				PRIMARY KEY("id")
+				UNIQUE("height")
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
@@ -196,7 +196,7 @@ func (m *Migration) Apply() error {
 			_ = m.Query.ExecuteTransaction(`UPDATE "migration"
 				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion+1)
 		} else {
-			_ = m.Query.ExecuteTransaction(`
+			err = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
 					"version",
 					"created_date"
