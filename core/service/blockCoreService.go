@@ -719,25 +719,11 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 		blExt = &model.BlockExtendedInfo{}
 		nr    []*model.NodeRegistration
 	)
-	// block's fields
-	blExt.ID = block.ID
-	blExt.PreviousBlockHash = block.PreviousBlockHash
-	blExt.Height = block.Height
-	blExt.Timestamp = block.Timestamp
-	blExt.BlockSeed = block.BlockSeed
-	blExt.BlockSignature = block.BlockSignature
-	blExt.CumulativeDifficulty = block.CumulativeDifficulty
-	blExt.SmithScale = block.SmithScale
-	blExt.BlocksmithPublicKey = block.BlocksmithPublicKey
-	blExt.TotalAmount = block.TotalAmount
-	blExt.TotalFee = block.TotalFee
-	blExt.Version = block.Version
-	blExt.PayloadLength = block.PayloadLength
-	blExt.PayloadHash = block.PayloadHash
+	blExt.Block = block
 	//FIXME: return mocked data, until underlying logic is implemented
-	blExt.TotalCoinBase = blExt.TotalFee + 50 ^ 10*8
+	blExt.Block.TotalCoinBase = blExt.Block.TotalFee + 50 ^ 10*8
 
-	// computed fields
+	// block extra (computed) info
 	blExt.PreviousBlockID = util.GetBlockIDFromHash(block.PreviousBlockHash)
 
 	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
@@ -755,7 +741,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	nodeRegistration := nr[0]
 	blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
 	//FIXME: TotalReward and TotalCoinBase are the same thing. remove this after synced with explorer app
-	blExt.TotalReward = blExt.TotalCoinBase
+	blExt.TotalReward = blExt.Block.TotalCoinBase
 	// ???
 	blExt.TotalReceipts = 99
 	// ???
