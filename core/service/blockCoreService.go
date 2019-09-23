@@ -62,6 +62,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
+		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
 	}
 
 	BlockService struct {
@@ -76,6 +77,7 @@ type (
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Observer                *observer.Observer
 	}
 )
@@ -91,6 +93,7 @@ func NewBlockService(
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	obsr *observer.Observer,
 ) *BlockService {
 	return &BlockService{
@@ -104,6 +107,7 @@ func NewBlockService(
 		ActionTypeSwitcher:      txTypeSwitcher,
 		AccountBalanceQuery:     accountBalanceQuery,
 		ParticipationScoreQuery: participationScoreQuery,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
 		Observer:                obsr,
 	}
 }
@@ -707,4 +711,40 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 		return 0, nil
 	}
 	return participationScores[0].Score, nil
+}
+
+// GetParticipationScore handle received block from another node
+func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+	var (
+		blExt = &model.BlockExtendedInfo{}
+		nr    []*model.NodeRegistration
+	)
+	blExt.Block = block
+	//FIXME: return mocked data, until underlying logic is implemented
+	blExt.Block.TotalCoinBase = blExt.Block.TotalFee + 50 ^ 10*8
+
+	// block extra (computed) info
+
+	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
+	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+	if len(nr) == 0 {
+		return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+	}
+	nodeRegistration := nr[0]
+	blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
+	// Total number of receipts at a block height
+	blExt.TotalReceipts = 99
+	// ???
+	blExt.ReceiptValue = 99
+	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
+	blExt.PopChange = -20
+
+	return blExt, nil
 }

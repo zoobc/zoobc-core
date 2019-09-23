@@ -4,40 +4,42 @@ package service
 
 import (
 	"database/sql"
-	"errors"
-	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	coreService "github.com/zoobc/zoobc-core/core/service"
 )
 
 type (
 	// BlockServiceInterface represents interface for BlockService
 	BlockServiceInterface interface {
-		GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.Block, error)
-		GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.Block, error)
+		GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.BlockExtendedInfo, error)
+		GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.BlockExtendedInfo, error)
 		GetBlocks(chainType chaintype.ChainType, Count uint32, Height uint32) (*model.GetBlocksResponse, error)
 	}
 
 	// BlockService represents struct of BlockService
 	BlockService struct {
-		Query query.ExecutorInterface
+		Query             query.ExecutorInterface
+		BlockCoreServices map[int32]coreService.BlockServiceInterface
 	}
 )
 
 var blockServiceInstance *BlockService
 
 // NewBlockService create a singleton instance of BlockService
-func NewBlockService(queryExecutor query.ExecutorInterface) *BlockService {
+func NewBlockService(queryExecutor query.ExecutorInterface, blockCoreServices map[int32]coreService.BlockServiceInterface) *BlockService {
 	if blockServiceInstance == nil {
 		blockServiceInstance = &BlockService{Query: queryExecutor}
 	}
+	blockServiceInstance.BlockCoreServices = blockCoreServices
 	return blockServiceInstance
 }
 
 // GetBlockByID fetch a single block from Blockchain by providing block ID
-func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.Block, error) {
+func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.BlockExtendedInfo, error) {
 	var (
 		err  error
 		bl   []*model.Block
@@ -46,22 +48,27 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	blockQuery := query.NewBlockQuery(chainType)
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id), false)
 	if err != nil {
-		fmt.Printf("GetBlockByID fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
-		return nil, errors.New("BlockNotFound")
+		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
 	}
 
-	return bl[0], nil
+	// Get block extended info
+	blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return blExt, nil
 
 }
 
 // GetBlockByHeight fetches a single block from Blockchain by providing block size
-func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.Block, error) {
+func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.BlockExtendedInfo, error) {
 	var (
 		err  error
 		bl   []*model.Block
@@ -72,15 +79,14 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
-		fmt.Printf("GetBlockByHeight fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
-		return nil, errors.New("BlockNotFound")
+		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
 	}
-	return bl[0], nil
+	return bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0])
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system
@@ -92,13 +98,20 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize), false)
 
 	if err != nil {
-		fmt.Printf("GetBlocks fails %v\n", err)
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 	blocks = blockQuery.BuildModel(blocks, rows)
+	blocksExt := make([]*model.BlockExtendedInfo, 0)
+	for _, block := range blocks {
+		blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(block)
+		if err != nil {
+			return nil, err
+		}
+		blocksExt = append(blocksExt, blExt)
+	}
 	blocksResponse := &model.GetBlocksResponse{
-		Blocks: blocks,
+		Blocks: blocksExt,
 		Height: height,
 		Count:  uint32(len(blocks)),
 	}

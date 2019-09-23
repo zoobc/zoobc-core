@@ -52,6 +52,7 @@ func main() {
 	buffer.Write(sig)
 	ctx := context.Background()
 	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
+
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	response, err := c.GetProofOfOwnership(ctx, &rpcModel.GetProofOfOwnershipRequest{})
