@@ -64,7 +64,7 @@ func (bss *DownloadBlockchainService) getMoreBlocks(runNext chan bool) {
 		currentHeight := currentLastBlock.Height
 		err = bss.getPeerBlockchainInfo()
 		if err != nil {
-			log.Warnf("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
+			log.Warnf("failed to getPeerBlockchainInfo: %v", err)
 		}
 		afterDownloadLastBlock, err := bss.BlockService.GetLastBlock()
 		if err != nil {

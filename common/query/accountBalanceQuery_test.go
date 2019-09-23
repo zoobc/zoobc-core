@@ -96,7 +96,7 @@ func TestAccountBalanceQuery_AddAccountBalance(t *testing.T) {
 }
 
 func TestAccountBalanceQuery_AddAccountSpendableBalance(t *testing.T) {
-	t.Run("AddAccountSpendableBalance:succes", func(t *testing.T) {
+	t.Run("AddAccountSpendableBalance:success", func(t *testing.T) {
 		q, args := mockAccountBalanceQuery.AddAccountSpendableBalance(100, causedFields)
 		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_address = ?"
 		wantArg := []interface{}{"BCZ"}

@@ -298,12 +298,12 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 }
 
 type (
-	mockQueryExecutorBuildMmodel struct {
+	mockQueryExecutorBuildModel struct {
 		Executor
 	}
 )
 
-func (*mockQueryExecutorBuildMmodel) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorBuildModel) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(mockTransactionQuery.Fields).AddRow(
@@ -335,7 +335,7 @@ func TestTransactionQuery_BuildModel(t *testing.T) {
 		txs  []*model.Transaction
 		rows *sql.Rows
 	}
-	rows, _ := (&mockQueryExecutorBuildMmodel{}).ExecuteSelect("", false)
+	rows, _ := (&mockQueryExecutorBuildModel{}).ExecuteSelect("", false)
 	tests := []struct {
 		name   string
 		fields fields
