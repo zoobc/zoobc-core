@@ -14,9 +14,11 @@ type (
 	NodeRegistrationServiceInterface interface {
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
+		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
+		GetActiveNodes() ([]*model.Blocksmith, error)
 		NodeRegistryListener() observer.Listener
 	}
 
@@ -64,6 +66,21 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(false)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if len(nodeRegistrations) == 0 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	}
+
+	return nodeRegistrations, nil
+}
+
+func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error) {
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(height)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -161,6 +178,20 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	}
 
 	return nil
+}
+
+// GetActiveNodes get list of currently participating nodes
+func (nrs *NodeRegistrationService) GetActiveNodes() ([]*model.Blocksmith, error) {
+	var (
+		activeNodes []*model.Blocksmith
+	)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	activeNodes = nrs.NodeRegistrationQuery.BuildBlocksmith(activeNodes, rows)
+	return activeNodes, nil
 }
 
 // NodeRegistryListener handle node admission/expulsion after a block is pushed, at regular interval
