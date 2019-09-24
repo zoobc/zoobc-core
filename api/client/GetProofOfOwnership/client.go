@@ -46,7 +46,7 @@ func main() {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetProofOfOwnership)))
 	sig := signature.Sign(
 		buffer.Bytes(),
-		constant.NodeSignatureTypeDefault,
+		constant.SignatureTypeDefault,
 		accountSeed,
 	)
 	buffer.Write(sig)

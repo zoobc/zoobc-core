@@ -68,6 +68,7 @@ func (ts *TransactionService) GetTransaction(
 		err    error
 		rows   *sql.Rows
 		txTemp []*model.Transaction
+		tx     *model.Transaction
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
@@ -79,7 +80,50 @@ func (ts *TransactionService) GetTransaction(
 
 	txTemp = txQuery.BuildModel(txTemp, rows)
 	if len(txTemp) != 0 {
-		return txTemp[0], nil
+		tx = txTemp[0]
+		txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+		parsedBody, err := txType.ParseBodyBytes(tx.GetTransactionBodyBytes())
+		if err != nil {
+			return nil, err
+		}
+		// TODO: need enhancement when parsing body bytes into body
+		switch tx.GetTransactionType() {
+		case uint32(model.TransactionType_SendMoneyTransaction):
+			tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
+				SendMoneyTransactionBody: parsedBody.(*model.SendMoneyTransactionBody),
+			}
+		case uint32(model.TransactionType_NodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
+				NodeRegistrationTransactionBody: parsedBody.(*model.NodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_UpdateNodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
+				UpdateNodeRegistrationTransactionBody: parsedBody.(*model.UpdateNodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_RemoveNodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+				RemoveNodeRegistrationTransactionBody: parsedBody.(*model.RemoveNodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_ClaimNodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_ClaimNodeRegistrationTransactionBody{
+				ClaimNodeRegistrationTransactionBody: parsedBody.(*model.ClaimNodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_SetupAccountDatasetTransaction):
+			tx.TransactionBody = &model.Transaction_SetupAccountDatasetTransactionBody{
+				SetupAccountDatasetTransactionBody: parsedBody.(*model.SetupAccountDatasetTransactionBody),
+			}
+		case uint32(model.TransactionType_RemoveAccountDatasetTransaction):
+			tx.TransactionBody = &model.Transaction_RemoveAccountDatasetTransactionBody{
+				RemoveAccountDatasetTransactionBody: parsedBody.(*model.RemoveAccountDatasetTransactionBody),
+			}
+		default:
+			tx.TransactionBody = nil
+		}
+
+		return tx, nil
 	}
 	return nil, errors.New("TransactionNotFound")
 }

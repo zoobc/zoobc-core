@@ -12,7 +12,7 @@ import (
 func TestParseProofOfOwnershipBytes(t *testing.T) {
 	poown := &model.ProofOfOwnership{
 		MessageBytes: make([]byte, GetProofOfOwnershipSize(false)),
-		Signature:    make([]byte, 68),
+		Signature:    make([]byte, constant.NodeSignature),
 	}
 	poownBytes := GetProofOfOwnershipBytes(poown)
 	type args struct {
@@ -73,9 +73,9 @@ func TestGetProofOfOwnershipSize(t *testing.T) {
 	t.Run("WithAndWithoutSignature-Gap", func(t *testing.T) {
 		withSig := GetProofOfOwnershipSize(true)
 		withoutSig := GetProofOfOwnershipSize(false)
-		if withSig-withoutSig != constant.SignatureType+constant.NodeSignature {
+		if withSig-withoutSig != constant.NodeSignature {
 			t.Errorf("GetPoownSize with and without signature should have %d difference",
-				constant.SignatureType+constant.NodeSignature)
+				constant.NodeSignature)
 		}
 	})
 }

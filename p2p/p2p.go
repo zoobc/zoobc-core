@@ -210,7 +210,7 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			for _, peer := range peers {
 				p := peer
 				go func() {
-					_, _ = s.PeerServiceClient.SendBlock(p, b, chainType)
+					_ = s.PeerServiceClient.SendBlock(p, b, chainType)
 				}()
 			}
 		},
@@ -227,7 +227,8 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 			for _, peer := range peers {
 				p := peer
 				go func() {
-					_, _ = s.PeerServiceClient.SendTransaction(p, t, chainType)
+					_ = s.PeerServiceClient.SendTransaction(p, t, chainType)
+
 				}()
 			}
 		},

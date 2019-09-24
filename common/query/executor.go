@@ -9,7 +9,6 @@ import (
 )
 
 type (
-
 	// ExecutorInterface interface
 	ExecutorInterface interface {
 		BeginTx() error
@@ -111,7 +110,7 @@ func (qe *Executor) ExecuteSelect(query string, tx bool, args ...interface{}) (*
 		} else {
 			return nil, blocker.NewBlocker(
 				blocker.DBErr,
-				"transacation need to be begun before read the transaction state",
+				"transaction need to be begun before read the transaction state",
 			)
 		}
 	} else {
