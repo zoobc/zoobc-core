@@ -51,7 +51,7 @@ func (ss *P2PServerHandler) SendPeers(ctx context.Context, req *model.SendPeersR
 	return ss.Service.SendPeers(req.Peers)
 }
 
-// GetCumulativeDifficulty responds to the request of the cummulative difficulty status of a node
+// GetCumulativeDifficulty responds to the request of the cumulative difficulty status of a node
 func (ss *P2PServerHandler) GetCumulativeDifficulty(ctx context.Context,
 	req *model.GetCumulativeDifficultyRequest,
 ) (*model.GetCumulativeDifficultyResponse, error) {
@@ -103,8 +103,13 @@ func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockR
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
-func (ss *P2PServerHandler) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.SendTransactionResponse, error) {
+func (ss *P2PServerHandler) SendTransaction(
+	ctx context.Context,
+	req *model.SendTransactionRequest,
+) (*model.SendTransactionResponse, error) {
 	return ss.Service.SendTransaction(
-		chaintype.GetChainType(req.ChainType), req.TransactionBytes, req.SenderPublicKey,
+		chaintype.GetChainType(req.ChainType),
+		req.TransactionBytes,
+		req.SenderPublicKey,
 	)
 }
