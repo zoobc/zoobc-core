@@ -47,7 +47,7 @@ func (*mockServerStreamSuccess) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		constant.NodeSignatureTypeDefault,
+		constant.SignatureTypeDefault,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)
@@ -79,7 +79,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		constant.NodeSignatureTypeDefault,
+		constant.SignatureTypeDefault,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)

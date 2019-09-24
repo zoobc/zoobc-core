@@ -31,11 +31,12 @@ type (
 		VerifySeed(seed, score *big.Int, previousBlock *model.Block, timestamp int64) bool
 		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
+			transactions []*model.Transaction, blockReceipts []*model.BlockReceipt, payloadHash []byte, payloadLength uint32,
+			secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
-			genesisSignature []byte) *model.Block
+			transactions []*model.Transaction, blockReceipts []*model.BlockReceipt, payloadHash []byte, payloadLength uint32, smithScale int64,
+			cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block
 		GenerateBlock(
 			previousBlock *model.Block,
 			secretPhrase string,
@@ -128,6 +129,7 @@ func (bs *BlockService) NewBlock(
 	totalFee,
 	totalCoinBase int64,
 	transactions []*model.Transaction,
+	blockReceipts []*model.BlockReceipt,
 	payloadHash []byte,
 	payloadLength uint32,
 	secretPhrase string,
@@ -143,6 +145,7 @@ func (bs *BlockService) NewBlock(
 		TotalFee:            totalFee,
 		TotalCoinBase:       totalCoinBase,
 		Transactions:        transactions,
+		BlockReceipts:       blockReceipts,
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 	}
@@ -174,6 +177,7 @@ func (bs *BlockService) NewGenesisBlock(
 	previousBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
+	blockReceipts []*model.BlockReceipt,
 	payloadHash []byte,
 	payloadLength uint32,
 	smithScale int64,
@@ -191,6 +195,7 @@ func (bs *BlockService) NewGenesisBlock(
 		TotalFee:             totalFee,
 		TotalCoinBase:        totalCoinBase,
 		Transactions:         transactions,
+		BlockReceipts:        blockReceipts,
 		PayloadLength:        payloadLength,
 		PayloadHash:          payloadHash,
 		SmithScale:           smithScale,
@@ -332,6 +337,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
+	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -525,6 +531,7 @@ func (bs *BlockService) GenerateBlock(
 		payloadLength uint32
 		// only for mainchain
 		sortedTx            []*model.Transaction
+		blockReceipts       []*model.BlockReceipt
 		payloadHash         []byte
 		digest              = sha3.New256()
 		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
@@ -550,6 +557,7 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
+		// todo: select receipts here to publish & hash the receipts in payload hash
 		payloadHash = digest.Sum([]byte{})
 	}
 
@@ -580,6 +588,7 @@ func (bs *BlockService) GenerateBlock(
 		totalFee,
 		totalCoinbase,
 		sortedTx,
+		blockReceipts,
 		payloadHash,
 		payloadLength,
 		secretPhrase,
@@ -621,6 +630,7 @@ func (bs *BlockService) AddGenesis() error {
 		totalFee,
 		totalCoinBase,
 		blockTransactions,
+		[]*model.BlockReceipt{},
 		payloadHash,
 		payloadLength,
 		constant.InitialSmithScale,

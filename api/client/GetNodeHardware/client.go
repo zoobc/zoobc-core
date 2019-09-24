@@ -48,7 +48,7 @@ func main() {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
 	sig := signature.Sign(
 		buffer.Bytes(),
-		constant.NodeSignatureTypeDefault,
+		constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 	)
 	buffer.Write(sig)

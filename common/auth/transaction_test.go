@@ -48,7 +48,7 @@ func TestValidateTransaction(t *testing.T) {
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 	)
 	txBytes, _ := util.GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.NodeSignatureTypeDefault,
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
 	tests := []struct {
