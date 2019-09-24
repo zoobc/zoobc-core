@@ -27,14 +27,20 @@ func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
 
 // ParseProofOfOwnershipBytes parse a byte array into a ProofOfOwnership struct (message + signature)
 // poownBytes if true returns size of message + signature
-func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
+func ParseProofOfOwnershipBytes(poownBytes []byte) (*model.ProofOfOwnership, error) {
 	buffer := bytes.NewBuffer(poownBytes)
-	poownMessageBytes := buffer.Next(int(GetProofOfOwnershipSize(false)))
-	signature := buffer.Next(int(constant.NodeSignature + constant.SignatureType))
+	poownMessageBytes, err := ReadTransactionBytes(buffer, int(GetProofOfOwnershipSize(false)))
+	if err != nil {
+		return nil, err
+	}
+	signature, err := ReadTransactionBytes(buffer, int(constant.NodeSignature+constant.SignatureType))
+	if err != nil {
+		return nil, err
+	}
 	return &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
 		Signature:    signature,
-	}
+	}, nil
 }
 
 // GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes

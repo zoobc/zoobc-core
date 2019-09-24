@@ -181,7 +181,10 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 		return nil, err
 	}
 	// parse ProofOfOwnership (message + signature) bytes
-	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
+	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
+	if err != nil {
+		return nil, err
+	}
 	return &model.ClaimNodeRegistrationTransactionBody{
 		NodePublicKey:  nodePublicKey,
 		AccountAddress: string(accountAddress),

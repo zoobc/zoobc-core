@@ -230,7 +230,10 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBo
 	if err != nil {
 		return nil, err
 	}
-	poown := util.ParseProofOfOwnershipBytes(poownBytes)
+	poown, err := util.ParseProofOfOwnershipBytes(poownBytes)
+	if err != nil {
+		return nil, err
+	}
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey:  nodePublicKey,
 		AccountAddress: string(accountAddress),
