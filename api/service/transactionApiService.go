@@ -115,7 +115,7 @@ func (ts *TransactionService) GetTransaction(
 				RemoveAccountDatasetTransactionBody: parsedBody.(*model.RemoveAccountDatasetTransactionBody),
 			}
 		default:
-			tx.TransactionBody = &model.Transaction_EmptyTransactionBody{}
+			tx.TransactionBody = nil
 		}
 
 		return tx, nil

@@ -40,6 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error calling rpc_service.GetTransaction: %s", err)
 	}
-	log.Printf("response from remote rpc_service.GetTransaction(): %v", response.GetTransactionBody())
+
+	log.Printf("response from remote rpc_service.GetTransaction(%v): %v", request, response)
 
 }
