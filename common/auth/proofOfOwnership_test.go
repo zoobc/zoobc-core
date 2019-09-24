@@ -150,10 +150,12 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 			117, 66, 233, 151, 195, 194, 161, 35, 239, 84, 111, 216, 96, 51, 154, 225, 131, 171,
 			97, 215, 211, 5, 103, 88, 9, 102, 106, 126, 139, 128, 59, 10, 24, 226, 87, 204, 105,
 			155, 228, 189, 83, 185, 242, 149, 1, 118, 59, 250, 116, 118, 249, 1},
-		MessageBytes: []byte{0, 0, 0, 0, 41, 7, 108, 68, 19, 119, 1, 128, 65, 227, 181, 177,
+		MessageBytes: []byte{
+			0, 0, 0, 0, 41, 7, 108, 68, 19, 119, 1, 128, 65, 227, 181, 177,
 			137, 219, 248, 111, 54, 166, 110, 77, 164, 196, 19, 178, 152, 106, 199, 184,
 			220, 8, 90, 171, 165, 229, 238, 235, 181, 89, 60, 28, 124, 22, 201, 237, 143,
-			63, 59, 156, 133, 194, 189, 97, 150, 245, 96, 45, 192, 236, 109, 80, 14, 31, 243, 10},
+			63, 59, 156, 133, 194, 189, 97, 150, 245, 96, 45, 192, 236, 109, 80, 14, 31, 243, 10,
+		},
 	}
 	poownBlockHeightExpired := GetFixturesProofOfOwnershipValidation(101, nil, nil)
 	poownBlockInvalidBlockHash := GetFixturesProofOfOwnershipValidation(0, nil, &model.Block{
@@ -179,7 +181,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 		p       *ProofOfOwnershipValidation
 		args    args
 		wantErr bool
-		errText string
 	}{
 		{
 			name: "Validate:success",
@@ -200,7 +201,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			wantErr: true,
-			errText: "ValidationErr: InvalidSignature",
 		},
 		{
 			name: "Validate:fail-{InvalidMessageBytes}",
@@ -211,7 +211,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			wantErr: true,
-			errText: "ParserErr: ProofOfOwnershipInvalidMessageFormat",
 		},
 		{
 			name: "Validate:fail-{BlockHeightExpired}",
@@ -222,7 +221,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			wantErr: true,
-			errText: "ValidationErr: ProofOfOwnershipExpired",
 		},
 		{
 			name: "Validate:fail-{InvalidBlockHash}",
@@ -233,7 +231,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			wantErr: true,
-			errText: "ValidationErr: InvalidBlockHash",
 		},
 	}
 	for _, tt := range tests {
@@ -244,9 +241,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if err.Error() != tt.errText {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
 				}
 			}
 		})
