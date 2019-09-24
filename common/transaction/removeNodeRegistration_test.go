@@ -300,17 +300,35 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 		txBodyBytes []byte
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   model.TransactionBodyInterface
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
 	}{
+		{
+			name: "ParseBodyBytes:fail - no body",
+			args: args{
+				txBodyBytes: []byte{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "ParseBodyBytes:fail - wrong public key length",
+			args: args{
+				txBodyBytes: []byte{1, 2, 3, 4},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 		{
 			name: "ParseBodyBytes:success",
 			args: args{
 				txBodyBytes: bodyBytes,
 			},
-			want: txBody,
+			want:    txBody,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -324,8 +342,13 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got := r.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RemoveNodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
+			got, err := r.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseBodyBytes() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

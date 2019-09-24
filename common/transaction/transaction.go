@@ -15,31 +15,34 @@ type (
 		Validate(dbTx bool) error
 		GetAmount() int64
 		GetSize() uint32
-		ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface
+		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
 		GetBodyBytes() []byte
 	}
 	TypeActionSwitcher interface {
-		GetTransactionType(tx *model.Transaction) TypeAction
+		GetTransactionType(tx *model.Transaction) (TypeAction, error)
 	}
 	TypeSwitcher struct {
 		Executor query.ExecutorInterface
 	}
 )
 
-func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
+func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
 	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
 	switch buf[0] {
 	case 0:
 		switch buf[1] {
 		case 0:
-			return &TXEmpty{}
+			return &TXEmpty{}, nil
 		default:
-			return nil
+			return nil, nil
 		}
 	case 1:
 		switch buf[1] {
 		case 0:
-			sendMoneyBody := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
+			sendMoneyBody, err := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &SendMoney{
 				Body:                sendMoneyBody.(*model.SendMoneyTransactionBody),
 				Fee:                 tx.Fee,
@@ -48,14 +51,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				Height:              tx.GetHeight(),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				QueryExecutor:       ts.Executor,
-			}
+			}, nil
 		default:
-			return nil
+			return nil, nil
 		}
 	case 2:
 		switch buf[1] {
 		case 0:
-			nodeRegistrationBody := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			nodeRegistrationBody, err := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &NodeRegistration{
 				ID:                      tx.ID, // assign tx ID to nodeID
 				Body:                    nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
@@ -66,9 +72,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				QueryExecutor:           ts.Executor,
-			}
+			}, nil
 		case 1:
-			nodeRegistrationBody := new(UpdateNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			nodeRegistrationBody, err := new(UpdateNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &UpdateNodeRegistration{
 				Body:                  nodeRegistrationBody.(*model.UpdateNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
@@ -77,9 +86,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
-			}
+			}, nil
 		case 2:
-			removeNodeRegistrationBody := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			removeNodeRegistrationBody, err := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &RemoveNodeRegistration{
 				Body:                  removeNodeRegistrationBody.(*model.RemoveNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
@@ -88,9 +100,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
-			}
+			}, nil
 		case 3:
-			claimNodeRegistrationBody := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			claimNodeRegistrationBody, err := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &ClaimNodeRegistration{
 				Body:                  claimNodeRegistrationBody.(*model.ClaimNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
@@ -99,14 +114,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
-			}
+			}, nil
 		default:
-			return nil
+			return nil, nil
 		}
 	case 3:
 		switch buf[1] {
 		case 0:
-			setupAccountDatasetTransactionBody := new(SetupAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+			setupAccountDatasetTransactionBody, err := new(SetupAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &SetupAccountDataset{
 				Body:                setupAccountDatasetTransactionBody.(*model.SetupAccountDatasetTransactionBody),
 				Fee:                 tx.Fee,
@@ -115,10 +133,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
-			}
+			}, nil
 		case 1:
-			removeAccountDatasetTransactionBody := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
-
+			removeAccountDatasetTransactionBody, err := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+			if err != nil {
+				return nil, err
+			}
 			return &RemoveAccountDataset{
 				Body:                removeAccountDatasetTransactionBody.(*model.RemoveAccountDatasetTransactionBody),
 				Fee:                 tx.Fee,
@@ -127,11 +147,11 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) TypeAction {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
-			}
+			}, nil
 		default:
-			return nil
+			return nil, nil
 		}
 	default:
-		return nil
+		return nil, nil
 	}
 }

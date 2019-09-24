@@ -298,7 +298,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
-			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				rows.Close()
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
 			if rows.Next() {
 				// undo unconfirmed
 				err = txType.UndoApplyUnconfirmed()
@@ -573,7 +578,10 @@ func (bs *BlockService) GenerateBlock(
 
 			sortedTx = append(sortedTx, tx)
 			_, _ = digest.Write(mpTx.TransactionBytes)
-			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				return nil, err
+			}
 			totalAmount += txType.GetAmount()
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
@@ -631,7 +639,10 @@ func (bs *BlockService) AddGenesis() error {
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
 		}
-		txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return err
+		}
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
 		payloadLength += txType.GetSize()

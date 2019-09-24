@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -27,14 +26,20 @@ func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
 
 // ParseProofOfOwnershipBytes parse a byte array into a ProofOfOwnership struct (message + signature)
 // poownBytes if true returns size of message + signature
-func ParseProofOfOwnershipBytes(poownBytes []byte) *model.ProofOfOwnership {
+func ParseProofOfOwnershipBytes(poownBytes []byte) (*model.ProofOfOwnership, error) {
 	buffer := bytes.NewBuffer(poownBytes)
-	poownMessageBytes := buffer.Next(int(GetProofOfOwnershipSize(false)))
-	signature := buffer.Next(int(constant.NodeSignature))
+	poownMessageBytes, err := ReadTransactionBytes(buffer, int(GetProofOfOwnershipSize(false)))
+	if err != nil {
+		return nil, err
+	}
+	signature, err := ReadTransactionBytes(buffer, int(constant.NodeSignature))
+	if err != nil {
+		return nil, err
+	}
 	return &model.ProofOfOwnership{
 		MessageBytes: poownMessageBytes,
 		Signature:    signature,
-	}
+	}, nil
 }
 
 // GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes
@@ -49,18 +54,19 @@ func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage
 // ParseProofOfOwnershipMessageBytes parse a byte array into a ProofOfOwnershipMessage struct (only the message, no signature)
 func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
 	buffer := bytes.NewBuffer(poownMessageBytes)
-	if buffer.Len() < int(constant.AccountAddress) {
-		return nil, blocker.NewBlocker(blocker.ParserErr, "ProofOfOwnershipInvalidMessageFormat")
+	accountAddress, err := ReadTransactionBytes(buffer, int(constant.AccountAddress))
+	if err != nil {
+		return nil, err
 	}
-	accountAddress := buffer.Next(int(constant.AccountAddress))
-	if buffer.Len() < int(constant.BlockHash) {
-		return nil, blocker.NewBlocker(blocker.ParserErr, "ProofOfOwnershipInvalidMessageFormat")
+	blockHash, err := ReadTransactionBytes(buffer, int(constant.BlockHash))
+	if err != nil {
+		return nil, err
 	}
-	blockHash := buffer.Next(int(constant.BlockHash))
-	if buffer.Len() < int(constant.Height) {
-		return nil, blocker.NewBlocker(blocker.ParserErr, "ProofOfOwnershipInvalidMessageFormat")
+	heightBytes, err := ReadTransactionBytes(buffer, int(constant.Height))
+	if err != nil {
+		return nil, err
 	}
-	height := ConvertBytesToUint32(buffer.Next(int(constant.Height)))
+	height := ConvertBytesToUint32(heightBytes)
 	return &model.ProofOfOwnershipMessage{
 		AccountAddress: string(accountAddress),
 		BlockHash:      blockHash,

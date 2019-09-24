@@ -152,22 +152,50 @@ func (tx *SetupAccountDataset) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	// read body bytes
 	buffer := bytes.NewBuffer(txBodyBytes)
-	setterAccountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
-	setterAccountAddress := buffer.Next(int(setterAccountAddressLength))
-
-	recipientAccountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
-	recipientAccountAddress := buffer.Next(int(recipientAccountAddressLength))
-
-	propertyLength := util.ConvertBytesToUint32(buffer.Next(int(constant.DatasetPropertyLength)))
-	property := buffer.Next(int(propertyLength))
-
-	valueLength := util.ConvertBytesToUint32(buffer.Next(int(constant.DatasetValueLength)))
-	value := buffer.Next(int(valueLength))
-
-	muchTime := util.ConvertBytesToUint64(buffer.Next(int(constant.Timestamp)))
-
+	setterAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	setterAccountAddressLength := util.ConvertBytesToUint32(setterAccountAddressLengthBytes)
+	setterAccountAddress, err := util.ReadTransactionBytes(buffer, int(setterAccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	recipientAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	recipientAccountAddressLength := util.ConvertBytesToUint32(recipientAccountAddressLengthBytes)
+	recipientAccountAddress, err := util.ReadTransactionBytes(buffer, int(recipientAccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	propertyLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetPropertyLength))
+	if err != nil {
+		return nil, err
+	}
+	propertyLength := util.ConvertBytesToUint32(propertyLengthBytes)
+	property, err := util.ReadTransactionBytes(buffer, int(propertyLength))
+	if err != nil {
+		return nil, err
+	}
+	valueLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetValueLength))
+	if err != nil {
+		return nil, err
+	}
+	valueLength := util.ConvertBytesToUint32(valueLengthBytes)
+	value, err := util.ReadTransactionBytes(buffer, int(valueLength))
+	if err != nil {
+		return nil, err
+	}
+	muchTimeBytes, err := util.ReadTransactionBytes(buffer, int(constant.Timestamp))
+	if err != nil {
+		return nil, err
+	}
+	muchTime := util.ConvertBytesToUint64(muchTimeBytes)
 	txBody := &model.SetupAccountDatasetTransactionBody{
 		SetterAccountAddress:    string(setterAccountAddress),
 		RecipientAccountAddress: string(recipientAccountAddress),
@@ -175,7 +203,7 @@ func (*SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) model.Transaction
 		Value:                   string(value),
 		MuchTime:                muchTime,
 	}
-	return txBody
+	return txBody, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation

@@ -169,11 +169,18 @@ func (*SendMoney) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
-	amount := util.ConvertBytesToUint64(txBodyBytes)
+func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	// validate the body bytes is correct
+	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	if err != nil {
+		return nil, err
+	}
+	// read body bytes
+	bufferBytes := bytes.NewBuffer(txBodyBytes)
+	amount := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.Balance)))
 	return &model.SendMoneyTransactionBody{
 		Amount: int64(amount),
-	}
+	}, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation
