@@ -193,6 +193,7 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 func (tx *ClaimNodeRegistration) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
+	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.AccountAddress)))))
 	buffer.Write([]byte(tx.Body.AccountAddress))
 	// convert ProofOfOwnership (message + signature) to bytes
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
