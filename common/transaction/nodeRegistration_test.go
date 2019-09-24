@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
@@ -809,18 +811,146 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 		txBodyBytes []byte
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *model.NodeRegistrationTransactionBody
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
 	}{
 		{
-			name:   "ParseBodyBytes:success",
+			name: "NodeRegistration:error - empty body bytes",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: []byte{}},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - wrong public key length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: bodyBytes[:10]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no account address length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: bodyBytes[:(len(body.NodePublicKey))]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no account address",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4)]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no node address length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)))]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no node address",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4)]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no locked balance",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args: args{
+				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4 +
+					len([]byte(body.NodeAddress)))],
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no poown",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args: args{
+				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4 +
+					len([]byte(body.NodeAddress)) + int(constant.Balance))],
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "NodeRegistration:ParseBodyBytes - success",
 			fields: fields{},
 			args: args{
 				txBodyBytes: bodyBytes,
 			},
-			want: body,
+			want:    body,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -834,7 +964,13 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got, _ := n.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
+			got, err := n.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

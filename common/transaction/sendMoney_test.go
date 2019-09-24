@@ -602,3 +602,94 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestSendMoney_ParseBodyBytes(t *testing.T) {
+	type fields struct {
+		Body                *model.SendMoneyTransactionBody
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+	}
+	type args struct {
+		txBodyBytes []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
+	}{
+		{
+			name: "SendMoney:ParseBodyBytes - error (no amount)",
+			fields: fields{
+				Body:                nil,
+				Fee:                 0,
+				SenderAddress:       "",
+				RecipientAddress:    "",
+				Height:              0,
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+			},
+			args:    args{txBodyBytes: []byte{}},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendMoney:ParseBodyBytes - error (wrong amount bytes lengths)",
+			fields: fields{
+				Body:                nil,
+				Fee:                 0,
+				SenderAddress:       "",
+				RecipientAddress:    "",
+				Height:              0,
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+			},
+			args:    args{txBodyBytes: []byte{1, 2}},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendMoney:ParseBodyBytes - success",
+			fields: fields{
+				Body:                nil,
+				Fee:                 0,
+				SenderAddress:       "",
+				RecipientAddress:    "",
+				Height:              0,
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+			},
+			args: args{txBodyBytes: []byte{1, 0, 0, 0, 0, 0, 0, 0}},
+			want: &model.SendMoneyTransactionBody{
+				Amount: 1,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				Body:                tt.fields.Body,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+			}
+			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseBodyBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
