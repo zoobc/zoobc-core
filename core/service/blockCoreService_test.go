@@ -689,15 +689,16 @@ func TestBlockService_VerifySeed(t *testing.T) {
 
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		BlockQuery          query.BlockQueryInterface
-		MempoolQuery        query.MempoolQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		Observer            *observer.Observer
+		Chaintype             chaintype.ChainType
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		MempoolQuery          query.MempoolQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		AccountBalanceQuery   query.AccountBalanceQueryInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		Signature             crypto.SignatureInterface
+		ActionTypeSwitcher    transaction.TypeActionSwitcher
+		Observer              *observer.Observer
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -713,11 +714,12 @@ func TestBlockService_PushBlock(t *testing.T) {
 		{
 			name: "PushBlock:Transactions<0",
 			fields: fields{
-				Chaintype:           &chaintype.MainChain{},
-				QueryExecutor:       &mockQueryExecutorSuccess{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				Observer:            observer.NewObserver(),
+				Chaintype:             &chaintype.MainChain{},
+				QueryExecutor:         &mockQueryExecutorSuccess{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Observer:              observer.NewObserver(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -757,10 +759,12 @@ func TestBlockService_PushBlock(t *testing.T) {
 		{
 			name: "PushBlock:Transactions<0 : broadcast true",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				Observer:      observer.NewObserver(),
+				Chaintype:             &chaintype.MainChain{},
+				QueryExecutor:         &mockQueryExecutorSuccess{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Observer:              observer.NewObserver(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -801,15 +805,16 @@ func TestBlockService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Signature:           tt.fields.Signature,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				Observer:            tt.fields.Observer,
+				Chaintype:             tt.fields.Chaintype,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				MempoolQuery:          tt.fields.MempoolQuery,
+				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
+				TransactionQuery:      tt.fields.TransactionQuery,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Signature:             tt.fields.Signature,
+				ActionTypeSwitcher:    tt.fields.ActionTypeSwitcher,
+				Observer:              tt.fields.Observer,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
@@ -2170,7 +2175,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					BlocksmithPublicKey:  bcsNodePubKey1,
 					TotalAmount:          100000000,
 					TotalFee:             10000000,
-					TotalCoinBase:        block.TotalFee + 50 ^ 10*8,
+					TotalCoinBase:        1,
 					Version:              0,
 				},
 				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
@@ -2204,7 +2209,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					BlocksmithPublicKey:  bcsNodePubKey1,
 					TotalAmount:          100000000,
 					TotalFee:             10000000,
-					TotalCoinBase:        block.TotalFee + 50 ^ 10*8,
+					TotalCoinBase:        1,
 					Version:              0,
 				},
 				BlocksmithAccountAddress: bcsAddress1,
