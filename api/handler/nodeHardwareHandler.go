@@ -2,7 +2,6 @@ package handler
 
 import (
 	"io"
-
 	"time"
 
 	"github.com/zoobc/zoobc-core/api/service"

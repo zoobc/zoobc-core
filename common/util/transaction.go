@@ -3,6 +3,7 @@ package util
 import (
 	"bytes"
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/constant"
