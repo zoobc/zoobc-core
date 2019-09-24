@@ -1,6 +1,6 @@
 package model
 
-// type TransactionBodyInterface = isTransaction_TransactionBody
+// TransactionBodyInterface allowing isTransaction_TransactionBody access from other package
 type TransactionBodyInterface = isTransaction_TransactionBody
 
 func (*NodeRegistrationTransactionBody) isTransaction_TransactionBody()       {}
