@@ -185,6 +185,9 @@ func TestNewTransactionService(t *testing.T) {
 	}{
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
+			want: &TransactionService{
+				Query: query.NewQueryExecutor(db),
+			},
 		},
 	}
 	for _, tt := range tests {
