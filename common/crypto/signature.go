@@ -3,7 +3,6 @@ package crypto
 import (
 	"bytes"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/ed25519"
 )
@@ -13,6 +12,7 @@ type (
 		Sign(payload []byte, signatureType uint32, seed string) []byte
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) bool
+		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
 	}
 
 	// Signature object handle signing and verifying different signature
@@ -47,7 +47,6 @@ func (sig *Signature) Sign(payload []byte, signatureType uint32, seed string) []
 // SignByNode special method for signing block only, there will be no multiple signature options
 func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(constant.NodeSignatureTypeDefault))
 	nodePrivateKey := ed25519GetPrivateKeyFromSeed(nodeSeed)
 	signature := ed25519.Sign(nodePrivateKey, payload)
 	buffer.Write(signature)
@@ -73,6 +72,6 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 // VerifyNodeSignature Verify a signature of a block or message signed with a node private key
 // Note: this function is a wrapper around the ed25519 algorithm
 func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
-	result := ed25519.Verify(nodePublicKey, payload, signature[4:])
+	result := ed25519.Verify(nodePublicKey, payload, signature)
 	return result
 }

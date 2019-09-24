@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/observer"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -88,15 +90,15 @@ func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) transa
 	return &mockTxTypeSuccess{}
 }
 
-func (*mockTxTypeValidateFail) Validate() error {
+func (*mockTxTypeValidateFail) Validate(bool) error {
 	return errors.New("mockError:validateFail")
 }
 
-func (*mockTxTypeApplyUnconfirmedFail) Validate() error {
+func (*mockTxTypeApplyUnconfirmedFail) Validate(bool) error {
 	return nil
 }
 
-func (*mockTxTypeSuccess) Validate() error {
+func (*mockTxTypeSuccess) Validate(bool) error {
 	return nil
 }
 
@@ -128,11 +130,11 @@ func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.Mempool
 	return nil
 }
 
-func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:getTxsFail")
 }
 
-func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
@@ -183,7 +185,9 @@ func TestNewTransactionService(t *testing.T) {
 	}{
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
-			want: &TransactionService{Query: query.NewQueryExecutor(db)},
+			want: &TransactionService{
+				Query: query.NewQueryExecutor(db),
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -204,6 +208,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
 		Log                *logrus.Logger
+		Observer           *observer.Observer
 	}
 	type args struct {
 		chaintype chaintype.ChainType
@@ -411,6 +416,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				Query:              &mockTransactionExecutorSuccess{},
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceSuccess{},
+				Observer:           observer.NewObserver(),
 				Log:                mockLog,
 			},
 			args: args{
@@ -459,7 +465,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
-				Log:                tt.fields.Log,
+				Observer:           tt.fields.Observer,
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -482,10 +488,10 @@ type (
 	}
 )
 
-func (*mockQueryGetTransactionsFail) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("want error")
 }
-func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	switch strings.Contains(qStr, "total_record") {
 	case true:
@@ -579,6 +585,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Page:  0,
 					},
 					AccountAddress: "accountA",
+					Height:         1,
 				},
 			},
 			want: &model.GetTransactionsResponse{
@@ -631,7 +638,8 @@ type (
 	}
 )
 
-func (*mockQueryGetTransactionSuccess) ExecuteSelect(qStr string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionSuccess) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).AddRow(
@@ -640,7 +648,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(qStr string, args ...interf
 			1,
 			"senderA",
 			"recipientA",
-			1,
+			0,
 			1,
 			10000,
 			[]byte{1, 1},
@@ -700,7 +708,8 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 		{
 			name: "GetTransaction:success",
 			fields: fields{
-				Query: &mockQueryGetTransactionSuccess{},
+				Query:              &mockQueryGetTransactionSuccess{},
+				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -715,7 +724,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Height:                  1,
 				SenderAccountAddress:    "senderA",
 				RecipientAccountAddress: "recipientA",
-				TransactionType:         1,
+				TransactionType:         0,
 				Fee:                     1,
 				Timestamp:               10000,
 				TransactionHash:         []byte{1, 1},

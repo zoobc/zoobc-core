@@ -77,11 +77,11 @@ func (mk *mockAuthPoown) ValidateProofOfOwnership(
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:selectFail")
 }
 
-func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
@@ -103,7 +103,8 @@ func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(qe string, args .
 	return db.Query("")
 }
 
-func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -129,7 +130,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, a
 	return nil, errors.New("mockError:nodeFail")
 }
 
-func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -174,7 +175,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 	return db.Query("B")
 }
 
-func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -198,7 +199,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 		return db.Query("A")
 	}
 	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version"+
+		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -211,7 +212,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
@@ -236,7 +237,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 		return db.Query("A")
 	}
 	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version"+
+		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block WHERE height = 0" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -249,7 +250,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
@@ -336,22 +337,6 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{
-			name:    "ApplyConfirmed:fail-{undoUnconfirmedFail}",
-			wantErr: true,
-			fields: fields{
-				Height:                1,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockApplyConfirmedUndoUnconfirmedFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
-				Body: &model.NodeRegistrationTransactionBody{
-					LockedBalance: 10000,
-				},
-			},
-		},
 		{
 			name:    "ApplyConfirmed:fail-{executeTransactionsFail}",
 			wantErr: true,
@@ -712,7 +697,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -787,7 +772,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 					NodeAddress: "127.0.0.1",
 				},
 			},
-			want: 281,
+			want: 245,
 		},
 	}
 	for _, tt := range tests {

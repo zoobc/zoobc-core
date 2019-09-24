@@ -435,7 +435,7 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 				height: height,
 			},
 			want: append(want,
-				[]interface{}{fmt.Sprintf("DELETE FROM %s WHERE height > ?", mockDatasetQuery.TableName), []interface{}{height}},
+				[]interface{}{fmt.Sprintf("DELETE FROM %s WHERE height > ?", mockDatasetQuery.TableName), height},
 				[]interface{}{fmt.Sprintf(`
 				UPDATE %s SET latest = 1
 				WHERE (%s) IN (

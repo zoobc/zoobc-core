@@ -2,21 +2,22 @@ package auth
 
 import (
 	"database/sql"
+	"regexp"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"regexp"
-	"testing"
 )
 
 type mockQueryExecutorSuccess struct {
 	query.Executor
 }
 
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 
 	getAccountBalanceByAccountID := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue," +
@@ -47,7 +48,7 @@ func TestValidateTransaction(t *testing.T) {
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 	)
 	txBytes, _ := util.GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.NodeSignatureTypeDefault,
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
 	tests := []struct {

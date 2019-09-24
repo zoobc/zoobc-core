@@ -60,7 +60,7 @@ var (
 		SmithScale:           0,
 		PreviousBlockHash:    []byte{},
 		BlockSeed:            []byte{},
-		BlocksmithAddress:    "BCZ",
+		BlocksmithPublicKey:  nrsNodePubKey1,
 		Timestamp:            12345678,
 		TotalAmount:          0,
 		TotalFee:             0,
@@ -72,16 +72,45 @@ var (
 	}
 )
 
-func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
-func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
 		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+		},
+		))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+		},
+		))
+	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, A.locked_balance, " +
+		"A.queued, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
+		"WHERE B.score = 0 AND A.latest=1 AND A.queued=0 AND B.latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -101,7 +130,7 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, args .
 	return rows, nil
 }
 
-func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -119,6 +148,50 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, args ...interface{}
 			"height",
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+		},
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
+	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, A.locked_balance, " +
+		"A.queued, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
+		"WHERE B.score = 0 AND A.latest=1 AND A.queued=0 AND B.latest=1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+		},
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND queued == 0 GROUP BY id ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"queued",
+			"latest",
+			"height",
+			"max_height",
+		},
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, false, true, 200, 200))
 	default:
 		return nil, errors.New("InvalidQuery")
 	}
@@ -387,6 +460,221 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 			}
 			if err := nrs.ExpelNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.ExpelNodes() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_GetNodeRegistrationByNodePublicKey(t *testing.T) {
+	type fields struct {
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeAdmittanceCycle     uint32
+	}
+	type args struct {
+		nodePublicKey []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.NodeRegistration
+		wantErr bool
+	}{
+		{
+			name: "GetNodeRegistrationByNodePublicKey:success",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				nodePublicKey: nrsNodePubKey1,
+			},
+			want: &model.NodeRegistration{
+				NodeID:             int64(1),
+				NodePublicKey:      nrsNodePubKey1,
+				AccountAddress:     nrsAddress1,
+				RegistrationHeight: 10,
+				NodeAddress:        "10.10.10.10",
+				LockedBalance:      100000000,
+				Queued:             true,
+				Latest:             true,
+				Height:             100,
+			},
+			wantErr: false,
+		},
+		{
+			name: "GetNodeRegistrationByNodePublicKey:fail-{NoNodeRegistered}",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				nodePublicKey: nrsNodePubKey1,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
+			}
+			got, err := nrs.GetNodeRegistrationByNodePublicKey(tt.args.nodePublicKey)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.GetNodeRegistrationByNodePublicKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistrationService.GetNodeRegistrationByNodePublicKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
+	type fields struct {
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeAdmittanceCycle     uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    []*model.NodeRegistration
+		wantErr bool
+	}{
+		{
+			name: "SelectNodesToBeExpelled:success",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			want: []*model.NodeRegistration{
+				{
+					NodeID:             int64(1),
+					NodePublicKey:      nrsNodePubKey1,
+					AccountAddress:     nrsAddress1,
+					RegistrationHeight: 10,
+					NodeAddress:        "10.10.10.10",
+					LockedBalance:      100000000,
+					Queued:             true,
+					Latest:             true,
+					Height:             100,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "SelectNodesToBeExpelled:fail-{NoNodeRegistered}",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
+			}
+			got, err := nrs.SelectNodesToBeExpelled()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.SelectNodesToBeExpelled() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistrationService.SelectNodesToBeExpelled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		AccountBalanceQuery   query.AccountBalanceQueryInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.NodeRegistration
+		wantErr bool
+	}{
+		{
+			name: "GetNodeRegistryAtHeight:success",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				height: 1,
+			},
+			want: []*model.NodeRegistration{
+				{
+					NodeID:             int64(1),
+					NodePublicKey:      nrsNodePubKey1,
+					AccountAddress:     nrsAddress1,
+					RegistrationHeight: 10,
+					NodeAddress:        "10.10.10.10",
+					LockedBalance:      100000000,
+					Queued:             false,
+					Latest:             true,
+					Height:             200,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GetNodeRegistryAtHeight:fail-{NoNodeRegistered}",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				height: 1,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+			}
+			got, err := nrs.GetNodeRegistryAtHeight(tt.args.height)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}

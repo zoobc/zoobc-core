@@ -1,19 +1,19 @@
 dbPath = "./resource/"
 dbName = "zoobc_4.db"
 configPath = "./resource/"
-nodeKeyFile = "node_keys.json"
+nodeKeyFile = "node_keys_4.json"
 
 
 # Peer
 peerPort=8004
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=[]
 
 apiRPCPort=3004
 apiHTTPPort=3034
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
+ownerAccountAddress = "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd"
 
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels

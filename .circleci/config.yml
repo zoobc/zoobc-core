@@ -31,12 +31,14 @@ jobs:
     working_directory: /go/src/github.com/zoobc/zoobc-core
     docker:
       - image: circleci/golang:1.12.0
+    environment:
+      - GOLANGCI_LINT: 1.18.0
     steps:
       - checkout
       - run:
           name: Download golang ci lint
           command: |
-            go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
+            curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v${GOLANGCI_LINT}
       - run:
           name: Download golint
           command: go get -u golang.org/x/lint/golint

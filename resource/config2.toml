@@ -1,7 +1,7 @@
 dbPath = "./resource/"
 dbName = "zoobc_2.db"
 configPath = "./resource/"
-nodeKeyFile = "node_keys.json"
+nodeKeyFile = "node_keys_2.json"
 
 # Peer
 peerPort=8002
@@ -14,6 +14,7 @@ apiReqTimeoutSec=2
 
 ownerAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 
+smithing=false
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 logLevels=["warn", "fatal", "error", "panic"]

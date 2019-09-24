@@ -33,17 +33,9 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		queries              [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
-
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	// get the latest noderegistration by owner (sender account)
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
 	if err != nil {
 		return err
 	}
@@ -116,7 +108,6 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNod
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
-
 	var (
 		err                  error
 		prevNodeRegistration *model.NodeRegistration
@@ -128,7 +119,7 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
 		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
 		if err != nil {
 			return err
 		}
@@ -172,7 +163,7 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *UpdateNodeRegistration) Validate() error {
+func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	var (
 		accountBalance       model.AccountBalance
 		prevNodeRegistration model.NodeRegistration
@@ -192,7 +183,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 
 	// check that sender is node's owner
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args)
 	if err != nil {
 		return err
 	}
@@ -217,7 +208,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 	// note: node pub key must be not already registered
 	if len(tx.Body.NodePublicKey) > 0 {
 		qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry1, args1)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
 		if err != nil {
 			return err
 		}
@@ -236,7 +227,7 @@ func (tx *UpdateNodeRegistration) Validate() error {
 		}
 
 		qry2, args2 := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err = tx.QueryExecutor.ExecuteSelect(qry2, args2)
+		rows, err = tx.QueryExecutor.ExecuteSelect(qry2, dbTx, args2)
 		if err != nil {
 			return err
 		} else if rows.Next() {

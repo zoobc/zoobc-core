@@ -11,6 +11,7 @@ import (
 
 type (
 	BlockQueryInterface interface {
+		Rollback(height uint32) (multiQueries [][]interface{})
 		GetBlocks(height, size uint32) string
 		GetLastBlock() string
 		GetGenesisBlock() string
@@ -43,7 +44,7 @@ func NewBlockQuery(chaintype chaintype.ChainType) *BlockQuery {
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
@@ -60,7 +61,8 @@ func (bq *BlockQuery) getTableName() string {
 
 // GetBlocks returns query string to get multiple blocks
 func (bq *BlockQuery) GetBlocks(height, size uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d LIMIT %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height, size)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d ORDER BY height ASC LIMIT %d",
+		strings.Join(bq.Fields, ", "), bq.getTableName(), height, size)
 }
 
 func (bq *BlockQuery) GetLastBlock() string {
@@ -107,7 +109,7 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.SmithScale,
 		block.PayloadLength,
 		block.PayloadHash,
-		block.BlocksmithAddress,
+		block.BlocksmithPublicKey,
 		block.TotalAmount,
 		block.TotalFee,
 		block.TotalCoinBase,
@@ -129,7 +131,7 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 			&block.SmithScale,
 			&block.PayloadLength,
 			&block.PayloadHash,
-			&block.BlocksmithAddress,
+			&block.BlocksmithPublicKey,
 			&block.TotalAmount,
 			&block.TotalFee,
 			&block.TotalCoinBase,
@@ -144,8 +146,8 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 func (bq *BlockQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE height > ?", bq.TableName),
-			[]interface{}{height},
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", bq.getTableName()),
+			height,
 		},
 	}
 }

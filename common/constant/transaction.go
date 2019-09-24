@@ -5,4 +5,6 @@ var (
 	MinTransactionSize                = 176
 	MaxPayloadLength                  = MinTransactionSize * MaxNumberOfTransactions
 	TransactionExpirationOffset int64 = 3600
+	TxFeePerByte                int32
+	SignatureTypeDefault        = uint32(0)
 )

@@ -38,22 +38,6 @@ type (
 	}
 )
 
-var (
-	nodeRegistrationUpdateBodyFullBytes = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135, 11, 0, 0, 0,
-		49, 48, 46, 49, 48, 46, 49, 48, 46, 49, 48, 0, 225, 245, 5, 0, 0, 0, 0, 66, 67, 90,
-		110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107, 68, 101,
-		66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84,
-		106, 103, 116, 78, 46, 9, 102, 184, 10, 43, 159, 253, 96, 5, 144, 159, 67, 118,
-		228, 62, 13, 56, 104, 238, 189, 93, 120, 141, 169, 246, 153, 252, 238, 57, 195,
-		52, 59, 246, 78, 50, 240, 139, 232, 61, 97, 229, 5, 66, 191, 172, 68, 144, 106,
-		176, 17, 171, 85, 197, 63, 28, 135, 205, 112, 224, 175, 61, 201, 110, 0, 0, 0, 0,
-		0, 0, 0, 0, 85, 5, 252, 227, 98, 131, 198, 111, 115, 237, 16, 29, 156, 69, 188, 94,
-		103, 238, 127, 103, 11, 136, 193, 9, 183, 51, 25, 206, 22, 42, 53, 219, 203, 159,
-		132, 244, 92, 208, 139, 124, 31, 205, 49, 230, 32, 255, 7, 52, 158, 177, 10, 118,
-		17, 204, 251, 30, 170, 28, 53, 25, 137, 185, 100, 12}
-)
-
 func (mk *mockAuthPoownRU) ValidateProofOfOwnership(
 	poown *model.ProofOfOwnership,
 	nodePublicKey []byte,
@@ -66,11 +50,11 @@ func (mk *mockAuthPoownRU) ValidateProofOfOwnership(
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:selectFail")
 }
 
-func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -82,7 +66,7 @@ func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, a
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
@@ -94,7 +78,7 @@ func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, args ...
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -151,7 +135,7 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 	return nil, nil
 }
 
-func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -198,7 +182,7 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 	return nil, nil
 }
 
-func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
@@ -505,7 +489,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if err := tx.Validate(); (err != nil) != tt.wantErr {
+			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -781,7 +765,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: 235,
+			want: 199,
 		},
 	}
 	for _, tt := range tests {
@@ -805,13 +789,6 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		LockedBalance: 100000000,
-		NodePublicKey: nodePubKey1,
-		Poown:         poown,
-		NodeAddress:   "10.10.10.10",
-	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -826,6 +803,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type args struct {
 		txBodyBytes []byte
 	}
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -835,7 +814,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "ParseBodyBytes:success",
 			args: args{
-				txBodyBytes: nodeRegistrationUpdateBodyFullBytes,
+				txBodyBytes: txBodyBytes,
 			},
 			want: txBody,
 		},
@@ -861,13 +840,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		LockedBalance: 100000000,
-		NodePublicKey: nodePubKey1,
-		Poown:         poown,
-		NodeAddress:   "10.10.10.10",
-	}
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -889,7 +862,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: nodeRegistrationUpdateBodyFullBytes,
+			want: txBodyBytes,
 		},
 	}
 	for _, tt := range tests {

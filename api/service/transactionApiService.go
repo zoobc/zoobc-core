@@ -3,11 +3,14 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"math"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/observer"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -30,7 +33,7 @@ type (
 		Signature          crypto.SignatureInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
-		Log                *logrus.Logger
+		Observer           *observer.Observer
 	}
 )
 
@@ -42,7 +45,7 @@ func NewTransactionService(
 	signature crypto.SignatureInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	mempoolService service.MempoolServiceInterface,
-	log *logrus.Logger,
+	observer *observer.Observer,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -50,7 +53,7 @@ func NewTransactionService(
 			Signature:          signature,
 			ActionTypeSwitcher: txTypeSwitcher,
 			MempoolService:     mempoolService,
-			Log:                log,
+			Observer:           observer,
 		}
 	}
 	return transactionServiceInstance
@@ -65,9 +68,11 @@ func (ts *TransactionService) GetTransaction(
 		err    error
 		rows   *sql.Rows
 		txTemp []*model.Transaction
+		tx     *model.Transaction
 	)
+
 	txQuery := query.NewTransactionQuery(chainType)
-	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID))
+	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -75,7 +80,45 @@ func (ts *TransactionService) GetTransaction(
 
 	txTemp = txQuery.BuildModel(txTemp, rows)
 	if len(txTemp) != 0 {
-		return txTemp[0], nil
+		tx = txTemp[0]
+		txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
+		parsedBody := txType.ParseBodyBytes(tx.GetTransactionBodyBytes())
+
+		// TODO: need enhancement when parsing body bytes into body
+		switch tx.GetTransactionType() {
+		case uint32(model.TransactionType_SendMoneyTransaction):
+			tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
+				SendMoneyTransactionBody: parsedBody.(*model.SendMoneyTransactionBody),
+			}
+		case uint32(model.TransactionType_NodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
+				NodeRegistrationTransactionBody: parsedBody.(*model.NodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_UpdateNodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
+				UpdateNodeRegistrationTransactionBody: parsedBody.(*model.UpdateNodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_RemoveNodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+				RemoveNodeRegistrationTransactionBody: parsedBody.(*model.RemoveNodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_ClaimNodeRegistrationTransaction):
+			tx.TransactionBody = &model.Transaction_ClaimNodeRegistrationTransactionBody{
+				ClaimNodeRegistrationTransactionBody: parsedBody.(*model.ClaimNodeRegistrationTransactionBody),
+			}
+		case uint32(model.TransactionType_SetupAccountDatasetTransaction):
+			tx.TransactionBody = &model.Transaction_SetupAccountDatasetTransactionBody{
+				SetupAccountDatasetTransactionBody: parsedBody.(*model.SetupAccountDatasetTransactionBody),
+			}
+		case uint32(model.TransactionType_RemoveAccountDatasetTransaction):
+			tx.TransactionBody = &model.Transaction_RemoveAccountDatasetTransactionBody{
+				RemoveAccountDatasetTransactionBody: parsedBody.(*model.RemoveAccountDatasetTransactionBody),
+			}
+		default:
+			tx.TransactionBody = nil
+		}
+
+		return tx, nil
 	}
 	return nil, errors.New("TransactionNotFound")
 }
@@ -99,9 +142,25 @@ func (ts *TransactionService) GetTransactions(
 	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
+	// Represent transaction fields
+	txFields := map[string]string{
+		"Height":  "block_height",
+		"BlockID": "block_id",
+	}
+
 	accountAddress := params.GetAccountAddress()
+	page := params.GetPagination()
+	height := params.GetHeight()
+
+	if height != 0 {
+		caseQuery.Where(caseQuery.Equal("block_height", height))
+		if page != nil && page.GetLimit() == 0 {
+			page.Limit = math.MaxUint32
+		}
+	}
+
 	if accountAddress != "" {
-		caseQuery.Where(caseQuery.Equal("sender_account_address", accountAddress)).
+		caseQuery.And(caseQuery.Equal("sender_account_address", accountAddress)).
 			Or(caseQuery.Equal("recipient_account_address", accountAddress))
 	}
 	timestampStart := params.GetTimestampStart()
@@ -114,11 +173,11 @@ func (ts *TransactionService) GetTransactions(
 	if transcationType > 0 {
 		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
 	}
-
 	selectQuery, args = caseQuery.Build()
+
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ts.Query.ExecuteSelect(countQuery, args...)
+	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,17 +192,16 @@ func (ts *TransactionService) GetTransactions(
 		}
 	}
 
-	// Get Transactions
-	page := params.GetPagination()
-	if page.GetOrderField() == "" {
+	// Get Transactions with Pagination
+	if page.GetOrderField() == "" || txFields[page.GetOrderField()] == "" {
 		caseQuery.OrderBy("timestamp", page.GetOrderBy())
 	} else {
-		caseQuery.OrderBy(page.GetOrderField(), page.GetOrderBy())
+		caseQuery.OrderBy(txFields[page.GetOrderField()], page.GetOrderBy())
 	}
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
-
 	selectQuery, args = caseQuery.Build()
-	rows, err = ts.Query.ExecuteSelect(selectQuery, args...)
+
+	rows, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +230,7 @@ func (ts *TransactionService) PostTransaction(
 
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
-		FeePerByte:              0,
+		FeePerByte:              constant.TxFeePerByte,
 		ID:                      tx.ID,
 		TransactionBytes:        txBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
@@ -208,6 +266,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, err
 	}
 
+	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
 	// return parsed transaction
 	return tx, nil
 }

@@ -16,7 +16,7 @@ type (
 	}
 )
 
-func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -40,7 +40,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 		return db.Query("A")
 	}
 	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version"+
+		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -53,7 +53,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
@@ -69,7 +69,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 			1,
 			0,
 			[]byte{},
-			senderAddress1,
+			nodePubKey1,
 			100000000,
 			10000000,
 			1,
@@ -78,7 +78,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 		return db.Query("A")
 	}
 	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_address, total_amount, total_fee, total_coinbase, version"+
+		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block WHERE height = 0" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -91,7 +91,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 			"smith_scale",
 			"payload_length",
 			"payload_hash",
-			"blocksmith_address",
+			"blocksmith_public_key",
 			"total_amount",
 			"total_fee",
 			"total_coinbase",
@@ -107,7 +107,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, args ...interface{}
 			1,
 			0,
 			[]byte{},
-			senderAddress1,
+			nodePubKey1,
 			100000000,
 			10000000,
 			1,
@@ -141,16 +141,16 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 		blockQuery    query.BlockQueryInterface
 	}
 	poownInvalidSignature := GetFixturesProofOfOwnershipValidation(0, nil, nil)
-	poownInvalidSignature.Signature = []byte{0, 0, 0, 0, 41, 7, 108, 68, 19, 119, 1, 128, 65, 227, 181, 177,
+	poownInvalidSignature.Signature = []byte{41, 7, 108, 68, 19, 119, 1, 128, 65, 227, 181, 177,
 		137, 219, 248, 111, 54, 166, 110, 77, 164, 196, 19, 178, 152, 106, 199, 184,
 		220, 8, 90, 171, 165, 229, 238, 235, 181, 89, 60, 28, 124, 22, 201, 237, 143,
 		63, 59, 156, 133, 194, 189, 97, 150, 245, 96, 45, 192, 236, 109, 80, 14, 31, 243, 10}
 	poownInvalidMessage := &model.ProofOfOwnership{
-		Signature: []byte{0, 0, 0, 0, 213, 158, 251, 234, 219, 253, 224, 133, 193, 154, 99, 190,
-			117, 66, 233, 151, 195, 194, 161, 35, 239, 84, 111, 216, 96, 51, 154, 225, 131, 171,
-			97, 215, 211, 5, 103, 88, 9, 102, 106, 126, 139, 128, 59, 10, 24, 226, 87, 204, 105,
-			155, 228, 189, 83, 185, 242, 149, 1, 118, 59, 250, 116, 118, 249, 1},
-		MessageBytes: []byte{0, 0, 0, 0, 41, 7, 108, 68, 19, 119, 1, 128, 65, 227, 181, 177,
+		Signature: []byte{69, 237, 231, 113, 208, 107, 56, 109, 104, 211, 67, 117, 63, 55, 237,
+			243, 249, 78, 34, 90, 183, 37, 212, 42, 219, 45, 45, 247, 151, 129, 222, 244, 210,
+			185, 54, 184, 17, 214, 72, 231, 195, 159, 171, 184, 73, 193, 84, 224, 51, 37, 139,
+			70, 237, 153, 122, 67, 247, 182, 141, 51, 168, 53, 125, 0},
+		MessageBytes: []byte{41, 7, 108, 68, 19, 119, 1, 128, 65, 227, 181, 177,
 			137, 219, 248, 111, 54, 166, 110, 77, 164, 196, 19, 178, 152, 106, 199, 184,
 			220, 8, 90, 171, 165, 229, 238, 235, 181, 89, 60, 28, 124, 22, 201, 237, 143,
 			63, 59, 156, 133, 194, 189, 97, 150, 245, 96, 45, 192, 236, 109, 80, 14, 31, 243, 10},
@@ -167,7 +167,7 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 		SmithScale:           1,
 		PayloadLength:        0,
 		PayloadHash:          []byte{0, 0, 0, 1},
-		BlocksmithAddress:    senderAddress1,
+		BlocksmithPublicKey:  nodePubKey1,
 		TotalAmount:          100000000,
 		TotalFee:             10000000,
 		TotalCoinBase:        1,

@@ -43,11 +43,11 @@ func main() {
 	accountSeed := "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 	currentTime := uint64(time.Now().Unix())
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GeneratetNodeKey)))
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GeneratetNodeKey)))
 	sig := signature.Sign(
 		buffer.Bytes(),
-		constant.NodeSignatureTypeDefault,
+		constant.SignatureTypeDefault,
 		accountSeed,
 	)
 	buffer.Write(sig)

@@ -30,12 +30,6 @@ func (tx *RemoveAccountDataset) ApplyConfirmed() error {
 		err     error
 		dataset *model.AccountDataset
 	)
-	if tx.Height > 0 {
-		err = tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
 
 	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
@@ -122,8 +116,7 @@ That specs:
 	- Check existing Account Dataset
 	- Check Spendable Balance sender
 */
-func (tx *RemoveAccountDataset) Validate() error {
-
+func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 		accountDataset model.AccountDataset

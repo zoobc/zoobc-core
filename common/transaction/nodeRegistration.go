@@ -34,17 +34,8 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		queries [][]interface{}
 		queued  bool
 	)
+	queued = tx.Height > 0
 
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-		queued = true
-	} else {
-		// node registration is not queued at genesis height
-		queued = false
-	}
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
 		LockedBalance:      tx.Body.LockedBalance,
@@ -72,7 +63,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	if tx.Height == 0 {
 		ps := &model.ParticipationScore{
 			NodeID: tx.ID,
-			Score:  constant.MaxParticipationScore / 10,
+			Score:  constant.DefaultParticipationScore,
 			Latest: true,
 			Height: 0,
 		}
@@ -131,7 +122,7 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *NodeRegistration) Validate() error {
+func (tx *NodeRegistration) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 	)
@@ -153,7 +144,7 @@ func (tx *NodeRegistration) Validate() error {
 
 	// check balance
 	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, senderArg)
+	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, dbTx, senderArg)
 	if err != nil {
 		return err
 	} else if rows.Next() {
@@ -173,7 +164,7 @@ func (tx *NodeRegistration) Validate() error {
 	}
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, nodeArg...)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, dbTx, nodeArg...)
 	if err != nil {
 		return err
 	}

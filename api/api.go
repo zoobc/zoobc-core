@@ -7,8 +7,10 @@ import (
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/interceptor"
+	"github.com/zoobc/zoobc-core/observer"
+
+	"github.com/spf13/viper"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -23,7 +25,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc"
 )
 
@@ -42,7 +43,7 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
+func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
@@ -57,8 +58,10 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
+		crypto.NewSignature(),
 		query.NewTransactionQuery(&chaintype.MainChain{}),
-		observer.NewObserver())
+		observer.NewObserver(),
+	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		apiLogger.Fatalf("failed to listen: %v\n", err)
@@ -70,7 +73,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 
 	// Set GRPC handler for Block requests
 	rpcService.RegisterBlockServiceServer(grpcServer, &handler.BlockHandler{
-		Service: service.NewBlockService(queryExecutor),
+		Service: service.NewBlockService(queryExecutor, blockServices),
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
@@ -79,7 +82,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 			crypto.NewSignature(),
 			actionTypeSwitcher,
 			mempoolService,
-			apiLogger,
+			observer.NewObserver(),
 		),
 	})
 	// Set GRPC handler for Transactions requests
@@ -96,14 +99,22 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	})
 	// Set GRPC handler for node admin requests
 	rpcService.RegisterNodeAdminServiceServer(grpcServer, &handler.NodeAdminHandler{
-		Service: service.NewNodeAdminService(queryExecutor, ownerAccountAddress, nodefilePath),
+		Service: service.NewNodeAdminService(
+			queryExecutor,
+			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
+			ownerAccountAddress, nodefilePath),
 	})
+
 	// Set GRPC handler for unconfirmed
 	rpcService.RegisterNodeHardwareServiceServer(grpcServer, &handler.NodeHardwareHandler{
 		Service: service.NewNodeHardwareService(
 			ownerAccountAddress,
 			crypto.NewSignature(),
 		),
+	})
+	// Set GRPC handler for node registry request
+	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
+		Service: service.NewNodeRegistryService(queryExecutor),
 	})
 	// run grpc-gateway handler
 	go func() {
@@ -115,7 +126,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.ServiceInterface,
+func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
 	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0

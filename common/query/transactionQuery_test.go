@@ -186,7 +186,7 @@ func TestTransactionQuery_Rollback(t *testing.T) {
 			wantMultiQueries: [][]interface{}{
 				{
 					"DELETE FROM \"transaction\" WHERE block_height > ?",
-					[]interface{}{uint32(1)},
+					uint32(1),
 				},
 			},
 		},
@@ -303,7 +303,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorBuildMmodel) ExecuteSelect(query string, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorBuildMmodel) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(mockTransactionQuery.Fields).AddRow(
@@ -335,7 +335,7 @@ func TestTransactionQuery_BuildModel(t *testing.T) {
 		txs  []*model.Transaction
 		rows *sql.Rows
 	}
-	rows, _ := (&mockQueryExecutorBuildMmodel{}).ExecuteSelect("", "")
+	rows, _ := (&mockQueryExecutorBuildMmodel{}).ExecuteSelect("", false)
 	tests := []struct {
 		name   string
 		fields fields

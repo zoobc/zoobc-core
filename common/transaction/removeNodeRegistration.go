@@ -27,15 +27,8 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		nodereGistrations []*model.NodeRegistration
 	)
 
-	if tx.Height > 0 {
-		err := tx.UndoApplyUnconfirmed()
-		if err != nil {
-			return err
-		}
-	}
-
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(qry, args)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
 	if err != nil {
 		return err
 	}
@@ -126,13 +119,13 @@ func (tx *RemoveNodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *RemoveNodeRegistration) Validate() error {
+func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	var (
 		nodereGistrations []*model.NodeRegistration
 	)
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, nodeArg...)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, dbTx, nodeArg...)
 	if err != nil {
 		return err
 	}

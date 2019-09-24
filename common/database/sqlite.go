@@ -41,7 +41,6 @@ if dbName / file not exist, create file with given dbName
 return nil if dbPath/dbName exist
 */
 func (db *SqliteDB) InitializeDB(dbPath, dbName string) error {
-
 	_, err := os.Stat(dbPath)
 	if ok := os.IsNotExist(err); ok {
 		return err
@@ -85,16 +84,13 @@ CloseDB close database connection and set sqliteD.Conn to nil
 return nil if success,
 */
 func (db *SqliteDB) CloseDB() error {
-
 	if conn == nil {
 		return errors.New("database connection not opened")
 	}
-
 	err := conn.Close()
 	conn = nil // mutate the sqliteDBInstance : close the connection
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
