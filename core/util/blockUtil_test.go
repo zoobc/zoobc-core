@@ -10,8 +10,8 @@ import (
 )
 
 func TestGetBlockSeed(t *testing.T) {
-	resultOne, _ := new(big.Int).SetString("9598608894988249176", 10)
-	resulTwo, _ := new(big.Int).SetString("7126028143083609991", 10)
+	resultOne, _ := new(big.Int).SetString("17087119891823106131", 10)
+	resulTwo, _ := new(big.Int).SetString("3968427577984416435", 10)
 	type args struct {
 		publicKey    []byte
 		block        *model.Block
