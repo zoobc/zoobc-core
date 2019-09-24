@@ -58,7 +58,7 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		GetCoinbase() int64
-		GetBlockSmithAccountAddress(block *model.Block) (string, error)
+		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
 			lastBlock,
@@ -342,7 +342,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 
 	// accrue block rewards (totalFees + totalCoinbase) to blocksmith account address
 	if block.Height > 0 {
-		blocksmithAccountAddress, err := bs.GetBlockSmithAccountAddress(block)
+		blocksmithAccountAddress, err := bs.GetBlocksmithAccountAddress(block)
 		if err != nil {
 			return err
 		}
@@ -780,7 +780,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	blExt.Block = block
 	// block extra (computed) info
 	if block.Height > 0 {
-		blExt.BlocksmithAccountAddress, err = bs.GetBlockSmithAccountAddress(block)
+		blExt.BlocksmithAccountAddress, err = bs.GetBlocksmithAccountAddress(block)
 		if err != nil {
 			return nil, err
 		}
@@ -798,7 +798,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	return blExt, nil
 }
 
-func (bs *BlockService) GetBlockSmithAccountAddress(block *model.Block) (string, error) {
+func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
 	var (
 		nr []*model.NodeRegistration
 	)
