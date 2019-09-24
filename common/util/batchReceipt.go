@@ -9,13 +9,13 @@ import (
 // GenerateReceipt generate receipt object that act as proof of receipt on data. Data received can be
 // block, transaction, etc.
 // generated receipt will not be signed yet (RecipientSignature = nil), will need to be signed using SignReceipt method.
-func GenerateReceipt(
+func GenerateBatchReceipt(
 	referenceBlock *model.Block,
 	senderPublicKey, recipientPublicKey, datumHash []byte,
 	datumType uint32,
-) (*model.Receipt, error) {
+) (*model.BatchReceipt, error) {
 	refBlockHash, _ := GetBlockHash(referenceBlock)
-	return &model.Receipt{
+	return &model.BatchReceipt{
 		SenderPublicKey:      senderPublicKey,
 		RecipientPublicKey:   recipientPublicKey,
 		DatumType:            datumType,
@@ -26,8 +26,8 @@ func GenerateReceipt(
 }
 
 // GetUnsignedReceiptBytes Client task while doing validation signature
-func GetUnsignedReceiptBytes(
-	receipt *model.Receipt,
+func GetUnsignedBatchReceiptBytes(
+	receipt *model.BatchReceipt,
 ) []byte {
 
 	buffer := bytes.NewBuffer([]byte{})
@@ -42,7 +42,7 @@ func GetUnsignedReceiptBytes(
 }
 
 // GetSignedReceiptBytes Client task before store into database batch_receipt
-func GetSignedReceiptBytes(receipt *model.Receipt) []byte {
+func GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(receipt.SenderPublicKey)

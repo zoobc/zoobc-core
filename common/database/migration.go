@@ -138,7 +138,7 @@ func (m *Migration) Init() error {
 				"datum_hash" BLOB,
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
-				"receipt_merkle_root" BLOB,
+				"rmr_linked" BLOB,
 				"recipient_signature" BLOB,
 				"rmr" BLOB,
 				"rmr_index" INTEGER
@@ -152,7 +152,7 @@ func (m *Migration) Init() error {
 				"datum_hash" BLOB,
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
-				"receipt_merkle_root" BLOB,
+				"rmr_linked" BLOB,
 				"recipient_signature" BLOB
 			)
 			`,
