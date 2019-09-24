@@ -2,10 +2,11 @@ package util
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"golang.org/x/crypto/sha3"
 	"math"
 	"reflect"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"golang.org/x/crypto/sha3"
 )
 
 type MerkleRoot struct {
@@ -35,8 +36,10 @@ func (mr *MerkleRoot) merkle(items []*bytes.Buffer) *bytes.Buffer {
 	if itemLength == 1 {
 		return items[0]
 	}
-	return mr.hash(mr.merkle(items[:itemLength/2]), mr.merkle(items[itemLength/2:]),
-		int32(math.Log2(float64(itemLength))))
+	return mr.hash(
+		mr.merkle(items[:itemLength/2]), mr.merkle(items[itemLength/2:]),
+		int32(math.Log2(float64(itemLength))),
+	)
 }
 
 // hash function take the 2 data to be hashed for building merkle tree
@@ -93,4 +96,23 @@ func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes
 		lastHash = digest.Sum([]byte{})
 	}
 	return reflect.DeepEqual(lastHash, root.Bytes())
+}
+
+// ToBytes build []byte from HashTree which is a [][]*bytes.Buffer
+func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
+	var (
+		r, t *bytes.Buffer
+	)
+	t = bytes.NewBuffer([]byte{})
+	r = bytes.NewBuffer([]byte{})
+
+	for k, buffer := range mr.HashTree {
+		for _, nestBuf := range buffer {
+			t.Write(nestBuf.Bytes())
+			if k < len(mr.HashTree) {
+				r.Write(nestBuf.Bytes())
+			}
+		}
+	}
+	return r.Bytes(), t.Bytes()
 }

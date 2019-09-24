@@ -137,6 +137,8 @@ func initP2pInstance() {
 		queryExecutor,
 		query.NewReceiptQuery(),
 		nodePublicKey,
+		query.NewBatchReceiptQuery(),
+		query.NewMerkleTreeQuery(),
 	)
 
 	// init p2p instances

@@ -1817,7 +1817,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.Receipt
+		want    *model.BatchReceipt
 		wantErr bool
 	}{
 		{
@@ -2031,7 +2031,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want: &model.Receipt{
+			want: &model.BatchReceipt{
 				SenderPublicKey: []byte{1, 3, 4, 5, 6},
 				RecipientPublicKey: []byte{
 					88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
@@ -2045,7 +2045,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ReferenceBlockHeight: 0,
 				ReferenceBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
 					169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255},
-				ReceiptMerkleRoot:  nil,
+				RMRLinked:          nil,
 				RecipientSignature: []byte{},
 			},
 		},
@@ -2069,11 +2069,11 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ReceiveBlock() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ReceiveBlock() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReceiveBlock() got = %v\nwant %v", got, tt.want)
+				t.Errorf("ReceiveBlock() got = \n%v want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -2237,11 +2237,11 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 			}
 			got, err := bs.GetBlockExtendedInfo(tt.args.block)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.GetBlockExtendedInfo() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("BlockService.GetBlockExtendedInfo() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockService.GetBlockExtendedInfo() = %v, want %v", got, tt.want)
+				t.Errorf("BlockService.GetBlockExtendedInfo() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
