@@ -323,3 +323,38 @@ func TestReadAccountAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestReadTransactionBytes(t *testing.T) {
+	type args struct {
+		buf    *bytes.Buffer
+		nBytes int
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "ReadTransactionBytes:wrong-bytes",
+			args: args{
+				buf:    bytes.NewBuffer([]byte{1, 2}),
+				nBytes: 4,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ReadTransactionBytes(tt.args.buf, tt.args.nBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ReadTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ReadTransactionBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

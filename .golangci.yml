@@ -107,6 +107,9 @@ issues:
     - text: "don't use underscores in Go names; method isTransaction_TransactionBody should be isTransactionTransactionBody"
       linters:
         - golint
+    - text: "exported method ParseBodyBytes returns unexported type"
+      linters:
+        - golint
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:

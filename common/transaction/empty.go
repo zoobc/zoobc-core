@@ -29,8 +29,8 @@ func (tx *TXEmpty) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*TXEmpty) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
-	return &model.EmptyTransactionBody{}
+func (*TXEmpty) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	return &model.EmptyTransactionBody{}, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation

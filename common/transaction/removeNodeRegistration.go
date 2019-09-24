@@ -3,6 +3,8 @@ package transaction
 import (
 	"bytes"
 
+	"github.com/zoobc/zoobc-core/common/util"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 
@@ -121,7 +123,7 @@ func (tx *RemoveNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	var (
-		nodereGistrations []*model.NodeRegistration
+		nodeRegistrations []*model.NodeRegistration
 	)
 	// check for duplication
 	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
@@ -129,12 +131,12 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
-	nodereGistrations = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
-	if len(nodereGistrations) == 0 {
+	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
 	// sender must be node owner
-	if tx.SenderAddress != nodereGistrations[0].AccountAddress {
+	if tx.SenderAddress != nodeRegistrations[0].AccountAddress {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountNotNodeOwner")
 	}
 	return nil
@@ -149,13 +151,17 @@ func (tx *RemoveNodeRegistration) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*RemoveNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+func (tx *RemoveNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	// read body bytes
 	buffer := bytes.NewBuffer(txBodyBytes)
-	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
+	nodePublicKey, err := util.ReadTransactionBytes(buffer, int(constant.NodePublicKey))
+	if err != nil {
+		return nil, err
+	}
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePublicKey,
 	}
-	return txBody
+	return txBody, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation

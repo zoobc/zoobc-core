@@ -81,9 +81,14 @@ func (ts *TransactionService) GetTransaction(
 	txTemp = txQuery.BuildModel(txTemp, rows)
 	if len(txTemp) != 0 {
 		tx = txTemp[0]
-		txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
-		parsedBody := txType.ParseBodyBytes(tx.GetTransactionBodyBytes())
-
+		txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+		parsedBody, err := txType.ParseBodyBytes(tx.GetTransactionBodyBytes())
+		if err != nil {
+			return nil, err
+		}
 		// TODO: need enhancement when parsing body bytes into body
 		switch tx.GetTransactionType() {
 		case uint32(model.TransactionType_SendMoneyTransaction):
@@ -226,8 +231,10 @@ func (ts *TransactionService) PostTransaction(
 		return nil, err
 	}
 	// Validate Tx
-	txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
-
+	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	if err != nil {
+		return nil, err
+	}
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
 		FeePerByte:              constant.TxFeePerByte,

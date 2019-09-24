@@ -78,16 +78,16 @@ type (
 
 var mockLog = logrus.New()
 
-func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTxTypeValidateFail{}
+func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeValidateFail{}, nil
 }
 
-func (*mockTypeSwitcherApplyUnconfirmedFail) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTxTypeApplyUnconfirmedFail{}
+func (*mockTypeSwitcherApplyUnconfirmedFail) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeApplyUnconfirmedFail{}, nil
 }
 
-func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTxTypeSuccess{}
+func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeSuccess{}, nil
 }
 
 func (*mockTxTypeValidateFail) Validate(bool) error {
