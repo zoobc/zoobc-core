@@ -101,9 +101,12 @@ issues:
     - text: "lines are duplicate of"
       linters:
         - dupl
-    - text: "U1000: func `TransactionBodyInterface.isTxBody` is unused"
+    - text: "U1000: func `TransactionBodyInterface.isTransaction_TransactionBody` is unused"
       linters:
         - unused
+    - text: "don't use underscores in Go names; method isTransaction_TransactionBody should be isTransactionTransactionBody"
+      linters:
+        - golint
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:

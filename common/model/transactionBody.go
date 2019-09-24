@@ -1,15 +1,13 @@
 package model
 
-// type TransactionBodyInterface = isTransaction_TransactionBody
-type TransactionBodyInterface interface {
-	isTxBody()
-}
+// TransactionBodyInterface allowing isTransaction_TransactionBody access from other package
+type TransactionBodyInterface = isTransaction_TransactionBody
 
-func (*NodeRegistrationTransactionBody) isTxBody()       {}
-func (*UpdateNodeRegistrationTransactionBody) isTxBody() {}
-func (*RemoveNodeRegistrationTransactionBody) isTxBody() {}
-func (*ClaimNodeRegistrationTransactionBody) isTxBody()  {}
-func (*EmptyTransactionBody) isTxBody()                  {}
-func (*SendMoneyTransactionBody) isTxBody()              {}
-func (*SetupAccountDatasetTransactionBody) isTxBody()    {}
-func (*RemoveAccountDatasetTransactionBody) isTxBody()   {}
+func (*NodeRegistrationTransactionBody) isTransaction_TransactionBody()       {}
+func (*UpdateNodeRegistrationTransactionBody) isTransaction_TransactionBody() {}
+func (*RemoveNodeRegistrationTransactionBody) isTransaction_TransactionBody() {}
+func (*ClaimNodeRegistrationTransactionBody) isTransaction_TransactionBody()  {}
+func (*EmptyTransactionBody) isTransaction_TransactionBody()                  {}
+func (*SendMoneyTransactionBody) isTransaction_TransactionBody()              {}
+func (*SetupAccountDatasetTransactionBody) isTransaction_TransactionBody()    {}
+func (*RemoveAccountDatasetTransactionBody) isTransaction_TransactionBody()   {}
