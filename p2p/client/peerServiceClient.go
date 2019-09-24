@@ -299,16 +299,9 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		merkleRoot     util.MerkleRoot
 	)
 
-	err = psc.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
+	psc.Logger.Info("Insert Batch Receipt")
 	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(batchReceipt)
-	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
-	if err != nil {
-		return err
-	}
-	err = psc.QueryExecutor.CommitTx()
+	_, err = psc.QueryExecutor.ExecuteStatement(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
 	if err != nil {
 		return err
 	}
@@ -320,9 +313,10 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 	if err != nil {
 		return err
 	}
+	psc.Logger.Info("Count Batch Receipts: ", count)
 
 	if count >= constant.ReceiptBatchMaximum {
-
+		psc.Logger.Info("Start Store Batch To Receipt: ", count)
 		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
 		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -60,14 +61,16 @@ func (br *BatchReceiptQuery) InsertBatchReceipt(receipt *model.BatchReceipt) (qS
 
 // GetBatchReceipts build select query for `batch_receipt` table
 func (br *BatchReceiptQuery) GetBatchReceipts(limit uint32, offset uint64) string {
+
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s ",
 		strings.Join(br.Fields, ", "),
 		br.getTableName(),
 	)
+
 	newLimit := limit
 	if limit == 0 {
-		newLimit = uint32(10)
+		newLimit = constant.ReceiptBatchMaximum
 	}
 	query += fmt.Sprintf(
 		"ORDER BY reference_block_height LIMIT %d OFFSET %d",
