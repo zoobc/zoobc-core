@@ -10,11 +10,12 @@ import (
 )
 
 func TestGetBlockSeed(t *testing.T) {
-	resultOne, _ := new(big.Int).SetString("17294717645224993457", 10)
-	resulTwo, _ := new(big.Int).SetString("12040414258978844097", 10)
+	resultOne, _ := new(big.Int).SetString("9598608894988249176", 10)
+	resulTwo, _ := new(big.Int).SetString("7126028143083609991", 10)
 	type args struct {
-		publicKey []byte
-		block     *model.Block
+		publicKey    []byte
+		block        *model.Block
+		secretPhrase string
 	}
 	tests := []struct {
 		name    string
@@ -29,6 +30,7 @@ func TestGetBlockSeed(t *testing.T) {
 				block: &model.Block{
 					BlockSeed: []byte{1, 3, 4, 5},
 				},
+				secretPhrase: "randomsecretphrase",
 			},
 			want:    resultOne,
 			wantErr: false,
@@ -41,6 +43,7 @@ func TestGetBlockSeed(t *testing.T) {
 				block: &model.Block{
 					BlockSeed: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229},
 				},
+				secretPhrase: "randomsecretphrase",
 			},
 			want:    resulTwo,
 			wantErr: false,
@@ -48,7 +51,7 @@ func TestGetBlockSeed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetBlockSeed(tt.args.publicKey, tt.args.block)
+			got, err := GetBlockSeed(tt.args.publicKey, tt.args.block, tt.args.secretPhrase)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetBlockSeed() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -196,7 +199,7 @@ func TestGetBlockID(t *testing.T) {
 					SmithScale:           54040,
 				},
 			},
-			want: -3024391177923659831,
+			want: 4891391764897612667,
 		},
 		{
 			name: "GetBlockID:two",
@@ -217,7 +220,7 @@ func TestGetBlockID(t *testing.T) {
 					SmithScale:           48985,
 				},
 			},
-			want: 852549058466146818,
+			want: 5677934310196121651,
 		},
 	}
 	for _, tt := range tests {

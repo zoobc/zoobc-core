@@ -53,6 +53,8 @@ var (
 	nodeKeyFilePath                  string
 	smithing                         bool
 	nodeRegistrationService          service.NodeRegistrationServiceInterface
+	mainchainProcessor               *smith.BlockchainProcessor
+	sortedBlocksmiths                []model.Blocksmith
 )
 
 func init() {
@@ -126,8 +128,6 @@ func init() {
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()
-
-	initObserverListeners()
 }
 
 func initP2pInstance() {
@@ -163,8 +163,11 @@ func initP2pInstance() {
 
 func initObserverListeners() {
 	// init observer listeners
-	observerInstance.AddListener(observer.BlockPushed, p2pServiceInstance.SendBlockListener())
+	// broadcast block will be different than other listener implementation, since there are few exception condition
+	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+
 }
 
 func startServices() {
@@ -193,16 +196,13 @@ func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
 		if err != nil {
 			log.Warn("Smith error: ", err)
 		}
-		time.Sleep(time.Duration(sleepPeriod) * time.Second)
+		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
 	}
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
-	var (
-		blockSmithAddress string
-	)
 	mainchain := &chaintype.MainChain{}
-	sleepPeriod := int(mainchain.GetChainSmithingDelayTime())
+	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
 		mainchain,
 		queryExecutor,
@@ -232,10 +232,19 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
 		observerInstance,
+		&sortedBlocksmiths,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+	mainchainProcessor = smith.NewBlockchainProcessor(
+		mainchain,
+		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
+		mainchainBlockService,
+		nodeRegistrationService,
+	)
 
+	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 
 		// genesis account will be inserted in the very beginning
@@ -248,18 +257,21 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		}
 	}
 
+	// Check computer/node local time. Comparing with last block timestamp
+	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
+	lastBlock, err := mainchainBlockService.GetLastBlock()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if time.Now().Unix() < lastBlock.GetTimestamp() {
+		log.Fatal("Your computer clock is behind from the correct time")
+	}
+
 	// no nodes registered with current node public key
-	nodeRegistration, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
+	_, err = nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	if err != nil {
 		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
-	} else {
-		blockSmithAddress = nodeRegistration.AccountAddress
 	}
-	mainchainProcessor := smith.NewBlockchainProcessor(
-		mainchain,
-		smith.NewBlocksmith(nodeSecretPhrase, blockSmithAddress),
-		mainchainBlockService,
-	)
 
 	if len(nodeSecretPhrase) > 0 && smithing {
 		go startSmith(sleepPeriod, mainchainProcessor)
@@ -290,7 +302,6 @@ func main() {
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything

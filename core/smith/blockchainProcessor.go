@@ -1,15 +1,17 @@
 package smith
 
 import (
-	"errors"
 	"math"
 	"math/big"
+	"sort"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+
+	"github.com/zoobc/zoobc-core/observer"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -17,50 +19,33 @@ import (
 )
 
 type (
-	// Blocksmith is wrapper for the account in smithing process
-	Blocksmith struct {
-		NodePublicKey []byte
-		Score         *big.Int
-		SmithTime     int64
-		BlockSeed     *big.Int
-		SecretPhrase  string
-		deadline      uint32
-	}
-
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype    chaintype.ChainType
-		Generator    *Blocksmith
-		BlockService service.BlockServiceInterface
-		LastBlockID  int64
+		Chaintype               chaintype.ChainType
+		Generator               *model.Blocksmith
+		BlockService            service.BlockServiceInterface
+		NodeRegistrationService service.NodeRegistrationServiceInterface
+		LastBlockID             int64
 	}
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
 func NewBlockchainProcessor(
 	ct chaintype.ChainType,
-	blocksmith *Blocksmith,
+	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
+	nodeRegistrationService service.NodeRegistrationServiceInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Chaintype:    ct,
-		Generator:    blocksmith,
-		BlockService: blockService,
+		Chaintype:               ct,
+		Generator:               blocksmith,
+		BlockService:            blockService,
+		NodeRegistrationService: nodeRegistrationService,
 	}
 }
 
-// InitGenerator initiate generator
-func NewBlocksmith(nodeSecretPhrase, accountAddress string) *Blocksmith {
-	blocksmith := &Blocksmith{
-		Score:         big.NewInt(constant.DefaultParticipationScore),
-		SecretPhrase:  nodeSecretPhrase,
-		NodePublicKey: util.GetPublicKeyFromSeed(nodeSecretPhrase),
-	}
-	return blocksmith
-}
-
-// CalculateSmith calculate seed, smithTime, and deadline
-func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *Blocksmith) *Blocksmith {
+// CalculateSmith calculate seed, smithTime, and Deadline
+func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith {
 	// try to get the node's participation score (ps) from node public key
 	// if node is not registered, ps will be 0 and this node won't be able to smith
 	// the default ps is 100000, smithing could be slower than when using account balances
@@ -75,16 +60,16 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	} else {
 		//TODO: default participation score is 10000 smaller than the old balance we used to use to smith
 		//      so we multiply it by 10000 for now, to keep the same ratio
-		generator.Score = big.NewInt(int64(math.Max(0, float64(ps*10000))))
+		generator.Score = big.NewInt(ps)
 	}
 	if generator.Score.Sign() == 0 {
 		generator.SmithTime = 0
 		generator.BlockSeed = big.NewInt(0)
 	}
 
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock)
+	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock, generator.SecretPhrase)
 	generator.SmithTime = coreUtil.GetSmithTime(generator.Score, generator.BlockSeed, lastBlock)
-	generator.deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
+	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
 }
 
@@ -92,60 +77,94 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 func (bp *BlockchainProcessor) StartSmithing() error {
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
-		return errors.New("Genesis:notAddedYet")
+		return blocker.NewBlocker(
+			blocker.SmithingErr, "genesis block has not been applied")
 	}
 	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
-	bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	if lastBlock.GetID() != bp.LastBlockID {
-		if bp.Generator.SmithTime > smithMax {
-			return errors.New("skip forge")
-		}
-
-		timestamp := bp.Generator.GetTimestamp(smithMax)
-		if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
-			return errors.New("VerifySeed:false")
-		}
-		stop := false
-		for {
-			if stop {
-				return nil
-			}
-			previousBlock, err := bp.BlockService.GetLastBlock()
-			if err != nil {
-				return err
-			}
-
-			block, err := bp.BlockService.GenerateBlock(
-				previousBlock,
-				bp.Generator.SecretPhrase,
-				timestamp,
-			)
-			if err != nil {
-				return err
-			}
-			// validate
-			err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
-			if err != nil {
-				return err
-			}
-			// if validated push
-			err = bp.BlockService.PushBlock(previousBlock, block, true, true)
-			if err != nil {
-				log.Warn("pushBlock err ", block.Height, " ", err)
-				return err
-			}
-			log.Printf("block forged: fee %d\n", block.TotalFee)
-			stop = true
-		}
+		bp.LastBlockID = lastBlock.GetID()
+		// if lastBlock.Timestamp > time.Now().Unix()-bp.Chaintype.GetChainSmithingDelayTime()*10 {
+		// TODO: andy-shi88
+		// pop off last block if has been absent for 10*delay
+		// put processed transaction to process later
+		// }
+		// caching: only calculate smith time once per new block
+		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	}
-	return errors.New("GeneratorNotSet")
+	if bp.Generator.SmithTime > smithMax {
+		return blocker.NewBlocker(
+			blocker.SmithingErr, "skipping block creation")
+	}
+	timestamp := bp.Generator.GetTimestamp(smithMax)
+	if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
+		return blocker.NewBlocker(
+			blocker.SmithingErr, "verify seed return false")
+	}
+	stop := false
+	for { // start creating block
+		if stop {
+			return nil
+		}
+		previousBlock, err := bp.BlockService.GetLastBlock()
+		if err != nil {
+			return err
+		}
+
+		block, err := bp.BlockService.GenerateBlock(
+			previousBlock,
+			bp.Generator.SecretPhrase,
+			timestamp,
+		)
+		if err != nil {
+			return err
+		}
+		// validate
+		err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
+		if err != nil {
+			return err
+		}
+		// if validated push
+		err = bp.BlockService.PushBlock(previousBlock, block, true, true)
+		if err != nil {
+			return err
+		}
+		stop = true
+	}
 }
 
-// GetTimestamp max timestamp allowed block to be smithed
-func (blocksmith *Blocksmith) GetTimestamp(smithMax int64) int64 {
-	elapsed := smithMax - blocksmith.SmithTime
-	if elapsed > 3600 {
-		return smithMax
+func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			// fetch valid blocksmiths
+			lastBlock := block.(*model.Block)
+			var blocksmiths []model.Blocksmith
+			activeBlocksmiths, err := bp.NodeRegistrationService.GetActiveNodes()
+			if err != nil {
+				return
+			}
+			for _, blocksmith := range activeBlocksmiths {
+				if blocksmith.Score.Cmp(big.NewInt(0)) > 0 {
+					blocksmiths = append(blocksmiths, *blocksmith)
+				}
+			}
+			// sort blocksmiths
+			sort.SliceStable(blocksmiths, func(i, j int) bool {
+				bi, bj := blocksmiths[i], blocksmiths[j]
+				nodePKI := new(big.Int).SetBytes(bi.NodePublicKey)
+				nodePKJ := new(big.Int).SetBytes(bj.NodePublicKey)
+				resI := new(big.Int).Mul(bi.Score, new(big.Int).SetInt64(
+					nodePKI.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
+				resJ := new(big.Int).Mul(bj.Score, new(big.Int).SetInt64(
+					nodePKJ.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
+				res := resI.Cmp(resJ)
+				if res == 0 {
+					// compare node public key
+					res = nodePKI.Cmp(nodePKJ)
+				}
+				// ascending sort
+				return res < 0
+			})
+			*sortedBlocksmiths = blocksmiths
+		},
 	}
-	return blocksmith.SmithTime + 1
 }
