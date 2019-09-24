@@ -40,12 +40,12 @@ type (
 			chainType chaintype.ChainType,
 			block *model.Block,
 			senderPublicKey []byte,
-		) (*model.Receipt, error)
+		) (*model.SendBlockResponse, error)
 		SendTransaction(
 			chainType chaintype.ChainType,
 			transactionBytes,
 			senderPublicKey []byte,
-		) (*model.Receipt, error)
+		) (*model.SendTransactionResponse, error)
 	}
 
 	P2PServerService struct {
@@ -263,7 +263,7 @@ func (ps *P2PServerService) SendBlock(
 	chainType chaintype.ChainType,
 	block *model.Block,
 	senderPublicKey []byte,
-) (*model.Receipt, error) {
+) (*model.SendBlockResponse, error) {
 
 	lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 	if err != nil {
@@ -272,7 +272,7 @@ func (ps *P2PServerService) SendBlock(
 			"fail to get last block",
 		)
 	}
-	receipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
+	batchReceipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
 		senderPublicKey,
 		lastBlock,
 		block,
@@ -281,7 +281,9 @@ func (ps *P2PServerService) SendBlock(
 	if err != nil {
 		return nil, err
 	}
-	return receipt, nil
+	return &model.SendBlockResponse{
+		BatchReceipt: batchReceipt,
+	}, nil
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
@@ -289,7 +291,7 @@ func (ps *P2PServerService) SendTransaction(
 	chainType chaintype.ChainType,
 	transactionBytes,
 	senderPublicKey []byte,
-) (*model.Receipt, error) {
+) (*model.SendTransactionResponse, error) {
 
 	lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 	if err != nil {
@@ -299,7 +301,7 @@ func (ps *P2PServerService) SendTransaction(
 		)
 	}
 
-	receipt, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedTransaction(
+	batchReceipt, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedTransaction(
 		senderPublicKey,
 		transactionBytes,
 		lastBlock,
@@ -308,5 +310,7 @@ func (ps *P2PServerService) SendTransaction(
 	if err != nil {
 		return nil, err
 	}
-	return receipt, nil
+	return &model.SendTransactionResponse{
+		BatchReceipt: batchReceipt,
+	}, nil
 }

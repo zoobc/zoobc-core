@@ -13,16 +13,14 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
-	"golang.org/x/crypto/sha3"
-
-	"github.com/zoobc/zoobc-core/common/query"
-
-	"github.com/zoobc/zoobc-core/common/model"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -60,7 +58,7 @@ type (
 			lastBlock,
 			block *model.Block,
 			nodeSecretPhrase string,
-		) (*model.Receipt, error)
+		) (*model.BatchReceipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 	}
 
@@ -637,7 +635,7 @@ func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
-) (*model.Receipt, error) {
+) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() != nil {
 		blockUnsignedByte, _ := util.GetBlockByte(block, false)
@@ -666,7 +664,7 @@ func (bs *BlockService) ReceiveBlock(
 			// todo: lastblock last applied block, or incoming block?
 			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 			blockHash, _ := util.GetBlockHash(block)
-			receipt, err := util.GenerateReceipt(
+			batchReceipt, err := util.GenerateBatchReceipt(
 				lastBlock,
 				senderPublicKey,
 				nodePublicKey,
@@ -676,11 +674,11 @@ func (bs *BlockService) ReceiveBlock(
 			if err != nil {
 				return nil, err
 			}
-			receipt.RecipientSignature = bs.Signature.SignByNode(
-				util.GetUnsignedReceiptBytes(receipt),
+			batchReceipt.RecipientSignature = bs.Signature.SignByNode(
+				util.GetUnsignedBatchReceiptBytes(batchReceipt),
 				nodeSecretPhrase,
 			)
-			return receipt, nil
+			return batchReceipt, nil
 		}
 		return nil, blocker.NewBlocker(
 			blocker.ValidationErr,

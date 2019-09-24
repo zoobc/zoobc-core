@@ -37,7 +37,7 @@ func GetUnsignedBatchReceiptBytes(
 	buffer.Write(receipt.ReferenceBlockHash)
 	buffer.Write(ConvertUint32ToBytes(receipt.DatumType))
 	buffer.Write(receipt.DatumHash)
-	buffer.Write(receipt.ReceiptMerkleRoot)
+	buffer.Write(receipt.RMRLinked)
 	return buffer.Bytes()
 }
 
@@ -51,7 +51,7 @@ func GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
 	buffer.Write(receipt.ReferenceBlockHash)
 	buffer.Write(ConvertUint32ToBytes(receipt.DatumType))
 	buffer.Write(receipt.DatumHash)
-	buffer.Write(receipt.ReceiptMerkleRoot)
+	buffer.Write(receipt.RMRLinked)
 	buffer.Write(receipt.RecipientSignature)
 	return buffer.Bytes()
 }

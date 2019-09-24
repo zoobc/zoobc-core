@@ -137,8 +137,8 @@ func (psc *PeerServiceClient) SendBlock(
 ) error {
 
 	var (
-		err     error
-		receipt *model.Receipt
+		err      error
+		response *model.SendBlockResponse
 	)
 
 	connection, _ := psc.Dialer(destPeer)
@@ -146,7 +146,7 @@ func (psc *PeerServiceClient) SendBlock(
 
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
-	receipt, err = p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
+	response, err = p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
 		SenderPublicKey: psc.NodePublicKey,
 		Block:           block,
 		ChainType:       chainType.GetTypeInt(),
@@ -155,7 +155,7 @@ func (psc *PeerServiceClient) SendBlock(
 		return err
 	}
 
-	err = psc.storeReceipt(receipt)
+	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
 
@@ -166,14 +166,14 @@ func (psc *PeerServiceClient) SendTransaction(
 	chainType chaintype.ChainType,
 ) error {
 	var (
-		err     error
-		receipt *model.Receipt
+		err      error
+		response *model.SendTransactionResponse
 	)
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
-	receipt, err = p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
+	response, err = p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
 		SenderPublicKey:  psc.NodePublicKey,
 		TransactionBytes: transactionBytes,
 		ChainType:        chainType.GetTypeInt(),
@@ -181,7 +181,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	err = psc.storeReceipt(receipt)
+	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
 
@@ -285,22 +285,25 @@ func (psc PeerServiceClient) GetNextBlocks(
 	return res, err
 }
 
-// storeReceipt function will decider storing receipt into node_receipt or batch_receipt
-func (psc *PeerServiceClient) storeReceipt(receipt *model.Receipt) error {
+// storeReceipt function will decide to storing receipt into node_receipt or batch_receipt
+// and will generate _merkle_root_
+func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
 
 	var (
 		err            error
 		count          uint32
 		queries        [][]interface{}
-		receipts       []*model.Receipt
+		batchReceipts  []*model.BatchReceipt
+		receipt        *model.Receipt
 		hashedReceipts []*bytes.Buffer
 		merkleRoot     util.MerkleRoot
 	)
+
 	err = psc.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
-	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(receipt)
+	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(batchReceipt)
 	err = psc.QueryExecutor.ExecuteTransaction(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
 	if err != nil {
 		return err
@@ -319,6 +322,7 @@ func (psc *PeerServiceClient) storeReceipt(receipt *model.Receipt) error {
 	}
 
 	if count >= constant.ReceiptBatchMaximum {
+
 		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
 		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
 		if err != nil {
@@ -327,24 +331,38 @@ func (psc *PeerServiceClient) storeReceipt(receipt *model.Receipt) error {
 		defer rows.Close()
 
 		queries = make([][]interface{}, (constant.ReceiptBatchMaximum*2)+1)
-		receipts = psc.BatchReceiptQuery.BuildModel(receipts, rows)
-		for k, r := range receipts {
-			unrefReceipt := r
-			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(unrefReceipt)
-			queries[k] = append([]interface{}{insertReceiptQ}, insertReceiptArgs...)
-			removeBatchReceiptQ, removeBatchReceiptArgs := psc.BatchReceiptQuery.RemoveBatchReceiptByRoot(unrefReceipt.ReceiptMerkleRoot)
-			queries[constant.ReceiptBatchMaximum+1] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
+		batchReceipts = psc.BatchReceiptQuery.BuildModel(batchReceipts, rows)
+
+		for _, b := range batchReceipts {
 			hashedReceipts = append(
 				hashedReceipts,
-				bytes.NewBuffer(util.GetSignedReceiptBytes(unrefReceipt)),
+				bytes.NewBuffer(util.GetSignedBatchReceiptBytes(b)),
 			)
 		}
-
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
 		if err != nil {
 			return err
 		}
 		rootMerkle, treeMerkle := merkleRoot.ToBytes()
+
+		for k, r := range batchReceipts {
+
+			var (
+				br       = r
+				rmrIndex = uint32(k)
+			)
+
+			receipt = &model.Receipt{
+				BatchReceipt: br,
+				RMR:          rootMerkle,
+				RMRIndex:     rmrIndex,
+			}
+			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(receipt)
+			queries[k] = append([]interface{}{insertReceiptQ}, insertReceiptArgs...)
+			removeBatchReceiptQ, removeBatchReceiptArgs := psc.BatchReceiptQuery.RemoveBatchReceipt(br.DatumType, br.DatumHash)
+			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
+		}
+
 		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle)
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 

@@ -21,7 +21,7 @@ var (
 			245, 249, 76, 17, 227, 233, 64, 44, 58, 197, 88, 245, 0, 25, 157,
 			149, 182, 211, 227, 1, 117, 133, 134, 40, 29, 205, 38,
 		},
-		ReceiptMerkleRoot:  nil,
+		RMRLinked:          nil,
 		RecipientSignature: nil,
 	}
 	mockBlock = &model.Block{

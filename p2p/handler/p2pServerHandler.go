@@ -96,14 +96,14 @@ func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNex
 }
 
 // SendBlock receive block from other node and calling BlockReceived Event
-func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.Receipt, error) {
+func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.SendBlockResponse, error) {
 	// todo: validate request
 	return ss.Service.SendBlock(
 		chaintype.GetChainType(req.ChainType), req.Block, req.SenderPublicKey)
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
-func (ss *P2PServerHandler) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.Receipt, error) {
+func (ss *P2PServerHandler) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.SendTransactionResponse, error) {
 	return ss.Service.SendTransaction(
 		chaintype.GetChainType(req.ChainType), req.TransactionBytes, req.SenderPublicKey,
 	)
