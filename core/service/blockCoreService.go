@@ -790,7 +790,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 
 	// Total number of receipts at a block height
 	blExt.TotalReceipts = 99
-	// ???
+	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
 	blExt.ReceiptValue = 99
 	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
 	blExt.PopChange = -20
