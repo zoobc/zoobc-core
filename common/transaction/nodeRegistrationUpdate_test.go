@@ -38,19 +38,6 @@ type (
 	}
 )
 
-var (
-	nodeRegistrationUpdateBodyFullBytes = []byte{
-		153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100,
-		134, 144, 246, 37, 144, 213, 135, 11, 0, 0, 0, 49, 48, 46, 49, 48, 46, 49, 48, 46, 49, 48, 0, 225, 245, 5, 0, 0,
-		0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107, 68, 101, 66, 86, 70, 87,
-		110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 204, 49, 74, 114, 213, 94, 136,
-		109, 130, 252, 182, 25, 31, 49, 83, 238, 65, 207, 202, 144, 95, 176, 46, 69, 165, 6, 135, 93, 217, 0, 101, 18, 0,
-		0, 0, 0, 0, 0, 0, 0, 32, 24, 8, 98, 232, 50, 206, 180, 67, 47, 2, 197, 224, 2, 114, 171, 222, 132, 145, 251, 63,
-		185, 48, 11, 28, 74, 96, 32, 89, 207, 83, 154, 173, 144, 184, 84, 182, 49, 140, 74, 52, 191, 120, 36, 210, 159,
-		123, 248, 120, 40, 46, 41, 103, 52, 65, 73, 97, 91, 199, 165, 35, 122, 13, 11,
-	}
-)
-
 func (mk *mockAuthPoownRU) ValidateProofOfOwnership(
 	poown *model.ProofOfOwnership,
 	nodePublicKey []byte,
@@ -778,7 +765,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: 203,
+			want: 199,
 		},
 	}
 	for _, tt := range tests {
@@ -802,13 +789,6 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		LockedBalance: 100000000,
-		NodePublicKey: nodePubKey1,
-		Poown:         poown,
-		NodeAddress:   "10.10.10.10",
-	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -823,6 +803,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type args struct {
 		txBodyBytes []byte
 	}
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -832,7 +814,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "ParseBodyBytes:success",
 			args: args{
-				txBodyBytes: nodeRegistrationUpdateBodyFullBytes,
+				txBodyBytes: txBodyBytes,
 			},
 			want: txBody,
 		},
@@ -858,13 +840,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		LockedBalance: 100000000,
-		NodePublicKey: nodePubKey1,
-		Poown:         poown,
-		NodeAddress:   "10.10.10.10",
-	}
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -886,7 +862,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: nodeRegistrationUpdateBodyFullBytes,
+			want: txBodyBytes,
 		},
 	}
 	for _, tt := range tests {
