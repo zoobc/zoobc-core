@@ -834,7 +834,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got := n.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := n.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

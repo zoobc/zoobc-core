@@ -284,7 +284,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			ts := &TypeSwitcher{
 				Executor: tt.fields.Executor,
 			}
-			if got := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)
 			}
 		})

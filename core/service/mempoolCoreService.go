@@ -153,8 +153,12 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
-
-	if err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx).Validate(false); err != nil {
+	txType, err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx)
+	if err != nil {
+		return err
+	}
+	err = txType.Validate(false)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -250,7 +254,11 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, err
 	}
 	// Apply Unconfirmed transaction
-	err = mps.ActionTypeSwitcher.GetTransactionType(receivedTx).ApplyUnconfirmed()
+	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+	if err != nil {
+		return nil, err
+	}
+	err = txType.ApplyUnconfirmed()
 	if err != nil {
 		log.Warnf("fail ApplyUnconfirmed tx: %v\n", err)
 		if err = mps.QueryExecutor.RollbackTx(); err != nil {

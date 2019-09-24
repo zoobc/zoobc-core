@@ -164,17 +164,29 @@ func (*ClaimNodeRegistration) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	// read body bytes todo: add accountAddressLength to body
 	buffer := bytes.NewBuffer(txBodyBytes)
-	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
-	accountAddress := buffer.Next(int(constant.AccountAddress))
+	nodePublicKey, err := util.ReadTransactionBytes(buffer, int(constant.NodePublicKey))
+	if err != nil {
+		return nil, err
+	}
+	accountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	accountAddressLength := util.ConvertBytesToUint32(accountAddressLengthBytes)
+	accountAddress, err := util.ReadTransactionBytes(buffer, int(accountAddressLength))
+	if err != nil {
+		return nil, err
+	}
 	// parse ProofOfOwnership (message + signature) bytes
 	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	return &model.ClaimNodeRegistrationTransactionBody{
 		NodePublicKey:  nodePublicKey,
 		AccountAddress: string(accountAddress),
 		Poown:          poown,
-	}
+	}, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation

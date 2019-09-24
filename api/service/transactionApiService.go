@@ -187,8 +187,10 @@ func (ts *TransactionService) PostTransaction(
 		return nil, err
 	}
 	// Validate Tx
-	txType := ts.ActionTypeSwitcher.GetTransactionType(tx)
-
+	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	if err != nil {
+		return nil, err
+	}
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
 		FeePerByte:              constant.TxFeePerByte,

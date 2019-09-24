@@ -430,7 +430,7 @@ func TestClaimNodeRegistration_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if got := c.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := c.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ClaimNodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

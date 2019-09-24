@@ -324,7 +324,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got := r.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := r.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RemoveNodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

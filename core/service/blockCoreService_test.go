@@ -97,8 +97,8 @@ func (*mockTypeAction) Validate(bool) error {
 func (*mockTypeAction) GetAmount() int64 {
 	return 10
 }
-func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTypeAction{}
+func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTypeAction{}, nil
 }
 
 // mockSignature
