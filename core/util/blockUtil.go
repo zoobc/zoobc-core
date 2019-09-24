@@ -2,7 +2,10 @@
 package util
 
 import (
+	"bytes"
 	"math/big"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 
@@ -12,38 +15,37 @@ import (
 )
 
 // GetBlockSeed calculate seed value, the first 8 byte of the digest(previousBlockSeed, publicKey)
-func GetBlockSeed(publicKey []byte, block *model.Block) (*big.Int, error) {
-	digest := sha3.New512()
+func GetBlockSeed(publicKey []byte, block *model.Block, secretPhrase string) (*big.Int, error) {
+	digest := sha3.New256()
 	_, err := digest.Write(block.GetBlockSeed())
 	if err != nil {
 		return nil, err
 	}
-	_, err = digest.Write(publicKey)
 
-	if err != nil {
-		return nil, err
-	}
-
-	blockSeedHash := digest.Sum([]byte{})
-	res := new(big.Int)
-	return res.SetBytes([]byte{
-		blockSeedHash[7],
-		blockSeedHash[6],
-		blockSeedHash[5],
-		blockSeedHash[4],
-		blockSeedHash[3],
-		blockSeedHash[2],
-		blockSeedHash[1],
-		blockSeedHash[0],
+	previousSeedHash := digest.Sum([]byte{})
+	payload := bytes.NewBuffer([]byte{})
+	payload.Write(publicKey)
+	payload.Write(previousSeedHash)
+	signature := (&crypto.Signature{}).SignByNode(payload.Bytes(), secretPhrase)
+	seed := sha3.Sum256(signature)
+	return new(big.Int).SetBytes([]byte{
+		seed[7],
+		seed[6],
+		seed[5],
+		seed[4],
+		seed[3],
+		seed[2],
+		seed[1],
+		seed[0],
 	}), nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(balance, seed *big.Int, block *model.Block) int64 {
-	if balance.Cmp(big.NewInt(0)) == 0 {
+func GetSmithTime(score, seed *big.Int, block *model.Block) int64 {
+	if score.Cmp(big.NewInt(0)) == 0 {
 		return 0
 	}
-	staticTarget := new(big.Int).Mul(big.NewInt(block.SmithScale), balance)
+	staticTarget := new(big.Int).Mul(big.NewInt(block.SmithScale), score)
 	elapsedFromLastBlock := new(big.Int).Div(seed, staticTarget).Int64()
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
@@ -83,7 +85,7 @@ func CalculateSmithScale(previousBlock, block *model.Block, smithingDelayTime in
 // return the assigned ID if assigned
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
-		digest := sha3.New512()
+		digest := sha3.New256()
 		blockByte, _ := commonUtils.GetBlockByte(block, true)
 		_, _ = digest.Write(blockByte)
 		hash, _ := GetBlockHash(block)
@@ -110,7 +112,7 @@ func GetBlockIDFromHash(blockHash []byte) int64 {
 // GetBlockHash return the block's bytes hash.
 // note: the block must be signed, otherwise this function returns an error
 func GetBlockHash(block *model.Block) ([]byte, error) {
-	digest := sha3.New512()
+	digest := sha3.New256()
 	blockByte, _ := commonUtils.GetBlockByte(block, true)
 	_, err := digest.Write(blockByte)
 	if err != nil {

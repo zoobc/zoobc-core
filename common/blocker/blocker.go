@@ -21,6 +21,7 @@ var (
 	ValidationErr       TypeBlocker = "ValidationErr"
 	ParserErr           TypeBlocker = "ParserErr"
 	ServerError         TypeBlocker = "ServerError"
+	SmithingErr         TypeBlocker = "SmithingErr"
 	ChainValidationErr  TypeBlocker = "ChainValidationErr"
 )
 
