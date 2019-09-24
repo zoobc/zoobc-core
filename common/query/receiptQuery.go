@@ -34,8 +34,10 @@ func NewReceiptQuery() *ReceiptQuery {
 			"datum_hash",
 			"reference_block_height",
 			"reference_block_hash",
-			"receipt_merkle_root",
+			"rmr_linked",
 			"recipient_signature",
+			"rmr",
+			"rmr_index",
 		},
 		TableName: "node_receipt",
 	}
@@ -96,46 +98,59 @@ func (rq *ReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, 
 // ExtractModel extract the model struct fields to the order of ReceiptQuery.Fields
 func (*ReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
 	return []interface{}{
-		&receipt.SenderPublicKey,
-		&receipt.RecipientPublicKey,
-		&receipt.DatumType,
-		&receipt.DatumHash,
-		&receipt.ReferenceBlockHeight,
-		&receipt.ReferenceBlockHash,
-		&receipt.ReceiptMerkleRoot,
-		&receipt.RecipientSignature,
+		&receipt.BatchReceipt.SenderPublicKey,
+		&receipt.BatchReceipt.RecipientPublicKey,
+		&receipt.BatchReceipt.DatumType,
+		&receipt.BatchReceipt.DatumHash,
+		&receipt.BatchReceipt.ReferenceBlockHeight,
+		&receipt.BatchReceipt.ReferenceBlockHash,
+		&receipt.BatchReceipt.RMRLinked,
+		&receipt.BatchReceipt.RecipientSignature,
+		&receipt.RMR,
+		&receipt.RMRIndex,
 	}
 }
 
 func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt {
+
 	for rows.Next() {
-		var receipt model.Receipt
-		_ = rows.Scan(
-			&receipt.SenderPublicKey,
-			&receipt.RecipientPublicKey,
-			&receipt.DatumType,
-			&receipt.DatumHash,
-			&receipt.ReferenceBlockHeight,
-			&receipt.ReferenceBlockHash,
-			&receipt.ReceiptMerkleRoot,
-			&receipt.RecipientSignature,
+		var (
+			receipt      model.Receipt
+			batchReceipt model.BatchReceipt
 		)
+
+		_ = rows.Scan(
+			&batchReceipt.SenderPublicKey,
+			&batchReceipt.RecipientPublicKey,
+			&batchReceipt.DatumType,
+			&batchReceipt.DatumHash,
+			&batchReceipt.ReferenceBlockHeight,
+			&batchReceipt.ReferenceBlockHash,
+			&batchReceipt.RMRLinked,
+			&batchReceipt.RecipientSignature,
+			&receipt.RMR,
+			&receipt.RMRIndex,
+		)
+		receipt.BatchReceipt = &batchReceipt
 		receipts = append(receipts, &receipt)
 	}
+
 	return receipts
 }
 
 func (*ReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
 
 	err := row.Scan(
-		&receipt.SenderPublicKey,
-		&receipt.RecipientPublicKey,
-		&receipt.DatumType,
-		&receipt.DatumHash,
-		&receipt.ReferenceBlockHeight,
-		&receipt.ReferenceBlockHash,
-		&receipt.ReceiptMerkleRoot,
-		&receipt.RecipientSignature,
+		&receipt.BatchReceipt.SenderPublicKey,
+		&receipt.BatchReceipt.RecipientPublicKey,
+		&receipt.BatchReceipt.DatumType,
+		&receipt.BatchReceipt.DatumHash,
+		&receipt.BatchReceipt.ReferenceBlockHeight,
+		&receipt.BatchReceipt.ReferenceBlockHash,
+		&receipt.BatchReceipt.RMRLinked,
+		&receipt.BatchReceipt.RecipientSignature,
+		&receipt.RMR,
+		&receipt.RMRIndex,
 	)
 	return err
 

@@ -13,14 +13,14 @@ import (
 
 var (
 	mockBatchQuery   = NewBatchReceiptQuery()
-	mockBatchReceipt = &model.Receipt{
+	mockBatchReceipt = &model.BatchReceipt{
 		SenderPublicKey:      []byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
 		RecipientPublicKey:   []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
 		DatumType:            uint32(1),
 		DatumHash:            []byte{1, 2, 3, 4, 5, 6},
 		ReferenceBlockHeight: uint32(1),
 		ReferenceBlockHash:   []byte{1, 2, 3, 4, 5, 6},
-		ReceiptMerkleRoot:    []byte{1, 2, 3, 4, 5, 6},
+		RMRLinked:            []byte{1, 2, 3, 4, 5, 6},
 		RecipientSignature:   []byte{1, 2, 3, 4, 5, 6},
 	}
 )
@@ -79,7 +79,7 @@ func TestBatchReceiptQuery_InsertBatchReceipt(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipt *model.Receipt
+		receipt *model.BatchReceipt
 	}
 	tests := []struct {
 		name     string
@@ -133,7 +133,7 @@ func TestBatchReceiptQuery_GetBatchReceipts(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockBatchQuery),
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, " +
-				"reference_block_height, reference_block_hash, receipt_merkle_root, recipient_signature " +
+				"reference_block_height, reference_block_hash, rmr_linked, recipient_signature " +
 				"FROM batch_receipt ORDER BY reference_block_height LIMIT 10 OFFSET 0",
 		},
 	}
@@ -156,7 +156,7 @@ func TestBatchReceiptQuery_ExtractModel(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipt *model.Receipt
+		receipt *model.BatchReceipt
 	}
 	tests := []struct {
 		name   string
@@ -207,7 +207,7 @@ func TestBatchReceiptQuery_RemoveBatchReceiptByRoot(t *testing.T) {
 			args: args{
 				root: []byte{1, 2, 3},
 			},
-			wantQStr: "DELETE FROM batch_receipt WHERE receipt_merkle_root = ?",
+			wantQStr: "DELETE FROM batch_receipt WHERE rmr_linked = ?",
 			wantArgs: []interface{}{[]byte{1, 2, 3}},
 		},
 	}
@@ -254,24 +254,26 @@ func TestBatchReceiptQuery_BuildModel(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipts []*model.Receipt
+		receipts []*model.BatchReceipt
 		rows     *sql.Rows
 	}
 	rows, _ := (&mockQueryExecutorBatchReceiptBuildModel{}).ExecuteSelect("", false, "")
+	defer rows.Close()
+
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
-		want   []*model.Receipt
+		want   []*model.BatchReceipt
 	}{
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockBatchQuery),
 			args: args{
-				receipts: []*model.Receipt{},
+				receipts: []*model.BatchReceipt{},
 				rows:     rows,
 			},
-			want: []*model.Receipt{mockBatchReceipt},
+			want: []*model.BatchReceipt{mockBatchReceipt},
 		},
 	}
 	for _, tt := range tests {
@@ -314,7 +316,7 @@ func TestBatchReceiptQuery_Scan(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipt *model.Receipt
+		receipt *model.BatchReceipt
 		row     *sql.Row
 	}
 	tests := []struct {
@@ -341,6 +343,53 @@ func TestBatchReceiptQuery_Scan(t *testing.T) {
 			}
 			if err := b.Scan(tt.args.receipt, tt.args.row); (err != nil) != tt.wantErr {
 				t.Errorf("BatchReceiptQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBatchReceiptQuery_RemoveBatchReceipt(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		datumType uint32
+		datumHash []byte
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantQStr string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockBatchQuery),
+			args: args{
+				datumType: 0,
+				datumHash: []byte{1, 2, 3, 4, 5, 6},
+			},
+			wantQStr: "DELETE FROM batch_receipt WHERE datum_type = ? AND datum_hash = ?",
+			wantArgs: []interface{}{
+				uint32(0),
+				[]byte{1, 2, 3, 4, 5, 6},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			br := &BatchReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotQStr, gotArgs := br.RemoveBatchReceipt(tt.args.datumType, tt.args.datumHash)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("RemoveBatchReceipt() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("RemoveBatchReceipt() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
