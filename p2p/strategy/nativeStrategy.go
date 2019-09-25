@@ -189,7 +189,7 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
 				for _, p := range ns.Host.GetBlacklistedPeers() {
 					if p.GetBlacklistingTime() > 0 &&
 						p.GetBlacklistingTime()+constant.BlacklistingPeriod <= curTime {
-						ns.Host.KnownPeers[p2pUtil.GetFullAddressPeer(p)] = ns.PeerUnblacklist(p)
+						_ = ns.PeerUnblacklist(p)
 					}
 				}
 				break

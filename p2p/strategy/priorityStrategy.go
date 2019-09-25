@@ -151,8 +151,8 @@ func (ps *PriorityStrategy) ResolvePeersThread() {
 func (ps *PriorityStrategy) ResolvePeers() {
 	exceedMaxResolvedPeers := ps.GetExceedMaxResolvedPeers()
 	priorityPeers := ps.GetPriorityPeers()
-	unresolvedPeers := ps.GetUnresolvedPeers()
 	resolvedPeers := ps.GetResolvedPeers()
+	unresolvedPeers := ps.GetUnresolvedPeers()
 	var (
 		removedResolvedPeers    int32
 		priorityUnresolvedPeers = make(map[string]*model.Peer)
@@ -300,7 +300,7 @@ func (ps *PriorityStrategy) UpdateBlacklistedStatusThread() {
 				for _, p := range ps.Host.GetBlacklistedPeers() {
 					if p.GetBlacklistingTime() > 0 &&
 						p.GetBlacklistingTime()+constant.BlacklistingPeriod <= curTime {
-						ps.Host.KnownPeers[p2pUtil.GetFullAddressPeer(p)] = ps.PeerUnblacklist(p)
+						_ = ps.PeerUnblacklist(p)
 					}
 				}
 				break
