@@ -40,12 +40,12 @@ type (
 			chainType chaintype.ChainType,
 			block *model.Block,
 			senderPublicKey []byte,
-		) (*model.Receipt, error)
+		) (*model.SendBlockResponse, error)
 		SendTransaction(
 			chainType chaintype.ChainType,
 			transactionBytes,
 			senderPublicKey []byte,
-		) (*model.Receipt, error)
+		) (*model.SendTransactionResponse, error)
 	}
 
 	P2PServerService struct {
@@ -62,6 +62,7 @@ func NewP2PServerService(
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
 ) *P2PServerService {
+
 	return &P2PServerService{
 		PeerExplorer:     peerExplorer,
 		BlockServices:    blockServices,
@@ -96,7 +97,7 @@ func (ps *P2PServerService) SendPeers(
 	return &model.Empty{}, nil
 }
 
-// GetCumulativeDifficulty responds to the request of the cummulative difficulty status of a node
+// GetCumulativeDifficulty responds to the request of the cumulative difficulty status of a node
 func (ps *P2PServerService) GetCumulativeDifficulty(
 	chainType chaintype.ChainType,
 ) (*model.GetCumulativeDifficultyResponse, error) {
@@ -232,6 +233,7 @@ func (ps *P2PServerService) GetNextBlocks(
 	blockID int64,
 	blockIDList []int64,
 ) (*model.BlocksData, error) {
+
 	// TODO: getting data from cache
 	var blocksMessage []*model.Block
 	blockService := ps.BlockServices[chainType.GetTypeInt()]
@@ -261,7 +263,8 @@ func (ps *P2PServerService) SendBlock(
 	chainType chaintype.ChainType,
 	block *model.Block,
 	senderPublicKey []byte,
-) (*model.Receipt, error) {
+) (*model.SendBlockResponse, error) {
+
 	lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 	if err != nil {
 		return nil, blocker.NewBlocker(
@@ -269,13 +272,18 @@ func (ps *P2PServerService) SendBlock(
 			"fail to get last block",
 		)
 	}
-	receipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
-		senderPublicKey, lastBlock, block, ps.NodeSecretPhrase,
+	batchReceipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
+		senderPublicKey,
+		lastBlock,
+		block,
+		ps.NodeSecretPhrase,
 	)
 	if err != nil {
 		return nil, err
 	}
-	return receipt, nil
+	return &model.SendBlockResponse{
+		BatchReceipt: batchReceipt,
+	}, nil
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
@@ -283,7 +291,8 @@ func (ps *P2PServerService) SendTransaction(
 	chainType chaintype.ChainType,
 	transactionBytes,
 	senderPublicKey []byte,
-) (*model.Receipt, error) {
+) (*model.SendTransactionResponse, error) {
+
 	lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 	if err != nil {
 		return nil, blocker.NewBlocker(
@@ -291,7 +300,8 @@ func (ps *P2PServerService) SendTransaction(
 			"fail to get last block",
 		)
 	}
-	receipt, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedTransaction(
+
+	batchReceipt, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedTransaction(
 		senderPublicKey,
 		transactionBytes,
 		lastBlock,
@@ -300,5 +310,7 @@ func (ps *P2PServerService) SendTransaction(
 	if err != nil {
 		return nil, err
 	}
-	return receipt, nil
+	return &model.SendTransactionResponse{
+		BatchReceipt: batchReceipt,
+	}, nil
 }

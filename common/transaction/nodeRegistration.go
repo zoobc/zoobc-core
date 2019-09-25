@@ -196,15 +196,44 @@ func (tx *NodeRegistration) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
+func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	// read body bytes
 	buffer := bytes.NewBuffer(txBodyBytes)
-	nodePublicKey := buffer.Next(int(constant.NodePublicKey))
-	accountAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.AccountAddressLength)))
-	accountAddress := buffer.Next(int(accountAddressLength))
-	nodeAddressLength := util.ConvertBytesToUint32(buffer.Next(int(constant.NodeAddressLength))) // uint32 length of next bytes to read
-	nodeAddress := buffer.Next(int(nodeAddressLength))                                           // based on nodeAddressLength
-	lockedBalance := util.ConvertBytesToUint64(buffer.Next(int(constant.Balance)))
-	poown := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
+	nodePublicKey, err := util.ReadTransactionBytes(buffer, int(constant.NodePublicKey))
+	if err != nil {
+		return nil, err
+	}
+	accountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	accountAddressLength := util.ConvertBytesToUint32(accountAddressLengthBytes)
+	accountAddress, err := util.ReadTransactionBytes(buffer, int(accountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	nodeAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.NodeAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	nodeAddressLength := util.ConvertBytesToUint32(nodeAddressLengthBytes)        // uint32 length of next bytes to read
+	nodeAddress, err := util.ReadTransactionBytes(buffer, int(nodeAddressLength)) // based on nodeAddressLength
+	if err != nil {
+		return nil, err
+	}
+	lockedBalanceBytes, err := util.ReadTransactionBytes(buffer, int(constant.Balance))
+	if err != nil {
+		return nil, err
+	}
+	lockedBalance := util.ConvertBytesToUint64(lockedBalanceBytes)
+	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(true)))
+	if err != nil {
+		return nil, err
+	}
+	poown, err := util.ParseProofOfOwnershipBytes(poownBytes)
+	if err != nil {
+		return nil, err
+	}
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey:  nodePublicKey,
 		AccountAddress: string(accountAddress),
@@ -212,7 +241,7 @@ func (*NodeRegistration) ParseBodyBytes(txBodyBytes []byte) model.TransactionBod
 		LockedBalance:  int64(lockedBalance),
 		Poown:          poown,
 	}
-	return txBody
+	return txBody, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation

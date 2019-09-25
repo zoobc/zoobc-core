@@ -364,7 +364,7 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 	}{
 		{
 			name: "GetSize:success",
-			want: 256,
+			want: 220,
 		},
 	}
 	for _, tt := range tests {
@@ -382,56 +382,6 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 			}
 			if got := tx.GetSize(); got != tt.want {
 				t.Errorf("ClaimNodeRegistration.GetSize() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestClaimNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, txBody, txBodyBytes := GetFixturesForClaimNoderegistration()
-	type fields struct {
-		Body                  *model.ClaimNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         string
-		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlockQuery            query.BlockQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
-	}
-	type args struct {
-		txBodyBytes []byte
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   model.TransactionBodyInterface
-	}{
-		{
-			name: "ParseBodyBytes:success",
-			args: args{
-				txBodyBytes: txBodyBytes,
-			},
-			want: txBody,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &ClaimNodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				BlockQuery:            tt.fields.BlockQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AuthPoown:             tt.fields.AuthPoown,
-			}
-			if got := c.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ClaimNodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -668,6 +618,124 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 						t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestClaimNodeRegistration_ParseBodyBytes(t *testing.T) {
+	_, txBody, txBodyBytes := GetFixturesForClaimNoderegistration()
+	type fields struct {
+		Body                  *model.ClaimNodeRegistrationTransactionBody
+		Fee                   int64
+		SenderAddress         string
+		Height                uint32
+		AccountBalanceQuery   query.AccountBalanceQueryInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		BlockQuery            query.BlockQueryInterface
+		QueryExecutor         query.ExecutorInterface
+		AuthPoown             auth.ProofOfOwnershipValidationInterface
+	}
+	type args struct {
+		txBodyBytes []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
+	}{
+		{
+			name: "ClaimNodeRegistration:error - empty body bytes",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: []byte{}},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "ClaimNodeRegistration:error - wrong public key length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:10]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "ClaimNodeRegistration:error - no account address length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey))]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "NodeRegistration:error - no account address",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4)]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "ClaimNodeRegistration:ParseBodyBytes - success",
+			fields: fields{},
+			args: args{
+				txBodyBytes: txBodyBytes,
+			},
+			want:    txBody,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &ClaimNodeRegistration{
+				Body:                  tt.fields.Body,
+				Fee:                   tt.fields.Fee,
+				SenderAddress:         tt.fields.SenderAddress,
+				Height:                tt.fields.Height,
+				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				BlockQuery:            tt.fields.BlockQuery,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				AuthPoown:             tt.fields.AuthPoown,
+			}
+			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseBodyBytes() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

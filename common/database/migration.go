@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -27,11 +26,9 @@ and initialize versions
 func (m *Migration) Init() error {
 
 	if m.Query != nil {
-		rows, _ := m.Query.ExecuteSelect("SELECT version FROM migration;", false)
-		if rows != nil {
-			defer rows.Close()
-			var version int
-			_ = rows.Scan(&version)
+		var version int
+		err := m.Query.ExecuteSelectRow("SELECT version FROM migration;").Scan(&version)
+		if err == nil {
 			m.CurrentVersion = &version
 		}
 
@@ -87,7 +84,7 @@ func (m *Migration) Init() error {
 				"block_signature" BLOB,
 				"cumulative_difficulty" TEXT,
 				"smith_scale" INTEGER,
-				"blocksmith_public_key" VARCHAR(255),
+				"blocksmith_public_key" BLOB,
 				"total_amount" INTEGER,
 				"total_fee" INTEGER,
 				"total_coinbase" INTEGER,
@@ -135,14 +132,34 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_receipt" (
-				"sender_public_key" BLOB, 
+				"sender_public_key" BLOB,
 				"recipient_public_key" BLOB,
 				"datum_type" INTEGER,
 				"datum_hash" BLOB,
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
-				"receipt_merkle_root" BLOB,
+				"rmr_linked" BLOB,
+				"recipient_signature" BLOB,
+				"rmr" BLOB,
+				"rmr_index" INTEGER
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "batch_receipt" (
+				"sender_public_key" BLOB,
+				"recipient_public_key" BLOB,
+				"datum_type" INTEGER,
+				"datum_hash" BLOB,
+				"reference_block_height" INTEGER,
+				"reference_block_hash" BLOB,
+				"rmr_linked" BLOB,
 				"recipient_signature" BLOB
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "merkle_tree" (
+				"id" BLOB,
+				"tree" BLOB
 			)
 			`,
 		}
@@ -160,29 +177,25 @@ func (m *Migration) Apply() error {
 
 	var (
 		migrations = m.Versions
+		err        error
 	)
 
 	if m.CurrentVersion != nil {
-		migrations = m.Versions[*m.CurrentVersion:]
+		migrations = m.Versions[*m.CurrentVersion+1:]
 	}
 
-	for version, query := range migrations {
-		var err error
-		version := version
-		err = m.Query.BeginTx()
-		if err != nil {
-			log.Warn(err)
-		}
+	for v, query := range migrations {
+		version := v
+		_ = m.Query.BeginTx()
 		err = m.Query.ExecuteTransaction(query)
 		if err != nil {
-			log.Warn(err)
+			return err
 		}
-
 		if m.CurrentVersion != nil {
 			err = m.Query.ExecuteTransaction(`UPDATE "migration"
-				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion)
+				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion+1)
 			if err != nil {
-				log.Warn(err)
+				return err
 			}
 		} else {
 			err = m.Query.ExecuteTransaction(`
@@ -194,13 +207,14 @@ func (m *Migration) Apply() error {
 					0,
 					datetime('now')
 				);
-				`)
+			`)
 			if err != nil {
-				log.Warn(err)
+				return err
 			}
 		}
-		err = m.Query.CommitTx()
+
 		m.CurrentVersion = &version
+		err := m.Query.CommitTx()
 		if err != nil {
 			return err
 		}

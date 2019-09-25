@@ -15,11 +15,23 @@ type (
 	}
 )
 
+func (*mockExecutorInitFailRows) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery(qe).WillReturnRows(
+		sqlmock.NewRows([]string{"count"}),
+	)
+	return db.QueryRow(qe)
+}
+
 func (*mockExecutorInitFailRows) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-		"Version"}).AddRow(1))
+		"Version",
+	}).AddRow(1))
 
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -97,46 +109,31 @@ func TestMigration_Init(t *testing.T) {
 var dbMock, mock, _ = sqlmock.New()
 
 type (
-	mockQueryExecutorVersionNotNil struct {
+	mockQueryExecutorVersionNil struct {
 		query.Executor
 	}
 )
 
-func (*mockQueryExecutorVersionNotNil) ExecuteTransaction(qStr string, args ...interface{}) error {
-	db, mock, err := sqlmock.New()
+func (*mockQueryExecutorVersionNil) BeginTx() error {
+	return nil
+}
+func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...interface{}) error {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectPrepare(regexp.QuoteMeta(qStr)).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	stmt, err := db.Prepare(qStr)
 	if err != nil {
 		return err
 	}
-
-	mock.ExpectBegin()
-	mock.ExpectPrepare(regexp.QuoteMeta(`
-		CREATE TABLE IF NOT EXISTS "accounts" (
-			id	INTEGER,
-			public_key	BLOB  NOT NULL,
-			PRIMARY KEY("public_key")
-		);
-	`)).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectPrepare(regexp.QuoteMeta(`
-		INSERT INTO "migration" (
-			"version",
-			"created_date"
-		)
-		VALUES (
-			0,
-			datetime('now')
-		);
-	`)).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-	_, err = db.Exec("")
+	_, err = stmt.Exec(args...)
 	return err
 }
-
-func (*mockQueryExecutorVersionNotNil) CommitTx() error {
+func (*mockQueryExecutorVersionNil) CommitTx() error {
 	return nil
 }
-
 func TestMigration_Apply(t *testing.T) {
-	currentVersion := 0
+	currentVersion := 1
 
 	type fields struct {
 		CurrentVersion *int
@@ -157,8 +154,14 @@ func TestMigration_Apply(t *testing.T) {
 						public_key	BLOB  NOT NULL,
 						PRIMARY KEY("public_key")
 					);`,
+					`CREATE TABLE IF NOT EXISTS "accounts" (
+						id	INTEGER,
+						public_key	BLOB  NOT NULL,
+						PRIMARY KEY("public_key")
+					);`,
 				},
-				Query: &mockQueryExecutorVersionNotNil{
+				CurrentVersion: &currentVersion,
+				Query: &mockQueryExecutorVersionNil{
 					query.Executor{Db: dbMock},
 				},
 			},
@@ -167,15 +170,15 @@ func TestMigration_Apply(t *testing.T) {
 		{
 			name: "wantSuccess:VersionNil",
 			fields: fields{
-				CurrentVersion: &currentVersion,
+				CurrentVersion: nil,
 				Versions: []string{
-					`CREATE TABLE IF NOT EXISTS "accounts" (
+					`CREATE TABLE IF NOT EXISTS "account" (
 						id	INTEGER,
 						public_key	BLOB  NOT NULL,
 						PRIMARY KEY("public_key")
 					);`,
 				},
-				Query: &mockQueryExecutorVersionNotNil{
+				Query: &mockQueryExecutorVersionNil{
 					query.Executor{Db: dbMock},
 				},
 			},
@@ -190,11 +193,11 @@ func TestMigration_Apply(t *testing.T) {
 				Query:          tt.fields.Query,
 			}
 			if err := m.Apply(); (err != nil) != tt.wantErr {
-				t.Errorf("Migration.Apply() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Migration.Apply() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("Migration.Apply() query: %s, want: %s", tt.fields.Versions[0], err)
+				t.Errorf("Migration.Apply() query: \n%s, want: \n%s", tt.fields.Versions[0], err)
 			}
 		})
 	}

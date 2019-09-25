@@ -9,19 +9,17 @@ import (
 )
 
 var (
-	mockReceipt = &model.Receipt{
+	mockReceipt = &model.BatchReceipt{
 		SenderPublicKey:      []byte{1, 2, 3},
 		RecipientPublicKey:   []byte{3, 2, 1},
 		DatumType:            constant.ReceiptDatumTypeBlock,
 		DatumHash:            []byte{1, 2, 3},
 		ReferenceBlockHeight: 0,
 		ReferenceBlockHash: []byte{
-			166, 159, 115, 204, 162, 58, 154, 197, 200, 181, 103, 220, 24, 90, 117, 110, 151, 201, 130, 22, 79, 226, 88,
-			89, 224, 209, 220, 193, 71, 92, 128, 166, 21, 178, 18, 58, 241,
-			245, 249, 76, 17, 227, 233, 64, 44, 58, 197, 88, 245, 0, 25, 157,
-			149, 182, 211, 227, 1, 117, 133, 134, 40, 29, 205, 38,
+			167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77, 228, 59, 73,
+			250, 130, 216, 10, 75, 128, 248, 67, 74,
 		},
-		ReceiptMerkleRoot:  nil,
+		RMRLinked:          nil,
 		RecipientSignature: nil,
 	}
 	mockBlock = &model.Block{
@@ -56,7 +54,7 @@ func TestGenerateReceipt(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *model.Receipt
+		want    *model.BatchReceipt
 		wantErr bool
 	}{
 		{
@@ -74,7 +72,7 @@ func TestGenerateReceipt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateReceipt(tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
+			got, err := GenerateBatchReceipt(tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
 				tt.args.datumHash, tt.args.datumType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateReceipt() error = %v, wantErr %v", err, tt.wantErr)
@@ -90,7 +88,7 @@ func TestGenerateReceipt(t *testing.T) {
 func TestGetUnsignedReceiptBytes(t *testing.T) {
 	mockReceipt.DatumHash, _ = GetBlockHash(mockBlock)
 	type args struct {
-		receipt *model.Receipt
+		receipt *model.BatchReceipt
 	}
 	tests := []struct {
 		name string
@@ -101,18 +99,16 @@ func TestGetUnsignedReceiptBytes(t *testing.T) {
 			name: "GetUnsignedReceiptBytes:success",
 			args: args{receipt: mockReceipt},
 			want: []byte{
-				1, 2, 3, 3, 2, 1, 0, 0, 0, 0, 166, 159, 115, 204, 162, 58, 154, 197, 200, 181, 103, 220, 24, 90, 117, 110, 151, 201, 130,
-				22, 79, 226, 88, 89, 224, 209, 220, 193, 71, 92, 128, 166, 21, 178, 18, 58, 241, 245, 249, 76, 17, 227, 233, 64, 44, 58,
-				197, 88, 245, 0, 25, 157, 149, 182, 211, 227, 1, 117, 133, 134, 40, 29, 205, 38, 1, 0, 0, 0, 166, 159, 115, 204, 162, 58,
-				154, 197, 200, 181, 103, 220, 24, 90, 117, 110, 151, 201, 130, 22, 79, 226, 88, 89, 224, 209, 220, 193, 71, 92, 128, 166, 21,
-				178, 18, 58, 241, 245, 249, 76, 17, 227, 233, 64, 44, 58, 197, 88, 245, 0, 25, 157, 149, 182, 211, 227, 1, 117, 133, 134, 40,
-				29, 205, 38,
+				1, 2, 3, 3, 2, 1, 0, 0, 0, 0, 167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98,
+				245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74, 1, 0, 0, 0, 167, 255, 198, 248,
+				191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10,
+				75, 128, 248, 67, 74,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetUnsignedReceiptBytes(tt.args.receipt); !reflect.DeepEqual(got, tt.want) {
+			if got := GetUnsignedBatchReceiptBytes(tt.args.receipt); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetUnsignedReceiptBytes() = %v, want %v", got, tt.want)
 			}
 		})

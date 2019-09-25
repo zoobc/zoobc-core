@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strconv"
 	"sync"
 
@@ -13,28 +14,27 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
-	"golang.org/x/crypto/sha3"
-
-	"github.com/zoobc/zoobc-core/common/query"
-
-	"github.com/zoobc/zoobc-core/common/model"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
 	BlockServiceInterface interface {
-		VerifySeed(seed *big.Int, balance *big.Int, previousBlock *model.Block, timestamp int64) bool
+		VerifySeed(seed, score *big.Int, previousBlock *model.Block, timestamp int64) bool
 		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte, hash string,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, secretPhrase string) *model.Block
+			transactions []*model.Transaction, blockReceipts []*model.BlockReceipt, payloadHash []byte, payloadLength uint32,
+			secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, payloadHash []byte, payloadLength uint32, smithScale int64, cumulativeDifficulty *big.Int,
-			genesisSignature []byte) *model.Block
+			transactions []*model.Transaction, blockReceipts []*model.BlockReceipt, payloadHash []byte, payloadLength uint32, smithScale int64,
+			cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block
 		GenerateBlock(
 			previousBlock *model.Block,
 			secretPhrase string,
@@ -55,12 +55,15 @@ type (
 		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
+		GetCoinbase() int64
+		RewardBlocksmithAccountAddress(blocksmithAccountAddress string, totalReward int64, height uint32, includeInTx bool) error
+		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
 			lastBlock,
 			block *model.Block,
 			nodeSecretPhrase string,
-		) (*model.Receipt, error)
+		) (*model.BatchReceipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
 	}
@@ -79,6 +82,7 @@ type (
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Observer                *observer.Observer
+		SortedBlocksmiths       *[]model.Blocksmith
 	}
 )
 
@@ -95,6 +99,7 @@ func NewBlockService(
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	obsr *observer.Observer,
+	sortedBlocksmiths *[]model.Blocksmith,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:               ct,
@@ -109,6 +114,7 @@ func NewBlockService(
 		ParticipationScoreQuery: participationScoreQuery,
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		Observer:                obsr,
+		SortedBlocksmiths:       sortedBlocksmiths,
 	}
 }
 
@@ -124,6 +130,7 @@ func (bs *BlockService) NewBlock(
 	totalFee,
 	totalCoinBase int64,
 	transactions []*model.Transaction,
+	blockReceipts []*model.BlockReceipt,
 	payloadHash []byte,
 	payloadLength uint32,
 	secretPhrase string,
@@ -139,6 +146,7 @@ func (bs *BlockService) NewBlock(
 		TotalFee:            totalFee,
 		TotalCoinBase:       totalCoinBase,
 		Transactions:        transactions,
+		BlockReceipts:       blockReceipts,
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 	}
@@ -170,6 +178,7 @@ func (bs *BlockService) NewGenesisBlock(
 	previousBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
+	blockReceipts []*model.BlockReceipt,
 	payloadHash []byte,
 	payloadLength uint32,
 	smithScale int64,
@@ -187,6 +196,7 @@ func (bs *BlockService) NewGenesisBlock(
 		TotalFee:             totalFee,
 		TotalCoinBase:        totalCoinBase,
 		Transactions:         transactions,
+		BlockReceipts:        blockReceipts,
 		PayloadLength:        payloadLength,
 		PayloadHash:          payloadHash,
 		SmithScale:           smithScale,
@@ -200,15 +210,18 @@ func (bs *BlockService) NewGenesisBlock(
 // Can be used to check who's smithing the next block (lastBlock) or if last forged block
 // (previousBlock) is acceptable by the network (meaning has been smithed by a valid blocksmith).
 func (*BlockService) VerifySeed(
-	seed, balance *big.Int,
+	seed, score *big.Int,
 	previousBlock *model.Block,
 	timestamp int64,
 ) bool {
 	elapsedTime := timestamp - previousBlock.GetTimestamp()
-	effectiveSmithScale := new(big.Int).Mul(balance, big.NewInt(previousBlock.GetSmithScale()))
+	if elapsedTime <= 0 {
+		return false
+	}
+	effectiveSmithScale := new(big.Int).Mul(score, big.NewInt(previousBlock.GetSmithScale()))
 	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
 	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
-	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 300)
+	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
@@ -286,7 +299,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
-			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				rows.Close()
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
 			if rows.Next() {
 				// undo unconfirmed
 				err = txType.UndoApplyUnconfirmed()
@@ -325,13 +343,54 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
+
+	// accrue block rewards (totalFees + totalCoinbase) to blocksmith account address
+	if block.Height > 0 {
+		blocksmithAccountAddress, err := bs.GetBlocksmithAccountAddress(block)
+		if err != nil {
+			return err
+		}
+
+		//TODO: next step is to change this by using the revised algorithm that includes:
+		// - selecting multiple account to be rewarded (split the total coinbase between them)
+		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
+		totalReward := block.TotalFee + block.TotalCoinBase
+		if err := bs.RewardBlocksmithAccountAddress(blocksmithAccountAddress, totalReward, block.Height, true); err != nil {
+			return err
+		}
+	}
+
+	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
 	// broadcast block
-	if block.Height > 0 && broadcast {
-		bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	if broadcast {
+		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
+	}
+	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	return nil
+}
+
+// RewardBlocksmithAccountAddress accrue the block total fees + total coinbase to the blocksmith account
+func (bs *BlockService) RewardBlocksmithAccountAddress(
+	blocksmithAccountAddress string,
+	totalReward int64,
+	height uint32,
+	includeInTx bool) error {
+	accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
+		totalReward,
+		map[string]interface{}{
+			"account_address": blocksmithAccountAddress,
+			"block_height":    height,
+		},
+	)
+	if err := bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ); err != nil {
+		if includeInTx {
+			_ = bs.QueryExecutor.RollbackTx()
+		}
+		return err
 	}
 	return nil
 }
@@ -513,18 +572,19 @@ func (bs *BlockService) GenerateBlock(
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
-		//TODO: missing coinbase calculation
-		payloadLength uint32
+		payloadLength                        uint32
 		// only for mainchain
 		sortedTx            []*model.Transaction
+		blockReceipts       []*model.BlockReceipt
 		payloadHash         []byte
-		digest              = sha3.New512()
+		digest              = sha3.New256()
 		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
 	)
 
 	newBlockHeight := previousBlock.Height + 1
 
 	if _, ok := bs.Chaintype.(*chaintype.MainChain); ok {
+		totalCoinbase = bs.GetCoinbase()
 		mempoolTransactions, err := bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
@@ -537,11 +597,15 @@ func (bs *BlockService) GenerateBlock(
 
 			sortedTx = append(sortedTx, tx)
 			_, _ = digest.Write(mpTx.TransactionBytes)
-			txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				return nil, err
+			}
 			totalAmount += txType.GetAmount()
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
+		// todo: select receipts here to publish & hash the receipts in payload hash
 		payloadHash = digest.Sum([]byte{})
 	}
 
@@ -549,8 +613,12 @@ func (bs *BlockService) GenerateBlock(
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	_, _ = digest.Write(previousBlock.GetBlockSeed())
-	_, _ = digest.Write(blockSmithPublicKey)
-	blockSeed := digest.Sum([]byte{})
+
+	seedHash := digest.Sum([]byte{})
+	seedPayload := bytes.NewBuffer([]byte{})
+	seedPayload.Write(blockSmithPublicKey)
+	seedPayload.Write(seedHash)
+	blockSeed := bs.Signature.SignByNode(seedPayload.Bytes(), secretPhrase)
 	digest.Reset() // reset the digest
 	previousBlockHash, err := coreUtil.GetBlockHash(previousBlock)
 	if err != nil {
@@ -568,6 +636,7 @@ func (bs *BlockService) GenerateBlock(
 		totalFee,
 		totalCoinbase,
 		sortedTx,
+		blockReceipts,
 		payloadHash,
 		payloadLength,
 		secretPhrase,
@@ -581,7 +650,7 @@ func (bs *BlockService) AddGenesis() error {
 		totalAmount, totalFee, totalCoinBase int64
 		blockTransactions                    []*model.Transaction
 		payloadLength                        uint32
-		digest                               = sha3.New512()
+		digest                               = sha3.New256()
 	)
 	for index, tx := range GetGenesisTransactions(bs.Chaintype) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
@@ -589,7 +658,10 @@ func (bs *BlockService) AddGenesis() error {
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
 		}
-		txType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return err
+		}
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
 		payloadLength += txType.GetSize()
@@ -609,6 +681,7 @@ func (bs *BlockService) AddGenesis() error {
 		totalFee,
 		totalCoinBase,
 		blockTransactions,
+		[]*model.BlockReceipt{},
 		payloadHash,
 		payloadLength,
 		constant.InitialSmithScale,
@@ -641,7 +714,7 @@ func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
-) (*model.Receipt, error) {
+) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() != nil {
 		blockUnsignedByte, _ := util.GetBlockByte(block, false)
@@ -653,7 +726,7 @@ func (bs *BlockService) ReceiveBlock(
 					"fail to get last block byte",
 				)
 			}
-			lastBlockHash := sha3.Sum512(lastBlockByte)
+			lastBlockHash := sha3.Sum256(lastBlockByte)
 
 			//  check equality last block hash with previous block hash from received block
 			if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
@@ -662,6 +735,19 @@ func (bs *BlockService) ReceiveBlock(
 					"previous block hash does not match with last block hash",
 				)
 			}
+			// check if the block broadcaster is the valid blocksmith
+			index := -1 // use index to determine if is in list, and who to punish
+			for i, bs := range *bs.SortedBlocksmiths {
+				if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
+					index = i
+					break
+				}
+			}
+			if index < 0 {
+				return nil, blocker.NewBlocker(
+					blocker.BlockErr, "invalid blocksmith")
+			}
+			// base on index we can calculate punishment and reward
 			err = bs.PushBlock(lastBlock, block, true, true)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
@@ -670,20 +756,21 @@ func (bs *BlockService) ReceiveBlock(
 			// todo: lastblock last applied block, or incoming block?
 			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 			blockHash, _ := util.GetBlockHash(block)
-			receipt, err := util.GenerateReceipt(
+			batchReceipt, err := util.GenerateBatchReceipt(
 				lastBlock,
 				senderPublicKey,
 				nodePublicKey,
 				blockHash,
-				constant.ReceiptDatumTypeBlock)
+				constant.ReceiptDatumTypeBlock,
+			)
 			if err != nil {
 				return nil, err
 			}
-			receipt.RecipientSignature = bs.Signature.SignByNode(
-				util.GetUnsignedReceiptBytes(receipt),
+			batchReceipt.RecipientSignature = bs.Signature.SignByNode(
+				util.GetUnsignedBatchReceiptBytes(batchReceipt),
 				nodeSecretPhrase,
 			)
-			return receipt, nil
+			return batchReceipt, nil
 		}
 		return nil, blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -717,34 +804,49 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
 	var (
 		blExt = &model.BlockExtendedInfo{}
-		nr    []*model.NodeRegistration
+		err   error
 	)
 	blExt.Block = block
-	//FIXME: return mocked data, until underlying logic is implemented
-	blExt.Block.TotalCoinBase = blExt.Block.TotalFee + 50 ^ 10*8
-
 	// block extra (computed) info
-
-	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
-	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	if block.Height > 0 {
+		blExt.BlocksmithAccountAddress, err = bs.GetBlocksmithAccountAddress(block)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-	defer rows.Close()
 
-	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if len(nr) == 0 {
-		return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
-	}
-	nodeRegistration := nr[0]
-	blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
 	// Total number of receipts at a block height
 	blExt.TotalReceipts = 99
-	// ???
+	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
 	blExt.ReceiptValue = 99
 	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
 	blExt.PopChange = -20
 
 	return blExt, nil
+}
+
+func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
+	var (
+		nr []*model.NodeRegistration
+	)
+	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
+	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return "", blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+	if len(nr) == 0 {
+		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+	}
+	return nr[0].AccountAddress, nil
+}
+
+func (*BlockService) GetCoinbase() int64 {
+	//TODO: integrate this with POP algorithm
+	return 50 * constant.OneZBC
 }

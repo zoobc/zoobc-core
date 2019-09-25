@@ -35,7 +35,7 @@ type (
 			receivedTxBytes []byte,
 			lastBlock *model.Block,
 			nodeSecretPhrase string,
-		) (*model.Receipt, error)
+		) (*model.BatchReceipt, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -153,8 +153,12 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
-
-	if err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx).Validate(false); err != nil {
+	txType, err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx)
+	if err != nil {
+		return err
+	}
+	err = txType.Validate(false)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -219,7 +223,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	receivedTxBytes []byte,
 	lastBlock *model.Block,
 	nodeSecretPhrase string,
-) (*model.Receipt, error) {
+) (*model.BatchReceipt, error) {
 	var (
 		err        error
 		receivedTx *model.Transaction
@@ -250,7 +254,11 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, err
 	}
 	// Apply Unconfirmed transaction
-	err = mps.ActionTypeSwitcher.GetTransactionType(receivedTx).ApplyUnconfirmed()
+	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+	if err != nil {
+		return nil, err
+	}
+	err = txType.ApplyUnconfirmed()
 	if err != nil {
 		log.Warnf("fail ApplyUnconfirmed tx: %v\n", err)
 		if err = mps.QueryExecutor.RollbackTx(); err != nil {
@@ -276,18 +284,19 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	// generate receipt
-	receivedTxHash := sha3.Sum512(receivedTxBytes)
-	receipt, err := util.GenerateReceipt( // todo: var
+	receivedTxHash := sha3.Sum256(receivedTxBytes)
+	receipt, err := util.GenerateBatchReceipt( // todo: var
 		lastBlock,
 		senderPublicKey,
 		nodePublicKey,
 		receivedTxHash[:],
-		constant.ReceiptDatumTypeTransaction)
+		constant.ReceiptDatumTypeTransaction,
+	)
 	if err != nil {
 		return nil, err
 	}
 	receipt.RecipientSignature = mps.Signature.SignByNode(
-		util.GetUnsignedReceiptBytes(receipt),
+		util.GetUnsignedBatchReceiptBytes(receipt),
 		nodeSecretPhrase,
 	)
 

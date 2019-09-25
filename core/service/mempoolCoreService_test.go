@@ -125,7 +125,7 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 
 	txBytes, _ := util.GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.NodeSignatureTypeDefault,
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
 	txBytes, _ = util.GetTransactionBytes(tx, true)
@@ -461,8 +461,8 @@ func (*ReceivedTransactionListenerMockTypeAction) ApplyUnconfirmed() error {
 	return nil
 }
 
-func (*ReceivedTransactionListenerMockTypeActionSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &ReceivedTransactionListenerMockTypeAction{}
+func (*ReceivedTransactionListenerMockTypeActionSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &ReceivedTransactionListenerMockTypeAction{}, nil
 }
 
 type (

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -128,8 +130,9 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if tx.RecipientAddress == "" {
 		return errors.New("transaction must have a valid recipient account id")
 	}
-
-	if tx.Height != 0 {
+	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
+	// validation needed
+	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
 		if tx.SenderAddress == "" {
 			return errors.New("transaction must have a valid sender account id")
 		}
@@ -151,7 +154,10 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		defer rows.Close()
 
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
-			return errors.New("transaction amount not enough")
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"balance not enough",
+			)
 		}
 	}
 	return nil
@@ -169,11 +175,18 @@ func (*SendMoney) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*SendMoney) ParseBodyBytes(txBodyBytes []byte) model.TransactionBodyInterface {
-	amount := util.ConvertBytesToUint64(txBodyBytes)
+func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+	// validate the body bytes is correct
+	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	if err != nil {
+		return nil, err
+	}
+	// read body bytes
+	bufferBytes := bytes.NewBuffer(txBodyBytes)
+	amount := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.Balance)))
 	return &model.SendMoneyTransactionBody{
 		Amount: int64(amount),
-	}
+	}, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation

@@ -78,16 +78,16 @@ type (
 
 var mockLog = logrus.New()
 
-func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTxTypeValidateFail{}
+func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeValidateFail{}, nil
 }
 
-func (*mockTypeSwitcherApplyUnconfirmedFail) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTxTypeApplyUnconfirmedFail{}
+func (*mockTypeSwitcherApplyUnconfirmedFail) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeApplyUnconfirmedFail{}, nil
 }
 
-func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) transaction.TypeAction {
-	return &mockTxTypeSuccess{}
+func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeSuccess{}, nil
 }
 
 func (*mockTxTypeValidateFail) Validate(bool) error {
@@ -185,7 +185,9 @@ func TestNewTransactionService(t *testing.T) {
 	}{
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
-			want: &TransactionService{Query: query.NewQueryExecutor(db)},
+			want: &TransactionService{
+				Query: query.NewQueryExecutor(db),
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -646,7 +648,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(qe string, tx bool,
 			1,
 			"senderA",
 			"recipientA",
-			1,
+			0,
 			1,
 			10000,
 			[]byte{1, 1},
@@ -706,7 +708,8 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 		{
 			name: "GetTransaction:success",
 			fields: fields{
-				Query: &mockQueryGetTransactionSuccess{},
+				Query:              &mockQueryGetTransactionSuccess{},
+				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
@@ -721,7 +724,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Height:                  1,
 				SenderAccountAddress:    "senderA",
 				RecipientAccountAddress: "recipientA",
-				TransactionType:         1,
+				TransactionType:         0,
 				Fee:                     1,
 				Timestamp:               10000,
 				TransactionHash:         []byte{1, 1},

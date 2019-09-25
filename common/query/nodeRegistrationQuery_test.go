@@ -142,6 +142,23 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockNodeRegistry)
 		}
 	})
+
+	t.Run("NodeRegistrationQuery-BuildModel-WithAggregation:success", func(t *testing.T) {
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectQuery("foo-withAggregation").WillReturnRows(sqlmock.NewRows([]string{
+			"id", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance",
+			"Queued", "Latest", "Height", "max_height"}).
+			AddRow(mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountAddress, mockNodeRegistry.RegistrationHeight,
+				mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
+				mockNodeRegistry.Latest, mockNodeRegistry.Height, 123))
+		rows, _ := db.Query("foo-withAggregation")
+		var tempNode []*model.NodeRegistration
+		res := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
+		if !reflect.DeepEqual(res[0], mockNodeRegistry) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockNodeRegistry)
+		}
+	})
 }
 
 func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {

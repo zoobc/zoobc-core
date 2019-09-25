@@ -39,6 +39,9 @@ linters-settings:
   goimports:
     local-prefixes: github.com/zoobc/zoobc-core
   gocritic:
+    settings:
+      hugeParam:
+        sizeThreshold: 512
     enabled-tags:
       - performance
       - style
@@ -70,6 +73,18 @@ run:
 
 issues:
   exclude-rules:
+    - text: "unnecessary trailing newline"
+      linters:
+        - whitespace
+    - text: "unnecessary leading newline"
+      linters:
+        - whitespace
+    - text: "should not use underscores in Go names"
+      linters:
+        - stylecheck
+    - text: "blank identifiers"
+      linters:
+        - dogsled
     - text: "Line contains TODO/BUG/FIXME"
       linters:
         - godox
@@ -82,7 +97,7 @@ issues:
     - text: "has too many statements"
       linters:
         - funlen
-    - text: "has 2 occurrences, make it a constant"
+    - text: "occurrences, make it a constant"
       linters:
         - goconst
     - text: "G201: SQL string formatting"
@@ -98,9 +113,15 @@ issues:
     - text: "lines are duplicate of"
       linters:
         - dupl
-    - text: "U1000: func `TransactionBodyInterface.isTxBody` is unused"
+    - text: "U1000: func `TransactionBodyInterface.isTransaction_TransactionBody` is unused"
       linters:
         - unused
+    - text: "don't use underscores in Go names; method isTransaction_TransactionBody should be isTransactionTransactionBody"
+      linters:
+        - golint
+    - text: "exported method ParseBodyBytes returns unexported type"
+      linters:
+        - golint
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:

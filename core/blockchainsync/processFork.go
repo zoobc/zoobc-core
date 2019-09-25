@@ -139,11 +139,14 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 	var (
 		err     error
 		txBytes []byte
+		txType  transaction.TypeAction
 	)
 	for _, tx := range txs {
 		// Validate Tx
-		txType := fp.ActionTypeSwitcher.GetTransactionType(tx)
-
+		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return err
+		}
 		txBytes, err = commonUtil.GetTransactionBytes(tx, true)
 
 		if err != nil {

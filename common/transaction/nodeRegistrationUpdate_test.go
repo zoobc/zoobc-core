@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -14,10 +16,6 @@ import (
 )
 
 type (
-	mockAuthPoownRU struct {
-		success bool
-		auth.ProofOfOwnershipValidation
-	}
 	mockExecutorValidateFailExecuteSelectFailRU struct {
 		query.Executor
 	}
@@ -37,31 +35,6 @@ type (
 		query.Executor
 	}
 )
-
-var (
-	nodeRegistrationUpdateBodyFullBytes = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45,
-		118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135, 11, 0, 0, 0, 49, 48, 46, 49, 48, 46, 49, 48, 46,
-		49, 48, 0, 225, 245, 5, 0, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89,
-		107, 68, 101, 66, 86, 70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78,
-		29, 13, 141, 178, 255, 156, 236, 131, 118, 194, 116, 56, 58, 190, 90, 107, 156, 185, 232, 211, 132, 89, 226, 225,
-		237, 171, 115, 173, 217, 227, 49, 215, 250, 55, 149, 170, 253, 74, 214, 124, 232, 223, 163, 162, 228, 244, 48,
-		149, 223, 213, 230, 58, 43, 107, 134, 58, 35, 199, 182, 154, 75, 10, 65, 98, 0, 0, 0, 0, 0, 0, 0, 0, 85, 102,
-		141, 21, 159, 110, 216, 43, 251, 50, 168, 174, 95, 86, 95, 133, 162, 85, 3, 146, 107, 19, 227, 238, 192, 147,
-		44, 177, 10, 245, 22, 156, 88, 25, 87, 181, 241, 48, 247, 50, 219, 77, 246, 254, 71, 141, 241, 14, 111, 3,
-		213, 196, 240, 26, 242, 6, 86, 74, 149, 138, 251, 155, 24, 10}
-)
-
-func (mk *mockAuthPoownRU) ValidateProofOfOwnership(
-	poown *model.ProofOfOwnership,
-	nodePublicKey []byte,
-	queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface,
-) error {
-	if mk.success {
-		return nil
-	}
-	return errors.New("MockedError")
-}
 
 func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:selectFail")
@@ -778,7 +751,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: 235,
+			want: 199,
 		},
 	}
 	for _, tt := range tests {
@@ -802,13 +775,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		LockedBalance: 100000000,
-		NodePublicKey: nodePubKey1,
-		Poown:         poown,
-		NodeAddress:   "10.10.10.10",
-	}
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -824,22 +791,118 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		txBodyBytes []byte
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   model.TransactionBodyInterface
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
 	}{
 		{
-			name: "ParseBodyBytes:success",
-			args: args{
-				txBodyBytes: nodeRegistrationUpdateBodyFullBytes,
+			name: "UpdateNodeRegistration:error - empty body bytes",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
 			},
-			want: txBody,
+			args:    args{txBodyBytes: []byte{}},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "UpdateNodeRegistration:error - wrong public key length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:10]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "UpdateNodeRegistration:error - no node address length",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey))]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "UpdateNodeRegistration:error - no node address",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4)]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "UpdateNodeRegistration:error - no locked balance",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 + len([]byte(txBody.NodeAddress)))]},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "UpdateNodeRegistration:error - no poown",
+			fields: fields{
+				Body:                  nil,
+				Fee:                   0,
+				SenderAddress:         "",
+				Height:                0,
+				AccountBalanceQuery:   nil,
+				NodeRegistrationQuery: nil,
+				QueryExecutor:         nil,
+			},
+			args: args{
+				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 +
+					len([]byte(txBody.NodeAddress)) + int(constant.Balance))],
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "UpdateNodeRegistration:ParseBodyBytes - success",
+			fields: fields{},
+			args: args{
+				txBodyBytes: txBodyBytes,
+			},
+			want:    txBody,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u := &UpdateNodeRegistration{
+			up := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
@@ -850,21 +913,20 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if got := u.ParseBodyBytes(tt.args.txBodyBytes); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("UpdateNodeRegistration.ParseBodyBytes() = %v, want %v", got, tt.want)
+			got, err := up.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseBodyBytes() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		LockedBalance: 100000000,
-		NodePublicKey: nodePubKey1,
-		Poown:         poown,
-		NodeAddress:   "10.10.10.10",
-	}
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -886,7 +948,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: nodeRegistrationUpdateBodyFullBytes,
+			want: txBodyBytes,
 		},
 	}
 	for _, tt := range tests {
