@@ -297,11 +297,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	startServices()
-
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	startMainchain(mainchainSyncChannel)
+	go startMainchain(mainchainSyncChannel)
+	startServices()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything
