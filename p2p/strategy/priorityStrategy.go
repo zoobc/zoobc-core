@@ -88,21 +88,23 @@ func (ps *PriorityStrategy) ConnectPriorityPeers() {
 		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
-			for i := int32(0); i < exceedMaxUnresolvedPeers; i++ {
-				var peerToBeRemoved *model.Peer
-				// removing unpriority peer if the UnresolvedPeers has reached max
-				for _, unresolvedPeer := range unresolvedPeers {
-					if priorityPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] == nil {
-						peerToBeRemoved = unresolvedPeer
-						break
-					}
+
+			var j int32
+			// removing unpriority peer if the UnresolvedPeers has reached max
+			for _, unresolvedPeer := range unresolvedPeers {
+				if j < exceedMaxUnresolvedPeers {
+					break
 				}
-				if peerToBeRemoved != nil {
-					_ = ps.RemoveUnresolvedPeer(peer)
+				if priorityPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] == nil {
+					_ = ps.RemoveUnresolvedPeer(unresolvedPeer)
+					j++
 				}
 			}
-			_ = ps.AddToUnresolvedPeer(peer)
-			i++
+
+			if exceedMaxUnresolvedPeers < 1 || (exceedMaxUnresolvedPeers > 0 && j == exceedMaxUnresolvedPeers) {
+				_ = ps.AddToUnresolvedPeer(peer)
+				i++
+			}
 		}
 	}
 }
@@ -110,16 +112,16 @@ func (ps *PriorityStrategy) ConnectPriorityPeers() {
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	// TODO: change this implementation once we have the priority list
 	mockPriorityPeers := make(map[string]*model.Peer)
-	mockPriorityPeers["127.0.0.1:3050"] = &model.Peer{
+	mockPriorityPeers["127.0.0.1:8005"] = &model.Peer{
 		Info: &model.Node{
 			Address: "127.0.0.1",
-			Port:    3050,
+			Port:    8005,
 		},
 	}
-	mockPriorityPeers["127.0.0.1:3051"] = &model.Peer{
+	mockPriorityPeers["127.0.0.1:8006"] = &model.Peer{
 		Info: &model.Node{
 			Address: "127.0.0.1",
-			Port:    3051,
+			Port:    8006,
 		},
 	}
 	return mockPriorityPeers
