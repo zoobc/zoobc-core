@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
-	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -2250,7 +2249,6 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 
 func TestBlockService_RewardBlocksmithAccountAddress(t *testing.T) {
 	type fields struct {
-		WaitGroup               sync.WaitGroup
 		Chaintype               chaintype.ChainType
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
@@ -2295,7 +2293,6 @@ func TestBlockService_RewardBlocksmithAccountAddress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				WaitGroup:               tt.fields.WaitGroup,
 				Chaintype:               tt.fields.Chaintype,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              tt.fields.BlockQuery,
@@ -2310,7 +2307,8 @@ func TestBlockService_RewardBlocksmithAccountAddress(t *testing.T) {
 				Observer:                tt.fields.Observer,
 				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
 			}
-			if err := bs.RewardBlocksmithAccountAddress(tt.args.blocksmithAccountAddress, tt.args.totalReward, tt.args.height, tt.args.includeInTx); (err != nil) != tt.wantErr {
+			if err := bs.RewardBlocksmithAccountAddress(tt.args.blocksmithAccountAddress, tt.args.totalReward,
+				tt.args.height, tt.args.includeInTx); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.RewardBlocksmithAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

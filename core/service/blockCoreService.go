@@ -351,7 +351,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 
-		//TODO: next step is to change this by using the revised algoritm that includes:
+		//TODO: next step is to change this by using the revised algorithm that includes:
 		// - selecting multiple account to be rewarded (split the total coinbase between them)
 		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
 		totalReward := block.TotalFee + block.TotalCoinBase
