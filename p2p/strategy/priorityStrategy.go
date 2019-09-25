@@ -102,8 +102,8 @@ func (ps *PriorityStrategy) ConnectPriorityPeers() {
 				}
 			}
 			_ = ps.AddToUnresolvedPeer(peer)
+			i++
 		}
-		i++
 	}
 }
 

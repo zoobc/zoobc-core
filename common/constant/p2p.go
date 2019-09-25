@@ -14,5 +14,5 @@ const (
 	// ConnectPriorityPeersGap, interval of peer thread trying connect to priority peer (in second)
 	ConnectPriorityPeersGap uint = 60
 	// NumberOfPriorityPeersToBeAdded how many priority peers we want to add at once
-	NumberOfPriorityPeersToBeAdded int = 1
+	NumberOfPriorityPeersToBeAdded int = 10
 )
