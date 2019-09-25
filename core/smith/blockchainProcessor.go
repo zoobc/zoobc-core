@@ -92,8 +92,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	}
 	if bp.Generator.SmithTime > smithMax {
-		return blocker.NewBlocker(
-			blocker.SmithingErr, "skipping block creation")
+		return nil
 	}
 	timestamp := bp.Generator.GetTimestamp(smithMax)
 	if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
