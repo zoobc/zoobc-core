@@ -56,6 +56,7 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		GetCoinbase() int64
+		RewardBlocksmithAccountAddress(blocksmithAccountAddress string, totalReward int64, height uint32, includeInTx bool) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
@@ -349,16 +350,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		if err != nil {
 			return err
 		}
-		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
-			block.TotalFee+block.TotalCoinBase,
-			map[string]interface{}{
-				"account_address": blocksmithAccountAddress,
-				"block_height":    block.Height,
-			},
-		)
-		err = bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ)
-		if err != nil {
-			_ = bs.QueryExecutor.RollbackTx()
+
+		//TODO: next step is to change this by using the revised algoritm that includes:
+		// - selecting multiple account to be rewarded (split the total coinbase between them)
+		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
+		totalReward := block.TotalFee + block.TotalCoinBase
+		if err := bs.RewardBlocksmithAccountAddress(blocksmithAccountAddress, totalReward, block.Height, true); err != nil {
 			return err
 		}
 	}
@@ -373,6 +370,28 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	return nil
+}
+
+// RewardBlocksmithAccountAddress accrue the block total fees + total coinbase to the blocksmith account
+func (bs *BlockService) RewardBlocksmithAccountAddress(
+	blocksmithAccountAddress string,
+	totalReward int64,
+	height uint32,
+	includeInTx bool) error {
+	accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
+		totalReward,
+		map[string]interface{}{
+			"account_address": blocksmithAccountAddress,
+			"block_height":    height,
+		},
+	)
+	if err := bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ); err != nil {
+		if includeInTx {
+			_ = bs.QueryExecutor.RollbackTx()
+		}
+		return err
+	}
 	return nil
 }
 

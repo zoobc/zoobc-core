@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -2242,6 +2243,75 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlockExtendedInfo() = \n%v, want \n%v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_RewardBlocksmithAccountAddress(t *testing.T) {
+	type fields struct {
+		WaitGroup               sync.WaitGroup
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		Observer                *observer.Observer
+		SortedBlocksmiths       *[]model.Blocksmith
+	}
+	type args struct {
+		blocksmithAccountAddress string
+		totalReward              int64
+		height                   uint32
+		includeInTx              bool
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "RewardBlocksmithAccountAddress:success",
+			args: args{
+				blocksmithAccountAddress: bcsAddress1,
+				totalReward:              10000,
+				height:                   1,
+				includeInTx:              false,
+			},
+			fields: fields{
+				QueryExecutor:       &mockQueryExecutorSuccess{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				WaitGroup:               tt.fields.WaitGroup,
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Observer:                tt.fields.Observer,
+				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
+			}
+			if err := bs.RewardBlocksmithAccountAddress(tt.args.blocksmithAccountAddress, tt.args.totalReward, tt.args.height, tt.args.includeInTx); (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.RewardBlocksmithAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
