@@ -62,7 +62,7 @@ var (
 			AccountAddress: "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance
-			Amount: 100000000000,
+			Amount: 1000 * OneZBC,
 			NodePublicKey: []byte{41, 235, 184, 214, 70, 23, 153, 89, 104, 41, 250, 248, 51, 7, 69, 89,
 				234, 181, 100, 163, 45, 69, 152, 70, 52, 201, 147, 70, 6, 242, 52, 220},
 			NodeAddress:   "0.0.0.0",
