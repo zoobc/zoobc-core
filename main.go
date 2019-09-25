@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dgraph-io/badger"
+
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -35,26 +37,28 @@ import (
 )
 
 var (
-	dbPath, dbName, nodeSecretPhrase string
-	dbInstance                       *database.SqliteDB
-	db                               *sql.DB
-	apiRPCPort, apiHTTPPort          int
-	peerPort                         uint32
-	p2pServiceInstance               p2p.Peer2PeerServiceInterface
-	queryExecutor                    *query.Executor
-	observerInstance                 *observer.Observer
-	blockServices                    = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	peerServiceClient                client.PeerServiceClientInterface
-	p2pHost                          *model.Host
-	peerExplorer                     strategy.PeerExplorerStrategyInterface
-	ownerAccountAddress, myAddress   string
-	wellknownPeers                   []string
-	nodeKeyFilePath                  string
-	smithing                         bool
-	nodeRegistrationService          service.NodeRegistrationServiceInterface
-	mainchainProcessor               *smith.BlockchainProcessor
-	sortedBlocksmiths                []model.Blocksmith
+	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase string
+	dbInstance                                                   *database.SqliteDB
+	badgerDbInstance                                             *database.BadgerDB
+	db                                                           *sql.DB
+	badgerDb                                                     *badger.DB
+	apiRPCPort, apiHTTPPort                                      int
+	peerPort                                                     uint32
+	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
+	queryExecutor                                                *query.Executor
+	observerInstance                                             *observer.Observer
+	blockServices                                                = make(map[int32]service.BlockServiceInterface)
+	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
+	peerServiceClient                                            client.PeerServiceClientInterface
+	p2pHost                                                      *model.Host
+	peerExplorer                                                 strategy.PeerExplorerStrategyInterface
+	ownerAccountAddress, myAddress                               string
+	wellknownPeers                                               []string
+	nodeKeyFilePath                                              string
+	smithing                                                     bool
+	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
+	mainchainProcessor                                           *smith.BlockchainProcessor
+	sortedBlocksmiths                                            []model.Blocksmith
 )
 
 func init() {
@@ -78,6 +82,8 @@ func init() {
 
 	dbPath = viper.GetString("dbPath")
 	dbName = viper.GetString("dbName")
+	badgerDbPath = viper.GetString("badgerDbPath")
+	badgerDbName = viper.GetString("badgerDbName")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
@@ -95,6 +101,15 @@ func init() {
 		log.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// initialize k-v db
+	badgerDbInstance = database.NewBadgerDB()
+	if err := badgerDbInstance.InitializeBadgerDB(badgerDbPath, badgerDbName); err != nil {
+		log.Fatal(err)
+	}
+	badgerDb, err = badgerDbInstance.OpenBadgerDB(badgerDbPath, badgerDbName)
 	if err != nil {
 		log.Fatal(err)
 	}
