@@ -109,6 +109,8 @@ func (ps *PriorityStrategy) ConnectPriorityPeers() {
 	}
 }
 
+// Mock function to return priority peers in a current state
+// This function should be changed with the scrambled node registry
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	// TODO: change this implementation once we have the priority list
 	mockPriorityPeers := make(map[string]*model.Peer)
