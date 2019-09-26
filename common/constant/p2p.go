@@ -9,6 +9,8 @@ const (
 	SecondsToUpdatePeersConnection int64 = 10 // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
 	ResolvePeersGap uint = 5
+	// UpdateBlacklistedStatusGap, interval of a tread that will update the status of blacklisted node
+	UpdateBlacklistedStatusGap uint = 60
 	// BlacklistingPeriod, how long a peer in blaclisting status
 	BlacklistingPeriod uint64 = 3600
 	// ConnectPriorityPeersGap, interval of peer thread trying connect to priority peer (in second)

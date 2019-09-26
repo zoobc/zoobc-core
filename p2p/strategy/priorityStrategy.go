@@ -49,14 +49,14 @@ func (ps *PriorityStrategy) Start() {
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
-	go ps.ConnectPriorityPeers()
+	go ps.ConnectPriorityPeersGradually()
 	ticker := time.NewTicker(time.Duration(constant.ConnectPriorityPeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
 		select {
 		case <-ticker.C:
-			go ps.ConnectPriorityPeers()
+			go ps.ConnectPriorityPeersGradually()
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -64,7 +64,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
 	}
 }
 
-func (ps *PriorityStrategy) ConnectPriorityPeers() {
+func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	var (
 		i int
 	)
@@ -76,6 +76,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeers() {
 
 	unresolvedPeers := ps.GetUnresolvedPeers()
 	resolvedPeers := ps.GetResolvedPeers()
+	blacklistedPeers := ps.GetBlacklistedPeers()
 	exceedMaxUnresolvedPeers := ps.GetExceedMaxUnresolvedPeers()
 
 	priorityPeers := ps.GetPriorityPeers()
@@ -87,6 +88,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeers() {
 
 		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
+			blacklistedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
 
 			var j int32
@@ -170,8 +172,9 @@ func (ps *PriorityStrategy) ResolvePeers() {
 	}
 
 	// making room in the resolvedPeers list for the priority peers
+	maxToRemove := exceedMaxResolvedPeers - int32(1) + int32(len(priorityUnresolvedPeers))
 	for _, resolvedPeer := range resolvedPeers {
-		if removedResolvedPeers >= exceedMaxResolvedPeers+int32(len(priorityUnresolvedPeers)) {
+		if removedResolvedPeers >= maxToRemove {
 			break
 		}
 
@@ -183,8 +186,9 @@ func (ps *PriorityStrategy) ResolvePeers() {
 
 	// resolving to priority unresolvedPeers until the resolvedPeers list is full
 	var i int32
+	maxAddedPeers := removedResolvedPeers - exceedMaxResolvedPeers + int32(1)
 	for _, priorityUnresolvedPeer := range priorityUnresolvedPeers {
-		if i >= removedResolvedPeers-exceedMaxResolvedPeers {
+		if i >= maxAddedPeers {
 			break
 		}
 		go ps.resolvePeer(priorityUnresolvedPeer)
@@ -193,7 +197,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 
 	// resolving other peers that are not priority if resolvedPeers is not full yet
 	for _, peer := range ps.GetUnresolvedPeers() {
-		if i >= removedResolvedPeers-exceedMaxResolvedPeers {
+		if i >= maxAddedPeers {
 			break
 		}
 
@@ -234,10 +238,10 @@ func (ps *PriorityStrategy) GetMorePeersHandler() (*model.Peer, error) {
 	if peer != nil {
 		newPeers, err := ps.PeerServiceClient.GetMorePeers(peer)
 		if err != nil {
-			log.Warnf("getMorePeers Error accord %v\n", err)
+			log.Warnf("getMorePeers Error: %v\n", err)
 			return nil, err
 		}
-		err = ps.AddToUnresolvedPeers(newPeers.GetPeers(), true)
+		err = ps.AddToUnresolvedPeers(newPeers.GetPeers(), false)
 		if err != nil {
 			log.Warnf("getMorePeers error: %v\n", err)
 			return nil, err
@@ -293,7 +297,7 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 // UpdateBlacklistedStatusThread to periodically check blacklisting time of black listed peer,
 // every 60sec if there are blacklisted peers to unblacklist
 func (ps *PriorityStrategy) UpdateBlacklistedStatusThread() {
-	ticker := time.NewTicker(time.Duration(60) * time.Second)
+	ticker := time.NewTicker(time.Duration(constant.UpdateBlacklistedStatusGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -426,13 +430,17 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 }
 
 // AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
+// toForce: this parameter is not used in the PriorityStrategy because
+//			only priority nodes can forcefully get into peers list
 func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error {
 	exceedMaxUnresolvedPeers := ps.GetExceedMaxUnresolvedPeers()
 
-	// do not force a peer to go to unresolved list if the list is full n `toForce` is false
-	if exceedMaxUnresolvedPeers > 0 && !toForce {
+	// do not force a peer to go to unresolved list if the list is full
+	if exceedMaxUnresolvedPeers > 1 {
 		return errors.New("unresolvedPeers are full")
 	}
+
+	var peersAdded int32
 
 	unresolvedPeers := ps.GetUnresolvedPeers()
 	resolvedPeers := ps.GetResolvedPeers()
@@ -447,15 +455,11 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
-			for i := int32(0); i < exceedMaxUnresolvedPeers; i++ {
-				// removing a peer at random if the UnresolvedPeers has reached max
-				peer := ps.GetAnyUnresolvedPeer()
-				_ = ps.RemoveUnresolvedPeer(peer)
-			}
 			_ = ps.AddToUnresolvedPeer(peer)
+			peersAdded++
 		}
 
-		if exceedMaxUnresolvedPeers > 0 {
+		if exceedMaxUnresolvedPeers+peersAdded > 1 {
 			break
 		}
 	}

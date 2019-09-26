@@ -178,7 +178,7 @@ func (ns *NativeStrategy) GetMorePeersThread() {
 // UpdateBlacklistedStatusThread to periodically check blacklisting time of black listed peer,
 // every 60sec if there are blacklisted peers to unblacklist
 func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
-	ticker := time.NewTicker(time.Duration(60) * time.Second)
+	ticker := time.NewTicker(time.Duration(constant.UpdateBlacklistedStatusGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -311,14 +311,17 @@ func (ns *NativeStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 }
 
 // AddToUnresolvedPeers to add incoming peers to UnresolvedPeers list
+// toForce: if it's true, when the unresolvedPeers list is full, we will kick another one inside
+//			(by choosing 1 random node)
 func (ns *NativeStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error {
 	exceedMaxUnresolvedPeers := ns.GetExceedMaxUnresolvedPeers()
 
 	// do not force a peer to go to unresolved list if the list is full n `toForce` is false
-	if exceedMaxUnresolvedPeers > 0 && !toForce {
+	if exceedMaxUnresolvedPeers > 1 && !toForce {
 		return errors.New("unresolvedPeers are full")
 	}
 
+	var addedPeers int32
 	unresolvedPeers := ns.GetUnresolvedPeers()
 	resolvedPeers := ns.GetResolvedPeers()
 
@@ -338,9 +341,10 @@ func (ns *NativeStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce b
 				_ = ns.RemoveUnresolvedPeer(peer)
 			}
 			_ = ns.AddToUnresolvedPeer(peer)
+			addedPeers++
 		}
 
-		if exceedMaxUnresolvedPeers > 0 {
+		if exceedMaxUnresolvedPeers+addedPeers > 1 {
 			break
 		}
 	}
