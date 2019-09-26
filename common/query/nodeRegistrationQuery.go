@@ -12,7 +12,7 @@ import (
 type (
 	NodeRegistrationQueryInterface interface {
 		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
-		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) (str []string, args []interface{})
+		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
@@ -66,15 +66,24 @@ func (nr *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.
 // UpdateNodeRegistration returns a slice of two queries.
 // 1st update all old noderegistration versions' latest field to 0
 // 2nd insert a new version of the noderegisration with updated data
-func (nr *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) (str []string, args []interface{}) {
-	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = %d", nr.getTableName(), nodeRegistration.NodeID)
+func (nr *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{} {
+	var (
+		queries [][]interface{}
+	)
+	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nr.getTableName())
 	qryInsert := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		nr.getTableName(),
 		strings.Join(nr.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nr.Fields)-1)),
 	)
-	return []string{qryUpdate, qryInsert}, nr.ExtractModel(nodeRegistration)
+
+	queries = append(queries,
+		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
+		append([]interface{}{qryInsert}, nr.ExtractModel(nodeRegistration)...),
+	)
+
+	return queries
 }
 
 // GetNodeRegistrations returns query string to get multiple node registrations

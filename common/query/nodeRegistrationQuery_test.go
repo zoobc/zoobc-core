@@ -164,8 +164,8 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 	t.Run("UpdateNodeRegistration:success", func(t *testing.T) {
 
-		q, args := mockNodeRegistrationQuery.UpdateNodeRegistration(mockNodeRegistry)
-		wantQ0 := "UPDATE node_registry SET latest = 0 WHERE ID = 1"
+		q := mockNodeRegistrationQuery.UpdateNodeRegistration(mockNodeRegistry)
+		wantQ0 := "UPDATE node_registry SET latest = 0 WHERE ID = ?"
 		wantQ1 := "INSERT INTO node_registry (id,node_public_key,account_address,registration_height,node_address," +
 			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
@@ -173,14 +173,19 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
 			mockNodeRegistry.Latest, mockNodeRegistry.Height,
 		}
-		if q[0] != wantQ0 {
+		if q[0][0] != wantQ0 {
 			t.Errorf("update query returned wrong: get: %s\nwant: %s", q, wantQ0)
 		}
-		if q[1] != wantQ1 {
+		if !reflect.DeepEqual(q[0][1], wantArg[0]) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", q[0][1], wantArg[0])
+		}
+		if q[1][0] != wantQ1 {
 			t.Errorf("insert query returned wrong: get: %s\nwant: %s", q, wantQ1)
 		}
-		if !reflect.DeepEqual(args, wantArg) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
+		for idx, wanted := range wantArg {
+			if !reflect.DeepEqual(q[1][idx+1], wanted) {
+				t.Errorf("arguments returned wrong: get: %v\nwant: %v", q[1][idx+1], wanted)
+			}
 		}
 	})
 }

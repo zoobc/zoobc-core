@@ -30,7 +30,7 @@ type UpdateNodeRegistration struct {
 
 func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	var (
-		queries              [][]interface{}
+		nodeQueries          [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
 	// get the latest noderegistration by owner (sender account)
@@ -90,11 +90,9 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	updateNodeQ, updateNodeArg := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{updateNodeQ}, updateNodeArg...),
-	)
-	// update node_registry entry
+
+	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+	queries := append(accountBalanceSenderQ, nodeQueries...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

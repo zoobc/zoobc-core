@@ -27,7 +27,7 @@ type ClaimNodeRegistration struct {
 
 func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	var (
-		queries              [][]interface{}
+		nodeQueries          [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
 
@@ -63,11 +63,8 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	updateNodeQ, updateNodeArg := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{updateNodeQ}, updateNodeArg...),
-	)
-	// update node_registry entry
+	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+	queries := append(accountBalanceSenderQ, nodeQueries...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

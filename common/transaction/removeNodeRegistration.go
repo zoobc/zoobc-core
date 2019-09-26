@@ -25,7 +25,7 @@ type RemoveNodeRegistration struct {
 
 func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	var (
-		queries           [][]interface{}
+		nodeQueries       [][]interface{}
 		nodereGistrations []*model.NodeRegistration
 	)
 
@@ -64,11 +64,8 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{insertNodeQ}, insertNodeArg...),
-	)
-	// add row to node_registry table
+	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+	queries := append(accountBalanceSenderQ, nodeQueries...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
