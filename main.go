@@ -284,7 +284,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 	)
-	mainchainSynchronizer.Start(mainchainSyncChannel)
+	go mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 
 func main() {
@@ -297,11 +297,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	startServices()
-
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
+	startServices()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything

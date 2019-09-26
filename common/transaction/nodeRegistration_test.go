@@ -560,7 +560,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Height:              0,
 				Body:                bodyWithoutPoown,
-				SenderAddress:       senderAddress1,
+				SenderAddress:       constant.MainchainGenesisAccountAddress,
 				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),

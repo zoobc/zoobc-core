@@ -128,7 +128,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	)
 
 	// no need to validate node registration transaction for genesis block
-	if tx.Height == 0 {
+	if tx.SenderAddress == constant.MainchainGenesisAccountAddress {
 		return nil
 	}
 
