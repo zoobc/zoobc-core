@@ -143,7 +143,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		// update the node registry (set queued to 1 and lockedbalance to 0)
 		nodeRegistration.Queued = true
 		nodeRegistration.LockedBalance = 0
-		queries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		// return lockedbalance to the node's owner account
 		updateAccountBalanceQ := nrs.AccountBalanceQuery.AddAccountBalance(
 			nodeRegistration.LockedBalance,
@@ -153,9 +153,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 			},
 		)
 
-		queries = append(queries,
-			append([]interface{}{updateAccountBalanceQ}),
-		)
+		queries := append(updateAccountBalanceQ, nodeQueries...)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			_ = nrs.QueryExecutor.RollbackTx()
