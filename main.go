@@ -284,7 +284,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 	)
-	mainchainSynchronizer.Start(mainchainSyncChannel)
+	go mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 
 func main() {
@@ -299,7 +299,7 @@ func main() {
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	go startMainchain(mainchainSyncChannel)
+	startMainchain(mainchainSyncChannel)
 	startServices()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
