@@ -87,8 +87,7 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
-	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(nodePublicKey)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, nodePublicKey)
 	if err != nil {
 		return nil, err
 	}

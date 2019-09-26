@@ -20,10 +20,11 @@ import (
 
 var (
 	txTypeMap = map[string][]byte{
-		"sendMoney":            {1, 0, 0, 0},
-		"registerNode":         {2, 0, 0, 0},
-		"setupAccountDataset":  {3, 0, 0, 0},
-		"removeAccountDataset": {3, 1, 0, 0},
+		"sendMoney":              {1, 0, 0, 0},
+		"registerNode":           {2, 0, 0, 0},
+		"updateNodeRegistration": {2, 1, 0, 0},
+		"setupAccountDataset":    {3, 0, 0, 0},
+		"removeAccountDataset":   {3, 1, 0, 0},
 	}
 	// Core node test account in genesis block
 	senderAccountSeed = constant.MainchainGenesisFundReceivers[0].AccountSeed
@@ -66,7 +67,7 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 }
 
 func getTransaction(txType []byte) *model.Transaction {
-	nodeSeed := "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
+	nodeSeed := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
 	senderAccountAddress := util.GetAddressFromSeed(senderAccountSeed)
 	log.Printf("%s", senderAccountAddress)
@@ -93,8 +94,8 @@ func getTransaction(txType []byte) *model.Transaction {
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
 		poowMessage := &model.ProofOfOwnershipMessage{
 			AccountAddress: recipientAccountAddress,
-			BlockHash: []byte{214, 218, 238, 239, 233, 132, 23, 226, 29, 38, 3, 220, 24, 29, 217, 81, 64, 97,
-				91, 138, 151, 188, 145, 66, 181, 136, 52, 69, 123, 227, 105, 230},
+			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
+				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
 			BlockHeight: 1,
 		}
 		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
@@ -124,6 +125,42 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 				NodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"]):
+		poowMessage := &model.ProofOfOwnershipMessage{
+			AccountAddress: recipientAccountAddress,
+			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
+				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
+			BlockHeight: 1,
+		}
+		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
+		signature := (&crypto.Signature{}).SignByNode(
+			poownMessageBytes,
+			nodeSeed)
+		txBody := &model.UpdateNodeRegistrationTransactionBody{
+			NodePublicKey: nodePubKey,
+			NodeAddress:   "127.0.0.1",
+			LockedBalance: 10050000000000,
+			Poown: &model.ProofOfOwnership{
+				MessageBytes: poownMessageBytes,
+				Signature:    signature,
+			},
+		}
+		txBodyBytes := (&transaction.UpdateNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_UpdateNodeRegistrationTransactionBody{
+				UpdateNodeRegistrationTransactionBody: txBody,
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}

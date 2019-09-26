@@ -29,8 +29,8 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		nodereGistrations []*model.NodeRegistration
 	)
 
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
@@ -123,8 +123,7 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 		nodeRegistrations []*model.NodeRegistration
 	)
 	// check for duplication
-	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, dbTx, nodeArg...)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}

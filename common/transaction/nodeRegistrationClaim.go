@@ -31,8 +31,7 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 		prevNodeRegistration *model.NodeRegistration
 	)
 
-	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
@@ -126,8 +125,7 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	if tx.Body.AccountAddress == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
 	}
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress), dbTx)
 	if err != nil {
 		return err
 	}
@@ -137,8 +135,7 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAlreadyNodeOwner")
 	}
 
-	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	rows, err = tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
+	rows, err = tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}

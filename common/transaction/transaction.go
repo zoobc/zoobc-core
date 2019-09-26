@@ -89,6 +89,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
 			}, nil
 		case 2:
@@ -117,6 +119,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
 			}, nil
 		default:

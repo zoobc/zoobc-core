@@ -16,9 +16,9 @@ type (
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
-		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
-		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetNodeRegistrationByAccountAddress(accountAddress string) string
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string
 		GetNodeRegistrationsWithZeroScore(queued bool) string
 		GetNodeRegistryAtHeight(height uint32) string
@@ -106,9 +106,9 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string, 
 }
 
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
-func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
+func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey}
+		strings.Join(nr.Fields, ", "), nr.getTableName())
 }
 
 // GetLastVersionedNodeRegistrationByPublicKey returns query string to get Node Registration
@@ -120,9 +120,9 @@ func (nr *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(nod
 }
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
-func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %s AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress), []interface{}{accountAddress}
+func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = '%s' AND latest=1",
+		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress)
 }
 
 // GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance

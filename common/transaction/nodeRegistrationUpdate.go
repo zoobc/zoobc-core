@@ -34,8 +34,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		prevNodeRegistration *model.NodeRegistration
 	)
 	// get the latest noderegistration by owner (sender account)
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress), false)
 	if err != nil {
 		return err
 	}
@@ -116,8 +115,8 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
-		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
+		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
+			GetNodeRegistrationByAccountAddress(tx.SenderAddress), false)
 		if err != nil {
 			return err
 		}
@@ -180,8 +179,8 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check that sender is node's owner
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
+		GetNodeRegistrationByAccountAddress(tx.SenderAddress), dbTx)
 	if err != nil {
 		return err
 	}
@@ -203,10 +202,10 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	defer rows.Close()
 
 	// validate node public key, if we are updating that field
-	// note: node pub key must be not already registered
-	if len(tx.Body.NodePublicKey) > 0 {
-		qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
+	// note: node pub key must be not already registered for another node
+	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
+		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
+			GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 		if err != nil {
 			return err
 		}
@@ -224,8 +223,9 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 			return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
 		}
 
-		qry2, args2 := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err = tx.QueryExecutor.ExecuteSelect(qry2, dbTx, args2)
+		qry := tx.AccountBalanceQuery.
+			GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err = tx.QueryExecutor.ExecuteSelect(qry, dbTx)
 		if err != nil {
 			return err
 		} else if rows.Next() {

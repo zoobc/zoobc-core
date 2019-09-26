@@ -180,9 +180,8 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = ? AND latest = 1" {
+		"account_address = 'BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN' AND latest = 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountAddress",
 			"BlockHeight",
