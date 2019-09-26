@@ -82,7 +82,7 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			"height",
 		}).AddRow(
 			int64(10000),
-			nodePubKey1,
+			nodePubKey2,
 			senderAddress1,
 			uint32(1),
 			"10.10.10.10",
@@ -243,26 +243,26 @@ func (*mockExecutorValidateSuccessRU) ExecuteTransactions(queries [][]interface{
 
 func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
-	// txBodyInvalidPoown := &model.UpdateNodeRegistrationTransactionBody{
-	// 	Poown: poown,
-	// }
-	// txBodyWithoutPoown := &model.UpdateNodeRegistrationTransactionBody{}
-	// txBodyWithValidPoown := &model.UpdateNodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	NodePublicKey: nodePubKey1,
-	// }
-	// txBodyWithInvalidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	NodePublicKey: nodePubKey1,
-	// }
-	// txBodyWithValidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	NodePublicKey: nodePubKey2,
-	// }
-	// txBodyWithInvalidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	LockedBalance: int64(100),
-	// }
+	txBodyInvalidPoown := &model.UpdateNodeRegistrationTransactionBody{
+		Poown: poown,
+	}
+	txBodyWithoutPoown := &model.UpdateNodeRegistrationTransactionBody{}
+	txBodyWithValidPoown := &model.UpdateNodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+	}
+	txBodyWithInvalidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+	}
+	txBodyWithValidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey2,
+	}
+	txBodyWithInvalidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
+		Poown:         poown,
+		LockedBalance: int64(100),
+	}
 	txBodyWithLockedBalanceTooHigh := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		LockedBalance: int64(10000000000),
@@ -303,85 +303,85 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// {
-		// 	name: "Validate:fail-{PoownRequired}",
-		// 	fields: fields{
-		// 		Body: txBodyWithoutPoown,
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{InvalidPoown}",
-		// 	fields: fields{
-		// 		Body:      txBodyInvalidPoown,
-		// 		AuthPoown: &mockAuthPoown{success: false},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{executeSelectFail}",
-		// 	fields: fields{
-		// 		Body:                  txBodyWithValidPoown,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailExecuteSelectFailRU{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{SenderAccountNotNodeOwner}",
-		// 	fields: fields{
-		// 		Body:                  txBodyWithValidPoown,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailAccountNotNodeOwnerRU{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{UpdateNodePublicKey.NodeAlreadyRegistered}",
-		// 	fields: fields{
-		// 		Body:                  txBodyWithInvalidNodePubKey,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailNodeAlreadyRegisteredRU{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:success-{UpdateNodePublicKey}",
-		// 	fields: fields{
-		// 		Body:                  txBodyWithValidNodePubKey,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateSuccessUpdateNodePublicKeyRU{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: false,
-		// },
-		// {
-		// 	name: "Validate:fail-{UpdateLockedBalance.NewBalanceLowerThanPrevious}",
-		// 	fields: fields{
-		// 		Body:                  txBodyWithInvalidLockedBalance,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateSuccessRU{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
+		{
+			name: "Validate:fail-{PoownRequired}",
+			fields: fields{
+				Body: txBodyWithoutPoown,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{InvalidPoown}",
+			fields: fields{
+				Body:      txBodyInvalidPoown,
+				AuthPoown: &mockAuthPoown{success: false},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{executeSelectFail}",
+			fields: fields{
+				Body:                  txBodyWithValidPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailExecuteSelectFailRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{SenderAccountNotNodeOwner}",
+			fields: fields{
+				Body:                  txBodyWithValidPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailAccountNotNodeOwnerRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{UpdateNodePublicKey.NodeAlreadyRegistered}",
+			fields: fields{
+				Body:                  txBodyWithInvalidNodePubKey,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailNodeAlreadyRegisteredRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:success-{UpdateNodePublicKey}",
+			fields: fields{
+				Body:                  txBodyWithValidNodePubKey,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccessUpdateNodePublicKeyRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Validate:fail-{UpdateLockedBalance.NewBalanceLowerThanPrevious}",
+			fields: fields{
+				Body:                  txBodyWithInvalidLockedBalance,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccessRU{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
 		{
 			name: "Validate:fail-{UpdateLockedBalance.InsufficientAccountBalance}",
 			fields: fields{
