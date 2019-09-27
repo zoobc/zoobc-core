@@ -246,3 +246,41 @@ func ExampleMempoolQuery_Scan() {
 	// Output: <nil>
 
 }
+
+func TestMempoolQuery_DeleteExpiredMempoolTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		expiration int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockMempoolQuery),
+			args: args{
+				expiration: 1000,
+			},
+			want: "DELETE FROM mempool WHERE arrival_timestamp <= 1000",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mpq := &MempoolQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if got := mpq.DeleteExpiredMempoolTransactions(tt.args.expiration); got != tt.want {
+				t.Errorf("DeleteExpiredMempoolTransactions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
