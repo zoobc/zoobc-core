@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/observer"
@@ -60,7 +62,7 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	} else {
 		//TODO: default participation score is 10000 smaller than the old balance we used to use to smith
 		//      so we multiply it by 10000 for now, to keep the same ratio
-		generator.Score = big.NewInt(ps)
+		generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
 	}
 	if generator.Score.Sign() == 0 {
 		generator.SmithTime = 0
@@ -97,7 +99,8 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	timestamp := bp.Generator.GetTimestamp(smithMax)
 	if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
 		return blocker.NewBlocker(
-			blocker.SmithingErr, "verify seed return false")
+			blocker.SmithingErr, "verify seed return false",
+		)
 	}
 	stop := false
 	for { // start creating block
