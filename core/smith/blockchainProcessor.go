@@ -60,8 +60,6 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 		log.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
-		//TODO: default participation score is 10000 smaller than the old balance we used to use to smith
-		//      so we multiply it by 10000 for now, to keep the same ratio
 		generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
 	}
 	if generator.Score.Sign() == 0 {
