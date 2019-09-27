@@ -186,8 +186,8 @@ func (*NodeRegistrationQuery) ExtractModel(nr *model.NodeRegistration) []interfa
 func (nr *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration {
 	columns, _ := rows.Columns()
 	var (
-		ignoredAggregateColumns, basicFieldsReceiver []interface{}
-		dumpString                                   string
+		ignoredAggregateColumns []interface{}
+		dumpString              string
 	)
 	for i := 0; i < len(columns)-len(nr.Fields); i++ {
 		ignoredAggregateColumns = append(ignoredAggregateColumns, &dumpString)
@@ -195,6 +195,8 @@ func (nr *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegis
 
 	for rows.Next() {
 		var nr model.NodeRegistration
+		var basicFieldsReceiver []interface{}
+
 		basicFieldsReceiver = append(
 			basicFieldsReceiver,
 			&nr.NodeID,
