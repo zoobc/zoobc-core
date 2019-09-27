@@ -125,7 +125,8 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	if tx.Body.AccountAddress == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
 	}
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress), dbTx)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,8 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		prevNodeRegistration *model.NodeRegistration
 	)
 	// get the latest noderegistration by owner (sender account)
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress), false)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
 		return err
 	}
@@ -115,8 +116,8 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
-		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
-			GetNodeRegistrationByAccountAddress(tx.SenderAddress), false)
+		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args...)
 		if err != nil {
 			return err
 		}
@@ -179,8 +180,8 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check that sender is node's owner
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
-		GetNodeRegistrationByAccountAddress(tx.SenderAddress), dbTx)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
 		return err
 	}
@@ -223,11 +224,11 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 			return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
 		}
 
-		qry := tx.AccountBalanceQuery.
-			GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err = tx.QueryExecutor.ExecuteSelect(qry, dbTx)
+		// check balance
+		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		} else if rows.Next() {
 			_ = rows.Scan(
 				&accountBalance.AccountAddress,
@@ -239,6 +240,7 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 			)
 		}
 		defer rows.Close()
+
 		if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
 			return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 		}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -177,11 +178,36 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 	return db.Query("B")
 }
 
+func (*mockExecutorValidateSuccess) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
+		"account_address = '?' AND latest = 1" {
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"AccountAddress",
+			"BlockHeight",
+			"SpendableBalance",
+			"Balance",
+			"PopRevenue",
+			"Latest",
+		}).AddRow(
+			"BCZ",
+			1,
+			1000000,
+			1000000,
+			0,
+			true,
+		))
+		db.QueryRow(qe)
+	}
+	return nil
+}
+
 func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = 'BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN' AND latest = 1" {
+		"account_address = '?' AND latest = 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountAddress",
 			"BlockHeight",

@@ -122,7 +122,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = nrs.QueryExecutor.RollbackTx()
+			// no need to rollback here, since we already do it in ExecuteTransactions
 			return err
 		}
 	}

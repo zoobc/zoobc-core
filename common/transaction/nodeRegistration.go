@@ -143,7 +143,8 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check balance
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress), dbTx)
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
 		return err
 	} else if rows.Next() {

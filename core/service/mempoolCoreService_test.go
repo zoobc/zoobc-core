@@ -47,7 +47,7 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args .
 	case getTxByIDQuery:
 		return nil, errors.New("MempoolTransactionNotFound")
 	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
-		"WHERE account_address = 'BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE' AND latest = 1":
+		"WHERE account_address = '?' AND latest = 1":
 		mockedRows := sqlmock.NewRows([]string{"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"})
 		mockedRows.AddRow("BCZ", 1, 1000, 10000, nil, 1)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)

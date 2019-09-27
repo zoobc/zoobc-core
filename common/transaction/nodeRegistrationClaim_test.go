@@ -63,7 +63,7 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSele
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, latest, height "+
-		"FROM node_registry WHERE account_address = 'BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J' AND latest=1" {
+		"FROM node_registry WHERE account_address = '?' AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -167,7 +167,7 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, latest, height "+
-		"FROM node_registry WHERE account_address = 'BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J' AND latest=1" {
+		"FROM node_registry WHERE account_address = '?' AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
 	}
