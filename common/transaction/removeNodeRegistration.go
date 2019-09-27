@@ -38,9 +38,6 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	if len(nodereGistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
-	if err := tx.QueryExecutor.BeginTx(); err != nil {
-		return blocker.NewBlocker(blocker.DBErr, "TxNotInitiated")
-	}
 
 	prevNodeRegistration := nodereGistrations[0]
 	nodeRegistration := &model.NodeRegistration{
@@ -69,10 +66,6 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
-	}
-
-	if err := tx.QueryExecutor.CommitTx(); err != nil {
-		return blocker.NewBlocker(blocker.DBErr, "TxNotCommitted")
 	}
 
 	return nil

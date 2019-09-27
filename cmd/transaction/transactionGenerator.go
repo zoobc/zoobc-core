@@ -23,6 +23,7 @@ var (
 		"sendMoney":              {1, 0, 0, 0},
 		"registerNode":           {2, 0, 0, 0},
 		"updateNodeRegistration": {2, 1, 0, 0},
+		"removeNodeRegistration": {2, 2, 0, 0},
 		"claimNodeRegistration":  {2, 3, 0, 0},
 		"setupAccountDataset":    {3, 0, 0, 0},
 		"removeAccountDataset":   {3, 1, 0, 0},
@@ -199,6 +200,26 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_ClaimNodeRegistrationTransactionBody{
 				ClaimNodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"]):
+		txBody := &model.RemoveNodeRegistrationTransactionBody{
+			NodePublicKey: nodePubKey,
+		}
+		txBodyBytes := (&transaction.RemoveNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_RemoveNodeRegistrationTransactionBody{
+				RemoveNodeRegistrationTransactionBody: txBody,
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}
