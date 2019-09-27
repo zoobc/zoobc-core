@@ -150,7 +150,7 @@ func initP2pInstance() {
 	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// peer discovery strategy
-	peerExplorer = strategy.NewNativeStrategy(
+	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
 	)
