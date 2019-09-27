@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -284,7 +285,16 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 	)
+
+	go func() {
+		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
+		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
 	mainchainSynchronizer.Start(mainchainSyncChannel)
+
 }
 
 func main() {
@@ -306,4 +316,6 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything
 	<-sigs
+	log.Error("ZOOBC Shutdown")
+	os.Exit(0)
 }
