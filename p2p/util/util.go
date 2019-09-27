@@ -3,10 +3,11 @@ package util
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -70,6 +71,11 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
+}
+
+// GetFullAddress to get full address based on address and port
+func GetFullAddress(address string, port uint32) string {
+	return address + ":" + strconv.Itoa(int(port))
 }
 
 func ServerListener(port int) net.Listener {

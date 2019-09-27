@@ -9,4 +9,7 @@ const (
 	// transaction listener event
 	TransactionAdded    Event = "TransactionEvent.TransactionAdded"
 	TransactionReceived Event = "TransactionEvent.TransactionReceived"
+
+	// Peer to Peer listener event
+	P2PNotifyPeerExplorer Event = "P2PEvent.NotifyPeerExplorer"
 )
