@@ -50,7 +50,8 @@ func CalculateSmithScale(
 	blockQuery query.BlockQueryInterface,
 	executor query.ExecutorInterface,
 ) *model.Block {
-	if block.Height < constant.AverageSmithingBlockHeight {
+	switch {
+	case block.Height < constant.AverageSmithingBlockHeight:
 		prevSmithScale := previousBlock.GetSmithScale()
 		smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
 		block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingPeriod)).Int64()
@@ -70,7 +71,7 @@ func CalculateSmithScale(
 		if big.NewInt(block.GetSmithScale()).Cmp(twoFoldCurSmithScale) > 0 {
 			block.SmithScale = twoFoldCurSmithScale.Int64()
 		}
-	} else if block.Height%2 == 0 {
+	case block.Height%2 == 0:
 		var prev2Block model.Block
 		prev2BlockQ := blockQuery.GetBlockByHeight(previousBlock.Height - 2)
 		row := executor.ExecuteSelectRow(prev2BlockQ)
@@ -100,10 +101,9 @@ func CalculateSmithScale(
 		if block.SmithScale < constant.MinSmithScale {
 			block.SmithScale = constant.MinSmithScale
 		}
-	} else {
+	default:
 		block.SmithScale = previousBlock.GetSmithScale()
 	}
-
 	two64, _ := new(big.Int).SetString(constant.Two64, 0)
 	previousBlockCumulativeDifficulty, _ := new(big.Int).SetString(previousBlock.GetCumulativeDifficulty(), 10)
 	block.CumulativeDifficulty = new(big.Int).Add(
