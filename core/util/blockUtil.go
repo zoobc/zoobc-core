@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"math/big"
 
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
@@ -28,16 +30,7 @@ func GetBlockSeed(publicKey []byte, block *model.Block, secretPhrase string) (*b
 	payload.Write(previousSeedHash)
 	signature := (&crypto.Signature{}).SignByNode(payload.Bytes(), secretPhrase)
 	seed := sha3.Sum256(signature)
-	return new(big.Int).SetBytes([]byte{
-		seed[7],
-		seed[6],
-		seed[5],
-		seed[4],
-		seed[3],
-		seed[2],
-		seed[1],
-		seed[0],
-	}), nil
+	return new(big.Int).SetBytes(seed[:8]), nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith
@@ -51,26 +44,64 @@ func GetSmithTime(score, seed *big.Int, block *model.Block) int64 {
 }
 
 // CalculateSmithScale base target of block and return modified block
-func CalculateSmithScale(previousBlock, block *model.Block, smithingDelayTime int64) *model.Block {
-	prevSmithScale := previousBlock.GetSmithScale()
-	smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
-	block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingDelayTime)).Int64()
-	if big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(0)) < 0 || big.NewInt(block.GetSmithScale()).Cmp(
-		big.NewInt(constant.MaxSmithScale)) > 0 {
-		block.SmithScale = constant.MaxSmithScale
-	}
-	if big.NewInt(block.GetSmithScale()).Cmp(new(big.Int).Div(big.NewInt(prevSmithScale), big.NewInt(2))) < 0 {
-		block.SmithScale = prevSmithScale / 2
-	}
-	if big.NewInt(block.GetSmithScale()).Cmp(big.NewInt(0)) == 0 {
-		block.SmithScale = 1
-	}
-	twoFoldCurSmithScale := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(2))
-	if twoFoldCurSmithScale.Cmp(big.NewInt(0)) < 0 {
-		twoFoldCurSmithScale = big.NewInt(constant.MaxSmithScale)
-	}
-	if big.NewInt(block.GetSmithScale()).Cmp(twoFoldCurSmithScale) > 0 {
-		block.SmithScale = twoFoldCurSmithScale.Int64()
+func CalculateSmithScale(
+	previousBlock, block *model.Block,
+	smithingPeriod int64,
+	blockQuery query.BlockQueryInterface,
+	executor query.ExecutorInterface,
+) *model.Block {
+	if block.Height < constant.AverageSmithingBlockHeight {
+		prevSmithScale := previousBlock.GetSmithScale()
+		smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
+		block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingPeriod)).Int64()
+		if block.GetSmithScale() < 0 || block.GetSmithScale() > constant.MaxSmithScale {
+			block.SmithScale = constant.MaxSmithScale
+		}
+		if block.GetSmithScale() < prevSmithScale/2 {
+			block.SmithScale = prevSmithScale / 2
+		}
+		if block.GetSmithScale() == 0 {
+			block.SmithScale = 1
+		}
+		twoFoldCurSmithScale := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(2))
+		if twoFoldCurSmithScale.Cmp(big.NewInt(0)) < 0 {
+			twoFoldCurSmithScale = big.NewInt(constant.MaxSmithScale)
+		}
+		if big.NewInt(block.GetSmithScale()).Cmp(twoFoldCurSmithScale) > 0 {
+			block.SmithScale = twoFoldCurSmithScale.Int64()
+		}
+	} else if block.Height%2 == 0 {
+		var prev2Block model.Block
+		prev2BlockQ := blockQuery.GetBlockByHeight(previousBlock.Height - 2)
+		row := executor.ExecuteSelectRow(prev2BlockQ)
+		err := blockQuery.Scan(&prev2Block, row)
+		if err != nil {
+			return nil
+		}
+		blockTimeAverage := (block.Timestamp - prev2Block.Timestamp) / 3
+		if blockTimeAverage > smithingPeriod {
+			if blockTimeAverage < constant.MaximumBlocktimeLimit {
+				block.SmithScale = (previousBlock.SmithScale * blockTimeAverage) / smithingPeriod
+			} else {
+				block.SmithScale = (previousBlock.SmithScale * constant.MaximumBlocktimeLimit) / smithingPeriod
+			}
+		} else {
+			if blockTimeAverage > constant.MinimumBlocktimeLimit {
+				block.SmithScale = previousBlock.SmithScale - previousBlock.SmithScale*constant.SmithscaleGamma*
+					(smithingPeriod-blockTimeAverage)/(100*smithingPeriod)
+			} else {
+				block.SmithScale = previousBlock.SmithScale - previousBlock.SmithScale*constant.SmithscaleGamma*
+					(smithingPeriod-constant.MinimumBlocktimeLimit)/(100*smithingPeriod)
+			}
+		}
+		if block.SmithScale < 0 || block.SmithScale > constant.MaxSmithScale2 {
+			block.SmithScale = constant.MaxSmithScale2
+		}
+		if block.SmithScale < constant.MinSmithScale {
+			block.SmithScale = constant.MinSmithScale
+		}
+	} else {
+		block.SmithScale = previousBlock.GetSmithScale()
 	}
 
 	two64, _ := new(big.Int).SetString(constant.Two64, 0)
