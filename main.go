@@ -153,6 +153,8 @@ func initP2pInstance() {
 	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
@@ -167,6 +169,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.P2PNotifyPeerExplorer, peerExplorer.PeerExploerListener())
 
 }
 

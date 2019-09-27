@@ -17,4 +17,10 @@ const (
 	ConnectPriorityPeersGap uint = 60
 	// NumberOfPriorityPeersToBeAdded how many priority peers we want to add at once
 	NumberOfPriorityPeersToBeAdded int = 10
+	// PriorityStrategyBuildScrumbleNodesGap, interval of scrumble thread to build scrumble node (in block height)
+	PriorityStrategyBuildScrumbleNodesGap uint32 = 2
+	// PriorityStrategyMaxScrumbleNodes, max node registry in scrumble nodes
+	PriorityStrategyMaxScrumbleNodes = 5
+	// PriorityStrategyMaxPriorityPeers, max priority peers will have
+	PriorityStrategyMaxPriorityPeers = 10
 )

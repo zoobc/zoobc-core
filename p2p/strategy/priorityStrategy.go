@@ -2,41 +2,64 @@ package strategy
 
 import (
 	"errors"
+	"math/big"
 	"os"
 	"os/signal"
+	"sort"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/client"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
+type PriorityPeers struct {
+	// MainPriority, a list peers should connect
+	MainPriority map[string]*model.Peer
+	// MutualPriority, a list peers that a host node become main priority peers in other nodes
+	MutualPriority map[string]*model.Peer
+}
+
 // PriorityStrategy represent data service node as server
 type PriorityStrategy struct {
-	Host                 *model.Host
-	PeerServiceClient    client.PeerServiceClientInterface
-	ResolvedPeersLock    sync.RWMutex
-	UnresolvedPeersLock  sync.RWMutex
-	BlacklistedPeersLock sync.RWMutex
-	MaxUnresolvedPeers   int32
-	MaxResolvedPeers     int32
+	Host                  *model.Host
+	PeerServiceClient     client.PeerServiceClientInterface
+	QueryExecutor         query.ExecutorInterface
+	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	PriorityPeers         PriorityPeers
+	PriorityPeersLock     sync.RWMutex
+	ResolvedPeersLock     sync.RWMutex
+	UnresolvedPeersLock   sync.RWMutex
+	BlacklistedPeersLock  sync.RWMutex
+	MaxUnresolvedPeers    int32
+	MaxResolvedPeers      int32
 }
 
 func NewPriorityStrategy(
 	host *model.Host,
 	peerServiceClient client.PeerServiceClientInterface,
+	queryExecutor query.ExecutorInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
-		Host:               host,
-		PeerServiceClient:  peerServiceClient,
-		MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
-		MaxResolvedPeers:   constant.MaxResolvedPeers,
+		Host:              host,
+		PeerServiceClient: peerServiceClient,
+		QueryExecutor:     queryExecutor,
+		PriorityPeers: PriorityPeers{
+			MainPriority:   make(map[string]*model.Peer),
+			MutualPriority: make(map[string]*model.Peer),
+		},
+		NodeRegistrationQuery: nodeRegistrationQuery,
+		MaxUnresolvedPeers:    constant.MaxUnresolvedPeers,
+		MaxResolvedPeers:      constant.MaxResolvedPeers,
 	}
 }
 
@@ -111,24 +134,159 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	}
 }
 
-// Mock function to return priority peers in a current state
-// This function should be changed with the scrambled node registry
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
-	// TODO: change this implementation once we have the priority list
-	mockPriorityPeers := make(map[string]*model.Peer)
-	mockPriorityPeers["127.0.0.1:8005"] = &model.Peer{
-		Info: &model.Node{
-			Address: "127.0.0.1",
-			Port:    8005,
+	// Locking write, allowing read
+	ps.PriorityPeersLock.RLock()
+	defer ps.PriorityPeersLock.RUnlock()
+
+	var priorityPeers = make(map[string]*model.Peer)
+	for key, priorityPeer := range ps.PriorityPeers.MainPriority {
+		priorityPeers[key] = priorityPeer
+	}
+	return priorityPeers
+}
+
+func (ps *PriorityStrategy) PeerExploerListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(block interface{}, args interface{}) {
+			go ps.BuildScrumbleNodes(block.(*model.Block))
 		},
 	}
-	mockPriorityPeers["127.0.0.1:8006"] = &model.Peer{
-		Info: &model.Node{
-			Address: "127.0.0.1",
-			Port:    8006,
-		},
+}
+
+// BuildScrumbleNodes,  sort node registry to build scrumble nodes
+func (ps *PriorityStrategy) BuildScrumbleNodes(block *model.Block) {
+	// Check it's time to bild scrumble node or not
+	if block.GetHeight()%constant.PriorityStrategyBuildScrumbleNodesGap == 0 {
+		var nodeRegistries []*model.NodeRegistration
+
+		// get node registry list
+		rows, err := ps.QueryExecutor.ExecuteSelect(
+			ps.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
+			false,
+		)
+		if err != nil {
+			// TODO: catching err into log file
+			return
+		}
+		nodeRegistries = ps.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
+
+		// sort node registry
+		sort.SliceStable(nodeRegistries, func(i, j int) bool {
+			ni, nj := nodeRegistries[i], nodeRegistries[j]
+			// bs, Last 8 bytes of block seed hash in big int
+			bs := new(big.Int).SetBytes(block.GetBlockSeed()).Int64()
+			// Node public key in big int
+			nodePKi := new(big.Int).SetBytes(ni.GetNodePublicKey())
+			nodePKj := new(big.Int).SetBytes(nj.GetNodePublicKey())
+			//  Last 8 bytes Public Key of Node Registry   XOR   Last 8 bytes Block Seed
+			resI := new(big.Int).SetInt64(nodePKi.Int64() ^ bs)
+			resJ := new(big.Int).SetInt64(nodePKj.Int64() ^ bs)
+
+			res := resI.Cmp(resJ)
+			if res == 0 {
+				// Compare node public key
+				res = nodePKi.Cmp(nodePKj)
+			}
+			// Ascending sort
+			return res < 0
+		})
+
+		// Only select sorted node registry until max scrumble nodes
+		if len(nodeRegistries) > constant.PriorityStrategyMaxScrumbleNodes {
+			nodeRegistries = nodeRegistries[:constant.PriorityStrategyMaxScrumbleNodes]
+		}
+		ps.CollectPriorityPeers(nodeRegistries)
 	}
-	return mockPriorityPeers
+}
+
+// CollectPriorityPeers, collect new priority peers from scrumbled score nodes
+func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegistration) {
+	var (
+		hostPotition           int
+		newPriorityPeers       = make(map[string]*model.Peer)
+		newMutualPriorityPeers = make(map[string]*model.Peer)
+		isInScrumbleNodes      = false
+		hostFullAddress        = p2pUtil.GetFullAddressPeer(
+			&model.Peer{
+				Info: ps.Host.GetInfo(),
+			},
+		)
+	)
+	for potition, node := range scrumbleNodes {
+		// TODO: Adding port of node address in node registry ??
+		if hostFullAddress == p2pUtil.GetFullAddress(node.GetNodeAddress(), 8001) {
+			isInScrumbleNodes = true
+			hostPotition = potition
+			break
+		}
+	}
+
+	if isInScrumbleNodes {
+		var (
+			addedPotition       = 1
+			mainPeersPotition   int
+			mainResetPotiton    int
+			mutualPeersPotition int
+			mutualResetPotition = len(scrumbleNodes) - 1
+		)
+		/*
+			Find Peers Priority
+			For now priority peers is next node after host postition until max priotity peers
+		*/
+		for addedPotition <= constant.PriorityStrategyMaxPriorityPeers {
+			// Get main peers potition
+			if (hostPotition + addedPotition) < len(scrumbleNodes) {
+				mainPeersPotition = hostPotition + addedPotition
+			} else {
+				if mainResetPotiton != hostPotition {
+					mainPeersPotition = mainResetPotiton
+				}
+				mainResetPotiton++
+			}
+
+			// Get mutual peers potition
+			if (hostPotition - addedPotition) >= 0 {
+				mutualPeersPotition = hostPotition - addedPotition
+			} else {
+				if mutualPeersPotition == 0 {
+					mutualResetPotition = len(scrumbleNodes)
+					mutualPeersPotition = len(scrumbleNodes) - 1
+				} else {
+					mutualPeersPotition = mutualResetPotition
+				}
+				mutualResetPotition--
+			}
+
+			newPriorityPeer := &model.Peer{
+				Info: &model.Node{
+					Address: scrumbleNodes[mainPeersPotition].GetNodeAddress(),
+					// TODO: Adding Port of node address in node registry ??
+					Port: 8001,
+				},
+			}
+			newMutualPeer := &model.Peer{
+				Info: &model.Node{
+					Address: scrumbleNodes[mutualPeersPotition].GetNodeAddress(),
+					// TODO: Adding Port of node address in node registry ??
+					Port: 8001,
+				},
+			}
+			newPriorityPeers[p2pUtil.GetFullAddressPeer(newPriorityPeer)] = newPriorityPeer
+			newMutualPriorityPeers[p2pUtil.GetFullAddressPeer(newMutualPeer)] = newMutualPeer
+
+			if mainResetPotiton == len(scrumbleNodes) {
+				break
+			}
+			addedPotition++
+		}
+	}
+
+	// save new priority peers
+	ps.PriorityPeersLock.Lock()
+	ps.PriorityPeers.MainPriority = newPriorityPeers
+	ps.PriorityPeers.MutualPriority = newMutualPriorityPeers
+	ps.PriorityPeersLock.Unlock()
 }
 
 // ============================================

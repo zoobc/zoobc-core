@@ -5,7 +5,10 @@ strategy package includes different peer to peer management strategy that we'll 
 in zoobc.
 */
 
-import "github.com/zoobc/zoobc-core/common/model"
+import (
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/observer"
+)
 
 type (
 	PeerExplorerStrategyInterface interface {
@@ -19,5 +22,6 @@ type (
 		GetBlacklistedPeers() map[string]*model.Peer
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
+		PeerExploerListener() observer.Listener
 	}
 )
