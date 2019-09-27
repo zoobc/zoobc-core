@@ -23,6 +23,7 @@ var (
 		"sendMoney":              {1, 0, 0, 0},
 		"registerNode":           {2, 0, 0, 0},
 		"updateNodeRegistration": {2, 1, 0, 0},
+		"claimNodeRegistration":  {2, 3, 0, 0},
 		"setupAccountDataset":    {3, 0, 0, 0},
 		"removeAccountDataset":   {3, 1, 0, 0},
 	}
@@ -73,6 +74,8 @@ func getTransaction(txType []byte) *model.Transaction {
 	log.Printf("%s", senderAccountAddress)
 	recipientAccountSeed := "witch collapse practice feed shame open despair creek road again ice least"
 	recipientAccountAddress := util.GetAddressFromSeed(recipientAccountSeed)
+	account2Seed := "rocket inflict forest able frozen expose mail exit early permit dial retire"
+	account2Address := util.GetAddressFromSeed(account2Seed)
 	switch util.ConvertBytesToUint32(txType) {
 	case util.ConvertBytesToUint32(txTypeMap["sendMoney"]):
 		amount := 50 * constant.OneZBC
@@ -161,6 +164,41 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_UpdateNodeRegistrationTransactionBody{
 				UpdateNodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["claimNodeRegistration"]):
+		poowMessage := &model.ProofOfOwnershipMessage{
+			AccountAddress: recipientAccountAddress,
+			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
+				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
+			BlockHeight: 1,
+		}
+		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
+		signature := (&crypto.Signature{}).SignByNode(
+			poownMessageBytes,
+			nodeSeed)
+		txBody := &model.ClaimNodeRegistrationTransactionBody{
+			AccountAddress: account2Address,
+			NodePublicKey:  nodePubKey,
+			Poown: &model.ProofOfOwnership{
+				MessageBytes: poownMessageBytes,
+				Signature:    signature,
+			},
+		}
+		txBodyBytes := (&transaction.ClaimNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["claimNodeRegistration"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_ClaimNodeRegistrationTransactionBody{
+				ClaimNodeRegistrationTransactionBody: txBody,
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}
