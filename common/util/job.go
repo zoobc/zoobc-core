@@ -22,7 +22,6 @@ func NewScheduler(period time.Duration) *Scheduler {
 // AddJob task runner repeatably in some period time
 func (s *Scheduler) AddJob(fn interface{}, args ...interface{}) error {
 
-	fmt.Print("Job Added")
 	f := reflect.ValueOf(fn)
 	if f.Kind() != reflect.Func {
 		return fmt.Errorf("the fn is not function")
