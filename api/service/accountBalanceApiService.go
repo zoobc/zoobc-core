@@ -1,7 +1,8 @@
 package service
 
 import (
-	"errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -35,13 +36,13 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 	rows, err := abs.Executor.ExecuteSelect(accountBalanceQuery, false, arg)
 
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	accountBalances = abs.AccountBalanceQuery.BuildModel(accountBalances, rows)
 
 	if len(accountBalances) == 0 {
-		return nil, errors.New("error: account not found")
+		return nil, status.Error(codes.NotFound, "account not found")
 	}
 
 	return &model.GetAccountBalanceResponse{
