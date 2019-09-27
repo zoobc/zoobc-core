@@ -25,8 +25,10 @@ type (
 	}
 )
 
-var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
-	"recipient_account_address FROM mempool WHERE id = :id"
+var (
+	getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
+		"recipient_account_address FROM mempool WHERE id = :id"
+)
 
 // var getAccountB
 
@@ -625,6 +627,70 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			}
 			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.ValidateMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockQueryExecutorDeleteExpiredMempoolTransactions struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) BeginTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) CommitTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(query string, args ...interface{}) error {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectPrepare("").
+		ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	_, _ = db.Exec("")
+	return nil
+}
+
+func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
+				MempoolQuery:  query.NewMempoolQuery(chaintype.GetChainType(0)),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+			}
+			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
+				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

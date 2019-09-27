@@ -31,11 +31,11 @@ type (
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
 		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
 		ReceivedTransaction(
-			senderPublicKey,
-			receivedTxBytes []byte,
+			senderPublicKey, receivedTxBytes []byte,
 			lastBlock *model.Block,
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
+		DeleteExpiredMempoolTransactions() error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -328,4 +328,30 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 			return mi.ID < mj.ID
 		}
 	})
+}
+
+// PruneMempoolTransactions handle fresh clean the mempool
+// which is the mempool transaction has been hit expiration time
+func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
+
+	var (
+		expirationTime = time.Now().Add(constant.MempoolExpiration).Unix()
+		qStr           = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
+		err            error
+	)
+
+	err = mps.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = mps.QueryExecutor.ExecuteTransaction(qStr)
+	if err != nil {
+		return err
+	}
+	err = mps.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
