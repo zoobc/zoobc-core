@@ -73,9 +73,6 @@ run:
 
 issues:
   exclude-rules:
-    - text: "put a space between `//`"
-      linters:
-        - gocritic
     - text: "unnecessary trailing newline"
       linters:
         - whitespace
