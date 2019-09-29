@@ -336,10 +336,35 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 
 	var (
 		expirationTime = time.Now().Add(constant.MempoolExpiration).Unix()
-		qStr           = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
+		selectQ, qStr  string
 		err            error
+		mempools       []*model.MempoolTransaction
 	)
 
+	selectQ = mps.MempoolQuery.GetExpiredMempoolTransactions(expirationTime)
+	rows, err := mps.QueryExecutor.ExecuteSelect(selectQ, false)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	mempools = mps.MempoolQuery.BuildModel(mempools, rows)
+	for _, m := range mempools {
+		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
+		if err != nil {
+			return err
+		}
+		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return err
+		}
+		err = action.UndoApplyUnconfirmed()
+		if err != nil {
+			return err
+		}
+	}
+
+	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
