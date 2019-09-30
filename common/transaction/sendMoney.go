@@ -195,3 +195,9 @@ func (tx *SendMoney) GetBodyBytes() []byte {
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
 	return buffer.Bytes()
 }
+
+func (tx *SendMoney) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
+		SendMoneyTransactionBody: tx.Body,
+	}
+}
