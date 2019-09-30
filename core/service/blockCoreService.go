@@ -674,70 +674,71 @@ func (bs *BlockService) ReceiveBlock(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
-	if block.GetPreviousBlockHash() != nil {
-		blockUnsignedByte, _ := util.GetBlockByte(block, false)
-		if bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
-			lastBlockByte, err := util.GetBlockByte(lastBlock, true)
-			if err != nil {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr,
-					"fail to get last block byte",
-				)
-			}
-			lastBlockHash := sha3.Sum256(lastBlockByte)
-
-			//  check equality last block hash with previous block hash from received block
-			if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr,
-					"previous block hash does not match with last block hash",
-				)
-			}
-			// check if the block broadcaster is the valid blocksmith
-			index := -1 // use index to determine if is in list, and who to punish
-			for i, bs := range *bs.SortedBlocksmiths {
-				if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
-					index = i
-					break
-				}
-			}
-			if index < 0 {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr, "invalid blocksmith")
-			}
-			// base on index we can calculate punishment and reward
-			err = bs.PushBlock(lastBlock, block, true, true)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
-			}
-			// generate receipt and return as response
-			// todo: lastblock last applied block, or incoming block?
-			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-			blockHash, _ := util.GetBlockHash(block)
-			batchReceipt, err := util.GenerateBatchReceipt(
-				lastBlock,
-				senderPublicKey,
-				nodePublicKey,
-				blockHash,
-				constant.ReceiptDatumTypeBlock,
-			)
-			if err != nil {
-				return nil, err
-			}
-			batchReceipt.RecipientSignature = bs.Signature.SignByNode(
-				util.GetUnsignedBatchReceiptBytes(batchReceipt),
-				nodeSecretPhrase,
-			)
-			return batchReceipt, nil
-		}
+	if block.GetPreviousBlockHash() == nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			"last block hash does not exist",
+		)
+	}
+	lastBlockByte, err := util.GetBlockByte(lastBlock, true)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			"fail to get last block byte",
+		)
+	}
+	lastBlockHash := sha3.Sum256(lastBlockByte)
+	//  check equality last block hash with previous block hash from received block
+	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			"previous block hash does not match with last block hash",
+		)
+	}
+	// check signature of the incoming block
+	blockUnsignedByte, _ := util.GetBlockByte(block, false)
+	if !bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
 		return nil, blocker.NewBlocker(
 			blocker.ValidationErr,
 			"block signature invalid")
 	}
-	return nil, blocker.NewBlocker(
-		blocker.BlockErr,
-		"last block hash does not exist",
+	// check if the block broadcaster is the valid blocksmith
+	index := -1 // use index to determine if is in list, and who to punish
+	for i, bs := range *bs.SortedBlocksmiths {
+		if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr, "invalid blocksmith")
+	}
+	// base on index we can calculate punishment and reward
+	err = bs.PushBlock(lastBlock, block, true, true)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
+	}
+	// generate receipt and return as response
+	// todo: lastblock last applied block, or incoming block?
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	blockHash, _ := util.GetBlockHash(block)
+	batchReceipt, err := util.GenerateBatchReceipt(
+		lastBlock,
+		senderPublicKey,
+		nodePublicKey,
+		blockHash,
+		constant.ReceiptDatumTypeBlock,
 	)
+	if err != nil {
+		return nil, err
+	}
+	batchReceipt.RecipientSignature = bs.Signature.SignByNode(
+		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		nodeSecretPhrase,
+	)
+	// store the generated batch receipt hash
+	return batchReceipt, nil
 }
 
 // GetParticipationScore handle received block from another node
