@@ -335,7 +335,7 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 
 	var (
-		expirationTime = time.Now().Add(constant.MempoolExpiration).Unix()
+		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
 		selectQ, qStr  string
 		err            error
 		mempools       []*model.MempoolTransaction
@@ -371,6 +371,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	}
 	err = mps.QueryExecutor.ExecuteTransaction(qStr)
 	if err != nil {
+		_ = mps.QueryExecutor.RollbackTx()
 		return err
 	}
 	err = mps.QueryExecutor.CommitTx()
