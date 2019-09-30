@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -70,7 +72,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                  tx.GetHeight(),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				AuthPoown:               &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:           ts.Executor,
 			}, nil
 		case 1:
@@ -85,6 +89,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
 			}, nil
 		case 2:
@@ -113,6 +119,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
 			}, nil
 		default:
