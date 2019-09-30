@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -56,7 +57,8 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		GetCoinbase() int64
-		RewardBlocksmithAccountAddress(blocksmithAccountAddress string, totalReward int64, height uint32, includeInTx bool) error
+		CoinbaseLotteryWinners() ([]string, error)
+		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32, includeInTx bool) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
@@ -344,18 +346,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
-	// accrue block rewards (totalFees + totalCoinbase) to blocksmith account address
 	if block.Height > 0 {
-		blocksmithAccountAddress, err := bs.GetBlocksmithAccountAddress(block)
+		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
+		totalReward := block.TotalFee + block.TotalCoinBase
+		lotteryAccounts, err := bs.CoinbaseLotteryWinners()
 		if err != nil {
 			return err
 		}
-
-		//TODO: next step is to change this by using the revised algorithm that includes:
-		// - selecting multiple account to be rewarded (split the total coinbase between them)
-		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
-		totalReward := block.TotalFee + block.TotalCoinBase
-		if err := bs.RewardBlocksmithAccountAddress(blocksmithAccountAddress, totalReward, block.Height, true); err != nil {
+		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height, true); err != nil {
 			return err
 		}
 	}
@@ -373,20 +371,69 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	return nil
 }
 
-// RewardBlocksmithAccountAddress accrue the block total fees + total coinbase to the blocksmith account
-func (bs *BlockService) RewardBlocksmithAccountAddress(
-	blocksmithAccountAddress string,
+func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
+	var (
+		nr []*model.NodeRegistration
+	)
+	// copy the pointer array to not change original order
+	blocksmiths := make([]model.Blocksmith, len(*bs.SortedBlocksmiths))
+	copy(blocksmiths, *bs.SortedBlocksmiths)
+
+	// sort blocksmiths by NodeOrder
+	sort.SliceStable(blocksmiths, func(i, j int) bool {
+		bi, bj := blocksmiths[i], blocksmiths[j]
+		res := bi.NodeOrder.Cmp(bj.NodeOrder)
+		if res == 0 {
+			// compare node ID
+			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
+			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
+			res = nodePKI.Cmp(nodePKJ)
+		}
+		// ascending sort
+		return res < 0
+	})
+
+	selectedAccounts := []string{}
+	for idx, sortedBlockSmith := range blocksmiths {
+		if idx > constant.MaxNumBlocksmithRewards-1 {
+			break
+		}
+		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+		qry, args := bs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
+		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		defer rows.Close()
+
+		nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+		if len(nr) == 0 {
+			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
+		}
+		selectedAccounts = append(selectedAccounts, nr[0].AccountAddress)
+	}
+	return selectedAccounts, nil
+}
+
+// RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
+func (bs *BlockService) RewardBlocksmithAccountAddresses(
+	blocksmithAccountAddresses []string,
 	totalReward int64,
 	height uint32,
 	includeInTx bool) error {
-	accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
-		totalReward,
-		map[string]interface{}{
-			"account_address": blocksmithAccountAddress,
-			"block_height":    height,
-		},
-	)
-	if err := bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ); err != nil {
+	queries := make([][]interface{}, 0)
+	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
+	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
+		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
+			blocksmithReward,
+			map[string]interface{}{
+				"account_address": blocksmithAccountAddress,
+				"block_height":    height,
+			},
+		)
+		queries = append(queries, accountBalanceRecipientQ...)
+	}
+	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 		if includeInTx {
 			_ = bs.QueryExecutor.RollbackTx()
 		}

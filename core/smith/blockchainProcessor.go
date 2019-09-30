@@ -146,23 +146,23 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksm
 			if err != nil {
 				return
 			}
+			// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
+			blockSeed := new(big.Int).SetBytes(lastBlock.BlockSeed)
 			for _, blocksmith := range activeBlocksmiths {
-				if blocksmith.Score.Cmp(big.NewInt(0)) > 0 {
-					blocksmiths = append(blocksmiths, *blocksmith)
-				}
+				nodePK := new(big.Int).SetUint64(uint64(blocksmith.NodeID))
+				rndNodePK := nodePK.Int64() ^ blockSeed.Int64()
+				blocksmith.SmithOrder = new(big.Int).Mul(blocksmith.Score, new(big.Int).SetInt64(rndNodePK))
+				blocksmith.NodeOrder = new(big.Int).Div(new(big.Int).SetInt64(rndNodePK), blocksmith.Score)
+				blocksmiths = append(blocksmiths, *blocksmith)
 			}
-			// sort blocksmiths
+			// sort blocksmiths by SmithOrder
 			sort.SliceStable(blocksmiths, func(i, j int) bool {
 				bi, bj := blocksmiths[i], blocksmiths[j]
-				nodePKI := new(big.Int).SetBytes(bi.NodePublicKey)
-				nodePKJ := new(big.Int).SetBytes(bj.NodePublicKey)
-				resI := new(big.Int).Mul(bi.Score, new(big.Int).SetInt64(
-					nodePKI.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
-				resJ := new(big.Int).Mul(bj.Score, new(big.Int).SetInt64(
-					nodePKJ.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
-				res := resI.Cmp(resJ)
+				res := bi.SmithOrder.Cmp(bj.SmithOrder)
 				if res == 0 {
-					// compare node public key
+					// compare node ID
+					nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
+					nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
 					res = nodePKI.Cmp(nodePKJ)
 				}
 				// ascending sort

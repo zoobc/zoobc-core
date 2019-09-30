@@ -102,6 +102,7 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 		bProcessor := NewBlockchainProcessor(
 			&chaintype.MainChain{},
 			&model.Blocksmith{
+				NodeID:        0,
 				NodePublicKey: nil,
 				Score:         nil,
 				SmithTime:     0,
@@ -159,6 +160,7 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 		bProcessor := NewBlockchainProcessor(
 			&chaintype.MainChain{},
 			&model.Blocksmith{
+				NodeID:        0,
 				NodePublicKey: nil,
 				Score:         nil,
 				SmithTime:     0,
