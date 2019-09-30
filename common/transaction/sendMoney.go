@@ -137,10 +137,10 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, dbTx, senderArg)
+		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		} else if rows.Next() {
 			_ = rows.Scan(
 				&accountBalance.AccountAddress,
