@@ -149,15 +149,15 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 func (ps *PriorityStrategy) PeerExploerListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args interface{}) {
-			go ps.BuildScrumbleNodes(block.(*model.Block))
+			go ps.BuildScrambleNodes(block.(*model.Block))
 		},
 	}
 }
 
-// BuildScrumbleNodes,  sort node registry to build scrumble nodes
-func (ps *PriorityStrategy) BuildScrumbleNodes(block *model.Block) {
-	// Check it's time to bild scrumble node or not
-	if block.GetHeight()%constant.PriorityStrategyBuildScrumbleNodesGap == 0 {
+// BuildScrambleNodes,  sort node registry to build scramble nodes
+func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
+	// Check it's time to bild scramble node or not
+	if block.GetHeight()%constant.PriorityStrategyBuildScrambleNodesGap == 0 {
 		var nodeRegistries []*model.NodeRegistration
 
 		// get node registry list
@@ -192,43 +192,43 @@ func (ps *PriorityStrategy) BuildScrumbleNodes(block *model.Block) {
 			return res < 0
 		})
 
-		// Only select sorted node registry until max scrumble nodes
-		if len(nodeRegistries) > constant.PriorityStrategyMaxScrumbleNodes {
-			nodeRegistries = nodeRegistries[:constant.PriorityStrategyMaxScrumbleNodes]
+		// Only select sorted node registry until max scramble nodes
+		if len(nodeRegistries) > constant.PriorityStrategyMaxScrambleNodes {
+			nodeRegistries = nodeRegistries[:constant.PriorityStrategyMaxScrambleNodes]
 		}
 		ps.CollectPriorityPeers(nodeRegistries)
 	}
 }
 
-// CollectPriorityPeers, collect new priority peers from scrumbled nodes
-func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegistration) {
+// CollectPriorityPeers, collect new priority peers from scrambled nodes
+func (ps *PriorityStrategy) CollectPriorityPeers(scrambleNodes []*model.NodeRegistration) {
 	var (
 		hostPotition           int
 		newPriorityPeers       = make(map[string]*model.Peer)
 		newMutualPriorityPeers = make(map[string]*model.Peer)
-		isInScrumbleNodes      = false
+		isInScrambleNodes      = false
 		hostFullAddress        = p2pUtil.GetFullAddressPeer(
 			&model.Peer{
 				Info: ps.Host.GetInfo(),
 			},
 		)
 	)
-	for potition, node := range scrumbleNodes {
+	for potition, node := range scrambleNodes {
 		// TODO: Adding port of node address in node registry ??
 		if hostFullAddress == p2pUtil.GetFullAddress(node.GetNodeAddress(), 8001) {
-			isInScrumbleNodes = true
+			isInScrambleNodes = true
 			hostPotition = potition
 			break
 		}
 	}
 
-	if isInScrumbleNodes {
+	if isInScrambleNodes {
 		var (
 			addedPotition       = 1
 			mainPeersPotition   int
 			mainResetPotiton    int
 			mutualPeersPotition int
-			mutualResetPotition = len(scrumbleNodes) - 1
+			mutualResetPotition = len(scrambleNodes) - 1
 		)
 		/*
 			Find Peers Priority
@@ -236,7 +236,7 @@ func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegi
 		*/
 		for addedPotition <= constant.PriorityStrategyMaxPriorityPeers {
 			// Get main peers potition
-			if (hostPotition + addedPotition) < len(scrumbleNodes) {
+			if (hostPotition + addedPotition) < len(scrambleNodes) {
 				mainPeersPotition = hostPotition + addedPotition
 			} else {
 				if mainResetPotiton != hostPotition {
@@ -250,8 +250,8 @@ func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegi
 				mutualPeersPotition = hostPotition - addedPotition
 			} else {
 				if mutualPeersPotition == 0 {
-					mutualResetPotition = len(scrumbleNodes)
-					mutualPeersPotition = len(scrumbleNodes) - 1
+					mutualResetPotition = len(scrambleNodes)
+					mutualPeersPotition = len(scrambleNodes) - 1
 				} else {
 					mutualPeersPotition = mutualResetPotition
 				}
@@ -260,14 +260,14 @@ func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegi
 
 			newPriorityPeer := &model.Peer{
 				Info: &model.Node{
-					Address: scrumbleNodes[mainPeersPotition].GetNodeAddress(),
+					Address: scrambleNodes[mainPeersPotition].GetNodeAddress(),
 					// TODO: Adding Port of node address in node registry ??
 					Port: 8001,
 				},
 			}
 			newMutualPeer := &model.Peer{
 				Info: &model.Node{
-					Address: scrumbleNodes[mutualPeersPotition].GetNodeAddress(),
+					Address: scrambleNodes[mutualPeersPotition].GetNodeAddress(),
 					// TODO: Adding Port of node address in node registry ??
 					Port: 8001,
 				},
@@ -275,7 +275,7 @@ func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegi
 			newPriorityPeers[p2pUtil.GetFullAddressPeer(newPriorityPeer)] = newPriorityPeer
 			newMutualPriorityPeers[p2pUtil.GetFullAddressPeer(newMutualPeer)] = newMutualPeer
 
-			if mainResetPotiton == len(scrumbleNodes) {
+			if mainResetPotiton == len(scrambleNodes) {
 				break
 			}
 			addedPotition++
