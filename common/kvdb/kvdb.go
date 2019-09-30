@@ -16,6 +16,12 @@ type (
 	}
 )
 
+func NewKVExecutor(db *badger.DB) *KVExecutor {
+	return &KVExecutor{
+		Db: db,
+	}
+}
+
 // Insert insert a single record of data by providing the key in string and value in []byte
 func (kve *KVExecutor) Insert(key string, value []byte) error {
 	err := kve.Db.Update(func(txn *badger.Txn) error {

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -68,6 +70,7 @@ type (
 	BlockService struct {
 		sync.WaitGroup
 		Chaintype               chaintype.ChainType
+		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -85,6 +88,7 @@ type (
 
 func NewBlockService(
 	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
@@ -100,6 +104,7 @@ func NewBlockService(
 ) *BlockService {
 	return &BlockService{
 		Chaintype:               ct,
+		KVExecutor:              kvExecutor,
 		QueryExecutor:           queryExecutor,
 		BlockQuery:              blockQuery,
 		MempoolQuery:            mempoolQuery,
@@ -680,6 +685,14 @@ func (bs *BlockService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
+	// check signature of the incoming block
+	blockUnsignedByte, _ := util.GetBlockByte(block, false)
+	if !bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
+		return nil, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"block signature invalid")
+	}
+	// check previous block hash
 	lastBlockByte, err := util.GetBlockByte(lastBlock, true)
 	if err != nil {
 		return nil, blocker.NewBlocker(
@@ -690,17 +703,31 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlockHash := sha3.Sum256(lastBlockByte)
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
+		// check if already broadcast receipt to this node
+		digest := sha3.New256()
+		blockByte, err := util.GetBlockHash(block)
+		if err != nil {
+			return nil, blocker.NewBlocker(
+				blocker.BlockErr,
+				err.Error(),
+			)
+		}
+		digest.Write(blockByte)
+		digest.Write(senderPublicKey)
+		result, err := bs.KVExecutor.Get(string(digest.Sum([]byte{})))
+		if err != nil {
+			return nil, blocker.NewBlocker(
+				blocker.DBErr,
+				err.Error(),
+			)
+		}
+		if len(result) > 0 {
+			fmt.Printf("\n\n\ngenerating receipt\n\n\n")
+		}
 		return nil, blocker.NewBlocker(
 			blocker.BlockErr,
 			"previous block hash does not match with last block hash",
 		)
-	}
-	// check signature of the incoming block
-	blockUnsignedByte, _ := util.GetBlockByte(block, false)
-	if !bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
-		return nil, blocker.NewBlocker(
-			blocker.ValidationErr,
-			"block signature invalid")
 	}
 	// check if the block broadcaster is the valid blocksmith
 	index := -1 // use index to determine if is in list, and who to punish

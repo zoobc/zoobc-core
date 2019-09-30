@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	"github.com/dgraph-io/badger"
 
 	"github.com/sirupsen/logrus"
@@ -46,6 +48,7 @@ var (
 	peerPort                                                     uint32
 	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
 	queryExecutor                                                *query.Executor
+	kvExecutor                                                   *kvdb.KVExecutor
 	observerInstance                                             *observer.Observer
 	blockServices                                                = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
@@ -114,6 +117,7 @@ func init() {
 		log.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
+	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
@@ -238,6 +242,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
+		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
