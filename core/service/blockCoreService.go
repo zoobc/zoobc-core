@@ -346,6 +346,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
+	// todo: save receipts of block to network_receipt table
+	err = bs.QueryExecutor.CommitTx()
+	if err != nil { // commit automatically unlock executor and close tx
+		return err
+	}
+	// broadcast block
+	if broadcast {
+		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
+	}
+	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
 	if block.Height > 0 {
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
@@ -358,16 +369,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
-	// todo: save receipts of block to network_receipt table
-	err = bs.QueryExecutor.CommitTx()
-	if err != nil { // commit automatically unlock executor and close tx
-		return err
-	}
-	// broadcast block
-	if broadcast {
-		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
-	}
-	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	return nil
 }
 
@@ -422,6 +423,10 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	height uint32,
 	includeInTx bool) error {
 	queries := make([][]interface{}, 0)
+	countWinners := len(blocksmithAccountAddresses)
+	if countWinners == 0 {
+		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
+	}
 	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
 	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
 		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
