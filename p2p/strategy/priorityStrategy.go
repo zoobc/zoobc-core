@@ -146,7 +146,7 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	return priorityPeers
 }
 
-func (ps *PriorityStrategy) PeerExploerListener() observer.Listener {
+func (ps *PriorityStrategy) PeerExplorerListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args interface{}) {
 			go ps.BuildScrambleNodes(block.(*model.Block))

@@ -170,7 +170,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	observerInstance.AddListener(observer.P2PNotifyPeerExplorer, peerExplorer.PeerExploerListener())
+	observerInstance.AddListener(observer.P2PNotifyPeerExplorer, peerExplorer.PeerExplorerListener())
 }
 
 func startServices() {

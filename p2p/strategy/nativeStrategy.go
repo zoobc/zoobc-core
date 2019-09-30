@@ -460,6 +460,6 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 	}
 }
 
-func (ns *NativeStrategy) PeerExploerListener() observer.Listener {
+func (ns *NativeStrategy) PeerExplorerListener() observer.Listener {
 	return observer.Listener{}
 }

@@ -22,6 +22,6 @@ type (
 		GetBlacklistedPeers() map[string]*model.Peer
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
-		PeerExploerListener() observer.Listener
+		PeerExplorerListener() observer.Listener
 	}
 )
