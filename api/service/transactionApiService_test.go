@@ -575,7 +575,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 		{
 			name: "RequestSuccess",
 			fields: fields{
-				Query: &mockQueryGetTransactionsSuccess{},
+				Query:              &mockQueryGetTransactionsSuccess{},
+				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},

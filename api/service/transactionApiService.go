@@ -175,7 +175,34 @@ func (ts *TransactionService) GetTransactions(
 	}
 	defer rows.Close()
 
-	txs = txQuery.BuildModel(txs, rows)
+	for rows.Next() {
+		var tx model.Transaction
+		err = rows.Scan(
+			&tx.ID,
+			&tx.BlockID,
+			&tx.Height,
+			&tx.SenderAccountAddress,
+			&tx.RecipientAccountAddress,
+			&tx.TransactionType,
+			&tx.Fee,
+			&tx.Timestamp,
+			&tx.TransactionHash,
+			&tx.TransactionBodyLength,
+			&tx.TransactionBodyBytes,
+			&tx.Signature,
+			&tx.Version,
+			&tx.TransactionIndex,
+		)
+		if err != nil {
+			return nil, err
+		}
+		txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
+		if err != nil {
+			return nil, err
+		}
+		txType.GetTransactionBody(&tx)
+		txs = append(txs, &tx)
+	}
 
 	return &model.GetTransactionsResponse{
 		Total:        totalRecords,
