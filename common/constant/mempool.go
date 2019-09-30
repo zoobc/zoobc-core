@@ -3,8 +3,8 @@ package constant
 import "time"
 
 const (
-	// MempoolExpiration time in seconds
+	// MempoolExpiration time in Minutes
 	MempoolExpiration = 5 * time.Minute
-	// CheckMempoolExpiration time in seconds
+	// CheckMempoolExpiration time in Minutes
 	CheckMempoolExpiration = 60 * time.Minute
 )

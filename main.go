@@ -309,10 +309,10 @@ func main() {
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
 	startServices()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	// When we receive a signal from the OS, shut down everything
 	<-sigs
-	log.Error("ZOOBC Shutdown")
+	log.Info("ZOOBC Shutdown")
 	os.Exit(0)
 }
