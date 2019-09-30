@@ -693,3 +693,49 @@ func TestSendMoney_ParseBodyBytes(t *testing.T) {
 		})
 	}
 }
+
+func TestSendMoney_GetTransactionBody(t *testing.T) {
+	type fields struct {
+		Body                *model.SendMoneyTransactionBody
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+	}
+	type args struct {
+		transaction *model.Transaction
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+			},
+			args: args{
+				transaction: &model.Transaction{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				Body:                tt.fields.Body,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+			}
+			tx.GetTransactionBody(tt.args.transaction)
+		})
+	}
+}

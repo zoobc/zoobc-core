@@ -7,12 +7,10 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -1046,6 +1044,59 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 			if got := n.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestNodeRegistration_GetTransactionBody(t *testing.T) {
+	_, _, mockTxBody, _ := GetFixturesForNoderegistration()
+	type fields struct {
+		ID                      int64
+		Body                    *model.NodeRegistrationTransactionBody
+		Fee                     int64
+		SenderAddress           string
+		Height                  uint32
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		AuthPoown               auth.ProofOfOwnershipValidationInterface
+	}
+	type args struct {
+		transaction *model.Transaction
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Body: mockTxBody,
+			},
+			args: args{
+				transaction: &model.Transaction{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &NodeRegistration{
+				ID:                      tt.fields.ID,
+				Body:                    tt.fields.Body,
+				Fee:                     tt.fields.Fee,
+				SenderAddress:           tt.fields.SenderAddress,
+				Height:                  tt.fields.Height,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AuthPoown:               tt.fields.AuthPoown,
+			}
+			tx.GetTransactionBody(tt.args.transaction)
 		})
 	}
 }
