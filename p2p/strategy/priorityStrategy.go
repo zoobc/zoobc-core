@@ -200,7 +200,7 @@ func (ps *PriorityStrategy) BuildScrumbleNodes(block *model.Block) {
 	}
 }
 
-// CollectPriorityPeers, collect new priority peers from scrumbled score nodes
+// CollectPriorityPeers, collect new priority peers from scrumbled nodes
 func (ps *PriorityStrategy) CollectPriorityPeers(scrumbleNodes []*model.NodeRegistration) {
 	var (
 		hostPotition           int
