@@ -43,14 +43,16 @@ func TestAllMerkle(t *testing.T) {
 	})
 }
 
-//Benchmark 8 data
 func BenchmarkMerkleTree8(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 8; i++ {
 		dataRand := make([]byte, 1024)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -68,7 +70,10 @@ func BenchmarkMerkleTreeValidation8(b *testing.B) {
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 8; i++ {
 		dataRand := make([]byte, 1024)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -82,14 +87,16 @@ func BenchmarkMerkleTreeValidation8(b *testing.B) {
 	}
 }
 
-//Benchmark 32 data
 func BenchmarkMerkleTree32(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 32; i++ {
 		dataRand := make([]byte, 512)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -107,7 +114,10 @@ func BenchmarkMerkleTreeValidation32(b *testing.B) {
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 32; i++ {
 		dataRand := make([]byte, 512)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -121,14 +131,16 @@ func BenchmarkMerkleTreeValidation32(b *testing.B) {
 	}
 }
 
-//Benchmark 64 data
 func BenchmarkMerkleTree64(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 64; i++ {
 		dataRand := make([]byte, 128)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -146,7 +158,10 @@ func BenchmarkMerkleTreeValidation64(b *testing.B) {
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 64; i++ {
 		dataRand := make([]byte, 128)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -160,14 +175,16 @@ func BenchmarkMerkleTreeValidation64(b *testing.B) {
 	}
 }
 
-//Benchmark 128 data
 func BenchmarkMerkleTree128(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 128; i++ {
 		dataRand := make([]byte, 64)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -185,7 +202,10 @@ func BenchmarkMerkleTreeValidation128(b *testing.B) {
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 128; i++ {
 		dataRand := make([]byte, 64)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -199,14 +219,16 @@ func BenchmarkMerkleTreeValidation128(b *testing.B) {
 	}
 }
 
-//Benchmark 256 data
 func BenchmarkMerkleTree256(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 256; i++ {
 		dataRand := make([]byte, 32)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -224,7 +246,10 @@ func BenchmarkMerkleTreeValidation256(b *testing.B) {
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 256; i++ {
 		dataRand := make([]byte, 32)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -238,14 +263,16 @@ func BenchmarkMerkleTreeValidation256(b *testing.B) {
 	}
 }
 
-//Benchmark 512 data
 func BenchmarkMerkleTree512(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 512; i++ {
 		dataRand := make([]byte, 16)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -263,7 +290,10 @@ func BenchmarkMerkleTreeValidation512(b *testing.B) {
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 512; i++ {
 		dataRand := make([]byte, 16)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -277,14 +307,16 @@ func BenchmarkMerkleTreeValidation512(b *testing.B) {
 	}
 }
 
-// Benchmark 1024 data
 func BenchmarkMerkleTree1024(b *testing.B) {
 	merkle := MerkleRoot{}
 
 	var hashesData = []*bytes.Buffer{}
 	for i := 0; i < 1024; i++ {
 		dataRand := make([]byte, 8)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
@@ -303,7 +335,10 @@ func BenchmarkMerkleTreeValidation1024(b *testing.B) {
 
 	for i := 0; i < 1024; i++ {
 		dataRand := make([]byte, 8)
-		rand.Read(dataRand)
+		_, err := rand.Read(dataRand)
+		if err != nil {
+			b.Errorf("error occurred random func ")
+		}
 		hashesData = append(hashesData, bytes.NewBuffer(dataRand))
 	}
 
