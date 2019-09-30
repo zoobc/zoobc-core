@@ -48,19 +48,15 @@ func NewNodeRegistrationService(
 	}
 }
 
-// SelectNodesToBeAdmitted Select n (=limit) nodes with the highest locked balance
+// SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, false)
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, true)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if len(nodeRegistrations) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
-	}
-
 	return nodeRegistrations, nil
 }
 
@@ -72,10 +68,6 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 	}
 	defer rows.Close()
 	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if len(nodeRegistrations) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
-	}
-
 	return nodeRegistrations, nil
 }
 
@@ -95,8 +87,7 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
-	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(nodePublicKey)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, nodePublicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -111,33 +102,29 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 
 // AdmitNodes update given node registrations' queued field to false and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
-	queries := make([][]interface{}, 0)
-	if len(nodeRegistrations) == 0 {
-		return blocker.NewBlocker(blocker.AppErr, "NoNodesToBeAdmitted")
-	}
+	_ = nrs.QueryExecutor.BeginTx()
 	// prepare all node registrations to be updated (set queued to false and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
 		nodeRegistration.Queued = false
 		nodeRegistration.Height = height
-		updateNodeQ, updateNodeArg := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+		// update the node registry (set queued to zero)
+		queries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		ps := &model.ParticipationScore{
 			NodeID: nodeRegistration.NodeID,
 			Score:  constant.MaxParticipationScore / 10,
 			Latest: true,
 			Height: height,
 		}
+		// add default participation score to the node
 		insertParticipationScoreQ, insertParticipationScoreArg := nrs.ParticipationScoreQuery.InsertParticipationScore(ps)
-		newQ := []interface{}{
-			updateNodeQ, updateNodeArg,
-			insertParticipationScoreQ, insertParticipationScoreArg,
+		queries = append(queries,
+			append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...),
+		)
+		err := nrs.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			// no need to rollback here, since we already do it in ExecuteTransactions
+			return err
 		}
-		queries = append(queries, newQ)
-	}
-	_ = nrs.QueryExecutor.BeginTx()
-	err := nrs.QueryExecutor.ExecuteTransactions(queries)
-	if err != nil {
-		_ = nrs.QueryExecutor.RollbackTx()
-		return err
 	}
 
 	if err := nrs.QueryExecutor.CommitTx(); err != nil {
@@ -152,6 +139,11 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	_ = nrs.QueryExecutor.BeginTx()
 	for _, nodeRegistration := range nodeRegistrations {
+		// update the node registry (set queued to 1 and lockedbalance to 0)
+		nodeRegistration.Queued = true
+		nodeRegistration.LockedBalance = 0
+		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+		// return lockedbalance to the node's owner account
 		updateAccountBalanceQ := nrs.AccountBalanceQuery.AddAccountBalance(
 			nodeRegistration.LockedBalance,
 			map[string]interface{}{
@@ -160,13 +152,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 			},
 		)
 
-		nodeRegistration.Queued = true
-		nodeRegistration.LockedBalance = 0
-		updateNodeQ, updateNodeArg := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-
-		queries := append(append([][]interface{}{}, updateAccountBalanceQ...),
-			append([]interface{}{updateNodeQ}, updateNodeArg...),
-		)
+		queries := append(updateAccountBalanceQ, nodeQueries...)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			_ = nrs.QueryExecutor.RollbackTx()
@@ -199,7 +185,7 @@ func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args interface{}) {
 			pushedBlock := block.(*model.Block)
-			if pushedBlock.Height%nrs.NodeAdmittanceCycle != 0 {
+			if pushedBlock.Height > 0 && pushedBlock.Height%nrs.NodeAdmittanceCycle != 0 {
 				return
 			}
 			nodeRegistrations, err := nrs.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
@@ -207,10 +193,12 @@ func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
 				log.Errorf("Can't get list of nodes from node registry: %s", err)
 				return
 			}
-			err = nrs.AdmitNodes(nodeRegistrations, pushedBlock.Height)
-			if err != nil {
-				log.Errorf("Can't admit nodes to registry: %s", err)
-				return
+			if len(nodeRegistrations) > 0 {
+				err = nrs.AdmitNodes(nodeRegistrations, pushedBlock.Height)
+				if err != nil {
+					log.Errorf("Can't admit nodes to registry: %s", err)
+					return
+				}
 			}
 			// expel nodes with zero score from node registry
 			nodeRegistrations, err = nrs.SelectNodesToBeExpelled()
@@ -218,10 +206,12 @@ func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
 				log.Errorf("Can't get list of nodes from node registry: %s", err)
 				return
 			}
-			err = nrs.ExpelNodes(nodeRegistrations, pushedBlock.Height)
-			if err != nil {
-				log.Errorf("Can't expel nodes from registry: %s", err)
-				return
+			if len(nodeRegistrations) > 0 {
+				err = nrs.ExpelNodes(nodeRegistrations, pushedBlock.Height)
+				if err != nil {
+					log.Errorf("Can't expel nodes from registry: %s", err)
+					return
+				}
 			}
 		},
 	}

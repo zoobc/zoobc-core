@@ -57,6 +57,9 @@ type (
 		GetChainType() chaintype.ChainType
 		ChainWriteLock()
 		ChainWriteUnlock()
+		GetCoinbase() int64
+		RewardBlocksmithAccountAddress(blocksmithAccountAddress string, totalReward int64, height uint32, includeInTx bool) error
+		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
 			lastBlock,
@@ -275,7 +278,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	}
 	if previousBlock.GetID() != -1 && block.CumulativeDifficulty == "" && block.SmithScale == 0 {
 		block.Height = previousBlock.GetHeight() + 1
-		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
+		block = coreUtil.CalculateSmithScale(
+			previousBlock, block, bs.Chaintype.GetSmithingPeriod(), bs.BlockQuery, bs.QueryExecutor,
+		)
 	}
 	// start db transaction here
 	_ = bs.QueryExecutor.BeginTx()
@@ -345,6 +350,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
+
+	// accrue block rewards (totalFees + totalCoinbase) to blocksmith account address
+	if block.Height > 0 {
+		blocksmithAccountAddress, err := bs.GetBlocksmithAccountAddress(block)
+		if err != nil {
+			return err
+		}
+
+		//TODO: next step is to change this by using the revised algorithm that includes:
+		// - selecting multiple account to be rewarded (split the total coinbase between them)
+		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
+		totalReward := block.TotalFee + block.TotalCoinBase
+		if err := bs.RewardBlocksmithAccountAddress(blocksmithAccountAddress, totalReward, block.Height, true); err != nil {
+			return err
+		}
+	}
+
 	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -355,6 +377,28 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	return nil
+}
+
+// RewardBlocksmithAccountAddress accrue the block total fees + total coinbase to the blocksmith account
+func (bs *BlockService) RewardBlocksmithAccountAddress(
+	blocksmithAccountAddress string,
+	totalReward int64,
+	height uint32,
+	includeInTx bool) error {
+	accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
+		totalReward,
+		map[string]interface{}{
+			"account_address": blocksmithAccountAddress,
+			"block_height":    height,
+		},
+	)
+	if err := bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ); err != nil {
+		if includeInTx {
+			_ = bs.QueryExecutor.RollbackTx()
+		}
+		return err
+	}
 	return nil
 }
 
@@ -535,8 +579,7 @@ func (bs *BlockService) GenerateBlock(
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
-		//TODO: missing coinbase calculation
-		payloadLength uint32
+		payloadLength                        uint32
 		// only for mainchain
 		sortedTx            []*model.Transaction
 		blockReceipts       []*model.BlockReceipt
@@ -548,6 +591,7 @@ func (bs *BlockService) GenerateBlock(
 	newBlockHeight := previousBlock.Height + 1
 
 	if _, ok := bs.Chaintype.(*chaintype.MainChain); ok {
+		totalCoinbase = bs.GetCoinbase()
 		mempoolTransactions, err := bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
@@ -790,39 +834,49 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
 	var (
 		blExt = &model.BlockExtendedInfo{}
-		nr    []*model.NodeRegistration
+		err   error
 	)
 	blExt.Block = block
-	//FIXME: return mocked data, until underlying logic is implemented
-	blExt.Block.TotalCoinBase = blExt.Block.TotalFee + 50 ^ 10*8
-
 	// block extra (computed) info
-
 	if block.Height > 0 {
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
-		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+		blExt.BlocksmithAccountAddress, err = bs.GetBlocksmithAccountAddress(block)
 		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			return nil, err
 		}
-		defer rows.Close()
-
-		nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-		if len(nr) == 0 {
-			return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
-		}
-		nodeRegistration := nr[0]
-		blExt.BlocksmithAccountAddress = nodeRegistration.AccountAddress
 	} else {
 		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
 
 	// Total number of receipts at a block height
 	blExt.TotalReceipts = 99
-	// ???
+	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
 	blExt.ReceiptValue = 99
 	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
 	blExt.PopChange = -20
 
 	return blExt, nil
+}
+
+func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
+	var (
+		nr []*model.NodeRegistration
+	)
+	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
+	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return "", blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+	if len(nr) == 0 {
+		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+	}
+	return nr[0].AccountAddress, nil
+}
+
+func (*BlockService) GetCoinbase() int64 {
+	//TODO: integrate this with POP algorithm
+	return 50 * constant.OneZBC
 }

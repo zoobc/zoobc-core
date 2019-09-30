@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -128,16 +130,17 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if tx.RecipientAddress == "" {
 		return errors.New("transaction must have a valid recipient account id")
 	}
-
-	if tx.Height != 0 {
+	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
+	// validation needed
+	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
 		if tx.SenderAddress == "" {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, dbTx, senderArg)
+		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		} else if rows.Next() {
 			_ = rows.Scan(
 				&accountBalance.AccountAddress,
@@ -151,7 +154,10 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		defer rows.Close()
 
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
-			return errors.New("transaction amount not enough")
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"balance not enough",
+			)
 		}
 	}
 	return nil

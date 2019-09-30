@@ -57,16 +57,19 @@ var _ = mockAccountBalanceRow
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
-		res, arg := mockAccountBalanceQuery.GetAccountBalanceByAccountAddress("BCZ")
+		res, args := mockAccountBalanceQuery.GetAccountBalanceByAccountAddress("BCZ")
 		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
 			"FROM account_balance WHERE account_address = ? AND latest = 1"
-		wantArg := "BCZ"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
-		if !reflect.DeepEqual(arg, wantArg) {
-			t.Errorf("argument not match:\nget: %v\nwant: %v", arg, wantArg)
+		wantArg := []interface{}{
+			mockAccountBalance.AccountAddress,
 		}
+		if !reflect.DeepEqual(args, wantArg) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
+		}
+
 	})
 }
 
