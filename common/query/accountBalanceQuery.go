@@ -41,7 +41,7 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 	}
 }
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_address = '?' AND latest = 1`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_address = ? AND latest = 1`,
 		strings.Join(q.Fields, ","), q.TableName), []interface{}{accountAddress}
 }
 

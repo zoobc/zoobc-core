@@ -21,7 +21,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	db, mock, _ := sqlmock.New()
 
 	getAccountBalanceByAccountID := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
-		"FROM account_balance WHERE account_address = '?' AND latest = 1"
+		"FROM account_balance WHERE account_address = ? AND latest = 1"
 	defer db.Close()
 	switch qe {
 	case getAccountBalanceByAccountID:
