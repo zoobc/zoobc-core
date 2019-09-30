@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -6705850196976533509
+	MainchainGenesisBlockID int64 = -1294179708803500770
 )
 
 var (
@@ -20,6 +20,7 @@ var (
 	// MainchainGenesisFundReceivers stake holders account data.
 	// Note: 1 ZOO = 100000000 ZOOBIT, node only know the zoobit representation, zoo representation is handled by frontend
 	MainchainGenesisFundReceivers = []struct {
+		AccountSeed    string
 		AccountAddress string
 		Amount         int64
 		NodePublicKey  []byte
@@ -28,6 +29,7 @@ var (
 	}{
 		{
 			// 04264418e6f758dc777c33957fd652e048ef388bff51e5b84d505027fead1ca9
+			AccountSeed:    "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance
@@ -35,10 +37,11 @@ var (
 			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99,
 				125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 			NodeAddress:   "127.0.0.1",
-			LockedBalance: 0,
+			LockedBalance: 100000 * OneZBC,
 		},
 		{
 			// 04266749faa93f9b6a15094c4d89037815455a76f254aeef2ebe4e445a538e0b
+			AccountSeed:    "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy",
 			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance
@@ -50,6 +53,7 @@ var (
 		},
 		{
 			// 04264a2ef814619d4a2b1fa3b45f4aa09b248d53ef07d8e92237f3cc8eb30d6d
+			AccountSeed:    "exhaust tragedy lividly waged pendant chitchat compost wreckage footer resemble pessimism shed",
 			AccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			// subtract locked balance from account balance because locked balance will be taken from genesis too and
 			// be part of the total account balance

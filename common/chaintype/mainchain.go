@@ -17,6 +17,10 @@ func (*MainChain) GetTablePrefix() string {
 
 // GetChainSmithingDelayTime return the value of chain smithing delay in second
 func (*MainChain) GetChainSmithingDelayTime() int64 {
+	return 20
+}
+
+func (*MainChain) GetSmithingPeriod() int64 {
 	return 60
 }
 

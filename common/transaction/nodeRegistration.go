@@ -128,7 +128,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	)
 
 	// no need to validate node registration transaction for genesis block
-	if tx.Height == 0 {
+	if tx.SenderAddress == constant.MainchainGenesisAccountAddress {
 		return nil
 	}
 
@@ -143,8 +143,8 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check balance
-	senderQ, senderArg := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(senderQ, dbTx, senderArg)
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
 		return err
 	} else if rows.Next() {
@@ -163,8 +163,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
 	// check for duplication
-	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, dbTx, nodeArg...)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}

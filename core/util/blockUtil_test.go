@@ -6,12 +6,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestGetBlockSeed(t *testing.T) {
-	resultOne, _ := new(big.Int).SetString("17087119891823106131", 10)
-	resulTwo, _ := new(big.Int).SetString("3968427577984416435", 10)
+	resultOne, _ := new(big.Int).SetString("6023741084937822701", 10)
+	resulTwo, _ := new(big.Int).SetString("12968853203648975415", 10)
 	type args struct {
 		publicKey    []byte
 		block        *model.Block
@@ -109,6 +111,8 @@ func TestCalculateSmithScale(t *testing.T) {
 		previousBlock     *model.Block
 		block             *model.Block
 		smithingDelayTime int64
+		blockQuery        query.BlockQueryInterface
+		executor          query.ExecutorInterface
 	}
 	tests := []struct {
 		name string
@@ -164,7 +168,13 @@ func TestCalculateSmithScale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CalculateSmithScale(tt.args.previousBlock, tt.args.block, tt.args.smithingDelayTime); !reflect.DeepEqual(got, tt.want) {
+			if got := CalculateSmithScale(
+				tt.args.previousBlock,
+				tt.args.block,
+				tt.args.smithingDelayTime,
+				tt.args.blockQuery,
+				tt.args.executor,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("CalculateSmithScale() = %v, want %v", got, tt.want)
 			}
 		})

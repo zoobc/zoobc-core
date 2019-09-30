@@ -169,8 +169,8 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 	observerInstance.AddListener(observer.P2PNotifyPeerExplorer, peerExplorer.PeerExploerListener())
-
 }
 
 func startServices() {
@@ -287,7 +287,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 	)
-	mainchainSynchronizer.Start(mainchainSyncChannel)
+	go mainchainSynchronizer.Start(mainchainSyncChannel)
 }
 
 func main() {
@@ -300,11 +300,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	startServices()
-
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
+	startServices()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	// When we receive a signal from the OS, shut down everything

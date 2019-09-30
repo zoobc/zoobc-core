@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,12 +18,19 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-var txTypeMap = map[string][]byte{
-	"sendMoney":            {1, 0, 0, 0},
-	"registerNode":         {2, 0, 0, 0},
-	"setupAccountDataset":  {3, 0, 0, 0},
-	"removeAccountDataset": {3, 1, 0, 0},
-}
+var (
+	txTypeMap = map[string][]byte{
+		"sendMoney":              {1, 0, 0, 0},
+		"registerNode":           {2, 0, 0, 0},
+		"updateNodeRegistration": {2, 1, 0, 0},
+		"removeNodeRegistration": {2, 2, 0, 0},
+		"claimNodeRegistration":  {2, 3, 0, 0},
+		"setupAccountDataset":    {3, 0, 0, 0},
+		"removeAccountDataset":   {3, 1, 0, 0},
+	}
+	// Core node test account in genesis block
+	senderAccountSeed = constant.MainchainGenesisFundReceivers[0].AccountSeed
+)
 
 func GenerateTransactionBytes(logger *logrus.Logger,
 	signature crypto.SignatureInterface) *cobra.Command {
@@ -37,14 +45,12 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] == "generate" {
-				seed := "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
-
 				tx := getTransaction(txTypeMap[txType])
 				unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
 				tx.Signature = signature.Sign(
 					unsignedTxBytes,
 					constant.SignatureTypeDefault,
-					seed,
+					senderAccountSeed,
 				)
 				signedTxBytes, _ := util.GetTransactionBytes(tx, true)
 				var signedTxByteString string
@@ -63,15 +69,23 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 }
 
 func getTransaction(txType []byte) *model.Transaction {
+	nodeSeed := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	senderAccountAddress := util.GetAddressFromSeed(senderAccountSeed)
+	log.Printf("%s", senderAccountAddress)
+	recipientAccountSeed := "witch collapse practice feed shame open despair creek road again ice least"
+	recipientAccountAddress := util.GetAddressFromSeed(recipientAccountSeed)
+	account2Seed := "rocket inflict forest able frozen expose mail exit early permit dial retire"
+	account2Address := util.GetAddressFromSeed(account2Seed)
 	switch util.ConvertBytesToUint32(txType) {
 	case util.ConvertBytesToUint32(txTypeMap["sendMoney"]):
-		amount := int64(60000000)
+		amount := 50 * constant.OneZBC
 		return &model.Transaction{
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["sendMoney"]),
 			Timestamp:               time.Now().Unix(),
-			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: recipientAccountAddress,
 			Fee:                     1,
 			TransactionBodyLength:   8,
 			TransactionBody: &model.Transaction_SendMoneyTransactionBody{
@@ -82,20 +96,23 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(amount)),
 		}
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
-		poowMessage := []byte("HelloBlock")
+		poowMessage := &model.ProofOfOwnershipMessage{
+			AccountAddress: recipientAccountAddress,
+			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
+				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
+			BlockHeight: 1,
+		}
+		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 		signature := (&crypto.Signature{}).SignByNode(
-			poowMessage,
-			"prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy")
+			poownMessageBytes,
+			nodeSeed)
 		txBody := &model.NodeRegistrationTransactionBody{
-			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			NodePublicKey: []byte{
-				0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152, 194, 170, 146, 43, 63, 224,
-				101, 127, 241, 62, 152, 187, 255,
-			},
-			NodeAddress:   "127.0.0.1",
-			LockedBalance: 100000,
+			AccountAddress: recipientAccountAddress,
+			NodePublicKey:  nodePubKey,
+			NodeAddress:    "127.0.0.1",
+			LockedBalance:  10 * constant.OneZBC,
 			Poown: &model.ProofOfOwnership{
-				MessageBytes: poowMessage,
+				MessageBytes: poownMessageBytes,
 				Signature:    signature,
 			},
 		}
@@ -106,12 +123,103 @@ func getTransaction(txType []byte) *model.Transaction {
 			Version:                 1,
 			TransactionType:         util.ConvertBytesToUint32(txTypeMap["registerNode"]),
 			Timestamp:               time.Now().Unix(),
-			SenderAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
 			Fee:                     1,
 			TransactionBodyLength:   uint32(len(txBodyBytes)),
 			TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 				NodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"]):
+		poowMessage := &model.ProofOfOwnershipMessage{
+			AccountAddress: recipientAccountAddress,
+			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
+				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
+			BlockHeight: 1,
+		}
+		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
+		signature := (&crypto.Signature{}).SignByNode(
+			poownMessageBytes,
+			nodeSeed)
+		txBody := &model.UpdateNodeRegistrationTransactionBody{
+			NodePublicKey: nodePubKey,
+			NodeAddress:   "127.0.0.1",
+			LockedBalance: 10050000000000,
+			Poown: &model.ProofOfOwnership{
+				MessageBytes: poownMessageBytes,
+				Signature:    signature,
+			},
+		}
+		txBodyBytes := (&transaction.UpdateNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_UpdateNodeRegistrationTransactionBody{
+				UpdateNodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["claimNodeRegistration"]):
+		poowMessage := &model.ProofOfOwnershipMessage{
+			AccountAddress: recipientAccountAddress,
+			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
+				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
+			BlockHeight: 1,
+		}
+		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
+		signature := (&crypto.Signature{}).SignByNode(
+			poownMessageBytes,
+			nodeSeed)
+		txBody := &model.ClaimNodeRegistrationTransactionBody{
+			AccountAddress: account2Address,
+			NodePublicKey:  nodePubKey,
+			Poown: &model.ProofOfOwnership{
+				MessageBytes: poownMessageBytes,
+				Signature:    signature,
+			},
+		}
+		txBodyBytes := (&transaction.ClaimNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["claimNodeRegistration"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_ClaimNodeRegistrationTransactionBody{
+				ClaimNodeRegistrationTransactionBody: txBody,
+			},
+			TransactionBodyBytes: txBodyBytes,
+		}
+	case util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"]):
+		txBody := &model.RemoveNodeRegistrationTransactionBody{
+			NodePublicKey: nodePubKey,
+		}
+		txBodyBytes := (&transaction.RemoveNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+		return &model.Transaction{
+			Version:                 1,
+			TransactionType:         util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"]),
+			Timestamp:               time.Now().Unix(),
+			SenderAccountAddress:    senderAccountAddress,
+			RecipientAccountAddress: senderAccountAddress,
+			Fee:                     1,
+			TransactionBodyLength:   uint32(len(txBodyBytes)),
+			TransactionBody: &model.Transaction_RemoveNodeRegistrationTransactionBody{
+				RemoveNodeRegistrationTransactionBody: txBody,
 			},
 			TransactionBodyBytes: txBodyBytes,
 		}

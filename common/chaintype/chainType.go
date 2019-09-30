@@ -8,6 +8,8 @@ type ChainType interface {
 	GetTablePrefix() string
 	// GetChainSmithingDelayTime return the value of chain smithing delay in second
 	GetChainSmithingDelayTime() int64
+	// GetSmithingPeriod return the value of smithing period we want
+	GetSmithingPeriod() int64
 	// GetName return the name of the chain : used in parsing chaintype across node
 	GetName() string
 	// GetGenesisBlockID return the block ID of genesis block in the chain
