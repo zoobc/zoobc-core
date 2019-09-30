@@ -53,7 +53,7 @@ var (
 	nodeKeyFilePath                  string
 	smithing                         bool
 	nodeRegistrationService          service.NodeRegistrationServiceInterface
-	mainchainProcessor               *smith.BlockchainProcessor
+	mainchainProcessor               smith.BlockchainProcessorInterface
 	sortedBlocksmiths                []model.Blocksmith
 )
 
@@ -190,7 +190,7 @@ func startServices() {
 	)
 }
 
-func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
+func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 	for {
 		err := processor.StartSmithing()
 		if err != nil {

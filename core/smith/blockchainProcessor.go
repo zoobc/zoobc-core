@@ -19,6 +19,13 @@ import (
 )
 
 type (
+	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
+	BlockchainProcessorInterface interface {
+		CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith
+		SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener
+		StartSmithing() error
+	}
+
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
 		Chaintype               chaintype.ChainType
@@ -58,8 +65,6 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 		log.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
-		//TODO: default participation score is 10000 smaller than the old balance we used to use to smith
-		//      so we multiply it by 10000 for now, to keep the same ratio
 		generator.Score = big.NewInt(ps)
 	}
 	if generator.Score.Sign() == 0 {
