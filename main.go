@@ -286,6 +286,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		actionSwitcher,
 	)
 
+	// Schedulers Init
 	go func() {
 		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
 		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
@@ -293,7 +294,9 @@ func startMainchain(mainchainSyncChannel chan bool) {
 			log.Error(err)
 		}
 	}()
-	mainchainSynchronizer.Start(mainchainSyncChannel)
+	go func() {
+		mainchainSynchronizer.Start(mainchainSyncChannel)
+	}()
 
 }
 
