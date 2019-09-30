@@ -297,7 +297,7 @@ func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetActiveNodeRegistrations()
 		want := "SELECT nr.node_public_key AS node_public_key, ps.score AS participation_score " +
 			"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
-			"WHERE nr.latest = 1 AND nr.queued = 0 AND ps.latest = 1"
+			"WHERE nr.latest = 1 AND nr.queued = 0 AND ps.score > 0 AND ps.latest = 1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
