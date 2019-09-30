@@ -85,7 +85,7 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 		return nil, err
 	}
 	defer rows.Close()
-	mempoolTransactions := []*model.MempoolTransaction{}
+	var mempoolTransactions []*model.MempoolTransaction
 	mempoolTransactions = mps.MempoolQuery.BuildModel(mempoolTransactions, rows)
 	return mempoolTransactions, nil
 }
