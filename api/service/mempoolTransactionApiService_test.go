@@ -247,7 +247,7 @@ func TestMempoolTransactionService_GetMempoolTransaction(t *testing.T) {
 				chainType: &chaintype.MainChain{},
 			},
 			want:    nil,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "wantFail:ScanError",

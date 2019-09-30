@@ -5,6 +5,9 @@ package service
 import (
 	"database/sql"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -48,19 +51,19 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	blockQuery := query.NewBlockQuery(chainType)
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id), false)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
-		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
+		return nil, status.Error(codes.NotFound, "block not found")
 	}
 
 	// Get block extended info
 	blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0])
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, "fail to get block extended information")
 	}
 
 	return blExt, nil
@@ -79,12 +82,12 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 	bl = blockQuery.BuildModel(bl, rows)
 	if len(bl) == 0 {
-		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
+		return nil, status.Error(codes.NotFound, "block not found")
 	}
 	return bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0])
 }

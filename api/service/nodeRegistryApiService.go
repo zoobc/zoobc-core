@@ -3,7 +3,9 @@ package service
 import (
 	"database/sql"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -54,10 +56,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rows, err = ns.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.DBErr,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
@@ -66,10 +65,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 			&totalRecords,
 		)
 		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.DBErr,
-				err.Error(),
-			)
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -84,10 +80,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	// Get list of node registry
 	rows, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.DBErr,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	for rows.Next() {
 		var nr model.NodeRegistration
@@ -150,10 +143,7 @@ func (ns NodeRegistryService) GetNodeRegistration(params *model.GetNodeRegistrat
 		&nodeRegistration.Height,
 	)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.DBErr,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &model.GetNodeRegistrationResponse{
