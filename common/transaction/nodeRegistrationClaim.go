@@ -27,12 +27,11 @@ type ClaimNodeRegistration struct {
 
 func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	var (
-		queries              [][]interface{}
+		nodeQueries          [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
 	)
 
-	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
+	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
@@ -63,11 +62,8 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	updateNodeQ, updateNodeArg := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{updateNodeQ}, updateNodeArg...),
-	)
-	// update node_registry entry
+	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+	queries := append(accountBalanceSenderQ, nodeQueries...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
@@ -130,7 +126,7 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
 	}
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args)
+	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
 		return err
 	}
@@ -140,8 +136,7 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAlreadyNodeOwner")
 	}
 
-	qry1, args1 := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	rows, err = tx.QueryExecutor.ExecuteSelect(qry1, false, args1)
+	rows, err = tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}

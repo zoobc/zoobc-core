@@ -81,7 +81,7 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx boo
 	defer db.Close()
 	switch qe {
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
-		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 1 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -135,7 +135,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	defer db.Close()
 	switch qe {
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
-		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 0 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+		"latest, height FROM node_registry WHERE locked_balance > 0 AND queued = 1 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -254,7 +254,8 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 			args: args{
 				limit: 1,
 			},
-			wantErr: true,
+			wantErr: false,
+			want:    []*model.NodeRegistration{},
 		},
 	}
 	for _, tt := range tests {
@@ -321,7 +322,7 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 				nodeRegistrations: []*model.NodeRegistration{},
 				height:            200,
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -583,7 +584,8 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
-			wantErr: true,
+			wantErr: false,
+			want:    []*model.NodeRegistration{},
 		},
 	}
 	for _, tt := range tests {

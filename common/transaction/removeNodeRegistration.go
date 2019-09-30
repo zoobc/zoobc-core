@@ -25,21 +25,18 @@ type RemoveNodeRegistration struct {
 
 func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	var (
-		queries           [][]interface{}
+		nodeQueries       [][]interface{}
 		nodereGistrations []*model.NodeRegistration
 	)
 
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(qry, false, args)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
 	nodereGistrations = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
 	if len(nodereGistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
-	}
-	if err := tx.QueryExecutor.BeginTx(); err != nil {
-		return blocker.NewBlocker(blocker.DBErr, "TxNotInitiated")
 	}
 
 	prevNodeRegistration := nodereGistrations[0]
@@ -64,18 +61,11 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{insertNodeQ}, insertNodeArg...),
-	)
-	// add row to node_registry table
+	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+	queries := append(accountBalanceSenderQ, nodeQueries...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
-	}
-
-	if err := tx.QueryExecutor.CommitTx(); err != nil {
-		return blocker.NewBlocker(blocker.DBErr, "TxNotCommitted")
 	}
 
 	return nil
@@ -126,8 +116,7 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 		nodeRegistrations []*model.NodeRegistration
 	)
 	// check for duplication
-	nodeQuery, nodeArg := tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(tx.Body.NodePublicKey)
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(nodeQuery, dbTx, nodeArg...)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
