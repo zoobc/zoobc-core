@@ -4,7 +4,7 @@ import "time"
 
 const (
 	// MempoolExpiration time in Minutes
-	MempoolExpiration = 5 * time.Minute
+	MempoolExpiration = 60 * time.Minute
 	// CheckMempoolExpiration time in Minutes
-	CheckMempoolExpiration = 60 * time.Minute
+	CheckMempoolExpiration = 5 * time.Minute
 )
