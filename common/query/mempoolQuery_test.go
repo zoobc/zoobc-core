@@ -7,28 +7,21 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-var mockMempoolQuery = &MempoolQuery{
-	ChainType: &chaintype.MainChain{},
-	TableName: "mempool",
-	Fields: []string{
-		"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
-		"sender_account_address", "recipient_account_address",
-	},
-}
-
-var mockMempool = &model.MempoolTransaction{
-	ID:                      1,
-	ArrivalTimestamp:        1000,
-	FeePerByte:              10,
-	TransactionBytes:        []byte{1, 2, 3, 4, 5},
-	SenderAccountAddress:    "BCZ",
-	RecipientAccountAddress: "ZCB",
-}
+var (
+	mockMempoolQuery = NewMempoolQuery(chaintype.GetChainType(0))
+	mockMempool      = &model.MempoolTransaction{
+		ID:                      1,
+		ArrivalTimestamp:        1000,
+		FeePerByte:              10,
+		TransactionBytes:        []byte{1, 2, 3, 4, 5},
+		SenderAccountAddress:    "BCZ",
+		RecipientAccountAddress: "ZCB",
+	}
+)
 
 func TestNewMempoolQuery(t *testing.T) {
 	type args struct {
