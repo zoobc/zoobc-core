@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -70,12 +71,25 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
-	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
+	return peer.GetInfo().GetAddress() + ":" + strconv.Itoa(int(peer.GetInfo().GetPort()))
 }
 
-// GetFullAddress to get full address based on address and port
-func GetFullAddress(address string, port uint32) string {
-	return address + ":" + strconv.Itoa(int(port))
+func GetNodeInfo(fullAddress string) (*model.Node, error) {
+	splittedAddress := strings.Split(fullAddress, ":")
+	if len(splittedAddress) == 1 {
+		return &model.Node{
+			Address: fullAddress,
+			Port:    uint32(viper.GetInt("peerPort")),
+		}, nil
+	}
+	port, err := strconv.ParseUint(splittedAddress[1], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+	return &model.Node{
+		Address: splittedAddress[0],
+		Port:    uint32(port),
+	}, nil
 }
 
 func ServerListener(port int) net.Listener {

@@ -21,11 +21,10 @@ import (
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
-type PriorityPeers struct {
-	// MainPriority, a list peers should connect
-	MainPriority map[string]*model.Peer
-	// MutualPriority, a list peers that a host node become main priority peers in other nodes
-	MutualPriority map[string]*model.Peer
+type ScrambleNode struct {
+	IndexNodes        map[string]int
+	AddressNodes      []*model.Peer
+	IsInScrambleNodes bool
 }
 
 // PriorityStrategy represent data service node as server
@@ -34,8 +33,8 @@ type PriorityStrategy struct {
 	PeerServiceClient     client.PeerServiceClientInterface
 	QueryExecutor         query.ExecutorInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	PriorityPeers         PriorityPeers
-	PriorityPeersLock     sync.RWMutex
+	ScrambleNode          ScrambleNode
+	ScrambleNodeLock      sync.RWMutex
 	ResolvedPeersLock     sync.RWMutex
 	UnresolvedPeersLock   sync.RWMutex
 	BlacklistedPeersLock  sync.RWMutex
@@ -53,9 +52,9 @@ func NewPriorityStrategy(
 		Host:              host,
 		PeerServiceClient: peerServiceClient,
 		QueryExecutor:     queryExecutor,
-		PriorityPeers: PriorityPeers{
-			MainPriority:   make(map[string]*model.Peer),
-			MutualPriority: make(map[string]*model.Peer),
+		ScrambleNode: ScrambleNode{
+			IndexNodes:        make(map[string]int),
+			IsInScrambleNodes: false,
 		},
 		NodeRegistrationQuery: nodeRegistrationQuery,
 		MaxUnresolvedPeers:    constant.MaxUnresolvedPeers,
@@ -135,13 +134,28 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 }
 
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
-	// Locking write, allowing read
-	ps.PriorityPeersLock.RLock()
-	defer ps.PriorityPeersLock.RUnlock()
+	priorityPeers := make(map[string]*model.Peer)
 
-	var priorityPeers = make(map[string]*model.Peer)
-	for key, priorityPeer := range ps.PriorityPeers.MainPriority {
-		priorityPeers[key] = priorityPeer
+	// Locking write, allowing read
+	ps.ScrambleNodeLock.RLock()
+	defer ps.ScrambleNodeLock.RUnlock()
+	if ps.ScrambleNode.IsInScrambleNodes {
+		var (
+			hostFullAddress = p2pUtil.GetFullAddressPeer(&model.Peer{
+				Info: ps.Host.GetInfo(),
+			})
+			hostIndex     = ps.ScrambleNode.IndexNodes[hostFullAddress]
+			startPeers    = ps.GetStartIndexPriorityPeer(hostIndex)
+			addedPosition = 0
+		)
+		for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+			peersPosition := (startPeers + addedPosition) % (len(ps.ScrambleNode.IndexNodes) - 1)
+			peer := ps.ScrambleNode.AddressNodes[peersPosition]
+			if p2pUtil.GetFullAddressPeer(peer) != hostFullAddress {
+				priorityPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
+			}
+			addedPosition++
+		}
 	}
 	return priorityPeers
 }
@@ -158,8 +172,17 @@ func (ps *PriorityStrategy) PeerExplorerListener() observer.Listener {
 func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 	// Check it's time to bild scramble node or not
 	if block.GetHeight()%constant.PriorityStrategyBuildScrambleNodesGap == 0 {
-		var nodeRegistries []*model.NodeRegistration
-
+		var (
+			nodeRegistries    []*model.NodeRegistration
+			newIndexNodes     = make(map[string]int)
+			newAddressNodes   []*model.Peer
+			isInScrumbleNodes = false
+			hostFullAddress   = p2pUtil.GetFullAddressPeer(
+				&model.Peer{
+					Info: ps.Host.GetInfo(),
+				},
+			)
+		)
 		// get node registry list
 		rows, err := ps.QueryExecutor.ExecuteSelect(
 			ps.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
@@ -196,97 +219,44 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		if len(nodeRegistries) > constant.PriorityStrategyMaxScrambleNodes {
 			nodeRegistries = nodeRegistries[:constant.PriorityStrategyMaxScrambleNodes]
 		}
-		ps.CollectPriorityPeers(nodeRegistries)
+
+		for key, node := range nodeRegistries {
+			// Checking port of address,
+			// TODO: Should Get port from Node resgistry model
+			nodeInfo, err := p2pUtil.GetNodeInfo(node.GetNodeAddress())
+			if err != nil {
+				continue
+			}
+
+			fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
+				Info: nodeInfo,
+			})
+			peer := &model.Peer{
+				Info: &model.Node{
+					Address:       nodeInfo.GetAddress(),
+					Port:          nodeInfo.GetPort(),
+					SharedAddress: nodeInfo.GetAddress(),
+				},
+			}
+			if fullAddresss == hostFullAddress {
+				isInScrumbleNodes = true
+			}
+			newIndexNodes[fullAddresss] = key
+			newAddressNodes = append(newAddressNodes, peer)
+		}
+
+		ps.ScrambleNodeLock.Lock()
+		ps.ScrambleNode = ScrambleNode{
+			AddressNodes:      newAddressNodes,
+			IndexNodes:        newIndexNodes,
+			IsInScrambleNodes: isInScrumbleNodes,
+		}
+		ps.ScrambleNodeLock.Unlock()
 	}
 }
 
-// CollectPriorityPeers, collect new priority peers from scrambled nodes
-func (ps *PriorityStrategy) CollectPriorityPeers(scrambleNodes []*model.NodeRegistration) {
-	var (
-		hostPotition           int
-		newPriorityPeers       = make(map[string]*model.Peer)
-		newMutualPriorityPeers = make(map[string]*model.Peer)
-		isInScrambleNodes      = false
-		hostFullAddress        = p2pUtil.GetFullAddressPeer(
-			&model.Peer{
-				Info: ps.Host.GetInfo(),
-			},
-		)
-	)
-	for potition, node := range scrambleNodes {
-		// TODO: Adding port of node address in node registry ??
-		if hostFullAddress == p2pUtil.GetFullAddress(node.GetNodeAddress(), 8001) {
-			isInScrambleNodes = true
-			hostPotition = potition
-			break
-		}
-	}
-
-	if isInScrambleNodes {
-		var (
-			addedPotition       = 1
-			mainPeersPotition   int
-			mainResetPotiton    int
-			mutualPeersPotition int
-			mutualResetPotition = len(scrambleNodes) - 1
-		)
-		/*
-			Find Peers Priority
-			For now priority peers is next node after host postition until max priotity peers
-		*/
-		for addedPotition <= constant.PriorityStrategyMaxPriorityPeers {
-			// Get main peers potition
-			if (hostPotition + addedPotition) < len(scrambleNodes) {
-				mainPeersPotition = hostPotition + addedPotition
-			} else {
-				if mainResetPotiton != hostPotition {
-					mainPeersPotition = mainResetPotiton
-				}
-				mainResetPotiton++
-			}
-
-			// Get mutual peers potition
-			if (hostPotition - addedPotition) >= 0 {
-				mutualPeersPotition = hostPotition - addedPotition
-			} else {
-				if mutualPeersPotition == 0 {
-					mutualResetPotition = len(scrambleNodes)
-					mutualPeersPotition = len(scrambleNodes) - 1
-				} else {
-					mutualPeersPotition = mutualResetPotition
-				}
-				mutualResetPotition--
-			}
-
-			newPriorityPeer := &model.Peer{
-				Info: &model.Node{
-					Address: scrambleNodes[mainPeersPotition].GetNodeAddress(),
-					// TODO: Adding Port of node address in node registry ??
-					Port: 8001,
-				},
-			}
-			newMutualPeer := &model.Peer{
-				Info: &model.Node{
-					Address: scrambleNodes[mutualPeersPotition].GetNodeAddress(),
-					// TODO: Adding Port of node address in node registry ??
-					Port: 8001,
-				},
-			}
-			newPriorityPeers[p2pUtil.GetFullAddressPeer(newPriorityPeer)] = newPriorityPeer
-			newMutualPriorityPeers[p2pUtil.GetFullAddressPeer(newMutualPeer)] = newMutualPeer
-
-			if mainResetPotiton == len(scrambleNodes) {
-				break
-			}
-			addedPotition++
-		}
-	}
-
-	// save new priority peers
-	ps.PriorityPeersLock.Lock()
-	ps.PriorityPeers.MainPriority = newPriorityPeers
-	ps.PriorityPeers.MutualPriority = newMutualPriorityPeers
-	ps.PriorityPeersLock.Unlock()
+func (ps *PriorityStrategy) GetStartIndexPriorityPeer(nodeIndex int) int {
+	return (nodeIndex * constant.PriorityStrategyMaxPriorityPeers) % (len(ps.ScrambleNode.IndexNodes) - 1)
 }
 
 // ============================================
