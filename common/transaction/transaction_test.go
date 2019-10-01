@@ -5,9 +5,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/util"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
@@ -143,6 +146,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				SenderAddress:           "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Body:                    nodeRegistrationBody,
 				QueryExecutor:           &query.Executor{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:               &auth.ProofOfOwnershipValidation{},
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
@@ -172,6 +177,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 			},
 		},
 		{
@@ -224,6 +231,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 			},
 		},
 		{

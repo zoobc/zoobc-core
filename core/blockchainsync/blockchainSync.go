@@ -72,6 +72,11 @@ func (bss *Service) Start(runNext chan bool) {
 }
 
 func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
+
+	defer func() {
+		log.Info("getMoreBlocksThread stopped")
+	}()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {

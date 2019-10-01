@@ -7,28 +7,21 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-var mockMempoolQuery = &MempoolQuery{
-	ChainType: &chaintype.MainChain{},
-	TableName: "mempool",
-	Fields: []string{
-		"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
-		"sender_account_address", "recipient_account_address",
-	},
-}
-
-var mockMempool = &model.MempoolTransaction{
-	ID:                      1,
-	ArrivalTimestamp:        1000,
-	FeePerByte:              10,
-	TransactionBytes:        []byte{1, 2, 3, 4, 5},
-	SenderAccountAddress:    "BCZ",
-	RecipientAccountAddress: "ZCB",
-}
+var (
+	mockMempoolQuery = NewMempoolQuery(chaintype.GetChainType(0))
+	mockMempool      = &model.MempoolTransaction{
+		ID:                      1,
+		ArrivalTimestamp:        1000,
+		FeePerByte:              10,
+		TransactionBytes:        []byte{1, 2, 3, 4, 5},
+		SenderAccountAddress:    "BCZ",
+		RecipientAccountAddress: "ZCB",
+	}
+)
 
 func TestNewMempoolQuery(t *testing.T) {
 	type args struct {
@@ -245,4 +238,42 @@ func ExampleMempoolQuery_Scan() {
 	fmt.Println(err)
 	// Output: <nil>
 
+}
+
+func TestMempoolQuery_DeleteExpiredMempoolTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		expiration int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockMempoolQuery),
+			args: args{
+				expiration: 1000,
+			},
+			want: "DELETE FROM mempool WHERE arrival_timestamp <= 1000",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mpq := &MempoolQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if got := mpq.DeleteExpiredMempoolTransactions(tt.args.expiration); got != tt.want {
+				t.Errorf("DeleteExpiredMempoolTransactions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -11,27 +11,24 @@ import (
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/blockchainsync"
+	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/observer"
+	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/blockchainsync"
-	"github.com/zoobc/zoobc-core/core/service"
-
-	"github.com/zoobc/zoobc-core/core/smith"
-
-	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/api"
-	"github.com/zoobc/zoobc-core/common/database"
-	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
-	"github.com/zoobc/zoobc-core/p2p"
 )
 
 var (
@@ -150,7 +147,7 @@ func initP2pInstance() {
 	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// peer discovery strategy
-	peerExplorer = strategy.NewNativeStrategy(
+	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
 	)
@@ -167,7 +164,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-
+	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 }
 
 func startServices() {
@@ -284,7 +281,18 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 	)
-	mainchainSynchronizer.Start(mainchainSyncChannel)
+
+	// Schedulers Init
+	go func() {
+		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
+		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
+	go func() {
+		mainchainSynchronizer.Start(mainchainSyncChannel)
+	}()
 }
 
 func main() {
@@ -297,13 +305,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	startServices()
-
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
+	startServices()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	// When we receive a signal from the OS, shut down everything
 	<-sigs
+	log.Info("ZOOBC Shutdown")
+	os.Exit(0)
 }

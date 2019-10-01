@@ -23,7 +23,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				linkedReceipt:   constant.MaxReceipt - 13,
 				unlinkedReceipt: 13,
 			},
-			want:    250000,
+			want:    25000000,
 			wantErr: false,
 		},
 		{

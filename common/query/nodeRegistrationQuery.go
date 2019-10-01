@@ -12,11 +12,11 @@ import (
 type (
 	NodeRegistrationQueryInterface interface {
 		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
-		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) (str []string, args []interface{})
+		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
-		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string
@@ -66,15 +66,24 @@ func (nr *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.
 // UpdateNodeRegistration returns a slice of two queries.
 // 1st update all old noderegistration versions' latest field to 0
 // 2nd insert a new version of the noderegisration with updated data
-func (nr *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) (str []string, args []interface{}) {
-	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = %d", nr.getTableName(), nodeRegistration.NodeID)
+func (nr *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{} {
+	var (
+		queries [][]interface{}
+	)
+	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nr.getTableName())
 	qryInsert := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		nr.getTableName(),
 		strings.Join(nr.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nr.Fields)-1)),
 	)
-	return []string{qryUpdate, qryInsert}, nr.ExtractModel(nodeRegistration)
+
+	queries = append(queries,
+		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
+		append([]interface{}{qryInsert}, nr.ExtractModel(nodeRegistration)...),
+	)
+
+	return queries
 }
 
 // GetNodeRegistrations returns query string to get multiple node registrations
@@ -97,9 +106,9 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string, 
 }
 
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
-func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
+func (nr *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{nodePublicKey}
+		strings.Join(nr.Fields, ", "), nr.getTableName())
 }
 
 // GetLastVersionedNodeRegistrationByPublicKey returns query string to get Node Registration
@@ -112,8 +121,8 @@ func (nr *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(nod
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
 func (nr *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = %s AND latest=1",
-		strings.Join(nr.Fields, ", "), nr.getTableName(), accountAddress), []interface{}{accountAddress}
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1",
+		strings.Join(nr.Fields, ", "), nr.getTableName()), []interface{}{accountAddress}
 }
 
 // GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
