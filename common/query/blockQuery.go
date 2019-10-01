@@ -21,6 +21,7 @@ type (
 		InsertBlock(block *model.Block) (str string, args []interface{})
 		ExtractModel(block *model.Block) []interface{}
 		BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block
+		Scan(block *model.Block, row *sql.Row) error
 	}
 
 	BlockQuery struct {
@@ -140,6 +141,31 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 		blocks = append(blocks, &block)
 	}
 	return blocks
+}
+
+func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
+	err := row.Scan(
+		&block.ID,
+		&block.PreviousBlockHash,
+		&block.Height,
+		&block.Timestamp,
+		&block.BlockSeed,
+		&block.BlockSignature,
+		&block.CumulativeDifficulty,
+		&block.SmithScale,
+		&block.PayloadLength,
+		&block.PayloadHash,
+		&block.BlocksmithPublicKey,
+		&block.TotalAmount,
+		&block.TotalFee,
+		&block.TotalCoinBase,
+		&block.Version,
+	)
+	if err != nil {
+		return err
+
+	}
+	return nil
 }
 
 // Rollback delete records `WHERE height > "height"`

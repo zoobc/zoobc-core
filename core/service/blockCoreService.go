@@ -276,7 +276,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	}
 	if previousBlock.GetID() != -1 && block.CumulativeDifficulty == "" && block.SmithScale == 0 {
 		block.Height = previousBlock.GetHeight() + 1
-		block = coreUtil.CalculateSmithScale(previousBlock, block, bs.Chaintype.GetChainSmithingDelayTime())
+		block = coreUtil.CalculateSmithScale(
+			previousBlock, block, bs.Chaintype.GetSmithingPeriod(), bs.BlockQuery, bs.QueryExecutor,
+		)
 	}
 	// start db transaction here
 	_ = bs.QueryExecutor.BeginTx()
