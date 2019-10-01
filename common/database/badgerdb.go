@@ -43,10 +43,12 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 	if ok := os.IsNotExist(err); ok {
 		return err
 	}
-
-	_, err = os.OpenFile(fmt.Sprintf("%s/%s", dbPath, dbName), os.O_WRONLY|os.O_CREATE, os.ModePerm)
-	if err != nil {
-		return err
+	_, err = os.Stat(fmt.Sprintf("%s/%s", dbPath, dbName))
+	if ok := os.IsNotExist(err); ok {
+		err = os.Mkdir(fmt.Sprintf("%s/%s", dbPath, dbName), os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -54,7 +56,7 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
 	// Open the Badger database located in the /tmp/badger directory.
 	// It will be created if it doesn't exist.
-	badgerConn, err := badger.Open(badger.DefaultOptions(dbPath + dbName))
+	badgerConn, err := badger.Open(badger.DefaultOptions(fmt.Sprintf("%s/%s", dbPath, dbName)))
 	if err != nil {
 		return nil, err
 	}
