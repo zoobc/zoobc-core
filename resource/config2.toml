@@ -1,5 +1,7 @@
 dbPath = "./resource/"
 dbName = "zoobc_2.db"
+badgerDbPath="./resource"
+badgerDbName="zoobc_2_kv/"
 configPath = "./resource/"
 nodeKeyFile = "node_keys_2.json"
 

@@ -201,6 +201,7 @@ func startServices() {
 	api.Start(
 		apiRPCPort,
 		apiHTTPPort,
+		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
@@ -224,6 +225,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
 		mainchain,
+		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
 		&transaction.TypeSwitcher{
@@ -247,6 +249,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
+		query.NewMerkleTreeQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		actionSwitcher,
