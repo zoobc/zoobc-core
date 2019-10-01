@@ -96,7 +96,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByAccountAddress(t *testing.T)
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"queued, latest, height FROM node_registry WHERE account_address = '?' AND latest=1"
+			"queued, latest, height FROM node_registry WHERE account_address = ? AND latest=1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}

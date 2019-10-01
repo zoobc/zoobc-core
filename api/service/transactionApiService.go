@@ -2,13 +2,14 @@ package service
 
 import (
 	"database/sql"
-	"errors"
 	"math"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/zoobc/zoobc-core/observer"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -74,10 +75,9 @@ func (ts *TransactionService) GetTransaction(
 	txQuery := query.NewTransactionQuery(chainType)
 	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID), false)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
-
 	txTemp = txQuery.BuildModel(txTemp, rows)
 	if len(txTemp) != 0 {
 		tx = txTemp[0]
@@ -125,7 +125,7 @@ func (ts *TransactionService) GetTransaction(
 
 		return tx, nil
 	}
-	return nil, errors.New("TransactionNotFound")
+	return nil, status.Error(codes.NotFound, "transaction not found")
 }
 
 // GetTransactions fetches a single transaction from DB
@@ -184,7 +184,7 @@ func (ts *TransactionService) GetTransactions(
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
@@ -193,7 +193,7 @@ func (ts *TransactionService) GetTransactions(
 			&totalRecords,
 		)
 		if err != nil {
-			return &model.GetTransactionsResponse{}, err
+			return &model.GetTransactionsResponse{}, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -208,7 +208,7 @@ func (ts *TransactionService) GetTransactions(
 
 	rows, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 

@@ -3,7 +3,9 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"errors"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -47,16 +49,16 @@ func (ut *MempoolTransactionService) GetMempoolTransaction(
 	txQuery := query.NewMempoolQuery(chainType)
 	row = ut.Query.ExecuteSelectRow(txQuery.GetMempoolTransaction(), params.GetID())
 	if row == nil {
-		return nil, err
+		return nil, status.Error(codes.NotFound, "transaction not found in mempool")
 	}
 
 	err = txQuery.Scan(&tx, row)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if len(tx.GetTransactionBytes()) == 0 {
-		return nil, errors.New("record not found")
+		return nil, status.Error(codes.NotFound, "tx byte is empty")
 	}
 	return &model.GetMempoolTransactionResponse{
 		Transaction: &tx,
@@ -103,14 +105,14 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 
 	rows, err = ut.Query.ExecuteSelect(countQuery, false, args...)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
 	if rows.Next() {
 		err = rows.Scan(&count)
 		if err != nil {
-			return response, err
+			return response, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -126,7 +128,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	selectQuery, args = caseQuery.Build()
 	rows, err = ut.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
