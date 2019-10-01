@@ -68,6 +68,7 @@ type (
 		) (*model.BatchReceipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
+		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 	}
 
 	BlockService struct {
@@ -893,4 +894,26 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 
 func (*BlockService) GetCoinbase() int64 {
 	return 50 * constant.OneZBC
+}
+
+// GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
+func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+	var (
+		activeBlocksmiths, blocksmiths []*model.Blocksmith
+	)
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	activeBlocksmiths = bs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
+	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
+	for _, blocksmith := range activeBlocksmiths {
+		blocksmith.SmithOrder = coreUtil.CalculateSmithOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
+		blocksmith.BlockSeed = blockSeed
+		blocksmiths = append(blocksmiths, blocksmith)
+	}
+	return blocksmiths, nil
 }

@@ -54,11 +54,11 @@ func TestNewBlockchainProcessor(t *testing.T) {
 }
 
 type (
-	mockNodeRegistrationService struct {
-		service.NodeRegistrationService
+	mockBlockService struct {
+		service.BlockService
 	}
-	mockNodeRegistrationServiceFail struct {
-		service.NodeRegistrationService
+	mockBlockServiceFail struct {
+		service.BlockService
 	}
 )
 
@@ -120,11 +120,11 @@ var (
 	}
 )
 
-func (*mockNodeRegistrationService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+func (*mockBlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	return mockBlocksmiths, nil
 }
 
-func (*mockNodeRegistrationServiceFail) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+func (*mockBlockServiceFail) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	return nil, errors.New("mockedError")
 }
 
@@ -142,8 +142,8 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 				SecretPhrase:  "",
 				Deadline:      0,
 			},
+			&mockBlockService{},
 			nil,
-			&mockNodeRegistrationService{},
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
 		listener.OnNotify(&model.Block{
@@ -209,8 +209,8 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 				SecretPhrase:  "",
 				Deadline:      0,
 			},
+			&mockBlockServiceFail{},
 			nil,
-			&mockNodeRegistrationServiceFail{},
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
 		listener.OnNotify(&model.Block{

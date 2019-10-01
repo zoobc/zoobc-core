@@ -142,7 +142,7 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksm
 			// fetch valid blocksmiths
 			lastBlock := block.(*model.Block)
 			var blocksmiths []model.Blocksmith
-			nextBlocksmiths, err := bp.NodeRegistrationService.GetBlocksmiths(lastBlock)
+			nextBlocksmiths, err := bp.BlockService.GetBlocksmiths(lastBlock)
 			if err != nil {
 				log.Errorf("SortBlocksmith: %s", err)
 				return

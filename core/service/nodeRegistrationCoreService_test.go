@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"math/big"
 	"reflect"
 	"regexp"
 	"testing"
@@ -11,7 +10,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -713,78 +711,6 @@ func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNodeRegistrationService_GetBlocksmiths(t *testing.T) {
-	type fields struct {
-		QueryExecutor           query.ExecutorInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeAdmittanceCycle     uint32
-	}
-	type args struct {
-		block *model.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*model.Blocksmith
-		wantErr bool
-	}{
-		{
-			name: "GetBlocksmiths:success",
-			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			args: args{
-				block: nrsBlock2,
-			},
-			want: []*model.Blocksmith{
-				{
-					NodeID:        1,
-					NodePublicKey: nrsNodePubKey1,
-					SmithOrder:    util.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
-					NodeOrder:     util.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
-					BlockSeed:     new(big.Int).SetBytes(nrsBlock2.BlockSeed),
-					Score:         new(big.Int).SetInt64(8000),
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "GetBlocksmiths:fail-{ExecuteSelect}",
-			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorFailActiveNodeRegistrations{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			args: args{
-				block: nrsBlock2,
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
-			}
-			got, err := nrs.GetBlocksmiths(tt.args.block)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NodeRegistrationService.GetBlocksmiths() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeRegistrationService.GetBlocksmiths() = %v, want %v", got, tt.want)
 			}
 		})
 	}
