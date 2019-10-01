@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 
 	"github.com/zoobc/zoobc-core/common/model"
 
@@ -61,38 +62,69 @@ type (
 	}
 )
 
-var mockBlocksmiths = []*model.Blocksmith{
-	{
-		NodePublicKey: []byte{1},
-		Score:         new(big.Int).SetInt64(8000),
-		SmithTime:     0,
-		BlockSeed:     nil,
-		SecretPhrase:  "",
-		Deadline:      0,
-	},
-	{
-		NodePublicKey: []byte{2},
-		Score:         new(big.Int).SetInt64(1000),
-		SmithTime:     0,
-		BlockSeed:     nil,
-		SecretPhrase:  "",
-		Deadline:      0,
-	},
-	{
-		NodePublicKey: []byte{3},
-		Score:         new(big.Int).SetInt64(5000),
-		SmithTime:     0,
-		BlockSeed:     nil,
-		SecretPhrase:  "",
-		Deadline:      0,
-	},
-}
+var (
+	blockSeed       = new(big.Int).SetInt64(0)
+	score1          = new(big.Int).SetInt64(8000)
+	nodeID1         = int64(1)
+	score2          = new(big.Int).SetInt64(1000)
+	nodeID2         = int64(1)
+	score3          = new(big.Int).SetInt64(5000)
+	nodeID3         = int64(1)
+	score4          = new(big.Int).SetInt64(5000)
+	nodeID4         = int64(10)
+	mockBlocksmiths = []*model.Blocksmith{
+		{
+			NodeID:        nodeID1,
+			NodePublicKey: []byte{1},
+			Score:         score1,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score1, blockSeed, nodeID1),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score1, blockSeed, nodeID1),
+		},
+		{
+			NodeID:        nodeID2,
+			NodePublicKey: []byte{2},
+			Score:         score2,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score2, blockSeed, nodeID2),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score2, blockSeed, nodeID2),
+		},
+		{
+			NodeID:        nodeID3,
+			NodePublicKey: []byte{3},
+			Score:         score3,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score3, blockSeed, nodeID3),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score3, blockSeed, nodeID3),
+		},
+		{
+			NodeID:        nodeID4,
+			NodePublicKey: []byte{4},
+			Score:         score4,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score4, blockSeed, nodeID4),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score4, blockSeed, nodeID4),
+		},
+	}
+)
 
-func (*mockNodeRegistrationService) GetActiveNodes() ([]*model.Blocksmith, error) {
+func (*mockNodeRegistrationService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	return mockBlocksmiths, nil
 }
 
-func (*mockNodeRegistrationServiceFail) GetActiveNodes() ([]*model.Blocksmith, error) {
+func (*mockNodeRegistrationServiceFail) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	return nil, errors.New("mockedError")
 }
 
@@ -121,7 +153,7 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 		for i, s := range sortedBlocksmiths {
 			switch i {
 			case 0:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[0]) {
+				if !reflect.DeepEqual(s, *mockBlocksmiths[1]) {
 					t.Error("invalid sort")
 				}
 			case 1:
@@ -129,7 +161,12 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 					t.Error("invalid sort")
 				}
 			case 2:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[1]) {
+				if !reflect.DeepEqual(s, *mockBlocksmiths[0]) {
+					t.Error("invalid sort")
+				}
+			case 3:
+				// note that this has a lower score than the previous, but a higher nodeID (randomization)
+				if !reflect.DeepEqual(s, *mockBlocksmiths[3]) {
 					t.Error("invalid sort")
 				}
 			}
@@ -150,6 +187,10 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 				}
 			case 2:
 				if !reflect.DeepEqual(s, *mockBlocksmiths[0]) {
+					t.Error("invalid sort")
+				}
+			case 3:
+				if !reflect.DeepEqual(s, *mockBlocksmiths[3]) {
 					t.Error("invalid sort")
 				}
 			}

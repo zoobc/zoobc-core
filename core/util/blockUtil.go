@@ -129,3 +129,17 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 	}
 	return false
 }
+
+// CalculateSmithOrder calculate the blocksmith order parameter, used to sort/select the next blocksmith
+func CalculateSmithOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
+	nodePK := new(big.Int).SetUint64(uint64(nodeID))
+	rndNodePK := nodePK.Int64() ^ blockSeed.Int64()
+	return new(big.Int).Mul(score, new(big.Int).SetInt64(rndNodePK))
+}
+
+// CalculateNodeOrder calculate the Node order parameter, used to sort/select the group of blocksmith rewarded for a given block
+func CalculateNodeOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
+	nodePK := new(big.Int).SetUint64(uint64(nodeID))
+	rndNodePK := nodePK.Int64() ^ blockSeed.Int64()
+	return new(big.Int).Div(new(big.Int).SetInt64(rndNodePK), score)
+}

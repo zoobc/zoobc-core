@@ -142,17 +142,13 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksm
 			// fetch valid blocksmiths
 			lastBlock := block.(*model.Block)
 			var blocksmiths []model.Blocksmith
-			activeBlocksmiths, err := bp.NodeRegistrationService.GetActiveNodes()
+			nextBlocksmiths, err := bp.NodeRegistrationService.GetBlocksmiths(lastBlock)
 			if err != nil {
+				log.Errorf("SortBlocksmith: %s", err)
 				return
 			}
-			// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
-			blockSeed := new(big.Int).SetBytes(lastBlock.BlockSeed)
-			for _, blocksmith := range activeBlocksmiths {
-				nodePK := new(big.Int).SetUint64(uint64(blocksmith.NodeID))
-				rndNodePK := nodePK.Int64() ^ blockSeed.Int64()
-				blocksmith.SmithOrder = new(big.Int).Mul(blocksmith.Score, new(big.Int).SetInt64(rndNodePK))
-				blocksmith.NodeOrder = new(big.Int).Div(new(big.Int).SetInt64(rndNodePK), blocksmith.Score)
+			// copy the nextBlocksmiths pointers array into an array of blocksmiths
+			for _, blocksmith := range nextBlocksmiths {
 				blocksmiths = append(blocksmiths, *blocksmith)
 			}
 			// sort blocksmiths by SmithOrder

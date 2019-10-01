@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"math/big"
 	"reflect"
 	"regexp"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -21,6 +23,9 @@ type (
 		query.Executor
 	}
 	nrsMockQueryExecutorFailNodeRegistryListener struct {
+		query.Executor
+	}
+	nrsMockQueryExecutorFailActiveNodeRegistrations struct {
 		query.Executor
 	}
 )
@@ -70,9 +75,31 @@ var (
 		PayloadLength:        0,
 		BlockSignature:       []byte{},
 	}
+	nrsBlock2 = &model.Block{
+		ID:                   1000,
+		Height:               blockAdmittanceHeight1,
+		Version:              1,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		PreviousBlockHash:    []byte{},
+		BlockSeed:            []byte{1, 1, 1, 1, 1, 1, 1, 1},
+		BlocksmithPublicKey:  nrsNodePubKey1,
+		Timestamp:            12345678,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Transactions:         []*model.Transaction{},
+		PayloadHash:          []byte{},
+		PayloadLength:        0,
+		BlockSignature:       []byte{},
+	}
 )
 
 func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("MockedError")
+}
+
+func (*nrsMockQueryExecutorFailActiveNodeRegistrations) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
@@ -177,6 +204,15 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"height",
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
+	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
+		"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
+		"WHERE nr.latest = 1 AND nr.queued = 0 AND ps.score > 0 AND ps.latest = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"participation_score",
+		},
+		).AddRow(1, nrsNodePubKey1, 8000))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
 		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND queued == 0 GROUP BY id ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -677,6 +713,78 @@ func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_GetBlocksmiths(t *testing.T) {
+	type fields struct {
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeAdmittanceCycle     uint32
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.Blocksmith
+		wantErr bool
+	}{
+		{
+			name: "GetBlocksmiths:success",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				block: nrsBlock2,
+			},
+			want: []*model.Blocksmith{
+				{
+					NodeID:        1,
+					NodePublicKey: nrsNodePubKey1,
+					SmithOrder:    util.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
+					NodeOrder:     util.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
+					BlockSeed:     new(big.Int).SetBytes(nrsBlock2.BlockSeed),
+					Score:         new(big.Int).SetInt64(8000),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GetBlocksmiths:fail-{ExecuteSelect}",
+			fields: fields{
+				QueryExecutor:         &nrsMockQueryExecutorFailActiveNodeRegistrations{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
+			args: args{
+				block: nrsBlock2,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
+			}
+			got, err := nrs.GetBlocksmiths(tt.args.block)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.GetBlocksmiths() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistrationService.GetBlocksmiths() = %v, want %v", got, tt.want)
 			}
 		})
 	}

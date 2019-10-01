@@ -346,6 +346,18 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
+	if block.Height > 0 {
+		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
+		totalReward := block.TotalFee + block.TotalCoinBase
+		lotteryAccounts, err := bs.CoinbaseLotteryWinners()
+		if err != nil {
+			return err
+		}
+		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+			return err
+		}
+	}
+
 	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -356,24 +368,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
-
-	if block.Height > 0 {
-		// start db transaction here
-		_ = bs.QueryExecutor.BeginTx()
-		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
-		totalReward := block.TotalFee + block.TotalCoinBase
-		lotteryAccounts, err := bs.CoinbaseLotteryWinners()
-		if err != nil {
-			return err
-		}
-		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
-			return err
-		}
-		err = bs.QueryExecutor.CommitTx()
-		if err != nil { // commit automatically unlock executor and close tx
-			return err
-		}
-	}
 
 	return nil
 }
@@ -898,6 +892,5 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 }
 
 func (*BlockService) GetCoinbase() int64 {
-	//TODO: integrate this with POP algorithm
 	return 50 * constant.OneZBC
 }

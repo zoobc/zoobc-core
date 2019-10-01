@@ -1,11 +1,14 @@
 package service
 
 import (
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -18,7 +21,7 @@ type (
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
-		GetActiveNodes() ([]*model.Blocksmith, error)
+		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		NodeRegistryListener() observer.Listener
 	}
 
@@ -165,20 +168,6 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	return nil
 }
 
-// GetActiveNodes get list of currently participating nodes
-func (nrs *NodeRegistrationService) GetActiveNodes() ([]*model.Blocksmith, error) {
-	var (
-		activeNodes []*model.Blocksmith
-	)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	activeNodes = nrs.NodeRegistrationQuery.BuildBlocksmith(activeNodes, rows)
-	return activeNodes, nil
-}
-
 // NodeRegistryListener handle node admission/expulsion after a block is pushed, at regular interval
 func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
 	return observer.Listener{
@@ -214,4 +203,26 @@ func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
 			}
 		},
 	}
+}
+
+// GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
+func (nrs *NodeRegistrationService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+	var (
+		activeBlocksmiths, blocksmiths []*model.Blocksmith
+	)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	activeBlocksmiths = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
+	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
+	for _, blocksmith := range activeBlocksmiths {
+		blocksmith.SmithOrder = util.CalculateSmithOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
+		blocksmith.NodeOrder = util.CalculateNodeOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
+		blocksmith.BlockSeed = blockSeed
+		blocksmiths = append(blocksmiths, blocksmith)
+	}
+	return blocksmiths, nil
 }
