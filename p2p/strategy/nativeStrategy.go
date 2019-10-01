@@ -101,7 +101,7 @@ func (ns *NativeStrategy) UpdateResolvedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (ns *NativeStrategy) resolvePeer(destPeer *model.Peer) {
-	_, err := ns.PeerServiceClient.GetPeerInfo(destPeer)
+	_, err := ns.PeerServiceClient.GetPeerInfo(destPeer, nil)
 	if err != nil {
 		// TODO: add mechanism to blacklist failing peers
 		ns.DisconnectPeer(destPeer)
@@ -207,7 +207,7 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
  *	========================================
  */
 
-func (ns *NativeStrategy) GetHostInfo() *model.Node {
+func (ns *NativeStrategy) GetHostInfo(requester *model.Node) *model.Node {
 	return ns.Host.GetInfo()
 }
 

@@ -13,7 +13,7 @@ import (
 type (
 	PeerExplorerStrategyInterface interface {
 		Start()
-		GetHostInfo() *model.Node
+		GetHostInfo(requester *model.Node) *model.Node
 		GetAnyResolvedPeer() *model.Peer
 		GetMorePeersHandler() (*model.Peer, error)
 		GetUnresolvedPeers() map[string]*model.Peer

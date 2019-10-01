@@ -20,7 +20,7 @@ import (
 type (
 	//  PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
-		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
+		GetPeerInfo(destPeer *model.Peer, requester *model.Node) (*model.Node, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
 		SendBlock(
@@ -87,13 +87,16 @@ func NewPeerServiceClient(
 }
 
 // GetPeerInfo to get Peer info
-func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
+func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer, requester *model.Node) (*model.Node, error) {
 	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
 	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	// context still not use ctx := cs.buildContext()
-	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{Version: "v1,.0.1"})
+	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{
+		Version:       "v1,.0.1",
+		InfoRequester: requester,
+	})
 	if err != nil {
 		return nil, err
 	}

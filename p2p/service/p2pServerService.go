@@ -72,7 +72,7 @@ func NewP2PServerService(
 }
 
 func (ps *P2PServerService) GetPeerInfo(req *model.GetPeerInfoRequest) (*model.Node, error) {
-	return ps.PeerExplorer.GetHostInfo(), nil
+	return ps.PeerExplorer.GetHostInfo(req.GetInfoRequester()), nil
 }
 
 // GetMorePeers contains info other peers
