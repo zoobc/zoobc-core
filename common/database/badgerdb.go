@@ -54,8 +54,6 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 }
 
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
-	// Open the Badger database located in the /tmp/badger directory.
-	// It will be created if it doesn't exist.
 	badgerConn, err := badger.Open(badger.DefaultOptions(fmt.Sprintf("%s/%s", dbPath, dbName)))
 	if err != nil {
 		return nil, err
