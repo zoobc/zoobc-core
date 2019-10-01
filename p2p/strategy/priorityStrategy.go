@@ -199,16 +199,15 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 			ni, nj := nodeRegistries[i], nodeRegistries[j]
 			// bs, Last 8 bytes of block seed hash in big int
 			bs := new(big.Int).SetBytes(block.GetBlockSeed()).Int64()
-			// Node public key in big int
-			nodeIDi := new(big.Int).SetInt64(ni.GetNodeID())
-			nodeIDj := new(big.Int).SetInt64(nj.GetNodeID())
-			//  Last 8 bytes Public Key of Node Registry   XOR   Last 8 bytes Block Seed
-			resI := new(big.Int).SetInt64(nodeIDi.Int64() ^ bs)
-			resJ := new(big.Int).SetInt64(nodeIDj.Int64() ^ bs)
+			//  Last 8 bytes Node ID of Node Registry   XOR   Last 8 bytes Block Seed
+			resI := new(big.Int).SetInt64(ni.GetNodeID() ^ bs)
+			resJ := new(big.Int).SetInt64(nj.GetNodeID() ^ bs)
 
 			res := resI.Cmp(resJ)
 			if res == 0 {
-				// Compare node public key
+				// Compare node Node ID
+				nodeIDi := new(big.Int).SetInt64(ni.GetNodeID())
+				nodeIDj := new(big.Int).SetInt64(nj.GetNodeID())
 				res = nodeIDi.Cmp(nodeIDj)
 			}
 			// Ascending sort
