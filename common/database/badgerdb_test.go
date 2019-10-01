@@ -1,15 +1,13 @@
 package database
 
 import (
-	"log"
 	"os"
 	"reflect"
 	"testing"
 )
 
 func cleanUpTestData() {
-	err := os.RemoveAll("./testdata/*")
-	log.Fatal(err)
+	_ = os.RemoveAll("./testdata/foo")
 }
 
 func TestBadgerDB_CloseBadgerDB(t *testing.T) {
@@ -56,7 +54,7 @@ func TestBadgerDB_InitializeBadgerDB(t *testing.T) {
 			name: "InitializeBadgerDB:success - create new directory",
 			args: args{
 				dbPath: "./testdata",
-				dbName: "foo/",
+				dbName: "foo",
 			},
 			wantErr: false,
 		},
@@ -95,7 +93,7 @@ func TestBadgerDB_OpenBadgerDB(t *testing.T) {
 			name: "OpenBadgerDB:success",
 			args: args{
 				dbPath: "./testdata",
-				dbName: "/",
+				dbName: "foo",
 			},
 			wantErr: false,
 		},
