@@ -3,13 +3,16 @@ kvdb is key-value database abstraction of badger db implementation
 */
 package kvdb
 
-import "github.com/dgraph-io/badger"
+import (
+	"github.com/dgraph-io/badger"
+)
 
 type (
 	KVExecutorInterface interface {
 		Insert(key string, value []byte) error
 		BatchInsert(updates map[string][]byte) error
 		Get(key string) ([]byte, error)
+		GetByPrefix(prefix string) (map[string][]byte, error)
 	}
 	KVExecutor struct {
 		Db *badger.DB
@@ -64,4 +67,30 @@ func (kve *KVExecutor) Get(key string) ([]byte, error) {
 		return nil, err
 	}
 	return valCopy, nil
+}
+
+// GetByPrefix will search through our kvdb for key that're prefixed with `prefix` and return the
+// unsorted results
+func (kve *KVExecutor) GetByPrefix(prefix string) (map[string][]byte, error) {
+	var result = make(map[string][]byte)
+	err := kve.Db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		for it.Seek([]byte(prefix)); it.ValidForPrefix([]byte(prefix)); it.Next() {
+			item := it.Item()
+			k := item.Key()
+			err := item.Value(func(v []byte) error {
+				result[string(k)] = v
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
