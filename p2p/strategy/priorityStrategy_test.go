@@ -93,9 +93,9 @@ func TestNewPriorityStrategy(t *testing.T) {
 						Port:          3000,
 					},
 				},
-				PriorityPeers: PriorityPeers{
-					MainPriority:   make(map[string]*model.Peer),
-					MutualPriority: make(map[string]*model.Peer),
+				ScrambleNode: ScrambleNode{
+					IndexNodes:        make(map[string]int),
+					IsInScrambleNodes: false,
 				},
 				MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
 				MaxResolvedPeers:   constant.MaxResolvedPeers,
@@ -118,7 +118,6 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -142,7 +141,6 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -159,7 +157,6 @@ func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -183,7 +180,6 @@ func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -200,7 +196,6 @@ func TestPriorityStrategy_GetAnyResolvedPeer(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -224,7 +219,6 @@ func TestPriorityStrategy_GetAnyResolvedPeer(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -241,7 +235,6 @@ func TestPriorityStrategy_AddToResolvedPeer(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -277,7 +270,6 @@ func TestPriorityStrategy_AddToResolvedPeer(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -294,7 +286,6 @@ func TestPriorityStrategy_RemoveResolvedPeer(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -325,7 +316,6 @@ func TestPriorityStrategy_RemoveResolvedPeer(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -342,7 +332,6 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -366,7 +355,6 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -383,7 +371,6 @@ func TestPriorityStrategy_GetAnyUnresolvedPeer(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -407,7 +394,6 @@ func TestPriorityStrategy_GetAnyUnresolvedPeer(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
@@ -424,7 +410,6 @@ func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 		PeerServiceClient     client.PeerServiceClientInterface
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		PriorityPeers         PriorityPeers
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
@@ -461,7 +446,6 @@ func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 				PeerServiceClient:     tt.fields.PeerServiceClient,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				PriorityPeers:         tt.fields.PriorityPeers,
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
