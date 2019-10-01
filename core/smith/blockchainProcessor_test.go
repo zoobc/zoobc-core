@@ -63,16 +63,17 @@ type (
 )
 
 var (
-	blockSeed       = new(big.Int).SetInt64(0)
-	score1          = new(big.Int).SetInt64(8000)
-	nodeID1         = int64(1)
-	score2          = new(big.Int).SetInt64(1000)
-	nodeID2         = int64(1)
-	score3          = new(big.Int).SetInt64(5000)
-	nodeID3         = int64(1)
-	score4          = new(big.Int).SetInt64(5000)
-	nodeID4         = int64(10)
-	mockBlocksmiths = []*model.Blocksmith{
+	blockSeed = new(big.Int).SetUint64(10000000)
+	score1    = new(big.Int).SetInt64(8000)
+	nodeID1   = int64(12536845)
+	score2    = new(big.Int).SetInt64(1000)
+	nodeID2   = int64(12536845)
+	score3    = new(big.Int).SetInt64(5000)
+	nodeID3   = int64(12536845)
+)
+
+func getMockBlocksmiths() []*model.Blocksmith {
+	return []*model.Blocksmith{
 		{
 			NodeID:        nodeID1,
 			NodePublicKey: []byte{1},
@@ -106,22 +107,11 @@ var (
 			SmithOrder:    coreUtil.CalculateSmithOrder(score3, blockSeed, nodeID3),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score3, blockSeed, nodeID3),
 		},
-		{
-			NodeID:        nodeID4,
-			NodePublicKey: []byte{4},
-			Score:         score4,
-			SmithTime:     0,
-			BlockSeed:     blockSeed,
-			SecretPhrase:  "",
-			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score4, blockSeed, nodeID4),
-			NodeOrder:     coreUtil.CalculateNodeOrder(score4, blockSeed, nodeID4),
-		},
 	}
-)
+}
 
 func (*mockBlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
-	return mockBlocksmiths, nil
+	return getMockBlocksmiths(), nil
 }
 
 func (*mockBlockServiceFail) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
@@ -146,51 +136,60 @@ func TestBlockchainProcessor_SortBlocksmith(t *testing.T) {
 			nil,
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
-		listener.OnNotify(&model.Block{
-			BlockSeed: util.ConvertUint64ToBytes(10000000),
-		}, &chaintype.MainChain{})
-
+		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
 		for i, s := range sortedBlocksmiths {
 			switch i {
 			case 0:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[1]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[1]) {
 					t.Error("invalid sort")
 				}
 			case 1:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[2]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[2]) {
 					t.Error("invalid sort")
 				}
 			case 2:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[0]) {
-					t.Error("invalid sort")
-				}
-			case 3:
-				// note that this has a lower score than the previous, but a higher nodeID (randomization)
-				if !reflect.DeepEqual(s, *mockBlocksmiths[3]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[0]) {
 					t.Error("invalid sort")
 				}
 			}
 		}
 		// sort with different seed
-		listener.OnNotify(&model.Block{
-			BlockSeed: util.ConvertUint64ToBytes(119294492),
-		}, &chaintype.MainChain{})
+		blockSeed = new(big.Int).SetUint64(999335345294492)
+		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
 		for i, s := range sortedBlocksmiths {
 			switch i {
 			case 0:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[1]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[1]) {
 					t.Error("invalid sort")
 				}
 			case 1:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[2]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[2]) {
 					t.Error("invalid sort")
 				}
 			case 2:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[0]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[0]) {
 					t.Error("invalid sort")
 				}
-			case 3:
-				if !reflect.DeepEqual(s, *mockBlocksmiths[3]) {
+			}
+		}
+		// sort randomizing node id between blocksmiths
+		blockSeed = new(big.Int).SetUint64(893565533)
+		nodeID1 = int64(273458748935)
+		nodeID2 = int64(4458748935)
+		nodeID3 = int64(8935)
+		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
+		for i, s := range sortedBlocksmiths {
+			switch i {
+			case 0:
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[2]) {
+					t.Error("invalid sort")
+				}
+			case 1:
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[1]) {
+					t.Error("invalid sort")
+				}
+			case 2:
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[0]) {
 					t.Error("invalid sort")
 				}
 			}
