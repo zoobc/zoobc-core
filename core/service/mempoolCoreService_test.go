@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 
@@ -142,6 +144,7 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
 		ct                  chaintype.ChainType
+		kvExecutor          kvdb.KVExecutorInterface
 		queryExecutor       query.ExecutorInterface
 		mempoolQuery        query.MempoolQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
@@ -169,6 +172,7 @@ func TestNewMempoolService(t *testing.T) {
 
 	got := NewMempoolService(
 		test.args.ct,
+		test.args.kvExecutor,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
@@ -561,7 +565,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				Chaintype:           &chaintype.MainChain{},
 				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccessNoRow{},
 				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
@@ -575,6 +579,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			fields: fields{
 				Chaintype:          &chaintype.MainChain{},
 				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccess{},
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
@@ -589,6 +594,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				Chaintype:          &chaintype.MainChain{},
 				QueryExecutor:      &mockExecutorValidateMempoolTransactionFail{},
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
@@ -602,6 +608,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				Chaintype:          &chaintype.MainChain{},
 				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccessNoRow{},
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{

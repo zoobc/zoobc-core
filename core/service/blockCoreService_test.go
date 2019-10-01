@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -46,7 +48,19 @@ type (
 	mockTypeActionSuccess struct {
 		mockTypeAction
 	}
+
+	mockKVExecutorSuccess struct {
+		kvdb.KVExecutor
+	}
 )
+
+func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
+	return nil, nil
+}
+
+func (*mockKVExecutorSuccess) Insert(key string, value []byte) error {
+	return nil
+}
 
 var (
 	bcsAddress1    = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
@@ -290,10 +304,12 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 func TestNewBlockService(t *testing.T) {
 	type args struct {
 		ct                      chaintype.ChainType
+		kvExecutor              kvdb.KVExecutorInterface
 		queryExecutor           query.ExecutorInterface
 		blockQuery              query.BlockQueryInterface
 		mempoolQuery            query.MempoolQueryInterface
 		transactionQuery        query.TransactionQueryInterface
+		merkleTreeQuery         query.MerkleTreeQueryInterface
 		signature               crypto.SignatureInterface
 		mempoolService          MempoolServiceInterface
 		txTypeSwitcher          transaction.TypeActionSwitcher
@@ -325,10 +341,13 @@ func TestNewBlockService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockService(
-				tt.args.ct, tt.args.queryExecutor,
+				tt.args.ct,
+				tt.args.kvExecutor,
+				tt.args.queryExecutor,
 				tt.args.blockQuery,
 				tt.args.mempoolQuery,
 				tt.args.transactionQuery,
+				tt.args.merkleTreeQuery,
 				tt.args.signature,
 				tt.args.mempoolService,
 				tt.args.txTypeSwitcher,
@@ -1796,10 +1815,12 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 func TestBlockService_ReceiveBlock(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
 		TransactionQuery    query.TransactionQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		Signature           crypto.SignatureInterface
 		MempoolService      MempoolServiceInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
@@ -1941,6 +1962,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:           nil,
+				KVExecutor:          &mockKVExecutorSuccess{},
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
 				MempoolQuery:        nil,
@@ -2015,10 +2037,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:           &chaintype.MainChain{},
+				KVExecutor:          &mockKVExecutorSuccess{},
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:        nil,
 				TransactionQuery:    nil,
+				MerkleTreeQuery:     nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
 				ActionTypeSwitcher:  nil,
@@ -2055,10 +2079,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				BlockQuery:          tt.fields.BlockQuery,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				TransactionQuery:    tt.fields.TransactionQuery,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
 				Signature:           tt.fields.Signature,
 				MempoolService:      tt.fields.MempoolService,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"golang.org/x/crypto/sha3"
@@ -41,6 +43,7 @@ type (
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
 		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
@@ -54,6 +57,7 @@ type (
 // NewMempoolService returns an instance of mempool service
 func NewMempoolService(
 	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
@@ -64,6 +68,7 @@ func NewMempoolService(
 ) *MempoolService {
 	return &MempoolService{
 		Chaintype:           ct,
+		KVExecutor:          kvExecutor,
 		QueryExecutor:       queryExecutor,
 		MempoolQuery:        mempoolQuery,
 		ActionTypeSwitcher:  actionTypeSwitcher,
@@ -130,16 +135,33 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 
 func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
 	var (
-		tx       model.Transaction
-		parsedTx *model.Transaction
-		err      error
+		tx        model.Transaction
+		mempoolTx model.MempoolTransaction
+		parsedTx  *model.Transaction
+		err       error
 	)
-
+	// check for duplication in transaction table
 	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.ID)
 	row := mps.QueryExecutor.ExecuteSelectRow(transactionQ)
 	err = mps.TransactionQuery.Scan(&tx, row)
 	if tx.ID != 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "Mempool Validate, transaction already exist in block")
+		return blocker.NewBlocker(
+			blocker.DuplicateTransactionErr,
+			"mempool validation: duplicate transaction",
+		)
+	}
+	if err != sql.ErrNoRows {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	// check for duplication in mempool table
+	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
+	row = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, mpTx.ID)
+	err = mps.MempoolQuery.Scan(&mempoolTx, row)
+	if mempoolTx.ID != 0 {
+		return blocker.NewBlocker(
+			blocker.DuplicateMempoolErr,
+			"mempool validation: duplicate mempool",
+		)
 	}
 	if err != sql.ErrNoRows {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -218,6 +240,36 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 	return sortedTransactions, nil
 }
 
+func (mps *MempoolService) generateTransactionReceipt(
+	receivedTxHash []byte,
+	lastBlock *model.Block,
+	senderPublicKey, receiptKey []byte,
+	nodeSecretPhrase string,
+) (*model.BatchReceipt, error) {
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	// generate receipt
+	batchReceipt, err := util.GenerateBatchReceipt( // todo: var
+		lastBlock,
+		senderPublicKey,
+		nodePublicKey,
+		receivedTxHash,
+		constant.ReceiptDatumTypeTransaction,
+	)
+	if err != nil {
+		return nil, err
+	}
+	batchReceipt.RecipientSignature = mps.Signature.SignByNode(
+		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		nodeSecretPhrase,
+	)
+	// store the generated batch receipt hash
+	err = mps.KVExecutor.Insert(string(receiptKey), receivedTxHash)
+	if err != nil {
+		return nil, err
+	}
+	return batchReceipt, nil
+}
+
 func (mps *MempoolService) ReceivedTransaction(
 	senderPublicKey,
 	receivedTxBytes []byte,
@@ -242,10 +294,29 @@ func (mps *MempoolService) ReceivedTransaction(
 		SenderAccountAddress:    receivedTx.SenderAccountAddress,
 		RecipientAccountAddress: receivedTx.RecipientAccountAddress,
 	}
-
+	receivedTxHash := sha3.Sum256(receivedTxBytes)
+	receiptKey, err := util.GetReceiptKey(
+		receivedTxHash[:], senderPublicKey,
+	)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.AppErr,
+			err.Error(),
+		)
+	}
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
-		log.Warnf("Invalid received transaction submitted: %v", err)
+		specificErr := err.(blocker.Blocker)
+		if specificErr.Type == blocker.DuplicateMempoolErr {
+			// already exist in mempool, check if already generated a receipt for this sender
+			batchReceipt, err := mps.generateTransactionReceipt(
+				receivedTxHash[:], lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+			)
+			if err != nil {
+				return nil, err
+			}
+			return batchReceipt, nil
+		}
 		return nil, err
 	}
 
@@ -282,28 +353,15 @@ func (mps *MempoolService) ReceivedTransaction(
 		log.Warnf("error committing db transaction: %v", err)
 		return nil, err
 	}
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-	// generate receipt
-	receivedTxHash := sha3.Sum256(receivedTxBytes)
-	receipt, err := util.GenerateBatchReceipt( // todo: var
-		lastBlock,
-		senderPublicKey,
-		nodePublicKey,
-		receivedTxHash[:],
-		constant.ReceiptDatumTypeTransaction,
+	// broadcast transaction
+	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
+	batchReceipt, err := mps.generateTransactionReceipt(
+		receivedTxHash[:], lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
 	)
 	if err != nil {
 		return nil, err
 	}
-	receipt.RecipientSignature = mps.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(receipt),
-		nodeSecretPhrase,
-	)
-
-	// broadcast transaction
-	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
-
-	return receipt, nil
+	return batchReceipt, nil
 }
 
 func transactionsContain(a []*model.MempoolTransaction, x *model.MempoolTransaction) bool {

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/dgraph-io/badger"
+
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
 	log "github.com/sirupsen/logrus"
@@ -78,6 +80,7 @@ type (
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
 		TransactionQuery        query.TransactionQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
@@ -96,6 +99,7 @@ func NewBlockService(
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
@@ -112,6 +116,7 @@ func NewBlockService(
 		BlockQuery:              blockQuery,
 		MempoolQuery:            mempoolQuery,
 		TransactionQuery:        transactionQuery,
+		MerkleTreeQuery:         merkleTreeQuery,
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ActionTypeSwitcher:      txTypeSwitcher,
@@ -350,14 +355,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
-
 	// accrue block rewards (totalFees + totalCoinbase) to blocksmith account address
 	if block.Height > 0 {
 		blocksmithAccountAddress, err := bs.GetBlocksmithAccountAddress(block)
 		if err != nil {
 			return err
 		}
-
 		//TODO: next step is to change this by using the revised algorithm that includes:
 		// - selecting multiple account to be rewarded (split the total coinbase between them)
 		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
@@ -366,7 +369,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 	}
-
 	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -716,6 +718,57 @@ func (bs *BlockService) CheckGenesis() bool {
 	return true
 }
 
+func (bs *BlockService) generateBlockReceipt(
+	currentBlockHash []byte,
+	previousBlock *model.Block,
+	senderPublicKey, receiptKey []byte,
+	nodeSecretPhrase string,
+) (*model.BatchReceipt, error) {
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	batchReceipt, err := util.GenerateBatchReceipt(
+		previousBlock,
+		senderPublicKey,
+		nodePublicKey,
+		currentBlockHash,
+		constant.ReceiptDatumTypeBlock,
+	)
+	if err != nil {
+		return nil, err
+	}
+	batchReceipt.RecipientSignature = bs.Signature.SignByNode(
+		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		nodeSecretPhrase,
+	)
+	// store the generated batch receipt hash
+	err = bs.KVExecutor.Insert(string(receiptKey), currentBlockHash)
+	if err != nil {
+		return nil, err
+	}
+	return batchReceipt, nil
+}
+
+// checkBlockReceipts check the receipts included in a published block, and add the rmr that can be linked to the
+// memory for later use in publishing block
+func (bs *BlockService) checkBlockReceipts(block *model.Block) {
+	// check for receipt included in the block, note the one that can be linked later
+	for _, br := range block.BlockReceipts {
+		// note possible link RMR
+		merkleQ, merkleRoot := bs.MerkleTreeQuery.GetMerkleTreeByRoot(br.Receipt.RMR)
+		row := bs.QueryExecutor.ExecuteSelectRow(merkleQ, merkleRoot...)
+		if row != nil {
+			// take not on this merkle root
+			err := bs.KVExecutor.Insert(
+				constant.TableBlockReminderKey+string(br.Receipt.RMR),
+				br.Receipt.RMR,
+			)
+			if err != nil {
+				// todo: centralize the log
+				log.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err)
+			}
+		}
+	}
+}
+
 // ReceiveBlock handle the block received from connected peers
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
@@ -736,37 +789,46 @@ func (bs *BlockService) ReceiveBlock(
 			blocker.ValidationErr,
 			"block signature invalid")
 	}
+	blockHash, err := util.GetBlockHash(block)
+	if err != nil {
+		return nil, err
+	}
 	// check previous block hash
 	lastBlockByte, err := util.GetBlockByte(lastBlock, true)
 	if err != nil {
 		return nil, blocker.NewBlocker(
 			blocker.BlockErr,
-			"fail to get last block byte",
+			err.Error(),
 		)
 	}
 	lastBlockHash := sha3.Sum256(lastBlockByte)
+	receiptKey, err := commonUtils.GetReceiptKey(
+		blockHash, senderPublicKey,
+	)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			err.Error(),
+		)
+	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
 		// check if already broadcast receipt to this node
-		digest := sha3.New256()
-		blockByte, err := util.GetBlockHash(block)
+		_, err := bs.KVExecutor.Get(constant.TablePublishedReceiptBlock + string(receiptKey))
 		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
-				err.Error(),
-			)
-		}
-		digest.Write(blockByte)
-		digest.Write(senderPublicKey)
-		result, err := bs.KVExecutor.Get(string(digest.Sum([]byte{})))
-		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				batchReceipt, err := bs.generateBlockReceipt(
+					blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+				)
+				if err != nil {
+					return nil, err
+				}
+				return batchReceipt, nil
+			}
 			return nil, blocker.NewBlocker(
 				blocker.DBErr,
 				err.Error(),
 			)
-		}
-		if len(result) > 0 {
-			fmt.Printf("\n\n\ngenerating receipt\n\n\n")
 		}
 		return nil, blocker.NewBlocker(
 			blocker.BlockErr,
@@ -788,27 +850,16 @@ func (bs *BlockService) ReceiveBlock(
 	// base on index we can calculate punishment and reward
 	err = bs.PushBlock(lastBlock, block, true, true)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
+		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
+	go bs.checkBlockReceipts(block)
 	// generate receipt and return as response
-	// todo: lastblock last applied block, or incoming block?
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-	blockHash, _ := util.GetBlockHash(block)
-	batchReceipt, err := util.GenerateBatchReceipt(
-		lastBlock,
-		senderPublicKey,
-		nodePublicKey,
-		blockHash,
-		constant.ReceiptDatumTypeBlock,
+	batchReceipt, err := bs.generateBlockReceipt(
+		blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
 	)
 	if err != nil {
 		return nil, err
 	}
-	batchReceipt.RecipientSignature = bs.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(batchReceipt),
-		nodeSecretPhrase,
-	)
-	// store the generated batch receipt hash
 	return batchReceipt, nil
 }
 
@@ -846,7 +897,6 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	} else {
 		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-
 	// Total number of receipts at a block height
 	blExt.TotalReceipts = 99
 	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
