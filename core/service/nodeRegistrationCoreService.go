@@ -155,7 +155,6 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		queries := append(updateAccountBalanceQ, nodeQueries...)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = nrs.QueryExecutor.RollbackTx()
 			return err
 		}
 	}

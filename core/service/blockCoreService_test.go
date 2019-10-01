@@ -2306,7 +2306,6 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		blocksmithAccountAddresses []string
 		totalReward                int64
 		height                     uint32
-		includeInTx                bool
 	}
 	tests := []struct {
 		name    string
@@ -2320,7 +2319,6 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 				blocksmithAccountAddresses: []string{bcsAddress1},
 				totalReward:                10000,
 				height:                     1,
-				includeInTx:                false,
 			},
 			fields: fields{
 				QueryExecutor:       &mockQueryExecutorSuccess{},
@@ -2347,7 +2345,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
 			}
 			if err := bs.RewardBlocksmithAccountAddresses(tt.args.blocksmithAccountAddresses, tt.args.totalReward,
-				tt.args.height, tt.args.includeInTx); (err != nil) != tt.wantErr {
+				tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.RewardBlocksmithAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -2401,15 +2399,9 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			wantErr: false,
 			want: []string{
 				bcsAddress2,
-				bcsAddress2,
-				bcsAddress2,
+				bcsAddress3,
+				bcsAddress1,
 			},
-			//FIXME: it should be this, but mock.ExpectQuery returns wrong results
-			// want: []string{
-			// 	bcsAddress2,
-			// 	bcsAddress3,
-			// 	bcsAddress1,
-			// },
 		},
 	}
 	for _, tt := range tests {

@@ -58,7 +58,7 @@ type (
 		ChainWriteUnlock()
 		GetCoinbase() int64
 		CoinbaseLotteryWinners() ([]string, error)
-		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32, includeInTx bool) error
+		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
@@ -358,13 +358,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 
 	if block.Height > 0 {
+		// start db transaction here
+		_ = bs.QueryExecutor.BeginTx()
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
 		lotteryAccounts, err := bs.CoinbaseLotteryWinners()
 		if err != nil {
 			return err
 		}
-		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height, true); err != nil {
+		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+			return err
+		}
+		err = bs.QueryExecutor.CommitTx()
+		if err != nil { // commit automatically unlock executor and close tx
 			return err
 		}
 	}
@@ -373,9 +379,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 }
 
 func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
-	var (
-		nr []*model.NodeRegistration
-	)
 	// copy the pointer array to not change original order
 	blocksmiths := make([]model.Blocksmith, len(*bs.SortedBlocksmiths))
 	copy(blocksmiths, *bs.SortedBlocksmiths)
@@ -407,7 +410,7 @@ func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
 		}
 		defer rows.Close()
 
-		nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+		nr := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
 		if len(nr) == 0 {
 			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
 		}
@@ -420,8 +423,7 @@ func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
 func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	blocksmithAccountAddresses []string,
 	totalReward int64,
-	height uint32,
-	includeInTx bool) error {
+	height uint32) error {
 	queries := make([][]interface{}, 0)
 	countWinners := len(blocksmithAccountAddresses)
 	if countWinners == 0 {
@@ -439,9 +441,6 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 		queries = append(queries, accountBalanceRecipientQ...)
 	}
 	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
-		if includeInTx {
-			_ = bs.QueryExecutor.RollbackTx()
-		}
 		return err
 	}
 	return nil
