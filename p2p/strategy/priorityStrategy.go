@@ -151,6 +151,9 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 		for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
 			peersPosition := (startPeers + addedPosition) % (len(ps.ScrambleNode.IndexNodes) - 1)
 			peer := ps.ScrambleNode.AddressNodes[peersPosition]
+			if priorityPeers[p2pUtil.GetFullAddressPeer(peer)] != nil {
+				break
+			}
 			if p2pUtil.GetFullAddressPeer(peer) != hostFullAddress {
 				priorityPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 			}
@@ -241,12 +244,12 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		}
 
 		ps.ScrambleNodeLock.Lock()
+		defer ps.ScrambleNodeLock.Unlock()
 		ps.ScrambleNode = ScrambleNode{
 			AddressNodes:      newAddressNodes,
 			IndexNodes:        newIndexNodes,
 			IsInScrambleNodes: isInScrumbleNodes,
 		}
-		ps.ScrambleNodeLock.Unlock()
 	}
 }
 

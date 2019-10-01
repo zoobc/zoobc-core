@@ -163,6 +163,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
 	// check for duplication
+	// TODO: checking full node address (address + port) already used or not
 	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
