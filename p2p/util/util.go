@@ -74,22 +74,21 @@ func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.GetInfo().GetAddress() + ":" + strconv.Itoa(int(peer.GetInfo().GetPort()))
 }
 
-func GetNodeInfo(fullAddress string) (*model.Node, error) {
-	splittedAddress := strings.Split(fullAddress, ":")
-	if len(splittedAddress) == 1 {
-		return &model.Node{
-			Address: fullAddress,
+func GetNodeInfo(fullAddress string) *model.Node {
+	var (
+		splittedAddress = strings.Split(fullAddress, ":")
+		node            = &model.Node{
+			Address: splittedAddress[0],
 			Port:    uint32(viper.GetInt("peerPort")),
-		}, nil
+		}
+	)
+	if len(splittedAddress) != 1 {
+		port, err := strconv.ParseUint(splittedAddress[1], 10, 32)
+		if err == nil {
+			node.Port = uint32(port)
+		}
 	}
-	port, err := strconv.ParseUint(splittedAddress[1], 10, 32)
-	if err != nil {
-		return nil, err
-	}
-	return &model.Node{
-		Address: splittedAddress[0],
-		Port:    uint32(port),
-	}, nil
+	return node
 }
 
 func ServerListener(port int) net.Listener {

@@ -222,11 +222,7 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		for key, node := range nodeRegistries {
 			// Checking port of address,
 			// TODO: Should Get port from Node resgistry model
-			nodeInfo, err := p2pUtil.GetNodeInfo(node.GetNodeAddress())
-			if err != nil {
-				continue
-			}
-
+			nodeInfo := p2pUtil.GetNodeInfo(node.GetNodeAddress())
 			fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
 				Info: nodeInfo,
 			})
