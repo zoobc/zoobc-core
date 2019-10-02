@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 
@@ -10,12 +11,13 @@ import (
 
 var (
 	mockNodeRegistrationQuery = NewNodeRegistrationQuery()
+	mockNodeAddress           = &model.NodeAddress{Address: "127.0.0.1", Port: 8000}
 	mockNodeRegistry          = &model.NodeRegistration{
 		NodeID:             1,
 		NodePublicKey:      []byte{1},
 		AccountAddress:     "BCZ",
 		RegistrationHeight: 1,
-		NodeAddress:        "127.0.0.1",
+		NodeAddress:        mockNodeAddress,
 		LockedBalance:      10000,
 		Queued:             true,
 		Latest:             true,
@@ -57,9 +59,15 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 		wantQ := "INSERT INTO node_registry (id,node_public_key,account_address,registration_height,node_address," +
 			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
-			mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountAddress, mockNodeRegistry.RegistrationHeight,
-			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
-			mockNodeRegistry.Latest, mockNodeRegistry.Height,
+			mockNodeRegistry.NodeID,
+			mockNodeRegistry.NodePublicKey,
+			mockNodeRegistry.AccountAddress,
+			mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistrationQuery.ExtractNodeAddress(mockNodeRegistry.GetNodeAddress()),
+			mockNodeRegistry.LockedBalance,
+			mockNodeRegistry.Queued,
+			mockNodeRegistry.Latest,
+			mockNodeRegistry.Height,
 		}
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -113,9 +121,15 @@ func TestNodeRegistrationQuery_ExtractModel(t *testing.T) {
 	t.Run("NodeRegistration:ExtractModel:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.ExtractModel(mockNodeRegistry)
 		want := []interface{}{
-			mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountAddress, mockNodeRegistry.RegistrationHeight,
-			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
-			mockNodeRegistry.Latest, mockNodeRegistry.Height,
+			mockNodeRegistry.NodeID,
+			mockNodeRegistry.NodePublicKey,
+			mockNodeRegistry.AccountAddress,
+			mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistrationQuery.ExtractNodeAddress(mockNodeRegistry.GetNodeAddress()),
+			mockNodeRegistry.LockedBalance,
+			mockNodeRegistry.Queued,
+			mockNodeRegistry.Latest,
+			mockNodeRegistry.Height,
 		}
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, want)
@@ -124,15 +138,23 @@ func TestNodeRegistrationQuery_ExtractModel(t *testing.T) {
 }
 
 func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
+
 	t.Run("NodeRegistrationQuery-BuildModel:success", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
-			"id", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance",
-			"Queued", "Latest", "Height"}).
-			AddRow(mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountAddress, mockNodeRegistry.RegistrationHeight,
-				mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
-				mockNodeRegistry.Latest, mockNodeRegistry.Height))
+
+		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(mockNodeRegistrationQuery.Fields).
+			AddRow(
+				mockNodeRegistry.NodeID,
+				mockNodeRegistry.NodePublicKey,
+				mockNodeRegistry.AccountAddress,
+				mockNodeRegistry.RegistrationHeight,
+				mockNodeRegistrationQuery.ExtractNodeAddress(mockNodeRegistry.GetNodeAddress()),
+				mockNodeRegistry.LockedBalance,
+				mockNodeRegistry.Queued,
+				mockNodeRegistry.Latest,
+				mockNodeRegistry.Height,
+			))
 		rows, _ := db.Query("foo")
 		var tempNode []*model.NodeRegistration
 		res := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
@@ -147,9 +169,18 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 		mock.ExpectQuery("foo-withAggregation").WillReturnRows(sqlmock.NewRows([]string{
 			"id", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance",
 			"Queued", "Latest", "Height", "max_height"}).
-			AddRow(mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountAddress, mockNodeRegistry.RegistrationHeight,
-				mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
-				mockNodeRegistry.Latest, mockNodeRegistry.Height, 123))
+			AddRow(
+				mockNodeRegistry.NodeID,
+				mockNodeRegistry.NodePublicKey,
+				mockNodeRegistry.AccountAddress,
+				mockNodeRegistry.RegistrationHeight,
+				mockNodeRegistrationQuery.ExtractNodeAddress(mockNodeRegistry.GetNodeAddress()),
+				mockNodeRegistry.LockedBalance,
+				mockNodeRegistry.Queued,
+				mockNodeRegistry.Latest,
+				mockNodeRegistry.Height,
+				123,
+			))
 		rows, _ := db.Query("foo-withAggregation")
 		var tempNode []*model.NodeRegistration
 		res := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
@@ -167,9 +198,15 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 		wantQ1 := "INSERT INTO node_registry (id,node_public_key,account_address,registration_height,node_address," +
 			"locked_balance,queued,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
-			mockNodeRegistry.NodeID, mockNodeRegistry.NodePublicKey, mockNodeRegistry.AccountAddress, mockNodeRegistry.RegistrationHeight,
-			mockNodeRegistry.NodeAddress, mockNodeRegistry.LockedBalance, mockNodeRegistry.Queued,
-			mockNodeRegistry.Latest, mockNodeRegistry.Height,
+			mockNodeRegistry.NodeID,
+			mockNodeRegistry.NodePublicKey,
+			mockNodeRegistry.AccountAddress,
+			mockNodeRegistry.RegistrationHeight,
+			mockNodeRegistrationQuery.ExtractNodeAddress(mockNodeRegistry.GetNodeAddress()),
+			mockNodeRegistry.LockedBalance,
+			mockNodeRegistry.Queued,
+			mockNodeRegistry.Latest,
+			mockNodeRegistry.Height,
 		}
 		if q[0][0] != wantQ0 {
 			t.Errorf("update query returned wrong: get: %s\nwant: %s", q, wantQ0)
@@ -290,4 +327,84 @@ func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKey(t *te
 			t.Errorf("argument not match:\nget: %v\nwant: %v", arg[0], wantArg[0])
 		}
 	})
+}
+
+type (
+	mockQueryExecutorScan struct {
+		Executor
+	}
+)
+
+func (*mockQueryExecutorScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockNodeRegistrationQuery.Fields).AddRow(
+			1,
+			[]byte{1},
+			"BCZ",
+			1,
+			"127.0.0.1:8000",
+			10000,
+			true,
+			true,
+			0,
+		),
+	)
+	return db.QueryRow("")
+}
+func TestNodeRegistrationQuery_Scan(t *testing.T) {
+
+	var nodeRegistration model.NodeRegistration
+
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		nr  *model.NodeRegistration
+		row *sql.Row
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    model.NodeRegistration
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockNodeRegistrationQuery),
+			args: args{
+				nr:  &nodeRegistration,
+				row: (&mockQueryExecutorScan{}).ExecuteSelectRow(""),
+			},
+			want: model.NodeRegistration{
+				NodeID:             1,
+				NodePublicKey:      []byte{1},
+				AccountAddress:     "BCZ",
+				RegistrationHeight: 1,
+				NodeAddress:        mockNodeAddress,
+				LockedBalance:      10000,
+				Queued:             true,
+				Latest:             true,
+				Height:             0,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if err := nrq.Scan(tt.args.nr, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(tt.want, nodeRegistration) {
+				t.Errorf("Scan() want = \n%v, but got \n%v", tt.want, nodeRegistration)
+			}
+		})
+	}
 }
