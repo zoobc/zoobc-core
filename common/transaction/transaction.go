@@ -19,6 +19,7 @@ type (
 		GetSize() uint32
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
 		GetBodyBytes() []byte
+		GetTransactionBody(transaction *model.Transaction)
 	}
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) (TypeAction, error)

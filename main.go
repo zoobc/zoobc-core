@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -280,7 +281,18 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 	)
-	go mainchainSynchronizer.Start(mainchainSyncChannel)
+
+	// Schedulers Init
+	go func() {
+		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
+		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
+	go func() {
+		mainchainSynchronizer.Start(mainchainSyncChannel)
+	}()
 }
 
 func main() {
@@ -297,8 +309,10 @@ func main() {
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
 	startServices()
+
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	// When we receive a signal from the OS, shut down everything
 	<-sigs
+	log.Info("ZOOBC Shutdown")
+	os.Exit(0)
 }

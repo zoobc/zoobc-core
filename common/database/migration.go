@@ -189,6 +189,7 @@ func (m *Migration) Apply() error {
 		_ = m.Query.BeginTx()
 		err = m.Query.ExecuteTransaction(query)
 		if err != nil {
+			_ = m.Query.RollbackTx()
 			return err
 		}
 		if m.CurrentVersion != nil {

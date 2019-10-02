@@ -7,11 +7,10 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -25,10 +24,21 @@ type (
 	}
 )
 
-var getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
-	"recipient_account_address FROM mempool WHERE id = :id"
+var (
+	getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
+		"recipient_account_address FROM mempool WHERE id = :id"
+	mockMempoolQuery       = query.NewMempoolQuery(chaintype.GetChainType(0))
+	mockMempoolTransaction = &model.MempoolTransaction{
+		ID:                      1,
+		ArrivalTimestamp:        1000,
+		FeePerByte:              10,
+		TransactionBytes:        []byte{1, 2, 3, 4, 5},
+		SenderAccountAddress:    "BCZ",
+		RecipientAccountAddress: "ZCB",
+	}
+)
 
-// var getAccountB
+var _ = mockMempoolTransaction
 
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -625,6 +635,145 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			}
 			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.ValidateMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockQueryExecutorDeleteExpiredMempoolTransactions struct {
+		query.Executor
+	}
+	mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) BeginTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) CommitTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransaction(query string, args ...interface{}) error {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectPrepare("").
+		ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	_, _ = db.Exec("")
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteSelect(
+	query string,
+	tx bool,
+	args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockMempoolQuery.Fields),
+	)
+	return db.Query("")
+}
+
+// Not Empty mempool
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) BeginTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) CommitTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(
+	query string,
+	args ...interface{},
+) error {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectPrepare("").
+		ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	_, _ = db.Exec("")
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(
+	query string,
+	tx bool,
+	args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(mockMempoolQuery.Fields).AddRow(
+			1,
+			1000,
+			10,
+			[]byte{1, 0, 0, 0, 1, 210, 225, 121, 93, 0, 0, 0, 0, 44, 0, 0, 0, 110, 75, 95, 111, 117, 120, 100, 68,
+				68, 119, 117, 74, 105, 111, 103, 105, 68, 65, 105, 95, 122, 115, 49, 76, 113, 101, 78, 55, 102,
+				53, 90, 115, 88, 98, 70, 116, 88, 71, 113, 71, 99, 48, 80, 100, 44, 0, 0, 0, 118, 66, 75, 98,
+				114, 82, 53, 89, 57, 83, 71, 68, 74, 51, 50, 49, 76, 119, 53, 53, 50, 119, 53, 106, 85, 50, 76,
+				109, 79, 81, 67, 68, 120, 81, 114, 114, 118, 74, 48, 67, 85, 107, 101, 70, 160, 134, 1, 0, 0,
+				0, 0, 0, 8, 0, 0, 0, 0, 225, 245, 5, 0, 0, 0, 0, 0, 0, 0, 0, 109, 6, 82, 80, 77, 171, 32, 88,
+				211, 199, 11, 114, 75, 229, 243, 98, 167, 159, 225, 11, 40, 125, 221, 252, 44, 131, 136, 13,
+				104, 109, 228, 40, 27, 177, 175, 128, 223, 154, 19, 71, 18, 134, 177, 77, 96, 157, 187, 91,
+				152, 160, 78, 140, 96, 81, 116, 38, 164, 105, 149, 50, 138, 236, 209, 11},
+			"BCZ",
+			"ZCB",
+		),
+	)
+	return db.Query("")
+}
+
+func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess:EmptyMempool",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty{},
+				MempoolQuery:  mockMempoolQuery,
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantSuccess:PruneExpiredMempool",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
+				MempoolQuery:  mockMempoolQuery,
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					Executor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+			}
+			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
+				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

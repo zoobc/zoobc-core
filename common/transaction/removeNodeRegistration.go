@@ -162,3 +162,9 @@ func (tx *RemoveNodeRegistration) GetBodyBytes() []byte {
 	buffer.Write(tx.Body.NodePublicKey)
 	return buffer.Bytes()
 }
+
+func (tx *RemoveNodeRegistration) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+		RemoveNodeRegistrationTransactionBody: tx.Body,
+	}
+}
