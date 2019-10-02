@@ -749,6 +749,7 @@ func (bs *BlockService) generateBlockReceipt(
 
 // checkBlockReceipts check the receipts included in a published block, and add the rmr that can be linked to the
 // memory for later use in publishing block
+// todo: write test after publish receipt is implemented to avoid changes
 func (bs *BlockService) checkBlockReceipts(block *model.Block) {
 	// check for receipt included in the block, note the one that can be linked later
 	for _, br := range block.BlockReceipts {
