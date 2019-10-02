@@ -229,3 +229,9 @@ func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
 
 	return buffer.Bytes()
 }
+
+func (tx *RemoveAccountDataset) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_RemoveAccountDatasetTransactionBody{
+		RemoveAccountDatasetTransactionBody: tx.Body,
+	}
+}
