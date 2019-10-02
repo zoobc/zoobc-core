@@ -353,11 +353,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
-		//TODO: An alternative solution is to add an observer for 'BeforeBlockPushed' and call the mainchainProcessor.SortBlocksmith there,
-		//		instead than making it listen to the BlockPushed observer.
-		//      This way we insure we have the list of current block's blocksmiths before the block is pushed and not after
-		//      Note: Now we compute the list for the next block, while in this new scenario we would compute the list
-		//		for the block currently being pushed
 		if len(*bs.SortedBlocksmiths) == 0 {
 			blocksmiths, err := bs.GetBlocksmiths(block)
 			if err != nil {
@@ -396,6 +391,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	return nil
 }
 
+// CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
+// and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
+// are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
 	// copy the pointer array to not change original order
 	blocksmiths := make([]model.Blocksmith, len(*bs.SortedBlocksmiths))
@@ -887,8 +885,10 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	}
 
 	// Total number of receipts at a block height
+	// STEF: do we need to get all receipts that have reference_block_height <= block.height
 	blExt.TotalReceipts = 99
 	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
+	// STEF: how to compute the receipt score?
 	blExt.ReceiptValue = 99
 	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
 	blExt.PopChange = -20
