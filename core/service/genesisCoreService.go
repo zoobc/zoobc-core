@@ -68,17 +68,20 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 		BlockHash:      make([]byte, 32),
 		BlockHeight:    0,
 	}
+
+	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	nodeRegistration := transaction.NodeRegistration{
 		Body: &model.NodeRegistrationTransactionBody{
 			AccountAddress: accountAddress,
 			LockedBalance:  lockedBalance,
-			NodeAddress:    nodeAddress,
+			NodeAddress:    nodeRegistrationQuery.BuildNodeAddress(nodeAddress),
 			NodePublicKey:  nodePublicKey,
 			Poown: &model.ProofOfOwnership{
 				MessageBytes: util.GetProofOfOwnershipMessageBytes(poownMessage),
 				Signature:    make([]byte, int(constant.NodeSignature+constant.SignatureType)),
 			},
 		},
+		NodeRegistrationQuery: nodeRegistrationQuery,
 	}
 	genesisTx := &model.Transaction{
 		Version:                 1,

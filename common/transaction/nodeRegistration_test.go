@@ -7,12 +7,10 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -553,7 +551,7 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 }
 
 func TestNodeRegistration_Validate(t *testing.T) {
-	_, poown, _, _ := GetFixturesForNoderegistration()
+	_, poown, _, _ := GetFixturesForNoderegistration(query.NewNodeRegistrationQuery())
 	bodyWithPoown := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
@@ -561,7 +559,9 @@ func TestNodeRegistration_Validate(t *testing.T) {
 	txBody := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
-		NodeAddress:   "10.10.10.1",
+		NodeAddress: &model.NodeAddress{
+			Address: "10.10.10.1",
+		},
 	}
 	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
@@ -796,8 +796,11 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 			name: "GetSize:success",
 			fields: fields{
 				Body: &model.NodeRegistrationTransactionBody{
-					NodeAddress: "127.0.0.1",
+					NodeAddress: &model.NodeAddress{
+						Address: "127.0.0.1",
+					},
 				},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			want: 245,
 		},
@@ -821,7 +824,10 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, _, body, bodyBytes := GetFixturesForNoderegistration()
+
+	mockNodeRegistrationQ := query.NewNodeRegistrationQuery()
+
+	_, _, body, bodyBytes := GetFixturesForNoderegistration(mockNodeRegistrationQ)
 	// bodyBytes :=
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
@@ -945,7 +951,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			},
 			args: args{
 				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4 +
-					len([]byte(body.NodeAddress)))],
+					len([]byte(mockNodeRegistrationQ.ExtractNodeAddress(body.GetNodeAddress()))))],
 			},
 			want:    nil,
 			wantErr: true,
@@ -963,14 +969,16 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			},
 			args: args{
 				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4 +
-					len([]byte(body.NodeAddress)) + int(constant.Balance))],
+					len([]byte(mockNodeRegistrationQ.ExtractNodeAddress(body.GetNodeAddress()))) + int(constant.Balance))],
 			},
 			want:    nil,
 			wantErr: true,
 		},
 		{
-			name:   "NodeRegistration:ParseBodyBytes - success",
-			fields: fields{},
+			name: "NodeRegistration:ParseBodyBytes - success",
+			fields: fields{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
 			args: args{
 				txBodyBytes: bodyBytes,
 			},
@@ -1003,7 +1011,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 }
 
 func TestNodeRegistration_GetBodyBytes(t *testing.T) {
-	_, _, body, bodyBytes := GetFixturesForNoderegistration()
+	_, _, body, bodyBytes := GetFixturesForNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
@@ -1025,7 +1033,8 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 		{
 			name: "GetBodyBytes:success",
 			fields: fields{
-				Body: body,
+				Body:                  body,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			args: args{
 				txBody: body,

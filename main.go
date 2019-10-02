@@ -11,50 +11,46 @@ import (
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/blockchainsync"
+	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/observer"
+	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/blockchainsync"
-	"github.com/zoobc/zoobc-core/core/service"
-
-	"github.com/zoobc/zoobc-core/core/smith"
-
-	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/api"
-	"github.com/zoobc/zoobc-core/common/database"
-	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
-	"github.com/zoobc/zoobc-core/p2p"
 )
 
 var (
-	dbPath, dbName, nodeSecretPhrase string
-	dbInstance                       *database.SqliteDB
-	db                               *sql.DB
-	apiRPCPort, apiHTTPPort          int
-	peerPort                         uint32
-	p2pServiceInstance               p2p.Peer2PeerServiceInterface
-	queryExecutor                    *query.Executor
-	observerInstance                 *observer.Observer
-	blockServices                    = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	peerServiceClient                client.PeerServiceClientInterface
-	p2pHost                          *model.Host
-	peerExplorer                     strategy.PeerExplorerStrategyInterface
-	ownerAccountAddress, myAddress   string
-	wellknownPeers                   []string
-	nodeKeyFilePath                  string
-	smithing                         bool
-	nodeRegistrationService          service.NodeRegistrationServiceInterface
-	mainchainProcessor               *smith.BlockchainProcessor
-	sortedBlocksmiths                []model.Blocksmith
+	dbPath, dbName, nodeSecretPhrase,
+	ownerAccountAddress, myAddress,
+	nodeKeyFilePath string
+	dbInstance              *database.SqliteDB
+	db                      *sql.DB
+	apiRPCPort, apiHTTPPort int
+	peerPort                uint32
+	p2pServiceInstance      p2p.Peer2PeerServiceInterface
+	queryExecutor           *query.Executor
+	observerInstance        *observer.Observer
+	blockServices           = make(map[int32]service.BlockServiceInterface)
+	mempoolServices         = make(map[int32]service.MempoolServiceInterface)
+	peerServiceClient       client.PeerServiceClientInterface
+	p2pHost                 *model.Host
+	peerExplorer            strategy.PeerExplorerStrategyInterface
+	wellknownPeers          []string
+	smithing                bool
+	nodeRegistrationService service.NodeRegistrationServiceInterface
+	mainchainProcessor      *smith.BlockchainProcessor
+	sortedBlocksmiths       []model.Blocksmith
 )
 
 func init() {
@@ -124,7 +120,7 @@ func init() {
 		query.NewParticipationScoreQuery(),
 	)
 
-	// initialize Oberver
+	// initialize Observer
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()

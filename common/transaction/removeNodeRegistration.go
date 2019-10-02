@@ -3,13 +3,11 @@ package transaction
 import (
 	"bytes"
 
-	"github.com/zoobc/zoobc-core/common/util"
-
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/query"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // RemoveNodeRegistration Implement service layer for (new) node registration's transaction
@@ -24,13 +22,16 @@ type RemoveNodeRegistration struct {
 }
 
 func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
+
 	var (
 		nodeQueries       [][]interface{}
 		nodereGistrations []*model.NodeRegistration
 	)
 
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
-		false, tx.Body.NodePublicKey)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(
+		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false, tx.Body.NodePublicKey,
+	)
 	if err != nil {
 		return err
 	}
@@ -44,7 +45,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		NodeID:             prevNodeRegistration.NodeID,
 		LockedBalance:      0,
 		Height:             tx.Height,
-		NodeAddress:        "",
+		NodeAddress:        nil,
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
@@ -76,6 +77,7 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `RemoveNod
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *RemoveNodeRegistration) ApplyUnconfirmed() error {
+
 	var (
 		err error
 	)
@@ -155,6 +157,7 @@ func (tx *RemoveNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 
 // GetBodyBytes translate tx body to bytes representation
 func (tx *RemoveNodeRegistration) GetBodyBytes() []byte {
+
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	return buffer.Bytes()
