@@ -395,6 +395,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
+	var (
+		selectedAccounts []string
+	)
 	// copy the pointer array to not change original order
 	blocksmiths := make([]model.Blocksmith, len(*bs.SortedBlocksmiths))
 	copy(blocksmiths, *bs.SortedBlocksmiths)
@@ -413,7 +416,6 @@ func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
 		return res < 0
 	})
 
-	selectedAccounts := []string{}
 	for idx, sortedBlockSmith := range blocksmiths {
 		if idx > constant.MaxNumBlocksmithRewards-1 {
 			break
@@ -441,8 +443,7 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	totalReward int64,
 	height uint32) error {
 	queries := make([][]interface{}, 0)
-	countWinners := len(blocksmithAccountAddresses)
-	if countWinners == 0 {
+	if len(blocksmithAccountAddresses) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
 	}
 	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
