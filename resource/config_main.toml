@@ -1,5 +1,7 @@
 dbPath = "/data/zoobc-core/"
 dbName = "zoobc.db"
+badgerDbPath="/data/zoobc-core/"
+badgerDbName="zoobc_kv"
 configPath = "/data/zoobc-core/"
 nodeKeyFile = "node_keys.json"
 
@@ -13,9 +15,9 @@ apiRPCPort=7000
 apiHTTPPort=3031
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+ownerAccountAddress = ""
 
-smithing=true
+smithing=false
 proofOfOwnershipReqTimeoutSec = 2
 # Log Levels
 logLevels=["warn", "fatal", "error", "panic"]

@@ -3,8 +3,8 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/mattn/go-sqlite3"
 )
@@ -46,7 +46,7 @@ func (db *SqliteDB) InitializeDB(dbPath, dbName string) error {
 		return err
 	}
 
-	_, err = os.OpenFile(fmt.Sprintf("%s/%s", dbPath, dbName), os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	_, err = os.OpenFile(filepath.Join(dbPath, dbName), os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -62,12 +62,12 @@ func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximu
 	var (
 		err error
 	)
-	_, err = os.Stat(dbPath + dbName)
+	_, err = os.Stat(filepath.Join(dbPath, dbName))
 	if os.IsNotExist(err) {
 		return nil, err
 	}
 
-	conn, err = sql.Open("sqlite3", dbPath+dbName)
+	conn, err = sql.Open("sqlite3", filepath.Join(dbPath, dbName))
 
 	if _, ok := err.(sqlite3.Error); ok {
 		return nil, err

@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -1294179708803500770
+	MainchainGenesisBlockID int64 = -8865963744498807816
 )
 
 var (
@@ -73,6 +73,62 @@ var (
 				234, 181, 100, 163, 45, 69, 152, 70, 52, 201, 147, 70, 6, 242, 52, 220},
 			NodeAddress:   "0.0.0.0",
 			LockedBalance: 0,
+		},
+		//RaspberryPi cluster accounts
+		{
+			AccountAddress: "nNDIrNmT_v8fO581W1MKB1JUSoli3KvKobl6DXp7A94Z",
+			AccountSeed:    "cook fetch ready consider because photo primary taxi tiger cheese mimic scissors",
+			Amount:         990 * OneZBC,
+			// node seed: body awkward carpet soldier artwork sword canal chase emotion fiber region reduce
+			// b64 pub key: d1xUSdURQCdaUkexWrXFezM22PEJHclOEU3hcvUzQT8=
+			NodePublicKey: []byte{119, 92, 84, 73, 213, 17, 64, 39, 90, 82, 71, 177, 90, 181, 197,
+				123, 51, 54, 216, 241, 9, 29, 201, 78, 17, 77, 225, 114, 245, 51, 65, 63},
+			NodeAddress:   "0.0.0.0",
+			LockedBalance: 10 * OneZBC,
+		},
+		{
+			AccountAddress: "OWknuyZqAgjn9Mj07ZQdiexdTkIhDOoAiKeLsdnDYbnt",
+			AccountSeed:    "gather burger result thrive cook group kiss captain mushroom alert access harsh",
+			Amount:         990 * OneZBC,
+			// node seed: hard humor oil comfort flat trash proud river bread sail grain resist
+			// b64 pub key: PfTXtDhG079PvJHje5ALcEXbm1yUM3FuYCYm978pkIc=
+			NodePublicKey: []byte{61, 244, 215, 180, 56, 70, 211, 191, 79, 188, 145, 227, 123,
+				144, 11, 112, 69, 219, 155, 92, 148, 51, 113, 110, 96, 38, 38, 247, 191, 41, 144, 135},
+			NodeAddress:   "0.0.0.0",
+			LockedBalance: 10 * OneZBC,
+		},
+		{
+			AccountAddress: "dUDG_ITjsk9iy0kpEsnj6SzCix07O2Vvwe-gs0N4U9Lo",
+			AccountSeed:    "prepare license high allow noble cotton woman thought remind join sick glance",
+			Amount:         990 * OneZBC,
+			// node seed: actress sponsor erase goddess outside display beef alcohol fortune annual sense brown
+			// b64 pub key: g37c0pb3fiQPHK4Km2WxFq2xJaytuYsKOa19ftzUV2k=
+			NodePublicKey: []byte{131, 126, 220, 210, 150, 247, 126, 36, 15, 28, 174, 10, 155, 101,
+				177, 22, 173, 177, 37, 172, 173, 185, 139, 10, 57, 173, 125, 126, 220, 212, 87, 105},
+			NodeAddress:   "0.0.0.0",
+			LockedBalance: 10 * OneZBC,
+		},
+		{
+			AccountAddress: "R4Zx_Yzp7BbNM_IMmv3wKsiyZZybnhCaGWhqFmNfPolJ",
+			AccountSeed:    "image cupboard permit miracle risk smoke culture leisure silent reduce dove much",
+			Amount:         990 * OneZBC,
+			// node seed: infant glow lucky logic mixed must together put faculty recycle alarm guide
+			// b64 pub key: 4hcjrxuLphceu8eiQ/qNLXjUWVCD/JnP5ynn3NnyXMc=
+			NodePublicKey: []byte{226, 23, 35, 175, 27, 139, 166, 23, 30, 187, 199, 162, 67,
+				250, 141, 45, 120, 212, 89, 80, 131, 252, 153, 207, 231, 41, 231, 220, 217, 242, 92, 199},
+			NodeAddress:   "0.0.0.0",
+			LockedBalance: 10 * OneZBC,
+		},
+		{
+			AccountAddress: "yw6v40yIx7IR241sZBiHGDZAzr79Xfze8JOcU32g1BVm",
+			AccountSeed:    "come exchange nature moon fit great pass elephant dial ivory empower swap",
+			Amount:         990 * OneZBC,
+			// node seed: math train cricket kite wing miracle response enforce syrup kite theme that
+			// b64 pub key: dEp/fP7DNcM3s6NsfBpy3JgsRUnTLMItDNUhl0gEXSo=
+			NodePublicKey: []byte{116, 74, 127, 124, 254, 195, 53, 195, 55, 179, 163, 108, 124, 26,
+				114, 220, 152, 44, 69, 73, 211, 44, 194, 45, 12, 213, 33, 151, 72, 4, 93, 42},
+			NodeAddress:   "0.0.0.0",
+			LockedBalance: 10 * OneZBC,
 		},
 	}
 )

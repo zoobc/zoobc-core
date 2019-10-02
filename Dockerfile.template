@@ -3,7 +3,7 @@
 
 FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine-golang:1.12-build as builder
 RUN [ "cross-build-start" ]
-RUN go get -u github.com/golang/dep/cmd/dep
+RUN go get -u -v github.com/golang/dep/cmd/dep
 WORKDIR /go/src/github.com/zoobc/zoobc-core
 COPY Gopkg.lock Gopkg.toml ./
 RUN /go/bin/dep ensure -v --vendor-only
@@ -32,5 +32,5 @@ COPY --from=builder /go/bin/zoobc-core /bin/zoobc-core
 ADD https://raw.githubusercontent.com/step-/JSON.awk/1.3/JSON.awk /usr/bin/JSON.awk
 COPY entry.sh /usr/bin/entry.sh
 ENTRYPOINT ["/usr/bin/entry.sh"]
-COPY resource/ /data/zoobc-core
 CMD ["/bin/zoobc-core"]
+COPY resource/ /data/zoobc-core
