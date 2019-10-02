@@ -23,6 +23,7 @@ func TestBadgerDB_CloseBadgerDB(t *testing.T) {
 	t.Run("badgerConn-close success", func(t *testing.T) {
 		badgerConn = nil
 		badgerDb := &BadgerDB{}
+		_ = badgerDb.InitializeBadgerDB("./testdata", "foo")
 		badgerConn, _ = badgerDb.OpenBadgerDB("./testdata", "foo")
 		err := badgerDb.CloseBadgerDB()
 		if err != nil {
