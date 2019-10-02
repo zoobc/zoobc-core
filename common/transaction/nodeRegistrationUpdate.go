@@ -327,3 +327,9 @@ func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
 	return buffer.Bytes()
 }
+
+func (tx *UpdateNodeRegistration) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
+		UpdateNodeRegistrationTransactionBody: tx.Body,
+	}
+}

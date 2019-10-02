@@ -37,3 +37,5 @@ func (*TXEmpty) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterfa
 func (*TXEmpty) GetBodyBytes() []byte {
 	return []byte{}
 }
+
+func (*TXEmpty) GetTransactionBody(transaction *model.Transaction) {}
