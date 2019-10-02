@@ -90,7 +90,7 @@ func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
 	return nil, nil
 }
 
-func (*mockKVExecutorSuccess) Insert(key string, value []byte) error {
+func (*mockKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
 	return nil
 }
 
@@ -102,7 +102,7 @@ func (*mockKVExecutorFailOtherError) Get(key string) ([]byte, error) {
 	return nil, badger.ErrInvalidKey
 }
 
-func (*mockKVExecutorFailOtherError) Insert(key string, value []byte) error {
+func (*mockKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
 	return badger.ErrInvalidKey
 }
 

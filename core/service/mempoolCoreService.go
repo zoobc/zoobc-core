@@ -263,7 +263,7 @@ func (mps *MempoolService) generateTransactionReceipt(
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash
-	err = mps.KVExecutor.Insert(string(receiptKey), receivedTxHash)
+	err = mps.KVExecutor.Insert(string(receiptKey), receivedTxHash, constant.ExpiryPublishedReceiptTransaction)
 	if err != nil {
 		return nil, err
 	}

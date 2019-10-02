@@ -740,7 +740,7 @@ func (bs *BlockService) generateBlockReceipt(
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash
-	err = bs.KVExecutor.Insert(string(receiptKey), currentBlockHash)
+	err = bs.KVExecutor.Insert(string(receiptKey), currentBlockHash, constant.ExpiryPublishedReceiptBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -758,10 +758,8 @@ func (bs *BlockService) checkBlockReceipts(block *model.Block) {
 		row := bs.QueryExecutor.ExecuteSelectRow(merkleQ, merkleRoot...)
 		if row != nil {
 			// take not on this merkle root
-			err := bs.KVExecutor.Insert(
-				constant.TableBlockReminderKey+string(br.Receipt.RMR),
-				br.Receipt.RMR,
-			)
+			err := bs.KVExecutor.Insert(constant.TableBlockReminderKey+string(br.Receipt.RMR),
+				br.Receipt.RMR, constant.ExpiryBlockReminder)
 			if err != nil {
 				// todo: centralize the log
 				log.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err)

@@ -4,12 +4,14 @@ kvdb is key-value database abstraction of badger db implementation
 package kvdb
 
 import (
+	"time"
+
 	"github.com/dgraph-io/badger"
 )
 
 type (
 	KVExecutorInterface interface {
-		Insert(key string, value []byte) error
+		Insert(key string, value []byte, expiry int) error
 		BatchInsert(updates map[string][]byte) error
 		Get(key string) ([]byte, error)
 		GetByPrefix(prefix string) (map[string][]byte, error)
@@ -26,9 +28,11 @@ func NewKVExecutor(db *badger.DB) *KVExecutor {
 }
 
 // Insert insert a single record of data by providing the key in string and value in []byte
-func (kve *KVExecutor) Insert(key string, value []byte) error {
+// expiry represent number of minutes
+func (kve *KVExecutor) Insert(key string, value []byte, expiry int) error {
 	err := kve.Db.Update(func(txn *badger.Txn) error {
-		err := txn.Set([]byte(key), value)
+		e := badger.NewEntry([]byte(key), value).WithTTL(time.Duration(expiry) * time.Minute)
+		err := txn.SetEntry(e)
 		return err
 	})
 	if err != nil {

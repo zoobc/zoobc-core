@@ -63,7 +63,7 @@ func TestKVExecutor_Get(t *testing.T) {
 		mockKvDb := getMockedKVDb()
 		mockExecutor := &KVExecutor{Db: mockKvDb}
 		// insert first
-		_ = mockExecutor.Insert("bar", []byte{1, 1, 1, 1})
+		_ = mockExecutor.Insert("bar", []byte{1, 1, 1, 1}, 60)
 		res, err := mockExecutor.Get("bar")
 		if err != nil {
 			t.Error("should return key not found")
@@ -80,7 +80,7 @@ func TestKVExecutor_Insert(t *testing.T) {
 		mockKvDb := getMockedKVDb()
 		mockExecutor := &KVExecutor{Db: mockKvDb}
 		// insert first
-		err := mockExecutor.Insert("bar", []byte{1, 1, 1, 1})
+		err := mockExecutor.Insert("bar", []byte{1, 1, 1, 1}, 60)
 		if err != nil {
 			t.Error("should return key not found")
 		}
