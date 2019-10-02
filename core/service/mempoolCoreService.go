@@ -33,11 +33,11 @@ type (
 		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
 		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
 		ReceivedTransaction(
-			senderPublicKey,
-			receivedTxBytes []byte,
+			senderPublicKey, receivedTxBytes []byte,
 			lastBlock *model.Block,
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
+		DeleteExpiredMempoolTransactions() error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -90,7 +90,7 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 		return nil, err
 	}
 	defer rows.Close()
-	mempoolTransactions := []*model.MempoolTransaction{}
+	var mempoolTransactions []*model.MempoolTransaction
 	mempoolTransactions = mps.MempoolQuery.BuildModel(mempoolTransactions, rows)
 	return mempoolTransactions, nil
 }
@@ -386,4 +386,56 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 			return mi.ID < mj.ID
 		}
 	})
+}
+
+// PruneMempoolTransactions handle fresh clean the mempool
+// which is the mempool transaction has been hit expiration time
+func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
+
+	var (
+		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
+		selectQ, qStr  string
+		err            error
+		mempools       []*model.MempoolTransaction
+	)
+
+	selectQ = mps.MempoolQuery.GetExpiredMempoolTransactions(expirationTime)
+	rows, err := mps.QueryExecutor.ExecuteSelect(selectQ, false)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	mempools = mps.MempoolQuery.BuildModel(mempools, rows)
+	for _, m := range mempools {
+		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
+		if err != nil {
+			return err
+		}
+		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return err
+		}
+		err = action.UndoApplyUnconfirmed()
+		if err != nil {
+			return err
+		}
+	}
+
+	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
+	err = mps.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = mps.QueryExecutor.ExecuteTransaction(qStr)
+	if err != nil {
+		_ = mps.QueryExecutor.RollbackTx()
+		return err
+	}
+	err = mps.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

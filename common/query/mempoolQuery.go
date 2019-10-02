@@ -16,6 +16,8 @@ type (
 		InsertMempoolTransaction() string
 		DeleteMempoolTransaction() string
 		DeleteMempoolTransactions([]string) string
+		DeleteExpiredMempoolTransactions(expiration int64) string
+		GetExpiredMempoolTransactions(expiration int64) string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction
 		Scan(mempool *model.MempoolTransaction, row *sql.Row) error
@@ -77,6 +79,25 @@ func (mpq *MempoolQuery) DeleteMempoolTransaction() string {
 // DeleteMempoolTransaction delete one mempool transaction by id
 func (mpq *MempoolQuery) DeleteMempoolTransactions(idsStr []string) string {
 	return fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", mpq.getTableName(), strings.Join(idsStr, ","))
+}
+
+// DeleteExpiredMempoolTransactions delete expired mempool transactions
+func (mpq *MempoolQuery) DeleteExpiredMempoolTransactions(expiration int64) string {
+	return fmt.Sprintf(
+		"DELETE FROM %s WHERE arrival_timestamp <= %d",
+		mpq.getTableName(),
+		expiration,
+	)
+}
+
+// GetExpiredMempoolTransactions build query for select * where arrival_timestamp <= foo
+func (mpq *MempoolQuery) GetExpiredMempoolTransactions(expiration int64) string {
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE arrival_timestamp <= %d",
+		strings.Join(mpq.Fields, ", "),
+		mpq.getTableName(),
+		expiration,
+	)
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
