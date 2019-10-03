@@ -2,6 +2,7 @@ package block
 
 import (
 	"log"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -113,6 +114,7 @@ func GenerateBlocks(logger *logrus.Logger) *cobra.Command {
 				nodeRegistrationService,
 			)
 			if args[0] == "generate-fake" {
+				startTime := time.Now().Unix()
 				log.Printf("generating %d blocks\n", numberOfBlocks)
 				log.Println("initializing database schema migration")
 				if err := migration.Init(); err != nil {
@@ -139,6 +141,7 @@ func GenerateBlocks(logger *logrus.Logger) *cobra.Command {
 					if err := blockProcessor.FakeSmithing(numberOfBlocks); err != nil {
 						log.Fatalf("error in fake smithing: %v", err)
 					}
+					log.Printf("block generation success in %d seconds", time.Now().Unix()-startTime)
 				} else {
 					log.Fatal("previous generated database still exist, move them")
 				}
@@ -148,12 +151,17 @@ func GenerateBlocks(logger *logrus.Logger) *cobra.Command {
 			}
 		},
 	}
-	blockCmd.Flags().IntVar(&numberOfBlocks, "numberOfBlocks", 100, "number of account to generate")
+	blockCmd.Flags().IntVar(
+		&numberOfBlocks,
+		"numberOfBlocks",
+		100,
+		"number of account to generate",
+	)
 	blockCmd.Flags().StringVar(
 		&blocksmithSecretPhrase,
 		"blocksmithSecretPhrase",
 		"sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
-		"number of account to generate",
+		"secret phrase of blocksmith",
 	)
 	return blockCmd
 }
