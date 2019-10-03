@@ -61,6 +61,30 @@ var priorityStrategyGoodHostInstance = &model.Host{
 		},
 	},
 }
+var indexScrumble = []int{
+	0: 0,
+	1: 1,
+}
+var mockGoodScrumbleNode = ScrambleNode{
+	AddressNodes: []*model.Peer{
+		0: {
+			Info: &model.Node{
+				Address: "127.0.0.1",
+				Port:    3000,
+			},
+		},
+		1: {
+			Info: &model.Node{
+				Address: "127.0.0.1",
+				Port:    3001,
+			},
+		},
+	},
+	IndexNodes: map[string]*int{
+		"127.0.0.1:3000": &indexScrumble[0],
+		"127.0.0.1:3001": &indexScrumble[1],
+	},
+}
 
 func TestNewPriorityStrategy(t *testing.T) {
 	type args struct {
@@ -94,8 +118,7 @@ func TestNewPriorityStrategy(t *testing.T) {
 					},
 				},
 				ScrambleNode: ScrambleNode{
-					IndexNodes:        make(map[string]int),
-					IsInScrambleNodes: false,
+					IndexNodes: make(map[string]*int),
 				},
 				MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
 				MaxResolvedPeers:   constant.MaxResolvedPeers,
@@ -107,45 +130,6 @@ func TestNewPriorityStrategy(t *testing.T) {
 			got := NewPriorityStrategy(tt.args.host, tt.args.peerServiceClient, tt.args.queryExecutor, tt.args.nodeRegistrationQuery)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPriorityStrategy_GetHostInfo(t *testing.T) {
-	type fields struct {
-		Host                  *model.Host
-		PeerServiceClient     client.PeerServiceClientInterface
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		MaxUnresolvedPeers    int32
-		MaxResolvedPeers      int32
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   *model.Node
-	}{
-		{
-			name: "wantSuccess",
-			fields: fields{
-				Host: priorityStrategyGoodHostInstance,
-			},
-			want: priorityStrategyGoodHostInstance.GetInfo(),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ps := &PriorityStrategy{
-				Host:                  tt.fields.Host,
-				PeerServiceClient:     tt.fields.PeerServiceClient,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
-				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
-			}
-			if got := ps.GetHostInfo(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PriorityStrategy.GetHostInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -838,5 +822,101 @@ func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 	exceedMaxResolvedPeers = ps.GetExceedMaxResolvedPeers()
 	if exceedMaxResolvedPeers != expectedResult {
 		t.Errorf("GetExceedMaxResolvedPeers() = %v, want %v", exceedMaxResolvedPeers, expectedResult)
+	}
+}
+
+func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   map[string]*model.Peer
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+			}
+			if got := ps.GetPriorityPeers(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PriorityStrategy.GetPriorityPeers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPriorityStrategy_GetHostInfo(t *testing.T) {
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+	}
+	type args struct {
+		requester *model.Node
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *model.Node
+	}{
+		{
+			name: "wantSuccessInscramble",
+			fields: fields{
+				Host: &model.Host{
+					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				},
+				ScrambleNode: mockGoodScrumbleNode,
+			},
+			args: args{
+				requester: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+			},
+			want: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+		},
+		{
+			name: "wantSuccessNotScrumble",
+			fields: fields{
+				Host: priorityStrategyGoodHostInstance,
+			},
+			args: args{
+				requester: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+			},
+			want: priorityStrategyGoodHostInstance.GetInfo(),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+			}
+			if got := ps.GetHostInfo(tt.args.requester); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PriorityStrategy.GetHostInfo() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
