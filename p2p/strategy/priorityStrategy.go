@@ -142,7 +142,7 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 		})
 	)
 
-	if ps.ValidateScrumbleNode(ps.Host.GetInfo()) {
+	if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
 		ps.ScrambleNodeLock.RLock()
 		defer ps.ScrambleNodeLock.RUnlock()
 		var (
@@ -246,8 +246,8 @@ func (ps *PriorityStrategy) GetStartIndexPriorityPeer(nodeIndex int) int {
 	return (nodeIndex * constant.PriorityStrategyMaxPriorityPeers) % (len(ps.ScrambleNode.IndexNodes))
 }
 
-// ValidateScrumbleNode, check node in scramble or not
-func (ps *PriorityStrategy) ValidateScrumbleNode(node *model.Node) bool {
+// ValidateScrambleNode, check node in scramble or not
+func (ps *PriorityStrategy) ValidateScrambleNode(node *model.Node) bool {
 	ps.ScrambleNodeLock.RLock()
 	defer ps.ScrambleNodeLock.RUnlock()
 	address := p2pUtil.GetFullAddress(node)
@@ -258,7 +258,7 @@ func (ps *PriorityStrategy) ValidateScrumbleNode(node *model.Node) bool {
 func (ps *PriorityStrategy) ValidatePriorityPeer(host, peer *model.Node) bool {
 	ps.ScrambleNodeLock.RLock()
 	defer ps.ScrambleNodeLock.RUnlock()
-	if ps.ValidateScrumbleNode(host) && ps.ValidateScrumbleNode(peer) {
+	if ps.ValidateScrambleNode(host) && ps.ValidateScrambleNode(peer) {
 		var (
 			hostIndex          = *ps.ScrambleNode.IndexNodes[p2pUtil.GetFullAddress(host)]
 			peerIndex          = *ps.ScrambleNode.IndexNodes[p2pUtil.GetFullAddress(peer)]
@@ -469,7 +469,7 @@ func (ps *PriorityStrategy) UpdateBlacklistedStatusThread() {
 
 func (ps *PriorityStrategy) GetHostInfo(requester *model.Node) *model.Node {
 	// Check host in scrumble nodes
-	if ps.ValidateScrumbleNode(ps.Host.GetInfo()) {
+	if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
 		// Check host is in priority peer list of requester
 		// Or requester is in priority peers of host
 		if ps.ValidatePriorityPeer(requester, ps.Host.GetInfo()) || ps.ValidatePriorityPeer(ps.Host.GetInfo(), requester) {
