@@ -102,7 +102,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int) error {
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
 		for bp.Generator.SmithTime > smithMax {
-			timeNow += 1 // speed up bro
+			timeNow++ // speed up bro
 			smithMax = timeNow - bp.Chaintype.GetChainSmithingDelayTime()
 		}
 		// smith time reached
