@@ -33,7 +33,7 @@ func main() {
 	c := rpc_service.NewTransactionServiceClient(conn)
 
 	request := &rpc_model.GetTransactionRequest{
-		ID: -7705417235955380655,
+		ID: -6198439201971387606,
 	}
 	response, err := c.GetTransaction(context.Background(), request)
 
@@ -41,6 +41,6 @@ func main() {
 		log.Fatalf("error calling rpc_service.GetTransaction: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.GetTransaction(%v): %v", request, response)
+	log.Printf("response from remote rpc_service.GetTransaction(%v): %v", request, response.GetTransactionBody())
 
 }

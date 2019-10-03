@@ -57,8 +57,8 @@ var (
 	nodeKeyFilePath                                              string
 	smithing                                                     bool
 	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
-	mainchainProcessor                                           *smith.BlockchainProcessor
 	sortedBlocksmiths                                            []model.Blocksmith
+	mainchainProcessor                                           smith.BlockchainProcessorInterface
 )
 
 func init() {
@@ -181,9 +181,9 @@ func initObserverListeners() {
 	// init observer listeners
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
+	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 }
 
 func startServices() {
@@ -207,7 +207,7 @@ func startServices() {
 	)
 }
 
-func startSmith(sleepPeriod int, processor *smith.BlockchainProcessor) {
+func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 	for {
 		err := processor.StartSmithing()
 		if err != nil {

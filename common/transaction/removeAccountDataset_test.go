@@ -544,3 +544,48 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveAccountDataset_GetTransactionBody(t *testing.T) {
+	mockTxBody, _ := GetFixturesForRemoveAccountDataset()
+	type fields struct {
+		Body                *model.RemoveAccountDatasetTransactionBody
+		Fee                 int64
+		SenderAddress       string
+		Height              uint32
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		QueryExecutor       query.ExecutorInterface
+	}
+	type args struct {
+		transaction *model.Transaction
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Body: mockTxBody,
+			},
+			args: args{
+				transaction: &model.Transaction{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &RemoveAccountDataset{
+				Body:                tt.fields.Body,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+			}
+			tx.GetTransactionBody(tt.args.transaction)
+		})
+	}
+}

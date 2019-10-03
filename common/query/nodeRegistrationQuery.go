@@ -94,8 +94,8 @@ func (nr *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size u
 
 // GetActiveNodeRegistrations
 func (nr *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
-	return fmt.Sprintf("SELECT nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
-		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE nr.latest = 1 AND nr.queued = 0",
+	return fmt.Sprintf("SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
+		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE nr.latest = 1 AND nr.queued = 0 AND ps.score > 0 AND ps.latest = 1",
 		nr.getTableName(), NewParticipationScoreQuery().TableName)
 }
 
@@ -230,6 +230,7 @@ func (*NodeRegistrationQuery) BuildBlocksmith(blocksmiths []*model.Blocksmith, r
 			scoreString string
 		)
 		_ = rows.Scan(
+			&blocksmith.NodeID,
 			&blocksmith.NodePublicKey,
 			&scoreString,
 		)

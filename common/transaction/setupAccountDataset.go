@@ -224,3 +224,9 @@ func (tx *SetupAccountDataset) GetBodyBytes() []byte {
 
 	return buffer.Bytes()
 }
+
+func (tx *SetupAccountDataset) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_SetupAccountDatasetTransactionBody{
+		SetupAccountDatasetTransactionBody: tx.Body,
+	}
+}
