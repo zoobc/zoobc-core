@@ -6,8 +6,6 @@ import (
 	transaction2 "github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/observer"
 
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/cmd/account"
@@ -24,14 +22,13 @@ import (
 )
 
 var (
-	blocksmith                 *model.Blocksmith
-	blockProcessor             smith.BlockchainProcessorInterface
-	blockService               service.BlockServiceInterface
-	dbPath, dbName             = "./testdata/", "zoobc.db"
-	badgerDbPath, badgerDbName = "./testdata", "zoobc/"
-	sortedBlocksmiths          []model.Blocksmith
-	queryExecutor              query.ExecutorInterface
-	migration                  database.Migration
+	blocksmith        *model.Blocksmith
+	blockProcessor    smith.BlockchainProcessorInterface
+	blockService      service.BlockServiceInterface
+	dbPath, dbName    = "./testdata/", "zoobc.db"
+	sortedBlocksmiths []model.Blocksmith
+	queryExecutor     query.ExecutorInterface
+	migration         database.Migration
 )
 
 func init() {
@@ -51,22 +48,12 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	badgerDbInstance := database.NewBadgerDB()
-	if err := badgerDbInstance.InitializeBadgerDB(badgerDbPath, badgerDbName); err != nil {
-		log.Fatal(err)
-	}
-	badgerDb, err := badgerDbInstance.OpenBadgerDB(badgerDbPath, badgerDbName)
-	if err != nil {
-		log.Fatal(err)
-	}
 	queryExecutor = query.NewQueryExecutor(db)
-	kvExecutor := kvdb.NewKVExecutor(badgerDb)
 	actionSwitcher := &transaction2.TypeSwitcher{
 		Executor: queryExecutor,
 	}
 	mempoolService := service.NewMempoolService(
 		chainType,
-		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		actionSwitcher,
@@ -77,12 +64,10 @@ func init() {
 	)
 	blockService = service.NewBlockService(
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
-		query.NewMerkleTreeQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		actionSwitcher,
