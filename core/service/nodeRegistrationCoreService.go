@@ -18,7 +18,6 @@ type (
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
-		GetActiveNodes() ([]*model.Blocksmith, error)
 		NodeRegistryListener() observer.Listener
 	}
 
@@ -155,7 +154,6 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		queries := append(updateAccountBalanceQ, nodeQueries...)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = nrs.QueryExecutor.RollbackTx()
 			return err
 		}
 	}
@@ -164,20 +162,6 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	}
 
 	return nil
-}
-
-// GetActiveNodes get list of currently participating nodes
-func (nrs *NodeRegistrationService) GetActiveNodes() ([]*model.Blocksmith, error) {
-	var (
-		activeNodes []*model.Blocksmith
-	)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	activeNodes = nrs.NodeRegistrationQuery.BuildBlocksmith(activeNodes, rows)
-	return activeNodes, nil
 }
 
 // NodeRegistryListener handle node admission/expulsion after a block is pushed, at regular interval
