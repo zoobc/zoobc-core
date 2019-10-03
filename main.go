@@ -58,18 +58,20 @@ func init() {
 	var (
 		configPostfix string
 		configDir     string
+		configDebug   *bool
 		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "", "Usage")
+	configDebug = flag.Bool("debug", false, "Usage")
 	flag.Parse()
 
 	if configDir == "" {
 		configDir = "./resource"
 	}
 
-	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
+	if err := util.LoadConfig(configDir, "config"+configPostfix, *configDebug, "toml"); err != nil {
 		log.Fatal(err)
 	}
 
