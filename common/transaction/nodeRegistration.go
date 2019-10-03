@@ -139,8 +139,6 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	if tx.Body.GetNodeAddress() == nil {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "NodeAddressRequired")
 	}
-	// TODO:
-	// Validate the node address duplication
 
 	// validate poown
 	if err := tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
