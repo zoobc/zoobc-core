@@ -256,3 +256,9 @@ func (tx *NodeRegistration) GetBodyBytes() []byte {
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
 	return buffer.Bytes()
 }
+
+func (tx *NodeRegistration) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
+		NodeRegistrationTransactionBody: tx.Body,
+	}
+}

@@ -21,6 +21,13 @@ import (
 )
 
 type (
+	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
+	BlockchainProcessorInterface interface {
+		CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith
+		SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener
+		StartSmithing() error
+	}
+
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
 		Chaintype               chaintype.ChainType
@@ -138,27 +145,23 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksm
 			// fetch valid blocksmiths
 			lastBlock := block.(*model.Block)
 			var blocksmiths []model.Blocksmith
-			activeBlocksmiths, err := bp.NodeRegistrationService.GetActiveNodes()
+			nextBlocksmiths, err := bp.BlockService.GetBlocksmiths(lastBlock)
 			if err != nil {
+				log.Errorf("SortBlocksmith: %s", err)
 				return
 			}
-			for _, blocksmith := range activeBlocksmiths {
-				if blocksmith.Score.Cmp(big.NewInt(0)) > 0 {
-					blocksmiths = append(blocksmiths, *blocksmith)
-				}
+			// copy the nextBlocksmiths pointers array into an array of blocksmiths
+			for _, blocksmith := range nextBlocksmiths {
+				blocksmiths = append(blocksmiths, *blocksmith)
 			}
-			// sort blocksmiths
+			// sort blocksmiths by SmithOrder
 			sort.SliceStable(blocksmiths, func(i, j int) bool {
 				bi, bj := blocksmiths[i], blocksmiths[j]
-				nodePKI := new(big.Int).SetBytes(bi.NodePublicKey)
-				nodePKJ := new(big.Int).SetBytes(bj.NodePublicKey)
-				resI := new(big.Int).Mul(bi.Score, new(big.Int).SetInt64(
-					nodePKI.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
-				resJ := new(big.Int).Mul(bj.Score, new(big.Int).SetInt64(
-					nodePKJ.Int64()^new(big.Int).SetBytes(lastBlock.BlockSeed).Int64()))
-				res := resI.Cmp(resJ)
+				res := bi.SmithOrder.Cmp(bj.SmithOrder)
 				if res == 0 {
-					// compare node public key
+					// compare node ID
+					nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
+					nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
 					res = nodePKI.Cmp(nodePKJ)
 				}
 				// ascending sort

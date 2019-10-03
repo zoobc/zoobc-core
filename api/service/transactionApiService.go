@@ -85,44 +85,7 @@ func (ts *TransactionService) GetTransaction(
 		if err != nil {
 			return nil, err
 		}
-		parsedBody, err := txType.ParseBodyBytes(tx.GetTransactionBodyBytes())
-		if err != nil {
-			return nil, err
-		}
-		// TODO: need enhancement when parsing body bytes into body
-		switch tx.GetTransactionType() {
-		case uint32(model.TransactionType_SendMoneyTransaction):
-			tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
-				SendMoneyTransactionBody: parsedBody.(*model.SendMoneyTransactionBody),
-			}
-		case uint32(model.TransactionType_NodeRegistrationTransaction):
-			tx.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
-				NodeRegistrationTransactionBody: parsedBody.(*model.NodeRegistrationTransactionBody),
-			}
-		case uint32(model.TransactionType_UpdateNodeRegistrationTransaction):
-			tx.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
-				UpdateNodeRegistrationTransactionBody: parsedBody.(*model.UpdateNodeRegistrationTransactionBody),
-			}
-		case uint32(model.TransactionType_RemoveNodeRegistrationTransaction):
-			tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
-				RemoveNodeRegistrationTransactionBody: parsedBody.(*model.RemoveNodeRegistrationTransactionBody),
-			}
-		case uint32(model.TransactionType_ClaimNodeRegistrationTransaction):
-			tx.TransactionBody = &model.Transaction_ClaimNodeRegistrationTransactionBody{
-				ClaimNodeRegistrationTransactionBody: parsedBody.(*model.ClaimNodeRegistrationTransactionBody),
-			}
-		case uint32(model.TransactionType_SetupAccountDatasetTransaction):
-			tx.TransactionBody = &model.Transaction_SetupAccountDatasetTransactionBody{
-				SetupAccountDatasetTransactionBody: parsedBody.(*model.SetupAccountDatasetTransactionBody),
-			}
-		case uint32(model.TransactionType_RemoveAccountDatasetTransaction):
-			tx.TransactionBody = &model.Transaction_RemoveAccountDatasetTransactionBody{
-				RemoveAccountDatasetTransactionBody: parsedBody.(*model.RemoveAccountDatasetTransactionBody),
-			}
-		default:
-			tx.TransactionBody = nil
-		}
-
+		txType.GetTransactionBody(tx)
 		return tx, nil
 	}
 	return nil, status.Error(codes.NotFound, "transaction not found")
@@ -212,7 +175,34 @@ func (ts *TransactionService) GetTransactions(
 	}
 	defer rows.Close()
 
-	txs = txQuery.BuildModel(txs, rows)
+	for rows.Next() {
+		var tx model.Transaction
+		err = rows.Scan(
+			&tx.ID,
+			&tx.BlockID,
+			&tx.Height,
+			&tx.SenderAccountAddress,
+			&tx.RecipientAccountAddress,
+			&tx.TransactionType,
+			&tx.Fee,
+			&tx.Timestamp,
+			&tx.TransactionHash,
+			&tx.TransactionBodyLength,
+			&tx.TransactionBodyBytes,
+			&tx.Signature,
+			&tx.Version,
+			&tx.TransactionIndex,
+		)
+		if err != nil {
+			return nil, err
+		}
+		txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
+		if err != nil {
+			return nil, err
+		}
+		txType.GetTransactionBody(&tx)
+		txs = append(txs, &tx)
+	}
 
 	return &model.GetTransactionsResponse{
 		Total:        totalRecords,
