@@ -989,7 +989,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
-	_, _, mockTxBody, _ := GetFixturesForUpdateNoderegistration()
+	_, _, mockTxBody, _ := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64

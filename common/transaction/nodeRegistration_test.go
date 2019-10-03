@@ -1060,7 +1060,7 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 }
 
 func TestNodeRegistration_GetTransactionBody(t *testing.T) {
-	_, _, mockTxBody, _ := GetFixturesForNoderegistration()
+	_, _, mockTxBody, _ := GetFixturesForNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
