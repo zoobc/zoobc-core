@@ -888,7 +888,7 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 				ScrambleNode: mockGoodScrumbleNode,
 			},
 			args: args{
-				requester: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				requester: mockGoodScrumbleNode.AddressNodes[1].GetInfo(),
 			},
 			want: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
 		},
@@ -916,6 +916,114 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 			}
 			if got := ps.GetHostInfo(tt.args.requester); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetHostInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+	}
+	type args struct {
+		host *model.Node
+		peer *model.Node
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host: &model.Host{
+					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				},
+				ScrambleNode: mockGoodScrumbleNode,
+			},
+			args: args{
+				host: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+			}
+			if got := ps.ValidatePriorityPeer(tt.args.host, tt.args.peer); got != tt.want {
+				t.Errorf("PriorityStrategy.ValidatePriorityPeer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPriorityStrategy_ValidateRangePriorityPeers(t *testing.T) {
+
+	type args struct {
+		peerIndex          int
+		hostStartPeerIndex int
+		hostEndPeerIndex   int
+	}
+	type test struct {
+		name string
+		args args
+		want bool
+	}
+
+	var (
+		SuccessTests = []test{}
+		successCases = []args{
+			0: {
+				peerIndex:          1,
+				hostStartPeerIndex: 1,
+				hostEndPeerIndex:   2,
+			},
+			1: {
+				peerIndex:          1,
+				hostStartPeerIndex: 1,
+				hostEndPeerIndex:   1,
+			},
+			2: {
+				peerIndex:          0,
+				hostStartPeerIndex: 3,
+				hostEndPeerIndex:   1,
+			},
+			3: {
+				peerIndex:          4,
+				hostStartPeerIndex: 4,
+				hostEndPeerIndex:   1,
+			},
+		}
+	)
+
+	for _, args := range successCases {
+		newCase := test{
+			name: "wantSuccess",
+			args: args,
+			want: true,
+		}
+		SuccessTests = append(SuccessTests, newCase)
+	}
+	for _, tt := range SuccessTests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{}
+			if got := ps.ValidateRangePriorityPeers(tt.args.peerIndex, tt.args.hostStartPeerIndex, tt.args.hostEndPeerIndex); got != tt.want {
+				t.Errorf("PriorityStrategy.ValidateRangePriorityPeers() = %v, want %v", got, tt.want)
 			}
 		})
 	}

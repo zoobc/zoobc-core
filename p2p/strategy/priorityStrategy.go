@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"os"
 	"os/signal"
@@ -227,6 +228,7 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 			index := key
 			newIndexNodes[fullAddresss] = &index
 			newAddressNodes = append(newAddressNodes, peer)
+
 		}
 
 		ps.ScrambleNodeLock.Lock()
@@ -263,14 +265,22 @@ func (ps *PriorityStrategy) ValidatePriorityPeer(host, peer *model.Node) bool {
 			hostIndex          = *ps.ScrambleNode.IndexNodes[p2pUtil.GetFullAddress(host)]
 			peerIndex          = *ps.ScrambleNode.IndexNodes[p2pUtil.GetFullAddress(peer)]
 			hostStartPeerIndex = ps.GetStartIndexPriorityPeer(hostIndex)
-			hostEndPeerIndex   = (hostStartPeerIndex + constant.PriorityStrategyMaxPriorityPeers + 1) % (len(ps.ScrambleNode.AddressNodes))
+			hostEndPeerIndex   = (hostStartPeerIndex + constant.PriorityStrategyMaxPriorityPeers - 1) % (len(ps.ScrambleNode.AddressNodes))
 		)
-		if hostEndPeerIndex >= hostStartPeerIndex {
-			return peerIndex >= hostStartPeerIndex
-		}
-		return peerIndex >= hostStartPeerIndex && peerIndex <= hostEndPeerIndex
+		return ps.ValidateRangePriorityPeers(peerIndex, hostStartPeerIndex, hostEndPeerIndex)
 	}
 	return false
+}
+
+func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerIndex, hostEndPeerIndex int) bool {
+	fmt.Println(peerIndex, hostStartPeerIndex, hostEndPeerIndex)
+	if hostEndPeerIndex > hostStartPeerIndex {
+		return peerIndex >= hostStartPeerIndex && peerIndex <= hostEndPeerIndex
+	}
+	if peerIndex >= hostStartPeerIndex {
+		return true
+	}
+	return peerIndex <= hostEndPeerIndex
 }
 
 // ============================================

@@ -20,5 +20,5 @@ const (
 	// PriorityStrategyBuildScrambleNodesGap, interval of scramble thread to build scramble node (in block height)
 	PriorityStrategyBuildScrambleNodesGap uint32 = 10
 	// PriorityStrategyMaxPriorityPeers, max priority peers will have
-	PriorityStrategyMaxPriorityPeers = 10
+	PriorityStrategyMaxPriorityPeers = 5
 )
