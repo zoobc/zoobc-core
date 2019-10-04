@@ -26,7 +26,7 @@ type (
 		CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith
 		SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener
 		StartSmithing() error
-		FakeSmithing(numberOfBlocks int) error
+		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
 	}
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
@@ -83,11 +83,21 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
 // errors
-func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int) error {
+func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool) error {
 	// todo: if debug mode, allow, else no
+	var (
+		timeNow int64
+	)
 	// creating a virtual time
-	timeStart := time.Now().Unix()
-	timeNow := constant.MainchainGenesisBlockTimestamp + (time.Now().Unix() - timeStart)
+	if !fromGenesis {
+		lastBlock, err := bp.BlockService.GetLastBlock()
+		if err != nil {
+			return err
+		}
+		timeNow = lastBlock.Timestamp
+	} else {
+		timeNow = constant.MainchainGenesisBlockTimestamp
+	}
 	for i := 1; i < numberOfBlocks; i++ {
 		lastBlock, err := bp.BlockService.GetLastBlock()
 		if err != nil {

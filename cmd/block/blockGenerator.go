@@ -1,7 +1,8 @@
 package block
 
 import (
-	"log"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -18,7 +19,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/core/smith"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -28,15 +28,16 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
-	dbPath, dbName          = "./testdata/", "zoobc.db"
 	sortedBlocksmiths       []model.Blocksmith
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
 )
 
 func initialize(
-	secretPhrase string,
+	secretPhrase, outputPath string,
 ) {
+	paths := strings.Split(outputPath, "/")
+	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
 	observerInstance := observer.NewObserver()
 	blocksmith = model.NewBlocksmith(
@@ -46,11 +47,11 @@ func initialize(
 	// initialize/open db and queryExecutor
 	dbInstance := database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	db, err := dbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 	actionSwitcher := &transaction.TypeSwitcher{
@@ -91,10 +92,11 @@ func initialize(
 	migration = database.Migration{Query: queryExecutor}
 }
 
-func GenerateBlocks(logger *logrus.Logger) *cobra.Command {
+func Commands() *cobra.Command {
 	var (
 		numberOfBlocks         int
 		blocksmithSecretPhrase string
+		outputPath             string
 	)
 	var blockCmd = &cobra.Command{
 		Use:   "block",
@@ -104,50 +106,54 @@ func GenerateBlocks(logger *logrus.Logger) *cobra.Command {
 		`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Println("initializing dependency and database...")
-			initialize(blocksmithSecretPhrase)
-			log.Println("done initializing database")
+			fmt.Println("initializing dependency and database...")
+			initialize(blocksmithSecretPhrase, outputPath)
+			fmt.Println("done initializing database")
 			blockProcessor = smith.NewBlockchainProcessor(
 				chainType,
 				blocksmith,
 				blockService,
 				nodeRegistrationService,
 			)
-			if args[0] == "generate-fake" {
-				startTime := time.Now().Unix()
-				log.Printf("generating %d blocks\n", numberOfBlocks)
-				log.Println("initializing database schema migration")
+			if args[0] == "add-fake-blocks" {
+				startTime := time.Now().UnixNano() / 1e6
+				fmt.Printf("generating %d blocks\n", numberOfBlocks)
+				fmt.Println("initializing database schema migration")
 				if err := migration.Init(); err != nil {
-					log.Fatal(err)
+					panic(err)
 				}
 
-				log.Println("applying database schema migration")
+				fmt.Println("applying database schema migration")
 				if err := migration.Apply(); err != nil {
-					log.Fatal(err)
+					panic(err)
 				}
-				log.Println("checking genesis...")
+				fmt.Println("checking genesis...")
 				if !blockService.CheckGenesis() { // Add genesis if not exist
-					log.Println("genesis does not exist, adding genesis")
+					fmt.Println("genesis does not exist, adding genesis")
 					// genesis account will be inserted in the very beginning
 					if err := service.AddGenesisAccount(queryExecutor); err != nil {
-						log.Fatal("Fail to add genesis account")
+						panic(err)
 					}
 
 					if err := blockService.AddGenesis(); err != nil {
-						log.Fatalf("error in adding genesis: %v", err)
+						panic(err)
 					}
 
-					log.Println("begin generating blocks")
-					if err := blockProcessor.FakeSmithing(numberOfBlocks); err != nil {
-						log.Fatalf("error in fake smithing: %v", err)
+					fmt.Println("begin generating blocks")
+					if err := blockProcessor.FakeSmithing(numberOfBlocks, true); err != nil {
+						panic(err)
 					}
-					log.Printf("block generation success in %d seconds", time.Now().Unix()-startTime)
 				} else {
-					log.Fatal("previous generated database still exist, move them")
+					// start from last block's timestamp
+					fmt.Println("continuing from last database")
+					if err := blockProcessor.FakeSmithing(numberOfBlocks, false); err != nil {
+						panic("error in appending block to existing database")
+					}
 				}
-				log.Printf("database generated in %s", dbPath+dbName)
+				fmt.Printf("database generated in %s", outputPath)
+				fmt.Printf("block generation success in %d miliseconds", (time.Now().UnixNano()/1e6)-startTime)
 			} else {
-				logger.Error("unknown command")
+				fmt.Print("unknown command")
 			}
 		},
 	}
@@ -160,8 +166,14 @@ func GenerateBlocks(logger *logrus.Logger) *cobra.Command {
 	blockCmd.Flags().StringVar(
 		&blocksmithSecretPhrase,
 		"blocksmithSecretPhrase",
-		"sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
-		"secret phrase of blocksmith",
+		"",
+		"secret phrase of blocksmith | required",
+	)
+	blockCmd.Flags().StringVar(
+		&outputPath,
+		"out",
+		"./testdata/zoobc.db",
+		"output path of the database",
 	)
 	return blockCmd
 }

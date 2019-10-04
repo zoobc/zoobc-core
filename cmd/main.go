@@ -20,6 +20,6 @@ func main() {
 	logger, _ := util.InitLogger(".log/", "cmd.debug.log", logLevels)
 	rootCmd.AddCommand(account.GenerateAccount(logger))
 	rootCmd.AddCommand(transaction.GenerateTransactionBytes(logger, &crypto.Signature{}))
-	rootCmd.AddCommand(block.GenerateBlocks(logger))
+	rootCmd.AddCommand(block.Commands())
 	_ = rootCmd.Execute()
 }
