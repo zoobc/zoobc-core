@@ -98,7 +98,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 	} else {
 		timeNow = constant.MainchainGenesisBlockTimestamp
 	}
-	for i := 1; i < numberOfBlocks; i++ {
+	for i := 0; i < numberOfBlocks; i++ {
 		lastBlock, err := bp.BlockService.GetLastBlock()
 		if err != nil {
 			return blocker.NewBlocker(
