@@ -1,8 +1,8 @@
 package database
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 
@@ -43,9 +43,9 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 	if ok := os.IsNotExist(err); ok {
 		return err
 	}
-	_, err = os.Stat(fmt.Sprintf("%s/%s", dbPath, dbName))
+	_, err = os.Stat(filepath.Join(dbPath, dbName))
 	if ok := os.IsNotExist(err); ok {
-		err = os.Mkdir(fmt.Sprintf("%s/%s", dbPath, dbName), os.ModePerm)
+		err = os.Mkdir(filepath.Join(dbPath, dbName), os.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -54,7 +54,8 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 }
 
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
-	badgerConn, err := badger.Open(badger.DefaultOptions(fmt.Sprintf("%s/%s", dbPath, dbName)))
+	opts := badger.DefaultOptions(filepath.Join(dbPath, dbName)).WithValueLogFileSize(1<<28 - 1).WithValueLogMaxEntries(250000)
+	badgerConn, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
 	}
