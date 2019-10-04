@@ -201,7 +201,9 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		sort.SliceStable(nodeRegistries, func(i, j int) bool {
 			ni, nj := nodeRegistries[i], nodeRegistries[j]
 
-			//  Get Hash of joined  with block seed & node ID
+			// Get Hash of joined  with block seed & node ID
+			// TODO : Enhance, to precomputing the hash/bigInt before sorting
+			// 		  to avoid repeated hash computation while sorting
 			hashI := sha3.Sum256(append(block.GetBlockSeed(), byte(ni.GetNodeID())))
 			hashJ := sha3.Sum256(append(block.GetBlockSeed(), byte(nj.GetNodeID())))
 			resI := new(big.Int).SetBytes(hashI[:])
