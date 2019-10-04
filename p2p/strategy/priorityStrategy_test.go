@@ -876,7 +876,7 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 		want   *model.Node
 	}{
 		{
-			name: "wantSuccessInscramble",
+			name: "wantSuccess",
 			fields: fields{
 				Host: &model.Host{
 					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
@@ -884,13 +884,6 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 				ScrambleNode: mockGoodScrumbleNode,
 			},
 			want: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
-		},
-		{
-			name: "wantSuccessNotScrumble",
-			fields: fields{
-				Host: priorityStrategyGoodHostInstance,
-			},
-			want: priorityStrategyGoodHostInstance.GetInfo(),
 		},
 	}
 	for _, tt := range tests {
@@ -934,14 +927,13 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Host: &model.Host{
-					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
-				},
 				ScrambleNode: mockGoodScrumbleNode,
 			},
 			args: args{
 				host: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				peer: mockGoodScrumbleNode.AddressNodes[1].GetInfo(),
 			},
+			want: true,
 		},
 	}
 	for _, tt := range tests {
@@ -976,7 +968,7 @@ func TestPriorityStrategy_ValidateRangePriorityPeers(t *testing.T) {
 	}
 
 	var (
-		SuccessTests = []test{}
+		Tests        = []test{}
 		successCases = []args{
 			0: {
 				peerIndex:          1,
@@ -999,17 +991,39 @@ func TestPriorityStrategy_ValidateRangePriorityPeers(t *testing.T) {
 				hostEndPeerIndex:   1,
 			},
 		}
+		failedCases = []args{
+			0: {
+				peerIndex:          0,
+				hostStartPeerIndex: 1,
+				hostEndPeerIndex:   4,
+			},
+			1: {
+				peerIndex:          1,
+				hostStartPeerIndex: 4,
+				hostEndPeerIndex:   0,
+			},
+		}
 	)
 
 	for _, args := range successCases {
-		newCase := test{
+		newTest := test{
 			name: "wantSuccess",
 			args: args,
 			want: true,
 		}
-		SuccessTests = append(SuccessTests, newCase)
+		Tests = append(Tests, newTest)
 	}
-	for _, tt := range SuccessTests {
+
+	for _, args := range failedCases {
+		newTest := test{
+			name: "wantFail",
+			args: args,
+			want: false,
+		}
+		Tests = append(Tests, newTest)
+	}
+
+	for _, tt := range Tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &PriorityStrategy{}
 			if got := ps.ValidateRangePriorityPeers(tt.args.peerIndex, tt.args.hostStartPeerIndex, tt.args.hostEndPeerIndex); got != tt.want {
