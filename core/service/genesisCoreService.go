@@ -19,7 +19,7 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
-		for _, fundReceiver := range constant.MainchainGenesisFundReceivers {
+		for _, fundReceiver := range constant.MainChainGenesisConfig {
 			// send funds from genesis account to the fund receiver
 			genesisTx := &model.Transaction{
 				Version:                 1,
@@ -32,10 +32,10 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 				TransactionBodyLength:   8,
 				TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 					SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-						Amount: fundReceiver.Amount,
+						Amount: fundReceiver.AccountBalance,
 					},
 				},
-				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.Amount)),
+				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.AccountBalance)),
 				Signature:            constant.MainchainGenesisTransactionSignature,
 			}
 

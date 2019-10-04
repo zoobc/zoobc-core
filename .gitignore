@@ -15,3 +15,5 @@ zoobc
 cover.out
 coverage*.*
 .DS_Store
+resource/zoobc_*
+resource_cluster/zoobc_*

@@ -1,0 +1,37 @@
+[
+  {
+    "NodePublicKey": "d1xUSdURQCdaUkexWrXFezM22PEJHclOEU3hcvUzQT8=",
+    "NodeSeed": "body awkward carpet soldier artwork sword canal chase emotion fiber region reduce",
+    "OwnerAccountAddress": "nNDIrNmT_v8fO581W1MKB1JUSoli3KvKobl6DXp7A94Z",
+    "NodeAddress": "127.0.0.1",
+    "Smithing": true
+  },
+  {
+    "NodePublicKey": "PfTXtDhG079PvJHje5ALcEXbm1yUM3FuYCYm978pkIc=",
+    "NodeSeed": "hard humor oil comfort flat trash proud river bread sail grain resist",
+    "OwnerAccountAddress": "OWknuyZqAgjn9Mj07ZQdiexdTkIhDOoAiKeLsdnDYbnt",
+    "NodeAddress": "127.0.0.1",
+    "Smithing": true
+  },
+  {
+    "NodePublicKey": "g37c0pb3fiQPHK4Km2WxFq2xJaytuYsKOa19ftzUV2k=",
+    "NodeSeed": "actress sponsor erase goddess outside display beef alcohol fortune annual sense brown",
+    "OwnerAccountAddress": "dUDG_ITjsk9iy0kpEsnj6SzCix07O2Vvwe-gs0N4U9Lo",
+    "NodeAddress": "127.0.0.1",
+    "Smithing": true
+  },
+  {
+    "NodePublicKey": "4hcjrxuLphceu8eiQ/qNLXjUWVCD/JnP5ynn3NnyXMc=",
+    "NodeSeed": "infant glow lucky logic mixed must together put faculty recycle alarm guide",
+    "OwnerAccountAddress": "R4Zx_Yzp7BbNM_IMmv3wKsiyZZybnhCaGWhqFmNfPolJ",
+    "NodeAddress": "127.0.0.1",
+    "Smithing": true
+  },
+  {
+    "NodePublicKey": "dEp/fP7DNcM3s6NsfBpy3JgsRUnTLMItDNUhl0gEXSo=",
+    "NodeSeed": "math train cricket kite wing miracle response enforce syrup kite theme that",
+    "OwnerAccountAddress": "yw6v40yIx7IR241sZBiHGDZAzr79Xfze8JOcU32g1BVm",
+    "NodeAddress": "127.0.0.1",
+    "Smithing": true
+  }
+]
