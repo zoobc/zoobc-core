@@ -7,10 +7,13 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -152,6 +155,7 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
 		ct                  chaintype.ChainType
+		kvExecutor          kvdb.KVExecutorInterface
 		queryExecutor       query.ExecutorInterface
 		mempoolQuery        query.MempoolQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
@@ -179,6 +183,7 @@ func TestNewMempoolService(t *testing.T) {
 
 	got := NewMempoolService(
 		test.args.ct,
+		test.args.kvExecutor,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
 		test.args.actionTypeSwitcher,
@@ -571,7 +576,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				Chaintype:           &chaintype.MainChain{},
 				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccessNoRow{},
 				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
@@ -585,6 +590,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			fields: fields{
 				Chaintype:          &chaintype.MainChain{},
 				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccess{},
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
@@ -599,6 +605,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				Chaintype:          &chaintype.MainChain{},
 				QueryExecutor:      &mockExecutorValidateMempoolTransactionFail{},
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
@@ -612,6 +619,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				Chaintype:          &chaintype.MainChain{},
 				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccessNoRow{},
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
@@ -774,6 +782,121 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 			}
 			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMempoolService_generateTransactionReceipt(t *testing.T) {
+	mockSecretPhrase := ""
+	mockSenderPublicKey, mockReceivedTxHash := make([]byte, 32), make([]byte, 32)
+	mockReceiptKey, _ := util.GetReceiptKey(mockReceivedTxHash, mockSenderPublicKey)
+
+	mockNodePublicKey := util.GetPublicKeyFromSeed(mockSecretPhrase)
+	mockSuccessBatchReceipt, _ := util.GenerateBatchReceipt(
+		mockBlock,
+		mockSenderPublicKey,
+		mockNodePublicKey,
+		mockReceivedTxHash,
+		constant.ReceiptDatumTypeTransaction,
+	)
+	mockSuccessBatchReceipt.RecipientSignature = (&crypto.Signature{}).SignByNode(
+		util.GetUnsignedBatchReceiptBytes(mockSuccessBatchReceipt),
+		mockSecretPhrase,
+	)
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+	}
+	type args struct {
+		receivedTxHash   []byte
+		lastBlock        *model.Block
+		senderPublicKey  []byte
+		receiptKey       []byte
+		nodeSecretPhrase string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.BatchReceipt
+		wantErr bool
+	}{
+		{
+			name: "generateTransactionReceipt:success",
+			fields: fields{
+				Chaintype:           nil,
+				KVExecutor:          &mockKVExecutorSuccess{},
+				QueryExecutor:       nil,
+				MempoolQuery:        nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Signature:           &crypto.Signature{},
+				TransactionQuery:    nil,
+				Observer:            nil,
+			},
+			args: args{
+				receivedTxHash:   mockReceivedTxHash,
+				lastBlock:        mockBlock,
+				senderPublicKey:  mockSenderPublicKey,
+				receiptKey:       mockReceiptKey,
+				nodeSecretPhrase: "",
+			},
+			want:    mockSuccessBatchReceipt,
+			wantErr: false,
+		},
+		{
+			name: "generateTransactionReceipt:KVDBInsertFail",
+			fields: fields{
+				Chaintype:           nil,
+				KVExecutor:          &mockKVExecutorFailOtherError{},
+				QueryExecutor:       nil,
+				MempoolQuery:        nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Signature:           &crypto.Signature{},
+				TransactionQuery:    nil,
+				Observer:            nil,
+			},
+			args: args{
+				receivedTxHash:   mockReceivedTxHash,
+				lastBlock:        mockBlock,
+				senderPublicKey:  mockSenderPublicKey,
+				receiptKey:       mockReceiptKey,
+				nodeSecretPhrase: "",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+			}
+			got, err := mps.generateTransactionReceipt(tt.args.receivedTxHash, tt.args.lastBlock, tt.args.senderPublicKey,
+				tt.args.receiptKey, tt.args.nodeSecretPhrase)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("generateTransactionReceipt() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("generateTransactionReceipt() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

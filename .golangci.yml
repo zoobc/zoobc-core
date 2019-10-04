@@ -107,6 +107,10 @@ issues:
       linters:
         - scopelint
         - unused
+    - path: "(.+)_test.go"
+      text: "sync.noCopy"
+      linters:
+        - govet
     - text: "File is not `goimports`-ed"
       linters:
         - goimports
