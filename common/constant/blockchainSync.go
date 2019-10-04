@@ -8,14 +8,14 @@ import (
 
 var (
 	// GetMoreBlocksDelay returns delay between GetMoreBlocksThread in seconds
-	GetMoreBlocksDelay               time.Duration = time.Duration(setGetMoreBlockDelay())
-	BlockDownloadSegSize             uint32        = setBlockDownloadSegSize()
-	MaxResponseTime                  time.Duration = time.Duration(setMaxResponseTime())
-	DefaultNumberOfForkConfirmations int32         = setDefaultNumberOfForkConfirmations()
-	PeerGetBlocksLimit               uint32        = setPeerGetBlocksLimit()
-	CommonMilestoneBlockIdsLimit     int32         = setCommonMilestoneBlockIdsLimit()
-	SafeBlockGap                     uint32        = setSafeBlockGap()
-	MinRollbackBlocks                uint32        = setMinRollbackBlocks()
+	GetMoreBlocksDelay               = time.Duration(setGetMoreBlockDelay())
+	BlockDownloadSegSize             = setBlockDownloadSegSize()
+	MaxResponseTime                  = time.Duration(setMaxResponseTime())
+	DefaultNumberOfForkConfirmations = setDefaultNumberOfForkConfirmations()
+	PeerGetBlocksLimit               = setPeerGetBlocksLimit()
+	CommonMilestoneBlockIdsLimit     = setCommonMilestoneBlockIdsLimit()
+	SafeBlockGap                     = setSafeBlockGap()
+	MinRollbackBlocks                = setMinRollbackBlocks()
 )
 
 func setGetMoreBlockDelay() int64 {

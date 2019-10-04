@@ -3,22 +3,22 @@ package constant
 import "github.com/spf13/viper"
 
 var (
-	// Max number of unresolved peers stored in a host
-	MaxUnresolvedPeers int32 = setMaxUnresolvedPeers() // 1000
+	// Max number of unresolved peers
+	MaxUnresolvedPeers = setMaxUnresolvedPeers() // 1000
 	// Max number of connected/resolved peers stored in a host
-	MaxResolvedPeers int32 = setMaxResolvedPeers() // 100
+	MaxResolvedPeers = setMaxResolvedPeers() // 100
 	// Minimum time period in second to update a peer
-	SecondsToUpdatePeersConnection int64 = setSecondsToUpdatePeersConnection() // 3600
+	SecondsToUpdatePeersConnection = setSecondsToUpdatePeersConnection() // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
-	ResolvePeersGap uint = setResolvePeersGap()
+	ResolvePeersGap = setResolvePeersGap()
 	// UpdateBlacklistedStatusGap, interval of a tread that will update the status of blacklisted node
-	UpdateBlacklistedStatusGap uint = setUpdateBlacklistedStatusGap()
+	UpdateBlacklistedStatusGap = setUpdateBlacklistedStatusGap()
 	// BlacklistingPeriod, how long a peer in blaclisting status
-	BlacklistingPeriod uint64 = setBlacklistingPeriod()
+	BlacklistingPeriod = setBlacklistingPeriod()
 	// ConnectPriorityPeersGap, interval of peer thread trying connect to priority peer (in second)
-	ConnectPriorityPeersGap uint = setConnectPriorityPeersGap()
+	ConnectPriorityPeersGap = setConnectPriorityPeersGap()
 	// NumberOfPriorityPeersToBeAdded how many priority peers we want to add at once
-	NumberOfPriorityPeersToBeAdded int = setNumberOfPriorityPeersToBeAdded()
+	NumberOfPriorityPeersToBeAdded = setNumberOfPriorityPeersToBeAdded()
 )
 
 func setMaxUnresolvedPeers() int32 {

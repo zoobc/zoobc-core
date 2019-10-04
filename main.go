@@ -79,7 +79,10 @@ func init() {
 		viper.SetConfigName("config")
 		viper.SetConfigType("toml")
 		viper.AddConfigPath(configDir)
-		viper.ReadInConfig()
+		if err := viper.ReadInConfig(); err != nil {
+			log.Fatal(err)
+		}
+
 	}
 
 	dbPath = viper.GetString("dbPath")

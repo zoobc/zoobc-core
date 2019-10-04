@@ -9,7 +9,7 @@ import (
 /*
 LoadConfig must be called at first time while start the app
 */
-func LoadConfig(path, name string, extension string) error {
+func LoadConfig(path, name, extension string) error {
 
 	if len(path) < 1 || len(name) < 1 || len(extension) < 1 {
 		return fmt.Errorf("path and extension cannot be nil")
