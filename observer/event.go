@@ -2,8 +2,7 @@ package observer
 
 const (
 	// block listener event
-	BlockPushed Event = "BlockEvent.BlockPushed"
-	// BlockReceived  Event = "BlockEvent.BlockReceived"
+	BlockPushed    Event = "BlockEvent.BlockPushed"
 	BroadcastBlock Event = "BlockEvent.BroadcastBlock"
 
 	// transaction listener event

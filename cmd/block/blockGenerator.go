@@ -59,6 +59,7 @@ func initialize(
 	}
 	mempoolService := service.NewMempoolService(
 		chainType,
+		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		actionSwitcher,
@@ -69,10 +70,12 @@ func initialize(
 	)
 	blockService = service.NewBlockService(
 		chainType,
+		nil,
 		queryExecutor,
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
+		query.NewMerkleTreeQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		actionSwitcher,

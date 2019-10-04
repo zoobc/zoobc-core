@@ -12,17 +12,19 @@ type (
 )
 
 var (
-	DBErr               TypeBlocker = "DBErr"
-	BlockErr            TypeBlocker = "BlockErr"
-	BlockNotFoundErr    TypeBlocker = "BlockNotFoundErr"
-	RequestParameterErr TypeBlocker = "RequestParameterErr"
-	AppErr              TypeBlocker = "AppErr"
-	AuthErr             TypeBlocker = "AuthErr"
-	ValidationErr       TypeBlocker = "ValidationErr"
-	ParserErr           TypeBlocker = "ParserErr"
-	ServerError         TypeBlocker = "ServerError"
-	SmithingErr         TypeBlocker = "SmithingErr"
-	ChainValidationErr  TypeBlocker = "ChainValidationErr"
+	DBErr                   TypeBlocker = "DBErr"
+	BlockErr                TypeBlocker = "BlockErr"
+	BlockNotFoundErr        TypeBlocker = "BlockNotFoundErr"
+	RequestParameterErr     TypeBlocker = "RequestParameterErr"
+	AppErr                  TypeBlocker = "AppErr"
+	AuthErr                 TypeBlocker = "AuthErr"
+	ValidationErr           TypeBlocker = "ValidationErr"
+	DuplicateMempoolErr     TypeBlocker = "DuplicateMempoolErr"
+	DuplicateTransactionErr TypeBlocker = "DuplicateTransactionErr"
+	ParserErr               TypeBlocker = "ParserErr"
+	ServerError             TypeBlocker = "ServerError"
+	SmithingErr             TypeBlocker = "SmithingErr"
+	ChainValidationErr      TypeBlocker = "ChainValidationErr"
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {

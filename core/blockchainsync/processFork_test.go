@@ -67,6 +67,9 @@ func (*mockServiceBlockSuccess) GetLastBlock() (*model.Block, error) {
 }
 
 func (*mockServiceBlockSuccess) GetBlockByHeight(height uint32) (*model.Block, error) {
+	if height == 0 {
+		return &model.Block{ID: 1, Height: height}, nil // genesis
+	}
 	return &model.Block{ID: 58, Height: height}, nil
 }
 
