@@ -13,6 +13,7 @@ type (
 		InsertReceipt(receipt *model.Receipt) (str string, args []interface{})
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(limit uint32, offset uint64) string
+		GetReceiptByRoot(root []byte) (str string, args []interface{})
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
 		Scan(receipt *model.Receipt, row *sql.Row) error
@@ -58,6 +59,14 @@ func (rq *ReceiptQuery) GetReceipts(limit uint32, offset uint64) string {
 
 	query += fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
 	return query
+}
+
+// GetReceiptByRoot return sql query to fetch receipts by its merkle root
+func (rq *ReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr = ?", strings.Join(rq.Fields, ", "), rq.getTableName())
+	return query, []interface{}{
+		root,
+	}
 }
 
 // InsertReceipts inserts a new receipts into DB

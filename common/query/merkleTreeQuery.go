@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 )
@@ -10,6 +11,7 @@ type (
 	MerkleTreeQueryInterface interface {
 		InsertMerkleTree(root, tree []byte) (qStr string, args []interface{})
 		GetMerkleTreeByRoot(root []byte) (qStr string, args []interface{})
+		ScanTree(row *sql.Row) ([]byte, error)
 	}
 	// MerkleTreeQuery fields and table name
 	MerkleTreeQuery struct {
@@ -52,4 +54,18 @@ func (mrQ *MerkleTreeQuery) GetMerkleTreeByRoot(root []byte) (qStr string, args 
 		"SELECT %s FROM %s WHERE id = ?",
 		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(),
 	), []interface{}{root}
+}
+
+func (mrQ *MerkleTreeQuery) ScanTree(row *sql.Row) ([]byte, error) {
+	var (
+		root, tree []byte
+	)
+	err := row.Scan(
+		&root,
+		&tree,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return tree, nil
 }
