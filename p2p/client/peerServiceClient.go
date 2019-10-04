@@ -21,7 +21,7 @@ import (
 type (
 	//  PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
-		GetPeerInfo(destPeer *model.Peer, requester *model.Node) (*model.Node, error)
+		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
 		SendBlock(
@@ -95,7 +95,7 @@ func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
 }
 
 // GetPeerInfo to get Peer info
-func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer, requester *model.Node) (*model.Node, error) {
+func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
 	var (
 		connection, _ = psc.Dialer(destPeer)
 		p2pClient     = service.NewP2PCommunicationClient(connection)
