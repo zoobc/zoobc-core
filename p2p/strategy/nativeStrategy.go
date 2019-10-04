@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/signal"
@@ -207,7 +208,7 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
  *	========================================
  */
 
-func (ns *NativeStrategy) GetHostInfo(requester *model.Node) *model.Node {
+func (ns *NativeStrategy) GetHostInfo() *model.Node {
 	return ns.Host.GetInfo()
 }
 
@@ -462,4 +463,8 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 
 func (ns *NativeStrategy) PeerExplorerListener() observer.Listener {
 	return observer.Listener{}
+}
+
+func (ns *NativeStrategy) ValidationRequest(ctx context.Context) bool {
+	return true
 }

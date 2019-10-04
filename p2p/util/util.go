@@ -14,6 +14,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
+const DefaultConnectionMetadata = "requster"
+
 // NewHost to initialize new server node
 func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
 	knownPeersMap := make(map[string]*model.Peer)

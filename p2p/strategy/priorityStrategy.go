@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -14,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/metadata"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -273,7 +275,6 @@ func (ps *PriorityStrategy) ValidatePriorityPeer(host, peer *model.Node) bool {
 }
 
 func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerIndex, hostEndPeerIndex int) bool {
-	fmt.Println(peerIndex, hostStartPeerIndex, hostEndPeerIndex)
 	if hostEndPeerIndex > hostStartPeerIndex {
 		return peerIndex >= hostStartPeerIndex && peerIndex <= hostEndPeerIndex
 	}
@@ -281,6 +282,24 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 		return true
 	}
 	return peerIndex <= hostEndPeerIndex
+}
+
+// ValidationRequest, to validate incoming request based on metadata in context and Priority strategy
+func (ps *PriorityStrategy) ValidationRequest(ctx context.Context) bool {
+	md, _ := metadata.FromIncomingContext(ctx)
+	// Check have default context
+	if md.Get(p2pUtil.DefaultConnectionMetadata)[0] != "" {
+		// Check host in scrumble nodes
+		if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
+			nodeRequester := p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
+			// Check host is in priority peer list of requester
+			// Or requester is in priority peers of host
+			return ps.ValidatePriorityPeer(nodeRequester, ps.Host.GetInfo()) ||
+				ps.ValidatePriorityPeer(ps.Host.GetInfo(), nodeRequester)
+		}
+		return true
+	}
+	return false
 }
 
 // ============================================
@@ -477,16 +496,8 @@ func (ps *PriorityStrategy) UpdateBlacklistedStatusThread() {
  *	========================================
  */
 
-func (ps *PriorityStrategy) GetHostInfo(requester *model.Node) *model.Node {
-	// Check host in scrumble nodes
-	if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
-		// Check host is in priority peer list of requester
-		// Or requester is in priority peers of host
-		if ps.ValidatePriorityPeer(requester, ps.Host.GetInfo()) || ps.ValidatePriorityPeer(ps.Host.GetInfo(), requester) {
-			return ps.Host.GetInfo()
-		}
-		return nil
-	}
+func (ps *PriorityStrategy) GetHostInfo() *model.Node {
+	fmt.Println("--------------_>")
 	return ps.Host.GetInfo()
 }
 

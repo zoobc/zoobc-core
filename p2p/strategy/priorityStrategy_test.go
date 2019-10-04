@@ -870,13 +870,9 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 		MaxUnresolvedPeers    int32
 		MaxResolvedPeers      int32
 	}
-	type args struct {
-		requester *model.Node
-	}
 	tests := []struct {
 		name   string
 		fields fields
-		args   args
 		want   *model.Node
 	}{
 		{
@@ -887,18 +883,12 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 				},
 				ScrambleNode: mockGoodScrumbleNode,
 			},
-			args: args{
-				requester: mockGoodScrumbleNode.AddressNodes[1].GetInfo(),
-			},
 			want: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
 		},
 		{
 			name: "wantSuccessNotScrumble",
 			fields: fields{
 				Host: priorityStrategyGoodHostInstance,
-			},
-			args: args{
-				requester: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
 			},
 			want: priorityStrategyGoodHostInstance.GetInfo(),
 		},
@@ -914,7 +904,7 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
 			}
-			if got := ps.GetHostInfo(tt.args.requester); !reflect.DeepEqual(got, tt.want) {
+			if got := ps.GetHostInfo(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetHostInfo() = %v, want %v", got, tt.want)
 			}
 		})

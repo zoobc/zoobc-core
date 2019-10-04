@@ -6,6 +6,8 @@ in zoobc.
 */
 
 import (
+	"context"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
 )
@@ -13,7 +15,7 @@ import (
 type (
 	PeerExplorerStrategyInterface interface {
 		Start()
-		GetHostInfo(requester *model.Node) *model.Node
+		GetHostInfo() *model.Node
 		GetAnyResolvedPeer() *model.Peer
 		GetMorePeersHandler() (*model.Peer, error)
 		GetUnresolvedPeers() map[string]*model.Peer
@@ -23,5 +25,6 @@ type (
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
 		PeerExplorerListener() observer.Listener
+		ValidationRequest(ctx context.Context) bool
 	}
 )

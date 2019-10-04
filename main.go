@@ -128,23 +128,23 @@ func init() {
 }
 
 func initP2pInstance() {
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	// init p2p instances
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
+	if err != nil {
+		logrus.Fatal("fail to start p2p service")
+	}
+	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
+
 	// initialize peer client service
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
 		query.NewReceiptQuery(),
 		nodePublicKey,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
+		p2pHost,
 	)
-
-	// init p2p instances
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
-	if err != nil {
-		logrus.Fatal("fail to start p2p service")
-	}
-
-	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// peer discovery strategy
 	peerExplorer = strategy.NewPriorityStrategy(

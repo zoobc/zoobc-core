@@ -15,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type (
@@ -48,6 +49,7 @@ type (
 		BatchReceiptQuery query.BatchReceiptQueryInterface
 		MerkleTreeQuery   query.MerkleTreeQueryInterface
 		NodePublicKey     []byte
+		Host              *model.Host
 	}
 )
 
@@ -61,6 +63,7 @@ func NewPeerServiceClient(
 	nodePublicKey []byte,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
+	host *model.Host,
 ) PeerServiceClientInterface {
 	logLevels := viper.GetStringSlice("logLevels")
 	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log", logLevels)
@@ -83,20 +86,30 @@ func NewPeerServiceClient(
 		MerkleTreeQuery:   merkleTreeQuery,
 		NodePublicKey:     nodePublicKey,
 		Logger:            apiLogger,
+		Host:              host,
 	}
+}
+
+func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
+	return map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.Host.GetInfo())}
 }
 
 // GetPeerInfo to get Peer info
 func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer, requester *model.Node) (*model.Node, error) {
-	connection, _ := psc.Dialer(destPeer)
+	var (
+		connection, _ = psc.Dialer(destPeer)
+		p2pClient     = service.NewP2PCommunicationClient(connection)
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	// context still not use ctx := cs.buildContext()
-	res, err := p2pClient.GetPeerInfo(context.Background(), &model.GetPeerInfoRequest{
-		Version:       "v1,.0.1",
-		InfoRequester: requester,
-	})
+	res, err := p2pClient.GetPeerInfo(
+		ctx,
+		&model.GetPeerInfoRequest{
+			Version: "v1,.0.1",
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -105,12 +118,16 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer, requester *model
 
 // GetMorePeers to collect more peers available
 func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
-	connection, _ := psc.Dialer(destPeer)
+	var (
+		connection, _ = psc.Dialer(destPeer)
+		p2pClient     = service.NewP2PCommunicationClient(connection)
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
 
 	// context still not use ctx := cs.buildContext()
-	res, err := p2pClient.GetMorePeers(context.Background(), &model.Empty{})
+	res, err := p2pClient.GetMorePeers(ctx, &model.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -119,11 +136,14 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 
 // SendPeers sends set of peers to other node (to populate the network)
 func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
-	connection, _ := psc.Dialer(destPeer)
+	var (
+		connection, _ = psc.Dialer(destPeer)
+		p2pClient     = service.NewP2PCommunicationClient(connection)
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
-
-	res, err := p2pClient.SendPeers(context.Background(), &model.SendPeersRequest{
+	res, err := p2pClient.SendPeers(ctx, &model.SendPeersRequest{
 		Peers: peersInfo,
 	})
 	if err != nil {
@@ -138,18 +158,16 @@ func (psc *PeerServiceClient) SendBlock(
 	block *model.Block,
 	chainType chaintype.ChainType,
 ) error {
-
 	var (
-		err      error
-		response *model.SendBlockResponse
+		err           error
+		response      *model.SendBlockResponse
+		connection, _ = psc.Dialer(destPeer)
+		p2pClient     = service.NewP2PCommunicationClient(connection)
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
 	)
-
-	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
-
-	p2pClient := service.NewP2PCommunicationClient(connection)
-
-	response, err = p2pClient.SendBlock(context.Background(), &model.SendBlockRequest{
+	response, err = p2pClient.SendBlock(ctx, &model.SendBlockRequest{
 		SenderPublicKey: psc.NodePublicKey,
 		Block:           block,
 		ChainType:       chainType.GetTypeInt(),
@@ -169,14 +187,16 @@ func (psc *PeerServiceClient) SendTransaction(
 	chainType chaintype.ChainType,
 ) error {
 	var (
-		err      error
-		response *model.SendTransactionResponse
+		err           error
+		response      *model.SendTransactionResponse
+		connection, _ = psc.Dialer(destPeer)
+		p2pClient     = service.NewP2PCommunicationClient(connection)
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
 	)
-	connection, _ := psc.Dialer(destPeer)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
 
-	response, err = p2pClient.SendTransaction(context.Background(), &model.SendTransactionRequest{
+	response, err = p2pClient.SendTransaction(ctx, &model.SendTransactionRequest{
 		SenderPublicKey:  psc.NodePublicKey,
 		TransactionBytes: transactionBytes,
 		ChainType:        chainType.GetTypeInt(),
@@ -193,14 +213,19 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(
 	destPeer *model.Peer,
 	chaintype chaintype.ChainType,
 ) (*model.GetCumulativeDifficultyResponse, error) {
-	connection, _ := grpc.Dial(
-		p2pUtil.GetFullAddressPeer(destPeer),
-		grpc.WithInsecure(),
-		// grpc.WithUnaryInterceptor(),
+	var (
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+		connection, _ = grpc.Dial(
+			p2pUtil.GetFullAddressPeer(destPeer),
+			grpc.WithInsecure(),
+			// grpc.WithUnaryInterceptor(),
+		)
+		p2pClient = service.NewP2PCommunicationClient(connection)
 	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
-	res, err := p2pClient.GetCumulativeDifficulty(context.Background(), &model.GetCumulativeDifficultyRequest{
+
+	res, err := p2pClient.GetCumulativeDifficulty(ctx, &model.GetCumulativeDifficultyRequest{
 		ChainType: chaintype.GetTypeInt(),
 	})
 	if err != nil {
@@ -216,14 +241,19 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
 	chaintype chaintype.ChainType,
 	lastBlockID, lastMilestoneBlockID int64,
 ) (*model.GetCommonMilestoneBlockIdsResponse, error) {
-	connection, _ := grpc.Dial(
-		p2pUtil.GetFullAddressPeer(destPeer),
-		grpc.WithInsecure(),
-		// grpc.WithUnaryInterceptor(),
+	var (
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+		connection, _ = grpc.Dial(
+			p2pUtil.GetFullAddressPeer(destPeer),
+			grpc.WithInsecure(),
+			// grpc.WithUnaryInterceptor(),
+		)
+		p2pClient = service.NewP2PCommunicationClient(connection)
 	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
-	res, err := p2pClient.GetCommonMilestoneBlockIDs(context.Background(), &model.GetCommonMilestoneBlockIdsRequest{
+
+	res, err := p2pClient.GetCommonMilestoneBlockIDs(ctx, &model.GetCommonMilestoneBlockIdsRequest{
 		ChainType:            chaintype.GetTypeInt(),
 		LastBlockID:          lastBlockID,
 		LastMilestoneBlockID: lastMilestoneBlockID,
@@ -242,14 +272,19 @@ func (psc PeerServiceClient) GetNextBlockIDs(
 	blockID int64,
 	limit uint32,
 ) (*model.BlockIdsResponse, error) {
-	connection, _ := grpc.Dial(
-		p2pUtil.GetFullAddressPeer(destPeer),
-		grpc.WithInsecure(),
-		// grpc.WithUnaryInterceptor(),
+	var (
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+		connection, _ = grpc.Dial(
+			p2pUtil.GetFullAddressPeer(destPeer),
+			grpc.WithInsecure(),
+			// grpc.WithUnaryInterceptor(),
+		)
+		p2pClient = service.NewP2PCommunicationClient(connection)
 	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
-	res, err := p2pClient.GetNextBlockIDs(context.Background(), &model.GetNextBlockIdsRequest{
+
+	res, err := p2pClient.GetNextBlockIDs(ctx, &model.GetNextBlockIdsRequest{
 		ChainType: chaintype.GetTypeInt(),
 		BlockId:   blockID,
 		Limit:     limit,
@@ -268,14 +303,20 @@ func (psc PeerServiceClient) GetNextBlocks(
 	blockIds []int64,
 	blockID int64,
 ) (*model.BlocksData, error) {
-	connection, _ := grpc.Dial(
-		p2pUtil.GetFullAddressPeer(destPeer),
-		grpc.WithInsecure(),
+	var (
+		header        = metadata.New(psc.setDefaultMetadata())
+		ctx           = metadata.NewOutgoingContext(context.Background(), header)
+		connection, _ = grpc.Dial(
+			p2pUtil.GetFullAddressPeer(destPeer),
+			grpc.WithInsecure(),
+			// grpc.WithUnaryInterceptor(),
+		)
+		p2pClient = service.NewP2PCommunicationClient(connection)
 	)
 	defer connection.Close()
-	p2pClient := service.NewP2PCommunicationClient(connection)
+
 	res, err := p2pClient.GetNextBlocks(
-		context.Background(),
+		ctx,
 		&model.GetNextBlocksRequest{
 			ChainType: chaintype.GetTypeInt(),
 			BlockId:   blockID,
