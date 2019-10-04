@@ -3,7 +3,6 @@ package strategy
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"os"
 	"os/signal"
@@ -499,7 +498,6 @@ func (ps *PriorityStrategy) UpdateBlacklistedStatusThread() {
  */
 
 func (ps *PriorityStrategy) GetHostInfo() *model.Node {
-	fmt.Println("--------------_>")
 	return ps.Host.GetInfo()
 }
 
