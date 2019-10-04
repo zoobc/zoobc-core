@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
+
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/observer"
@@ -43,7 +45,11 @@ func init() {
 	}
 }
 
-func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostService p2p.Peer2PeerServiceInterface,
+func startGrpcServer(
+	port int,
+	kvExecutor kvdb.KVExecutorInterface,
+	queryExecutor query.ExecutorInterface,
+	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
@@ -54,6 +60,7 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 	}
 	mempoolService := coreService.NewMempoolService(
 		&chaintype.MainChain{},
+		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
 		actionTypeSwitcher,
@@ -126,9 +133,16 @@ func startGrpcServer(port int, queryExecutor query.ExecutorInterface, p2pHostSer
 }
 
 // Start starts api servers in the given port and passing query executor
-func Start(grpcPort, restPort int, queryExecutor query.ExecutorInterface, p2pHostService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
-	startGrpcServer(grpcPort, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath)
+func Start(
+	grpcPort, restPort int,
+	kvExecutor kvdb.KVExecutorInterface,
+	queryExecutor query.ExecutorInterface,
+	p2pHostService p2p.Peer2PeerServiceInterface,
+	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+) {
+	startGrpcServer(
+		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath,
+	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
 			err := runProxy(restPort, grpcPort)
