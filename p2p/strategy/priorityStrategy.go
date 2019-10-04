@@ -390,7 +390,7 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer) {
-	_, err := ps.PeerServiceClient.GetPeerInfo(destPeer, ps.Host.GetInfo())
+	_, err := ps.PeerServiceClient.GetPeerInfo(destPeer)
 	if err != nil {
 		// TODO: add mechanism to blacklist failing peers
 		ps.DisconnectPeer(destPeer)

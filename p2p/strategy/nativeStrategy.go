@@ -102,7 +102,7 @@ func (ns *NativeStrategy) UpdateResolvedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (ns *NativeStrategy) resolvePeer(destPeer *model.Peer) {
-	_, err := ns.PeerServiceClient.GetPeerInfo(destPeer, nil)
+	_, err := ns.PeerServiceClient.GetPeerInfo(destPeer)
 	if err != nil {
 		// TODO: add mechanism to blacklist failing peers
 		ns.DisconnectPeer(destPeer)
