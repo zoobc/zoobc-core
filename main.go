@@ -71,8 +71,15 @@ func init() {
 		configDir = "./resource"
 	}
 
-	if err := util.LoadConfig(configDir, "config"+configPostfix, *configDebug, "toml"); err != nil {
-		log.Fatal(err)
+	if !*configDebug {
+		if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("toml")
+		viper.AddConfigPath(configDir)
+		viper.ReadInConfig()
 	}
 
 	dbPath = viper.GetString("dbPath")
