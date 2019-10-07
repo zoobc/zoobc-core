@@ -26,6 +26,7 @@ type (
 		CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith
 		SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener
 		StartSmithing() error
+		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
 	}
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
@@ -78,6 +79,73 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	generator.SmithTime = coreUtil.GetSmithTime(generator.Score, generator.BlockSeed, lastBlock)
 	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
+}
+
+// FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
+// errors
+func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool) error {
+	// todo: if debug mode, allow, else no
+	var (
+		timeNow int64
+	)
+	// creating a virtual time
+	if !fromGenesis {
+		lastBlock, err := bp.BlockService.GetLastBlock()
+		if err != nil {
+			return err
+		}
+		timeNow = lastBlock.Timestamp
+	} else {
+		timeNow = constant.MainchainGenesisBlockTimestamp
+	}
+	for i := 0; i < numberOfBlocks; i++ {
+		lastBlock, err := bp.BlockService.GetLastBlock()
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.SmithingErr, "genesis block has not been applied")
+		}
+		// simulating real condition, calculating the smith time of current last block
+		smithMax := timeNow - bp.Chaintype.GetChainSmithingDelayTime()
+		if lastBlock.GetID() != bp.LastBlockID {
+			bp.LastBlockID = lastBlock.GetID()
+			bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
+		}
+		// speed up the virtual time if smith time has not reach the needed smithing maximum time
+		for bp.Generator.SmithTime > smithMax {
+			timeNow++ // speed up bro
+			smithMax = timeNow - bp.Chaintype.GetChainSmithingDelayTime()
+		}
+		// smith time reached
+		timestamp := bp.Generator.GetTimestamp(smithMax)
+		if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
+			return blocker.NewBlocker(
+				blocker.SmithingErr, "verify seed return false",
+			)
+		}
+		previousBlock, err := bp.BlockService.GetLastBlock()
+		if err != nil {
+			return err
+		}
+		block, err := bp.BlockService.GenerateBlock(
+			previousBlock,
+			bp.Generator.SecretPhrase,
+			timestamp,
+		)
+		if err != nil {
+			return err
+		}
+		// validate
+		err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
+		if err != nil {
+			return err
+		}
+		// if validated push
+		err = bp.BlockService.PushBlock(previousBlock, block, true, false)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // StartSmithing start smithing loop
