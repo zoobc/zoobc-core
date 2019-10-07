@@ -2,17 +2,19 @@ package constant
 
 import (
 	"flag"
+	"fmt"
 
 	"github.com/spf13/viper"
 )
 
 var (
-	debugMode *bool
+	debugMode bool
 )
 
 func setDebug() bool {
-	debugMode = flag.Bool("debug", false, "Usage")
-	return *debugMode
+	debugMode = flag.Lookup("configDebug").Value.(flag.Getter).Get().(bool)
+	fmt.Printf("debugMode: %v\n", debugMode)
+	return debugMode
 }
 
 func SetCheckVarString(key, defaultVal string) string {

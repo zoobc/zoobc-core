@@ -58,12 +58,15 @@ func init() {
 	var (
 		configPostfix string
 		configDir     string
+		configDebug   *bool
 		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "", "Usage")
-	flag.Bool("debug", false, "Usage")
+	configDebug = flag.Bool("debug", false, "Usage")
+	_ = configDebug
+
 	flag.Parse()
 
 	if configDir == "" {
