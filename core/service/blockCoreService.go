@@ -280,6 +280,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
+	var err error
 	// needLock indicates the push block needs to be protected
 	if needLock {
 		bs.Wait()
@@ -291,12 +292,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		)
 	}
 	// start db transaction here
-	_ = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx()
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err := bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
 		_ = bs.QueryExecutor.RollbackTx()
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	// apply transactions and remove them from mempool
 	transactions := block.GetTransactions()

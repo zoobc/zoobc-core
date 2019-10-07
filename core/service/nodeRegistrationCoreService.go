@@ -101,7 +101,10 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 
 // AdmitNodes update given node registrations' queued field to false and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
-	_ = nrs.QueryExecutor.BeginTx()
+	err := nrs.QueryExecutor.BeginTx()
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 	// prepare all node registrations to be updated (set queued to false and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
 		nodeRegistration.Queued = false
@@ -119,7 +122,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		queries = append(queries,
 			append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...),
 		)
-		err := nrs.QueryExecutor.ExecuteTransactions(queries)
+		err = nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			// no need to rollback here, since we already do it in ExecuteTransactions
 			return err
@@ -136,7 +139,11 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
 // update the node registration by setting queued field to true and locked balance to zero
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
-	_ = nrs.QueryExecutor.BeginTx()
+	err := nrs.QueryExecutor.BeginTx()
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
 	for _, nodeRegistration := range nodeRegistrations {
 		// update the node registry (set queued to 1 and lockedbalance to 0)
 		nodeRegistration.Queued = true
