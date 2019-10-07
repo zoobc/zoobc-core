@@ -9,10 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	"github.com/dgraph-io/badger"
-
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -21,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -140,7 +138,7 @@ func init() {
 		query.NewParticipationScoreQuery(),
 	)
 
-	// initialize Oberver
+	// initialize Observer
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()
