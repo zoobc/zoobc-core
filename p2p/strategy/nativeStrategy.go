@@ -465,6 +465,6 @@ func (ns *NativeStrategy) PeerExplorerListener() observer.Listener {
 	return observer.Listener{}
 }
 
-func (ns *NativeStrategy) ValidationRequest(ctx context.Context) bool {
+func (ns *NativeStrategy) ValidateRequest(ctx context.Context) bool {
 	return true
 }

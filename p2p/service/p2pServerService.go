@@ -79,7 +79,7 @@ func NewP2PServerService(
 }
 
 func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		return ps.PeerExplorer.GetHostInfo(), nil
 	}
 	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
@@ -87,7 +87,7 @@ func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 
 // GetMorePeers contains info other peers
 func (ps *P2PServerService) GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var nodes []*model.Node
 		// only sends the connected (resolved) peers
 		for _, hostPeer := range ps.PeerExplorer.GetResolvedPeers() {
@@ -103,7 +103,7 @@ func (ps *P2PServerService) SendPeers(
 	ctx context.Context,
 	peers []*model.Node,
 ) (*model.Empty, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: only accept nodes that are already registered in the node registration
 		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
 		if err != nil {
@@ -119,7 +119,7 @@ func (ps *P2PServerService) GetCumulativeDifficulty(
 	ctx context.Context,
 	chainType chaintype.ChainType,
 ) (*model.GetCumulativeDifficultyResponse, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
@@ -139,7 +139,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 	lastBlockID,
 	lastMilestoneBlockID int64,
 ) (*model.GetCommonMilestoneBlockIdsResponse, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// if `lastBlockID` is supplied
 		// check it the last `lastBlockID` got matches with the host's lastBlock then return the response as is
 		var (
@@ -221,7 +221,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 	reqLimit uint32,
 	reqBlockID int64,
 ) ([]int64, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var blockIds []int64
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
@@ -263,7 +263,7 @@ func (ps *P2PServerService) GetNextBlocks(
 	blockID int64,
 	blockIDList []int64,
 ) (*model.BlocksData, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: getting data from cache
 		var blocksMessage []*model.Block
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
@@ -297,7 +297,7 @@ func (ps *P2PServerService) SendBlock(
 	block *model.Block,
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(
@@ -328,7 +328,7 @@ func (ps *P2PServerService) SendTransaction(
 	transactionBytes,
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
-	if ps.PeerExplorer.ValidationRequest(ctx) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
 		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(

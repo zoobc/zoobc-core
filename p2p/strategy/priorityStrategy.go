@@ -285,18 +285,25 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 	return peerIndex <= hostEndPeerIndex
 }
 
-// ValidationRequest, to validate incoming request based on metadata in context and Priority strategy
-func (ps *PriorityStrategy) ValidationRequest(ctx context.Context) bool {
+// ValidateRequest, to validate incoming request based on metadata in context and Priority strategy
+func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 	md, _ := metadata.FromIncomingContext(ctx)
 	// Check have default context
 	if md.Get(p2pUtil.DefaultConnectionMetadata)[0] != "" {
 		// Check host in scrumble nodes
 		if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
-			nodeRequester := p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
+			var (
+				fullAddress   = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+				nodeRequester = p2pUtil.GetNodeInfo(fullAddress)
+				resolvedPeers = ps.GetResolvedPeers()
+			)
+
 			// Check host is in priority peer list of requester
 			// Or requester is in priority peers of host
 			return ps.ValidatePriorityPeer(nodeRequester, ps.Host.GetInfo()) ||
-				ps.ValidatePriorityPeer(ps.Host.GetInfo(), nodeRequester)
+				ps.ValidatePriorityPeer(ps.Host.GetInfo(), nodeRequester) ||
+				(resolvedPeers[fullAddress] != nil)
+
 		}
 		return true
 	}

@@ -25,6 +25,6 @@ type (
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
 		PeerExplorerListener() observer.Listener
-		ValidationRequest(ctx context.Context) bool
+		ValidateRequest(ctx context.Context) bool
 	}
 )

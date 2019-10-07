@@ -840,7 +840,18 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 		fields fields
 		want   map[string]*model.Peer
 	}{
-		// TODO: Add test cases.
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host: &model.Host{
+					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				},
+				ScrambleNode: mockGoodScrumbleNode,
+			},
+			want: map[string]*model.Peer{
+				"127.0.0.1:3001": mockGoodScrumbleNode.AddressNodes[1],
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -955,7 +966,6 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 }
 
 func TestPriorityStrategy_ValidateRangePriorityPeers(t *testing.T) {
-
 	type args struct {
 		peerIndex          int
 		hostStartPeerIndex int
