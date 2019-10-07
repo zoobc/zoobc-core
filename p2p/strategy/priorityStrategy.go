@@ -194,6 +194,7 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		if err != nil {
 			return
 		}
+		defer rows.Close()
 		nodeRegistries = ps.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
 
 		// sort node registry
