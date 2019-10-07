@@ -109,8 +109,10 @@ func getTransaction(txType []byte) *model.Transaction {
 		txBody := &model.NodeRegistrationTransactionBody{
 			AccountAddress: recipientAccountAddress,
 			NodePublicKey:  nodePubKey,
-			NodeAddress:    "127.0.0.1",
-			LockedBalance:  10 * constant.OneZBC,
+			NodeAddress: &model.NodeAddress{
+				Address: "127.0.0.1",
+			},
+			LockedBalance: 10 * constant.OneZBC,
 			Poown: &model.ProofOfOwnership{
 				MessageBytes: poownMessageBytes,
 				Signature:    signature,
@@ -145,7 +147,9 @@ func getTransaction(txType []byte) *model.Transaction {
 			nodeSeed)
 		txBody := &model.UpdateNodeRegistrationTransactionBody{
 			NodePublicKey: nodePubKey,
-			NodeAddress:   "127.0.0.1",
+			NodeAddress: &model.NodeAddress{
+				Address: "127.0.0.1",
+			},
 			LockedBalance: 10050000000000,
 			Poown: &model.ProofOfOwnership{
 				MessageBytes: poownMessageBytes,

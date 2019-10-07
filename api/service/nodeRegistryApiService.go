@@ -27,8 +27,11 @@ func NewNodeRegistryService(queryExecutor query.ExecutorInterface) *NodeRegistry
 	}
 }
 
-func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistrationsRequest,
-) (*model.GetNodeRegistrationsResponse, error) {
+func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistrationsRequest) (
+	*model.GetNodeRegistrationsResponse,
+	error,
+) {
+
 	var (
 		err               error
 		rows              *sql.Rows
@@ -43,7 +46,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	maxHeight := params.GetMaxRegistrationHeight()
 	page := params.GetPagination()
 
-	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields[1:]...)
+	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
 	caseQuery.Where(caseQuery.Equal("latest", 1))
 	caseQuery.And(caseQuery.Equal("queued", params.GetQueued()))
 	caseQuery.And(caseQuery.GreaterEqual("registration_height", params.GetMinRegistrationHeight()))
@@ -82,34 +85,26 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	for rows.Next() {
-		var nr model.NodeRegistration
-		_ = rows.Scan(
-			&nr.NodePublicKey,
-			&nr.AccountAddress,
-			&nr.RegistrationHeight,
-			&nr.NodeAddress,
-			&nr.LockedBalance,
-			&nr.Queued,
-			&nr.Latest,
-			&nr.Height)
-		nodeRegistrations = append(nodeRegistrations, &nr)
-	}
+	defer rows.Close()
 
 	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
+
 	return &model.GetNodeRegistrationsResponse{
 		Total:             totalRecords,
 		NodeRegistrations: nodeRegistrations,
 	}, nil
 }
 
-func (ns NodeRegistryService) GetNodeRegistration(params *model.GetNodeRegistrationRequest,
+func (ns NodeRegistryService) GetNodeRegistration(
+	params *model.GetNodeRegistrationRequest,
 ) (*model.GetNodeRegistrationResponse, error) {
+
 	var (
 		row              *sql.Row
 		err              error
 		nodeRegistration model.NodeRegistration
 	)
+
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	caseQuery := query.NewCaseQuery()
 
@@ -123,8 +118,8 @@ func (ns NodeRegistryService) GetNodeRegistration(params *model.GetNodeRegistrat
 	if params.GetRegistrationHeight() != 0 {
 		caseQuery.And(caseQuery.Equal("registration_height", params.GetRegistrationHeight()))
 	}
-	if params.GetNodeAddress() != "" {
-		caseQuery.And(caseQuery.Equal("node_address", params.GetNodeAddress()))
+	if params.GetNodeAddress() != nil {
+		caseQuery.And(caseQuery.Equal("node_address", nodeRegistrationQuery.ExtractNodeAddress(params.GetNodeAddress())))
 	}
 	caseQuery.And(caseQuery.Equal("latest", 1))
 	caseQuery.OrderBy("registration_height", model.OrderBy_ASC)
@@ -132,16 +127,7 @@ func (ns NodeRegistryService) GetNodeRegistration(params *model.GetNodeRegistrat
 	selectQuery, args := caseQuery.Build()
 
 	row = ns.Query.ExecuteSelectRow(selectQuery, args...)
-	err = row.Scan(
-		&nodeRegistration.NodePublicKey,
-		&nodeRegistration.AccountAddress,
-		&nodeRegistration.RegistrationHeight,
-		&nodeRegistration.NodeAddress,
-		&nodeRegistration.LockedBalance,
-		&nodeRegistration.Queued,
-		&nodeRegistration.Latest,
-		&nodeRegistration.Height,
-	)
+	err = nodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
