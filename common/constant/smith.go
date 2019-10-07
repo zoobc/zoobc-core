@@ -10,6 +10,6 @@ var (
 	MaximumBlocktimeLimit      = SetCheckVarInt64("MaxBlocktimeLimit", 67)
 	MinimumBlocktimeLimit      = SetCheckVarInt64("MinBlocktimeLimit", 53)
 	SmithscaleGamma            = SetCheckVarInt64("MinSmithscaleGamma", 64)
-	AverageSmithingBlockHeight = SetCheckVarInt64("AverageSmithingBlockHeight", 10)
-	MaxNumBlocksmithRewards    = SetCheckVarInt64("MaxNumBlocksmithRewards", 5)
+	AverageSmithingBlockHeight = SetCheckVarUint32("AverageSmithingBlockHeight", 10)
+	MaxNumBlocksmithRewards    = SetCheckVarInt("MaxNumBlocksmithRewards", 5)
 )
