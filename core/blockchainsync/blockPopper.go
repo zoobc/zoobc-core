@@ -45,6 +45,9 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 
 	genesisBlockID := bp.ChainType.GetGenesisBlockID()
 	for block.ID != commonBlock.ID && block.ID != genesisBlockID {
+		if block.Height == 0 {
+			log.Fatal("Genesis is found to be corrupted or incorrect")
+		}
 		poppedBlocks = append(poppedBlocks, block)
 
 		block, err = bp.BlockService.GetBlockByHeight(block.Height - 1)
