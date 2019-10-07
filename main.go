@@ -58,31 +58,20 @@ func init() {
 	var (
 		configPostfix string
 		configDir     string
-		configDebug   *bool
 		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "", "Usage")
-	configDebug = flag.Bool("debug", false, "Usage")
+	flag.Bool("debug", false, "Usage")
 	flag.Parse()
 
 	if configDir == "" {
 		configDir = "./resource"
 	}
 
-	if !*configDebug {
-		if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
-			log.Fatal(err)
-		}
-	} else {
-		viper.SetConfigName("config")
-		viper.SetConfigType("toml")
-		viper.AddConfigPath(configDir)
-		if err := viper.ReadInConfig(); err != nil {
-			log.Fatal(err)
-		}
-
+	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
+		log.Fatal(err)
 	}
 
 	dbPath = viper.GetString("dbPath")
