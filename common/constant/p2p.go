@@ -17,4 +17,8 @@ var (
 	ConnectPriorityPeersGap = SetCheckVarUint("ConnectPriorityPeersGap", 60)
 	// NumberOfPriorityPeersToBeAdded : how many priority peers we want to add at once
 	NumberOfPriorityPeersToBeAdded = SetCheckVarInt("NumberOfPriorityPeersToBeAdded", 10)
+	// PriorityStrategyBuildScrambleNodesGap : interval of scramble thread to build scramble node (in block height)
+	PriorityStrategyBuildScrambleNodesGap = SetCheckVarUint32("PriorityStrategyBuildScrambleNodesGap", 10)
+	// PriorityStrategyMaxPriorityPeers : max priority peers will have
+	PriorityStrategyMaxPriorityPeers = SetCheckVarInt("PriorityStrategyMaxPriorityPeers", 5)
 )
