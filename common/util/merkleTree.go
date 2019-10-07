@@ -108,11 +108,36 @@ func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
 
 	for k, buffer := range mr.HashTree {
 		for _, nestBuf := range buffer {
-			t.Write(nestBuf.Bytes())
-			if k < len(mr.HashTree) {
-				r.Write(nestBuf.Bytes())
+			if k+1 == len(mr.HashTree) {
+				r.Write(nestBuf.Bytes()) // write root
+			} else {
+				t.Write(nestBuf.Bytes())
 			}
 		}
 	}
 	return r.Bytes(), t.Bytes()
+}
+
+// FromBytes build []byte to [][]*bytes.Buffer tree representation for easier validation
+func (mr *MerkleRoot) FromBytes(tree, root []byte) [][]*bytes.Buffer {
+	var hashTree [][]*bytes.Buffer
+	// 2n-1 of the tree
+	treeLevelZeroLength := ((len(tree) / 32) + 2) / 2
+	var offset int
+	for treeLevelZeroLength != 1 {
+		var tempHashes []*bytes.Buffer
+		limit := offset + treeLevelZeroLength
+		for i := offset; i < limit; i++ {
+			bytesOffset := i * 32
+			bytesLimit := bytesOffset + 32
+			tempHashes = append(tempHashes, bytes.NewBuffer(tree[bytesOffset:bytesLimit]))
+		}
+		offset += treeLevelZeroLength
+		treeLevelZeroLength /= 2
+		hashTree = append(hashTree, tempHashes)
+	}
+	hashTree = append(hashTree, []*bytes.Buffer{
+		bytes.NewBuffer(root),
+	})
+	return hashTree
 }

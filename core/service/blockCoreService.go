@@ -86,6 +86,7 @@ type (
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -105,6 +106,7 @@ func NewBlockService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
+	receiptService ReceiptServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -122,6 +124,7 @@ func NewBlockService(
 		MerkleTreeQuery:         merkleTreeQuery,
 		Signature:               signature,
 		MempoolService:          mempoolService,
+		ReceiptService:          receiptService,
 		ActionTypeSwitcher:      txTypeSwitcher,
 		AccountBalanceQuery:     accountBalanceQuery,
 		ParticipationScoreQuery: participationScoreQuery,
@@ -682,6 +685,17 @@ func (bs *BlockService) GenerateBlock(
 			payloadLength += txType.GetSize()
 		}
 		// todo: select receipts here to publish & hash the receipts in payload hash
+		blockReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, 20)
+		if err != nil {
+			return nil, err
+		}
+		for _, br := range blockReceipts {
+			// do we only hash the receipts? or also the intermediate hashes? for now only receipt
+			_, err = digest.Write(util.GetUnsignedBatchReceiptBytes(br.Receipt.BatchReceipt))
+			if err != nil {
+				return nil, err
+			}
+		}
 		payloadHash = digest.Sum([]byte{})
 	}
 

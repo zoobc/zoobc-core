@@ -49,6 +49,7 @@ var (
 	observerInstance                                             *observer.Observer
 	blockServices                                                = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
+	receiptService                                               service.ReceiptServiceInterface
 	peerServiceClient                                            client.PeerServiceClientInterface
 	p2pHost                                                      *model.Host
 	peerExplorer                                                 strategy.PeerExplorerStrategyInterface
@@ -116,6 +117,12 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
+	receiptService = service.NewReceiptService(
+		query.NewReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		kvExecutor,
+		queryExecutor,
+	)
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
@@ -249,6 +256,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewMerkleTreeQuery(),
 		crypto.NewSignature(),
 		mempoolService,
+		receiptService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
@@ -266,7 +274,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
-
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			log.Fatal("Fail to add genesis account")

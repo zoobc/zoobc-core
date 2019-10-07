@@ -162,6 +162,15 @@ func (m *Migration) Init() error {
 				"tree" BLOB
 			)
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "published_receipt" (
+				"receipt_hash" BLOB,
+				"merkle_root" BLOB,
+				"intermediate_hashes" BLOB,
+				"block_height" INTEGER,
+				"receipt_index" INTEGER
+			)
+			`,
 		}
 		return nil
 	}
@@ -186,7 +195,7 @@ func (m *Migration) Apply() error {
 
 	for v, query := range migrations {
 		version := v
-		_ = m.Query.BeginTx()
+		err = m.Query.BeginTx()
 		err = m.Query.ExecuteTransaction(query)
 		if err != nil {
 			_ = m.Query.RollbackTx()

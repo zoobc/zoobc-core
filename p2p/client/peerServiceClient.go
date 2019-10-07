@@ -340,7 +340,6 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		rootMerkle, treeMerkle := merkleRoot.ToBytes()
 
 		for k, r := range batchReceipts {
-
 			var (
 				br       = r
 				rmrIndex = uint32(k)
