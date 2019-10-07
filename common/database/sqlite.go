@@ -13,7 +13,7 @@ type (
 	// SqliteDBInstance as public interface that should implemented
 	SqliteDBInstance interface {
 		InitializeDB(dbPath, dbName string) error
-		OpenDB(dbPath, dbName, maxIdleConnections, maxOpenConnections int) error
+		OpenDB(dbPath, dbName string, maxIdleConnections, maxOpenConnections int) (*sql.DB, error)
 		CloseDB() error
 	}
 	// SqliteDB must be implemented

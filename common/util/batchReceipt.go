@@ -3,6 +3,8 @@ package util
 import (
 	"bytes"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -43,7 +45,6 @@ func GetUnsignedBatchReceiptBytes(
 
 // GetSignedReceiptBytes Client task before store into database batch_receipt
 func GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
-
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(receipt.SenderPublicKey)
 	buffer.Write(receipt.RecipientPublicKey)
@@ -54,4 +55,20 @@ func GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
 	buffer.Write(receipt.RMRLinked)
 	buffer.Write(receipt.RecipientSignature)
 	return buffer.Bytes()
+}
+
+func GetReceiptKey(
+	dataHash, senderPublicKey []byte,
+) ([]byte, error) {
+	digest := sha3.New256()
+	_, err := digest.Write(dataHash)
+	if err != nil {
+		return nil, err
+	}
+	_, err = digest.Write(senderPublicKey)
+	if err != nil {
+		return nil, err
+	}
+	receiptKey := digest.Sum([]byte{})
+	return receiptKey, nil
 }

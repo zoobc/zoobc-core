@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dgraph-io/badger"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -17,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -32,26 +34,29 @@ import (
 )
 
 var (
-	dbPath, dbName, nodeSecretPhrase string
-	dbInstance                       *database.SqliteDB
-	db                               *sql.DB
-	apiRPCPort, apiHTTPPort          int
-	peerPort                         uint32
-	p2pServiceInstance               p2p.Peer2PeerServiceInterface
-	queryExecutor                    *query.Executor
-	observerInstance                 *observer.Observer
-	blockServices                    = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                  = make(map[int32]service.MempoolServiceInterface)
-	peerServiceClient                client.PeerServiceClientInterface
-	p2pHost                          *model.Host
-	peerExplorer                     strategy.PeerExplorerStrategyInterface
-	ownerAccountAddress, myAddress   string
-	wellknownPeers                   []string
-	nodeKeyFilePath                  string
-	smithing                         bool
-	nodeRegistrationService          service.NodeRegistrationServiceInterface
-	mainchainProcessor               smith.BlockchainProcessorInterface
-	sortedBlocksmiths                []model.Blocksmith
+	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase string
+	dbInstance                                                   *database.SqliteDB
+	badgerDbInstance                                             *database.BadgerDB
+	db                                                           *sql.DB
+	badgerDb                                                     *badger.DB
+	apiRPCPort, apiHTTPPort                                      int
+	peerPort                                                     uint32
+	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
+	queryExecutor                                                *query.Executor
+	kvExecutor                                                   *kvdb.KVExecutor
+	observerInstance                                             *observer.Observer
+	blockServices                                                = make(map[int32]service.BlockServiceInterface)
+	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
+	peerServiceClient                                            client.PeerServiceClientInterface
+	p2pHost                                                      *model.Host
+	peerExplorer                                                 strategy.PeerExplorerStrategyInterface
+	ownerAccountAddress, myAddress                               string
+	wellknownPeers                                               []string
+	nodeKeyFilePath                                              string
+	smithing                                                     bool
+	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
+	sortedBlocksmiths                                            []model.Blocksmith
+	mainchainProcessor                                           smith.BlockchainProcessorInterface
 )
 
 func init() {
@@ -79,6 +84,8 @@ func init() {
 
 	dbPath = viper.GetString("dbPath")
 	dbName = viper.GetString("dbName")
+	badgerDbPath = viper.GetString("badgerDbPath")
+	badgerDbName = viper.GetString("badgerDbName")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
@@ -99,7 +106,17 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// initialize k-v db
+	badgerDbInstance = database.NewBadgerDB()
+	if err := badgerDbInstance.InitializeBadgerDB(badgerDbPath, badgerDbName); err != nil {
+		log.Fatal(err)
+	}
+	badgerDb, err = badgerDbInstance.OpenBadgerDB(badgerDbPath, badgerDbName)
+	if err != nil {
+		log.Fatal(err)
+	}
 	queryExecutor = query.NewQueryExecutor(db)
+	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
@@ -125,35 +142,37 @@ func init() {
 		query.NewParticipationScoreQuery(),
 	)
 
-	// initialize Oberver
+	// initialize Observer
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()
 }
 
 func initP2pInstance() {
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	// init p2p instances
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
+	if err != nil {
+		logrus.Fatal("fail to start p2p service")
+	}
+	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
+
 	// initialize peer client service
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
 		query.NewReceiptQuery(),
 		nodePublicKey,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
+		p2pHost,
 	)
-
-	// init p2p instances
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
-	if err != nil {
-		logrus.Fatal("fail to start p2p service")
-	}
-
-	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// peer discovery strategy
 	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
@@ -168,6 +187,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
+	observerInstance.AddListener(observer.BlockPushed, peerExplorer.PeerExplorerListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 }
 
@@ -183,6 +203,7 @@ func startServices() {
 	api.Start(
 		apiRPCPort,
 		apiHTTPPort,
+		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
@@ -206,6 +227,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
 		mainchain,
+		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
 		&transaction.TypeSwitcher{
@@ -224,10 +246,12 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
+		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
+		query.NewMerkleTreeQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		actionSwitcher,
