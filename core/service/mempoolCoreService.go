@@ -215,8 +215,9 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 			// compute transaction expiration time
-			txExpirationTime := blockTimestamp + constant.TransactionExpirationOffset
-			if blockTimestamp > 0 && tx.Timestamp > txExpirationTime {
+			txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
+			// compare to millisecond representation of block timestamp
+			if blockTimestamp == 0 || txExpirationTime > blockTimestamp {
 				continue
 			}
 
