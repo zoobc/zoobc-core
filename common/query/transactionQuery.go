@@ -59,15 +59,12 @@ func (tq *TransactionQuery) getTableName() string {
 // GetTransaction get a single transaction from DB
 func (tq *TransactionQuery) GetTransaction(id int64) string {
 	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.getTableName())
-
 	var queryParam []string
 	if id != 0 {
 		queryParam = append(queryParam, fmt.Sprintf("id = %d", id))
 	}
-
 	if len(queryParam) > 0 {
 		query = query + " WHERE " + strings.Join(queryParam, " AND ")
-
 	}
 	return query
 }

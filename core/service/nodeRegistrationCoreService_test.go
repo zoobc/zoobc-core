@@ -23,6 +23,9 @@ type (
 	nrsMockQueryExecutorFailNodeRegistryListener struct {
 		query.Executor
 	}
+	nrsMockQueryExecutorFailActiveNodeRegistrations struct {
+		query.Executor
+	}
 )
 
 var (
@@ -74,9 +77,31 @@ var (
 		PayloadLength:        0,
 		BlockSignature:       []byte{},
 	}
+	nrsBlock2 = &model.Block{
+		ID:                   1000,
+		Height:               blockAdmittanceHeight1,
+		Version:              1,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		PreviousBlockHash:    []byte{},
+		BlockSeed:            []byte{1, 1, 1, 1, 1, 1, 1, 1},
+		BlocksmithPublicKey:  nrsNodePubKey1,
+		Timestamp:            12345678,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Transactions:         []*model.Transaction{},
+		PayloadHash:          []byte{},
+		PayloadLength:        0,
+		BlockSignature:       []byte{},
+	}
 )
 
 func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("MockedError")
+}
+
+func (*nrsMockQueryExecutorFailActiveNodeRegistrations) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
@@ -181,6 +206,15 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"height",
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, true, true, 100))
+	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
+		"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
+		"WHERE nr.latest = 1 AND nr.queued = 0 AND ps.score > 0 AND ps.latest = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"participation_score",
+		},
+		).AddRow(1, nrsNodePubKey1, 8000))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
 		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND queued == 0 GROUP BY id ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{

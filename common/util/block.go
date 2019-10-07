@@ -2,32 +2,12 @@ package util
 
 import (
 	"bytes"
-	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"golang.org/x/crypto/sha3"
 )
-
-// GetBlockIdFromHash returns blockID from given hash
-func GetBlockIDFromHash(blockHash []byte) int64 {
-	// mainly for testing
-	if len(blockHash) < 8 {
-		return -1
-	}
-	res := new(big.Int)
-	return res.SetBytes([]byte{
-		blockHash[7],
-		blockHash[6],
-		blockHash[5],
-		blockHash[4],
-		blockHash[3],
-		blockHash[2],
-		blockHash[1],
-		blockHash[0],
-	}).Int64()
-}
 
 // GetBlockHash return the block's bytes hash.
 // note: the block must be signed, otherwise this function returns an error

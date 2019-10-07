@@ -6,8 +6,13 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"strconv"
 	"sync"
+
+	"github.com/dgraph-io/badger"
+
+	"github.com/zoobc/zoobc-core/common/kvdb"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -56,7 +61,8 @@ type (
 		ChainWriteLock()
 		ChainWriteUnlock()
 		GetCoinbase() int64
-		RewardBlocksmithAccountAddress(blocksmithAccountAddress string, totalReward int64, height uint32, includeInTx bool) error
+		CoinbaseLotteryWinners() ([]string, error)
+		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
 			senderPublicKey []byte,
@@ -66,15 +72,18 @@ type (
 		) (*model.BatchReceipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
+		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 	}
 
 	BlockService struct {
 		sync.WaitGroup
 		Chaintype               chaintype.ChainType
+		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
 		TransactionQuery        query.TransactionQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
@@ -88,10 +97,12 @@ type (
 
 func NewBlockService(
 	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
@@ -103,10 +114,12 @@ func NewBlockService(
 ) *BlockService {
 	return &BlockService{
 		Chaintype:               ct,
+		KVExecutor:              kvExecutor,
 		QueryExecutor:           queryExecutor,
 		BlockQuery:              blockQuery,
 		MempoolQuery:            mempoolQuery,
 		TransactionQuery:        transactionQuery,
+		MerkleTreeQuery:         merkleTreeQuery,
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ActionTypeSwitcher:      txTypeSwitcher,
@@ -345,23 +358,33 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
-
-	// accrue block rewards (totalFees + totalCoinbase) to blocksmith account address
 	if block.Height > 0 {
-		blocksmithAccountAddress, err := bs.GetBlocksmithAccountAddress(block)
+		// this is to manage the edge case when the blocksmith array has not been initialized yet:
+		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
+		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
+		if len(*bs.SortedBlocksmiths) == 0 {
+			blocksmiths, err := bs.GetBlocksmiths(block)
+			if err != nil {
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
+			tmpBlocksmiths := make([]model.Blocksmith, 0)
+			// copy the nextBlocksmiths pointers array into an array of blocksmiths
+			for _, blocksmith := range blocksmiths {
+				tmpBlocksmiths = append(tmpBlocksmiths, *blocksmith)
+			}
+			*bs.SortedBlocksmiths = tmpBlocksmiths
+		}
+		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
+		totalReward := block.TotalFee + block.TotalCoinBase
+		lotteryAccounts, err := bs.CoinbaseLotteryWinners()
 		if err != nil {
 			return err
 		}
-
-		//TODO: next step is to change this by using the revised algorithm that includes:
-		// - selecting multiple account to be rewarded (split the total coinbase between them)
-		// - rewarding a part of the total coinbase + totalFee to the blocksmith account
-		totalReward := block.TotalFee + block.TotalCoinBase
-		if err := bs.RewardBlocksmithAccountAddress(blocksmithAccountAddress, totalReward, block.Height, true); err != nil {
+		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
 			return err
 		}
 	}
-
 	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -372,26 +395,77 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
 	return nil
 }
 
-// RewardBlocksmithAccountAddress accrue the block total fees + total coinbase to the blocksmith account
-func (bs *BlockService) RewardBlocksmithAccountAddress(
-	blocksmithAccountAddress string,
-	totalReward int64,
-	height uint32,
-	includeInTx bool) error {
-	accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
-		totalReward,
-		map[string]interface{}{
-			"account_address": blocksmithAccountAddress,
-			"block_height":    height,
-		},
+// CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
+// and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
+// are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
+func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
+	var (
+		selectedAccounts []string
 	)
-	if err := bs.QueryExecutor.ExecuteTransactions(accountBalanceRecipientQ); err != nil {
-		if includeInTx {
-			_ = bs.QueryExecutor.RollbackTx()
+	// copy the pointer array to not change original order
+	blocksmiths := make([]model.Blocksmith, len(*bs.SortedBlocksmiths))
+	copy(blocksmiths, *bs.SortedBlocksmiths)
+
+	// sort blocksmiths by NodeOrder
+	sort.SliceStable(blocksmiths, func(i, j int) bool {
+		bi, bj := blocksmiths[i], blocksmiths[j]
+		res := bi.NodeOrder.Cmp(bj.NodeOrder)
+		if res == 0 {
+			// compare node ID
+			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
+			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
+			res = nodePKI.Cmp(nodePKJ)
 		}
+		// ascending sort
+		return res < 0
+	})
+
+	for idx, sortedBlockSmith := range blocksmiths {
+		if idx > constant.MaxNumBlocksmithRewards-1 {
+			break
+		}
+		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
+		qry, args := bs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
+		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		defer rows.Close()
+
+		nr := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if len(nr) == 0 {
+			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
+		}
+		selectedAccounts = append(selectedAccounts, nr[0].AccountAddress)
+	}
+	return selectedAccounts, nil
+}
+
+// RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
+func (bs *BlockService) RewardBlocksmithAccountAddresses(
+	blocksmithAccountAddresses []string,
+	totalReward int64,
+	height uint32) error {
+	queries := make([][]interface{}, 0)
+	if len(blocksmithAccountAddresses) == 0 {
+		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
+	}
+	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
+	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
+		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
+			blocksmithReward,
+			map[string]interface{}{
+				"account_address": blocksmithAccountAddress,
+				"block_height":    height,
+			},
+		)
+		queries = append(queries, accountBalanceRecipientQ...)
+	}
+	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 		return err
 	}
 	return nil
@@ -711,6 +785,56 @@ func (bs *BlockService) CheckGenesis() bool {
 	return true
 }
 
+func (bs *BlockService) generateBlockReceipt(
+	currentBlockHash []byte,
+	previousBlock *model.Block,
+	senderPublicKey, receiptKey []byte,
+	nodeSecretPhrase string,
+) (*model.BatchReceipt, error) {
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	batchReceipt, err := util.GenerateBatchReceipt(
+		previousBlock,
+		senderPublicKey,
+		nodePublicKey,
+		currentBlockHash,
+		constant.ReceiptDatumTypeBlock,
+	)
+	if err != nil {
+		return nil, err
+	}
+	batchReceipt.RecipientSignature = bs.Signature.SignByNode(
+		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		nodeSecretPhrase,
+	)
+	// store the generated batch receipt hash
+	err = bs.KVExecutor.Insert(string(receiptKey), currentBlockHash, constant.ExpiryPublishedReceiptBlock)
+	if err != nil {
+		return nil, err
+	}
+	return batchReceipt, nil
+}
+
+// checkBlockReceipts check the receipts included in a published block, and add the rmr that can be linked to the
+// memory for later use in publishing block
+// todo: write test after publish receipt is implemented to avoid changes
+func (bs *BlockService) checkBlockReceipts(block *model.Block) {
+	// check for receipt included in the block, note the one that can be linked later
+	for _, br := range block.BlockReceipts {
+		// note possible link RMR
+		merkleQ, merkleRoot := bs.MerkleTreeQuery.GetMerkleTreeByRoot(br.Receipt.RMR)
+		row := bs.QueryExecutor.ExecuteSelectRow(merkleQ, merkleRoot...)
+		if row != nil {
+			// take not on this merkle root
+			err := bs.KVExecutor.Insert(constant.TableBlockReminderKey+string(br.Receipt.RMR),
+				br.Receipt.RMR, constant.ExpiryBlockReminder)
+			if err != nil {
+				// todo: centralize the log
+				log.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err)
+			}
+		}
+	}
+}
+
 // ReceiveBlock handle the block received from connected peers
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
@@ -718,70 +842,91 @@ func (bs *BlockService) ReceiveBlock(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
-	if block.GetPreviousBlockHash() != nil {
-		blockUnsignedByte, _ := util.GetBlockByte(block, false)
-		if bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
-			lastBlockByte, err := util.GetBlockByte(lastBlock, true)
-			if err != nil {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr,
-					"fail to get last block byte",
-				)
-			}
-			lastBlockHash := sha3.Sum256(lastBlockByte)
-
-			//  check equality last block hash with previous block hash from received block
-			if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr,
-					"previous block hash does not match with last block hash",
-				)
-			}
-			// check if the block broadcaster is the valid blocksmith
-			index := -1 // use index to determine if is in list, and who to punish
-			for i, bs := range *bs.SortedBlocksmiths {
-				if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
-					index = i
-					break
-				}
-			}
-			if index < 0 {
-				return nil, blocker.NewBlocker(
-					blocker.BlockErr, "invalid blocksmith")
-			}
-			// base on index we can calculate punishment and reward
-			err = bs.PushBlock(lastBlock, block, true, true)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid block, fail to push block")
-			}
-			// generate receipt and return as response
-			// todo: lastblock last applied block, or incoming block?
-			nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-			blockHash, _ := util.GetBlockHash(block)
-			batchReceipt, err := util.GenerateBatchReceipt(
-				lastBlock,
-				senderPublicKey,
-				nodePublicKey,
-				blockHash,
-				constant.ReceiptDatumTypeBlock,
-			)
-			if err != nil {
-				return nil, err
-			}
-			batchReceipt.RecipientSignature = bs.Signature.SignByNode(
-				util.GetUnsignedBatchReceiptBytes(batchReceipt),
-				nodeSecretPhrase,
-			)
-			return batchReceipt, nil
-		}
+	if block.GetPreviousBlockHash() == nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			"last block hash does not exist",
+		)
+	}
+	// check signature of the incoming block
+	blockUnsignedByte, _ := util.GetBlockByte(block, false)
+	if !bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
 		return nil, blocker.NewBlocker(
 			blocker.ValidationErr,
 			"block signature invalid")
 	}
-	return nil, blocker.NewBlocker(
-		blocker.BlockErr,
-		"last block hash does not exist",
+	blockHash, err := util.GetBlockHash(block)
+	if err != nil {
+		return nil, err
+	}
+	// check previous block hash
+	lastBlockByte, err := util.GetBlockByte(lastBlock, true)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			err.Error(),
+		)
+	}
+	lastBlockHash := sha3.Sum256(lastBlockByte)
+	receiptKey, err := commonUtils.GetReceiptKey(
+		blockHash, senderPublicKey,
 	)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			err.Error(),
+		)
+	}
+	//  check equality last block hash with previous block hash from received block
+	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
+		// check if already broadcast receipt to this node
+		_, err := bs.KVExecutor.Get(constant.TablePublishedReceiptBlock + string(receiptKey))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				batchReceipt, err := bs.generateBlockReceipt(
+					blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+				)
+				if err != nil {
+					return nil, err
+				}
+				return batchReceipt, nil
+			}
+			return nil, blocker.NewBlocker(
+				blocker.DBErr,
+				err.Error(),
+			)
+		}
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			"previous block hash does not match with last block hash",
+		)
+	}
+	// check if the block broadcaster is the valid blocksmith
+	index := -1 // use index to determine if is in list, and who to punish
+	for i, bs := range *bs.SortedBlocksmiths {
+		if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
+			index = i
+			break
+		}
+	}
+	if index < 0 {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr, "invalid blocksmith")
+	}
+	// base on index we can calculate punishment and reward
+	err = bs.PushBlock(lastBlock, block, true, true)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+	go bs.checkBlockReceipts(block)
+	// generate receipt and return as response
+	batchReceipt, err := bs.generateBlockReceipt(
+		blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return batchReceipt, nil
 }
 
 // GetParticipationScore handle received block from another node
@@ -818,10 +963,11 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	} else {
 		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-
 	// Total number of receipts at a block height
+	// STEF: do we need to get all receipts that have reference_block_height <= block.height
 	blExt.TotalReceipts = 99
 	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
+	// STEF: how to compute the receipt score?
 	blExt.ReceiptValue = 99
 	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
 	blExt.PopChange = -20
@@ -849,6 +995,27 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 }
 
 func (*BlockService) GetCoinbase() int64 {
-	//TODO: integrate this with POP algorithm
 	return 50 * constant.OneZBC
+}
+
+// GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
+func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+	var (
+		activeBlocksmiths, blocksmiths []*model.Blocksmith
+	)
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	activeBlocksmiths = bs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
+	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
+	for _, blocksmith := range activeBlocksmiths {
+		blocksmith.SmithOrder = coreUtil.CalculateSmithOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
+		blocksmith.BlockSeed = blockSeed
+		blocksmiths = append(blocksmiths, blocksmith)
+	}
+	return blocksmiths, nil
 }

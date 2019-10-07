@@ -44,7 +44,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	block.Transactions = txs
 
 	genesisBlockID := bp.ChainType.GetGenesisBlockID()
-	for block.ID != commonBlock.ID && block.ID != genesisBlockID && block.Height-1 > 0 {
+	for block.ID != commonBlock.ID && block.ID != genesisBlockID {
 		poppedBlocks = append(poppedBlocks, block)
 
 		block, err = bp.BlockService.GetBlockByHeight(block.Height - 1)
@@ -62,9 +62,6 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	}
 
 	for _, dQuery := range derivedQueries {
-		if commonBlock.Height == 0 {
-			break
-		}
 		queries := dQuery.Rollback(commonBlock.Height)
 		errTx = bp.QueryExecutor.ExecuteTransactions(queries)
 		if errTx != nil {

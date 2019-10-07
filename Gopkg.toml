@@ -73,6 +73,11 @@
 [[constraint]]
   branch = "master"
   name = "github.com/tyler-smith/go-bip39"
+
 [[constraint]]
   name = "github.com/shirou/gopsutil"
   version = "2.19.7"
+
+[[constraint]]
+  name = "github.com/dgraph-io/badger"
+  version = "1.6.0"
