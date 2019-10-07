@@ -17,6 +17,8 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -64,12 +66,46 @@ func NewPriorityStrategy(
 }
 
 func (ps *PriorityStrategy) Start() {
-
 	// start p2p process threads
 	go ps.ResolvePeersThread()
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
+
+	go func() {
+		block, err := ps.GetBlockBuildScrumbleNode()
+		if err != nil {
+			log.Warn(err.Error())
+		}
+		go ps.BuildScrambleNodes(block)
+	}()
+
+}
+
+func (ps *PriorityStrategy) GetBlockBuildScrumbleNode() (*model.Block, error) {
+	var (
+		block      model.Block
+		err        error
+		blockQuery = query.NewBlockQuery(&chaintype.MainChain{})
+		row        = ps.QueryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
+	)
+	err = blockQuery.Scan(&block, row)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	lastBlockHeight := block.GetHeight()
+	if lastBlockHeight != 0 {
+		blockHeightBuildScrumble := lastBlockHeight - (lastBlockHeight % constant.PriorityStrategyBuildScrambleNodesGap)
+		if blockHeightBuildScrumble != 0 {
+			row = ps.QueryExecutor.ExecuteSelectRow(blockQuery.GetBlockByHeight(blockHeightBuildScrumble), false)
+			err = blockQuery.Scan(&block, row)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			}
+		}
+	}
+	return nil, blocker.NewBlocker(blocker.AppErr, "No need to build sramble node in start of p2p service")
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -153,13 +189,16 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 			addedPosition = 0
 		)
 		for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
-			peersPosition := (startPeers + addedPosition + 1) % (len(ps.ScrambleNode.IndexNodes))
-			peer := ps.ScrambleNode.AddressNodes[peersPosition]
-			if priorityPeers[p2pUtil.GetFullAddressPeer(peer)] != nil {
+			var (
+				peersPosition = (startPeers + addedPosition + 1) % (len(ps.ScrambleNode.IndexNodes))
+				peer          = ps.ScrambleNode.AddressNodes[peersPosition]
+				addressPeer   = p2pUtil.GetFullAddressPeer(peer)
+			)
+			if priorityPeers[addressPeer] != nil {
 				break
 			}
-			if p2pUtil.GetFullAddressPeer(peer) != hostFullAddress {
-				priorityPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
+			if addressPeer != hostFullAddress {
+				priorityPeers[addressPeer] = peer
 			}
 			addedPosition++
 		}
@@ -172,76 +211,76 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 func (ps *PriorityStrategy) PeerExplorerListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args interface{}) {
-			go ps.BuildScrambleNodes(block.(*model.Block))
+			b := block.(*model.Block)
+			// Check it's time to bild scramble node or not
+			if b.GetHeight()%constant.PriorityStrategyBuildScrambleNodesGap == 0 {
+				go ps.BuildScrambleNodes(b)
+			}
 		},
 	}
 }
 
 // BuildScrambleNodes,  buil sorted scramble nodes based on node registry
 func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
-	// Check it's time to bild scramble node or not
-	if block.GetHeight()%constant.PriorityStrategyBuildScrambleNodesGap == 0 {
-		var (
-			nodeRegistries  []*model.NodeRegistration
-			newIndexNodes   = make(map[string]*int)
-			newAddressNodes []*model.Peer
-		)
-		// get node registry list
-		rows, err := ps.QueryExecutor.ExecuteSelect(
-			ps.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
-			false,
-		)
-		if err != nil {
-			return
-		}
-		defer rows.Close()
-		nodeRegistries = ps.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
+	var (
+		nodeRegistries  []*model.NodeRegistration
+		newIndexNodes   = make(map[string]*int)
+		newAddressNodes []*model.Peer
+	)
+	// get node registry list
+	rows, err := ps.QueryExecutor.ExecuteSelect(
+		ps.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
+		false,
+	)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	nodeRegistries = ps.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
 
-		// sort node registry
-		sort.SliceStable(nodeRegistries, func(i, j int) bool {
-			ni, nj := nodeRegistries[i], nodeRegistries[j]
+	// sort node registry
+	sort.SliceStable(nodeRegistries, func(i, j int) bool {
+		ni, nj := nodeRegistries[i], nodeRegistries[j]
 
-			// Get Hash of joined  with block seed & node ID
-			// TODO : Enhance, to precomputing the hash/bigInt before sorting
-			// 		  to avoid repeated hash computation while sorting
-			hashI := sha3.Sum256(append(block.GetBlockSeed(), byte(ni.GetNodeID())))
-			hashJ := sha3.Sum256(append(block.GetBlockSeed(), byte(nj.GetNodeID())))
-			resI := new(big.Int).SetBytes(hashI[:])
-			resJ := new(big.Int).SetBytes(hashJ[:])
+		// Get Hash of joined  with block seed & node ID
+		// TODO : Enhance, to precomputing the hash/bigInt before sorting
+		// 		  to avoid repeated hash computation while sorting
+		hashI := sha3.Sum256(append(block.GetBlockSeed(), byte(ni.GetNodeID())))
+		hashJ := sha3.Sum256(append(block.GetBlockSeed(), byte(nj.GetNodeID())))
+		resI := new(big.Int).SetBytes(hashI[:])
+		resJ := new(big.Int).SetBytes(hashJ[:])
 
-			res := resI.Cmp(resJ)
-			// Ascending sort
-			return res < 0
+		res := resI.Cmp(resJ)
+		// Ascending sort
+		return res < 0
+	})
+
+	// Restructure & validating node address
+	for key, node := range nodeRegistries {
+		// Checking port of address,
+		// TODO: Should Get port from Node resgistry model
+		nodeInfo := p2pUtil.GetNodeInfo(node.GetNodeAddress())
+		fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
+			Info: nodeInfo,
 		})
-
-		// Restructure & validating node address
-		for key, node := range nodeRegistries {
-			// Checking port of address,
-			// TODO: Should Get port from Node resgistry model
-			nodeInfo := p2pUtil.GetNodeInfo(node.GetNodeAddress())
-			fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
-				Info: nodeInfo,
-			})
-			peer := &model.Peer{
-				Info: &model.Node{
-					Address:       nodeInfo.GetAddress(),
-					Port:          nodeInfo.GetPort(),
-					SharedAddress: nodeInfo.GetAddress(),
-				},
-			}
-			index := key
-			newIndexNodes[fullAddresss] = &index
-			newAddressNodes = append(newAddressNodes, peer)
-
+		peer := &model.Peer{
+			Info: &model.Node{
+				Address:       nodeInfo.GetAddress(),
+				Port:          nodeInfo.GetPort(),
+				SharedAddress: nodeInfo.GetAddress(),
+			},
 		}
+		index := key
+		newIndexNodes[fullAddresss] = &index
+		newAddressNodes = append(newAddressNodes, peer)
 
-		ps.ScrambleNodeLock.Lock()
-		defer ps.ScrambleNodeLock.Unlock()
-		ps.ScrambleNode = ScrambleNode{
-			AddressNodes: newAddressNodes,
-			IndexNodes:   newIndexNodes,
-		}
+	}
 
+	ps.ScrambleNodeLock.Lock()
+	defer ps.ScrambleNodeLock.Unlock()
+	ps.ScrambleNode = ScrambleNode{
+		AddressNodes: newAddressNodes,
+		IndexNodes:   newIndexNodes,
 	}
 }
 
