@@ -237,7 +237,7 @@ func (*mockExecutorValidateSuccessRU) ExecuteTransactions(queries [][]interface{
 }
 
 func TestUpdateNodeRegistration_Validate(t *testing.T) {
-	_, poown, _, _ := GetFixturesForUpdateNoderegistration()
+	_, poown, _, _ := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	txBodyInvalidPoown := &model.UpdateNodeRegistrationTransactionBody{
 		Poown: poown,
 	}
@@ -267,20 +267,29 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		LockedBalance: int64(1000000000),
 	}
 	txBodyWithInvalidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
-		Poown:       poown,
-		NodeAddress: "http/google.com",
+		Poown: poown,
+		NodeAddress: &model.NodeAddress{
+			Address: "http://google.com",
+		},
 	}
+
 	txBodyWithInvalidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
-		Poown:       poown,
-		NodeAddress: "10.10.10.x",
+		Poown: poown,
+		NodeAddress: &model.NodeAddress{
+			Address: "10.10.10.x",
+		},
 	}
 	txBodyWithValidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
-		Poown:       poown,
-		NodeAddress: "10.10.10.10",
+		Poown: poown,
+		NodeAddress: &model.NodeAddress{
+			Address: "10.10.10.10",
+		},
 	}
 	txBodyWithValidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
-		Poown:       poown,
-		NodeAddress: "https://google.com",
+		Poown: poown,
+		NodeAddress: &model.NodeAddress{
+			Address: "https://google.com",
+		},
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
@@ -375,7 +384,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "Validate:fail-{UpdateLockedBalance.InsufficientAccountBalance}",
@@ -414,7 +423,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "Validate:fail-{UpdateNodeAddress.InvalidIP}",
@@ -722,7 +731,9 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 
 func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		NodeAddress: "10.10.10.10",
+		NodeAddress: &model.NodeAddress{
+			Address: "11.10.10.10",
+		},
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
@@ -743,7 +754,8 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 		{
 			name: "GetSize:success",
 			fields: fields{
-				Body: txBody,
+				Body:                  txBody,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			want: 199,
 		},
@@ -769,7 +781,9 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
-	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
+
+	mockNodeRegisryQ := query.NewNodeRegistrationQuery()
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -847,7 +861,9 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
-			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4)]},
+			args: args{
+				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4)],
+			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -859,10 +875,14 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				SenderAddress:         "",
 				Height:                0,
 				AccountBalanceQuery:   nil,
-				NodeRegistrationQuery: nil,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         nil,
 			},
-			args:    args{txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 + len([]byte(txBody.NodeAddress)))]},
+			args: args{
+				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 + len([]byte(
+					mockNodeRegisryQ.ExtractNodeAddress(txBody.GetNodeAddress())),
+				))],
+			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -874,19 +894,21 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				SenderAddress:         "",
 				Height:                0,
 				AccountBalanceQuery:   nil,
-				NodeRegistrationQuery: nil,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         nil,
 			},
 			args: args{
 				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 +
-					len([]byte(txBody.NodeAddress)) + int(constant.Balance))],
+					len([]byte(mockNodeRegisryQ.ExtractNodeAddress(txBody.GetNodeAddress()))) + int(constant.Balance))],
 			},
 			want:    nil,
 			wantErr: true,
 		},
 		{
-			name:   "UpdateNodeRegistration:ParseBodyBytes - success",
-			fields: fields{},
+			name: "UpdateNodeRegistration:ParseBodyBytes - success",
+			fields: fields{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			},
 			args: args{
 				txBodyBytes: txBodyBytes,
 			},
@@ -920,7 +942,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
-	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration()
+	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -940,7 +962,8 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 		{
 			name: "GetBodyBytesBytes:success",
 			fields: fields{
-				Body: txBody,
+				Body:                  txBody,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			want: txBodyBytes,
 		},
@@ -966,7 +989,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
-	_, _, mockTxBody, _ := GetFixturesForUpdateNoderegistration()
+	_, _, mockTxBody, _ := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64

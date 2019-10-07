@@ -22,6 +22,7 @@ func TestNewNodeRegistryService(t *testing.T) {
 		t.Fatalf("error while opening database connection")
 	}
 	defer db.Close()
+
 	tests := []struct {
 		name string
 		args args
@@ -61,20 +62,23 @@ func (*mockQueryGetNodeRegistrationsFail) ExecuteSelect(query string, tx bool, a
 
 func (*mockQueryGetNodeRegistrationsSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
 	switch strings.Contains(qStr, "total_record") {
 	case true:
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
 	default:
 		mock.ExpectQuery("").
-			WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields[1:]).
+			WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields).
 				AddRow(
+					1,
 					[]byte{1, 2},
 					"AccountA",
 					1,
 					"127.0.0.1",
 					1,
 					true,
-					1,
+					true,
 					1,
 				),
 			)
@@ -110,14 +114,17 @@ func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
 				Total: 1,
 				NodeRegistrations: []*model.NodeRegistration{
 					{
+						NodeID:             1,
 						NodePublicKey:      []byte{1, 2},
 						AccountAddress:     "AccountA",
 						RegistrationHeight: 1,
-						NodeAddress:        "127.0.0.1",
-						LockedBalance:      1,
-						Queued:             true,
-						Latest:             true,
-						Height:             1,
+						NodeAddress: &model.NodeAddress{
+							Address: "127.0.0.1",
+						},
+						LockedBalance: 1,
+						Queued:        true,
+						Latest:        true,
+						Height:        1,
 					},
 				},
 			},
@@ -142,11 +149,11 @@ func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
 			}
 			got, err := ns.GetNodeRegistrations(tt.args.params)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NodeRegistryService.GetNodeRegistrations() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NodeRegistryService.GetNodeRegistrations() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeRegistryService.GetNodeRegistrations() = %v, want %v", got, tt.want)
+				t.Errorf("NodeRegistryService.GetNodeRegistrations() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -166,20 +173,23 @@ func (*mockQueryGetNodeRegistrationFail) ExecuteSelectRow(query string, args ...
 	return db.QueryRow(query)
 }
 
-func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(query string, args ...interface{}) *sql.Row {
+func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
-	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WillReturnRows(sqlmock.NewRows([]string{
-			"NodePublicKey",
-			"AccountAddress",
-			"RegistrationHeight",
-			"NodeAddress",
-			"LockedBalance",
-			"Queued",
-			"Latest",
-			"Height",
-		}).AddRow([]byte{1, 1}, "AccountA", 1, "127.0.0.1", 1, true, true, 1))
-	return db.QueryRow(query)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(
+			query.NewNodeRegistrationQuery().Fields,
+		).AddRow(
+			1,
+			[]byte{1, 1},
+			"AccountA",
+			1,
+			"127.0.0.1",
+			1,
+			true,
+			true,
+			1,
+		))
+	return db.QueryRow(qStr)
 }
 
 func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
@@ -203,22 +213,27 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 			},
 			args: args{
 				params: &model.GetNodeRegistrationRequest{
-					NodePublicKey:      []byte{1, 1},
-					AccountAddress:     "AccountA",
-					NodeAddress:        "127.0.0.1",
+					NodePublicKey:  []byte{1, 1},
+					AccountAddress: "AccountA",
+					NodeAddress: &model.NodeAddress{
+						Address: "127.0.0.1",
+					},
 					RegistrationHeight: 1,
 				},
 			},
 			want: &model.GetNodeRegistrationResponse{
 				NodeRegistration: &model.NodeRegistration{
+					NodeID:             1,
 					NodePublicKey:      []byte{1, 1},
 					AccountAddress:     "AccountA",
 					RegistrationHeight: 1,
-					NodeAddress:        "127.0.0.1",
-					LockedBalance:      1,
-					Queued:             true,
-					Latest:             true,
-					Height:             1,
+					NodeAddress: &model.NodeAddress{
+						Address: "127.0.0.1",
+					},
+					LockedBalance: 1,
+					Queued:        true,
+					Latest:        true,
+					Height:        1,
 				},
 			},
 			wantErr: false,
@@ -246,7 +261,7 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeRegistryService.GetNodeRegistration() = %v, want %v", got, tt.want)
+				t.Errorf("NodeRegistryService.GetNodeRegistration() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
