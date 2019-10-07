@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -88,8 +90,11 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		merkle.HashTree = merkle.FromBytes(linkedReceiptTree[rcRoot], []byte(rcRoot))
 		for _, rc := range rcReceipt {
 			var intermediateHashes [][]byte
+			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcHash := sha3.Sum256(rcByte)
+
 			intermediateHashesBuffer := merkle.GetIntermediateHashes(
-				bytes.NewBuffer(util.GetSignedBatchReceiptBytes(rc.BatchReceipt)),
+				bytes.NewBuffer(rcHash[:]),
 				int32(rc.RMRIndex),
 			)
 			for _, buf := range intermediateHashesBuffer {
@@ -98,7 +103,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 			results = append(
 				results,
 				&model.BlockReceipt{
-					Receipt:            rc,
+					ReceiptHash:        rcHash[:],
 					IntermediateHashes: intermediateHashes,
 				},
 			)
@@ -116,8 +121,11 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
+			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcHash := sha3.Sum256(rcByte)
+
 			results = append(results, &model.BlockReceipt{
-				Receipt:            rc,
+				ReceiptHash:        rcHash[:],
 				IntermediateHashes: nil,
 			})
 		}
