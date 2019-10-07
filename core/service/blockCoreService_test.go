@@ -7,7 +7,16 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
+
+	util2 "github.com/zoobc/zoobc-core/core/util"
+
+	"github.com/zoobc/zoobc-core/common/util"
+
+	"github.com/dgraph-io/badger"
+
+	"github.com/zoobc/zoobc-core/common/kvdb"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,7 +25,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -48,7 +56,58 @@ type (
 	mockTypeActionSuccess struct {
 		mockTypeAction
 	}
+
+	mockKVExecutorSuccess struct {
+		kvdb.KVExecutor
+	}
+
+	mockKVExecutorSuccessKeyNotFound struct {
+		mockKVExecutorSuccess
+	}
+
+	mockKVExecutorFailOtherError struct {
+		mockKVExecutorSuccess
+	}
 )
+
+var mockBlock = &model.Block{
+	ID:                   0,
+	PreviousBlockHash:    nil,
+	Height:               0,
+	Timestamp:            0,
+	BlockSeed:            nil,
+	BlockSignature:       nil,
+	CumulativeDifficulty: "",
+	SmithScale:           0,
+	BlocksmithPublicKey:  []byte{},
+	TotalAmount:          0,
+	TotalFee:             0,
+	TotalCoinBase:        0,
+	Version:              0,
+	PayloadLength:        0,
+	PayloadHash:          nil,
+	Transactions:         nil,
+}
+
+func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
+	return nil, nil
+}
+
+func (*mockKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
+	return nil
+}
+
+func (*mockKVExecutorSuccessKeyNotFound) Get(key string) ([]byte, error) {
+	return nil, badger.ErrKeyNotFound
+}
+
+func (*mockKVExecutorFailOtherError) Get(key string) ([]byte, error) {
+	return nil, badger.ErrInvalidKey
+}
+
+func (*mockKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
+	return badger.ErrInvalidKey
+}
 
 var (
 	bcsAddress1    = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
@@ -319,10 +378,12 @@ func (*mockQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}
 func TestNewBlockService(t *testing.T) {
 	type args struct {
 		ct                      chaintype.ChainType
+		kvExecutor              kvdb.KVExecutorInterface
 		queryExecutor           query.ExecutorInterface
 		blockQuery              query.BlockQueryInterface
 		mempoolQuery            query.MempoolQueryInterface
 		transactionQuery        query.TransactionQueryInterface
+		merkleTreeQuery         query.MerkleTreeQueryInterface
 		signature               crypto.SignatureInterface
 		mempoolService          MempoolServiceInterface
 		txTypeSwitcher          transaction.TypeActionSwitcher
@@ -354,10 +415,13 @@ func TestNewBlockService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockService(
-				tt.args.ct, tt.args.queryExecutor,
+				tt.args.ct,
+				tt.args.kvExecutor,
+				tt.args.queryExecutor,
 				tt.args.blockQuery,
 				tt.args.mempoolQuery,
 				tt.args.transactionQuery,
+				tt.args.merkleTreeQuery,
 				tt.args.signature,
 				tt.args.mempoolService,
 				tt.args.txTypeSwitcher,
@@ -1836,10 +1900,12 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 func TestBlockService_ReceiveBlock(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
 		TransactionQuery    query.TransactionQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		Signature           crypto.SignatureInterface
 		MempoolService      MempoolServiceInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
@@ -1981,6 +2047,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:           nil,
+				KVExecutor:          &mockKVExecutorSuccess{},
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
 				MempoolQuery:        nil,
@@ -1996,7 +2063,89 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:pushBlockFail}",
+			name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor KeyNotFound - generate batch receipt success}",
+			args: args{
+				senderPublicKey: []byte{1, 3, 4, 5, 6},
+				lastBlock: &model.Block{
+					BlockSignature: []byte{},
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
+						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255, 0},
+					BlockSignature:      nil,
+					SmithScale:          1,
+					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           nil,
+				KVExecutor:          &mockKVExecutorSuccessKeyNotFound{},
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+				SortedBlocksmiths:   nil,
+			},
+			wantErr: false,
+			want: &model.BatchReceipt{
+				SenderPublicKey: []byte{1, 3, 4, 5, 6},
+				RecipientPublicKey: []byte{
+					88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
+					223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
+				},
+				DatumType: constant.ReceiptDatumTypeBlock,
+				DatumHash: []byte{
+					167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77, 228,
+					59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74,
+				},
+				ReferenceBlockHeight: 0,
+				ReferenceBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
+					169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255},
+				RMRLinked:          nil,
+				RecipientSignature: []byte{},
+			},
+		},
+		{
+			name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor other error - generate batch receipt success}",
+			args: args{
+				senderPublicKey: []byte{1, 3, 4, 5, 6},
+				lastBlock: &model.Block{
+					BlockSignature: []byte{},
+				},
+				block: &model.Block{
+					PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
+						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255, 0},
+					BlockSignature:      nil,
+					SmithScale:          1,
+					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:           nil,
+				KVExecutor:          &mockKVExecutorFailOtherError{},
+				QueryExecutor:       nil,
+				BlockQuery:          nil,
+				MempoolQuery:        nil,
+				TransactionQuery:    nil,
+				Signature:           &mockSignature{},
+				MempoolService:      nil,
+				ActionTypeSwitcher:  nil,
+				AccountBalanceQuery: nil,
+				Observer:            nil,
+				SortedBlocksmiths:   nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:pushBlockFail",
 			args: args{
 				senderPublicKey: []byte{1, 3, 4, 5, 6},
 				lastBlock: &model.Block{
@@ -2036,7 +2185,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:success}",
+			name: "ReceiveBlock:success",
 			args: args{
 				senderPublicKey: []byte{1, 3, 4, 5, 6},
 				lastBlock: &model.Block{
@@ -2055,10 +2204,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:           &chaintype.MainChain{},
+				KVExecutor:          &mockKVExecutorSuccess{},
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:        nil,
 				TransactionQuery:    nil,
+				MerkleTreeQuery:     nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
 				ActionTypeSwitcher:  nil,
@@ -2095,10 +2246,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				BlockQuery:          tt.fields.BlockQuery,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				TransactionQuery:    tt.fields.TransactionQuery,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
 				Signature:           tt.fields.Signature,
 				MempoolService:      tt.fields.MempoolService,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
@@ -2473,8 +2626,8 @@ func TestBlockService_GetBlocksmiths(t *testing.T) {
 				{
 					NodeID:        1,
 					NodePublicKey: nrsNodePubKey1,
-					SmithOrder:    util.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
-					NodeOrder:     util.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
+					SmithOrder:    util2.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
+					NodeOrder:     util2.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
 					BlockSeed:     new(big.Int).SetBytes(nrsBlock2.BlockSeed),
 					Score:         new(big.Int).SetInt64(8000),
 				},
@@ -2517,6 +2670,149 @@ func TestBlockService_GetBlocksmiths(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.GetBlocksmiths() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockService_generateBlockReceipt(t *testing.T) {
+	mockSecretPhrase := ""
+	mockSenderPublicKey, mockCurrentBlockHash := make([]byte, 32), make([]byte, 32)
+	mockReceiptKey, _ := util.GetReceiptKey(mockCurrentBlockHash, mockSenderPublicKey)
+
+	mockNodePublicKey := util.GetPublicKeyFromSeed(mockSecretPhrase)
+	mockSuccessBatchReceipt, _ := util.GenerateBatchReceipt(
+		mockBlock,
+		mockSenderPublicKey,
+		mockNodePublicKey,
+		mockCurrentBlockHash,
+		constant.ReceiptDatumTypeBlock,
+	)
+	mockSuccessBatchReceipt.RecipientSignature = (&crypto.Signature{}).SignByNode(
+		util.GetUnsignedBatchReceiptBytes(mockSuccessBatchReceipt),
+		mockSecretPhrase,
+	)
+	type fields struct {
+		WaitGroup               sync.WaitGroup
+		Chaintype               chaintype.ChainType
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		Observer                *observer.Observer
+		SortedBlocksmiths       *[]model.Blocksmith
+	}
+	type args struct {
+		currentBlockHash []byte
+		previousBlock    *model.Block
+		senderPublicKey  []byte
+		receiptKey       []byte
+		nodeSecretPhrase string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.BatchReceipt
+		wantErr bool
+	}{
+		{
+			name: "generateBlockReceipt:kvDBInsertFail",
+			fields: fields{
+				WaitGroup:               sync.WaitGroup{},
+				Chaintype:               nil,
+				KVExecutor:              &mockKVExecutorFailOtherError{},
+				QueryExecutor:           nil,
+				BlockQuery:              nil,
+				MempoolQuery:            nil,
+				TransactionQuery:        nil,
+				MerkleTreeQuery:         nil,
+				Signature:               &crypto.Signature{},
+				MempoolService:          nil,
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+			},
+			args: args{
+				currentBlockHash: mockCurrentBlockHash,
+				previousBlock:    mockBlock,
+				senderPublicKey:  mockSenderPublicKey,
+				receiptKey:       mockReceiptKey,
+				nodeSecretPhrase: mockSecretPhrase,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "generateBlockReceipt:success",
+			fields: fields{
+				WaitGroup:               sync.WaitGroup{},
+				Chaintype:               nil,
+				KVExecutor:              &mockKVExecutorSuccess{},
+				QueryExecutor:           nil,
+				BlockQuery:              nil,
+				MempoolQuery:            nil,
+				TransactionQuery:        nil,
+				MerkleTreeQuery:         nil,
+				Signature:               &crypto.Signature{},
+				MempoolService:          nil,
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+			},
+			args: args{
+				currentBlockHash: mockCurrentBlockHash,
+				previousBlock:    mockBlock,
+				senderPublicKey:  mockSenderPublicKey,
+				receiptKey:       mockReceiptKey,
+				nodeSecretPhrase: mockSecretPhrase,
+			},
+			wantErr: false,
+			want:    mockSuccessBatchReceipt,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				WaitGroup:               tt.fields.WaitGroup,
+				Chaintype:               tt.fields.Chaintype,
+				KVExecutor:              tt.fields.KVExecutor,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Observer:                tt.fields.Observer,
+				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
+			}
+			got, err := bs.generateBlockReceipt(tt.args.currentBlockHash, tt.args.previousBlock,
+				tt.args.senderPublicKey, tt.args.receiptKey, tt.args.nodeSecretPhrase)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("generateBlockReceipt() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("generateBlockReceipt() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
