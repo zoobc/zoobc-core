@@ -77,7 +77,7 @@ func (ps *PriorityStrategy) Start() {
 		if err != nil {
 			log.Warn(err.Error())
 		}
-		go ps.BuildScrambleNodes(block)
+		ps.BuildScrambleNodes(block)
 	}()
 
 }
