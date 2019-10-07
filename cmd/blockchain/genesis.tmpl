@@ -25,11 +25,11 @@ var (
 	}{
 {{range $key, $value := .MainchainGenesisConfig}}		{
 			AccountAddress: "{{$value.AccountAddress}}",
-			AccountBalance: {{$value.AccountBalance}}{{if $value.HasAccountBalance}} * OneZBC{{end}},
+			AccountBalance: {{$value.AccountBalance}},{{if $value.HasNodePublicKey}}
 			NodePublicKey:  {{$value.FormatPubKeyByteString}},
 			NodeAddress:    {{if $value.HasNodeAddress}}"{{$value.NodeAddress}}"{{else}}"127.0.0.1"{{end}},
-			LockedBalance:  {{$value.LockedBalance}}{{if $value.HasLockedBalance}} * OneZBC{{end}},
-			ParticipationScore: {{if $value.HasParticipationScore}}{{$value.ParticipationScore}}{{else}} DefaultParticipationScore{{end}},
+			LockedBalance:  {{$value.LockedBalance}},
+			ParticipationScore: {{if $value.HasParticipationScore}}{{$value.ParticipationScore}}{{else}} DefaultParticipationScore{{end}},{{end}}
 		},
 {{end}}
 	}

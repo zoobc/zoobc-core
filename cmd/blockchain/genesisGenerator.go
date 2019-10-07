@@ -12,7 +12,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -29,6 +29,7 @@ type (
 		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
+		Smithing           bool
 	}
 	clusterConfigEntry struct {
 		NodePublicKey       string
@@ -43,7 +44,6 @@ func GenerateGenesis(logger *logrus.Logger) *cobra.Command {
 	var (
 		withDbLastState bool
 		dbPath          string
-		height          uint32
 	)
 	var txCmd = &cobra.Command{
 		Use:   "genesis",
@@ -60,12 +60,8 @@ func GenerateGenesis(logger *logrus.Logger) *cobra.Command {
 			if err != nil {
 				logger.Printf("%s", err)
 			}
-			height, err := cmd.Flags().GetUint32("heigth")
-			if err != nil {
-				logger.Printf("%s", err)
-			}
 			if args[0] == "generate" {
-				generateFiles(logger, withDbLastState, dbPath, height)
+				generateFiles(logger, withDbLastState, dbPath)
 			} else {
 				logger.Error("unknown command")
 			}
@@ -73,10 +69,8 @@ func GenerateGenesis(logger *logrus.Logger) *cobra.Command {
 	}
 	txCmd.Flags().BoolVarP(&withDbLastState, "withDbLastState", "w", false,
 		"add to genesis all registered nodes and account balances from current database")
-	txCmd.Flags().StringVarP(&dbPath, "dbPath", "f", "../resource",
+	txCmd.Flags().StringVarP(&dbPath, "dbPath", "f", "../resource/",
 		"path of blockchain's database to be used as data source in case the -w flag is used. If not set, the default resource folder is used")
-	txCmd.Flags().Uint32VarP(&height, "height", "h", 0,
-		"height to take the last state from, in case the -w flag is used. If not set, blockchain's lastBlock is used")
 	return txCmd
 }
 
@@ -95,33 +89,53 @@ func GenerateGenesis(logger *logrus.Logger) *cobra.Command {
 //
 // withDbLastState if set to true, we also scan a given blockchain database and extract latest state to be included in genesis
 //  (account balances and registered nodes/participation scores)
-func generateFiles(logger *logrus.Logger, withDbLastState bool, dbPath string, height uint32) {
+func generateFiles(logger *logrus.Logger, withDbLastState bool, dbPath string) {
 	var (
-		data []genesisEntry
+		bcState, preRegisteredNodes []genesisEntry
+		err                         error
 	)
+
+	if withDbLastState {
+		bcState, err = getDbLastState(dbPath)
+		if err != nil {
+			logger.Fatal(err)
+		}
+	}
+
 	file, err := ioutil.ReadFile("./blockchain/preRegisteredNodes.json")
 	if err != nil {
 		logger.Fatalf("Error reading preRegisteredNodes.json file: %s", err)
 	}
-	err = json.Unmarshal(file, &data)
+	err = json.Unmarshal(file, &preRegisteredNodes)
 	if err != nil {
 		logger.Fatalf("preRegisteredNodes.json parsing error: %s", err)
 	}
-	// append to preRegistered nodes/accounts previous entries from a blockchain db file
-	if withDbLastState {
-		bcState, err := getDbLastState(dbPath, height)
-		if err != nil {
-			logger.Fatal(err)
+
+	// merge duplicates: if preRegisteredNodes contains entries that are in db too, add the parameters that are't available in db,
+	// which is are NodeSeed and Smithing
+	for _, prNode := range preRegisteredNodes {
+		found := false
+		for i, e := range bcState {
+			if prNode.AccountAddress == e.AccountAddress {
+				bcState[i].NodeSeed = prNode.NodeSeed
+				bcState[i].Smithing = prNode.Smithing
+				found = true
+				break
+			}
 		}
-		data = append(data, bcState...)
+		if !found {
+			bcState = append(bcState, prNode)
+		}
 	}
-	generateGenesisFile(logger, data, "./genesis.go.new")
-	generateClusterConfigFile(logger, data, "./cluster_config.json.new")
+
+	// append to preRegistered nodes/accounts previous entries from a blockchain db file
+	generateGenesisFile(logger, bcState, "./genesis.go.new")
+	generateClusterConfigFile(logger, bcState, "./cluster_config.json.new")
 	fmt.Println("Command executed successfully\ngenesis.go.new has been generated in cmd directory")
 
 }
 
-func getDbLastState(dbPath string, height uint32) (bcEntries []genesisEntry, err error) {
+func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	var (
 		db *sql.DB
 	)
@@ -136,43 +150,53 @@ func getDbLastState(dbPath string, height uint32) (bcEntries []genesisEntry, err
 		log.Fatal(err)
 	}
 	queryExecutor := query.NewQueryExecutor(db)
-
-	// if no height is passed, get the last block's height
-	if height == 0 {
-		blockQuery := query.NewBlockQuery(&chaintype.MainChain{})
-		lastBlock, err := util.GetLastBlock(queryExecutor, blockQuery)
-		if err != nil {
-			return nil, err
-		}
-		height = lastBlock.Height
-	}
-
+	accountBalanceQuery := query.NewAccountBalanceQuery()
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
-	// get all node registratons at a given height
-	qry := nodeRegistrationQuery.GetNodeRegistryAtHeight(height)
+	participationScoreQuery := query.NewParticipationScoreQuery()
+	// get all account balances
+	// get the participation score for this node registration
+	qry := accountBalanceQuery.GetAccountBalances()
 	rows, err := queryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	participationScoreQuery := query.NewParticipationScoreQuery()
-	for _, nr := range nodeRegistrations {
+	accountBalances := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	for _, acc := range accountBalances {
+		if acc.AccountAddress == constant.MainchainGenesisAccountAddress {
+			continue
+		}
 		bcEntry := new(genesisEntry)
+		bcEntry.AccountAddress = acc.AccountAddress
+		bcEntry.AccountBalance = acc.Balance
 
-		bcEntry.AccountAddress = nr.AccountAddress
-
-		// get the participation score for this node registration
-		qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
-		rows, err := queryExecutor.ExecuteSelect(qry, false, args)
+		// get node registration for this account, if exists
+		qry, args := nodeRegistrationQuery.GetNodeRegistrationByAccountAddress(acc.AccountAddress)
+		rows, err := queryExecutor.ExecuteSelect(qry, false, args...)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
-		participationScores := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
-		if len(participationScores) > 0 {
-			bcEntry.ParticipationScore = participationScores[0].Score
+		nodeRegistrations := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if len(nodeRegistrations) > 0 {
+			nr := nodeRegistrations[0]
+			bcEntry.LockedBalance = nr.LockedBalance
+			bcEntry.NodeAddress = nr.NodeAddress
+			bcEntry.NodePublicKey = nr.NodePublicKey
+			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
+			// get the participation score for this node registration
+			qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
+			rows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			participationScores := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
+			if len(participationScores) > 0 {
+				bcEntry.ParticipationScore = participationScores[0].Score
+			}
 		}
+		bcEntries = append(bcEntries, *bcEntry)
 	}
 
 	return bcEntries, err
@@ -219,7 +243,7 @@ func generateClusterConfigFile(logger *logrus.Logger, genesisEntries []genesisEn
 				NodePublicKey:       genesisEntry.NodePublicKeyB64,
 				NodeSeed:            genesisEntry.NodeSeed,
 				OwnerAccountAddress: genesisEntry.AccountAddress,
-				Smithing:            true,
+				Smithing:            genesisEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
 		}
@@ -259,4 +283,8 @@ func (ge *genesisEntry) HasAccountBalance() bool {
 
 func (ge *genesisEntry) HasNodeAddress() bool {
 	return ge.NodeAddress != ""
+}
+
+func (ge *genesisEntry) HasNodePublicKey() bool {
+	return ge.NodePublicKeyB64 != ""
 }

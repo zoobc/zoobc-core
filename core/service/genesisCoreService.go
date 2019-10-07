@@ -48,10 +48,12 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 			genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
 			genesisTxs = append(genesisTxs, genesisTx)
 
-			// register the node for the fund receiver
-			genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(fundReceiver.AccountAddress, fundReceiver.NodeAddress,
-				fundReceiver.LockedBalance, fundReceiver.NodePublicKey)
-			genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
+			// register the node for the fund receiver, if relative element in MainChainGenesisConfig contains a NodePublicKey
+			if len(fundReceiver.NodePublicKey) > 0 {
+				genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(fundReceiver.AccountAddress, fundReceiver.NodeAddress,
+					fundReceiver.LockedBalance, fundReceiver.NodePublicKey)
+				genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
+			}
 		}
 
 		return genesisTxs

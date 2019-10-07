@@ -17,6 +17,7 @@ type (
 	// AccountBalanceQueryInterface interface that implemented by AccountBalanceQuery
 	AccountBalanceQueryInterface interface {
 		GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetAccountBalances() string
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
@@ -40,9 +41,15 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 		TableName: "account_balance",
 	}
 }
+
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{}) {
 	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_address = ? AND latest = 1`,
 		strings.Join(q.Fields, ","), q.TableName), []interface{}{accountAddress}
+}
+
+func (q *AccountBalanceQuery) GetAccountBalances() string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1`,
+		strings.Join(q.Fields, ","), q.TableName)
 }
 
 func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
