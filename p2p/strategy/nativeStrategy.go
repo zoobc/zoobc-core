@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/signal"
@@ -8,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/client"
 
 	log "github.com/sirupsen/logrus"
@@ -457,4 +459,12 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 	if ns.GetExceedMaxUnresolvedPeers() <= 0 {
 		_ = ns.AddToUnresolvedPeer(peer)
 	}
+}
+
+func (ns *NativeStrategy) PeerExplorerListener() observer.Listener {
+	return observer.Listener{}
+}
+
+func (ns *NativeStrategy) ValidateRequest(ctx context.Context) bool {
+	return true
 }
