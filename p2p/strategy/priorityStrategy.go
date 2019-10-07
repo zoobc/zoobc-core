@@ -105,7 +105,7 @@ func (ps *PriorityStrategy) GetBlockBuildScrumbleNode() (*model.Block, error) {
 			}
 		}
 	}
-	return nil, blocker.NewBlocker(blocker.AppErr, "No need to build sramble node in start of p2p service")
+	return nil, blocker.NewBlocker(blocker.AppErr, "No need to build sramble node at start of p2p service")
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -257,9 +257,9 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
+		fullAddress := ps.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
 		// Checking port of address,
-		// TODO: Should Get port from Node resgistry model
-		nodeInfo := p2pUtil.GetNodeInfo(node.GetNodeAddress())
+		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
 		fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
 			Info: nodeInfo,
 		})
