@@ -122,6 +122,10 @@ func (*mockServiceQueryExecutor) CommitTx() error {
 	return nil
 }
 
+func (*mockServiceQueryExecutor) RollbackTx() error {
+	return nil
+}
+
 // MOCK BLOCK SERVICES FUNCTION FAILS
 // Mock Function Block Services GetLastBlock Fail
 func (*mockServiceBlockFailGetLastBlock) GetLastBlock() (*model.Block, error) {
@@ -229,6 +233,10 @@ func (*mockServiceQueryExecutorBeginTXFail) CommitTx() error {
 	return nil
 }
 
+func (*mockServiceQueryExecutorBeginTXFail) RollbackTx() error {
+	return nil
+}
+
 // EXECUTE TRANSACTION FAIL
 func (*mockServiceQueryExecutorExecuteTransFail) BeginTx() error {
 	return nil
@@ -242,6 +250,10 @@ func (*mockServiceQueryExecutorExecuteTransFail) ExecuteTransactions(queries [][
 }
 
 func (*mockServiceQueryExecutorExecuteTransFail) CommitTx() error {
+	return nil
+}
+
+func (*mockServiceQueryExecutorExecuteTransFail) RollbackTx() error {
 	return nil
 }
 
@@ -259,6 +271,10 @@ func (*mockServiceQueryExecutorCommitTXFail) CommitTx() error {
 		blocker.AuthErr,
 		"failed to commit TX",
 	)
+}
+
+func (*mockServiceQueryExecutorCommitTXFail) RollbackTx() error {
+	return nil
 }
 
 func TestService_ProcessFork(t *testing.T) {

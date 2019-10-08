@@ -65,6 +65,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		queries := dQuery.Rollback(commonBlock.Height)
 		errTx = bp.QueryExecutor.ExecuteTransactions(queries)
 		if errTx != nil {
+			_ = bp.QueryExecutor.RollbackTx()
 			return []*model.Block{}, errTx
 		}
 	}

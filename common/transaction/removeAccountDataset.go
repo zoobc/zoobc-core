@@ -57,7 +57,7 @@ func (tx *RemoveAccountDataset) ApplyConfirmed() error {
 	queries := append(accountBalanceSenderQ, datasetQuery...)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 
 	return nil
