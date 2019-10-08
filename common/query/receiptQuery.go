@@ -14,7 +14,7 @@ type (
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(limit uint32, offset uint64) string
 		GetReceiptByRoot(root []byte) (str string, args []interface{})
-		GetReceiptsWithUniqueRecipient(limit uint32, offset uint64) string
+		GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string
 		SelectReceipt(
 			lowerHeight, upperHeight, limit uint32,
 		) (str string)
@@ -63,12 +63,18 @@ func (rq *ReceiptQuery) GetReceipts(limit uint32, offset uint64) string {
 	return query
 }
 
-func (rq *ReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64) string {
+func (rq *ReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string {
+	var query string
 	if limit == 0 {
 		limit = 10
 	}
-	query := fmt.Sprintf("SELECT %s FROM %s GROUP BY recipient_public_key LIMIT %d, %d",
-		strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
+	if rmrLinked {
+		query = fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked IS NOT NULL GROUP BY recipient_public_key LIMIT %d, %d",
+			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
+	} else {
+		query = fmt.Sprintf("SELECT %s FROM %s GROUP BY recipient_public_key LIMIT %d, %d",
+			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
+	}
 	return query
 }
 

@@ -232,6 +232,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
+		query.NewMerkleTreeQuery(),
 		&transaction.TypeSwitcher{
 			Executor: queryExecutor,
 		},

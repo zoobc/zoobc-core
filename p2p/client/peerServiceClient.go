@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -154,7 +155,9 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-
+	if response.BatchReceipt == nil {
+		return err
+	}
 	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
@@ -356,7 +359,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
 
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle)
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
 		err = psc.QueryExecutor.BeginTx()

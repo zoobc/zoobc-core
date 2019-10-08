@@ -46,6 +46,7 @@ type (
 		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		Signature           crypto.SignatureInterface
@@ -60,6 +61,7 @@ func NewMempoolService(
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	signature crypto.SignatureInterface,
@@ -71,6 +73,7 @@ func NewMempoolService(
 		KVExecutor:          kvExecutor,
 		QueryExecutor:       queryExecutor,
 		MempoolQuery:        mempoolQuery,
+		MerkleTreeQuery:     merkleTreeQuery,
 		ActionTypeSwitcher:  actionTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
 		Signature:           signature,
@@ -246,13 +249,21 @@ func (mps *MempoolService) generateTransactionReceipt(
 	senderPublicKey, receiptKey []byte,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
+	var rmrLinked []byte = nil
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	lastRmrQ := mps.MerkleTreeQuery.GetLastMerkleRoot()
+	row := mps.QueryExecutor.ExecuteSelectRow(lastRmrQ)
+	rmrLinked, err := mps.MerkleTreeQuery.ScanRoot(row)
+	if err != nil {
+		return nil, err
+	}
 	// generate receipt
 	batchReceipt, err := util.GenerateBatchReceipt( // todo: var
 		lastBlock,
 		senderPublicKey,
 		nodePublicKey,
 		receivedTxHash,
+		rmrLinked,
 		constant.ReceiptDatumTypeTransaction,
 	)
 	if err != nil {

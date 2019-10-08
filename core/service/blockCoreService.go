@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
@@ -858,12 +859,20 @@ func (bs *BlockService) generateBlockReceipt(
 	senderPublicKey, receiptKey []byte,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
+	var rmrLinked []byte = nil
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	lastRmrQ := bs.MerkleTreeQuery.GetLastMerkleRoot()
+	row := bs.QueryExecutor.ExecuteSelectRow(lastRmrQ)
+	rmrLinked, err := bs.MerkleTreeQuery.ScanRoot(row)
+	if err != sql.ErrNoRows {
+		return nil, err
+	}
 	batchReceipt, err := util.GenerateBatchReceipt(
 		previousBlock,
 		senderPublicKey,
 		nodePublicKey,
 		currentBlockHash,
+		rmrLinked,
 		constant.ReceiptDatumTypeBlock,
 	)
 	if err != nil {

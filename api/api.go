@@ -63,6 +63,7 @@ func startGrpcServer(
 		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(&chaintype.MainChain{}),
+		query.NewMerkleTreeQuery(),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
 		crypto.NewSignature(),

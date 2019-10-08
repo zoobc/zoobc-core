@@ -101,11 +101,28 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		}
 		i++
 	}
+	// prioritize those receipts with rmr_linked != nil
+	if len(results) < numberOfReceipt {
+		var receipts []*model.Receipt
+		// look up rmr in table | todo: randomize selection
+		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0, true)
+		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+		if err != nil {
+			return nil, err
+		}
+		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
+		for _, rc := range receipts {
+			results = append(results, &model.PublishedReceipt{
+				BatchReceipt:       rc.BatchReceipt,
+				IntermediateHashes: nil,
+			})
+		}
+	}
 	// fill in unlinked receipts if the limit has not been reached
 	if len(results) < numberOfReceipt { // get unlinked receipts randomly, in future additional filter may be added
 		var receipts []*model.Receipt
 		// look up rmr in table | todo: randomize selection
-		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0)
+		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0, false)
 		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
 		if err != nil {
 			return nil, err

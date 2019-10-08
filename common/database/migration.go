@@ -177,6 +177,10 @@ func (m *Migration) Init() error {
 				"receipt_index" INTEGER
 			)
 			`,
+			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "timestamp" INTEGER AFTER "tree"
+			`,
 		}
 		return nil
 	}
