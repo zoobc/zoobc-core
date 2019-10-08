@@ -392,7 +392,6 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 // PruneMempoolTransactions handle fresh clean the mempool
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
-
 	var (
 		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
 		selectQ, qStr  string
@@ -408,26 +407,30 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	defer rows.Close()
 
 	mempools = mps.MempoolQuery.BuildModel(mempools, rows)
+
+	err = mps.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	for _, m := range mempools {
 		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
 		if err != nil {
+			_ = mps.QueryExecutor.RollbackTx()
 			return err
 		}
 		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
+			_ = mps.QueryExecutor.RollbackTx()
 			return err
 		}
 		err = action.UndoApplyUnconfirmed()
 		if err != nil {
+			_ = mps.QueryExecutor.RollbackTx()
 			return err
 		}
 	}
 
 	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
-	err = mps.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 	err = mps.QueryExecutor.ExecuteTransaction(qStr)
 	if err != nil {
 		_ = mps.QueryExecutor.RollbackTx()
@@ -437,6 +440,5 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
