@@ -61,7 +61,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 2:
 		switch buf[1] {
 		case 0:
-			nodeRegistrationBody, err := new(NodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			nodeRegistrationBody, err := (&NodeRegistration{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			}).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
@@ -79,7 +81,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:           ts.Executor,
 			}, nil
 		case 1:
-			nodeRegistrationBody, err := new(UpdateNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+			nodeRegistrationBody, err := (&UpdateNodeRegistration{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			}).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
