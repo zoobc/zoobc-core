@@ -476,7 +476,7 @@ func (ps *PriorityStrategy) GetMorePeersHandler() (*model.Peer, error) {
 		}
 		err = ps.AddToUnresolvedPeers(newPeers.GetPeers(), false)
 		if err != nil {
-			ps.Logger.Infof("getMorePeers error: %v\n", err)
+			ps.Logger.Errorf("getMorePeers error: %v\n", err)
 			return nil, err
 		}
 		return peer, nil
@@ -789,10 +789,10 @@ func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) {
 		ps.Logger.Error(err.Error())
 	}
 	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
-		ps.Logger.Info(err.Error())
+		ps.Logger.Error(err.Error())
 	}
 	if err := ps.RemoveResolvedPeer(peer); err != nil {
-		ps.Logger.Info(err.Error())
+		ps.Logger.Error(err.Error())
 	}
 }
 
@@ -801,10 +801,10 @@ func (ps *PriorityStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
 	if err := ps.RemoveBlacklistedPeer(peer); err != nil {
-		ps.Logger.Warn(err.Error())
+		ps.Logger.Error(err.Error())
 	}
 	if err := ps.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
-		ps.Logger.Info(err.Error())
+		ps.Logger.Error(err.Error())
 	}
 
 	return peer
