@@ -273,14 +273,10 @@ func TestAccountBalanceQuery_Scan(t *testing.T) {
 
 func TestAccountBalanceQuery_GetAccountBalances(t *testing.T) {
 	t.Run("GetAccountBalances", func(t *testing.T) {
-		q, args := mockAccountBalanceQuery.GetAccountBalances()
+		q := mockAccountBalanceQuery.GetAccountBalances()
 		wantQ := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE latest = 1"
-		wantArg := []interface{}{}
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
-		}
-		if !reflect.DeepEqual(args, wantArg) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
 		}
 	})
 }
