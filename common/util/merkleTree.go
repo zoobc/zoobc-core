@@ -118,6 +118,26 @@ func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes
 	return reflect.DeepEqual(lastHash, root.Bytes())
 }
 
+// IntermediateHashToByte flatten intermediate hashes bytes
+func (*MerkleRoot) FlattenIntermediateHashes(intermediateHashes [][]byte) []byte {
+	var result []byte
+	for _, ih := range intermediateHashes {
+		result = append(result, ih...)
+	}
+	return result
+}
+
+func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte {
+	var (
+		result [][]byte
+	)
+	intermediateHashesSize := len(flattenIntermediateHashes) / 32
+	for i := 0; i < intermediateHashesSize; i++ {
+		result = append(result, flattenIntermediateHashes[i*32:(i+1)*32])
+	}
+	return result
+}
+
 // ToBytes build []byte from HashTree which is a [][]*bytes.Buffer
 func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
 	var (
