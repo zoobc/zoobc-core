@@ -181,7 +181,11 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance
-			bcEntry.NodeAddress = nr.NodeAddress
+			if nr.NodeAddress.Port > 0 {
+				bcEntry.NodeAddress = fmt.Sprintf("%s:%d", nr.NodeAddress.Address, nr.NodeAddress.Port)
+			} else {
+				bcEntry.NodeAddress = fmt.Sprintf("%s", nr.NodeAddress.Address)
+			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
 			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
 			// get the participation score for this node registration
