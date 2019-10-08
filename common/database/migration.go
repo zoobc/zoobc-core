@@ -3,7 +3,7 @@ package database
 import (
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -189,12 +189,15 @@ func (m *Migration) Apply() error {
 		version := v
 		err = m.Query.BeginTx()
 		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
+			return err
 		}
 		err = m.Query.ExecuteTransaction(query)
 		if err != nil {
-			_ = m.Query.RollbackTx()
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
+			rollbackErr := m.Query.RollbackTx()
+			if rollbackErr != nil {
+				log.Errorln(rollbackErr.Error())
+			}
+			return err
 		}
 		if m.CurrentVersion != nil {
 			err = m.Query.ExecuteTransaction(`UPDATE "migration"

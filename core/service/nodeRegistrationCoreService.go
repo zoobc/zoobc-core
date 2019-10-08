@@ -103,7 +103,7 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	err := nrs.QueryExecutor.BeginTx()
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 	// prepare all node registrations to be updated (set queued to false and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
@@ -141,7 +141,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	err := nrs.QueryExecutor.BeginTx()
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 
 	for _, nodeRegistration := range nodeRegistrations {

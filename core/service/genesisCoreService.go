@@ -1,8 +1,7 @@
 package service
 
 import (
-	"log"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -130,7 +129,7 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 
 	err = executor.BeginTx()
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 	genesisQueries = append(genesisQueries,
 		append(
@@ -138,7 +137,10 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 	)
 	err = executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		_ = executor.RollbackTx()
+		rollbackErr := executor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis account balance")
 	}
 	err = executor.CommitTx()
