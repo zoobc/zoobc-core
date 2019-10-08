@@ -1,7 +1,19 @@
 package query
 
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"github.com/zoobc/zoobc-core/common/model"
+)
+
 type (
 	PublishedReceiptQueryInterface interface {
+		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
+		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
+		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
+		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
 	}
 
 	PublishedReceiptQuery struct {
@@ -11,8 +23,8 @@ type (
 )
 
 // NewPublishedReceiptQuery returns PublishedQuery instance
-func NewPublishedReceiptQuery() *ReceiptQuery {
-	return &ReceiptQuery{
+func NewPublishedReceiptQuery() *PublishedReceiptQuery {
+	return &PublishedReceiptQuery{
 		Fields: []string{
 			"sender_public_key",
 			"recipient_public_key",
@@ -32,4 +44,55 @@ func NewPublishedReceiptQuery() *ReceiptQuery {
 
 func (prq *PublishedReceiptQuery) getTableName() string {
 	return prq.TableName
+}
+
+// InsertPublishedReceipt inserts a new receipts into DB
+func (prq *PublishedReceiptQuery) InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{}) {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		prq.getTableName(),
+		strings.Join(prq.Fields, ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(prq.Fields)-1)),
+	), prq.ExtractModel(publishedReceipt)
+}
+
+func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked = ?", strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		root,
+	}
+}
+
+func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row) error {
+	err := row.Scan(
+		&receipt.BatchReceipt.SenderPublicKey,
+		&receipt.BatchReceipt.RecipientPublicKey,
+		&receipt.BatchReceipt.DatumType,
+		&receipt.BatchReceipt.DatumHash,
+		&receipt.BatchReceipt.ReferenceBlockHeight,
+		&receipt.BatchReceipt.ReferenceBlockHash,
+		&receipt.BatchReceipt.RMRLinked,
+		&receipt.BatchReceipt.RecipientSignature,
+		&receipt.IntermediateHashes,
+		&receipt.BlockHeight,
+		&receipt.ReceiptIndex,
+	)
+	return err
+
+}
+
+func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{} {
+	return []interface{}{
+		&publishedReceipt.BatchReceipt.SenderPublicKey,
+		&publishedReceipt.BatchReceipt.RecipientPublicKey,
+		&publishedReceipt.BatchReceipt.DatumType,
+		&publishedReceipt.BatchReceipt.DatumHash,
+		&publishedReceipt.BatchReceipt.ReferenceBlockHeight,
+		&publishedReceipt.BatchReceipt.ReferenceBlockHash,
+		&publishedReceipt.BatchReceipt.RMRLinked,
+		&publishedReceipt.BatchReceipt.RecipientSignature,
+		&publishedReceipt.IntermediateHashes,
+		&publishedReceipt.BlockHeight,
+		&publishedReceipt.ReceiptIndex,
+	}
 }

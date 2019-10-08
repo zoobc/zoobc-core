@@ -13,7 +13,7 @@ import (
 
 type (
 	ReceiptServiceInterface interface {
-		SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.BlockReceipt, error)
+		SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.PublishedReceipt, error)
 	}
 
 	ReceiptService struct {
@@ -40,7 +40,7 @@ func NewReceiptService(
 
 // SelectReceipts select list of receipts to be included in a block by prioritizing receipts that might
 // increase the participation score of the node
-func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.BlockReceipt, error) {
+func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.PublishedReceipt, error) {
 	// get linked rmr that has been included in previously published blocks
 	//rmrFilters, err := rs.KVExecutor.GetByPrefix(constant.TableBlockReminderKey)
 	//if err != nil {
@@ -76,7 +76,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 	// filter the selected receipts on second phase
 	var (
 		i       int
-		results []*model.BlockReceipt
+		results []*model.PublishedReceipt
 	)
 	for rcRoot, rcReceipt := range linkedReceiptList {
 		if len(results) >= numberOfReceipt {
@@ -98,8 +98,8 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 			}
 			results = append(
 				results,
-				&model.BlockReceipt{
-					Receipt:            rc,
+				&model.PublishedReceipt{
+					BatchReceipt:       rc.BatchReceipt,
 					IntermediateHashes: intermediateHashes,
 				},
 			)
@@ -117,8 +117,8 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
-			results = append(results, &model.BlockReceipt{
-				Receipt:            rc,
+			results = append(results, &model.PublishedReceipt{
+				BatchReceipt:       rc.BatchReceipt,
 				IntermediateHashes: nil,
 			})
 		}
