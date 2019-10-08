@@ -361,6 +361,39 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
+	// todo: save receipts of block to network_receipt table
+	if len(block.GetBlockReceipts()) > 0 {
+		for index, rc := range block.GetBlockReceipts() {
+			// validate the receipts
+			unsignedBytes := util.GetUnsignedBatchReceiptBytes(rc.Receipt.BatchReceipt)
+			if !bs.Signature.VerifyNodeSignature(
+				unsignedBytes,
+				rc.Receipt.BatchReceipt.RecipientSignature,
+				rc.Receipt.BatchReceipt.RecipientPublicKey,
+			) {
+				// rollback
+				_ = bs.QueryExecutor.RollbackTx()
+				return blocker.NewBlocker(
+					blocker.ValidationErr,
+					"InvalidReceiptSignature",
+				)
+			}
+			// check if linked
+			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
+				// linked, check the hashes, todo: skip now - continue later
+				merkle := &commonUtils.MerkleRoot{}
+				rcHash := util.GetSignedBatchReceiptBytes(rc.Receipt.BatchReceipt)
+				_, err := merkle.GetMerkleRootFromIntermediateHashes(rcHash, rc.IntermediateHashes)
+				if err != nil {
+					_ = bs.QueryExecutor.RollbackTx()
+					return err
+				}
+				// look up root in published_receipt table
+			}
+			// store in database
+
+		}
+	}
 	if block.Height > 0 {
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
@@ -388,7 +421,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 	}
-	// todo: save receipts of block to network_receipt table
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err

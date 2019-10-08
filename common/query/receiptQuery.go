@@ -14,6 +14,9 @@ type (
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(limit uint32, offset uint64) string
 		GetReceiptByRoot(root []byte) (str string, args []interface{})
+		SelectReceipt(
+			lowerHeight, upperHeight, limit uint32,
+		) (str string)
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
 		Scan(receipt *model.Receipt, row *sql.Row) error
@@ -67,6 +70,18 @@ func (rq *ReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interf
 	return query, []interface{}{
 		root,
 	}
+}
+
+// SelectReceipt select list of receipt by some filter
+func (rq *ReceiptQuery) SelectReceipt(
+	lowerHeight, upperHeight, limit uint32,
+) (str string) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS nr WHERE EXISTS "+
+		"(SELECT rmr_linked FROM published_receipt AS pr WHERE nr.rmr = pr.rmr_linked AND "+
+		"block_height >= %d AND block_height <= %d ) LIMIT %d",
+		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight, limit)
+
+	return query
 }
 
 // InsertReceipts inserts a new receipts into DB

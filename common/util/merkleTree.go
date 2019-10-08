@@ -52,6 +52,26 @@ func (mr *MerkleRoot) hash(a, b *bytes.Buffer, level int32) *bytes.Buffer {
 	return res
 }
 
+// GetMerkleRootFromIntermediateHashes hash the root to every intermediate hashes in order until it returns the
+// merkle root hash
+func (mr *MerkleRoot) GetMerkleRootFromIntermediateHashes(
+	root []byte,
+	intermediateHashes [][]byte,
+) (hash *bytes.Buffer, err error) {
+	digest := sha3.New256()
+	_, err = digest.Write(root)
+	if err != nil {
+		return nil, err
+	}
+	for _, ih := range intermediateHashes {
+		_, err = digest.Write(ih)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return bytes.NewBuffer(digest.Sum([]byte{})), nil
+}
+
 // GetIntermediateHashes crawl the hashes that are needed to verify the `leafHash`
 // leafIndex is index of the leaf node passed, it should be stored to avoid `n` complexity just for finding level 0
 // node hash

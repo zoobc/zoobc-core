@@ -5,7 +5,6 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -43,38 +42,35 @@ func NewReceiptService(
 // increase the participation score of the node
 func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.BlockReceipt, error) {
 	// get linked rmr that has been included in previously published blocks
-	rmrFilters, err := rs.KVExecutor.GetByPrefix(constant.TableBlockReminderKey)
-	if err != nil {
-		return nil, err
-	}
+	//rmrFilters, err := rs.KVExecutor.GetByPrefix(constant.TableBlockReminderKey)
+	//if err != nil {
+	//	return nil, err
+	//}
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
 		linkedReceiptTree = make(map[string][]byte)
 	)
-	// use the rmr as filter to fetch node receipt
-	for k := range rmrFilters {
+
+	// look up the tree, todo: use join query (with receipts) instead later - andy-shi88
+	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(0, 100, uint32(numberOfReceipt))
+	rows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	linkedReceiptTree, err = rs.MerkleTreeQuery.BuildTree(rows)
+	if err != nil {
+		return nil, err
+	}
+	for linkedRoot := range linkedReceiptTree {
 		var receipts []*model.Receipt
-		root := []byte(k)[len([]byte(constant.TableBlockReminderKey)):]
-		// look up the tree, todo: use join query (with receipts) instead later - andy-shi88
-		treeQ, treeArgs := rs.MerkleTreeQuery.GetMerkleTreeByRoot(root)
-		row := rs.QueryExecutor.ExecuteSelectRow(treeQ, false, treeArgs)
-		if err != nil {
-			return nil, err
-		}
-		tree, err := rs.MerkleTreeQuery.ScanTree(row)
-		if err != nil {
-			return nil, err
-		}
-		// look up rmr in table
-		receiptsQ, rootArgs := rs.ReceiptQuery.GetReceiptByRoot(root)
+		receiptsQ, rootArgs := rs.ReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
 		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false, rootArgs)
 		if err != nil {
 			return nil, err
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
-		// store fetched receipts and tree
-		linkedReceiptList[string(root)] = receipts
-		linkedReceiptTree[string(root)] = tree
+		linkedReceiptList[linkedRoot] = receipts
 	}
 	// limit the selected portion to `numberOfReceipt` receipts
 	// filter the selected receipts on second phase
@@ -103,7 +99,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 			results = append(
 				results,
 				&model.BlockReceipt{
-					ReceiptHash:        rcHash[:],
+					Receipt:            rc,
 					IntermediateHashes: intermediateHashes,
 				},
 			)
@@ -121,11 +117,8 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
-			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
-			rcHash := sha3.Sum256(rcByte)
-
 			results = append(results, &model.BlockReceipt{
-				ReceiptHash:        rcHash[:],
+				Receipt:            rc,
 				IntermediateHashes: nil,
 			})
 		}

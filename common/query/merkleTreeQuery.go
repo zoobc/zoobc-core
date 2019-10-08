@@ -11,7 +11,11 @@ type (
 	MerkleTreeQueryInterface interface {
 		InsertMerkleTree(root, tree []byte) (qStr string, args []interface{})
 		GetMerkleTreeByRoot(root []byte) (qStr string, args []interface{})
+		SelectMerkleTree(
+			lowerHeight, upperHeight, limit uint32,
+		) string
 		ScanTree(row *sql.Row) ([]byte, error)
+		BuildTree(row *sql.Rows) (map[string][]byte, error)
 	}
 	// MerkleTreeQuery fields and table name
 	MerkleTreeQuery struct {
@@ -56,6 +60,16 @@ func (mrQ *MerkleTreeQuery) GetMerkleTreeByRoot(root []byte) (qStr string, args 
 	), []interface{}{root}
 }
 
+func (mrQ *MerkleTreeQuery) SelectMerkleTree(
+	lowerHeight, upperHeight, limit uint32,
+) string {
+	query := fmt.Sprintf("SELECT %s FROM %s AS mt WHERE EXISTS "+
+		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked AND "+
+		"block_height >= %d AND block_height <= %d ) LIMIT %d",
+		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(), lowerHeight, upperHeight, limit)
+	return query
+}
+
 func (mrQ *MerkleTreeQuery) ScanTree(row *sql.Row) ([]byte, error) {
 	var (
 		root, tree []byte
@@ -68,4 +82,22 @@ func (mrQ *MerkleTreeQuery) ScanTree(row *sql.Row) ([]byte, error) {
 		return nil, err
 	}
 	return tree, nil
+}
+
+func (mrQ *MerkleTreeQuery) BuildTree(rows *sql.Rows) (map[string][]byte, error) {
+	var listTree = make(map[string][]byte)
+	for rows.Next() {
+		var (
+			root, tree []byte
+		)
+		err := rows.Scan(
+			&root,
+			&tree,
+		)
+		if err != nil {
+			return nil, err
+		}
+		listTree[string(root)] = tree
+	}
+	return listTree, nil
 }
