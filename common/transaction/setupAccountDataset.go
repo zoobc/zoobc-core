@@ -57,7 +57,7 @@ func (tx *SetupAccountDataset) ApplyConfirmed() error {
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 
 	return nil

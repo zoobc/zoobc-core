@@ -121,7 +121,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			// no need to rollback here, since we already do it in ExecuteTransactions
+			_ = nrs.QueryExecutor.RollbackTx()
 			return err
 		}
 	}
@@ -154,6 +154,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		queries := append(updateAccountBalanceQ, nodeQueries...)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
+			_ = nrs.QueryExecutor.RollbackTx()
 			return err
 		}
 	}

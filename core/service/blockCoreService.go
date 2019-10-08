@@ -382,6 +382,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+			_ = bs.QueryExecutor.RollbackTx()
 			return err
 		}
 	}
