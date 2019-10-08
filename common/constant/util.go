@@ -2,7 +2,6 @@ package constant
 
 import (
 	"flag"
-	"fmt"
 
 	"github.com/spf13/viper"
 )
@@ -13,7 +12,6 @@ var (
 
 func setDebug() bool {
 	debugMode = flag.Lookup("configDebug").Value.(flag.Getter).Get().(bool)
-	fmt.Printf("debugMode: %v\n", debugMode)
 	return debugMode
 }
 
