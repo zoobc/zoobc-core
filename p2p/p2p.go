@@ -1,7 +1,7 @@
 package p2p
 
 import (
-	"github.com/spf13/viper"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -41,6 +41,7 @@ type (
 		Host              *model.Host
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		PeerServiceClient client.PeerServiceClientInterface
+		Logger            *log.Logger
 	}
 )
 
@@ -49,11 +50,13 @@ func NewP2PService(
 	host *model.Host,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
+	logger *log.Logger,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		Host:              host,
 		PeerServiceClient: peerServiceClient,
 		PeerExplorer:      peerExplorer,
+		Logger:            logger,
 	}, nil
 }
 
@@ -66,13 +69,6 @@ func (s *Peer2PeerService) StartP2P(
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 ) {
-	// initialize log
-	logLevels := viper.GetStringSlice("logLevels")
-	p2pLogger, err := util.InitLogger(".log/", "debug.log", logLevels)
-	if err != nil {
-		panic(err)
-	}
-
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
 		s.PeerExplorer,
@@ -84,7 +80,7 @@ func (s *Peer2PeerService) StartP2P(
 	go func() { // register handlers and listening to incoming p2p request
 		ownerAddress := util.GetAddressFromSeed(nodeSecretPhrase)
 		grpcServer := grpc.NewServer(
-			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(p2pLogger, ownerAddress)),
+			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(s.Logger, ownerAddress)),
 		)
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,

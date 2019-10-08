@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/api"
@@ -57,6 +56,9 @@ var (
 	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
 	sortedBlocksmiths                                            []model.Blocksmith
 	mainchainProcessor                                           smith.BlockchainProcessorInterface
+	loggerAPIService                                             *log.Logger
+	loggerCoreService                                            *log.Logger
+	loggerP2PService                                             *log.Logger
 )
 
 func init() {
@@ -93,23 +95,24 @@ func init() {
 	nodeKeyFile := viper.GetString("nodeKeyFile")
 	smithing = viper.GetBool("smithing")
 
+	initLogInstance()
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 	// initialize k-v db
 	badgerDbInstance = database.NewBadgerDB()
 	if err := badgerDbInstance.InitializeBadgerDB(badgerDbPath, badgerDbName); err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 	badgerDb, err = badgerDbInstance.OpenBadgerDB(badgerDbPath, badgerDbName)
 	if err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
@@ -122,7 +125,7 @@ func init() {
 		// generate a node private key if there aren't already configured
 		seed := util.GetSecureRandomSeed()
 		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
-			log.Fatal(err)
+			loggerCoreService.Fatal(err)
 		}
 	}
 	nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
@@ -140,15 +143,32 @@ func init() {
 
 	// initialize Observer
 	observerInstance = observer.NewObserver()
-
 	initP2pInstance()
+}
+
+func initLogInstance() {
+	var (
+		err       error
+		logLevels = viper.GetStringSlice("logLevels")
+		t         = time.Now().Format("2-Jan-2006_")
+	)
+
+	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels); err != nil {
+		panic(err)
+	}
+	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels); err != nil {
+		panic(err)
+	}
+	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels); err != nil {
+		panic(err)
+	}
 }
 
 func initP2pInstance() {
 	// init p2p instances
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {
-		logrus.Fatal("fail to start p2p service")
+		loggerCoreService.Fatal("Initialize P2P Err : ", err.Error())
 	}
 	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
@@ -161,6 +181,7 @@ func initP2pInstance() {
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		p2pHost,
+		loggerP2PService,
 	)
 
 	// peer discovery strategy
@@ -169,11 +190,13 @@ func initP2pInstance() {
 		peerServiceClient,
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
+		loggerP2PService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
 		peerServiceClient,
 		peerExplorer,
+		loggerP2PService,
 	)
 }
 
@@ -205,6 +228,7 @@ func startServices() {
 		blockServices,
 		ownerAccountAddress,
 		nodeKeyFilePath,
+		loggerAPIService,
 	)
 }
 
@@ -212,7 +236,7 @@ func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 	for {
 		err := processor.StartSmithing()
 		if err != nil {
-			log.Warn("Smith error: ", err)
+			loggerCoreService.Error("Smith error: ", err)
 		}
 		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
 	}

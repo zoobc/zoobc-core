@@ -5,7 +5,6 @@ import (
 	"context"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
@@ -64,16 +63,15 @@ func NewPeerServiceClient(
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	host *model.Host,
+	logger *log.Logger,
 ) PeerServiceClientInterface {
-	logLevels := viper.GetStringSlice("logLevels")
-	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log", logLevels)
 	// set to current struct log
 	return &PeerServiceClient{
 		Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
 			conn, err := grpc.Dial(
 				p2pUtil.GetFullAddressPeer(destinationPeer),
 				grpc.WithInsecure(),
-				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(apiLogger)),
+				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(logger)),
 			)
 			if err != nil {
 				return nil, err
@@ -85,7 +83,7 @@ func NewPeerServiceClient(
 		BatchReceiptQuery: batchReceiptQuery,
 		MerkleTreeQuery:   merkleTreeQuery,
 		NodePublicKey:     nodePublicKey,
-		Logger:            apiLogger,
+		Logger:            logger,
 		Host:              host,
 	}
 }
@@ -229,7 +227,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(
 		ChainType: chaintype.GetTypeInt(),
 	})
 	if err != nil {
-		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Infof("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -259,7 +257,7 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
 		LastMilestoneBlockID: lastMilestoneBlockID,
 	})
 	if err != nil {
-		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Infof("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err

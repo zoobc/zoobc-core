@@ -44,6 +44,7 @@ type PriorityStrategy struct {
 	BlacklistedPeersLock  sync.RWMutex
 	MaxUnresolvedPeers    int32
 	MaxResolvedPeers      int32
+	Logger                *log.Logger
 }
 
 func NewPriorityStrategy(
@@ -51,6 +52,7 @@ func NewPriorityStrategy(
 	peerServiceClient client.PeerServiceClientInterface,
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	logger *log.Logger,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
 		Host:              host,
@@ -62,6 +64,7 @@ func NewPriorityStrategy(
 		NodeRegistrationQuery: nodeRegistrationQuery,
 		MaxUnresolvedPeers:    constant.MaxUnresolvedPeers,
 		MaxResolvedPeers:      constant.MaxResolvedPeers,
+		Logger:                logger,
 	}
 }
 
@@ -75,7 +78,7 @@ func (ps *PriorityStrategy) Start() {
 	go func() {
 		block, err := ps.GetBlockBuildScrumbleNode()
 		if err != nil {
-			log.Warn(err.Error())
+			ps.Logger.Warn(err.Error())
 		}
 		ps.BuildScrambleNodes(block)
 	}()
@@ -132,7 +135,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		Info: ps.Host.Info,
 	}
 
-	log.Info("Connecting to priority lists...")
+	ps.Logger.Info("Connecting to priority lists...")
 
 	unresolvedPeers := ps.GetUnresolvedPeers()
 	resolvedPeers := ps.GetResolvedPeers()
@@ -158,13 +161,19 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 					break
 				}
 				if priorityPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] == nil {
-					_ = ps.RemoveUnresolvedPeer(unresolvedPeer)
+					err := ps.RemoveUnresolvedPeer(unresolvedPeer)
+					if err != nil {
+						ps.Logger.Error(err.Error())
+					}
 					j++
 				}
 			}
 
 			if exceedMaxUnresolvedPeers < 1 || (exceedMaxUnresolvedPeers > 0 && j == exceedMaxUnresolvedPeers) {
-				_ = ps.AddToUnresolvedPeer(peer)
+				err := ps.AddToUnresolvedPeer(peer)
+				if err != nil {
+					ps.Logger.Error(err)
+				}
 				i++
 			}
 		}
@@ -233,6 +242,7 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		false,
 	)
 	if err != nil {
+		ps.Logger.Error(err.Error())
 		return
 	}
 	defer rows.Close()
@@ -447,8 +457,12 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer) {
 	if destPeer != nil {
 		destPeer.LastUpdated = time.Now().UTC().Unix()
 	}
-	_ = ps.RemoveUnresolvedPeer(destPeer)
-	_ = ps.AddToResolvedPeer(destPeer)
+	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
+		ps.Logger.Error(err.Error())
+	}
+	if err = ps.AddToResolvedPeer(destPeer); err != nil {
+		ps.Logger.Error(err.Error())
+	}
 }
 
 // GetMorePeersHandler request peers to random peer in list and if get new peers will add to unresolved peer
@@ -457,12 +471,12 @@ func (ps *PriorityStrategy) GetMorePeersHandler() (*model.Peer, error) {
 	if peer != nil {
 		newPeers, err := ps.PeerServiceClient.GetMorePeers(peer)
 		if err != nil {
-			log.Warnf("getMorePeers Error: %v\n", err)
+			ps.Logger.Infof("getMorePeers Error: %v\n", err)
 			return nil, err
 		}
 		err = ps.AddToUnresolvedPeers(newPeers.GetPeers(), false)
 		if err != nil {
-			log.Warnf("getMorePeers error: %v\n", err)
+			ps.Logger.Infof("getMorePeers error: %v\n", err)
 			return nil, err
 		}
 		return peer, nil
@@ -479,6 +493,7 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 	syncPeers := func() {
 		peer, err := ps.GetMorePeersHandler()
 		if err != nil {
+			ps.Logger.Warn(err.Error())
 			return
 		}
 		var myPeers []*model.Node
@@ -640,7 +655,7 @@ func (ps *PriorityStrategy) GetAnyUnresolvedPeer() *model.Peer {
 // AddToUnresolvedPeer to add a peer into unresolved peer
 func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 	if peer == nil {
-		return errors.New("peer is nil")
+		return errors.New("AddToUnresolvedPeer Err, peer is nil")
 	}
 	ps.UnresolvedPeersLock.Lock()
 	defer ps.UnresolvedPeersLock.Unlock()
@@ -688,7 +703,7 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 // RemoveUnresolvedPeer removes peer from unresolved peer list
 func (ps *PriorityStrategy) RemoveUnresolvedPeer(peer *model.Peer) error {
 	if peer == nil {
-		return errors.New("peer is nil")
+		return errors.New("RemoveUnresolvedPeer Err, peer is nil")
 	}
 	ps.UnresolvedPeersLock.Lock()
 	defer ps.UnresolvedPeersLock.Unlock()
@@ -716,7 +731,7 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 // AddToBlacklistedPeer to add a peer into resolved peer
 func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer) error {
 	if peer == nil {
-		return errors.New("peer is nil")
+		return errors.New("AddToBlacklistedPeer Err, peer is nil")
 	}
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
@@ -770,25 +785,41 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
 	peer.BlacklistingCause = cause
-	_ = ps.AddToBlacklistedPeer(peer)
-	_ = ps.RemoveUnresolvedPeer(peer)
-	_ = ps.RemoveResolvedPeer(peer)
+	if err := ps.AddToBlacklistedPeer(peer); err != nil {
+		ps.Logger.Error(err.Error())
+	}
+	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
+		ps.Logger.Info(err.Error())
+	}
+	if err := ps.RemoveResolvedPeer(peer); err != nil {
+		ps.Logger.Info(err.Error())
+	}
 }
 
 // PeerUnblacklist to update Peer state of peer
 func (ps *PriorityStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
-	_ = ps.RemoveBlacklistedPeer(peer)
-	_ = ps.AddToUnresolvedPeers([]*model.Node{peer.Info}, false)
+	if err := ps.RemoveBlacklistedPeer(peer); err != nil {
+		ps.Logger.Warn(err.Error())
+	}
+	if err := ps.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
+		ps.Logger.Info(err.Error())
+	}
+
 	return peer
 }
 
 // DisconnectPeer moves connected peer to resolved peer
 // if the unresolved peer is full (maybe) it should not go to the unresolved peer
 func (ps *PriorityStrategy) DisconnectPeer(peer *model.Peer) {
-	_ = ps.RemoveResolvedPeer(peer)
+	if err := ps.RemoveResolvedPeer(peer); err != nil {
+		ps.Logger.Error(err.Error())
+	}
+
 	if ps.GetExceedMaxUnresolvedPeers() <= 0 {
-		_ = ps.AddToUnresolvedPeer(peer)
+		if err := ps.AddToUnresolvedPeer(peer); err != nil {
+			ps.Logger.Error(err.Error())
+		}
 	}
 }

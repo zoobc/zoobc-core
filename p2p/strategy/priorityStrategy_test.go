@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -92,6 +93,7 @@ func TestNewPriorityStrategy(t *testing.T) {
 		peerServiceClient     client.PeerServiceClientInterface
 		queryExecutor         query.ExecutorInterface
 		nodeRegistrationQuery query.NodeRegistrationQueryInterface
+		Logger                *log.Logger
 	}
 	tests := []struct {
 		name string
@@ -127,7 +129,11 @@ func TestNewPriorityStrategy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewPriorityStrategy(tt.args.host, tt.args.peerServiceClient, tt.args.queryExecutor, tt.args.nodeRegistrationQuery)
+			got := NewPriorityStrategy(
+				tt.args.host, tt.args.peerServiceClient,
+				tt.args.queryExecutor,
+				tt.args.nodeRegistrationQuery,
+				tt.args.Logger)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
 			}
@@ -492,7 +498,7 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -556,7 +562,7 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -601,7 +607,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -653,7 +659,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -716,7 +722,7 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -759,7 +765,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -770,7 +776,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 	ps := NewPriorityStrategy(&model.Host{
 		UnresolvedPeers: make(map[string]*model.Peer),
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -799,7 +805,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 	ps := NewPriorityStrategy(&model.Host{
 		ResolvedPeers: make(map[string]*model.Peer),
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32
