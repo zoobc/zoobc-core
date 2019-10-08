@@ -1,9 +1,8 @@
 package service
 
 import (
-	"errors"
-	"log"
-
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -113,27 +112,38 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 
 // AddGenesisAccount create genesis account into `account` and `account_balance` table
 func AddGenesisAccount(executor query.ExecutorInterface) error {
-	// add genesis account
-	genesisAccountBalance := model.AccountBalance{
-		AccountAddress:   constant.MainchainGenesisAccountAddress,
-		BlockHeight:      0,
-		SpendableBalance: 0,
-		Balance:          0,
-		PopRevenue:       0,
-		Latest:           true,
+	var (
+		// add genesis account
+		genesisAccountBalance = model.AccountBalance{
+			AccountAddress:   constant.MainchainGenesisAccountAddress,
+			BlockHeight:      0,
+			SpendableBalance: 0,
+			Balance:          0,
+			PopRevenue:       0,
+			Latest:           true,
+		}
+		genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs = query.NewAccountBalanceQuery().InsertAccountBalance(
+			&genesisAccountBalance)
+
+		genesisQueries [][]interface{}
+		err            error
+	)
+
+	err = executor.BeginTx()
+	if err != nil {
+		return err
 	}
-	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
-		&genesisAccountBalance)
-	_ = executor.BeginTx()
-	var genesisQueries [][]interface{}
 	genesisQueries = append(genesisQueries,
 		append(
 			[]interface{}{genesisAccountBalanceInsertQ}, genesisAccountBalanceInsertArgs...),
 	)
-	err := executor.ExecuteTransactions(genesisQueries)
+	err = executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		_ = executor.RollbackTx()
-		return errors.New("fail to add genesis account balance")
+		rollbackErr := executor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
+		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis account balance")
 	}
 	err = executor.CommitTx()
 	if err != nil {
