@@ -100,7 +100,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 				results,
 				&model.PublishedReceipt{
 					BatchReceipt:       rc.BatchReceipt,
-					IntermediateHashes: intermediateHashes,
+					IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
 				},
 			)
 		}
