@@ -3,14 +3,18 @@ package util
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"strconv"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
+
+const DefaultConnectionMetadata = "requster"
 
 // NewHost to initialize new server node
 func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
@@ -69,7 +73,29 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
-	return peer.Info.Address + ":" + strconv.Itoa(int(peer.Info.Port))
+	return peer.GetInfo().GetAddress() + ":" + strconv.Itoa(int(peer.GetInfo().GetPort()))
+}
+
+// GetFullAddress to get full address of node
+func GetFullAddress(node *model.Node) string {
+	return node.GetAddress() + ":" + strconv.Itoa(int(node.GetPort()))
+}
+
+func GetNodeInfo(fullAddress string) *model.Node {
+	var (
+		splittedAddress = strings.Split(fullAddress, ":")
+		node            = &model.Node{
+			Address: splittedAddress[0],
+			Port:    uint32(viper.GetInt("peerPort")),
+		}
+	)
+	if len(splittedAddress) != 1 {
+		port, err := strconv.ParseUint(splittedAddress[1], 10, 32)
+		if err == nil {
+			node.Port = uint32(port)
+		}
+	}
+	return node
 }
 
 func ServerListener(port int) net.Listener {
