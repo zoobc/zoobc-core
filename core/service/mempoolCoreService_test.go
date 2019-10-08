@@ -384,7 +384,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
 			args: args{
-				blockTimestamp: 1562899106,
+				blockTimestamp: 1562893106,
 			},
 			want: []*model.MempoolTransaction{
 				{
