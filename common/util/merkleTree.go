@@ -2,8 +2,10 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"reflect"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/sha3"
@@ -120,14 +122,17 @@ func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes
 
 // IntermediateHashToByte flatten intermediate hashes bytes
 func (*MerkleRoot) FlattenIntermediateHashes(intermediateHashes [][]byte) []byte {
+	now := time.Now().Unix()
 	var result []byte
 	for _, ih := range intermediateHashes {
 		result = append(result, ih...)
 	}
+	fmt.Printf("time taken to flatten intermediate hashes: %v seconds\n\n", now-time.Now().Unix())
 	return result
 }
 
 func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte {
+	now := time.Now().Unix()
 	var (
 		result [][]byte
 	)
@@ -135,6 +140,8 @@ func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) [
 	for i := 0; i < intermediateHashesSize; i++ {
 		result = append(result, flattenIntermediateHashes[i*32:(i+1)*32])
 	}
+
+	fmt.Printf("time taken to restore intermediate hashes: %v seconds\n\n", now-time.Now().Unix())
 	return result
 }
 

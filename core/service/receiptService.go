@@ -41,11 +41,6 @@ func NewReceiptService(
 // SelectReceipts select list of receipts to be included in a block by prioritizing receipts that might
 // increase the participation score of the node
 func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.PublishedReceipt, error) {
-	// get linked rmr that has been included in previously published blocks
-	//rmrFilters, err := rs.KVExecutor.GetByPrefix(constant.TableBlockReminderKey)
-	//if err != nil {
-	//	return nil, err
-	//}
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
 		linkedReceiptTree = make(map[string][]byte)
@@ -110,7 +105,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 	if len(results) < numberOfReceipt { // get unlinked receipts randomly, in future additional filter may be added
 		var receipts []*model.Receipt
 		// look up rmr in table | todo: randomize selection
-		receiptsQ := rs.ReceiptQuery.GetReceipts(uint32(numberOfReceipt-len(results)), 0)
+		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0)
 		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
 		if err != nil {
 			return nil, err
