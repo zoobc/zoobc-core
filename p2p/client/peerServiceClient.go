@@ -410,6 +410,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		}
 		err = psc.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
+			_ = psc.QueryExecutor.RollbackTx()
 			return err
 		}
 		err = psc.QueryExecutor.CommitTx()
