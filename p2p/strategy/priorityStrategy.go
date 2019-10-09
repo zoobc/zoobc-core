@@ -337,25 +337,25 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 
 // ValidateRequest, to validate incoming request based on metadata in context and Priority strategy
 func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
-	md, _ := metadata.FromIncomingContext(ctx)
-	// Check have default context
-	if md.Get(p2pUtil.DefaultConnectionMetadata)[0] != "" {
-		// Check host in scrumble nodes
-		if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
-			var (
-				fullAddress   = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-				nodeRequester = p2pUtil.GetNodeInfo(fullAddress)
-				resolvedPeers = ps.GetResolvedPeers()
-			)
-
-			// Check host is in priority peer list of requester
-			// Or requester is in priority peers of host
-			return ps.ValidatePriorityPeer(nodeRequester, ps.Host.GetInfo()) ||
-				ps.ValidatePriorityPeer(ps.Host.GetInfo(), nodeRequester) ||
-				(resolvedPeers[fullAddress] != nil)
-
+	if ctx != nil {
+		md, _ := metadata.FromIncomingContext(ctx)
+		// Check have default context
+		if len(md.Get(p2pUtil.DefaultConnectionMetadata)) != 0 {
+			// Check host in scrumble nodes
+			if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
+				var (
+					fullAddress   = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+					nodeRequester = p2pUtil.GetNodeInfo(fullAddress)
+					resolvedPeers = ps.GetResolvedPeers()
+				)
+				// Check host is in priority peer list of requester
+				// Or requester is in priority peers of host
+				return ps.ValidatePriorityPeer(nodeRequester, ps.Host.GetInfo()) ||
+					ps.ValidatePriorityPeer(ps.Host.GetInfo(), nodeRequester) ||
+					(resolvedPeers[fullAddress] != nil)
+			}
+			return true
 		}
-		return true
 	}
 	return false
 }
@@ -689,7 +689,9 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
-			_ = ps.AddToUnresolvedPeer(peer)
+			if err := ps.AddToUnresolvedPeer(peer); err != nil {
+				ps.Logger.Error(err.Error())
+			}
 			peersAdded++
 		}
 
