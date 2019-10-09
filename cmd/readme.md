@@ -57,3 +57,23 @@ go run main.go generate transaction set-account-dataset --timestamp 1257894000 -
 ```
 go run main.go generate transaction remove-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --property "Member" --value "Good Boy"
 ```
+
+### Block Generating Fake Blocks
+
+```
+go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecretPhrase='sprinkled sneak species porkoutpost thrift unwind cheesy vexingly dizzy neurology neatness' --out='../resource/zoobc.db'
+```
+
+### Account Generating Randomly
+
+```
+go run main.go generate account random
+```
+
+### Account Generating From Seed
+
+```
+go run main.go generate account from-seed --seed "concur v
+ocalist rotten busload gap quote stinging undiluted surfer go
+ofiness deviation starved"
+```
