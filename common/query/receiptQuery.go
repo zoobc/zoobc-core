@@ -69,18 +69,25 @@ func (rq *ReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint
 		limit = 10
 	}
 	if rmrLinked {
-		query = fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked IS NOT NULL GROUP BY recipient_public_key LIMIT %d, %d",
+		query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rmr_linked IS NOT NULL AND "+
+			"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
+			"GROUP BY recipient_public_key LIMIT %d, %d",
 			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
 	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s GROUP BY recipient_public_key LIMIT %d, %d",
+		query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE "+
+			"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
+			"GROUP BY recipient_public_key LIMIT %d, %d",
 			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
 	}
 	return query
 }
 
-// GetReceiptByRoot return sql query to fetch receipts by its merkle root
+// GetReceiptByRoot return sql query to fetch receipts by its merkle root, the datum_hash should not already exists in
+// published_receipt table
 func (rq *ReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr = ? GROUP BY recipient_public_key",
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
+		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash = rc.datum_hash) "+
+		"GROUP BY recipient_public_key",
 		strings.Join(rq.Fields, ", "), rq.getTableName())
 	return query, []interface{}{
 		root,
