@@ -104,22 +104,18 @@ func (ts *TransactionService) GetTransactions(
 		selectQuery  string
 		args         []interface{}
 		totalRecords uint64
+		txQuery      = query.NewTransactionQuery(chainType)
+		caseQuery    = query.NewCaseQuery()
+		// Represent transaction fields
+		txFields = map[string]string{
+			"Height":  "block_height",
+			"BlockID": "block_id",
+		}
 	)
-
-	txQuery := query.NewTransactionQuery(chainType)
-	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
-	// Represent transaction fields
-	txFields := map[string]string{
-		"Height":  "block_height",
-		"BlockID": "block_id",
-	}
-
-	accountAddress := params.GetAccountAddress()
 	page := params.GetPagination()
 	height := params.GetHeight()
-
 	if height != 0 {
 		caseQuery.Where(caseQuery.Equal("block_height", height))
 		if page != nil && page.GetLimit() == 0 {
@@ -127,10 +123,6 @@ func (ts *TransactionService) GetTransactions(
 		}
 	}
 
-	if accountAddress != "" {
-		caseQuery.And(caseQuery.Equal("sender_account_address", accountAddress)).
-			Or(caseQuery.Equal("recipient_account_address", accountAddress))
-	}
 	timestampStart := params.GetTimestampStart()
 	timestampEnd := params.GetTimestampEnd()
 	if timestampStart > 0 {
@@ -140,6 +132,12 @@ func (ts *TransactionService) GetTransactions(
 	transcationType := params.GetTransactionType()
 	if transcationType > 0 {
 		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
+	}
+
+	accountAddress := params.GetAccountAddress()
+	if accountAddress != "" {
+		caseQuery.And(caseQuery.Equal("sender_account_address", accountAddress)).
+			Or(caseQuery.Equal("recipient_account_address", accountAddress))
 	}
 	selectQuery, args = caseQuery.Build()
 
