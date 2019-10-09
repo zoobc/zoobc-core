@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
-	"sync"
 	"testing"
 
 	util2 "github.com/zoobc/zoobc-core/core/util"
@@ -2693,7 +2692,6 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 		mockSecretPhrase,
 	)
 	type fields struct {
-		WaitGroup               sync.WaitGroup
 		Chaintype               chaintype.ChainType
 		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
@@ -2727,7 +2725,6 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 		{
 			name: "generateBlockReceipt:kvDBInsertFail",
 			fields: fields{
-				WaitGroup:               sync.WaitGroup{},
 				Chaintype:               nil,
 				KVExecutor:              &mockKVExecutorFailOtherError{},
 				QueryExecutor:           nil,
@@ -2757,7 +2754,6 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 		{
 			name: "generateBlockReceipt:success",
 			fields: fields{
-				WaitGroup:               sync.WaitGroup{},
 				Chaintype:               nil,
 				KVExecutor:              &mockKVExecutorSuccess{},
 				QueryExecutor:           nil,
@@ -2788,7 +2784,6 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				WaitGroup:               tt.fields.WaitGroup,
 				Chaintype:               tt.fields.Chaintype,
 				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,

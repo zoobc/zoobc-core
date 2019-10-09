@@ -14,11 +14,11 @@ import (
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
-func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction {
+func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []constant.MainchainGenesisConfigEntry) []*model.Transaction {
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
-		for _, fundReceiver := range constant.MainChainGenesisConfig {
+		for _, genesisEntry := range genesisEntries {
 			// send funds from genesis account to the fund receiver
 			genesisTx := &model.Transaction{
 				Version:                 1,
@@ -26,15 +26,15 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 				Height:                  0,
 				Timestamp:               1562806389,
 				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
-				RecipientAccountAddress: fundReceiver.AccountAddress,
+				RecipientAccountAddress: genesisEntry.AccountAddress,
 				Fee:                     0,
 				TransactionBodyLength:   8,
 				TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 					SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-						Amount: fundReceiver.AccountBalance,
+						Amount: genesisEntry.AccountBalance,
 					},
 				},
-				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.AccountBalance)),
+				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
 				Signature:            constant.MainchainGenesisTransactionSignature,
 			}
 
@@ -48,9 +48,9 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 			genesisTxs = append(genesisTxs, genesisTx)
 
 			// register the node for the fund receiver, if relative element in MainChainGenesisConfig contains a NodePublicKey
-			if len(fundReceiver.NodePublicKey) > 0 {
-				genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(fundReceiver.AccountAddress, fundReceiver.NodeAddress,
-					fundReceiver.LockedBalance, fundReceiver.NodePublicKey)
+			if len(genesisEntry.NodePublicKey) > 0 {
+				genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(genesisEntry.AccountAddress, genesisEntry.NodeAddress,
+					genesisEntry.LockedBalance, genesisEntry.NodePublicKey)
 				genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
 			}
 		}
@@ -61,7 +61,7 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 	}
 }
 
-// GetGenesisNodeRegistrationTx given a fundReceiver, returns a nodeRegistrationTransaction for genesis block
+// GetGenesisNodeRegistrationTx given a genesisEntry, returns a nodeRegistrationTransaction for genesis block
 func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBalance int64, nodePublicKey []byte) *model.Transaction {
 	// generate a dummy proof of ownership (avoiding to add conditions to tx parsebytes, for genesis block only)
 	poownMessage := &model.ProofOfOwnershipMessage{

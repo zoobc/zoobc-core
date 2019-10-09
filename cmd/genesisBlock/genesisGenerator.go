@@ -1,4 +1,4 @@
-package blockchain
+package genesisBlock
 
 import (
 	"database/sql"
@@ -12,11 +12,14 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/service"
 )
 
 type (
@@ -102,7 +105,7 @@ func generateFiles(logger *logrus.Logger, withDbLastState bool, dbPath string) {
 		}
 	}
 
-	file, err := ioutil.ReadFile("./blockchain/preRegisteredNodes.json")
+	file, err := ioutil.ReadFile("./genesisBlock/preRegisteredNodes.json")
 	if err != nil {
 		logger.Fatalf("Error reading preRegisteredNodes.json file: %s", err)
 	}
@@ -212,7 +215,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 func generateGenesisFile(logger *logrus.Logger, genesisEntries []genesisEntry, newGenesisFilePath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
 	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
-	tmpl, err := template.ParseFiles("./blockchain/genesis.tmpl")
+	tmpl, err := template.ParseFiles("./genesisBlock/genesis.tmpl")
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
@@ -225,12 +228,52 @@ func generateGenesisFile(logger *logrus.Logger, genesisEntries []genesisEntry, n
 	defer f.Close()
 
 	config := map[string]interface{}{
-		"MainchainGenesisConfig": genesisEntries,
+		"MainchainGenesisBlockID": getGenesisBlockID(genesisEntries), // mocked value (needs one more pass)
+		"MainchainGenesisConfig":  genesisEntries,
 	}
 	err = tmpl.Execute(f, config)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
+	var (
+		genesisConfig []constant.MainchainGenesisConfigEntry
+	)
+	for _, entry := range genesisEntries {
+		cfgEntry := constant.MainchainGenesisConfigEntry{
+			AccountAddress:     entry.AccountAddress,
+			AccountBalance:     entry.AccountBalance,
+			LockedBalance:      entry.LockedBalance,
+			NodeAddress:        entry.NodeAddress,
+			NodePublicKey:      entry.NodePublicKey,
+			ParticipationScore: entry.ParticipationScore,
+		}
+		genesisConfig = append(genesisConfig, cfgEntry)
+	}
+	bs := service.NewBlockService(
+		&chaintype.MainChain{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.TypeSwitcher{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	block, err := bs.GenerateGenesisBlock(genesisConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return block.ID
 }
 
 func generateClusterConfigFile(logger *logrus.Logger, genesisEntries []genesisEntry, newClusterConfigFilePath string) {
