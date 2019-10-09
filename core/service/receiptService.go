@@ -44,10 +44,12 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
 		linkedReceiptTree = make(map[string][]byte)
+		// this variable is to store picked receipt recipient to avoid duplicates
+		pickedRecipients = make(map[string]bool)
 	)
 
-	// look up the tree, todo: use join query (with receipts) instead later - andy-shi88
-	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(0, 100, uint32(numberOfReceipt))
+	// get the last merkle tree we have build so far
+	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(0, 1000, uint32(numberOfReceipt))
 	rows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
 	if err != nil {
 		return nil, err
@@ -60,26 +62,30 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 	for linkedRoot := range linkedReceiptTree {
 		var receipts []*model.Receipt
 		receiptsQ, rootArgs := rs.ReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
-		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false, rootArgs)
+		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false, rootArgs...)
 		if err != nil {
 			return nil, err
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
-		linkedReceiptList[linkedRoot] = receipts
+		for _, rc := range receipts {
+			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
+				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
+				linkedReceiptList[linkedRoot] = append(linkedReceiptList[linkedRoot], rc)
+			}
+		}
 	}
 	// limit the selected portion to `numberOfReceipt` receipts
 	// filter the selected receipts on second phase
 	var (
-		i       int
 		results []*model.PublishedReceipt
 	)
 	for rcRoot, rcReceipt := range linkedReceiptList {
-		if len(results) >= numberOfReceipt {
-			break
-		}
 		merkle := util.MerkleRoot{}
 		merkle.HashTree = merkle.FromBytes(linkedReceiptTree[rcRoot], []byte(rcRoot))
 		for _, rc := range rcReceipt {
+			if len(results) >= numberOfReceipt {
+				break
+			}
 			var intermediateHashes [][]byte
 			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 			rcHash := sha3.Sum256(rcByte)
@@ -99,7 +105,6 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 				},
 			)
 		}
-		i++
 	}
 	// prioritize those receipts with rmr_linked != nil
 	if len(results) < numberOfReceipt {
@@ -112,10 +117,13 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
-			results = append(results, &model.PublishedReceipt{
-				BatchReceipt:       rc.BatchReceipt,
-				IntermediateHashes: nil,
-			})
+			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
+				results = append(results, &model.PublishedReceipt{
+					BatchReceipt:       rc.BatchReceipt,
+					IntermediateHashes: nil,
+				})
+				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
+			}
 		}
 	}
 	// fill in unlinked receipts if the limit has not been reached
@@ -129,10 +137,12 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		}
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
-			results = append(results, &model.PublishedReceipt{
-				BatchReceipt:       rc.BatchReceipt,
-				IntermediateHashes: nil,
-			})
+			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
+				results = append(results, &model.PublishedReceipt{
+					BatchReceipt:       rc.BatchReceipt,
+					IntermediateHashes: nil,
+				})
+			}
 		}
 	}
 	return results, nil
