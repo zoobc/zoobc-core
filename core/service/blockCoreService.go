@@ -385,10 +385,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			// check if linked
 			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
 				// linked, check the hashes, todo: skip now - continue later
-				var publishedReceipt *model.PublishedReceipt
+				var publishedReceipt = &model.PublishedReceipt{
+					BatchReceipt:       &model.BatchReceipt{},
+					IntermediateHashes: nil,
+					BlockHeight:        0,
+					ReceiptIndex:       0,
+				}
 				merkle := &commonUtils.MerkleRoot{}
-				rcHash := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
-				root, err := merkle.GetMerkleRootFromIntermediateHashes(rcHash, merkle.RestoreIntermediateHashes(rc.IntermediateHashes))
+				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+				rcHash := sha3.Sum256(rcByte)
+				root, err := merkle.GetMerkleRootFromIntermediateHashes(rcHash[:], merkle.RestoreIntermediateHashes(rc.IntermediateHashes))
 				if err != nil {
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
@@ -864,7 +870,7 @@ func (bs *BlockService) generateBlockReceipt(
 	lastRmrQ := bs.MerkleTreeQuery.GetLastMerkleRoot()
 	row := bs.QueryExecutor.ExecuteSelectRow(lastRmrQ)
 	rmrLinked, err := bs.MerkleTreeQuery.ScanRoot(row)
-	if err != sql.ErrNoRows {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 	batchReceipt, err := util.GenerateBatchReceipt(
