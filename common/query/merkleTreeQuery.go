@@ -82,10 +82,12 @@ func (mrQ *MerkleTreeQuery) SelectMerkleTree(
 func (mrQ *MerkleTreeQuery) ScanTree(row *sql.Row) ([]byte, error) {
 	var (
 		root, tree []byte
+		timestamp  int64
 	)
 	err := row.Scan(
 		&root,
 		&tree,
+		&timestamp,
 	)
 	if err != nil {
 		return nil, err
@@ -114,10 +116,12 @@ func (mrQ *MerkleTreeQuery) BuildTree(rows *sql.Rows) (map[string][]byte, error)
 	for rows.Next() {
 		var (
 			root, tree []byte
+			timestamp  int64
 		)
 		err := rows.Scan(
 			&root,
 			&tree,
+			&timestamp,
 		)
 		if err != nil {
 			return nil, err
