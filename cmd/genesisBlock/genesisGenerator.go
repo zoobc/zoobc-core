@@ -119,14 +119,24 @@ func generateFiles(logger *logrus.Logger, withDbLastState bool, dbPath string) {
 	for _, prNode := range preRegisteredNodes {
 		found := false
 		for i, e := range bcState {
-			if prNode.AccountAddress == e.AccountAddress {
-				bcState[i].NodeSeed = prNode.NodeSeed
-				bcState[i].Smithing = prNode.Smithing
-				found = true
-				break
+			if prNode.AccountAddress != e.AccountAddress {
+				continue
 			}
+			bcState[i].NodeSeed = prNode.NodeSeed
+			bcState[i].Smithing = prNode.Smithing
+			pubKey, err := base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			bcState[i].NodePublicKey = pubKey
+			found = true
+			break
 		}
 		if !found {
+			prNode.NodePublicKey, err = base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
+			if err != nil {
+				logger.Fatal(err)
+			}
 			bcState = append(bcState, prNode)
 		}
 	}
