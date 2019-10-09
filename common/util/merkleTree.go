@@ -61,17 +61,20 @@ func (mr *MerkleRoot) GetMerkleRootFromIntermediateHashes(
 	intermediateHashes [][]byte,
 ) (root []byte, err error) {
 	digest := sha3.New256()
-	_, err = digest.Write(leaf)
-	if err != nil {
-		return nil, err
-	}
-	for _, ih := range intermediateHashes {
-		_, err = digest.Write(ih)
+	lastHash := leaf
+	for _, nh := range intermediateHashes {
+		digest.Reset()
+		_, err = digest.Write(lastHash)
 		if err != nil {
 			return nil, err
 		}
+		_, err = digest.Write(nh)
+		if err != nil {
+			return nil, err
+		}
+		lastHash = digest.Sum([]byte{})
 	}
-	return digest.Sum([]byte{}), nil
+	return lastHash, nil
 }
 
 // GetIntermediateHashes crawl the hashes that are needed to verify the `leafHash`
@@ -154,10 +157,10 @@ func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
 	r = bytes.NewBuffer([]byte{})
 
 	for k, buffer := range mr.HashTree {
-		for _, nestBuf := range buffer {
-			if k+1 == len(mr.HashTree) {
-				r.Write(nestBuf.Bytes()) // write root
-			} else {
+		if k+1 == len(mr.HashTree) {
+			r.Write(buffer[0].Bytes()) // write root
+		} else {
+			for _, nestBuf := range buffer {
 				t.Write(nestBuf.Bytes())
 			}
 		}
