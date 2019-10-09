@@ -106,6 +106,7 @@ func (ps *PriorityStrategy) GetBlockBuildScrumbleNode() (*model.Block, error) {
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
+			return &block, nil
 		}
 	}
 	return nil, blocker.NewBlocker(blocker.AppErr, "No need to build sramble node at start of p2p service")

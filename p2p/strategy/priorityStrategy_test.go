@@ -10,6 +10,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -1305,6 +1306,56 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 	}
 }
 
+type (
+	executorGetBlockBuildScrumbleNodeSuccess struct {
+		query.Executor
+	}
+)
+
+var mockBlockData = model.Block{
+	ID:                1,
+	PreviousBlockHash: []byte{},
+	Height:            11,
+	Timestamp:         1,
+	BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+	BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+	CumulativeDifficulty: "1",
+	SmithScale:           1,
+	PayloadLength:        1,
+	PayloadHash:          []byte{},
+	BlocksmithPublicKey:  []byte{},
+	TotalAmount:          1000,
+	TotalFee:             0,
+	TotalCoinBase:        1,
+	Version:              0,
+}
+
+func (*executorGetBlockBuildScrumbleNodeSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockBlockData.GetID(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetHeight(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetSmithScale(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+		))
+	return db.QueryRow(qStr)
+}
+
 func TestPriorityStrategy_GetBlockBuildScrumbleNode(t *testing.T) {
 	type fields struct {
 		Host                  *model.Host
@@ -1322,7 +1373,18 @@ func TestPriorityStrategy_GetBlockBuildScrumbleNode(t *testing.T) {
 		want    *model.Block
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &executorGetBlockBuildScrumbleNodeSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			want:    &mockBlockData,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
