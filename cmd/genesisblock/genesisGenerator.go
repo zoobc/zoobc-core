@@ -1,4 +1,4 @@
-package genesisBlock
+package genesisblock
 
 import (
 	"database/sql"
@@ -105,7 +105,7 @@ func generateFiles(logger *logrus.Logger, withDbLastState bool, dbPath string) {
 		}
 	}
 
-	file, err := ioutil.ReadFile("./genesisBlock/preRegisteredNodes.json")
+	file, err := ioutil.ReadFile("./genesisblock/preRegisteredNodes.json")
 	if err != nil {
 		logger.Fatalf("Error reading preRegisteredNodes.json file: %s", err)
 	}
@@ -197,7 +197,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			if nr.NodeAddress.Port > 0 {
 				bcEntry.NodeAddress = fmt.Sprintf("%s:%d", nr.NodeAddress.Address, nr.NodeAddress.Port)
 			} else {
-				bcEntry.NodeAddress = fmt.Sprintf("%s", nr.NodeAddress.Address)
+				bcEntry.NodeAddress = nr.NodeAddress.Address
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
 			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
@@ -225,7 +225,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 func generateGenesisFile(logger *logrus.Logger, genesisEntries []genesisEntry, newGenesisFilePath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
 	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
-	tmpl, err := template.ParseFiles("./genesisBlock/genesis.tmpl")
+	tmpl, err := template.ParseFiles("./genesisblock/genesis.tmpl")
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
