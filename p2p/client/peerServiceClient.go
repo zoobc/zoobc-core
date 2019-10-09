@@ -5,6 +5,8 @@ import (
 	"context"
 	"time"
 
+	"golang.org/x/crypto/sha3"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -331,9 +333,11 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		batchReceipts = psc.BatchReceiptQuery.BuildModel(batchReceipts, rows)
 
 		for _, b := range batchReceipts {
+			// hash the receipts
+			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
 			hashedReceipts = append(
 				hashedReceipts,
-				bytes.NewBuffer(util.GetSignedBatchReceiptBytes(b)),
+				bytes.NewBuffer(hashedBatchReceipt[:]),
 			)
 		}
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
