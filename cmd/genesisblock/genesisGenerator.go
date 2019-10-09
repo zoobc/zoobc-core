@@ -161,8 +161,9 @@ func generateFiles(logger *logrus.Logger, withDbLastState bool, dbPath string, e
 
 // generateRandomGenesisEntry randomly generates a genesis node entry
 // note: the account address is mandatory for the node registration, but as there is no wallet connected to it
-//       we are not storing the relaitve seed, needed to sign transactions. this means that these nodes can smith but their owners
-//       can't perform any transaction. This is only for testing deploying multiple smithing-nodes
+//       and we are not storing the relaitve seed, needed to sign transactions, these nodes can smith but their owners
+//       can't perform any transaction.
+//       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
 func generateRandomGenesisEntry() genesisEntry {
 	seed := util.GetSecureRandomSeed()
 	privateKey, _ := util.GetPrivateKeyFromSeed(seed)
@@ -257,8 +258,6 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 }
 
 // generateGenesisFile generates a genesis file with given entries, starting from a template
-// Note: after applying this new genesis we still have to manually update the MainchainGenesisBlockID by
-// running the node, wait for the error (invalid block id) to show and update the constant with the suggested new blockID
 func generateGenesisFile(logger *logrus.Logger, genesisEntries []genesisEntry, newGenesisFilePath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
 	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
