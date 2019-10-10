@@ -57,22 +57,36 @@ func (mr *MerkleRoot) hash(a, b *bytes.Buffer, level int32) *bytes.Buffer {
 // GetMerkleRootFromIntermediateHashes hash the root to every intermediate hashes in order until it returns the
 // merkle root hash
 func (mr *MerkleRoot) GetMerkleRootFromIntermediateHashes(
-	leaf []byte,
+	leaf []byte, leafIndex uint32,
 	intermediateHashes [][]byte,
 ) (root []byte, err error) {
 	digest := sha3.New256()
 	lastHash := leaf
 	for _, nh := range intermediateHashes {
 		digest.Reset()
-		_, err = digest.Write(lastHash)
-		if err != nil {
-			return nil, err
-		}
-		_, err = digest.Write(nh)
-		if err != nil {
-			return nil, err
+		if (leafIndex+1)%2 == 0 {
+			// right
+			_, err = digest.Write(nh)
+			if err != nil {
+				return nil, err
+			}
+			_, err = digest.Write(lastHash)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// left
+			_, err = digest.Write(lastHash)
+			if err != nil {
+				return nil, err
+			}
+			_, err = digest.Write(nh)
+			if err != nil {
+				return nil, err
+			}
 		}
 		lastHash = digest.Sum([]byte{})
+		leafIndex = uint32(math.Ceil(float64(leafIndex+1)/2)) - 1
 	}
 	return lastHash, nil
 }
@@ -93,7 +107,7 @@ func (mr *MerkleRoot) GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex in
 				} else {
 					necessaryHashes = append(necessaryHashes, mr.HashTree[j][leafIndex+1])
 				}
-				lastParentHashIndex = int(math.Ceil(float64(leafIndex) / 2))
+				lastParentHashIndex = int(math.Ceil(float64(leafIndex+1)/2)) - 1
 				continue
 			}
 		} else {
@@ -102,35 +116,19 @@ func (mr *MerkleRoot) GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex in
 			} else {
 				necessaryHashes = append(necessaryHashes, mr.HashTree[j][lastParentHashIndex+1])
 			}
-			lastParentHashIndex = int(math.Ceil(float64(lastParentHashIndex) / 2))
+			lastParentHashIndex = int(math.Ceil(float64(lastParentHashIndex+1)/2)) - 1
 		}
 
 	}
 	return necessaryHashes
 }
 
-// VerifyLeaf take a leaf hash and the merkle root to verify if the leaf hash, hashed with every hash
-// in the necessaryHashes will match the merkle root or not.
-func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes.Buffer) bool {
-	digest := sha3.New256()
-	lastHash := leaf.Bytes()
-	for _, nh := range necessaryHashes {
-		digest.Reset()
-		_, _ = digest.Write(lastHash)
-		_, _ = digest.Write(nh.Bytes())
-		lastHash = digest.Sum([]byte{})
-	}
-	return reflect.DeepEqual(lastHash, root.Bytes())
-}
-
 // IntermediateHashToByte flatten intermediate hashes bytes
 func (*MerkleRoot) FlattenIntermediateHashes(intermediateHashes [][]byte) []byte {
-	now := time.Now().Unix()
 	var result []byte
 	for _, ih := range intermediateHashes {
 		result = append(result, ih...)
 	}
-	fmt.Printf("time taken to flatten intermediate hashes: %v seconds\n\n", now-time.Now().Unix())
 	return result
 }
 
