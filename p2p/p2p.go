@@ -85,7 +85,9 @@ func (s *Peer2PeerService) StartP2P(
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,
 		))
-		_ = grpcServer.Serve(p2pUtil.ServerListener(int(s.Host.GetInfo().GetPort())))
+		if err := grpcServer.Serve(p2pUtil.ServerListener(int(s.Host.GetInfo().GetPort()))); err != nil {
+			s.Logger.Fatal(err.Error())
+		}
 	}()
 	go s.PeerExplorer.Start()
 }

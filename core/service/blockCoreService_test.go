@@ -1191,6 +1191,7 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 		BlockQuery    query.BlockQueryInterface
 		MempoolQuery  query.MempoolQueryInterface
 		Signature     crypto.SignatureInterface
+		Logger        *log.Logger
 	}
 	type args struct {
 		transactions []*model.Transaction
@@ -1207,6 +1208,7 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 				Chaintype:     &chaintype.MainChain{},
 				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
 				QueryExecutor: &mockQueryExecutorSuccess{},
+				Logger:        log.New(),
 			},
 			args: args{
 				transactions: []*model.Transaction{
@@ -1221,6 +1223,7 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 				Chaintype:     &chaintype.MainChain{},
 				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
 				QueryExecutor: &mockQueryExecutorFail{},
+				Logger:        log.New(),
 			},
 			args: args{
 				transactions: []*model.Transaction{
@@ -1238,6 +1241,7 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 				BlockQuery:    tt.fields.BlockQuery,
 				MempoolQuery:  tt.fields.MempoolQuery,
 				Signature:     tt.fields.Signature,
+				Logger:        tt.fields.Logger,
 			}
 			if err := bs.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.RemoveMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)

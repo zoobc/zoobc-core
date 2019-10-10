@@ -48,6 +48,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 			BlockService:      blockService,
 			PeerServiceClient: peerServiceClient,
 			PeerExplorer:      peerExplorer,
+			Logger:            logger,
 		},
 		ForkingProcessor: &ForkingProcessor{
 			ChainType:          blockService.GetChainType(),

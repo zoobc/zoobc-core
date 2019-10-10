@@ -305,9 +305,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		rollbackErr := bs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			log.Errorln(rollbackErr.Error())
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
@@ -679,7 +678,7 @@ func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transact
 	if err != nil {
 		return err
 	}
-	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
+	bs.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
 	return nil
 }
 
@@ -817,7 +816,7 @@ func (bs *BlockService) AddGenesis() error {
 	block.ID = coreUtil.GetBlockID(block)
 	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
 	if err != nil {
-		log.Fatal("PushGenesisBlock:fail ", err)
+		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
 	return nil
 }
@@ -829,7 +828,7 @@ func (bs *BlockService) CheckGenesis() bool {
 		return false
 	}
 	if genesisBlock.ID != bs.Chaintype.GetGenesisBlockID() {
-		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+		bs.Logger.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
 	return true
 }
@@ -877,8 +876,7 @@ func (bs *BlockService) checkBlockReceipts(block *model.Block) {
 			err := bs.KVExecutor.Insert(constant.TableBlockReminderKey+string(br.Receipt.RMR),
 				br.Receipt.RMR, constant.ExpiryBlockReminder)
 			if err != nil {
-				// todo: centralize the log
-				log.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err)
+				bs.Logger.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err.Error())
 			}
 		}
 	}
