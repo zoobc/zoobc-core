@@ -411,11 +411,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
 				}
-				// add to linked receipt count
+				// add to linked receipt count for calculation later
 			}
 			// store in database
-			// assign index and height
-			rc.BlockHeight, rc.ReceiptIndex = block.Height, uint32(index)
+			// assign index and height, index is the order of the receipt in the block,
+			// it's different with receiptIndex which is used to validate merkle root.
+			rc.BlockHeight, rc.Index = block.Height, uint32(index)
 			insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
 				rc,
 			)
@@ -426,6 +427,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
+	// todo: calculation of score based on receipt can be put here:
 	if block.Height > 0 {
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,

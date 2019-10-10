@@ -174,7 +174,8 @@ func (m *Migration) Init() error {
 				"recipient_signature" BLOB,
 				"intermediate_hashes" BLOB,
 				"block_height" INTEGER,
-				"receipt_index" INTEGER
+				"receipt_index" INTEGER,
+				"published_index" INTEGER
 			)
 			`,
 			`

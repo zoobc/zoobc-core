@@ -37,6 +37,7 @@ func NewPublishedReceiptQuery() *PublishedReceiptQuery {
 			"intermediate_hashes",
 			"block_height",
 			"receipt_index",
+			"published_index",
 		},
 		TableName: "published_receipt",
 	}
@@ -76,6 +77,7 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 		&receipt.IntermediateHashes,
 		&receipt.BlockHeight,
 		&receipt.ReceiptIndex,
+		&receipt.Index,
 	)
 	return err
 
@@ -94,5 +96,6 @@ func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedRece
 		&publishedReceipt.IntermediateHashes,
 		&publishedReceipt.BlockHeight,
 		&publishedReceipt.ReceiptIndex,
+		&publishedReceipt.Index,
 	}
 }
