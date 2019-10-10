@@ -52,6 +52,7 @@ func startGrpcServer(
 		crypto.NewSignature(),
 		query.NewTransactionQuery(&chaintype.MainChain{}),
 		observer.NewObserver(),
+		logger,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

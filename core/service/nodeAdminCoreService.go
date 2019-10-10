@@ -52,7 +52,10 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	accountAddress string) (*model.ProofOfOwnership, error) {
 
 	// get the node seed (private key)
-	nodeKeys, _ := nas.ParseKeysFile()
+	nodeKeys, err := nas.ParseKeysFile()
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.AppErr, "ErrorParseKeysFile: ,"+err.Error())
+	}
 	nodeKey := nas.GetLastNodeKey(nodeKeys)
 	if nodeKey == nil {
 		return nil, blocker.NewBlocker(blocker.AppErr, "MissingNodePrivateKey")
@@ -132,10 +135,13 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 
 	// append generated key to previous keys array
 	nodeKeys = append(nodeKeys, nodeKey)
-	file, _ := json.MarshalIndent(nodeKeys, "", " ")
+	file, err := json.MarshalIndent(nodeKeys, "", " ")
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.AppErr, "ErrorMarshalingNodeKeys: "+err.Error())
+	}
 	err = ioutil.WriteFile(nas.FilePath, file, 0644)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.AppErr, "ErrorWritingNodeKeysFile")
+		return nil, blocker.NewBlocker(blocker.AppErr, "ErrorWritingNodeKeysFile: "+err.Error())
 	}
 
 	return publicKey, nil

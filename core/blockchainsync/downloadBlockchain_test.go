@@ -288,7 +288,8 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		&[]model.Blocksmith{})
+		&[]model.Blocksmith{},
+		nil)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,
 		PeerServiceClient: &mockP2pServiceSuccess{},

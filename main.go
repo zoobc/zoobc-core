@@ -139,6 +139,7 @@ func init() {
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
+		loggerCoreService,
 	)
 
 	// initialize Observer
@@ -257,6 +258,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		crypto.NewSignature(),
 		query.NewTransactionQuery(mainchain),
 		observerInstance,
+		loggerCoreService,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
@@ -280,6 +282,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		&sortedBlocksmiths,
+		loggerCoreService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 	mainchainProcessor = smith.NewBlockchainProcessor(
@@ -328,6 +331,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		queryExecutor,
 		mempoolService,
 		actionSwitcher,
+		loggerCoreService,
 	)
 
 	// Schedulers Init

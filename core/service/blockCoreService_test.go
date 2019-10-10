@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	util2 "github.com/zoobc/zoobc-core/core/util"
 
 	"github.com/zoobc/zoobc-core/common/util"
@@ -392,6 +393,7 @@ func TestNewBlockService(t *testing.T) {
 		nodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		obsr                    *observer.Observer
 		sortedBlocksmiths       *[]model.Blocksmith
+		logger                  *log.Logger
 	}
 	tests := []struct {
 		name string
@@ -430,6 +432,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.nodeRegistrationQuery,
 				tt.args.obsr,
 				tt.args.sortedBlocksmiths,
+				tt.args.logger,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
