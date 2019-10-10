@@ -127,7 +127,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 			needDownloadBlock := true
 			peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
 			if err != nil {
-				bss.Logger.Warnf("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
+				bss.Logger.Infof("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
 				needDownloadBlock = false
 			}
 
