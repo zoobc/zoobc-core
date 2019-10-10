@@ -902,27 +902,6 @@ func (bs *BlockService) generateBlockReceipt(
 	return batchReceipt, nil
 }
 
-// checkBlockReceipts check the receipts included in a published block, and add the rmr that can be linked to the
-// memory for later use in publishing block
-// todo: write test after publish receipt is implemented to avoid changes
-//func (bs *BlockService) checkBlockReceipts(block *model.Block) {
-//	// check for receipt included in the block, note the one that can be linked later
-//	for _, br := range block.PublishedReceipts {
-//		// note possible link RMR
-//		merkleQ, merkleRoot := bs.MerkleTreeQuery.GetMerkleTreeByRoot(br.BatchReceipt.RMR)
-//		row := bs.QueryExecutor.ExecuteSelectRow(merkleQ, merkleRoot...)
-//		if row != nil {
-//			// take not on this merkle root
-//			err := bs.KVExecutor.Insert(constant.TableBlockReminderKey+string(br.Receipt.RMR),
-//				br.Receipt.RMR, constant.ExpiryBlockReminder)
-//			if err != nil {
-//				// todo: centralize the log
-//				log.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err)
-//			}
-//		}
-//	}
-//}
-
 // ReceiveBlock handle the block received from connected peers
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
@@ -1006,7 +985,6 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
-	// go bs.checkBlockReceipts(block)
 	// generate receipt and return as response
 	batchReceipt, err := bs.generateBlockReceipt(
 		blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
