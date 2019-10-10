@@ -58,6 +58,7 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - gocyclo
     - maligned
     - prealloc
     - gochecknoglobals
