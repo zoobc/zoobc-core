@@ -29,6 +29,7 @@ type (
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		// mockable variables
 		NodeAdmittanceCycle uint32
+		Logger              *log.Logger
 	}
 )
 
@@ -37,6 +38,7 @@ func NewNodeRegistrationService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
+	logger *log.Logger,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:           queryExecutor,
@@ -44,6 +46,7 @@ func NewNodeRegistrationService(
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		ParticipationScoreQuery: participationScoreQuery,
 		NodeAdmittanceCycle:     constant.NodeAdmittanceCycle,
+		Logger:                  logger,
 	}
 }
 
@@ -124,7 +127,9 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		)
 		err = nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = nrs.QueryExecutor.RollbackTx()
+			if rollbackErr := nrs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				nrs.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 	}
@@ -161,7 +166,9 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		queries := append(updateAccountBalanceQ, nodeQueries...)
 		err := nrs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = nrs.QueryExecutor.RollbackTx()
+			if rollbackErr := nrs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				nrs.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 	}

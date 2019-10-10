@@ -93,6 +93,7 @@ type (
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Observer                *observer.Observer
 		SortedBlocksmiths       *[]model.Blocksmith
+		Logger                  *log.Logger
 	}
 )
 
@@ -112,6 +113,7 @@ func NewBlockService(
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	obsr *observer.Observer,
 	sortedBlocksmiths *[]model.Blocksmith,
+	logger *log.Logger,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:               ct,
@@ -129,6 +131,7 @@ func NewBlockService(
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		Observer:                obsr,
 		SortedBlocksmiths:       sortedBlocksmiths,
+		Logger:                  logger,
 	}
 }
 
@@ -164,7 +167,10 @@ func (bs *BlockService) NewBlock(
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 	}
-	blockUnsignedByte, _ := util.GetBlockByte(block, false)
+	blockUnsignedByte, err := util.GetBlockByte(block, false)
+	if err != nil {
+		bs.Logger.Error(err.Error())
+	}
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
 	return block
 }
@@ -300,9 +306,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		rollbackErr := bs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			log.Errorln(rollbackErr.Error())
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
@@ -319,13 +324,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
 			if err != nil {
 				rows.Close()
-				_ = bs.QueryExecutor.RollbackTx()
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
 			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 			if err != nil {
 				rows.Close()
-				_ = bs.QueryExecutor.RollbackTx()
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
 			if rows.Next() {
@@ -333,7 +342,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 				err = txType.UndoApplyUnconfirmed()
 				if err != nil {
 					rows.Close()
-					_ = bs.QueryExecutor.RollbackTx()
+					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+						bs.Logger.Error(rollbackErr.Error())
+					}
 					return err
 				}
 			}
@@ -341,7 +352,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			if block.Height > 0 {
 				err = txType.Validate(true)
 				if err != nil {
-					_ = bs.QueryExecutor.RollbackTx()
+					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+						bs.Logger.Error(rollbackErr.Error())
+					}
 					return err
 				}
 			}
@@ -351,17 +364,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 				if err != nil {
-					_ = bs.QueryExecutor.RollbackTx()
+					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+						bs.Logger.Error(rollbackErr.Error())
+					}
 					return err
 				}
 			} else {
-				_ = bs.QueryExecutor.RollbackTx()
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
 		}
 		if block.Height != 0 {
 			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
-				_ = bs.QueryExecutor.RollbackTx()
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
 		}
@@ -373,7 +392,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		if len(*bs.SortedBlocksmiths) == 0 {
 			blocksmiths, err := bs.GetBlocksmiths(block)
 			if err != nil {
-				_ = bs.QueryExecutor.RollbackTx()
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
 			tmpBlocksmiths := make([]model.Blocksmith, 0)
@@ -390,7 +411,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
-			_ = bs.QueryExecutor.RollbackTx()
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 	}
@@ -484,7 +507,9 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id), false)
 	defer func() {
 		if rows != nil {
-			_ = rows.Close()
+			if err := rows.Close(); err != nil {
+				bs.Logger.Error(err.Error())
+			}
 		}
 	}()
 	if err != nil {
@@ -503,7 +528,9 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	defer func() {
 		if rows != nil {
-			_ = rows.Close()
+			if err := rows.Close(); err != nil {
+				bs.Logger.Error(err.Error())
+			}
 		}
 	}()
 	if err != nil {
@@ -518,7 +545,9 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock(), false)
 	defer func() {
 		if rows != nil {
-			_ = rows.Close()
+			if err := rows.Close(); err != nil {
+				bs.Logger.Error(err.Error())
+			}
 		}
 	}()
 	if err != nil {
@@ -555,7 +584,9 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height), false)
 	defer func() {
 		if rows != nil {
-			_ = rows.Close()
+			if err := rows.Close(); err != nil {
+				bs.Logger.Error(err.Error())
+			}
 		}
 	}()
 	if err != nil {
@@ -575,7 +606,9 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock(), false)
 	defer func() {
 		if rows != nil {
-			_ = rows.Close()
+			if err := rows.Close(); err != nil {
+				bs.Logger.Error(err.Error())
+			}
 		}
 	}()
 	if err != nil {
@@ -615,7 +648,9 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100), false)
 	defer func() {
 		if rows != nil {
-			_ = rows.Close()
+			if err := rows.Close(); err != nil {
+				bs.Logger.Error(err.Error())
+			}
 		}
 	}()
 	if err != nil {
@@ -644,7 +679,7 @@ func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transact
 	if err != nil {
 		return err
 	}
-	log.Printf("mempool transaction with IDs = %s deleted", idsStr)
+	bs.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
 	return nil
 }
 
@@ -680,7 +715,9 @@ func (bs *BlockService) GenerateBlock(
 			}
 
 			sortedTx = append(sortedTx, tx)
-			_, _ = digest.Write(mpTx.TransactionBytes)
+			if _, err := digest.Write(mpTx.TransactionBytes); err != nil {
+				return nil, err
+			}
 			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 			if err != nil {
 				return nil, err
@@ -696,7 +733,9 @@ func (bs *BlockService) GenerateBlock(
 	// loop through transaction to build block hash
 	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
-	_, _ = digest.Write(previousBlock.GetBlockSeed())
+	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
+		return nil, err
+	}
 
 	seedHash := digest.Sum([]byte{})
 	seedPayload := bytes.NewBuffer([]byte{})
@@ -738,7 +777,9 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 	)
 	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
-		_, _ = digest.Write(txBytes)
+		if _, err := digest.Write(txBytes); err != nil {
+			return err
+		}
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
 		}
@@ -785,7 +826,7 @@ func (bs *BlockService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
 	if err != nil {
-		log.Fatal("PushGenesisBlock:fail ", err)
+		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
 	return nil
 }
@@ -797,7 +838,7 @@ func (bs *BlockService) CheckGenesis() bool {
 		return false
 	}
 	if genesisBlock.ID != bs.Chaintype.GetGenesisBlockID() {
-		log.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+		bs.Logger.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
 	return true
 }
@@ -845,8 +886,7 @@ func (bs *BlockService) checkBlockReceipts(block *model.Block) {
 			err := bs.KVExecutor.Insert(constant.TableBlockReminderKey+string(br.Receipt.RMR),
 				br.Receipt.RMR, constant.ExpiryBlockReminder)
 			if err != nil {
-				// todo: centralize the log
-				log.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err)
+				bs.Logger.Errorf("ReceiveBlock: error inserting the block's reminder %v\n", err.Error())
 			}
 		}
 	}
@@ -866,7 +906,10 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	// check signature of the incoming block
-	blockUnsignedByte, _ := util.GetBlockByte(block, false)
+	blockUnsignedByte, err := util.GetBlockByte(block, false)
+	if err != nil {
+		return nil, err
+	}
 	if !bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
 		return nil, blocker.NewBlocker(
 			blocker.ValidationErr,
