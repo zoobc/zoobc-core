@@ -77,7 +77,7 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 		&receipt.IntermediateHashes,
 		&receipt.BlockHeight,
 		&receipt.ReceiptIndex,
-		&receipt.Index,
+		&receipt.PublishedIndex,
 	)
 	return err
 
@@ -96,6 +96,6 @@ func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedRece
 		&publishedReceipt.IntermediateHashes,
 		&publishedReceipt.BlockHeight,
 		&publishedReceipt.ReceiptIndex,
-		&publishedReceipt.Index,
+		&publishedReceipt.PublishedIndex,
 	}
 }
