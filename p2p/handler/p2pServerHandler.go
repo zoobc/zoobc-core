@@ -24,13 +24,13 @@ func NewP2PServerHandler(
 
 // GetPeerInfo to return info of this host
 func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
-	return ss.Service.GetPeerInfo(req)
+	return ss.Service.GetPeerInfo(ctx, req)
 }
 
 // GetMorePeers contains info other peers
 func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
 	var nodes []*model.Node
-	nodes, err := ss.Service.GetMorePeers(req)
+	nodes, err := ss.Service.GetMorePeers(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -48,14 +48,14 @@ func (ss *P2PServerHandler) SendPeers(ctx context.Context, req *model.SendPeersR
 			"sendPeers node cannot be nil",
 		)
 	}
-	return ss.Service.SendPeers(req.Peers)
+	return ss.Service.SendPeers(ctx, req.Peers)
 }
 
 // GetCumulativeDifficulty responds to the request of the cumulative difficulty status of a node
 func (ss *P2PServerHandler) GetCumulativeDifficulty(ctx context.Context,
 	req *model.GetCumulativeDifficultyRequest,
 ) (*model.GetCumulativeDifficultyResponse, error) {
-	return ss.Service.GetCumulativeDifficulty(chaintype.GetChainType(req.ChainType))
+	return ss.Service.GetCumulativeDifficulty(ctx, chaintype.GetChainType(req.ChainType))
 }
 
 func (ss *P2PServerHandler) GetCommonMilestoneBlockIDs(ctx context.Context,
@@ -70,13 +70,13 @@ func (ss *P2PServerHandler) GetCommonMilestoneBlockIDs(ctx context.Context,
 		)
 	}
 	return ss.Service.GetCommonMilestoneBlockIDs(
-		chainType, req.LastBlockID, req.LastMilestoneBlockID,
+		ctx, chainType, req.LastBlockID, req.LastMilestoneBlockID,
 	)
 }
 
 func (ss *P2PServerHandler) GetNextBlockIDs(ctx context.Context, req *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error) {
 	chainType := chaintype.GetChainType(req.ChainType)
-	blockIds, err := ss.Service.GetNextBlockIDs(chainType, req.Limit, req.BlockId)
+	blockIds, err := ss.Service.GetNextBlockIDs(ctx, chainType, req.Limit, req.BlockId)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +89,7 @@ func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNex
 	// TODO: getting data from cache
 	chainType := chaintype.GetChainType(req.ChainType)
 	return ss.Service.GetNextBlocks(
+		ctx,
 		chainType,
 		req.BlockId,
 		req.BlockIds,
@@ -99,7 +100,11 @@ func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNex
 func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.SendBlockResponse, error) {
 	// todo: validate request
 	return ss.Service.SendBlock(
-		chaintype.GetChainType(req.ChainType), req.Block, req.SenderPublicKey)
+		ctx,
+		chaintype.GetChainType(req.ChainType),
+		req.Block,
+		req.SenderPublicKey,
+	)
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
@@ -108,6 +113,7 @@ func (ss *P2PServerHandler) SendTransaction(
 	req *model.SendTransactionRequest,
 ) (*model.SendTransactionResponse, error) {
 	return ss.Service.SendTransaction(
+		ctx,
 		chaintype.GetChainType(req.ChainType),
 		req.TransactionBytes,
 		req.SenderPublicKey,

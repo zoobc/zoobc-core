@@ -287,6 +287,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
+	var err error
 	// needLock indicates the push block needs to be protected
 	if needLock {
 		bs.Wait()
@@ -298,11 +299,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		)
 	}
 	// start db transaction here
-	_ = bs.QueryExecutor.BeginTx()
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err := bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	err = bs.QueryExecutor.BeginTx()
 	if err != nil {
-		_ = bs.QueryExecutor.RollbackTx()
+		return err
+	}
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		rollbackErr := bs.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
 		return err
 	}
 	// apply transactions and remove them from mempool
@@ -452,6 +459,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+			_ = bs.QueryExecutor.RollbackTx()
 			return err
 		}
 	}
@@ -464,7 +472,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
-
 	return nil
 }
 

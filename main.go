@@ -9,10 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	"github.com/dgraph-io/badger"
-
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -21,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -147,35 +145,37 @@ func init() {
 		query.NewParticipationScoreQuery(),
 	)
 
-	// initialize Oberver
+	// initialize Observer
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()
 }
 
 func initP2pInstance() {
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	// init p2p instances
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
+	if err != nil {
+		logrus.Fatal("fail to start p2p service")
+	}
+	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
+
 	// initialize peer client service
+	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
 		query.NewReceiptQuery(),
 		nodePublicKey,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
+		p2pHost,
 	)
-
-	// init p2p instances
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
-	if err != nil {
-		logrus.Fatal("fail to start p2p service")
-	}
-
-	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// peer discovery strategy
 	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,
@@ -190,6 +190,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
+	observerInstance.AddListener(observer.BlockPushed, peerExplorer.PeerExplorerListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 }
 

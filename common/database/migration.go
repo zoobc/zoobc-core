@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -207,9 +208,15 @@ func (m *Migration) Apply() error {
 	for v, query := range migrations {
 		version := v
 		err = m.Query.BeginTx()
+		if err != nil {
+			return err
+		}
 		err = m.Query.ExecuteTransaction(query)
 		if err != nil {
-			_ = m.Query.RollbackTx()
+			rollbackErr := m.Query.RollbackTx()
+			if rollbackErr != nil {
+				log.Errorln(rollbackErr.Error())
+			}
 			return err
 		}
 		if m.CurrentVersion != nil {
