@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -113,6 +114,7 @@ func initialize(
 		crypto.NewSignature(),
 		query.NewTransactionQuery(chainType),
 		observerInstance,
+		log.New(),
 	)
 	blockService = service.NewBlockService(
 		chainType,
@@ -130,12 +132,14 @@ func initialize(
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		&sortedBlocksmiths,
+		log.New(),
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
+		log.New(),
 	)
 
 	migration = database.Migration{Query: queryExecutor}

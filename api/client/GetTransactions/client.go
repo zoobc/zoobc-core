@@ -30,7 +30,8 @@ func main() {
 	c := rpcService.NewTransactionServiceClient(conn)
 
 	response, err := c.GetTransactions(context.Background(), &rpcModel.GetTransactionsRequest{
-		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		TransactionType: 2,
+		AccountAddress:  "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 		Pagination: &rpcModel.Pagination{
 			Limit: 1,
 			Page:  0,
