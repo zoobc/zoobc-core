@@ -416,7 +416,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			// store in database
 			// assign index and height, index is the order of the receipt in the block,
 			// it's different with receiptIndex which is used to validate merkle root.
-			rc.BlockHeight, rc.Index = block.Height, uint32(index)
+			rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
 			insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
 				rc,
 			)
