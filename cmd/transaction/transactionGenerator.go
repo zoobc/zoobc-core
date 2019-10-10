@@ -22,7 +22,7 @@ var (
 	}
 )
 
-func generateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transaction {
+func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transaction {
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendMoney"])
 	tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
 		SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
@@ -34,11 +34,11 @@ func generateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transac
 	return tx
 }
 
-func generateTxRegisterNode(tx *model.Transaction,
+func GenerateTxRegisterNode(tx *model.Transaction,
 	nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress string,
 	lockedBalance int64) *model.Transaction {
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
-	poowMessage := generateMockPoowMessage(nodeOwnerAccountAddress)
+	poowMessage := GenerateMockPoowMessage(nodeOwnerAccountAddress)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -70,10 +70,10 @@ func generateTxRegisterNode(tx *model.Transaction,
 	return tx
 }
 
-func generateTxUpdateNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, nodeAddress string,
+func GenerateTxUpdateNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, nodeAddress string,
 	lockedBalance int64) *model.Transaction {
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
-	poowMessage := generateMockPoowMessage(nodeOwnerAccountAddress)
+	poowMessage := GenerateMockPoowMessage(nodeOwnerAccountAddress)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -103,7 +103,7 @@ func generateTxUpdateNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSe
 	return tx
 }
 
-func generateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
+func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
@@ -122,9 +122,9 @@ func generateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transac
 	return tx
 }
 
-func generateTxClaimNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress string) *model.Transaction {
+func GenerateTxClaimNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress string) *model.Transaction {
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
-	poowMessage := generateMockPoowMessage(nodeOwnerAccountAddress)
+	poowMessage := GenerateMockPoowMessage(nodeOwnerAccountAddress)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -150,7 +150,7 @@ func generateTxClaimNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSee
 	return tx
 }
 
-func generateTxSetupAccountDataset(tx *model.Transaction,
+func GenerateTxSetupAccountDataset(tx *model.Transaction,
 	senderAccountAddress, recipientAccountAddress, property, value string,
 	activeTime uint64) *model.Transaction {
 	txBody := &model.SetupAccountDatasetTransactionBody{
@@ -173,7 +173,7 @@ func generateTxSetupAccountDataset(tx *model.Transaction,
 	return tx
 }
 
-func generateTxRemoveAccountDataset(tx *model.Transaction,
+func GenerateTxRemoveAccountDataset(tx *model.Transaction,
 	senderAccountAddress, recipientAccountAddress, property, value string) *model.Transaction {
 	txBody := &model.RemoveAccountDatasetTransactionBody{
 		SetterAccountAddress:    senderAccountAddress,

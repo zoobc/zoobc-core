@@ -48,9 +48,10 @@ var (
 		Use:   "send-money",
 		Short: "send-money command used to generate \"send money\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxSendMoney(tx, sendAmount)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxSendMoney(tx, sendAmount)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 
@@ -58,9 +59,10 @@ var (
 		Use:   "register-node",
 		Short: "send-money command used to generate \"send money\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxRegisterNode(tx, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress, lockedBalance)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxRegisterNode(tx, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress, lockedBalance)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 
@@ -68,9 +70,10 @@ var (
 		Use:   "update-node",
 		Short: "update-node command used to generate \"update node\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxUpdateNode(tx, nodeOwnerAccountAddress, nodeSeed, nodeAddress, lockedBalance)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxUpdateNode(tx, nodeOwnerAccountAddress, nodeSeed, nodeAddress, lockedBalance)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 
@@ -78,9 +81,10 @@ var (
 		Use:   "remove-node",
 		Short: "remove-node command used to generate \"remove node\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxRemoveNode(tx, nodeSeed)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxRemoveNode(tx, nodeSeed)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 
@@ -88,9 +92,10 @@ var (
 		Use:   "claim-node",
 		Short: "claim-node command used to generate \"claim node\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxClaimNode(tx, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxClaimNode(tx, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 
@@ -99,9 +104,10 @@ var (
 		Short: "set-account-dataset command used to generate \"set account dataset\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
 			senderAccountAddress := util.GetAddressFromSeed(senderSeed)
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 
@@ -110,9 +116,10 @@ var (
 		Short: "remove-account-dataset command used to generate \"remove account dataset\" transaction",
 		Run: func(ccmd *cobra.Command, args []string) {
 			senderAccountAddress := util.GetAddressFromSeed(senderSeed)
-			tx := generateBasicTransaction(senderSeed)
-			tx = generateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
-			printTx(generateSignedTxBytes(tx, senderSeed), outputType)
+			tx := GenerateBasicTransaction(senderSeed)
+			tx = GenerateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
+			result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			fmt.Println(result)
 		},
 	}
 )
@@ -164,7 +171,7 @@ func Commands() *cobra.Command {
 	return txCmd
 }
 
-func generateBasicTransaction(senderSeed string) *model.Transaction {
+func GenerateBasicTransaction(senderSeed string) *model.Transaction {
 	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
 	return &model.Transaction{
 		Version:                 version,
@@ -175,20 +182,20 @@ func generateBasicTransaction(senderSeed string) *model.Transaction {
 	}
 }
 
-func printTx(signedTxBytes []byte, outputType string) {
+func PrintTx(signedTxBytes []byte, outputType string) string {
 	switch outputType {
 	case "hex":
-		fmt.Printf("%s\n", hex.EncodeToString(signedTxBytes))
+		return fmt.Sprintf("%s", hex.EncodeToString(signedTxBytes))
 	default:
 		var signedTxByteString string
 		for _, b := range signedTxBytes {
 			signedTxByteString += fmt.Sprintf("%v, ", b)
 		}
-		fmt.Printf("%v\n", signedTxByteString)
+		return fmt.Sprintf("%v", signedTxBytes)
 	}
 }
 
-func generateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
+func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
 	tx.Signature = signature.Sign(
 		unsignedTxBytes,
@@ -199,7 +206,7 @@ func generateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	return signedTxBytes
 }
 
-func generateMockPoowMessage(ownerAccountAddress string) *model.ProofOfOwnershipMessage {
+func GenerateMockPoowMessage(ownerAccountAddress string) *model.ProofOfOwnershipMessage {
 	return &model.ProofOfOwnershipMessage{
 		AccountAddress: ownerAccountAddress,
 		BlockHash:      mockPoowBlockHash,
