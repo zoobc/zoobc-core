@@ -372,67 +372,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			}
 		}
 	}
-	// todo: save receipts of block to network_receipt table
-	if len(block.GetPublishedReceipts()) > 0 {
-		for index, rc := range block.GetPublishedReceipts() {
-			// validate the receipts
-			unsignedBytes := util.GetUnsignedBatchReceiptBytes(rc.BatchReceipt)
-			if !bs.Signature.VerifyNodeSignature(
-				unsignedBytes,
-				rc.BatchReceipt.RecipientSignature,
-				rc.BatchReceipt.RecipientPublicKey,
-			) {
-				// rollback
-				_ = bs.QueryExecutor.RollbackTx()
-				return blocker.NewBlocker(
-					blocker.ValidationErr,
-					"InvalidReceiptSignature",
-				)
-			}
-			// check if linked
-			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
-				// linked, check the hashes, todo: skip now - continue later
-				var publishedReceipt = &model.PublishedReceipt{
-					BatchReceipt:       &model.BatchReceipt{},
-					IntermediateHashes: nil,
-					BlockHeight:        0,
-					ReceiptIndex:       0,
-				}
-				merkle := &commonUtils.MerkleRoot{}
-				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
-				rcHash := sha3.Sum256(rcByte)
-				root, err := merkle.GetMerkleRootFromIntermediateHashes(
-					rcHash[:],
-					rc.ReceiptIndex,
-					merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
-				)
-				if err != nil {
-					_ = bs.QueryExecutor.RollbackTx()
-					return err
-				}
-				// look up root in published_receipt table
-				rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
-				row := bs.QueryExecutor.ExecuteSelectRow(rcQ, rcArgs...)
-				err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
-				if err != nil {
-					_ = bs.QueryExecutor.RollbackTx()
-					return err
-				}
-				// add to linked receipt count for calculation later
-			}
-			// store in database
-			// assign index and height, index is the order of the receipt in the block,
-			// it's different with receiptIndex which is used to validate merkle root.
-			rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
-			insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
-				rc,
-			)
-			err = bs.QueryExecutor.ExecuteTransaction(insertPublishedReceiptQ, insertPublishedReceiptArgs...)
-			if err != nil {
-				_ = bs.QueryExecutor.RollbackTx()
-				return err
-			}
-		}
+	err = bs.processPublishedReceipts(block)
+	if err != nil {
+		_ = bs.QueryExecutor.RollbackTx()
+		return err
 	}
 	// todo: calculation of score based on receipt can be put here:
 	if block.Height > 0 {
@@ -472,6 +415,69 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	return nil
+}
+
+func (bs *BlockService) processPublishedReceipts(block *model.Block) error {
+	// todo: save receipts of block to network_receipt table
+	if len(block.GetPublishedReceipts()) > 0 {
+		for index, rc := range block.GetPublishedReceipts() {
+			// validate the receipts
+			unsignedBytes := util.GetUnsignedBatchReceiptBytes(rc.BatchReceipt)
+			if !bs.Signature.VerifyNodeSignature(
+				unsignedBytes,
+				rc.BatchReceipt.RecipientSignature,
+				rc.BatchReceipt.RecipientPublicKey,
+			) {
+				// rollback
+				return blocker.NewBlocker(
+					blocker.ValidationErr,
+					"InvalidReceiptSignature",
+				)
+			}
+			// check if linked
+			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
+				// linked, check the hashes, todo: skip now - continue later
+				var publishedReceipt = &model.PublishedReceipt{
+					BatchReceipt:       &model.BatchReceipt{},
+					IntermediateHashes: nil,
+					BlockHeight:        0,
+					ReceiptIndex:       0,
+				}
+				merkle := &commonUtils.MerkleRoot{}
+				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+				rcHash := sha3.Sum256(rcByte)
+				root, err := merkle.GetMerkleRootFromIntermediateHashes(
+					rcHash[:],
+					rc.ReceiptIndex,
+					merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
+				)
+				if err != nil {
+					return err
+				}
+				// look up root in published_receipt table
+				rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
+				row := bs.QueryExecutor.ExecuteSelectRow(rcQ, rcArgs...)
+				err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
+				if err != nil {
+					return err
+				}
+				// add to linked receipt count for calculation later
+			}
+			// store in database
+			// assign index and height, index is the order of the receipt in the block,
+			// it's different with receiptIndex which is used to validate merkle root.
+			rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
+			insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
+				rc,
+			)
+			err := bs.QueryExecutor.ExecuteTransaction(insertPublishedReceiptQ, insertPublishedReceiptArgs...)
+			if err != nil {
+				_ = bs.QueryExecutor.RollbackTx()
+				return err
+			}
+		}
+	}
 	return nil
 }
 

@@ -250,7 +250,7 @@ func (mps *MempoolService) generateTransactionReceipt(
 	senderPublicKey, receiptKey []byte,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
-	var rmrLinked []byte = nil
+	var rmrLinked []byte
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	lastRmrQ := mps.MerkleTreeQuery.GetLastMerkleRoot()
 	row := mps.QueryExecutor.ExecuteSelectRow(lastRmrQ)

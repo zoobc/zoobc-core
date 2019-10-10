@@ -43,7 +43,6 @@ func NewReceiptService(
 func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.PublishedReceipt, error) {
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
-		linkedReceiptTree = make(map[string][]byte)
 		// this variable is to store picked receipt recipient to avoid duplicates
 		pickedRecipients = make(map[string]bool)
 	)
@@ -55,7 +54,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 		return nil, err
 	}
 	defer rows.Close()
-	linkedReceiptTree, err = rs.MerkleTreeQuery.BuildTree(rows)
+	linkedReceiptTree, err := rs.MerkleTreeQuery.BuildTree(rows)
 	if err != nil {
 		return nil, err
 	}

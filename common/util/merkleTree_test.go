@@ -14,7 +14,7 @@ func TestAllMerkle(t *testing.T) {
 		var hashes []*bytes.Buffer
 		for i := 0; i < 8; i++ {
 			var random = make([]byte, 32)
-			rand.Read(random)
+			_, _ = rand.Read(random)
 			hashes = append(hashes, bytes.NewBuffer(random))
 		}
 		result, err := merkle.GenerateMerkleRoot(hashes)
@@ -28,11 +28,10 @@ func TestAllMerkle(t *testing.T) {
 		}
 		// restore tree state from flatten bytes in database
 		hashTreeFromDb := merkle.FromBytes(tree, root)
-		//merkle.HashTree = kakak
 		if !reflect.DeepEqual(merkle.HashTree, hashTreeFromDb) {
 			t.Error("hash tree from flatten and build is different")
 		}
-		// verify every leaf behaviour
+		// verify every leaf behavior
 		for index, leaf := range hashes {
 			var normalizedIntermediateHashes [][]byte
 			intermediateHashes := merkle.GetIntermediateHashes(leaf, int32(index))
