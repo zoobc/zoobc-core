@@ -121,7 +121,9 @@ func init() {
 	txCmd.PersistentFlags().StringVar(&outputType, "output", "bytes", "defines the type of the output to be generated [\"bytes\", \"hex\"]")
 	txCmd.PersistentFlags().Uint32Var(&version, "version", 1, "defines version of the transaction")
 	txCmd.PersistentFlags().Int64Var(&timestamp, "timestamp", time.Now().Unix(), "defines timestamp of the transaction")
-	txCmd.PersistentFlags().StringVar(&senderSeed, "sender-seed", "", "defines the sender seed that's used to sign transaction and whose public key will be used in the `Sender Account Address` field of the transaction")
+	txCmd.PersistentFlags().StringVar(&senderSeed, "sender-seed", "",
+		"defines the sender seed that's used to sign transaction and whose public key will be used in the"+
+			"`Sender Account Address` field of the transaction")
 	txCmd.PersistentFlags().StringVar(&recipientAccountAddress, "recipient", "", "defines the recipient intended for the transaction")
 	txCmd.PersistentFlags().Int64Var(&fee, "fee", 1, "defines the fee of the transaction")
 

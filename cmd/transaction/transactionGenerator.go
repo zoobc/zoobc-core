@@ -1,8 +1,6 @@
 package transaction
 
 import (
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/zoobc/zoobc-core/common/transaction"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -22,8 +20,6 @@ var (
 		"setupAccountDataset":    {3, 0, 0, 0},
 		"removeAccountDataset":   {3, 1, 0, 0},
 	}
-	// Core node test account in genesis block
-	senderAccountSeed = constant.MainchainGenesisFundReceivers[0].AccountSeed
 )
 
 func generateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transaction {
@@ -38,7 +34,9 @@ func generateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transac
 	return tx
 }
 
-func generateTxRegisterNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress string, lockedBalance int64) *model.Transaction {
+func generateTxRegisterNode(tx *model.Transaction,
+	nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress string,
+	lockedBalance int64) *model.Transaction {
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
 	poowMessage := generateMockPoowMessage(nodeOwnerAccountAddress)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
@@ -72,7 +70,8 @@ func generateTxRegisterNode(tx *model.Transaction, nodeOwnerAccountAddress, node
 	return tx
 }
 
-func generateTxUpdateNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, nodeAddress string, lockedBalance int64) *model.Transaction {
+func generateTxUpdateNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSeed, nodeAddress string,
+	lockedBalance int64) *model.Transaction {
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
 	poowMessage := generateMockPoowMessage(nodeOwnerAccountAddress)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
@@ -151,7 +150,9 @@ func generateTxClaimNode(tx *model.Transaction, nodeOwnerAccountAddress, nodeSee
 	return tx
 }
 
-func generateTxSetupAccountDataset(tx *model.Transaction, senderAccountAddress, recipientAccountAddress, property, value string, activeTime uint64) *model.Transaction {
+func generateTxSetupAccountDataset(tx *model.Transaction,
+	senderAccountAddress, recipientAccountAddress, property, value string,
+	activeTime uint64) *model.Transaction {
 	txBody := &model.SetupAccountDatasetTransactionBody{
 		SetterAccountAddress:    senderAccountAddress,
 		RecipientAccountAddress: recipientAccountAddress,
@@ -172,7 +173,8 @@ func generateTxSetupAccountDataset(tx *model.Transaction, senderAccountAddress, 
 	return tx
 }
 
-func generateTxRemoveAccountDataset(tx *model.Transaction, senderAccountAddress, recipientAccountAddress, property, value string) *model.Transaction {
+func generateTxRemoveAccountDataset(tx *model.Transaction,
+	senderAccountAddress, recipientAccountAddress, property, value string) *model.Transaction {
 	txBody := &model.RemoveAccountDatasetTransactionBody{
 		SetterAccountAddress:    senderAccountAddress,
 		RecipientAccountAddress: recipientAccountAddress,

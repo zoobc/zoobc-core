@@ -141,7 +141,7 @@ func initialize(
 	migration = database.Migration{Query: queryExecutor}
 }
 
-func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase string, outputPath string) {
+func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath string) {
 	fmt.Println("initializing dependency and database...")
 	initialize(blocksmithSecretPhrase, outputPath)
 	fmt.Println("done initializing database")
