@@ -1,20 +1,20 @@
 package transaction
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/transaction"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -32,20 +32,22 @@ var (
 	senderAccountSeed = constant.MainchainGenesisFundReceivers[0].AccountSeed
 )
 
-func GenerateTransactionBytes(logger *logrus.Logger,
-	signature crypto.SignatureInterface) *cobra.Command {
+func GenerateTransactionBytes(
+	logger *logrus.Logger,
+	signature crypto.SignatureInterface,
+	sqliteDB *sql.DB,
+) *cobra.Command {
 	var (
 		txType string
 	)
 	var txCmd = &cobra.Command{
 		Use:   "tx",
 		Short: "tx command used to generate transaction.",
-		Long: `tx command generate signed transaction bytes in form of hex or []bytes
-		`,
-		Args: cobra.MinimumNArgs(1),
+		Long:  `tx command generate signed transaction bytes in form of hex or []bytes`,
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			if args[0] == "generate" {
-				tx := getTransaction(txTypeMap[txType])
+				tx := getTransaction(txTypeMap[txType], sqliteDB)
 				unsignedTxBytes, _ := util.GetTransactionBytes(tx, false)
 				tx.Signature = signature.Sign(
 					unsignedTxBytes,
@@ -68,8 +70,9 @@ func GenerateTransactionBytes(logger *logrus.Logger,
 	return txCmd
 }
 
-func getTransaction(txType []byte) *model.Transaction {
-	nodeSeed := "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+func getTransaction(txType []byte, sqliteDB *sql.DB) *model.Transaction {
+	nodeSeed := "effort dowry orator calm epilogue myotome ample palliate spouse licensee localism cameleer pitchman twill donjon " +
+		"bimbo endeavor extinct aclinic papery nostrum centaury maple eventful nubbin drought spasm uncork tensiblee"
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
 	senderAccountAddress := util.GetAddressFromSeed(senderAccountSeed)
 	log.Printf("%s", senderAccountAddress)
@@ -96,11 +99,19 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(amount)),
 		}
 	case util.ConvertBytesToUint32(txTypeMap["registerNode"]):
+		lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
+		if err != nil {
+			panic(err)
+		}
+
+		nodeBlockHash, err := util.GetBlockHash(lastBlock)
+		if err != nil {
+			panic(err)
+		}
 		poowMessage := &model.ProofOfOwnershipMessage{
 			AccountAddress: recipientAccountAddress,
-			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
-				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
-			BlockHeight: 1,
+			BlockHash:      nodeBlockHash,
+			BlockHeight:    lastBlock.GetHeight(),
 		}
 		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 		signature := (&crypto.Signature{}).SignByNode(
@@ -110,7 +121,8 @@ func getTransaction(txType []byte) *model.Transaction {
 			AccountAddress: recipientAccountAddress,
 			NodePublicKey:  nodePubKey,
 			NodeAddress: &model.NodeAddress{
-				Address: "127.0.0.1",
+				Address: "23.23.23.23",
+				Port:    8080,
 			},
 			LockedBalance: 10 * constant.OneZBC,
 			Poown: &model.ProofOfOwnership{
@@ -119,7 +131,8 @@ func getTransaction(txType []byte) *model.Transaction {
 			},
 		}
 		txBodyBytes := (&transaction.NodeRegistration{
-			Body: txBody,
+			Body:                  txBody,
+			NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 		}).GetBodyBytes()
 		return &model.Transaction{
 			Version:                 1,
@@ -135,11 +148,19 @@ func getTransaction(txType []byte) *model.Transaction {
 			TransactionBodyBytes: txBodyBytes,
 		}
 	case util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"]):
+		lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
+		if err != nil {
+			panic(err)
+		}
+
+		nodeBlockHash, err := util.GetBlockHash(lastBlock)
+		if err != nil {
+			panic(err)
+		}
 		poowMessage := &model.ProofOfOwnershipMessage{
 			AccountAddress: recipientAccountAddress,
-			BlockHash: []byte{209, 64, 140, 231, 150, 96, 104, 137, 202, 190, 83, 202, 22, 67, 222,
-				38, 48, 40, 213, 202, 144, 30, 73, 184, 186, 188, 240, 209, 252, 222, 132, 36},
-			BlockHeight: 1,
+			BlockHash:      nodeBlockHash,
+			BlockHeight:    lastBlock.GetHeight(),
 		}
 		poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 		signature := (&crypto.Signature{}).SignByNode(
@@ -157,7 +178,8 @@ func getTransaction(txType []byte) *model.Transaction {
 			},
 		}
 		txBodyBytes := (&transaction.UpdateNodeRegistration{
-			Body: txBody,
+			Body:                  txBody,
+			NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 		}).GetBodyBytes()
 		return &model.Transaction{
 			Version:                 1,
@@ -192,7 +214,8 @@ func getTransaction(txType []byte) *model.Transaction {
 			},
 		}
 		txBodyBytes := (&transaction.ClaimNodeRegistration{
-			Body: txBody,
+			Body:                  txBody,
+			NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 		}).GetBodyBytes()
 		return &model.Transaction{
 			Version:                 1,
@@ -212,7 +235,8 @@ func getTransaction(txType []byte) *model.Transaction {
 			NodePublicKey: nodePubKey,
 		}
 		txBodyBytes := (&transaction.RemoveNodeRegistration{
-			Body: txBody,
+			Body:                  txBody,
+			NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 		}).GetBodyBytes()
 		return &model.Transaction{
 			Version:                 1,
