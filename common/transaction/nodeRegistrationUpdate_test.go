@@ -249,14 +249,25 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	txBodyWithInvalidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
+		NodeAddress: &model.NodeAddress{
+			Address: "127.0.1",
+		},
 	}
 	txBodyWithValidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey2,
+		NodeAddress: &model.NodeAddress{
+			Address: "127.0.0.1",
+			Port:    8080,
+		},
 	}
 	txBodyWithInvalidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		LockedBalance: int64(100),
+		NodeAddress: &model.NodeAddress{
+			Address: "127.0.0.1",
+			Port:    8080,
+		},
 	}
 	txBodyWithLockedBalanceTooHigh := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -265,6 +276,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	txBodyWithValidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		LockedBalance: int64(1000000000),
+		NodeAddress: &model.NodeAddress{
+			Address: "127.0.0.1",
+			Port:    8080,
+		},
 	}
 	txBodyWithInvalidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
 		Poown: poown,
