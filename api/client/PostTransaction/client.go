@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -14,8 +16,16 @@ import (
 )
 
 func main() {
-	var apiRPCPort int
-	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
+
+	var (
+		apiRPCPort int
+		configPath = "./resource"
+	)
+	dir, _ := os.Getwd()
+	if strings.Contains(dir, "api") {
+		configPath = "../../../resource"
+	}
+	if err := util.LoadConfig(configPath, "config", "toml"); err != nil {
 		logrus.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
