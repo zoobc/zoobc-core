@@ -288,6 +288,8 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
 		&[]model.Blocksmith{})
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,

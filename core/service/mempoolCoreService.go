@@ -255,7 +255,7 @@ func (mps *MempoolService) generateTransactionReceipt(
 	lastRmrQ := mps.MerkleTreeQuery.GetLastMerkleRoot()
 	row := mps.QueryExecutor.ExecuteSelectRow(lastRmrQ)
 	rmrLinked, err := mps.MerkleTreeQuery.ScanRoot(row)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 	// generate receipt

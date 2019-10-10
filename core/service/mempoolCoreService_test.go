@@ -158,6 +158,7 @@ func TestNewMempoolService(t *testing.T) {
 		kvExecutor          kvdb.KVExecutorInterface
 		queryExecutor       query.ExecutorInterface
 		mempoolQuery        query.MempoolQueryInterface
+		merkleTreeQuery     query.MerkleTreeQueryInterface
 		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		transactionQuery    query.TransactionQueryInterface
@@ -186,6 +187,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.kvExecutor,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
+		test.args.merkleTreeQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
 		test.args.signature,
@@ -798,6 +800,7 @@ func TestMempoolService_generateTransactionReceipt(t *testing.T) {
 		mockSenderPublicKey,
 		mockNodePublicKey,
 		mockReceivedTxHash,
+		nil,
 		constant.ReceiptDatumTypeTransaction,
 	)
 	mockSuccessBatchReceipt.RecipientSignature = (&crypto.Signature{}).SignByNode(
@@ -809,6 +812,7 @@ func TestMempoolService_generateTransactionReceipt(t *testing.T) {
 		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		Signature           crypto.SignatureInterface
@@ -834,8 +838,9 @@ func TestMempoolService_generateTransactionReceipt(t *testing.T) {
 			fields: fields{
 				Chaintype:           nil,
 				KVExecutor:          &mockKVExecutorSuccess{},
-				QueryExecutor:       nil,
+				QueryExecutor:       &mockQueryExecutorSuccess{},
 				MempoolQuery:        nil,
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Signature:           &crypto.Signature{},
@@ -857,8 +862,9 @@ func TestMempoolService_generateTransactionReceipt(t *testing.T) {
 			fields: fields{
 				Chaintype:           nil,
 				KVExecutor:          &mockKVExecutorFailOtherError{},
-				QueryExecutor:       nil,
+				QueryExecutor:       &mockQueryExecutorSuccess{},
 				MempoolQuery:        nil,
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				ActionTypeSwitcher:  nil,
 				AccountBalanceQuery: nil,
 				Signature:           &crypto.Signature{},
@@ -883,6 +889,7 @@ func TestMempoolService_generateTransactionReceipt(t *testing.T) {
 				KVExecutor:          tt.fields.KVExecutor,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				Signature:           tt.fields.Signature,

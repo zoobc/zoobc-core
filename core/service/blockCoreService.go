@@ -878,7 +878,7 @@ func (bs *BlockService) generateBlockReceipt(
 	senderPublicKey, receiptKey []byte,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
-	var rmrLinked []byte = nil
+	var rmrLinked []byte
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	lastRmrQ := bs.MerkleTreeQuery.GetLastMerkleRoot()
 	row := bs.QueryExecutor.ExecuteSelectRow(lastRmrQ)
