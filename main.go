@@ -77,7 +77,7 @@ func init() {
 	}
 
 	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	dbPath = viper.GetString("dbPath")
@@ -297,11 +297,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
-			log.Fatal("Fail to add genesis account")
+			loggerCoreService.Fatal("Fail to add genesis account")
 		}
 
 		if err := mainchainBlockService.AddGenesis(); err != nil {
-			log.Fatal(err)
+			loggerCoreService.Fatal(err)
 		}
 	}
 
@@ -309,16 +309,16 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
 	lastBlock, err := mainchainBlockService.GetLastBlock()
 	if err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 	if time.Now().Unix() < lastBlock.GetTimestamp() {
-		log.Fatal("Your computer clock is behind from the correct time")
+		loggerCoreService.Fatal("Your computer clock is behind from the correct time")
 	}
 
 	// no nodes registered with current node public key
 	_, err = nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	if err != nil {
-		log.Errorf("Current node is not in node registry and won't be able to smith until registered!")
+		loggerCoreService.Error("Current node is not in node registry and won't be able to smith until registered!")
 	}
 
 	if len(nodeSecretPhrase) > 0 && smithing {
@@ -339,7 +339,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
 		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
 		if err != nil {
-			log.Error(err)
+			loggerCoreService.Error(err)
 		}
 	}()
 	go func() {
@@ -350,11 +350,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 func main() {
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 
 	if err := migration.Apply(); err != nil {
-		log.Fatal(err)
+		loggerCoreService.Fatal(err)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)
@@ -365,6 +365,6 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
-	log.Info("ZOOBC Shutdown")
+	loggerCoreService.Info("ZOOBC Shutdown")
 	os.Exit(0)
 }
