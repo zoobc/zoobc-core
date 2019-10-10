@@ -394,7 +394,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 				merkle := &commonUtils.MerkleRoot{}
 				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 				rcHash := sha3.Sum256(rcByte)
-				root, err := merkle.GetMerkleRootFromIntermediateHashes(rcHash[:], merkle.RestoreIntermediateHashes(rc.IntermediateHashes))
+				root, err := merkle.GetMerkleRootFromIntermediateHashes(
+					rcHash[:],
+					rc.ReceiptIndex,
+					merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
+				)
 				if err != nil {
 					_ = bs.QueryExecutor.RollbackTx()
 					return err
