@@ -102,6 +102,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 				&model.PublishedReceipt{
 					BatchReceipt:       rc.BatchReceipt,
 					IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
+					ReceiptIndex:       rc.RMRIndex,
 				},
 			)
 		}
@@ -121,6 +122,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 				results = append(results, &model.PublishedReceipt{
 					BatchReceipt:       rc.BatchReceipt,
 					IntermediateHashes: nil,
+					ReceiptIndex:       rc.RMRIndex,
 				})
 				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
 			}
@@ -141,6 +143,7 @@ func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt i
 				results = append(results, &model.PublishedReceipt{
 					BatchReceipt:       rc.BatchReceipt,
 					IntermediateHashes: nil,
+					ReceiptIndex:       rc.RMRIndex,
 				})
 			}
 		}
