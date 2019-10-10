@@ -3,7 +3,7 @@ package transaction
 import (
 	"bytes"
 	"net"
-	"net/url"
+	"strconv"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -251,14 +251,16 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 	}
 
-	fullNodeAddress := tx.NodeRegistrationQuery.ExtractNodeAddress(tx.Body.GetNodeAddress())
-	if fullNodeAddress != "" {
-		_, err := url.ParseRequestURI(fullNodeAddress)
-		if err != nil {
-			if net.ParseIP(fullNodeAddress) == nil {
-				return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
-			}
-		}
+	nodeAddress := tx.Body.GetNodeAddress()
+	if nodeAddress == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressEmpty")
+	}
+	if ip := net.ParseIP(nodeAddress.GetAddress()); ip == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidNodeAddress")
+	}
+	port := int(nodeAddress.GetPort())
+	if _, err := strconv.ParseUint(string(port), 10, 16); err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidNodeAddress")
 	}
 
 	return nil
