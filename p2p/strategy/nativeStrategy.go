@@ -28,17 +28,20 @@ type NativeStrategy struct {
 	BlacklistedPeersLock sync.RWMutex
 	MaxUnresolvedPeers   int32
 	MaxResolvedPeers     int32
+	Logger               *log.Logger
 }
 
 func NewNativeStrategy(
 	host *model.Host,
 	peerServiceClient client.PeerServiceClientInterface,
+	logger *log.Logger,
 ) *NativeStrategy {
 	return &NativeStrategy{
 		Host:               host,
 		PeerServiceClient:  peerServiceClient,
 		MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
 		MaxResolvedPeers:   constant.MaxResolvedPeers,
+		Logger:             logger,
 	}
 }
 
@@ -111,8 +114,12 @@ func (ns *NativeStrategy) resolvePeer(destPeer *model.Peer) {
 	if destPeer != nil {
 		destPeer.LastUpdated = time.Now().UTC().Unix()
 	}
-	_ = ns.RemoveUnresolvedPeer(destPeer)
-	_ = ns.AddToResolvedPeer(destPeer)
+	if err := ns.RemoveUnresolvedPeer(destPeer); err != nil {
+		ns.Logger.Error(err.Error())
+	}
+	if err := ns.AddToResolvedPeer(destPeer); err != nil {
+		ns.Logger.Error(err.Error())
+	}
 }
 
 // GetMorePeersHandler request peers to random peer in list and if get new peers will add to unresolved peer
@@ -121,12 +128,12 @@ func (ns *NativeStrategy) GetMorePeersHandler() (*model.Peer, error) {
 	if peer != nil {
 		newPeers, err := ns.PeerServiceClient.GetMorePeers(peer)
 		if err != nil {
-			log.Warnf("getMorePeers Error accord %v\n", err)
+			ns.Logger.Infof("getMorePeers Error accord %v\n", err)
 			return nil, err
 		}
 		err = ns.AddToUnresolvedPeers(newPeers.GetPeers(), true)
 		if err != nil {
-			log.Warnf("getMorePeers error: %v\n", err)
+			ns.Logger.Infof("getMorePeers error: %v\n", err)
 			return nil, err
 		}
 		return peer, nil
@@ -143,6 +150,7 @@ func (ns *NativeStrategy) GetMorePeersThread() {
 	syncPeers := func() {
 		peer, err := ns.GetMorePeersHandler()
 		if err != nil {
+			ns.Logger.Warn(err.Error())
 			return
 		}
 		var myPeers []*model.Node
@@ -340,9 +348,13 @@ func (ns *NativeStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce b
 			for i := int32(0); i < exceedMaxUnresolvedPeers; i++ {
 				// removing a peer at random if the UnresolvedPeers has reached max
 				peer := ns.GetAnyUnresolvedPeer()
-				_ = ns.RemoveUnresolvedPeer(peer)
+				if err := ns.RemoveUnresolvedPeer(peer); err != nil {
+					ns.Logger.Error(err.Error())
+				}
 			}
-			_ = ns.AddToUnresolvedPeer(peer)
+			if err := ns.AddToUnresolvedPeer(peer); err != nil {
+				ns.Logger.Error(err.Error())
+			}
 			addedPeers++
 		}
 
@@ -438,17 +450,27 @@ func (ns *NativeStrategy) GetExceedMaxResolvedPeers() int32 {
 func (ns *NativeStrategy) PeerBlacklist(peer *model.Peer, cause string) {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
 	peer.BlacklistingCause = cause
-	_ = ns.AddToBlacklistedPeer(peer)
-	_ = ns.RemoveUnresolvedPeer(peer)
-	_ = ns.RemoveResolvedPeer(peer)
+	if err := ns.AddToBlacklistedPeer(peer); err != nil {
+		ns.Logger.Error(err.Error())
+	}
+	if err := ns.RemoveUnresolvedPeer(peer); err != nil {
+		ns.Logger.Error(err.Error())
+	}
+	if err := ns.RemoveResolvedPeer(peer); err != nil {
+		ns.Logger.Error(err.Error())
+	}
 }
 
 // PeerUnblacklist to update Peer state of peer
 func (ns *NativeStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	peer.BlacklistingCause = ""
 	peer.BlacklistingTime = 0
-	_ = ns.RemoveBlacklistedPeer(peer)
-	_ = ns.AddToUnresolvedPeers([]*model.Node{peer.Info}, false)
+	if err := ns.RemoveBlacklistedPeer(peer); err != nil {
+		ns.Logger.Error(err.Error())
+	}
+	if err := ns.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
+		ns.Logger.Error(err.Error())
+	}
 	return peer
 }
 
@@ -457,7 +479,9 @@ func (ns *NativeStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 	_ = ns.RemoveResolvedPeer(peer)
 	if ns.GetExceedMaxUnresolvedPeers() <= 0 {
-		_ = ns.AddToUnresolvedPeer(peer)
+		if err := ns.AddToUnresolvedPeer(peer); err != nil {
+			ns.Logger.Error(err.Error())
+		}
 	}
 }
 

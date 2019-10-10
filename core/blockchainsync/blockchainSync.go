@@ -27,6 +27,7 @@ type Service struct {
 	BlockService         service.BlockServiceInterface
 	BlockchainDownloader BlockchainDownloadInterface
 	ForkingProcessor     ForkingProcessorInterface
+	Logger               *log.Logger
 }
 
 func NewBlockchainSyncService(blockService service.BlockServiceInterface,
@@ -34,7 +35,9 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	queryExecutor query.ExecutorInterface,
 	mempoolService service.MempoolServiceInterface,
-	txActionSwitcher transaction.TypeActionSwitcher) *Service {
+	txActionSwitcher transaction.TypeActionSwitcher,
+	logger *log.Logger,
+) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
 		BlockService:      blockService,
@@ -45,6 +48,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 			BlockService:      blockService,
 			PeerServiceClient: peerServiceClient,
 			PeerExplorer:      peerExplorer,
+			Logger:            logger,
 		},
 		ForkingProcessor: &ForkingProcessor{
 			ChainType:          blockService.GetChainType(),
@@ -58,15 +62,16 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 				QueryExecutor: queryExecutor,
 			},
 		},
+		Logger: logger,
 	}
 }
 
 func (bss *Service) Start(runNext chan bool) {
 	if bss.ChainType == nil {
-		log.Fatal("no chaintype")
+		bss.Logger.Fatal("no chaintype")
 	}
 	if bss.PeerServiceClient == nil || bss.PeerExplorer == nil {
-		log.Fatal("no p2p service defined")
+		bss.Logger.Fatal("no p2p service defined")
 	}
 	bss.GetMoreBlocksThread(runNext)
 }
@@ -74,7 +79,7 @@ func (bss *Service) Start(runNext chan bool) {
 func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
 
 	defer func() {
-		log.Info("getMoreBlocksThread stopped")
+		bss.Logger.Info("getMoreBlocksThread stopped")
 	}()
 
 	sigs := make(chan os.Signal, 1)
@@ -97,10 +102,10 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 
 	lastBlock, err := bss.BlockService.GetLastBlock()
 	if err != nil {
-		log.Warn(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
+		bss.Logger.Warn(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
 	}
 	if lastBlock == nil {
-		log.Warn("There is no genesis block found")
+		bss.Logger.Warn("There is no genesis block found")
 	}
 	initialHeight := lastBlock.Height
 
@@ -123,7 +128,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 			needDownloadBlock := true
 			peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
 			if err != nil {
-				log.Warnf("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
+				bss.Logger.Infof("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
 				needDownloadBlock = false
 			}
 
@@ -132,7 +137,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 				peerForkInfo, err = bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
 					peerBlockchainInfo.CommonBlock)
 				if err != nil {
-					log.Warnf("\nfailed to DownloadFromPeer: %v\n\n", err)
+					bss.Logger.Warnf("\nfailed to DownloadFromPeer: %v\n\n", err)
 					break
 				}
 
@@ -140,7 +145,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 
 					err := bss.ForkingProcessor.ProcessFork(peerForkInfo.ForkBlocks, peerBlockchainInfo.CommonBlock, peerForkInfo.FeederPeer)
 					if err != nil {
-						log.Warnf("\nfailed to ProcessFork: %v\n\n", err)
+						bss.Logger.Warnf("\nfailed to ProcessFork: %v\n\n", err)
 						break
 					}
 				}
@@ -156,11 +161,11 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 					otherPeerChainBlockIds, err = bss.BlockchainDownloader.ConfirmWithPeer(peerToCheck, peerBlockchainInfo.CommonMilestoneBlockID)
 					switch {
 					case err != nil:
-						log.Warn(err)
+						bss.Logger.Warn(err)
 					case len(otherPeerChainBlockIds) == 0:
 						_, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerToCheck, otherPeerChainBlockIds, peerBlockchainInfo.CommonBlock)
 						if errDownload != nil {
-							log.Warn(errDownload)
+							bss.Logger.Warn(errDownload)
 						}
 					default:
 						confirmations++
@@ -169,19 +174,19 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 
 				newLastBlock, err = bss.BlockService.GetLastBlock()
 				if err != nil {
-					log.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)
+					bss.Logger.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)
 					break
 				}
 
 				if lastBlock.ID == newLastBlock.ID {
-					log.Println("Did not accept peers's blocks, back to our own fork")
+					bss.Logger.Info("Did not accept peers's blocks, back to our own fork")
 					break
 				}
 			}
 
 			if bss.BlockchainDownloader.IsDownloadFinish(lastBlock) {
 				bss.BlockchainDownloader.SetIsDownloading(false)
-				log.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), lastBlock.Height-initialHeight)
+				bss.Logger.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), lastBlock.Height-initialHeight)
 				break
 			}
 
