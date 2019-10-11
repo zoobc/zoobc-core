@@ -3,6 +3,7 @@ package transaction
 import (
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -185,13 +186,13 @@ func GenerateBasicTransaction(senderSeed string) *model.Transaction {
 func PrintTx(signedTxBytes []byte, outputType string) string {
 	switch outputType {
 	case "hex":
-		return fmt.Sprintf("%s", hex.EncodeToString(signedTxBytes))
+		return hex.EncodeToString(signedTxBytes)
 	default:
-		var signedTxByteString string
-		for _, b := range signedTxBytes {
-			signedTxByteString += fmt.Sprintf("%v, ", b)
+		var byteStrArr []string
+		for _, bt := range signedTxBytes {
+			byteStrArr = append(byteStrArr, fmt.Sprintf("%v", bt))
 		}
-		return fmt.Sprintf("%v", signedTxBytes)
+		return strings.Join(byteStrArr, ", ")
 	}
 }
 
