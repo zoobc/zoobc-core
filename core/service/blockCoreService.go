@@ -55,6 +55,7 @@ type (
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
+		GenerateGenesisBlock(genesisEntries []constant.MainchainGenesisConfigEntry) (*model.Block, error)
 		AddGenesis() error
 		CheckGenesis() bool
 		GetChainType() chaintype.ChainType
@@ -766,25 +767,25 @@ func (bs *BlockService) GenerateBlock(
 	return block, nil
 }
 
-// AddGenesis add genesis block of chain to the chain
-func (bs *BlockService) AddGenesis() error {
+// GenerateGenesisBlock generate and return genesis block from a given template (see constant/genesis.go)
+func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.MainchainGenesisConfigEntry) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinBase int64
 		blockTransactions                    []*model.Transaction
 		payloadLength                        uint32
 		digest                               = sha3.New256()
 	)
-	for index, tx := range GetGenesisTransactions(bs.Chaintype) {
+	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
 		if _, err := digest.Write(txBytes); err != nil {
-			return err
+			return nil, err
 		}
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
 		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
@@ -814,7 +815,16 @@ func (bs *BlockService) AddGenesis() error {
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
-	err := bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
+	return block, nil
+}
+
+// AddGenesis generate and add (push) genesis block to db
+func (bs *BlockService) AddGenesis() error {
+	block, err := bs.GenerateGenesisBlock(constant.MainChainGenesisConfig)
+	if err != nil {
+		return err
+	}
+	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
 	if err != nil {
 		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
