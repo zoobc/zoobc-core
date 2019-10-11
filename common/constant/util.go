@@ -1,17 +1,46 @@
 package constant
 
 import (
-	"flag"
+	"fmt"
 
 	"github.com/spf13/viper"
 )
 
-var (
-	debugMode bool
+var DebugFlag bool
+
+type (
+	DebugFlagInterface interface {
+		SetDebugFlag(flag bool)
+	}
 )
 
+func SetDebugFlag(flag bool) {
+	fmt.Printf("executed setter\n")
+	if flag {
+		DebugFlag = true
+	} else {
+		DebugFlag = false
+	}
+
+}
+
 func setDebug() bool {
-	debugMode = flag.Lookup("configDebug").Value.(flag.Getter).Get().(bool)
+
+	// debugMode := flag.Lookup("debug").Value.(flag.Getter).Get().(bool)
+	// viper.SetConfigFile("config.toml")
+	// viper.AddConfigPath("../resource/")
+	// viper.SetConfigType("toml")
+	// viper.SetConfigFile("/Users/admin/go/src/github.com/zoobc/zoobc-core/resource/config.toml")
+	// if err := viper.ReadInConfig(); err != nil {
+	// 	fmt.Printf("error : %v\n", err)
+	// 	return false
+	// }
+
+	debugModeX := DebugFlag
+	// debugMode := DebugShadow
+	debugMode := false
+	fmt.Printf("debug back: %v\n", debugModeX)
+
 	return debugMode
 }
 
@@ -50,6 +79,7 @@ func SetCheckVarInt32(key string, defaultVal int32) int32 {
 
 func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
 	var Output uint32
+	fmt.Println("var :", viper.GetUint32(key), " ", setDebug())
 	if viper.GetUint32(key) != 0 && setDebug() {
 		Output = viper.GetUint32(key)
 	} else {

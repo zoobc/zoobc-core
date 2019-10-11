@@ -42,6 +42,7 @@ var (
 	apiRPCPort, apiHTTPPort                                      int
 	peerPort                                                     uint32
 	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
+	debugServiceInstance                                         constant.DebugFlagInterface
 	queryExecutor                                                *query.Executor
 	kvExecutor                                                   *kvdb.KVExecutor
 	observerInstance                                             *observer.Observer
@@ -57,6 +58,8 @@ var (
 	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
 	sortedBlocksmiths                                            []model.Blocksmith
 	mainchainProcessor                                           smith.BlockchainProcessorInterface
+	// debug                                                        = flag.Bool("debug", false, "Usage")
+	debugFlag bool
 )
 
 func init() {
@@ -70,14 +73,22 @@ func init() {
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "", "Usage")
 	configDebug = flag.Bool("debug", false, "Usage")
-	_ = configDebug
-
 	flag.Parse()
 
 	if configDir == "" {
 		configDir = "./resource"
 	}
+	// fmt.Printf("dm front : %v\n", *configDebug)
+	if *configDebug {
+		// viper.Set("debugMode", true)
+		// viper.SetConfigName("config")
+		// viper.SetConfigType("toml")
+		// viper.AddConfigPath(configDir)
+		// viper.ReadInConfig()
+		// fmt.Printf("debug mode main : %v\n", true)
+		debugFlag = true
 
+	}
 	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
 		log.Fatal(err)
 	}
@@ -96,6 +107,8 @@ func init() {
 	configPath := viper.GetString("configPath")
 	nodeKeyFile := viper.GetString("nodeKeyFile")
 	smithing = viper.GetBool("smithing")
+	// debugMode := viper.GetBool("DebugMode")
+	// fmt.Printf("viper debug : %v\n", debugMode)
 
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -149,11 +162,13 @@ func init() {
 }
 
 func initP2pInstance() {
+
 	// init p2p instances
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {
 		logrus.Fatal("fail to start p2p service")
 	}
+
 	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// initialize peer client service
@@ -179,6 +194,8 @@ func initP2pInstance() {
 		peerServiceClient,
 		peerExplorer,
 	)
+	// setting.NewDebugService(debugServiceInstance)
+
 }
 
 func initObserverListeners() {
@@ -192,6 +209,9 @@ func initObserverListeners() {
 }
 
 func startServices() {
+
+	// fmt.Printf("Debug Flag : %v\n", debugFlag)
+	debugServiceInstance.SetDebugFlag(debugFlag)
 	p2pServiceInstance.StartP2P(
 		myAddress,
 		peerPort,
@@ -324,6 +344,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 }
 
 func main() {
+
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		log.Fatal(err)
@@ -332,7 +353,6 @@ func main() {
 	if err := migration.Apply(); err != nil {
 		log.Fatal(err)
 	}
-
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
