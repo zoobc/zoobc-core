@@ -76,4 +76,31 @@ go run main.go generate account random
 go run main.go generate account from-seed --seed "concur v
 ocalist rotten busload gap quote stinging undiluted surfer go
 ofiness deviation starved"
+### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json
+
+```
+
+go run main.go genesis generate
+outputs cmd/genesis.go.new and cmd/cluster_config.json
+
+```
+
+### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db
+
+```
+
+go run main.go genesis generate -w
+outputs cmd/genesis.go.new and cmd/cluster_config.json
+
+```
+
+### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db, plus n random nodes registrations
+
+```
+
+go run main.go genesis generate -w -n 10
+outputs cmd/genesis.go.new and cmd/cluster_config.json
+
+```
+
 ```
