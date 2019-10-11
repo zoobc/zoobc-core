@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/cmd/account"
 	"github.com/zoobc/zoobc-core/cmd/block"
+	"github.com/zoobc/zoobc-core/cmd/genesisblock"
 	"github.com/zoobc/zoobc-core/cmd/transaction"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -21,5 +22,6 @@ func main() {
 	rootCmd.AddCommand(account.GenerateAccount(logger))
 	rootCmd.AddCommand(transaction.GenerateTransactionBytes(logger, &crypto.Signature{}))
 	rootCmd.AddCommand(block.Commands())
+	rootCmd.AddCommand(genesisblock.Commands())
 	_ = rootCmd.Execute()
 }

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -164,6 +165,7 @@ func TestNewMempoolService(t *testing.T) {
 		transactionQuery    query.TransactionQueryInterface
 		obsr                *observer.Observer
 		signature           crypto.SignatureInterface
+		logger              *log.Logger
 	}
 
 	test := struct {
@@ -193,6 +195,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.signature,
 		test.args.transactionQuery,
 		test.args.obsr,
+		test.args.logger,
 	)
 	if !reflect.DeepEqual(got, test.want) {
 		t.Errorf("NewMempoolService() = %v, want %v", got, test.want)

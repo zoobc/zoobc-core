@@ -6,13 +6,12 @@ import (
 	"net"
 	"net/http"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/observer"
-
-	"github.com/spf13/viper"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -21,38 +20,23 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/transaction"
 
-	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
-	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
 )
-
-var (
-	apiLogger *logrus.Logger
-)
-
-func init() {
-	var (
-		err       error
-		logLevels []string
-	)
-	logLevels = viper.GetStringSlice("logLevels")
-	if apiLogger, err = util.InitLogger(".log/", "debug.log", logLevels); err != nil {
-		panic(err)
-	}
-}
 
 func startGrpcServer(
 	port int,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string) {
+	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+	logger *log.Logger,
+) {
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(apiLogger, ownerAccountAddress)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(logger, ownerAccountAddress)),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
@@ -69,10 +53,11 @@ func startGrpcServer(
 		crypto.NewSignature(),
 		query.NewTransactionQuery(&chaintype.MainChain{}),
 		observer.NewObserver(),
+		logger,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		apiLogger.Fatalf("failed to listen: %v\n", err)
+		logger.Fatalf("failed to listen: %v\n", err)
 		return
 	}
 	// *************************************
@@ -130,7 +115,7 @@ func startGrpcServer(
 			panic(err)
 		}
 	}()
-	apiLogger.Infof("GRPC listening to http:%d\n", port)
+	logger.Infof("GRPC listening to http:%d\n", port)
 }
 
 // Start starts api servers in the given port and passing query executor
@@ -140,9 +125,10 @@ func Start(
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+	logger *log.Logger,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath,
+		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath, logger,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

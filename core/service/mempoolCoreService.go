@@ -52,6 +52,7 @@ type (
 		Signature           crypto.SignatureInterface
 		TransactionQuery    query.TransactionQueryInterface
 		Observer            *observer.Observer
+		Logger              *log.Logger
 	}
 )
 
@@ -67,6 +68,7 @@ func NewMempoolService(
 	signature crypto.SignatureInterface,
 	transactionQuery query.TransactionQueryInterface,
 	observer *observer.Observer,
+	logger *log.Logger,
 ) *MempoolService {
 	return &MempoolService{
 		Chaintype:           ct,
@@ -79,17 +81,19 @@ func NewMempoolService(
 		Signature:           signature,
 		TransactionQuery:    transactionQuery,
 		Observer:            observer,
+		Logger:              logger,
 	}
 }
 
 // GetMempoolTransactions fetch transactions from mempool
 func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
-	var rows *sql.Rows
-	var err error
+	var (
+		rows *sql.Rows
+		err  error
+	)
 	sqlStr := mps.MempoolQuery.GetMempoolTransactions()
 	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr, false)
 	if err != nil {
-		log.Printf("GetMempoolTransactions fails %s\n", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -125,7 +129,6 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return errors.New("DuplicateRecordAttempted")
 	}
 	if err.Error() != "MempoolTransactionNotFound" {
-		log.Println(err)
 		return errors.New("DatabaseError")
 	}
 
@@ -332,8 +335,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, err
 	}
 
-	if err = mps.QueryExecutor.BeginTx(); err != nil {
-		log.Warnf("error opening db transaction %v", err)
+	if err := mps.QueryExecutor.BeginTx(); err != nil {
 		return nil, err
 	}
 	// Apply Unconfirmed transaction
@@ -343,26 +345,24 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
-		log.Warnf("fail ApplyUnconfirmed tx: %v\n", err)
-		if err = mps.QueryExecutor.RollbackTx(); err != nil {
-			log.Warnf("error rolling back db transaction %v", err)
-			return nil, err
+		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
 		}
 		return nil, err
 	}
 
 	// Store to Mempool Transaction
 	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
-		log.Warnf("error AddMempoolTransaction: %v\n", err)
-		if err = mps.QueryExecutor.RollbackTx(); err != nil {
-			log.Warnf("error rolling back db transaction %v", err)
-			return nil, err
+		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
 		}
 		return nil, err
 	}
 
 	if err = mps.QueryExecutor.CommitTx(); err != nil {
-		log.Warnf("error committing db transaction: %v", err)
+		mps.Logger.Warnf("error committing db transaction: %v", err)
 		return nil, err
 	}
 	// broadcast transaction
@@ -426,17 +426,23 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	for _, m := range mempools {
 		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				mps.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				mps.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 		err = action.UndoApplyUnconfirmed()
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				mps.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 	}
@@ -444,7 +450,9 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
 	err = mps.QueryExecutor.ExecuteTransaction(qStr)
 	if err != nil {
-		_ = mps.QueryExecutor.RollbackTx()
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
+		}
 		return err
 	}
 	err = mps.QueryExecutor.CommitTx()

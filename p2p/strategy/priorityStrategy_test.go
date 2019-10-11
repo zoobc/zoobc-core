@@ -1,13 +1,22 @@
 package strategy
 
 import (
+	"context"
+	"database/sql"
+	"errors"
 	"reflect"
+	"regexp"
 	"testing"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/p2p/client"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc/metadata"
 )
 
 func changeMaxUnresolvedPeers(hostServiceInstance *PriorityStrategy, newValue int32) {
@@ -18,73 +27,79 @@ func changeMaxResolvedPeers(hostServiceInstance *PriorityStrategy, newValue int3
 	hostServiceInstance.MaxResolvedPeers = newValue
 }
 
-var priorityStrategyGoodHostInstance = &model.Host{
-	Info: &model.Node{
-		SharedAddress: "127.0.0.1",
-		Address:       "127.0.0.1",
-		Port:          8000,
-	},
-	KnownPeers: map[string]*model.Peer{
-		"127.0.0.1:3000": {
-			Info: &model.Node{
-				SharedAddress: "127.0.0.1",
-				Address:       "127.0.0.1",
-				Port:          3000,
+var (
+	priorityStrategyGoodHostInstance = &model.Host{
+		Info: &model.Node{
+			SharedAddress: "127.0.0.1",
+			Address:       "127.0.0.1",
+			Port:          8000,
+		},
+		KnownPeers: map[string]*model.Peer{
+			"127.0.0.1:3000": {
+				Info: &model.Node{
+					SharedAddress: "127.0.0.1",
+					Address:       "127.0.0.1",
+					Port:          3000,
+				},
 			},
 		},
-	},
-	ResolvedPeers: map[string]*model.Peer{
-		"127.0.0.1:3000": {
-			Info: &model.Node{
-				SharedAddress: "127.0.0.1",
-				Address:       "127.0.0.1",
-				Port:          3000,
+		ResolvedPeers: map[string]*model.Peer{
+			"127.0.0.1:3000": {
+				Info: &model.Node{
+					SharedAddress: "127.0.0.1",
+					Address:       "127.0.0.1",
+					Port:          3000,
+				},
 			},
 		},
-	},
-	UnresolvedPeers: map[string]*model.Peer{
-		"127.0.0.1:3000": {
-			Info: &model.Node{
-				SharedAddress: "127.0.0.1",
-				Address:       "127.0.0.1",
-				Port:          3000,
+		UnresolvedPeers: map[string]*model.Peer{
+			"127.0.0.1:3000": {
+				Info: &model.Node{
+					SharedAddress: "127.0.0.1",
+					Address:       "127.0.0.1",
+					Port:          3000,
+				},
 			},
 		},
-	},
-	BlacklistedPeers: map[string]*model.Peer{
-		"127.0.0.1:3000": {
-			Info: &model.Node{
-				SharedAddress: "127.0.0.1",
-				Address:       "127.0.0.1",
-				Port:          3000,
+		BlacklistedPeers: map[string]*model.Peer{
+			"127.0.0.1:3000": {
+				Info: &model.Node{
+					SharedAddress: "127.0.0.1",
+					Address:       "127.0.0.1",
+					Port:          3000,
+				},
 			},
 		},
-	},
-}
-var indexScrumble = []int{
-	0: 0,
-	1: 1,
-}
-var mockGoodScrumbleNode = ScrambleNode{
-	AddressNodes: []*model.Peer{
-		0: {
-			Info: &model.Node{
-				Address: "127.0.0.1",
-				Port:    3000,
+	}
+
+	indexScrumble = []int{
+		0: 0,
+		1: 1,
+	}
+
+	mockGoodScrumbleNode = ScrambleNode{
+		AddressNodes: []*model.Peer{
+			0: {
+				Info: &model.Node{
+					Address: "127.0.0.1",
+					Port:    8000,
+				},
+			},
+			1: {
+				Info: &model.Node{
+					Address: "127.0.0.1",
+					Port:    3001,
+				},
 			},
 		},
-		1: {
-			Info: &model.Node{
-				Address: "127.0.0.1",
-				Port:    3001,
-			},
+		IndexNodes: map[string]*int{
+			"127.0.0.1:8000": &indexScrumble[0],
+			"127.0.0.1:3001": &indexScrumble[1],
 		},
-	},
-	IndexNodes: map[string]*int{
-		"127.0.0.1:3000": &indexScrumble[0],
-		"127.0.0.1:3001": &indexScrumble[1],
-	},
-}
+	}
+
+	db, mock, _ = sqlmock.New()
+)
 
 func TestNewPriorityStrategy(t *testing.T) {
 	type args struct {
@@ -92,6 +107,7 @@ func TestNewPriorityStrategy(t *testing.T) {
 		peerServiceClient     client.PeerServiceClientInterface
 		queryExecutor         query.ExecutorInterface
 		nodeRegistrationQuery query.NodeRegistrationQueryInterface
+		Logger                *log.Logger
 	}
 	tests := []struct {
 		name string
@@ -127,7 +143,11 @@ func TestNewPriorityStrategy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewPriorityStrategy(tt.args.host, tt.args.peerServiceClient, tt.args.queryExecutor, tt.args.nodeRegistrationQuery)
+			got := NewPriorityStrategy(
+				tt.args.host, tt.args.peerServiceClient,
+				tt.args.queryExecutor,
+				tt.args.nodeRegistrationQuery,
+				tt.args.Logger)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
 			}
@@ -492,7 +512,7 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -556,7 +576,7 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -601,7 +621,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -653,7 +673,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -716,7 +736,7 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -759,7 +779,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -770,7 +790,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 	ps := NewPriorityStrategy(&model.Host{
 		UnresolvedPeers: make(map[string]*model.Peer),
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -799,7 +819,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 	ps := NewPriorityStrategy(&model.Host{
 		ResolvedPeers: make(map[string]*model.Peer),
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32
@@ -1038,6 +1058,353 @@ func TestPriorityStrategy_ValidateRangePriorityPeers(t *testing.T) {
 			ps := &PriorityStrategy{}
 			if got := ps.ValidateRangePriorityPeers(tt.args.peerIndex, tt.args.hostStartPeerIndex, tt.args.hostEndPeerIndex); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidateRangePriorityPeers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPriorityStrategy_ValidateRequest(t *testing.T) {
+	var (
+		mockMetadata = map[string]string{
+			p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(mockGoodScrumbleNode.AddressNodes[1].GetInfo()),
+		}
+		mockHeader       = metadata.New(mockMetadata)
+		mockGoodMetadata = metadata.NewIncomingContext(context.Background(), mockHeader)
+	)
+
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+		Logger                *log.Logger
+	}
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host: &model.Host{
+					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				},
+				ScrambleNode: mockGoodScrumbleNode,
+			},
+			args: args{
+				ctx: mockGoodMetadata,
+			},
+			want: true,
+		},
+		{
+			name: "wantSuccess:notScrumble",
+			fields: fields{
+				Host:         priorityStrategyGoodHostInstance,
+				ScrambleNode: mockGoodScrumbleNode,
+			},
+			args: args{
+				ctx: mockGoodMetadata,
+			},
+			want: true,
+		},
+		{
+			name:   "wantFail:nilDefaultConnectionMetadata",
+			fields: fields{},
+			args: args{
+				ctx: context.Background(),
+			},
+			want: false,
+		},
+		{
+			name:   "wantFail:nilContext",
+			fields: fields{},
+			args: args{
+				ctx: nil,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+				Logger:                tt.fields.Logger,
+			}
+			if got := ps.ValidateRequest(tt.args.ctx); got != tt.want {
+				t.Errorf("PriorityStrategy.ValidateRequest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	executorBuildScrambleNodesSuccess struct {
+		query.Executor
+	}
+	executorBuildScrambleNodesFail struct {
+		query.Executor
+	}
+)
+
+func (*executorBuildScrambleNodesSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
+		query.NewNodeRegistrationQuery().Fields,
+	).AddRow(
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76}, "accountA", 0, "127.0.0.1:3000", 0, false, true, 0,
+	).AddRow(
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78}, "accountB", 0, "127.0.0.1:3001", 0, false, true, 0,
+	))
+
+	return db.Query(qStr, 1)
+}
+
+func (*executorBuildScrambleNodesFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockError:executeSelectFail")
+}
+
+func TestPriorityStrategy_BuildScrambleNodes(t *testing.T) {
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+		Logger                *log.Logger
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host: &model.Host{
+					Info: mockGoodScrumbleNode.AddressNodes[0].GetInfo(),
+				},
+				QueryExecutor: &executorBuildScrambleNodesSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				ScrambleNode: ScrambleNode{
+					IndexNodes: make(map[string]*int),
+				},
+				Logger: log.New(),
+			},
+			args: args{
+				block: &model.Block{
+					Height:    1,
+					BlockSeed: []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
+				},
+			},
+		},
+		{
+			name: "wantFail",
+			fields: fields{
+				QueryExecutor: &executorBuildScrambleNodesFail{
+					query.Executor{
+						Db: db,
+					},
+				},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                log.New(),
+			},
+			args: args{
+				block: &model.Block{
+					Height:    1,
+					BlockSeed: []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+				Logger:                tt.fields.Logger,
+			}
+			ps.BuildScrambleNodes(tt.args.block)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+		Logger                *log.Logger
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Host:               priorityStrategyGoodHostInstance,
+				ScrambleNode:       mockGoodScrumbleNode,
+				MaxResolvedPeers:   2,
+				MaxUnresolvedPeers: 2,
+				Logger:             log.New(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+				Logger:                tt.fields.Logger,
+			}
+			ps.ConnectPriorityPeersGradually()
+		})
+	}
+}
+
+type (
+	executorGetBlockBuildScrumbleNodeSuccess struct {
+		query.Executor
+	}
+)
+
+var mockBlockData = model.Block{
+	ID:                1,
+	PreviousBlockHash: []byte{},
+	Height:            11,
+	Timestamp:         1,
+	BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+	BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+	CumulativeDifficulty: "1",
+	SmithScale:           1,
+	PayloadLength:        1,
+	PayloadHash:          []byte{},
+	BlocksmithPublicKey:  []byte{},
+	TotalAmount:          1000,
+	TotalFee:             0,
+	TotalCoinBase:        1,
+	Version:              0,
+}
+
+func (*executorGetBlockBuildScrumbleNodeSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockBlockData.GetID(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetHeight(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetSmithScale(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+		))
+	return db.QueryRow(qStr)
+}
+
+func TestPriorityStrategy_GetBlockBuildScrumbleNode(t *testing.T) {
+	type fields struct {
+		Host                  *model.Host
+		PeerServiceClient     client.PeerServiceClientInterface
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ScrambleNode          ScrambleNode
+		MaxUnresolvedPeers    int32
+		MaxResolvedPeers      int32
+		Logger                *log.Logger
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		want    *model.Block
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &executorGetBlockBuildScrumbleNodeSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+			},
+			want:    &mockBlockData,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                  tt.fields.Host,
+				PeerServiceClient:     tt.fields.PeerServiceClient,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				ScrambleNode:          tt.fields.ScrambleNode,
+				MaxUnresolvedPeers:    tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:      tt.fields.MaxResolvedPeers,
+				Logger:                tt.fields.Logger,
+			}
+			got, err := ps.GetBlockBuildScrumbleNode()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PriorityStrategy.GetBlockBuildScrumbleNode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PriorityStrategy.GetBlockBuildScrumbleNode() = %v, want %v", got, tt.want)
 			}
 		})
 	}
