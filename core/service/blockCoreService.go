@@ -778,7 +778,7 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
 		if _, err := digest.Write(txBytes); err != nil {
-			return err
+			return nil, err
 		}
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
