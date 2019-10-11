@@ -26,16 +26,17 @@ COPY Gopkg.lock Gopkg.toml ./
 RUN /go/bin/dep ensure -v --vendor-only
 COPY . .
 ### Use go-sqlite3's libsqlite3.c (takes additional time to compile):
-RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags 'netgo' -ldflags '-linkmode external -extldflags "-static"'
-#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags 'netgo'
+RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags='netgo' -ldflags='-s -w -linkmode external -extldflags "-static"'
+#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags='netgo' -ldflags='-s -w'
 ### Use system's libsqlite3.so (precompiled):
-#RUN install_packages sqlite-dev
-#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags 'netgo linsqlite3' -ldflags '-linkmode external -extldflags "-static"'
-#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags 'netgo libsqlite3'
+#RUN apk add --initdb --arch armhf --root /usr/local/arm-linux-musleabihf --repositories-file /etc/apk/repositories --keys-dir /etc/apk/keys --allow-untrusted sqlite-dev
+#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -x -tags='netgo libsqlite3' -ldflags='-s -w -linkmode external -extldflags "-static --verbose"'
+#RUN CC=arm-linux-musleabihf-gcc CXX=arm-linux-musleabihf-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go install -v -tags='netgo libsqlite3' -ldflags='-s -w -extldflags "--verbose"'
 
 
 ### Static build requires no runtime:
 FROM arm32v7/busybox:musl
+#FROM scratch
 #ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ### Non-static build requires the alpine musl runtime:
 #FROM balenalib/%%RESIN_MACHINE_NAME%%-alpine:run

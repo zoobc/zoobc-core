@@ -1,4 +1,2 @@
 .dockerignore
 **/.git
-**/Dockerfile
-Dockerfile.template
