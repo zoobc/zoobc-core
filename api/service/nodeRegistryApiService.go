@@ -108,7 +108,7 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	caseQuery := query.NewCaseQuery()
 
-	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields[1:]...)
+	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
 	if len(params.GetNodePublicKey()) != 0 {
 		caseQuery.And(caseQuery.Equal("node_public_key", params.GetNodePublicKey()))
 	}

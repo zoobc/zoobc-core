@@ -770,3 +770,68 @@ func TestCaseQuery_Build(t *testing.T) {
 		})
 	}
 }
+
+func TestCaseQuery_AndOr(t *testing.T) {
+	type fields struct {
+		Query *bytes.Buffer
+		Args  []interface{}
+	}
+	type args struct {
+		expression []string
+	}
+	var argsWant []interface{}
+	argsWant = append(argsWant, 1, "bcz")
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *CaseQuery
+	}{
+		{
+			name: "AndOr",
+			fields: fields{
+				Query: bytes.NewBufferString("SELECT id, name FROM account WHERE id = ? "),
+				Args:  argsWant,
+			},
+			args: args{
+				expression: []string{
+					"name = ?",
+					"account = ?",
+				},
+			},
+			want: &CaseQuery{
+				Query: bytes.NewBufferString("SELECT id, name FROM account WHERE id = ? AND (name = ? OR account = ?) "),
+				Args:  argsWant,
+			},
+		},
+		{
+			name: "AndOrWithoutWHERE",
+			fields: fields{
+				Query: bytes.NewBufferString("SELECT id, name FROM account "),
+				Args:  argsWant,
+			},
+			args: args{
+				expression: []string{
+					"name = ?",
+					"account = ?",
+				},
+			},
+			want: &CaseQuery{
+				Query: bytes.NewBufferString("SELECT id, name FROM account WHERE 1=1 AND (name = ? OR account = ?) "),
+				Args:  argsWant,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fq := &CaseQuery{
+				Query: tt.fields.Query,
+				Args:  tt.fields.Args,
+			}
+			if got := fq.AndOr(tt.args.expression...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CaseQuery.AndOr() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
