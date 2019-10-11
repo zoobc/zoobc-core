@@ -348,36 +348,36 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		want    []*model.PublishedReceipt
 		wantErr bool
 	}{
-		//{
-		//	name: "receiptService-selectReceipts-Fail:selectDB-error",
-		//	fields: fields{
-		//		ReceiptQuery:    nil,
-		//		MerkleTreeQuery: query.NewMerkleTreeQuery(),
-		//		KVExecutor:      nil,
-		//		QueryExecutor:   &mockQueryExecutorFailExecuteSelect{},
-		//	},
-		//	args: args{
-		//		blockTimestamp:  0,
-		//		numberOfReceipt: 1,
-		//	},
-		//	want:    nil,
-		//	wantErr: true,
-		//},
-		//{
-		//	name: "receiptService-selectReceipts-Fail:MerkleTreeQuery-BuildTree-Fail",
-		//	fields: fields{
-		//		ReceiptQuery:    nil,
-		//		MerkleTreeQuery: &mockMerkleTreeQueryFailBuildTree{},
-		//		KVExecutor:      nil,
-		//		QueryExecutor:   &mockQueryExecutorSuccessMerkle{},
-		//	},
-		//	args: args{
-		//		blockTimestamp:  0,
-		//		numberOfReceipt: 1,
-		//	},
-		//	want:    nil,
-		//	wantErr: true,
-		//},
+		{
+			name: "receiptService-selectReceipts-Fail:selectDB-error",
+			fields: fields{
+				ReceiptQuery:    nil,
+				MerkleTreeQuery: query.NewMerkleTreeQuery(),
+				KVExecutor:      nil,
+				QueryExecutor:   &mockQueryExecutorFailExecuteSelect{},
+			},
+			args: args{
+				blockTimestamp:  0,
+				numberOfReceipt: 1,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "receiptService-selectReceipts-Fail:MerkleTreeQuery-BuildTree-Fail",
+			fields: fields{
+				ReceiptQuery:    nil,
+				MerkleTreeQuery: &mockMerkleTreeQueryFailBuildTree{},
+				KVExecutor:      nil,
+				QueryExecutor:   &mockQueryExecutorSuccessMerkle{},
+			},
+			args: args{
+				blockTimestamp:  0,
+				numberOfReceipt: 1,
+			},
+			want:    nil,
+			wantErr: true,
+		},
 		{
 			name: "receiptService-selectReceipts-Fail:ExecuteSelect-Fail_Receipt",
 			fields: fields{
