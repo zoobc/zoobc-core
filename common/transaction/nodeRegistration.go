@@ -62,7 +62,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	if tx.Height == 0 {
 		ps := &model.ParticipationScore{
 			NodeID: tx.ID,
-			Score:  constant.DefaultParticipationScore,
+			Score:  tx.getDefaultParticipationScore(),
 			Latest: true,
 			Height: 0,
 		}
@@ -279,4 +279,13 @@ func (tx *NodeRegistration) GetTransactionBody(transaction *model.Transaction) {
 	transaction.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
 		NodeRegistrationTransactionBody: tx.Body,
 	}
+}
+
+func (tx *NodeRegistration) getDefaultParticipationScore() int64 {
+	for _, genesisEntry := range constant.MainChainGenesisConfig {
+		if bytes.Equal(tx.Body.NodePublicKey, genesisEntry.NodePublicKey) {
+			return genesisEntry.ParticipationScore
+		}
+	}
+	return constant.DefaultParticipationScore
 }
