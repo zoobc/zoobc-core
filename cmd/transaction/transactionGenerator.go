@@ -29,7 +29,7 @@ var (
 		"removeAccountDataset":   {3, 1, 0, 0},
 	}
 	// Core node test account in genesis block
-	senderAccountSeed = constant.MainchainGenesisFundReceivers[0].AccountSeed
+	senderAccountSeed = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 )
 
 func GenerateTransactionBytes(
