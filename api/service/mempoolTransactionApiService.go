@@ -74,6 +74,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 		count                   uint64
 		selectQuery, countQuery string
 		rows                    *sql.Rows
+		rows2                   *sql.Rows
 		txs                     []*model.MempoolTransaction
 		response                *model.GetMempoolTransactionsResponse
 		args                    []interface{}
@@ -126,13 +127,13 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 
 	selectQuery, args = caseQuery.Build()
-	rows, err = ut.Query.ExecuteSelect(selectQuery, false, args...)
+	rows2, err = ut.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
+	defer rows2.Close()
 
-	txs = txQuery.BuildModel(txs, rows)
+	txs = txQuery.BuildModel(txs, rows2)
 
 	response = &model.GetMempoolTransactionsResponse{
 		MempoolTransactions: txs,
