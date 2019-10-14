@@ -2,38 +2,68 @@ package account
 
 import (
 	"encoding/hex"
+	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-func GenerateAccount(logger *logrus.Logger) *cobra.Command {
-	var accountCmd = &cobra.Command{
+var (
+	seed string
+
+	accountCmd = &cobra.Command{
 		Use:   "account",
 		Short: "account is a developer cli tools to generate account.",
 		Long: `account is a developer cli tools to generate account.
 running 'zoobc account generate' will show create an account detail with its public key and
 private key both in bytes and hex representation + the secret phrase
-		`,
-		Args: cobra.MinimumNArgs(1),
+	`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if args[0] == "generate" {
-				seed := util.GetSecureRandomSeed()
-				privateKey, _ := util.GetPrivateKeyFromSeed(seed)
-				publicKey := privateKey[32:]
-				address, _ := util.GetAddressFromPublicKey(publicKey)
-				logger.Infof("seed: %s", seed)
-				logger.Infof("public key hex: %s", hex.EncodeToString(publicKey))
-				logger.Infof("public key bytes: %v", publicKey)
-				logger.Infof("private key bytes: %v", privateKey)
-				logger.Infof("private key hex: %v", hex.EncodeToString(privateKey))
-				logger.Infof("address: %s", address)
-
-			} else {
-				logger.Error("unknown command")
-			}
+			generateRandomAccount()
 		},
 	}
+
+	randomAccountCmd = &cobra.Command{
+		Use:   "random",
+		Short: "random defines to generate random account.",
+		Run: func(cmd *cobra.Command, args []string) {
+			generateRandomAccount()
+		},
+	}
+
+	fromSeedCmd = &cobra.Command{
+		Use:   "from-seed",
+		Short: "from-seed defines to generate account from provided seed.",
+		Run: func(cmd *cobra.Command, args []string) {
+			generateAccountFromSeed(seed)
+		},
+	}
+)
+
+func init() {
+	accountCmd.AddCommand(randomAccountCmd)
+
+	fromSeedCmd.Flags().StringVar(&seed, "seed", "", "Seed that is used to generate the account")
+	accountCmd.AddCommand(fromSeedCmd)
+}
+
+func Commands() *cobra.Command {
 	return accountCmd
+}
+
+func generateRandomAccount() {
+	seed := util.GetSecureRandomSeed()
+	generateAccountFromSeed(seed)
+}
+
+func generateAccountFromSeed(seed string) {
+	privateKey, _ := util.GetPrivateKeyFromSeed(seed)
+	publicKey := privateKey[32:]
+	address, _ := util.GetAddressFromPublicKey(publicKey)
+	fmt.Printf("seed: %s\n", seed)
+	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
+	fmt.Printf("public key bytes: %v\n", publicKey)
+	fmt.Printf("private key bytes: %v\n", privateKey)
+	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey))
+	fmt.Printf("address: %s", address)
 }
