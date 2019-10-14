@@ -11,8 +11,7 @@ import (
 
 type (
 	TXGeneratorCommands struct {
-		DB  *sql.DB
-		CMD *cobra.Command
+		DB *sql.DB
 	}
 	RunCommand func(ccmd *cobra.Command, args []string)
 )
