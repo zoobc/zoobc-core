@@ -384,7 +384,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "Validate:fail-{UpdateLockedBalance.InsufficientAccountBalance}",
