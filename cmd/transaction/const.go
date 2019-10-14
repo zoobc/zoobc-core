@@ -1,4 +1,4 @@
-package transactions
+package transaction
 
 import "github.com/zoobc/zoobc-core/common/crypto"
 
@@ -14,7 +14,7 @@ var (
 	}
 	signature = &crypto.Signature{}
 
-	// Basic transactions data
+	// Basic transaction data
 	outputType              string
 	version                 uint32
 	timestamp               int64
@@ -25,13 +25,13 @@ var (
 	// Send money transaction
 	sendAmount int64
 
-	// node registration transactions
+	// node registration transaction
 	nodeSeed                string
 	nodeOwnerAccountAddress string
 	nodeAddress             string
 	lockedBalance           int64
 
-	// dataset transactions
+	// dataset transaction
 	property   string
 	value      string
 	activeTime uint64

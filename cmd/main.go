@@ -11,7 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/account"
 	"github.com/zoobc/zoobc-core/cmd/block"
 	"github.com/zoobc/zoobc-core/cmd/genesisblock"
-	"github.com/zoobc/zoobc-core/cmd/transactions"
+	"github.com/zoobc/zoobc-core/cmd/transaction"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -62,7 +62,7 @@ func main() {
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(genesisblock.Commands())
 	generateCmd.AddCommand(account.Commands())
-	generateCmd.AddCommand(transactions.Commands(sqliteDB))
+	generateCmd.AddCommand(transaction.Commands(sqliteDB))
 	generateCmd.AddCommand(block.Commands())
 	_ = rootCmd.Execute()
 
