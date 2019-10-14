@@ -35,6 +35,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	var (
 		err               error
 		rows              *sql.Rows
+		rows2             *sql.Rows
 		selectQuery       string
 		args              []interface{}
 		totalRecords      uint64
@@ -81,13 +82,13 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	selectQuery, args = caseQuery.Build()
 
 	// Get list of node registry
-	rows, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
+	defer rows2.Close()
 
-	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
+	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
 
 	return &model.GetNodeRegistrationsResponse{
 		Total:             totalRecords,
