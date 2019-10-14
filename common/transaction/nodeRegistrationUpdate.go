@@ -165,8 +165,9 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	var (
-		accountBalance       model.AccountBalance
-		prevNodeRegistration model.NodeRegistration
+		accountBalance             model.AccountBalance
+		prevNodeRegistration       *model.NodeRegistration
+		tempNodeRegistrationResult []*model.NodeRegistration
 	)
 	// formally validate tx body fields
 	if tx.Body.Poown == nil {
@@ -180,7 +181,6 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		tx.BlockQuery); err != nil {
 		return err
 	}
-
 	// check that sender is node's owner
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
@@ -188,26 +188,12 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer rows.Close()
-	if !rows.Next() {
-		// sender doesn't own any node
-		// note: any account can own exactly one node at the time, meaning that, if this query returns no rows,
+	tempNodeRegistrationResult = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+	if len(tempNodeRegistrationResult) > 0 {
+		prevNodeRegistration = tempNodeRegistrationResult[0]
+	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
-	err = rows.Scan(
-		&prevNodeRegistration.NodeID,
-		&prevNodeRegistration.NodePublicKey,
-		&prevNodeRegistration.AccountAddress,
-		&prevNodeRegistration.RegistrationHeight,
-		&prevNodeRegistration.NodeAddress,
-		&prevNodeRegistration.LockedBalance,
-		&prevNodeRegistration.Queued,
-		&prevNodeRegistration.Latest,
-		&prevNodeRegistration.Height,
-	)
-	if err != nil {
-		return err
-	}
-
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
