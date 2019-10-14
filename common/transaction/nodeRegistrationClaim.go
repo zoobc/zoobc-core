@@ -137,10 +137,10 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
-	defer rows2.Close()
 	if err != nil {
 		return err
 	}
+	defer rows2.Close()
 	if !rows2.Next() {
 		// public key must be already registered
 		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
