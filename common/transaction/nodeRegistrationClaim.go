@@ -136,12 +136,12 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAlreadyNodeOwner")
 	}
 
-	row2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
-	defer row2.Close()
+	rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+	defer rows2.Close()
 	if err != nil {
 		return err
 	}
-	if !row2.Next() {
+	if !rows2.Next() {
 		// public key must be already registered
 		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
 	}
