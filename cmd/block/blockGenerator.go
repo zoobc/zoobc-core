@@ -32,7 +32,53 @@ var (
 	sortedBlocksmiths       []model.Blocksmith
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
+
+	numberOfBlocks         int
+	blocksmithSecretPhrase string
+	outputPath             string
+
+	blockCmd = &cobra.Command{
+		Use:   "block",
+		Short: "block command used to manipulate block of node",
+		Long: `
+			block command is use to manipulate block creation or broadcasting in the node
+		`,
+	}
+
+	fakeBlockCmd = &cobra.Command{
+		Use:   "fake-blocks",
+		Short: "fake-blocks command used to create fake blocks",
+		Run: func(cmd *cobra.Command, args []string) {
+			generateBlocks(numberOfBlocks, blocksmithSecretPhrase, outputPath)
+		},
+	}
 )
+
+func init() {
+	fakeBlockCmd.Flags().IntVar(
+		&numberOfBlocks,
+		"numberOfBlocks",
+		100,
+		"number of account to generate",
+	)
+	fakeBlockCmd.Flags().StringVar(
+		&blocksmithSecretPhrase,
+		"blocksmithSecretPhrase",
+		"",
+		"secret phrase of blocksmith | required",
+	)
+	fakeBlockCmd.Flags().StringVar(
+		&outputPath,
+		"out",
+		"./testdata/zoobc.db",
+		"output path of the database",
+	)
+	blockCmd.AddCommand(fakeBlockCmd)
+}
+
+func Commands() *cobra.Command {
+	return blockCmd
+}
 
 func initialize(
 	secretPhrase, outputPath string,
@@ -108,88 +154,50 @@ func initialize(
 	migration = database.Migration{Query: queryExecutor}
 }
 
-func Commands() *cobra.Command {
-	var (
-		numberOfBlocks         int
-		blocksmithSecretPhrase string
-		outputPath             string
+func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath string) {
+	fmt.Println("initializing dependency and database...")
+	initialize(blocksmithSecretPhrase, outputPath)
+	fmt.Println("done initializing database")
+	blockProcessor = smith.NewBlockchainProcessor(
+		chainType,
+		blocksmith,
+		blockService,
+		nodeRegistrationService,
 	)
-	var blockCmd = &cobra.Command{
-		Use:   "block",
-		Short: "block command used to manipulate block of node",
-		Long: `
-			block command is use to manipulate block creation or broadcasting in the node
-		`,
-		Args: cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("initializing dependency and database...")
-			initialize(blocksmithSecretPhrase, outputPath)
-			fmt.Println("done initializing database")
-			blockProcessor = smith.NewBlockchainProcessor(
-				chainType,
-				blocksmith,
-				blockService,
-				nodeRegistrationService,
-			)
-			if args[0] == "add-fake-blocks" {
-				startTime := time.Now().UnixNano() / 1e6
-				fmt.Printf("generating %d blocks\n", numberOfBlocks)
-				fmt.Println("initializing database schema migration")
-				if err := migration.Init(); err != nil {
-					panic(err)
-				}
-
-				fmt.Println("applying database schema migration")
-				if err := migration.Apply(); err != nil {
-					panic(err)
-				}
-				fmt.Println("checking genesis...")
-				if !blockService.CheckGenesis() { // Add genesis if not exist
-					fmt.Println("genesis does not exist, adding genesis")
-					// genesis account will be inserted in the very beginning
-					if err := service.AddGenesisAccount(queryExecutor); err != nil {
-						panic(err)
-					}
-
-					if err := blockService.AddGenesis(); err != nil {
-						panic(err)
-					}
-
-					fmt.Println("begin generating blocks")
-					if err := blockProcessor.FakeSmithing(numberOfBlocks, true); err != nil {
-						panic(err)
-					}
-				} else {
-					// start from last block's timestamp
-					fmt.Println("continuing from last database")
-					if err := blockProcessor.FakeSmithing(numberOfBlocks, false); err != nil {
-						panic("error in appending block to existing database")
-					}
-				}
-				fmt.Printf("database generated in %s", outputPath)
-				fmt.Printf("block generation success in %d miliseconds", (time.Now().UnixNano()/1e6)-startTime)
-			} else {
-				fmt.Print("unknown command")
-			}
-		},
+	startTime := time.Now().UnixNano() / 1e6
+	fmt.Printf("generating %d blocks\n", numberOfBlocks)
+	fmt.Println("initializing database schema migration")
+	if err := migration.Init(); err != nil {
+		panic(err)
 	}
-	blockCmd.Flags().IntVar(
-		&numberOfBlocks,
-		"numberOfBlocks",
-		100,
-		"number of account to generate",
-	)
-	blockCmd.Flags().StringVar(
-		&blocksmithSecretPhrase,
-		"blocksmithSecretPhrase",
-		"",
-		"secret phrase of blocksmith | required",
-	)
-	blockCmd.Flags().StringVar(
-		&outputPath,
-		"out",
-		"./testdata/zoobc.db",
-		"output path of the database",
-	)
-	return blockCmd
+
+	fmt.Println("applying database schema migration")
+	if err := migration.Apply(); err != nil {
+		panic(err)
+	}
+	fmt.Println("checking genesis...")
+	if !blockService.CheckGenesis() { // Add genesis if not exist
+		fmt.Println("genesis does not exist, adding genesis")
+		// genesis account will be inserted in the very beginning
+		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+			panic(err)
+		}
+
+		if err := blockService.AddGenesis(); err != nil {
+			panic(err)
+		}
+
+		fmt.Println("begin generating blocks")
+		if err := blockProcessor.FakeSmithing(numberOfBlocks, true); err != nil {
+			panic(err)
+		}
+	} else {
+		// start from last block's timestamp
+		fmt.Println("continuing from last database...")
+		if err := blockProcessor.FakeSmithing(numberOfBlocks, false); err != nil {
+			panic("error in appending block to existing database")
+		}
+	}
+	fmt.Printf("database generated in %s", outputPath)
+	fmt.Printf("block generation success in %d miliseconds", (time.Now().UnixNano()/1e6)-startTime)
 }
