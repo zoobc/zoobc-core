@@ -247,6 +247,7 @@ func TestPublishedReceiptQuery_Scan(t *testing.T) {
 	}
 
 	db, mock, _ := sqlmock.New()
+	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockPublishedReceiptQuery.Fields).AddRow(
 		&mockPublishedReceipt.BatchReceipt.SenderPublicKey,
 		&mockPublishedReceipt.BatchReceipt.RecipientPublicKey,
