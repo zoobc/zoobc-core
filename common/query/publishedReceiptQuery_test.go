@@ -54,23 +54,7 @@ func TestNewPublishedReceiptQuery(t *testing.T) {
 	}{
 		{
 			name: "NewPublishedReceipt:Success",
-			want: &PublishedReceiptQuery{
-				Fields: []string{
-					"sender_public_key",
-					"recipient_public_key",
-					"datum_type",
-					"datum_hash",
-					"reference_block_height",
-					"reference_block_hash",
-					"rmr_linked",
-					"recipient_signature",
-					"intermediate_hashes",
-					"block_height",
-					"receipt_index",
-					"published_index",
-				},
-				TableName: "published_receipt",
-			},
+			want: mockPublishedReceiptQuery,
 		},
 	}
 	for _, tt := range tests {
