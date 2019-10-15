@@ -462,7 +462,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				KVExecutor:      tt.fields.KVExecutor,
 				QueryExecutor:   tt.fields.QueryExecutor,
 			}
-			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt)
+			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt, 1000)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return

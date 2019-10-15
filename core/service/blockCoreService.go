@@ -802,7 +802,7 @@ func (bs *BlockService) GenerateBlock(
 			payloadLength += txType.GetSize()
 		}
 		// todo: select receipts here to publish & hash the receipts in payload hash
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, 20)
+		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, constant.ReceiptNumberToPick, previousBlock.Height)
 		if err != nil {
 			return nil, err
 		}

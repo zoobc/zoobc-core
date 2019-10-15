@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -13,7 +15,9 @@ import (
 
 type (
 	ReceiptServiceInterface interface {
-		SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.PublishedReceipt, error)
+		SelectReceipts(
+			blockTimestamp int64, numberOfReceipt int, lastBlockHeight uint32,
+		) ([]*model.PublishedReceipt, error)
 	}
 
 	ReceiptService struct {
@@ -40,15 +44,23 @@ func NewReceiptService(
 
 // SelectReceipts select list of receipts to be included in a block by prioritizing receipts that might
 // increase the participation score of the node
-func (rs *ReceiptService) SelectReceipts(blockTimestamp int64, numberOfReceipt int) ([]*model.PublishedReceipt, error) {
+func (rs *ReceiptService) SelectReceipts(
+	blockTimestamp int64,
+	numberOfReceipt int,
+	lastBlockHeight uint32,
+) ([]*model.PublishedReceipt, error) {
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
 		// this variable is to store picked receipt recipient to avoid duplicates
 		pickedRecipients = make(map[string]bool)
+		lowerBlockHeight uint32
 	)
 
 	// get the last merkle tree we have build so far
-	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(0, 1000, uint32(numberOfReceipt))
+	if lastBlockHeight > constant.ReceiptNumberOfBlockToPick {
+		lowerBlockHeight = lastBlockHeight - constant.ReceiptNumberOfBlockToPick
+	}
+	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(lowerBlockHeight, lastBlockHeight, uint32(numberOfReceipt))
 	rows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
 	if err != nil {
 		return nil, err
