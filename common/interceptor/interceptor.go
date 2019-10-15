@@ -11,7 +11,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 /*
@@ -36,6 +38,7 @@ func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.Unary
 		fields := logrus.Fields{
 			"method": info.FullMethod,
 			"time":   start.String(),
+			"source": "serverHandler",
 		}
 
 		defer func() {
@@ -80,7 +83,7 @@ NewClientInterceptor function can use to inject using grpc client like:
 	- add access token if needed
 With `recover()` function can handle re-run the app while got panic
 */
-func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
+func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]string) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
@@ -97,6 +100,7 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 		fields := logrus.Fields{
 			"method": method,
 			"time":   start.String(),
+			"source": "clientHandler",
 		}
 
 		defer func() {
@@ -113,7 +117,10 @@ func NewClientInterceptor(logger *logrus.Logger) grpc.UnaryClientInterceptor {
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errInvoker != nil:
-					logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
+					statusCode, isKnownErr := status.FromError(errInvoker)
+					if !isKnownErr || (ignoredErrors[statusCode.Code()] == "") {
+						logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
+					}
 				default:
 					logger.WithFields(fields).Info("success")
 				}
