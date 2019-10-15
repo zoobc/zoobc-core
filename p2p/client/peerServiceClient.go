@@ -58,7 +58,7 @@ type Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 
 // list of client service error that will be ignore to record into log file
 var ignoredErrors = map[codes.Code]string{
-	14: "codes.Unavailable",
+	codes.Unavailable: "Unavailable, indicates the destination service is currently unavailable",
 }
 
 // ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
