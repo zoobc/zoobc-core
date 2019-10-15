@@ -443,7 +443,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 }
 
 func (bs *BlockService) processPublishedReceipts(block *model.Block) error {
-	// todo: save receipts of block to network_receipt table
 	if len(block.GetPublishedReceipts()) > 0 {
 		for index, rc := range block.GetPublishedReceipts() {
 			// validate the receipts
@@ -461,7 +460,6 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) error {
 			}
 			// check if linked
 			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
-				// linked, check the hashes, todo: skip now - continue later
 				var publishedReceipt = &model.PublishedReceipt{
 					BatchReceipt:       &model.BatchReceipt{},
 					IntermediateHashes: nil,
@@ -497,7 +495,6 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) error {
 			)
 			err := bs.QueryExecutor.ExecuteTransaction(insertPublishedReceiptQ, insertPublishedReceiptArgs...)
 			if err != nil {
-				_ = bs.QueryExecutor.RollbackTx()
 				return err
 			}
 		}

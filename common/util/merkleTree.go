@@ -2,10 +2,10 @@ package util
 
 import (
 	"bytes"
-	"fmt"
 	"math"
 	"reflect"
-	"time"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/sha3"
@@ -133,16 +133,13 @@ func (*MerkleRoot) FlattenIntermediateHashes(intermediateHashes [][]byte) []byte
 }
 
 func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte {
-	now := time.Now().Unix()
 	var (
 		result [][]byte
 	)
-	intermediateHashesSize := len(flattenIntermediateHashes) / 32
+	intermediateHashesSize := len(flattenIntermediateHashes) / constant.ReceiptHashSize
 	for i := 0; i < intermediateHashesSize; i++ {
-		result = append(result, flattenIntermediateHashes[i*32:(i+1)*32])
+		result = append(result, flattenIntermediateHashes[i*constant.ReceiptHashSize:(i+1)*constant.ReceiptHashSize])
 	}
-
-	fmt.Printf("time taken to restore intermediate hashes: %v seconds\n\n", now-time.Now().Unix())
 	return result
 }
 
@@ -170,14 +167,14 @@ func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
 func (mr *MerkleRoot) FromBytes(tree, root []byte) [][]*bytes.Buffer {
 	var hashTree [][]*bytes.Buffer
 	// 2n-1 of the tree
-	treeLevelZeroLength := ((len(tree) / 32) + 2) / 2
+	treeLevelZeroLength := ((len(tree) / constant.ReceiptHashSize) + 2) / 2
 	var offset int
 	for treeLevelZeroLength != 1 {
 		var tempHashes []*bytes.Buffer
 		limit := offset + treeLevelZeroLength
 		for i := offset; i < limit; i++ {
-			bytesOffset := i * 32
-			bytesLimit := bytesOffset + 32
+			bytesOffset := i * constant.ReceiptHashSize
+			bytesLimit := bytesOffset + constant.ReceiptHashSize
 			tempHashes = append(tempHashes, bytes.NewBuffer(tree[bytesOffset:bytesLimit]))
 		}
 		offset += treeLevelZeroLength
