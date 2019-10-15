@@ -77,7 +77,7 @@ func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximu
 	// But it will takes up memory usage
 	conn.SetMaxIdleConns(maximumIdleConnections)
 	// SetConnMaxLifetime used to controlling the lifecycle of connections (duration in minute),
-	// Will be useful when maintaining idle connetions in low trafic
+	// Will be useful when maintaining idle connetions in low traffic
 	conn.SetConnMaxLifetime(time.Duration(maximumLifitimeConnection) * time.Minute)
 	return conn, nil
 }
