@@ -111,8 +111,8 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 			name: "wantError",
 			db:   &SqliteDB{},
 			args: args{
-				dbPath:                 "",
-				dbName:                 "",
+				dbPath:                 "_",
+				dbName:                 "_",
 				maximumIdleConnections: 10,
 				maximumOpenConnections: 10,
 			},
