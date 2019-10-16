@@ -72,8 +72,9 @@ func TestGenerateReceipt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateBatchReceipt(tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
-				tt.args.datumHash, tt.args.datumType)
+			got, err := GenerateBatchReceipt(
+				tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
+				tt.args.datumHash, nil, tt.args.datumType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateReceipt() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -251,6 +251,16 @@ func (*mockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) er
 }
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 
+func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
+		"ID", "Tree", "Timestamp",
+	}))
+	row := db.QueryRow(qStr)
+	return row
+}
+
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -380,8 +390,10 @@ func TestNewBlockService(t *testing.T) {
 		mempoolQuery            query.MempoolQueryInterface
 		transactionQuery        query.TransactionQueryInterface
 		merkleTreeQuery         query.MerkleTreeQueryInterface
+		publishedReceiptQuery   query.PublishedReceiptQueryInterface
 		signature               crypto.SignatureInterface
 		mempoolService          MempoolServiceInterface
+		receiptService          ReceiptServiceInterface
 		txTypeSwitcher          transaction.TypeActionSwitcher
 		accountBalanceQuery     query.AccountBalanceQueryInterface
 		participationScoreQuery query.ParticipationScoreQueryInterface
@@ -419,8 +431,10 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.mempoolQuery,
 				tt.args.transactionQuery,
 				tt.args.merkleTreeQuery,
+				tt.args.publishedReceiptQuery,
 				tt.args.signature,
 				tt.args.mempoolService,
+				tt.args.receiptService,
 				tt.args.txTypeSwitcher,
 				tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery,
@@ -457,7 +471,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 		totalFee            int64
 		totalCoinBase       int64
 		transactions        []*model.Transaction
-		blockReceipts       []*model.BlockReceipt
+		publishedReceipts   []*model.PublishedReceipt
 		payloadHash         []byte
 		payloadLength       uint32
 		secretPhrase        string
@@ -486,7 +500,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				totalFee:            0,
 				totalCoinBase:       0,
 				transactions:        []*model.Transaction{},
-				blockReceipts:       []*model.BlockReceipt{},
+				publishedReceipts:   []*model.PublishedReceipt{},
 				payloadHash:         []byte{},
 				payloadLength:       0,
 				secretPhrase:        "secretphrase",
@@ -501,7 +515,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				TotalFee:            0,
 				TotalCoinBase:       0,
 				Transactions:        []*model.Transaction{},
-				BlockReceipts:       []*model.BlockReceipt{},
+				PublishedReceipts:   []*model.PublishedReceipt{},
 				PayloadHash:         []byte{},
 				PayloadLength:       0,
 				BlockSignature:      []byte{},
@@ -531,7 +545,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.totalFee,
 				tt.args.totalCoinBase,
 				tt.args.transactions,
-				tt.args.blockReceipts,
+				tt.args.publishedReceipts,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
 				tt.args.secretPhrase,
@@ -564,7 +578,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		totalFee             int64
 		totalCoinBase        int64
 		transactions         []*model.Transaction
-		blockReceipts        []*model.BlockReceipt
+		publishedReceipts    []*model.PublishedReceipt
 		payloadHash          []byte
 		payloadLength        uint32
 		smithScale           int64
@@ -595,7 +609,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				totalFee:             0,
 				totalCoinBase:        0,
 				transactions:         []*model.Transaction{},
-				blockReceipts:        []*model.BlockReceipt{},
+				publishedReceipts:    []*model.PublishedReceipt{},
 				payloadHash:          []byte{},
 				payloadLength:        8,
 				smithScale:           0,
@@ -612,7 +626,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				TotalFee:             0,
 				TotalCoinBase:        0,
 				Transactions:         []*model.Transaction{},
-				BlockReceipts:        []*model.BlockReceipt{},
+				PublishedReceipts:    []*model.PublishedReceipt{},
 				PayloadHash:          []byte{},
 				PayloadLength:        8,
 				SmithScale:           0,
@@ -644,7 +658,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.totalFee,
 				tt.args.totalCoinBase,
 				tt.args.transactions,
-				tt.args.blockReceipts,
+				tt.args.publishedReceipts,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
 				tt.args.smithScale,
@@ -1258,7 +1272,18 @@ type (
 	mockQueryExecutorMempoolSuccess struct {
 		query.Executor
 	}
+	mockReceiptServiceReturnEmpty struct {
+		ReceiptService
+	}
 )
+
+func (*mockReceiptServiceReturnEmpty) SelectReceipts(
+	blockTimestamp int64,
+	numberOfReceipt int,
+	lastBlockHeight uint32,
+) ([]*model.PublishedReceipt, error) {
+	return []*model.PublishedReceipt{}, nil
+}
 
 // mockQueryExecutorMempoolSuccess
 func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -1331,6 +1356,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		TransactionQuery   query.TransactionQueryInterface
 		Signature          crypto.SignatureInterface
 		MempoolService     MempoolServiceInterface
+		ReceiptService     ReceiptServiceInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
@@ -1417,6 +1443,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockTypeActionSuccess{},
 					},
 				},
+				ReceiptService:     &mockReceiptServiceReturnEmpty{},
 				ActionTypeSwitcher: &mockTypeActionSuccess{},
 			},
 			args: args{
@@ -1450,6 +1477,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				TransactionQuery:   tt.fields.TransactionQuery,
 				Signature:          tt.fields.Signature,
 				MempoolService:     tt.fields.MempoolService,
+				ReceiptService:     tt.fields.ReceiptService,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			_, err := bs.GenerateBlock(
@@ -2083,9 +2111,10 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			fields: fields{
 				Chaintype:           nil,
 				KVExecutor:          &mockKVExecutorSuccessKeyNotFound{},
-				QueryExecutor:       nil,
+				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          nil,
 				MempoolQuery:        nil,
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				TransactionQuery:    nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
@@ -2132,7 +2161,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			fields: fields{
 				Chaintype:           nil,
 				KVExecutor:          &mockKVExecutorFailOtherError{},
-				QueryExecutor:       nil,
+				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          nil,
 				MempoolQuery:        nil,
 				TransactionQuery:    nil,
@@ -2211,7 +2240,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:        nil,
 				TransactionQuery:    nil,
-				MerkleTreeQuery:     nil,
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
 				ActionTypeSwitcher:  nil,
@@ -2688,6 +2717,7 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 		mockSenderPublicKey,
 		mockNodePublicKey,
 		mockCurrentBlockHash,
+		nil,
 		constant.ReceiptDatumTypeBlock,
 	)
 	mockSuccessBatchReceipt.RecipientSignature = (&crypto.Signature{}).SignByNode(
@@ -2730,11 +2760,11 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 			fields: fields{
 				Chaintype:               nil,
 				KVExecutor:              &mockKVExecutorFailOtherError{},
-				QueryExecutor:           nil,
+				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              nil,
 				MempoolQuery:            nil,
 				TransactionQuery:        nil,
-				MerkleTreeQuery:         nil,
+				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
 				Signature:               &crypto.Signature{},
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
@@ -2759,11 +2789,11 @@ func TestBlockService_generateBlockReceipt(t *testing.T) {
 			fields: fields{
 				Chaintype:               nil,
 				KVExecutor:              &mockKVExecutorSuccess{},
-				QueryExecutor:           nil,
+				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              nil,
 				MempoolQuery:            nil,
 				TransactionQuery:        nil,
-				MerkleTreeQuery:         nil,
+				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
 				Signature:               &crypto.Signature{},
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,

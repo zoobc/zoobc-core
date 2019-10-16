@@ -6,21 +6,17 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/observer"
-
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/core/service"
-
-	"github.com/zoobc/zoobc-core/common/database"
-
 	"github.com/zoobc/zoobc-core/core/smith"
-
-	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 var (
@@ -109,12 +105,19 @@ func initialize(
 		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
+		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		crypto.NewSignature(),
 		query.NewTransactionQuery(chainType),
 		observerInstance,
 		log.New(),
+	)
+	receiptService := service.NewReceiptService(
+		query.NewReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		nil,
+		queryExecutor,
 	)
 	blockService = service.NewBlockService(
 		chainType,
@@ -124,8 +127,10 @@ func initialize(
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
 		query.NewMerkleTreeQuery(),
+		query.NewPublishedReceiptQuery(),
 		crypto.NewSignature(),
 		mempoolService,
+		receiptService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),

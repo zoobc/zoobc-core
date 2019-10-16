@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/mattn/go-sqlite3"
@@ -61,14 +62,20 @@ return error if error occurred
 */
 func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximumLifetimeConnection int) (*sql.DB, error) {
 	var (
-		err error
+		err     error
+		absPath string
 	)
-	_, err = os.Stat(dbPath + dbName)
+
+	absPath, err = filepath.Abs(filepath.Join(dbPath, dbName))
+	if err != nil {
+		return nil, err
+	}
+	_, err = os.Stat(absPath)
 	if os.IsNotExist(err) {
 		return nil, err
 	}
 
-	conn, err = sql.Open("sqlite3", dbPath+dbName)
+	conn, err = sql.Open("sqlite3", absPath)
 
 	if _, ok := err.(sqlite3.Error); ok {
 		return nil, err
