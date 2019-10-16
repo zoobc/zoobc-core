@@ -13,6 +13,11 @@ type (
 		InsertReceipt(receipt *model.Receipt) (str string, args []interface{})
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(limit uint32, offset uint64) string
+		GetReceiptByRoot(root []byte) (str string, args []interface{})
+		GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string
+		SelectReceipt(
+			lowerHeight, upperHeight, limit uint32,
+		) (str string)
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
 		Scan(receipt *model.Receipt, row *sql.Row) error
@@ -50,13 +55,55 @@ func (rq *ReceiptQuery) getTableName() string {
 // GetReceipts get a set of receipts that satisfies the params from DB
 func (rq *ReceiptQuery) GetReceipts(limit uint32, offset uint64) string {
 	query := fmt.Sprintf("SELECT %s from %s", strings.Join(rq.Fields, ", "), rq.getTableName())
-
 	newLimit := limit
 	if limit == 0 {
 		newLimit = uint32(10)
 	}
-
 	query += fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
+	return query
+}
+
+func (rq *ReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string {
+	var query string
+	if limit == 0 {
+		limit = 10
+	}
+	if rmrLinked {
+		query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rmr_linked IS NOT NULL AND "+
+			"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
+			"GROUP BY recipient_public_key LIMIT %d, %d",
+			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
+	} else {
+		query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE "+
+			"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
+			"GROUP BY recipient_public_key LIMIT %d, %d",
+			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
+	}
+	return query
+}
+
+// GetReceiptByRoot return sql query to fetch receipts by its merkle root, the datum_hash should not already exists in
+// published_receipt table
+func (rq *ReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
+		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) "+
+		"GROUP BY recipient_public_key",
+		strings.Join(rq.Fields, ", "), rq.getTableName())
+	return query, []interface{}{
+		root,
+	}
+}
+
+// SelectReceipt select list of receipt by some filter
+func (rq *ReceiptQuery) SelectReceipt(
+	lowerHeight, upperHeight, limit uint32,
+) (str string) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS nr WHERE EXISTS "+
+		"(SELECT rmr_linked FROM published_receipt AS pr WHERE nr.rmr = pr.rmr_linked AND "+
+		"block_height >= %d AND block_height <= %d ) LIMIT %d",
+		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight, limit)
+
 	return query
 }
 

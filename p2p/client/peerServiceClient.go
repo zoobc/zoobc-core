@@ -3,6 +3,9 @@ package client
 import (
 	"bytes"
 	"context"
+	"time"
+
+	"golang.org/x/crypto/sha3"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -173,7 +176,9 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-
+	if response.BatchReceipt == nil {
+		return err
+	}
 	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
@@ -370,9 +375,11 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		batchReceipts = psc.BatchReceiptQuery.BuildModel(batchReceipts, rows)
 
 		for _, b := range batchReceipts {
+			// hash the receipts
+			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
 			hashedReceipts = append(
 				hashedReceipts,
-				bytes.NewBuffer(util.GetSignedBatchReceiptBytes(b)),
+				bytes.NewBuffer(hashedBatchReceipt[:]),
 			)
 		}
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
@@ -382,7 +389,6 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		rootMerkle, treeMerkle := merkleRoot.ToBytes()
 
 		for k, r := range batchReceipts {
-
 			var (
 				br       = r
 				rmrIndex = uint32(k)
@@ -399,7 +405,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
 
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle)
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
 		err = psc.QueryExecutor.BeginTx()

@@ -3,31 +3,51 @@ package util
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/base64"
+	"reflect"
 	"testing"
 )
 
 func TestAllMerkle(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
+	t.Run("functional-and-integration:success", func(t *testing.T) {
 		merkle := MerkleRoot{}
-		hashes := []*bytes.Buffer{
-			bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}),
-			bytes.NewBuffer([]byte{8, 7, 6, 5, 4, 3, 2, 1}),
-			bytes.NewBuffer([]byte{1, 2, 3, 4}),
-			bytes.NewBuffer([]byte{4, 3, 2, 1}),
-			bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6}),
-			bytes.NewBuffer([]byte{6, 5, 4, 3, 2, 1}),
-			bytes.NewBuffer([]byte{1, 1, 2, 2, 3, 3, 4, 4}),
-			bytes.NewBuffer([]byte{4, 4, 3, 3, 2, 2, 1, 1}),
+		var hashes []*bytes.Buffer
+		for i := 0; i < 8; i++ {
+			var random = make([]byte, 32)
+			_, _ = rand.Read(random)
+			hashes = append(hashes, bytes.NewBuffer(random))
 		}
 		result, err := merkle.GenerateMerkleRoot(hashes)
 		if err != nil {
 			t.Errorf("error occurred when generating merkle root: %v", err)
 		}
-		nH := merkle.GetIntermediateHashes(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), 0)
-		verRes := merkle.VerifyLeaf(bytes.NewBuffer([]byte{1, 2, 3, 4, 5, 6, 7, 8}), result, nH)
-		if !verRes {
-			t.Errorf("nh: %v\nresult: %v\nverres: %v", nH, base64.StdEncoding.EncodeToString(result.Bytes()), verRes)
+		// flatten the root and tree for database representation
+		root, tree := merkle.ToBytes()
+		if !reflect.DeepEqual(result.Bytes(), root) {
+			t.Error("merkle root from generateMerkleRoot function differ from flatten root")
+		}
+		// restore tree state from flatten bytes in database
+		hashTreeFromDb := merkle.FromBytes(tree, root)
+		if !reflect.DeepEqual(merkle.HashTree, hashTreeFromDb) {
+			t.Error("hash tree from flatten and build is different")
+		}
+		// verify every leaf behavior
+		for index, leaf := range hashes {
+			var normalizedIntermediateHashes [][]byte
+			intermediateHashes := merkle.GetIntermediateHashes(leaf, int32(index))
+			for _, ih := range intermediateHashes {
+				normalizedIntermediateHashes = append(normalizedIntermediateHashes, ih.Bytes())
+			}
+			calculatedRoot, _ := merkle.GetMerkleRootFromIntermediateHashes(
+				leaf.Bytes(), uint32(index), normalizedIntermediateHashes,
+			)
+			if !reflect.DeepEqual(calculatedRoot, result.Bytes()) {
+				t.Error("calculated root differ from generated root")
+			}
+			flatenIntermediateHash := merkle.FlattenIntermediateHashes(normalizedIntermediateHashes)
+			recoveredIntermediateHash := merkle.RestoreIntermediateHashes(flatenIntermediateHash)
+			if !reflect.DeepEqual(recoveredIntermediateHash, normalizedIntermediateHashes) {
+				t.Error("merkle tree from flatten bytes does not build the same tree")
+			}
 		}
 	})
 	t.Run("fail:validation", func(t *testing.T) {
@@ -64,32 +84,8 @@ func BenchmarkMerkleTree8(b *testing.B) {
 	}
 }
 
-func BenchmarkMerkleTreeValidation8(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-		var hashesData = []*bytes.Buffer{}
-		for i := 0; i < 8; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
-	}
-}
-
 func BenchmarkMerkleTree32(b *testing.B) {
 	merkle := MerkleRoot{}
-
 	for n := 0; n < 1000000; n++ {
 		var hashesData = []*bytes.Buffer{}
 		for i := 0; i < 32; i++ {
@@ -105,29 +101,6 @@ func BenchmarkMerkleTree32(b *testing.B) {
 		if err != nil {
 			b.Errorf("error occurred when generating merkle root: %v", err)
 		}
-	}
-}
-
-func BenchmarkMerkleTreeValidation32(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-		var hashesData = []*bytes.Buffer{}
-		for i := 0; i < 32; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
 	}
 }
 
@@ -152,29 +125,6 @@ func BenchmarkMerkleTree64(b *testing.B) {
 	}
 }
 
-func BenchmarkMerkleTreeValidation64(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-		var hashesData = []*bytes.Buffer{}
-		for i := 0; i < 64; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
-	}
-}
-
 func BenchmarkMerkleTree128(b *testing.B) {
 	merkle := MerkleRoot{}
 
@@ -193,29 +143,6 @@ func BenchmarkMerkleTree128(b *testing.B) {
 		if err != nil {
 			b.Errorf("error occurred when generating merkle root: %v", err)
 		}
-	}
-}
-
-func BenchmarkMerkleTreeValidation128(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-		var hashesData = []*bytes.Buffer{}
-		for i := 0; i < 128; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
 	}
 }
 
@@ -240,29 +167,6 @@ func BenchmarkMerkleTree256(b *testing.B) {
 	}
 }
 
-func BenchmarkMerkleTreeValidation256(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-
-		var hashesData = []*bytes.Buffer{}
-		for i := 0; i < 256; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
-	}
-}
-
 func BenchmarkMerkleTree512(b *testing.B) {
 	merkle := MerkleRoot{}
 
@@ -283,29 +187,6 @@ func BenchmarkMerkleTree512(b *testing.B) {
 	}
 }
 
-func BenchmarkMerkleTreeValidation512(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-		var hashesData = []*bytes.Buffer{}
-		for i := 0; i < 512; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
-	}
-}
-
 func BenchmarkMerkleTree1024(b *testing.B) {
 	merkle := MerkleRoot{}
 
@@ -323,29 +204,5 @@ func BenchmarkMerkleTree1024(b *testing.B) {
 		if err != nil {
 			b.Errorf("error occurred when generating merkle root: %v", err)
 		}
-	}
-}
-
-func BenchmarkMerkleTreeValidation1024(b *testing.B) {
-	merkle := MerkleRoot{}
-
-	for n := 0; n < 50000; n++ {
-		var hashesData = []*bytes.Buffer{}
-
-		for i := 0; i < 1024; i++ {
-			dataRand := make([]byte, 32)
-			_, err := rand.Read(dataRand)
-			if err != nil {
-				b.Errorf("error occurred random func ")
-			}
-			hashesData = append(hashesData, bytes.NewBuffer(dataRand))
-		}
-
-		result, err := merkle.GenerateMerkleRoot(hashesData)
-		if err != nil {
-			b.Errorf("error occurred when generating merkle root: %v", err)
-		}
-		nH := merkle.GetIntermediateHashes(hashesData[0], 0)
-		merkle.VerifyLeaf(bytes.NewBuffer(hashesData[0].Bytes()), result, nH)
 	}
 }

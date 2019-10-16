@@ -105,12 +105,19 @@ func initialize(
 		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
+		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		crypto.NewSignature(),
 		query.NewTransactionQuery(chainType),
 		observerInstance,
 		log.New(),
+	)
+	receiptService := service.NewReceiptService(
+		query.NewReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		nil,
+		queryExecutor,
 	)
 	blockService = service.NewBlockService(
 		chainType,
@@ -120,8 +127,10 @@ func initialize(
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
 		query.NewMerkleTreeQuery(),
+		query.NewPublishedReceiptQuery(),
 		crypto.NewSignature(),
 		mempoolService,
+		receiptService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),

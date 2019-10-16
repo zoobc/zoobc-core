@@ -5,6 +5,8 @@ import (
 	"math"
 	"reflect"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/sha3"
 )
@@ -52,6 +54,43 @@ func (mr *MerkleRoot) hash(a, b *bytes.Buffer, level int32) *bytes.Buffer {
 	return res
 }
 
+// GetMerkleRootFromIntermediateHashes hash the root to every intermediate hashes in order until it returns the
+// merkle root hash
+func (mr *MerkleRoot) GetMerkleRootFromIntermediateHashes(
+	leaf []byte, leafIndex uint32,
+	intermediateHashes [][]byte,
+) (root []byte, err error) {
+	digest := sha3.New256()
+	lastHash := leaf
+	for _, nh := range intermediateHashes {
+		digest.Reset()
+		if (leafIndex+1)%2 == 0 {
+			// right
+			_, err = digest.Write(nh)
+			if err != nil {
+				return nil, err
+			}
+			_, err = digest.Write(lastHash)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// left
+			_, err = digest.Write(lastHash)
+			if err != nil {
+				return nil, err
+			}
+			_, err = digest.Write(nh)
+			if err != nil {
+				return nil, err
+			}
+		}
+		lastHash = digest.Sum([]byte{})
+		leafIndex = uint32(math.Ceil(float64(leafIndex+1)/2)) - 1
+	}
+	return lastHash, nil
+}
+
 // GetIntermediateHashes crawl the hashes that are needed to verify the `leafHash`
 // leafIndex is index of the leaf node passed, it should be stored to avoid `n` complexity just for finding level 0
 // node hash
@@ -68,7 +107,7 @@ func (mr *MerkleRoot) GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex in
 				} else {
 					necessaryHashes = append(necessaryHashes, mr.HashTree[j][leafIndex+1])
 				}
-				lastParentHashIndex = int(math.Ceil(float64(leafIndex) / 2))
+				lastParentHashIndex = int(math.Ceil(float64(leafIndex+1)/2)) - 1
 				continue
 			}
 		} else {
@@ -77,25 +116,31 @@ func (mr *MerkleRoot) GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex in
 			} else {
 				necessaryHashes = append(necessaryHashes, mr.HashTree[j][lastParentHashIndex+1])
 			}
-			lastParentHashIndex = int(math.Ceil(float64(lastParentHashIndex) / 2))
+			lastParentHashIndex = int(math.Ceil(float64(lastParentHashIndex+1)/2)) - 1
 		}
 
 	}
 	return necessaryHashes
 }
 
-// VerifyLeaf take a leaf hash and the merkle root to verify if the leaf hash, hashed with every hash
-// in the necessaryHashes will match the merkle root or not.
-func (*MerkleRoot) VerifyLeaf(leaf, root *bytes.Buffer, necessaryHashes []*bytes.Buffer) bool {
-	digest := sha3.New256()
-	lastHash := leaf.Bytes()
-	for _, nh := range necessaryHashes {
-		digest.Reset()
-		_, _ = digest.Write(lastHash)
-		_, _ = digest.Write(nh.Bytes())
-		lastHash = digest.Sum([]byte{})
+// IntermediateHashToByte flatten intermediate hashes bytes
+func (*MerkleRoot) FlattenIntermediateHashes(intermediateHashes [][]byte) []byte {
+	var result []byte
+	for _, ih := range intermediateHashes {
+		result = append(result, ih...)
 	}
-	return reflect.DeepEqual(lastHash, root.Bytes())
+	return result
+}
+
+func (*MerkleRoot) RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte {
+	var (
+		result [][]byte
+	)
+	intermediateHashesSize := len(flattenIntermediateHashes) / constant.ReceiptHashSize
+	for i := 0; i < intermediateHashesSize; i++ {
+		result = append(result, flattenIntermediateHashes[i*constant.ReceiptHashSize:(i+1)*constant.ReceiptHashSize])
+	}
+	return result
 }
 
 // ToBytes build []byte from HashTree which is a [][]*bytes.Buffer
@@ -107,12 +152,37 @@ func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
 	r = bytes.NewBuffer([]byte{})
 
 	for k, buffer := range mr.HashTree {
-		for _, nestBuf := range buffer {
-			t.Write(nestBuf.Bytes())
-			if k < len(mr.HashTree) {
-				r.Write(nestBuf.Bytes())
+		if k+1 == len(mr.HashTree) {
+			r.Write(buffer[0].Bytes()) // write root
+		} else {
+			for _, nestBuf := range buffer {
+				t.Write(nestBuf.Bytes())
 			}
 		}
 	}
 	return r.Bytes(), t.Bytes()
+}
+
+// FromBytes build []byte to [][]*bytes.Buffer tree representation for easier validation
+func (mr *MerkleRoot) FromBytes(tree, root []byte) [][]*bytes.Buffer {
+	var hashTree [][]*bytes.Buffer
+	// 2n-1 of the tree
+	treeLevelZeroLength := ((len(tree) / constant.ReceiptHashSize) + 2) / 2
+	var offset int
+	for treeLevelZeroLength != 1 {
+		var tempHashes []*bytes.Buffer
+		limit := offset + treeLevelZeroLength
+		for i := offset; i < limit; i++ {
+			bytesOffset := i * constant.ReceiptHashSize
+			bytesLimit := bytesOffset + constant.ReceiptHashSize
+			tempHashes = append(tempHashes, bytes.NewBuffer(tree[bytesOffset:bytesLimit]))
+		}
+		offset += treeLevelZeroLength
+		treeLevelZeroLength /= 2
+		hashTree = append(hashTree, tempHashes)
+	}
+	hashTree = append(hashTree, []*bytes.Buffer{
+		bytes.NewBuffer(root),
+	})
+	return hashTree
 }
