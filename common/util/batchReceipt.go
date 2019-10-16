@@ -13,7 +13,7 @@ import (
 // generated receipt will not be signed yet (RecipientSignature = nil), will need to be signed using SignReceipt method.
 func GenerateBatchReceipt(
 	referenceBlock *model.Block,
-	senderPublicKey, recipientPublicKey, datumHash []byte,
+	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
 	refBlockHash, _ := GetBlockHash(referenceBlock)
@@ -24,6 +24,7 @@ func GenerateBatchReceipt(
 		DatumHash:            datumHash,
 		ReferenceBlockHeight: referenceBlock.Height,
 		ReferenceBlockHash:   refBlockHash,
+		RMRLinked:            rmrLinked,
 	}, nil
 }
 

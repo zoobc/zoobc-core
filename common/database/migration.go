@@ -163,6 +163,26 @@ func (m *Migration) Init() error {
 				"tree" BLOB
 			)
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "published_receipt" (
+				"sender_public_key" BLOB,
+				"recipient_public_key" BLOB,
+				"datum_type" INTEGER,
+				"datum_hash" BLOB,
+				"reference_block_height" INTEGER,
+				"reference_block_hash" BLOB,
+				"rmr_linked" BLOB,
+				"recipient_signature" BLOB,
+				"intermediate_hashes" BLOB,
+				"block_height" INTEGER,
+				"receipt_index" INTEGER,
+				"published_index" INTEGER
+			)
+			`,
+			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "timestamp" INTEGER AFTER "tree"
+			`,
 		}
 		return nil
 	}
