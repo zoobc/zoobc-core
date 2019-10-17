@@ -4,6 +4,8 @@ kvdb is key-value database abstraction of badger db implementation
 package kvdb
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dgraph-io/badger"
@@ -97,4 +99,51 @@ func (kve *KVExecutor) GetByPrefix(prefix string) (map[string][]byte, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// Rollback delete multiple data from starting forking point
+
+func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
+
+	var queryResult = make(map[string][]byte)
+	err := kve.Db.Update(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		x := strings.Split(latestBlock, "-")
+		y := strings.Split(forkingPoint, "-")
+		endData, _ := strconv.Atoi(x[1])
+		startData, _ := strconv.Atoi(y[1])
+		dataGap := endData - startData
+		for i := 1; i <= dataGap; i++ {
+			prefix := y[0] + "-" + strconv.Itoa(endData)
+
+			for it.Seek([]byte(prefix)); it.ValidForPrefix([]byte(prefix)); it.Next() {
+				item := it.Item()
+				k := item.Key()
+				err := item.Value(func(v []byte) error {
+					queryResult[string(k)] = v
+					return nil
+				})
+				if err != nil {
+					return err
+				}
+			}
+			endData--
+		}
+
+		for key := range queryResult {
+			err := txn.Delete([]byte(key))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

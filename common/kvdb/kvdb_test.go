@@ -75,6 +75,66 @@ func TestKVExecutor_Get(t *testing.T) {
 	})
 }
 
+func TestKVExecutor_GetByPrefix(t *testing.T) {
+	t.Run("key not found", func(t *testing.T) {
+		mockKvDb := getMockedKVDb()
+		defer cleanUpTestData()
+		mockExecutor := &KVExecutor{Db: mockKvDb}
+		_, err := mockExecutor.Get("bar")
+		if err == nil {
+			t.Error("should return key not found")
+		}
+	})
+	t.Run("success", func(t *testing.T) {
+		mockKvDb := getMockedKVDb()
+		mockExecutor := &KVExecutor{Db: mockKvDb}
+		// insert first
+		_ = mockExecutor.Insert("02021", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("02022", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("02023", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("02024", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("01025", []byte{1, 1, 1, 1}, 60)
+
+		res, err := mockExecutor.GetByPrefix("0102")
+		if err != nil {
+			t.Error("should return key not found")
+		}
+
+		if !reflect.DeepEqual(res["01025"], []byte{1, 1, 1, 1}) {
+			t.Error("inserted value and fetched value does not match")
+		}
+		defer cleanUpTestData()
+	})
+}
+
+func TestKVExecutor_Rollback(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockKvDb := getMockedKVDb()
+		mockExecutor := &KVExecutor{Db: mockKvDb}
+		// insert first
+		_ = mockExecutor.Insert("BCZ-105-02021", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("BCZ-104-02022", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("BCZ-103-02023", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("BCZ-102-02024", []byte{1, 1, 1, 1}, 60)
+		_ = mockExecutor.Insert("BCZ-101-01025", []byte{1, 1, 1, 1}, 60)
+
+		err := mockExecutor.Rollback("BCZ-105-02021", "BCZ-102-02024")
+		if err != nil {
+			t.Error(err)
+		}
+
+		checkData, err := mockExecutor.GetByPrefix("BCZ-103")
+		if err != nil {
+			t.Error(err)
+		}
+
+		if len(checkData) != 0 {
+			t.Error("fail to rollback")
+		}
+		defer cleanUpTestData()
+	})
+}
+
 func TestKVExecutor_Insert(t *testing.T) {
 	t.Run("success insert", func(t *testing.T) {
 		mockKvDb := getMockedKVDb()
