@@ -132,15 +132,16 @@ func (*mockQueryExecutorFailExecuteSelectReceipt) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
+	case "SELECT id, tree, timestamp, block_height FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked AND " +
 		"block_height >= 0 AND block_height <= 1000 ) LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "Tree", "Timestamp",
+			"ID", "Tree", "Timestamp", "BlockHeight",
 		}).AddRow(
 			[]byte{},
 			[]byte{},
 			1*constant.OneZBC,
+			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
@@ -160,15 +161,16 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
+	case "SELECT id, tree, timestamp, block_height FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked AND " +
 		"block_height >= 0 AND block_height <= 1000 ) LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "Tree", "Timestamp",
+			"ID", "Tree", "Timestamp", "BlockHeight",
 		}).AddRow(
 			mockReceiptRMR.Bytes(),
 			mockFlattenTree,
 			1*constant.OneZBC,
+			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
@@ -210,15 +212,16 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
+	case "SELECT id, tree, timestamp, block_height FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked AND " +
 		"block_height >= 0 AND block_height <= 1000 ) LIMIT 3":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "Tree", "Timestamp",
+			"ID", "Tree", "Timestamp", "BlockHeight",
 		}).AddRow(
 			mockReceiptRMR.Bytes(),
 			mockFlattenTree,
 			1*constant.OneZBC,
+			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
@@ -314,11 +317,12 @@ func (*mockQueryExecutorSuccessMerkle) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "Tree", "Timestamp",
+		"ID", "Tree", "Timestamp", "BlockHeight",
 	}).AddRow(
 		[]byte{},
 		[]byte{},
 		1*constant.OneZBC,
+		0,
 	))
 	rows, _ := db.Query(qe)
 	return rows, nil

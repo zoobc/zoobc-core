@@ -25,6 +25,10 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewNodeRegistrationQuery(),
 				NewAccountBalanceQuery(),
 				NewAccountDatasetsQuery(),
+				NewPublishedReceiptQuery(),
+				NewMerkleTreeQuery(),
+				NewReceiptQuery(),
+				NewBatchReceiptQuery(),
 			},
 		},
 	}

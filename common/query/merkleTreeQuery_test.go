@@ -49,7 +49,7 @@ func TestMerkleTreeQuery_SelectMerkleTree(t *testing.T) {
 				upperHeight: 10,
 				limit:       20,
 			},
-			want: "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
+			want: "SELECT id, tree, timestamp, block_height FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
 				"published_receipt AS pr WHERE mt.id = pr.rmr_linked AND block_height >= 0 AND block_height <= 10 ) " +
 				"LIMIT 20",
 		},
@@ -166,7 +166,7 @@ func TestMerkleTreeQuery_GetMerkleTreeByRoot(t *testing.T) {
 			args: args{
 				root: mockRoot,
 			},
-			wantQStr: "SELECT id, tree, timestamp FROM merkle_tree WHERE id = ?",
+			wantQStr: "SELECT id, tree, timestamp, block_height FROM merkle_tree WHERE id = ?",
 			wantArgs: []interface{}{mockRoot},
 		},
 	}
@@ -203,7 +203,7 @@ func TestMerkleTreeQuery_GetLastMerkleRoot(t *testing.T) {
 				Fields:    mockMerkleTreeQuery.Fields,
 				TableName: mockMerkleTreeQuery.TableName,
 			},
-			wantQStr: "SELECT id, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1",
+			wantQStr: "SELECT id, tree, timestamp, block_height FROM merkle_tree ORDER BY timestamp DESC LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
@@ -226,6 +226,7 @@ func TestMerkleTreeQuery_ScanTree(t *testing.T) {
 		mockRoot,
 		mockTree,
 		int64(0),
+		uint32(0),
 	))
 	mock.ExpectQuery("wrongQuery").WillReturnRows(sqlmock.NewRows([]string{"foo"}).AddRow(
 		mockRoot,
@@ -296,6 +297,7 @@ func TestMerkleTreeQuery_ScanRoot(t *testing.T) {
 		mockRoot,
 		mockTree,
 		int64(0),
+		uint32(0),
 	))
 	mock.ExpectQuery("wrongQuery").WillReturnRows(sqlmock.NewRows([]string{"foo"}).AddRow(
 		mockRoot,
@@ -366,6 +368,7 @@ func TestMerkleTreeQuery_BuildTree(t *testing.T) {
 		mockRoot,
 		mockTree,
 		int64(0),
+		uint32(0),
 	))
 
 	rows, _ := db.Query("")
