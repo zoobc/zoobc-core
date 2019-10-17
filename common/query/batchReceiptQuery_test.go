@@ -394,3 +394,18 @@ func TestBatchReceiptQuery_RemoveBatchReceipt(t *testing.T) {
 		})
 	}
 }
+
+func TestBatchReceiptQuery_Rollback(t *testing.T) {
+	t.Run("batchReceiptQuery:rollback - success", func(t *testing.T) {
+
+		res := mockBatchQuery.Rollback(100)
+		want := [][]interface{}{
+			{
+				"DELETE FROM batch_receipt WHERE reference_block_height > 100",
+			},
+		}
+		if !reflect.DeepEqual(res, want) {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

@@ -318,3 +318,18 @@ func TestPublishedReceiptQuery_getTableName(t *testing.T) {
 		})
 	}
 }
+
+func TestPublishedReceiptQuery_Rollback(t *testing.T) {
+	t.Run("publishedReceiptQuery:rollback - success", func(t *testing.T) {
+
+		res := mockPublishedReceiptQuery.Rollback(100)
+		want := [][]interface{}{
+			{
+				"DELETE FROM published_receipt WHERE block_height > 100",
+			},
+		}
+		if !reflect.DeepEqual(res, want) {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

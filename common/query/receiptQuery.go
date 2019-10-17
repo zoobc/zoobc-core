@@ -20,6 +20,7 @@ type (
 		) (str string)
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
+		Rollback(height uint32) (multiQueries [][]interface{})
 		Scan(receipt *model.Receipt, row *sql.Row) error
 	}
 
@@ -201,4 +202,12 @@ func (*ReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
 	)
 	return err
 
+}
+
+func (rq *ReceiptQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE reference_block_height > %d", rq.getTableName(), height),
+		},
+	}
 }

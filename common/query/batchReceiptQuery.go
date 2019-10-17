@@ -19,6 +19,7 @@ type (
 		ExtractModel(receipt *model.BatchReceipt) []interface{}
 		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) []*model.BatchReceipt
 		Scan(receipt *model.BatchReceipt, rows *sql.Row) error
+		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 	// BatchReceiptQuery us query for BatchReceipt
 	BatchReceiptQuery struct {
@@ -146,4 +147,12 @@ func (*BatchReceiptQuery) Scan(receipt *model.BatchReceipt, row *sql.Row) error 
 	)
 	return err
 
+}
+
+func (br *BatchReceiptQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE reference_block_height > %d", br.getTableName(), height),
+		},
+	}
 }

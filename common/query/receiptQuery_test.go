@@ -310,3 +310,18 @@ func TestReceiptQuery_BuildModel(t *testing.T) {
 		})
 	}
 }
+
+func TestReceiptQuery_Rollback(t *testing.T) {
+	t.Run("receiptQuery:rollback - success", func(t *testing.T) {
+
+		res := mockReceiptQuery.Rollback(100)
+		want := [][]interface{}{
+			{
+				"DELETE FROM node_receipt WHERE reference_block_height > 100",
+			},
+		}
+		if !reflect.DeepEqual(res, want) {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

@@ -369,6 +369,10 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 	psc.Logger.Info("Count Batch Receipts: ", count)
 
 	if count >= constant.ReceiptBatchMaximum {
+		lastBlock, err := util.GetLastBlock(psc.QueryExecutor, query.NewBlockQuery(&chaintype.MainChain{}))
+		if err != nil {
+			return err
+		}
 		psc.Logger.Info("Start Store Batch To Receipt: ", count)
 		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
 		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
@@ -411,7 +415,8 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
 
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(
+			rootMerkle, treeMerkle, time.Now().Unix(), lastBlock.Height)
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
 		err = psc.QueryExecutor.BeginTx()

@@ -14,6 +14,7 @@ type (
 		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
+		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	PublishedReceiptQuery struct {
@@ -97,5 +98,13 @@ func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedRece
 		&publishedReceipt.BlockHeight,
 		&publishedReceipt.ReceiptIndex,
 		&publishedReceipt.PublishedIndex,
+	}
+}
+
+func (prq *PublishedReceiptQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > %d", prq.getTableName(), height),
+		},
 	}
 }

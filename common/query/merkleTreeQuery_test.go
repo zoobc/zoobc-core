@@ -14,6 +14,7 @@ var (
 			"id",
 			"tree",
 			"timestamp",
+			"block_height",
 		},
 		TableName: "merkle_tree",
 	}
@@ -91,9 +92,10 @@ func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		root      []byte
-		tree      []byte
-		timestamp int64
+		root        []byte
+		tree        []byte
+		timestamp   int64
+		blockHeight uint32
 	}
 	tests := []struct {
 		name     string
@@ -109,15 +111,17 @@ func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 				TableName: mockMerkleTreeQuery.TableName,
 			},
 			args: args{
-				root:      mockRoot,
-				tree:      mockTree,
-				timestamp: 0,
+				root:        mockRoot,
+				tree:        mockTree,
+				timestamp:   0,
+				blockHeight: 1,
 			},
-			wantQStr: "INSERT INTO merkle_tree (id, tree, timestamp) VALUES(?,? ,? )",
+			wantQStr: "INSERT INTO merkle_tree (id, tree, timestamp, block_height) VALUES(?,? ,? ,? )",
 			wantArgs: []interface{}{
 				mockRoot,
 				mockTree,
 				int64(0),
+				uint32(1),
 			},
 		},
 	}
@@ -127,7 +131,7 @@ func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQStr, gotArgs := mrQ.InsertMerkleTree(tt.args.root, tt.args.tree, tt.args.timestamp)
+			gotQStr, gotArgs := mrQ.InsertMerkleTree(tt.args.root, tt.args.tree, tt.args.timestamp, tt.args.blockHeight)
 			if gotQStr != tt.wantQStr {
 				t.Errorf("InsertMerkleTree() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
 			}
@@ -429,4 +433,29 @@ func TestMerkleTreeQuery_BuildTree(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMerkleTreeQuery_Rollback(t *testing.T) {
+	t.Run("merkleTreeQuery:rollback - success", func(t *testing.T) {
+
+		res := mockMerkleTreeQuery.Rollback(100)
+		want := [][]interface{}{
+			{
+				"INSERT INTO batch_receipt (sender_public_key, recipient_public_key, datum_type, datum_hash, " +
+					"reference_block_height, reference_block_hash, rmr_linked, recipient_signature) SELECT " +
+					"(sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+					"reference_block_hash, rmr_linked, recipient_signature FROM node_receipt WHERE rmr IN (SELECT id " +
+					"FROM merkle_tree WHERE block_height > 100)",
+			},
+			{
+				"DELETE FROM node_receipt WHERE rmr IN (SELECT id FROM merkle_tree WHERE block_height > 100)",
+			},
+			{
+				"DELETE FROM merkle_tree WHERE block_height > 100",
+			},
+		}
+		if !reflect.DeepEqual(res, want) {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
 }

@@ -18,5 +18,9 @@ func GetDerivedQuery(chainType chaintype.ChainType) []DerivedQuery {
 		NewNodeRegistrationQuery(),
 		NewAccountBalanceQuery(),
 		NewAccountDatasetsQuery(),
+		NewPublishedReceiptQuery(),
+		NewMerkleTreeQuery(),
+		NewReceiptQuery(),
+		NewBatchReceiptQuery(),
 	}
 }
