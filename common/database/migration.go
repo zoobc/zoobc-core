@@ -183,6 +183,10 @@ func (m *Migration) Init() error {
 			ALTER TABLE "merkle_tree"
 				ADD COLUMN "timestamp" INTEGER AFTER "tree"
 			`,
+			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "block_height" INTEGER AFTER "merkle_tree"
+			`,
 		}
 		return nil
 	}
