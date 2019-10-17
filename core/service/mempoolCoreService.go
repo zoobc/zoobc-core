@@ -301,8 +301,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, err
 	}
 	mempoolTx = &model.MempoolTransaction{
-		// TODO: how to determine FeePerByte in mempool?
-		FeePerByte:              0,
+		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),

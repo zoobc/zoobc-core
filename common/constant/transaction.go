@@ -5,6 +5,8 @@ var (
 	MinTransactionSize                = 176
 	MaxPayloadLength                  = MinTransactionSize * MaxNumberOfTransactions
 	TransactionExpirationOffset int64 = 3600 // 3600 seconds
-	TxFeePerByte                int32
-	SignatureTypeDefault        = uint32(0)
+	SignatureTypeDefault              = uint32(0)
+	// OneFeePerByteTransaction use to improve accuracy fee per byte of transaction bytes
+	// Will be usefull when ordering tx in mempool based on tx per bytes
+	OneFeePerByteTransaction = OneZBC * 10000000000
 )
