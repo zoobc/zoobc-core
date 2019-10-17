@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -89,6 +91,30 @@ func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing
 		want := "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A " +
 			"INNER JOIN node_registry as B ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.queued=0 AND A.latest=1"
 		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}
+
+func TestParticipationScoreQuery_AddParticipationScore(t *testing.T) {
+	t.Run("AddParticipationScore:success", func(t *testing.T) {
+		res := mockParticipationScoreQuery.AddParticipationScore(12, 1*constant.OneZBC, 1)
+		want := [][]interface{}{
+			{
+				"INSERT INTO participation_score (node_id, score, height, latest) SELECT 12, 100000000, 1, " +
+					"1 WHERE NOT EXISTS (SELECT node_id FROM participation_score WHERE node_id = 12)",
+			},
+			{
+				"INSERT INTO participation_score (node_id, score, height, latest) SELECT node_id, score + " +
+					"100000000, 1, latest FROM participation_score WHERE node_id = 12 AND latest = 1 ON " +
+					"CONFLICT(node_id, height) DO UPDATE SET (score) = (SELECT score + 100000000 FROM participation_score " +
+					"WHERE node_id = 12 AND latest = 1)",
+			},
+			{
+				"UPDATE participation_score SET latest = false WHERE node_id = 12 AND height != 1 AND latest = true",
+			},
+		}
+		if !reflect.DeepEqual(res, want) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
 	})
