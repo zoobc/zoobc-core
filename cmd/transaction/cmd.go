@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -138,16 +137,15 @@ func Commands(sqliteDB *sql.DB) *cobra.Command {
 // SendMoneyProcess for generate TX SendMoney type
 func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxSendMoney(tx, sendAmount)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
 
 func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxRegisterNode(
 			tx,
 			nodeOwnerAccountAddress,
@@ -157,14 +155,13 @@ func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 			lockedBalance,
 			txg.DB,
 		)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
 
 func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxUpdateNode(
 			tx,
 			nodeOwnerAccountAddress,
@@ -173,23 +170,21 @@ func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 			lockedBalance,
 			txg.DB,
 		)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
 
 func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxRemoveNode(tx, nodeSeed)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
 
 func (txg *TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxClaimNode(
 			tx,
 			nodeOwnerAccountAddress,
@@ -197,26 +192,23 @@ func (txg *TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 			recipientAccountAddress,
 			txg.DB,
 		)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
 func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		senderAccountAddress := util.GetAddressFromSeed(senderSeed)
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
 
 func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		senderAccountAddress := util.GetAddressFromSeed(senderSeed)
-		tx := GenerateBasicTransaction(senderSeed)
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
-		result := PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
-		fmt.Println(result)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }

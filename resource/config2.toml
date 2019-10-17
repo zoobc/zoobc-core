@@ -14,9 +14,9 @@ apiRPCPort=3002
 apiHTTPPort=3032
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+ownerAccountAddress = "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH"
 
-smithing=false
+smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 logLevels=["warn", "fatal", "error", "panic"]

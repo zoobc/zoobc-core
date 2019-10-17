@@ -130,6 +130,9 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	row = ns.Query.ExecuteSelectRow(selectQuery, args...)
 	err = nodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
