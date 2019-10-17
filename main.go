@@ -102,7 +102,7 @@ func init() {
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	db, err = dbInstance.OpenDB(dbPath, dbName, constant.SqlMaxIdleConnections, constant.SqlMaxConnectionLifetime)
+	db, err = dbInstance.OpenDB(dbPath, dbName, constant.SQLMaxIdleConnections, constant.SQLMaxConnectionLifetime)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}

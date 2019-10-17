@@ -1,8 +1,8 @@
 package constant
 
 var (
-	// SqlMaxConnectionLifetime Represent number of maximum idle connetion in sql pool connection
-	SqlMaxIdleConnections = 40
-	// SqlMaxConnectionLifetime Reprensent the expiration of idle connetion, the number in minutes
-	SqlMaxConnectionLifetime = 30
+	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
+	SQLMaxIdleConnections = 40
+	// SQLMaxConnectionLifetime Reprensent the expiration of idle connetion, the number in minutes
+	SQLMaxConnectionLifetime = 30
 )
