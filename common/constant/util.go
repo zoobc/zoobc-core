@@ -6,46 +6,26 @@ import (
 	"github.com/spf13/viper"
 )
 
-var DebugFlag bool
-
-type (
-	DebugFlagInterface interface {
-		SetDebugFlag(flag bool)
-	}
-)
-
-func SetDebugFlag(flag bool) {
-	fmt.Printf("executed setter\n")
-	if flag {
-		DebugFlag = true
-	} else {
-		DebugFlag = false
-	}
-
-}
+var ConfigFile = "././resource/debugConfig.toml"
 
 func setDebug() bool {
 
-	// debugMode := flag.Lookup("debug").Value.(flag.Getter).Get().(bool)
-	// viper.SetConfigFile("config.toml")
-	// viper.AddConfigPath("../resource/")
-	// viper.SetConfigType("toml")
-	// viper.SetConfigFile("/Users/admin/go/src/github.com/zoobc/zoobc-core/resource/config.toml")
-	// if err := viper.ReadInConfig(); err != nil {
-	// 	fmt.Printf("error : %v\n", err)
-	// 	return false
-	// }
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 
-	debugModeX := DebugFlag
-	// debugMode := DebugShadow
-	debugMode := false
-	fmt.Printf("debug back: %v\n", debugModeX)
+	debugMode := viper.GetBool("debugFlag")
 
 	return debugMode
 }
 
 func SetCheckVarString(key, defaultVal string) string {
 	var Output string
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	if viper.GetString(key) != "" && setDebug() {
 		Output = viper.GetString(key)
 	} else {
@@ -57,6 +37,10 @@ func SetCheckVarString(key, defaultVal string) string {
 
 func SetCheckVarInt64(key string, defaultVal int64) int64 {
 	var Output int64
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	if viper.GetInt64(key) != 0 && setDebug() {
 		Output = viper.GetInt64(key)
 	} else {
@@ -68,6 +52,10 @@ func SetCheckVarInt64(key string, defaultVal int64) int64 {
 
 func SetCheckVarInt32(key string, defaultVal int32) int32 {
 	var Output int32
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	if viper.GetInt32(key) != 0 && setDebug() {
 		Output = viper.GetInt32(key)
 	} else {
@@ -79,11 +67,17 @@ func SetCheckVarInt32(key string, defaultVal int32) int32 {
 
 func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
 	var Output uint32
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	fmt.Println("var :", viper.GetUint32(key), " ", setDebug())
 	if viper.GetUint32(key) != 0 && setDebug() {
 		Output = viper.GetUint32(key)
+		fmt.Printf("debug on use this \n")
 	} else {
 		Output = defaultVal
+		fmt.Printf("debug off use this \n")
 	}
 
 	return Output
@@ -91,6 +85,10 @@ func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
 
 func SetCheckVarUint64(key string, defaultVal uint64) uint64 {
 	var Output uint64
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	if viper.GetUint32(key) != 0 && setDebug() {
 		Output = viper.GetUint64(key)
 	} else {
@@ -102,6 +100,10 @@ func SetCheckVarUint64(key string, defaultVal uint64) uint64 {
 
 func SetCheckVarUint(key string, defaultVal uint) uint {
 	var Output uint
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	if viper.GetUint(key) != 0 && setDebug() {
 		Output = viper.GetUint(key)
 	} else {
@@ -113,6 +115,10 @@ func SetCheckVarUint(key string, defaultVal uint) uint {
 
 func SetCheckVarInt(key string, defaultVal int) int {
 	var Output int
+	viper.SetConfigFile(ConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("error : %v\n", err)
+	}
 	if viper.GetInt(key) != 0 && setDebug() {
 		Output = viper.GetInt(key)
 	} else {
