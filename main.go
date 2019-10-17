@@ -216,7 +216,6 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	badgerDbName = viper.GetString("badgerDbName")
 	configPath = viper.GetString("configPath")
 	nodeKeyFile = viper.GetString("nodeKeyFile")
-	log.Printf("\n\n\n\n%s", myAddress)
 }
 
 func initLogInstance() {
