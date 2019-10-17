@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"sort"
@@ -123,6 +122,19 @@ func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransa
 
 // AddMempoolTransaction validates and insert a transaction into the mempool
 func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	// check maximum mempool
+	if constant.MaxMempoolTransactions > 0 {
+		var count int
+		sqlStr := mps.MempoolQuery.GetMempoolTransactions()
+		err := mps.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr)).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if (count + 1) > constant.MaxMempoolTransactions {
+			return blocker.NewBlocker(blocker.ValidationErr, "Mempool already full")
+		}
+	}
+
 	// check if already in db
 	_, err := mps.GetMempoolTransaction(mpTx.ID)
 	if err == nil {
@@ -196,7 +208,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 // 1. get all mempool transaction from db (all mpTx already processed but still not included in a block)
 // 2. merge with mempool, until it's full (payload <= MAX_PAYLOAD_LENGTH and max 255 mpTx) and do formal validation
 //	  (timestamp <= MAX_TIMEDRIFT, mpTx is formally valid)
-// 3. sort new mempool by arrival time then height then ID (this last one sounds useless to me unless ids are sortable..)
+// 3. sort new mempool by fee per byte, arrival timestamp then ID (this last one sounds useless to me unless ids are sortable..)
 // Note: Tx Order is important to allow every node with a same set of transactions to  build the block and always obtain
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
@@ -208,40 +220,37 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 
 	var payloadLength int
 	sortedTransactions := make([]*model.MempoolTransaction, 0)
-	for payloadLength <= constant.MaxPayloadLength && len(mempoolTransactions) <= constant.MaxNumberOfTransactions {
-		prevNumberOfNewTransactions := len(sortedTransactions)
-		for _, mempoolTransaction := range mempoolTransactions {
-			transactionLength := len(mempoolTransaction.TransactionBytes)
-			if transactionsContain(sortedTransactions, mempoolTransaction) || payloadLength+transactionLength > constant.MaxPayloadLength {
-				continue
-			}
-
-			tx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
-			if err != nil {
-				continue
-			}
-			// compute transaction expiration time
-			txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
-			// compare to millisecond representation of block timestamp
-			if blockTimestamp == 0 || blockTimestamp > txExpirationTime {
-				continue
-			}
-
-			parsedTx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
-			if err != nil {
-				continue
-			}
-
-			if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
-				continue
-			}
-
-			sortedTransactions = append(sortedTransactions, mempoolTransaction)
-			payloadLength += transactionLength
-		}
-		if len(sortedTransactions) == prevNumberOfNewTransactions {
+	for _, mempoolTransaction := range mempoolTransactions {
+		if len(sortedTransactions) >= constant.MaxNumberOfTransactions {
 			break
 		}
+		transactionLength := len(mempoolTransaction.TransactionBytes)
+		if payloadLength+transactionLength > constant.MaxPayloadLength {
+			continue
+		}
+
+		tx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+		if err != nil {
+			continue
+		}
+		// compute transaction expiration time
+		txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
+		// compare to millisecond representation of block timestamp
+		if blockTimestamp == 0 || blockTimestamp > txExpirationTime {
+			continue
+		}
+
+		parsedTx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+		if err != nil {
+			continue
+		}
+
+		if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+			continue
+		}
+
+		sortedTransactions = append(sortedTransactions, mempoolTransaction)
+		payloadLength += transactionLength
 	}
 	sortFeePerByteThenTimestampThenID(sortedTransactions)
 	return sortedTransactions, nil
@@ -375,16 +384,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	return batchReceipt, nil
 }
 
-func transactionsContain(a []*model.MempoolTransaction, x *model.MempoolTransaction) bool {
-	for _, n := range a {
-		if bytes.Equal(x.TransactionBytes, n.TransactionBytes) {
-			return true
-		}
-	}
-	return false
-}
-
-// SortByTimestampThenHeightThenID sort a slice of mpTx by feePerByte, timestamp, id DESC
+// sortFeePerByteThenTimestampThenID sort a slice of mpTx by feePerByte, timestamp, id DESC
 func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 	sort.SliceStable(members, func(i, j int) bool {
 		mi, mj := members[i], members[j]

@@ -8,5 +8,5 @@ var (
 	SignatureTypeDefault              = uint32(0)
 	// OneFeePerByteTransaction use to improve accuracy fee per byte of transaction bytes
 	// Will be usefull when ordering tx in mempool based on tx per bytes
-	OneFeePerByteTransaction = OneZBC * 10000000000
+	OneFeePerByteTransaction int64 = 10000
 )
