@@ -7,6 +7,12 @@ import (
 
 // CalculateParticipationScore to calculate score change of node
 func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint32) (int64, error) {
+	if maxReceipt == 0 {
+		return 0, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"CalculateParticipationScore, maxreceipt cannot be 0",
+		)
+	}
 	if (linkedReceipt + unlinkedReceipt) > maxReceipt {
 		return 0, blocker.NewBlocker(
 			blocker.ValidationErr,

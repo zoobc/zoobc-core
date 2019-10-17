@@ -68,6 +68,16 @@ func TestCalculateParticipationScore(t *testing.T) {
 			want:    0,
 			wantErr: true,
 		},
+		{
+			name: "wantError:max=0",
+			args: args{
+				linkedReceipt:   0,
+				unlinkedReceipt: 0,
+				maxReceipt:      0,
+			},
+			want:    0,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
