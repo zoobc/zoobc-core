@@ -78,6 +78,7 @@ func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) 
 			logrus.ErrorLevel,
 		)
 	}
+	logger.SetReportCaller(true)
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.AddHook(&hooker{
 		Writer:      logFile,
