@@ -189,7 +189,7 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 				apiRPCPort = int(p)
 			}
 		}
-		apiHTTPPortStr, exists := os.LookupEnv("API_RPC_PORT")
+		apiHTTPPortStr, exists := os.LookupEnv("API_HTTP_PORT")
 		if !exists {
 			apiHTTPPort = viper.GetInt("apiHTTPPort")
 		} else {
