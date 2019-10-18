@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -141,74 +140,41 @@ func init() {
 	initP2pInstance()
 }
 
+func overrideConfigKey(envKey, cfgFileKey string) {
+	strValue, exists := os.LookupEnv(envKey)
+	if exists {
+		viper.Set(cfgFileKey, strValue)
+	}
+}
+
 func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	if err := util.LoadConfig(configDir, configFileName, "toml"); err != nil {
 		panic(err)
 	}
 
 	if envOverrideConfig {
-		wellknownPeersStr, exists := os.LookupEnv("WELLKNOWN_PEERS")
-		if !exists {
-			wellknownPeers = viper.GetStringSlice("wellknownPeers")
-		} else {
-			wellknownPeers = strings.Split(wellknownPeersStr, ",")
-		}
-		ownerAccountAddress, exists = os.LookupEnv("OWNER_ACCOUNT_ADDRESS")
-		if !exists {
-			ownerAccountAddress = viper.GetString("ownerAccountAddress")
-		}
-		myAddress, exists = os.LookupEnv("NODE_ADDRESS")
-		if !exists {
-			myAddress = viper.GetString("myAddress")
-			if myAddress == "" {
-				ipAddr, err := util.GetOutboundIP()
-				if err != nil {
-					myAddress = "127.0.0.1"
-				} else {
-					myAddress = ipAddr.String()
-				}
-			}
-		}
-		smithingStr, exists := os.LookupEnv("SMITHING")
-		if !exists {
-			smithing = viper.GetBool("smithing")
-		} else {
-			if b, err := strconv.ParseBool(smithingStr); err != nil {
-				smithing = false
-			} else {
-				smithing = b
-			}
-		}
-		apiRPCPortStr, exists := os.LookupEnv("API_RPC_PORT")
-		if !exists {
-			apiRPCPort = viper.GetInt("apiRPCPort")
-		} else {
-			if p, err := strconv.ParseUint(apiRPCPortStr, 10, 16); err != nil {
-				log.Errorf("wrong api RPC port: %s", err)
-			} else {
-				apiRPCPort = int(p)
-			}
-		}
-		apiHTTPPortStr, exists := os.LookupEnv("API_HTTP_PORT")
-		if !exists {
-			apiHTTPPort = viper.GetInt("apiHTTPPort")
-		} else {
-			if p, err := strconv.ParseUint(apiHTTPPortStr, 10, 16); err != nil {
-				log.Errorf("wrong api HTTP port: %s", err)
-			} else {
-				apiHTTPPort = int(p)
-			}
-		}
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		apiHTTPPort = viper.GetInt("apiHTTPPort")
-		ownerAccountAddress = viper.GetString("ownerAccountAddress")
-		myAddress = viper.GetString("myAddress")
-		wellknownPeers = viper.GetStringSlice("wellknownPeers")
-		smithing = viper.GetBool("smithing")
+		overrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
+		overrideConfigKey("NODE_ADDRESS", "myAddress")
+		overrideConfigKey("SMITHING", "smithing")
+		overrideConfigKey("API_RPC_PORT", "apiRPCPort")
+		overrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
+		overrideConfigKey("PEER_PORT", "peerPort")
 	}
 
-	// non overridable
+	myAddress = viper.GetString("myAddress")
+	if myAddress == "" {
+		ipAddr, err := util.GetOutboundIP()
+		if err != nil {
+			myAddress = "127.0.0.1"
+		} else {
+			myAddress = ipAddr.String()
+		}
+	}
+	apiRPCPort = viper.GetInt("apiRPCPort")
+	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	ownerAccountAddress = viper.GetString("ownerAccountAddress")
+	wellknownPeers = viper.GetStringSlice("wellknownPeers")
+	smithing = viper.GetBool("smithing")
 	peerPort = viper.GetUint32("peerPort")
 	dbPath = viper.GetString("dbPath")
 	dbName = viper.GetString("dbName")
@@ -216,6 +182,14 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	badgerDbName = viper.GetString("badgerDbName")
 	configPath = viper.GetString("configPath")
 	nodeKeyFile = viper.GetString("nodeKeyFile")
+	// test only
+	log.Printf("apiRPCPort: %d", apiRPCPort)
+	log.Printf("apiHTTPPort: %d", apiHTTPPort)
+	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
+	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
+	log.Printf("smithing: %v", smithing)
+	log.Printf("peerPort: %d", peerPort)
+	log.Printf("myAddress: %s", myAddress)
 }
 
 func initLogInstance() {
