@@ -1,6 +1,7 @@
 package genesisblock
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -8,9 +9,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
@@ -34,11 +37,12 @@ type (
 		Smithing           bool
 	}
 	clusterConfigEntry struct {
-		NodePublicKey       string
-		NodeSeed            string
-		OwnerAccountAddress string
-		NodeAddress         string
-		Smithing            bool
+		WellKnownPeers      string `json:"WELLKNOWN_PEERS,omitempty"`
+		NodePublicKey       string `json:"NODE_PUBLIC_KEY"`
+		NodeSeed            string `json:"NODE_SEED"`
+		OwnerAccountAddress string `json:"OWNER_ACCOUNT_ADDRESS"`
+		NodeAddress         string `json:"NODE_ADDRESS,omitempty"`
+		Smithing            bool   `json:"SMITHING,omitempty"`
 	}
 )
 
@@ -169,7 +173,6 @@ func generateRandomGenesisEntry() genesisEntry {
 
 	return genesisEntry{
 		AccountAddress:     address,
-		NodeAddress:        "0.0.0.0",
 		NodePublicKey:      nodePublicKey,
 		NodePublicKeyB64:   base64.StdEncoding.EncodeToString(nodePublicKey),
 		NodeSeed:           nodeSeed,
@@ -323,11 +326,20 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		clusterConfig []clusterConfigEntry
 	)
 
+	// read defaultConfiguration file and add it to previous viper configuration
+	viper.SetConfigType("toml")
+	cfgFile, err := ioutil.ReadFile("./genesisblock/defaultConfig.toml")
+	if err != nil {
+		log.Fatalf("Error reading defaultConfig.toml file: %s", err)
+	}
+	viper.ReadConfig(bytes.NewBuffer(cfgFile))
+	wellKnownPeers := viper.GetStringSlice("wellKnownPeers")
 	for _, genesisEntry := range genesisEntries {
 		// exclude entries that don't have NodeSeed set from cluster_config.json
 		// (they should be nodes already registered/run by someone, thus they shouldn't be deployed automatically)
 		if genesisEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
+				WellKnownPeers:      strings.Join(wellKnownPeers, ","),
 				NodeAddress:         genesisEntry.NodeAddress,
 				NodePublicKey:       genesisEntry.NodePublicKeyB64,
 				NodeSeed:            genesisEntry.NodeSeed,

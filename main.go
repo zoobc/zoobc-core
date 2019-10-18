@@ -146,6 +146,12 @@ func overrideConfigKey(envKey, cfgFileKey string) {
 		viper.Set(cfgFileKey, strValue)
 	}
 }
+func overrideConfigKeyArray(envKey, cfgFileKey string) {
+	strValue, exists := os.LookupEnv(envKey)
+	if exists {
+		viper.Set(cfgFileKey, strings.Split(strValue, ","))
+	}
+}
 
 func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	if err := util.LoadConfig(configDir, configFileName, "toml"); err != nil {
@@ -153,6 +159,7 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	}
 
 	if envOverrideConfig {
+		overrideConfigKeyArray("WELLKNOWN_PEERS", "wellknownPeers")
 		overrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
 		overrideConfigKey("NODE_ADDRESS", "myAddress")
 		overrideConfigKey("SMITHING", "smithing")
