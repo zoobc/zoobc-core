@@ -176,6 +176,7 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 		} else {
 			myAddress = ipAddr.String()
 		}
+		viper.Set("myAddress", myAddress)
 	}
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
