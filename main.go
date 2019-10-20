@@ -159,13 +159,13 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	}
 
 	if envOverrideConfig {
-		overrideConfigKeyArray("WELLKNOWN_PEERS", "wellknownPeers")
-		overrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
-		overrideConfigKey("NODE_ADDRESS", "myAddress")
-		overrideConfigKey("SMITHING", "smithing")
-		overrideConfigKey("API_RPC_PORT", "apiRPCPort")
-		overrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
-		overrideConfigKey("PEER_PORT", "peerPort")
+		util.OverrideConfigKeyArray("WELLKNOWN_PEERS", "wellknownPeers")
+		util.OverrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
+		util.OverrideConfigKey("NODE_ADDRESS", "myAddress")
+		util.OverrideConfigKey("SMITHING", "smithing")
+		util.OverrideConfigKey("API_RPC_PORT", "apiRPCPort")
+		util.OverrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
+		util.OverrideConfigKey("PEER_PORT", "peerPort")
 	}
 
 	myAddress = viper.GetString("myAddress")
