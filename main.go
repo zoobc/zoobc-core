@@ -251,7 +251,10 @@ func startNodeMonitoring() {
 	log.Infof("starting node monitoring at port:%d...", monitoringPort)
 	blocker.SetMonitoringActive(true)
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to start monitoring service: %s", err))
+	}
 }
 
 func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
