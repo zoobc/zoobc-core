@@ -185,7 +185,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "merkle_tree"
-				ADD COLUMN "block_height" INTEGER AFTER "merkle_tree"
+				ADD COLUMN "block_height" INTEGER  AFTER "merkle_tree" NOT NULL DEFAULT (0)
 			`,
 		}
 		return nil
