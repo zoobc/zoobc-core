@@ -8,7 +8,7 @@ nodeKeyFile = "node_keys_3.json"
 # Peer
 peerPort=8003
 myAddress="127.0.0.1"
-wellknownPeers="127.0.0.1:8001"
+wellknownPeers=["127.0.0.1:8002"]
 
 apiRPCPort=3003
 apiHTTPPort=3033
