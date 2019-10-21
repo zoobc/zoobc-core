@@ -1,7 +1,8 @@
 package constant
 
 const (
-	// ScalarReceiptScore the converter score to avoid calculation in float number
+	// ScalarReceiptScore the converter score to avoid calculation in float number, this value is following OneZBC to
+	// maintain the number scale like balance does.
 	ScalarReceiptScore = float32(OneZBC)
 	// LinkedReceiptScore the score for each receipt that proved have relation with previous published receipt via merkle root
 	LinkedReceiptScore float32 = 2
@@ -11,7 +12,8 @@ const (
 	MaxScoreChange = 10 * int64(ScalarReceiptScore)
 	// MaxReceipt the maximum receipt will publish in every block
 	MaxReceipt uint32 = 20
-	// MaxParticipationScore maximum achievable score
+	// MaxParticipationScore maximum achievable score, this will be important to maintain smithing process so it doesn't
+	// smith too fast
 	MaxParticipationScore int64 = 10000000000 * int64(ScalarReceiptScore)
 	// Starting score for newly registered nodes
 	DefaultParticipationScore int64 = MaxParticipationScore / 10
