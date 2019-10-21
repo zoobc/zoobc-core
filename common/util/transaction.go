@@ -149,5 +149,8 @@ func ReadTransactionBytes(buf *bytes.Buffer, nBytes int) ([]byte, error) {
 
 // FeePerByteTransaction use to calculate fee of each bytes transacion
 func FeePerByteTransaction(feeTransaction int64, transactionBytes []byte) int64 {
-	return (feeTransaction * constant.OneFeePerByteTransaction) / int64(len(transactionBytes))
+	if len(transactionBytes) != 0 {
+		return (feeTransaction * constant.OneFeePerByteTransaction) / int64(len(transactionBytes))
+	}
+	return feeTransaction * constant.OneFeePerByteTransaction
 }

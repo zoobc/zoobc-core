@@ -130,7 +130,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		if err != nil {
 			return err
 		}
-		if (count + 1) > constant.MaxMempoolTransactions {
+		if count >= constant.MaxMempoolTransactions {
 			return blocker.NewBlocker(blocker.ValidationErr, "Mempool already full")
 		}
 	}
@@ -221,11 +221,11 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 	var payloadLength int
 	sortedTransactions := make([]*model.MempoolTransaction, 0)
 	for _, mempoolTransaction := range mempoolTransactions {
-		if len(sortedTransactions) >= constant.MaxNumberOfTransactions {
+		if len(sortedTransactions) >= constant.MaxNumberOfTransactionsInBlock {
 			break
 		}
 		transactionLength := len(mempoolTransaction.TransactionBytes)
-		if payloadLength+transactionLength > constant.MaxPayloadLength {
+		if payloadLength+transactionLength > constant.MaxPayloadLengthInBlock {
 			continue
 		}
 
