@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/observer"
@@ -41,7 +42,7 @@ var (
 			Address: "10.10.10.10",
 		},
 		LockedBalance: 100000000,
-		Queued:        true,
+		Queued:        constant.NodeQueued,
 		Latest:        true,
 		Height:        100,
 	}
@@ -54,7 +55,7 @@ var (
 			Address: "10.10.10.10",
 		},
 		LockedBalance: 100000000,
-		Queued:        false,
+		Queued:        constant.NodeRegistered,
 		Latest:        true,
 		Height:        200,
 	}
@@ -541,7 +542,7 @@ func TestNodeRegistrationService_GetNodeRegistrationByNodePublicKey(t *testing.T
 					Address: "10.10.10.10",
 				},
 				LockedBalance: 100000000,
-				Queued:        true,
+				Queued:        constant.NodeQueued,
 				Latest:        true,
 				Height:        100,
 			},
@@ -612,7 +613,7 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 						Address: "10.10.10.10",
 					},
 					LockedBalance: 100000000,
-					Queued:        true,
+					Queued:        constant.NodeQueued,
 					Latest:        true,
 					Height:        100,
 				},

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -122,7 +123,7 @@ func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
 							Address: "127.0.0.1",
 						},
 						LockedBalance: 1,
-						Queued:        true,
+						Queued:        constant.NodeQueued,
 						Latest:        true,
 						Height:        1,
 					},
@@ -231,7 +232,7 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 						Address: "127.0.0.1",
 					},
 					LockedBalance: 1,
-					Queued:        true,
+					Queued:        constant.NodeQueued,
 					Latest:        true,
 					Height:        1,
 				},

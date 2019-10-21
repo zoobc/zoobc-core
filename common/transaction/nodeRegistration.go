@@ -32,9 +32,13 @@ type NodeRegistration struct {
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
 		queries [][]interface{}
-		queued  bool
+		queued  int
 	)
-	queued = tx.Height > 0
+	if tx.Height > 0 {
+		queued = constant.NodeQueued
+	} else {
+		queued = constant.NodeRegistered
+	}
 
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
@@ -44,7 +48,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: tx.Height,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		Queued:             queued,
+		Queued:             uint32(queued),
 		AccountAddress:     tx.Body.AccountAddress,
 	}
 	// update sender balance by reducing his spendable balance of the tx fee and locked balance

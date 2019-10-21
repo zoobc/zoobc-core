@@ -8,3 +8,9 @@ var (
 	//       smith every minute on average and if we want to accept new nodes once a day
 	NodeAdmittanceCycle uint32 = 2
 )
+
+const (
+	NodeRegistered = iota
+	NodeQueued
+	NodeDeleted
+)

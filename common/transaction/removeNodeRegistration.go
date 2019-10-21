@@ -49,7 +49,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		Queued:             true,
+		Queued:             constant.NodeQueued,
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
 		AccountAddress: "00000000000000000000000000000000000000000000",

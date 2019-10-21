@@ -110,7 +110,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 	}
 	// prepare all node registrations to be updated (set queued to false and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
-		nodeRegistration.Queued = false
+		nodeRegistration.Queued = constant.NodeRegistered
 		nodeRegistration.Height = height
 		// update the node registry (set queued to zero)
 		queries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
@@ -151,7 +151,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 
 	for _, nodeRegistration := range nodeRegistrations {
 		// update the node registry (set queued to 1 and lockedbalance to 0)
-		nodeRegistration.Queued = true
+		nodeRegistration.Queued = 1
 		nodeRegistration.LockedBalance = 0
 		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		// return lockedbalance to the node's owner account

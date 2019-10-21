@@ -429,7 +429,6 @@ func (m *SendMoneyTransactionBody) GetAmount() int64 {
 type NodeRegistrationTransactionBody struct {
 	NodePublicKey  []byte `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
 	AccountAddress string `protobuf:"bytes,2,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
-	//    string  NodeAddress = 3;
 	// Funds to be locked to register the node
 	NodeAddress   *NodeAddress `protobuf:"bytes,3,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
 	LockedBalance int64        `protobuf:"varint,4,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
@@ -502,7 +501,6 @@ func (m *NodeRegistrationTransactionBody) GetPoown() *ProofOfOwnership {
 
 type UpdateNodeRegistrationTransactionBody struct {
 	NodePublicKey []byte `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
-	//    string  NodeAddress = 2;
 	// Funds to be locked to register the node
 	NodeAddress   *NodeAddress `protobuf:"bytes,2,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
 	LockedBalance int64        `protobuf:"varint,3,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`

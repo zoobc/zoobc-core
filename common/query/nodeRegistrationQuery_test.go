@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -19,7 +20,7 @@ var (
 		RegistrationHeight: 1,
 		NodeAddress:        mockNodeAddress,
 		LockedBalance:      10000,
-		Queued:             true,
+		Queued:             constant.NodeQueued,
 		Latest:             true,
 		Height:             0,
 	}
@@ -385,7 +386,7 @@ func TestNodeRegistrationQuery_Scan(t *testing.T) {
 				RegistrationHeight: 1,
 				NodeAddress:        mockNodeAddress,
 				LockedBalance:      10000,
-				Queued:             true,
+				Queued:             constant.NodeQueued,
 				Latest:             true,
 				Height:             0,
 			},
