@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -10,9 +12,11 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -38,7 +42,7 @@ var (
 	badgerDbInstance                                             *database.BadgerDB
 	db                                                           *sql.DB
 	badgerDb                                                     *badger.DB
-	apiRPCPort, apiHTTPPort                                      int
+	apiRPCPort, apiHTTPPort, monitoringPort                      int
 	peerPort                                                     uint32
 	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
 	queryExecutor                                                *query.Executor
@@ -60,6 +64,7 @@ var (
 	loggerAPIService                                             *log.Logger
 	loggerCoreService                                            *log.Logger
 	loggerP2PService                                             *log.Logger
+	isDebugMode                                                  bool
 )
 
 func init() {
@@ -70,12 +75,9 @@ func init() {
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configDir, "config-path", "", "Usage")
+	flag.StringVar(&configDir, "config-path", "./resource", "Usage")
+	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.Parse()
-
-	if configDir == "" {
-		configDir = "./resource"
-	}
 
 	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
 		panic(err)
@@ -87,6 +89,7 @@ func init() {
 	badgerDbName = viper.GetString("badgerDbName")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	monitoringPort = viper.GetInt("monitoringPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	myAddress = viper.GetString("myAddress")
 	peerPort = viper.GetUint32("peerPort")
@@ -238,6 +241,17 @@ func startServices() {
 		nodeKeyFilePath,
 		loggerAPIService,
 	)
+
+	if isDebugMode {
+		go startNodeMonitoring()
+	}
+}
+
+func startNodeMonitoring() {
+	log.Infof("starting node monitoring at port:%d...", monitoringPort)
+	blocker.SetMonitoringActive(true)
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
 }
 
 func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
