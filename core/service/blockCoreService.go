@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger"
 
@@ -80,6 +81,7 @@ type (
 	BlockService struct {
 		sync.WaitGroup
 		Chaintype               chaintype.ChainType
+		Generator               *model.Blocksmith
 		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
@@ -830,6 +832,8 @@ func (bs *BlockService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
+	currentSmithMax := time.Now().Unix() - bs.Chaintype.GetChainSmithingDelayTime()
+	currentTimestamp := bs.Generator.GetTimestamp(currentSmithMax)
 	block := bs.NewBlock(
 		1,
 		previousBlockHash,
@@ -837,7 +841,7 @@ func (bs *BlockService) GenerateBlock(
 		blockSmithPublicKey,
 		string(hash),
 		newBlockHeight,
-		timestamp,
+		currentTimestamp,
 		totalAmount,
 		totalFee,
 		totalCoinbase,
