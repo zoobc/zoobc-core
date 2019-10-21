@@ -17,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -58,6 +59,11 @@ type (
 // PeerService represent peer service
 type Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 
+// list of client service error that will be ignore to record into log file
+var ignoredErrors = map[codes.Code]string{
+	codes.Unavailable: "Unavailable, indicates the destination service is currently unavailable",
+}
+
 // ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
 func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
@@ -74,7 +80,7 @@ func NewPeerServiceClient(
 			conn, err := grpc.Dial(
 				p2pUtil.GetFullAddressPeer(destinationPeer),
 				grpc.WithInsecure(),
-				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(logger)),
+				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(logger, ignoredErrors)),
 			)
 			if err != nil {
 				return nil, err

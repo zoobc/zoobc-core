@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 )
@@ -14,7 +15,7 @@ type (
 	// SqliteDBInstance as public interface that should implemented
 	SqliteDBInstance interface {
 		InitializeDB(dbPath, dbName string) error
-		OpenDB(dbPath, dbName string, maxIdleConnections, maxOpenConnections int) (*sql.DB, error)
+		OpenDB(dbPath, dbName string, maxIdleConnections, maximumLifetimeConnection int) (*sql.DB, error)
 		CloseDB() error
 	}
 	// SqliteDB must be implemented
@@ -59,8 +60,7 @@ OpenDB tries to open the db and if fails logs and exit the application
 mutate SqliteDB.Conn to opened connection if success and return nil
 return error if error occurred
 */
-func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximumOpenConnections int) (*sql.DB, error) {
-
+func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximumLifetimeConnection int) (*sql.DB, error) {
 	var (
 		err     error
 		absPath string
@@ -80,10 +80,12 @@ func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximu
 	if _, ok := err.(sqlite3.Error); ok {
 		return nil, err
 	}
-
+	// Higher number of idle connections in the pool will improve performance
+	// But it will takes up memory usage
 	conn.SetMaxIdleConns(maximumIdleConnections)
-	conn.SetMaxOpenConns(maximumOpenConnections)
-
+	// SetConnMaxLifetime used to controlling the lifecycle of connections (duration in minute),
+	// Will be useful when maintaining idle connetions in low traffic
+	conn.SetConnMaxLifetime(time.Duration(maximumLifetimeConnection) * time.Minute)
 	return conn, nil
 }
 
