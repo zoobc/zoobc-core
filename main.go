@@ -140,19 +140,6 @@ func init() {
 	initP2pInstance()
 }
 
-func overrideConfigKey(envKey, cfgFileKey string) {
-	strValue, exists := os.LookupEnv(envKey)
-	if exists {
-		viper.Set(cfgFileKey, strValue)
-	}
-}
-func overrideConfigKeyArray(envKey, cfgFileKey string) {
-	strValue, exists := os.LookupEnv(envKey)
-	if exists {
-		viper.Set(cfgFileKey, strings.Split(strValue, ","))
-	}
-}
-
 func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	if err := util.LoadConfig(configDir, configFileName, "toml"); err != nil {
 		panic(err)

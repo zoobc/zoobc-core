@@ -80,9 +80,10 @@ func TestOverrideConfigKeyArray(t *testing.T) {
 		{
 			name: "OverrideConfigKeyArray: success-{multiValue}",
 			args: args{
-				envKey:        "TEST_WELLKNOWN_PEERS",
-				cfgFileKey:    "testWellKnownPeers",
-				envValue:      "192.168.21.254:8001,192.168.21.253:8001,192.168.21.252:8001,192.168.21.251:8001,192.168.21.250:8001,192.168.21.249:8001",
+				envKey:     "TEST_WELLKNOWN_PEERS",
+				cfgFileKey: "testWellKnownPeers",
+				envValue: "192.168.21.254:8001,192.168.21.253:8001,192.168.21.252:8001," +
+					"192.168.21.251:8001,192.168.21.250:8001,192.168.21.249:8001",
 				envValueCount: 6,
 			},
 		},
