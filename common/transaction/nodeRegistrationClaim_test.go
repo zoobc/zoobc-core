@@ -9,6 +9,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -50,7 +51,7 @@ func (mk *mockAuthPoownClaimNR) ValidateProofOfOwnership(
 func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
@@ -62,7 +63,7 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSele
 	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, latest, height "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
 		"FROM node_registry WHERE account_address = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -71,7 +72,7 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSele
 			"registration_height",
 			"node_address",
 			"locked_balance",
-			"queued",
+			"registration_status",
 			"latest",
 			"height",
 		}).AddRow(
@@ -81,7 +82,7 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSele
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			uint32(constant.NodeRegistered),
 			true,
 			uint32(1),
 		))
@@ -95,13 +96,13 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR) ExecuteS
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
-		" locked_balance, queued, latest, height FROM node_registry WHERE account_address = "+senderAddress2+
+		" locked_balance, registration_status, latest, height FROM node_registry WHERE account_address = "+senderAddress2+
 		" AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
 	}
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
-		" queued, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
+		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -109,7 +110,7 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR) ExecuteS
 			"registration_height",
 			"node_address",
 			"locked_balance",
-			"queued",
+			"registration_status",
 			"latest",
 			"height",
 		}).AddRow(
@@ -119,7 +120,7 @@ func (*mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR) ExecuteS
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			uint32(constant.NodeRegistered),
 			true,
 			uint32(1),
 		))
@@ -136,7 +137,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
-		"queued, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -144,7 +145,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 			"registration_height",
 			"node_address",
 			"locked_balance",
-			"queued",
+			"registration_status",
 			"latest",
 			"height",
 		}).AddRow(
@@ -154,7 +155,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			uint32(constant.NodeRegistered),
 			true,
 			uint32(1),
 		))
@@ -166,13 +167,13 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, latest, height "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
 		"FROM node_registry WHERE account_address = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
 	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
-		" queued, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
+		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -180,7 +181,7 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 			"registration_height",
 			"node_address",
 			"locked_balance",
-			"queued",
+			"registration_status",
 			"latest",
 			"height",
 		}).AddRow(
@@ -190,7 +191,7 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			uint32(constant.NodeRegistered),
 			true,
 			uint32(1),
 		))

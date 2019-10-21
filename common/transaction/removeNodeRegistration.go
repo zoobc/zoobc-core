@@ -41,6 +41,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	}
 
 	prevNodeRegistration := nodereGistrations[0]
+	// tag the node as deleted
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             prevNodeRegistration.NodeID,
 		LockedBalance:      0,
@@ -49,10 +50,10 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		Queued:             constant.NodeQueued,
+		RegistrationStatus:             constant.NodeQueued,
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
-		AccountAddress: "00000000000000000000000000000000000000000000",
+		AccountAddress: constant.DeletedNodeAccountAddress,
 	}
 	// update sender balance by refunding the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(

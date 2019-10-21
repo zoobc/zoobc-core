@@ -76,7 +76,7 @@ func TestParticipationScoreQuery_GetParticipationScoreByAccountAddress(t *testin
 	t.Run("GetParticipationScoreByAccountAddress", func(t *testing.T) {
 		res := mockParticipationScoreQuery.GetParticipationScoreByAccountAddress(testAccountAddress)
 		want := "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
-			"ON A.node_id = B.id WHERE B.account_address='" + testAccountAddress + "' AND B.latest=1 AND B.queued=0 AND A.latest=1"
+			"ON A.node_id = B.id WHERE B.account_address='" + testAccountAddress + "' AND B.latest=1 AND B.registration_status=0 AND A.latest=1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -87,7 +87,7 @@ func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing
 	t.Run("GetParticipationScoreByNodePublicKey", func(t *testing.T) {
 		res, _ := mockParticipationScoreQuery.GetParticipationScoreByNodePublicKey([]byte{})
 		want := "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A " +
-			"INNER JOIN node_registry as B ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.queued=0 AND A.latest=1"
+			"INNER JOIN node_registry as B ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.registration_status=0 AND A.latest=1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}

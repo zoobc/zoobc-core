@@ -102,7 +102,7 @@ func (m *Migration) Init() error {
 				"registration_height" INTEGER,
 				"node_address" VARCHAR(255),
 				"locked_balance" INTEGER,
-				"queued" INTEGER,
+				"registration_status" INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
 				PRIMARY KEY("id", "height")

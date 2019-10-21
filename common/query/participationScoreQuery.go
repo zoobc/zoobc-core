@@ -85,7 +85,7 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(account
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".account_address='%s' "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=0 "+
+		"AND "+nrTableAlias+".registration_status=0 "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
 		accountAddress)
@@ -105,7 +105,7 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".node_public_key=? "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=0 "+
+		"AND "+nrTableAlias+".registration_status=0 "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
 	), []interface{}{nodePublicKey}

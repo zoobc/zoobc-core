@@ -42,21 +42,23 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
 	}
 
+	// tag the node as deleted
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             prevNodeRegistration.NodeID,
-		NodePublicKey:      tx.Body.NodePublicKey,
-		AccountAddress:     tx.Body.AccountAddress,
-		LockedBalance:      prevNodeRegistration.LockedBalance,
+		LockedBalance:      0,
 		Height:             tx.Height,
-		NodeAddress:        prevNodeRegistration.NodeAddress,
+		NodeAddress:        nil,
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
+		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		Queued:             prevNodeRegistration.Queued,
+		RegistrationStatus: constant.NodeQueued,
+		// We can't just set accountAddress to an empty string,
+		// otherwise it could trigger an error when parsing the transaction from its bytes
+		AccountAddress: constant.DeletedNodeAccountAddress,
 	}
-
-	// update sender balance by reducing his spendable balance of the tx fee
+	// update sender balance by claiming the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-(tx.Fee),
+		(prevNodeRegistration.LockedBalance - tx.Fee),
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
 			"block_height":    tx.Height,
@@ -110,6 +112,10 @@ func (tx *ClaimNodeRegistration) UndoApplyUnconfirmed() error {
 
 // Validate validate node registration transaction and tx body
 func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
+	var (
+		nodeRegistrations []*model.NodeRegistration
+	)
+
 	// validate proof of ownership
 	if tx.Body.Poown == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
@@ -132,7 +138,7 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	}
 	defer rows.Close()
 	if rows.Next() {
-		// account address has already an active node registration (either queued or not)
+		// account address has already an active node registration (either registration_status or not)
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountAlreadyNodeOwner")
 	}
 
@@ -141,9 +147,14 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer rows2.Close()
-	if !rows2.Next() {
+	// cannot claim a deleted node
+	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	if len(nodeRegistrations) == 0 {
 		// public key must be already registered
 		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
+	}
+	if nodeRegistrations[0].AccountAddress == constant.DeletedNodeAccountAddress {
+		return blocker.NewBlocker(blocker.AppErr, "ClaimedNodeIsDeleted")
 	}
 
 	return nil

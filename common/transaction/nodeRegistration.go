@@ -31,26 +31,17 @@ type NodeRegistration struct {
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
-		queries [][]interface{}
-		queued  int
+		queries              [][]interface{}
+		registrationStatus   uint32
+		prevNodeRegistration *model.NodeRegistration
+		nodeRegistrations    []*model.NodeRegistration
 	)
 	if tx.Height > 0 {
-		queued = constant.NodeQueued
+		registrationStatus = constant.NodeQueued
 	} else {
-		queued = constant.NodeRegistered
+		registrationStatus = constant.NodeRegistered
 	}
 
-	nodeRegistration := &model.NodeRegistration{
-		NodeID:             tx.ID,
-		LockedBalance:      tx.Body.LockedBalance,
-		Height:             tx.Height,
-		NodeAddress:        tx.Body.NodeAddress,
-		RegistrationHeight: tx.Height,
-		NodePublicKey:      tx.Body.NodePublicKey,
-		Latest:             true,
-		Queued:             uint32(queued),
-		AccountAddress:     tx.Body.AccountAddress,
-	}
 	// update sender balance by reducing his spendable balance of the tx fee and locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-(tx.Body.LockedBalance + tx.Fee),
@@ -59,10 +50,47 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{insertNodeQ}, insertNodeArg...),
-	)
+
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+	if err != nil {
+		return err
+	}
+	defer nodeRow.Close()
+	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	// if a node with this public key has been previously deleted, update its owner to the new registerer
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].AccountAddress != constant.DeletedNodeAccountAddress {
+		prevNodeRegistration = nodeRegistrations[0]
+		nodeRegistration := &model.NodeRegistration{
+			NodeID:             prevNodeRegistration.NodeID,
+			LockedBalance:      tx.Body.LockedBalance,
+			Height:             tx.Height,
+			NodeAddress:        prevNodeRegistration.NodeAddress,
+			RegistrationHeight: prevNodeRegistration.RegistrationHeight,
+			NodePublicKey:      prevNodeRegistration.NodePublicKey,
+			Latest:             true,
+			RegistrationStatus: constant.NodeQueued,
+			AccountAddress:     tx.SenderAddress,
+		}
+		queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+		queries = append(queries, accountBalanceSenderQ...)
+	} else {
+		nodeRegistration := &model.NodeRegistration{
+			NodeID:             tx.ID,
+			LockedBalance:      tx.Body.LockedBalance,
+			Height:             tx.Height,
+			NodeAddress:        tx.Body.NodeAddress,
+			RegistrationHeight: tx.Height,
+			NodePublicKey:      tx.Body.NodePublicKey,
+			Latest:             true,
+			RegistrationStatus: registrationStatus,
+			AccountAddress:     tx.Body.AccountAddress,
+		}
+		insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
+		queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
+			append([]interface{}{insertNodeQ}, insertNodeArg...),
+		)
+	}
+
 	// insert default participation score for nodes that are registered at genesis height
 	if tx.Height == 0 {
 		ps := &model.ParticipationScore{
@@ -76,7 +104,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		queries = append(queries, newQ)
 	}
 
-	err := tx.QueryExecutor.ExecuteTransactions(queries)
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
 	}
@@ -129,7 +157,8 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 func (tx *NodeRegistration) Validate(dbTx bool) error {
 
 	var (
-		accountBalance model.AccountBalance
+		accountBalance    model.AccountBalance
+		nodeRegistrations []*model.NodeRegistration
 	)
 
 	// no need to validate node registration transaction for genesis block
@@ -177,9 +206,10 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer nodeRow.Close()
-
-	if nodeRow.Next() {
-		return blocker.NewBlocker(blocker.AppErr, "NodeAlreadyRegistered")
+	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	// ok if node is not registered yet or if a node with this public key has been previously deleted
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].AccountAddress != constant.DeletedNodeAccountAddress {
+		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 
 	nodeAddress := tx.Body.GetNodeAddress()

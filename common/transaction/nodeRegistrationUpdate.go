@@ -74,7 +74,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
-		Queued:             prevNodeRegistration.Queued,
+		RegistrationStatus:             prevNodeRegistration.RegistrationStatus,
 		AccountAddress:     prevNodeRegistration.AccountAddress,
 	}
 
