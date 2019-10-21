@@ -242,7 +242,11 @@ func GenerateTxRemoveAccountDataset(
 /*
 Basic Func
 */
-func GenerateBasicTransaction(senderSeed string) *model.Transaction {
+func GenerateBasicTransaction(senderSeed string,
+	version uint32,
+	timestamp, fee int64,
+	recipientAccountAddress string,
+) *model.Transaction {
 	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
 	return &model.Transaction{
 		Version:                 version,
@@ -253,17 +257,19 @@ func GenerateBasicTransaction(senderSeed string) *model.Transaction {
 	}
 }
 
-func PrintTx(signedTxBytes []byte, outputType string) string {
+func PrintTx(signedTxBytes []byte, outputType string) {
+	var resultStr string
 	switch outputType {
 	case "hex":
-		return hex.EncodeToString(signedTxBytes)
+		resultStr = hex.EncodeToString(signedTxBytes)
 	default:
 		var byteStrArr []string
 		for _, bt := range signedTxBytes {
 			byteStrArr = append(byteStrArr, fmt.Sprintf("%v", bt))
 		}
-		return strings.Join(byteStrArr, ", ")
+		resultStr = strings.Join(byteStrArr, ", ")
 	}
+	fmt.Println(resultStr)
 }
 
 func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {

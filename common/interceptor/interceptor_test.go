@@ -151,7 +151,8 @@ func testServerInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool) {
 
 func TestNewClientInterceptor(t *testing.T) {
 	type args struct {
-		logger *logrus.Logger
+		logger        *logrus.Logger
+		ignoredErrors map[codes.Code]string
 	}
 	tests := []struct {
 		name        string
@@ -162,7 +163,8 @@ func TestNewClientInterceptor(t *testing.T) {
 		{
 			name: "wantRecover",
 			args: args{
-				logger: logrus.New(),
+				logger:        logrus.New(),
+				ignoredErrors: nil,
 			},
 			want: func(
 				ctx context.Context,
@@ -194,7 +196,7 @@ func TestNewClientInterceptor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewClientInterceptor(tt.args.logger)
+			got := NewClientInterceptor(tt.args.logger, tt.args.ignoredErrors)
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewClientInterceptor() = %v, want %v", got, tt.want)
 			}
