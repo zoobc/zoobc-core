@@ -43,10 +43,6 @@ type (
 )
 
 var (
-	//TODO: for now hardcoded. this should be added to cluster_config.json by docker's entry.sh entrypoint script
-	//		based on the addresses available in the test network
-	wellKnownPeers = "[\"192.168.21.254:8001\"]"
-
 	withDbLastState bool
 	dbPath          string
 	extraNodesCount int
