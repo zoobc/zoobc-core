@@ -207,7 +207,6 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	// fmt.Println(response)
 	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
