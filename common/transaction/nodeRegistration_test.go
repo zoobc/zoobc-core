@@ -33,6 +33,9 @@ type (
 	mockExecutorValidateFailExecuteSelectNodeExist struct {
 		query.Executor
 	}
+	mockExecutorValidateFailExecuteSelectNodeExistButDeleted struct {
+		query.Executor
+	}
 	mockExecutorValidateSuccess struct {
 		query.Executor
 	}
@@ -135,8 +138,8 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT account_id,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_id = ? AND latest = 1" {
+	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest "+
+		"FROM account_balance WHERE account_address = ? AND latest = 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountID",
 			"BlockHeight",
@@ -155,6 +158,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 		return db.Query("A")
 	}
 	mock.ExpectQuery("B").WillReturnRows(sqlmock.NewRows([]string{
+		"NodeID",
 		"NodePublicKey",
 		"AccountId",
 		"RegistrationHeight",
@@ -164,12 +168,60 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 		"Latest",
 		"Height",
 	}).AddRow(
+		1,
 		[]byte{1},
 		[]byte{2},
 		1,
 		"127.0.0.1",
 		1000000,
+		uint32(constant.NodeRegistered),
 		true,
+		1,
+	))
+	return db.Query("B")
+}
+
+func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest "+
+		"FROM account_balance WHERE account_address = ? AND latest = 1" {
+		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
+			"AccountID",
+			"BlockHeight",
+			"SpendableBalance",
+			"Balance",
+			"PopRevenue",
+			"Latest",
+		}).AddRow(
+			[]byte{1},
+			1,
+			1000000,
+			1000000,
+			0,
+			true,
+		))
+		return db.Query("A")
+	}
+	mock.ExpectQuery("B").WillReturnRows(sqlmock.NewRows([]string{
+		"NodeID",
+		"NodePublicKey",
+		"AccountId",
+		"RegistrationHeight",
+		"NodeAddress",
+		"LockedBalance",
+		"RegistrationStatus",
+		"Latest",
+		"Height",
+	}).AddRow(
+		1,
+		[]byte{1},
+		[]byte{2},
+		1,
+		"127.0.0.1",
+		1000000,
+		uint32(constant.NodeDeleted),
 		true,
 		1,
 	))
@@ -555,6 +607,30 @@ func TestNodeRegistration_Validate(t *testing.T) {
 	bodyWithPoown := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
+		NodeAddress: &model.NodeAddress{
+			Address: "10.10.10.1",
+		},
+		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+	}
+	bodyWithNullAccountAddress := &model.NodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+		NodeAddress: &model.NodeAddress{
+			Address: "10.10.10.1",
+		},
+	}
+	bodyWithNullNodeAddress := &model.NodeRegistrationTransactionBody{
+		Poown:          poown,
+		NodePublicKey:  nodePubKey1,
+		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+	}
+	bodyWithInvalidNodeAddress := &model.NodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+		NodeAddress: &model.NodeAddress{
+			Address: "invalidAddress",
+		},
+		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 	}
 	txBody := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -562,6 +638,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodeAddress: &model.NodeAddress{
 			Address: "10.10.10.1",
 		},
+		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 	}
 	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
@@ -681,10 +758,55 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Validate:fail-{InvalidNodeAddress}",
+			name: "Validate:fail-{nodeExistButDeleted}",
 			fields: fields{
 				Height:                1,
 				Body:                  bodyWithPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExistButDeleted{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Validate:fail-{NullNodeAddress}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithNullNodeAddress,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{NullAccountAddress}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithNullAccountAddress,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{InvalidNodeAddress}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithInvalidNodeAddress,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),

@@ -31,10 +31,9 @@ type NodeRegistration struct {
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
-		queries              [][]interface{}
-		registrationStatus   uint32
-		prevNodeRegistration *model.NodeRegistration
-		nodeRegistrations    []*model.NodeRegistration
+		queries            [][]interface{}
+		registrationStatus uint32
+		nodeRegistrations  []*model.NodeRegistration
 	)
 	if tx.Height > 0 {
 		registrationStatus = constant.NodeQueued
@@ -58,33 +57,21 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	defer nodeRow.Close()
 	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	// if a node with this public key has been previously deleted, update its owner to the new registerer
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].AccountAddress != constant.DeletedNodeAccountAddress {
-		prevNodeRegistration = nodeRegistrations[0]
-		nodeRegistration := &model.NodeRegistration{
-			NodeID:             prevNodeRegistration.NodeID,
-			LockedBalance:      tx.Body.LockedBalance,
-			Height:             tx.Height,
-			NodeAddress:        prevNodeRegistration.NodeAddress,
-			RegistrationHeight: prevNodeRegistration.RegistrationHeight,
-			NodePublicKey:      prevNodeRegistration.NodePublicKey,
-			Latest:             true,
-			RegistrationStatus: constant.NodeQueued,
-			AccountAddress:     tx.SenderAddress,
-		}
+	nodeRegistration := &model.NodeRegistration{
+		NodeID:             tx.ID,
+		LockedBalance:      tx.Body.LockedBalance,
+		Height:             tx.Height,
+		NodeAddress:        tx.Body.NodeAddress,
+		RegistrationHeight: tx.Height,
+		NodePublicKey:      tx.Body.NodePublicKey,
+		Latest:             true,
+		RegistrationStatus: registrationStatus,
+		AccountAddress:     tx.Body.AccountAddress,
+	}
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != constant.NodeDeleted {
 		queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		queries = append(queries, accountBalanceSenderQ...)
 	} else {
-		nodeRegistration := &model.NodeRegistration{
-			NodeID:             tx.ID,
-			LockedBalance:      tx.Body.LockedBalance,
-			Height:             tx.Height,
-			NodeAddress:        tx.Body.NodeAddress,
-			RegistrationHeight: tx.Height,
-			NodePublicKey:      tx.Body.NodePublicKey,
-			Latest:             true,
-			RegistrationStatus: registrationStatus,
-			AccountAddress:     tx.Body.AccountAddress,
-		}
 		insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
 		queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
 			append([]interface{}{insertNodeQ}, insertNodeArg...),
@@ -173,6 +160,9 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	if tx.Body.GetNodeAddress() == nil {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "NodeAddressRequired")
 	}
+	if tx.Body.GetAccountAddress() == "" {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "AccountAddressRequired")
+	}
 
 	// validate poown
 	if err := tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
@@ -208,7 +198,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	defer nodeRow.Close()
 	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	// ok if node is not registered yet or if a node with this public key has been previously deleted
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].AccountAddress != constant.DeletedNodeAccountAddress {
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != constant.NodeDeleted {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 
