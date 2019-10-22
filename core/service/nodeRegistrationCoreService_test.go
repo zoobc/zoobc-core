@@ -111,7 +111,8 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx boo
 	defer db.Close()
 	switch qe {
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-		"latest, height FROM node_registry WHERE locked_balance > 0 AND registration_status = 1 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+		"latest, height FROM node_registry WHERE locked_balance > 0 AND registration_status = 1 AND latest=1 " +
+		"ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -165,7 +166,8 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	defer db.Close()
 	switch qe {
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-		"latest, height FROM node_registry WHERE locked_balance > 0 AND registration_status = 1 AND latest=1 ORDER BY locked_balance DESC LIMIT 1":
+		"latest, height FROM node_registry WHERE locked_balance > 0 AND registration_status = 1 AND latest=1 " +
+		"ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -218,7 +220,8 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		},
 		).AddRow(1, nrsNodePubKey1, 8000))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND registration_status = 0 GROUP BY id ORDER BY height DESC":
+		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND registration_status = 0 " +
+		"GROUP BY id ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",

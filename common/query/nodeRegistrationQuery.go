@@ -135,7 +135,8 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAdd
 // GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
 // registration_status or not registration_status
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND registration_status = %d AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND registration_status = %d AND latest=1 "+
+		"ORDER BY locked_balance DESC LIMIT %d",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationStatus, limit)
 }
 
@@ -162,7 +163,8 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registration
 
 // GetNodeRegistryAtHeight returns unique latest node registry record at specific height
 func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND registration_status = 0 GROUP BY id ORDER BY height DESC",
+	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND registration_status = 0 "+
+		"GROUP BY id ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), height)
 }
 

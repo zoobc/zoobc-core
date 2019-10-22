@@ -197,8 +197,9 @@ func (*mockQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ...inte
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height " +
-		"FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height  FROM node_registry WHERE node_public_key = ? AND height <= ? " +
+		"ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
@@ -286,8 +287,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 				}
 			}
 		}
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height " +
-		"FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
+		"ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
 			"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.10", 100000000, constant.NodeQueued, true, 100))
