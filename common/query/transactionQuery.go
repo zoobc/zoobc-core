@@ -92,7 +92,7 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 }
 
 func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ?", strings.Join(tq.Fields, ", "), tq.getTableName())
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
 }
 
