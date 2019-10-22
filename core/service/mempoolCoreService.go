@@ -46,11 +46,13 @@ type (
 		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		Signature           crypto.SignatureInterface
 		TransactionQuery    query.TransactionQueryInterface
 		Observer            *observer.Observer
+		Logger              *log.Logger
 	}
 )
 
@@ -60,33 +62,38 @@ func NewMempoolService(
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	signature crypto.SignatureInterface,
 	transactionQuery query.TransactionQueryInterface,
 	observer *observer.Observer,
+	logger *log.Logger,
 ) *MempoolService {
 	return &MempoolService{
 		Chaintype:           ct,
 		KVExecutor:          kvExecutor,
 		QueryExecutor:       queryExecutor,
 		MempoolQuery:        mempoolQuery,
+		MerkleTreeQuery:     merkleTreeQuery,
 		ActionTypeSwitcher:  actionTypeSwitcher,
 		AccountBalanceQuery: accountBalanceQuery,
 		Signature:           signature,
 		TransactionQuery:    transactionQuery,
 		Observer:            observer,
+		Logger:              logger,
 	}
 }
 
 // GetMempoolTransactions fetch transactions from mempool
 func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
-	var rows *sql.Rows
-	var err error
+	var (
+		rows *sql.Rows
+		err  error
+	)
 	sqlStr := mps.MempoolQuery.GetMempoolTransactions()
 	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr, false)
 	if err != nil {
-		log.Printf("GetMempoolTransactions fails %s\n", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -122,7 +129,6 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return errors.New("DuplicateRecordAttempted")
 	}
 	if err.Error() != "MempoolTransactionNotFound" {
-		log.Println(err)
 		return errors.New("DatabaseError")
 	}
 
@@ -215,8 +221,9 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 				continue
 			}
 			// compute transaction expiration time
-			txExpirationTime := blockTimestamp + constant.TransactionExpirationOffset
-			if blockTimestamp > 0 && tx.Timestamp > txExpirationTime {
+			txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
+			// compare to millisecond representation of block timestamp
+			if blockTimestamp == 0 || blockTimestamp > txExpirationTime {
 				continue
 			}
 
@@ -246,13 +253,21 @@ func (mps *MempoolService) generateTransactionReceipt(
 	senderPublicKey, receiptKey []byte,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
+	var rmrLinked []byte
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	lastRmrQ := mps.MerkleTreeQuery.GetLastMerkleRoot()
+	row := mps.QueryExecutor.ExecuteSelectRow(lastRmrQ)
+	rmrLinked, err := mps.MerkleTreeQuery.ScanRoot(row)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
 	// generate receipt
 	batchReceipt, err := util.GenerateBatchReceipt( // todo: var
 		lastBlock,
 		senderPublicKey,
 		nodePublicKey,
 		receivedTxHash,
+		rmrLinked,
 		constant.ReceiptDatumTypeTransaction,
 	)
 	if err != nil {
@@ -320,8 +335,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, err
 	}
 
-	if err = mps.QueryExecutor.BeginTx(); err != nil {
-		log.Warnf("error opening db transaction %v", err)
+	if err := mps.QueryExecutor.BeginTx(); err != nil {
 		return nil, err
 	}
 	// Apply Unconfirmed transaction
@@ -331,26 +345,24 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
-		log.Warnf("fail ApplyUnconfirmed tx: %v\n", err)
-		if err = mps.QueryExecutor.RollbackTx(); err != nil {
-			log.Warnf("error rolling back db transaction %v", err)
-			return nil, err
+		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
 		}
 		return nil, err
 	}
 
 	// Store to Mempool Transaction
 	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
-		log.Warnf("error AddMempoolTransaction: %v\n", err)
-		if err = mps.QueryExecutor.RollbackTx(); err != nil {
-			log.Warnf("error rolling back db transaction %v", err)
-			return nil, err
+		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
 		}
 		return nil, err
 	}
 
 	if err = mps.QueryExecutor.CommitTx(); err != nil {
-		log.Warnf("error committing db transaction: %v", err)
+		mps.Logger.Warnf("error committing db transaction: %v", err)
 		return nil, err
 	}
 	// broadcast transaction
@@ -391,7 +403,6 @@ func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
 // PruneMempoolTransactions handle fresh clean the mempool
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
-
 	var (
 		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
 		selectQ, qStr  string
@@ -407,35 +418,46 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	defer rows.Close()
 
 	mempools = mps.MempoolQuery.BuildModel(mempools, rows)
+
+	err = mps.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	for _, m := range mempools {
 		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
 		if err != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				mps.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				mps.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 		err = action.UndoApplyUnconfirmed()
 		if err != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				mps.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 	}
 
 	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
-	err = mps.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 	err = mps.QueryExecutor.ExecuteTransaction(qStr)
 	if err != nil {
-		_ = mps.QueryExecutor.RollbackTx()
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
+		}
 		return err
 	}
 	err = mps.QueryExecutor.CommitTx()
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

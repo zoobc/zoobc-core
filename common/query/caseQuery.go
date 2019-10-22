@@ -16,6 +16,7 @@ type (
 		Where(query ...string) *CaseQuery
 		And(expression ...string) *CaseQuery
 		Or(expression ...string) *CaseQuery
+		AndOr(expression ...string) *CaseQuery
 		In(column string, value ...interface{}) string
 		NotIn(column string, value ...interface{}) string
 		Equal(column string, value interface{}) string
@@ -77,7 +78,17 @@ func (fq *CaseQuery) Or(expression ...string) *CaseQuery {
 	if !strings.Contains(fq.Query.String(), "WHERE") {
 		fq.Query.WriteString("WHERE 1=1 ")
 	}
+
 	fq.Query.WriteString(fmt.Sprintf("OR %s ", strings.Join(expression, "OR ")))
+	return fq
+}
+
+// AndOr represents `AND (expressionFoo OR expressionBar)`
+func (fq *CaseQuery) AndOr(expression ...string) *CaseQuery {
+	if !strings.Contains(fq.Query.String(), "WHERE") {
+		fq.Query.WriteString("WHERE 1=1 ")
+	}
+	fq.Query.WriteString(fmt.Sprintf("AND (%s) ", strings.Join(expression, " OR ")))
 	return fq
 }
 

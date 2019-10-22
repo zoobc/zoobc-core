@@ -3,9 +3,11 @@ package client
 import (
 	"bytes"
 	"context"
+	"time"
+
+	"golang.org/x/crypto/sha3"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
@@ -15,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -56,6 +59,11 @@ type (
 // PeerService represent peer service
 type Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 
+// list of client service error that will be ignore to record into log file
+var ignoredErrors = map[codes.Code]string{
+	codes.Unavailable: "Unavailable, indicates the destination service is currently unavailable",
+}
+
 // ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
 func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
@@ -64,16 +72,15 @@ func NewPeerServiceClient(
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	host *model.Host,
+	logger *log.Logger,
 ) PeerServiceClientInterface {
-	logLevels := viper.GetStringSlice("logLevels")
-	apiLogger, _ := util.InitLogger(".log/", "debugP2PClient.log", logLevels)
 	// set to current struct log
 	return &PeerServiceClient{
 		Dialer: func(destinationPeer *model.Peer) (*grpc.ClientConn, error) {
 			conn, err := grpc.Dial(
 				p2pUtil.GetFullAddressPeer(destinationPeer),
 				grpc.WithInsecure(),
-				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(apiLogger)),
+				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(logger, ignoredErrors)),
 			)
 			if err != nil {
 				return nil, err
@@ -85,7 +92,7 @@ func NewPeerServiceClient(
 		BatchReceiptQuery: batchReceiptQuery,
 		MerkleTreeQuery:   merkleTreeQuery,
 		NodePublicKey:     nodePublicKey,
-		Logger:            apiLogger,
+		Logger:            logger,
 		Host:              host,
 	}
 }
@@ -175,7 +182,9 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-
+	if response.BatchReceipt == nil {
+		return err
+	}
 	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
@@ -229,7 +238,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(
 		ChainType: chaintype.GetTypeInt(),
 	})
 	if err != nil {
-		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Infof("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -259,7 +268,7 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
 		LastMilestoneBlockID: lastMilestoneBlockID,
 	})
 	if err != nil {
-		psc.Logger.Warnf("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
+		psc.Logger.Infof("could not greet %v: %v\n", p2pUtil.GetFullAddressPeer(destPeer), err)
 		return nil, err
 	}
 	return res, err
@@ -372,9 +381,11 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		batchReceipts = psc.BatchReceiptQuery.BuildModel(batchReceipts, rows)
 
 		for _, b := range batchReceipts {
+			// hash the receipts
+			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
 			hashedReceipts = append(
 				hashedReceipts,
-				bytes.NewBuffer(util.GetSignedBatchReceiptBytes(b)),
+				bytes.NewBuffer(hashedBatchReceipt[:]),
 			)
 		}
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
@@ -384,7 +395,6 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		rootMerkle, treeMerkle := merkleRoot.ToBytes()
 
 		for k, r := range batchReceipts {
-
 			var (
 				br       = r
 				rmrIndex = uint32(k)
@@ -401,7 +411,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
 
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle)
+		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
 		err = psc.QueryExecutor.BeginTx()
@@ -410,6 +420,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		}
 		err = psc.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
+			_ = psc.QueryExecutor.RollbackTx()
 			return err
 		}
 		err = psc.QueryExecutor.CommitTx()

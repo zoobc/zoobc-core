@@ -47,7 +47,7 @@ func (qe *Executor) BeginTx() error {
 
 	if err != nil {
 		qe.Unlock()
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	qe.Tx = tx
 	return nil
@@ -64,7 +64,7 @@ func (qe *Executor) Execute(query string) (sql.Result, error) {
 	result, err := qe.Db.Exec(query)
 
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return result, nil
 }
@@ -79,14 +79,14 @@ func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Res
 	stmt, err := qe.Db.Prepare(query)
 
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
 	defer qe.Unlock()
 	result, err := stmt.Exec(args...)
 
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return result, nil
 }
@@ -117,7 +117,7 @@ func (qe *Executor) ExecuteSelect(query string, tx bool, args ...interface{}) (*
 		rows, err = qe.Db.Query(query, args...)
 	}
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return rows, nil
 }
@@ -136,13 +136,13 @@ func (qe *Executor) ExecuteSelectRow(query string, args ...interface{}) *sql.Row
 func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	stmt, err := qe.Tx.Prepare(qStr)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(args...)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
 }
@@ -153,13 +153,12 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 	for _, query := range queries {
 		stmt, err := qe.Tx.Prepare(fmt.Sprintf("%v", query[0]))
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		_, err = stmt.Exec(query[1:]...)
 		if err != nil {
-			_ = qe.Tx.Rollback()
 			stmt.Close()
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		stmt.Close()
 	}
@@ -177,7 +176,7 @@ func (qe *Executor) CommitTx() error {
 	}()
 	if err != nil {
 		_ = qe.Tx.Rollback()
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
 }
@@ -187,5 +186,8 @@ func (qe *Executor) RollbackTx() error {
 	err := qe.Tx.Rollback()
 	qe.Tx = nil
 	defer qe.Unlock()
-	return err
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return nil
 }

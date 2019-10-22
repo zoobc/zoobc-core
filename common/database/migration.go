@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -162,6 +163,26 @@ func (m *Migration) Init() error {
 				"tree" BLOB
 			)
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "published_receipt" (
+				"sender_public_key" BLOB,
+				"recipient_public_key" BLOB,
+				"datum_type" INTEGER,
+				"datum_hash" BLOB,
+				"reference_block_height" INTEGER,
+				"reference_block_hash" BLOB,
+				"rmr_linked" BLOB,
+				"recipient_signature" BLOB,
+				"intermediate_hashes" BLOB,
+				"block_height" INTEGER,
+				"receipt_index" INTEGER,
+				"published_index" INTEGER
+			)
+			`,
+			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "timestamp" INTEGER AFTER "tree"
+			`,
 		}
 		return nil
 	}
@@ -186,10 +207,16 @@ func (m *Migration) Apply() error {
 
 	for v, query := range migrations {
 		version := v
-		_ = m.Query.BeginTx()
+		err = m.Query.BeginTx()
+		if err != nil {
+			return err
+		}
 		err = m.Query.ExecuteTransaction(query)
 		if err != nil {
-			_ = m.Query.RollbackTx()
+			rollbackErr := m.Query.RollbackTx()
+			if rollbackErr != nil {
+				log.Errorln(rollbackErr.Error())
+			}
 			return err
 		}
 		if m.CurrentVersion != nil {

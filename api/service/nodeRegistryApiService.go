@@ -35,6 +35,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	var (
 		err               error
 		rows              *sql.Rows
+		rows2             *sql.Rows
 		selectQuery       string
 		args              []interface{}
 		totalRecords      uint64
@@ -81,13 +82,13 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	selectQuery, args = caseQuery.Build()
 
 	// Get list of node registry
-	rows, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
+	defer rows2.Close()
 
-	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
+	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
 
 	return &model.GetNodeRegistrationsResponse{
 		Total:             totalRecords,
@@ -108,7 +109,7 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	caseQuery := query.NewCaseQuery()
 
-	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields[1:]...)
+	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
 	if len(params.GetNodePublicKey()) != 0 {
 		caseQuery.And(caseQuery.Equal("node_public_key", params.GetNodePublicKey()))
 	}
@@ -129,6 +130,9 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	row = ns.Query.ExecuteSelectRow(selectQuery, args...)
 	err = nodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

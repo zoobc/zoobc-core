@@ -1,9 +1,8 @@
 package service
 
 import (
-	"errors"
-	"log"
-
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -15,11 +14,11 @@ import (
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
-func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction {
+func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []constant.MainchainGenesisConfigEntry) []*model.Transaction {
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
-		for _, fundReceiver := range constant.MainchainGenesisFundReceivers {
+		for _, genesisEntry := range genesisEntries {
 			// send funds from genesis account to the fund receiver
 			genesisTx := &model.Transaction{
 				Version:                 1,
@@ -27,15 +26,15 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 				Height:                  0,
 				Timestamp:               1562806389,
 				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
-				RecipientAccountAddress: fundReceiver.AccountAddress,
+				RecipientAccountAddress: genesisEntry.AccountAddress,
 				Fee:                     0,
 				TransactionBodyLength:   8,
 				TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 					SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-						Amount: fundReceiver.Amount,
+						Amount: genesisEntry.AccountBalance,
 					},
 				},
-				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(fundReceiver.Amount)),
+				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
 				Signature:            constant.MainchainGenesisTransactionSignature,
 			}
 
@@ -48,10 +47,12 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 			genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
 			genesisTxs = append(genesisTxs, genesisTx)
 
-			// register the node for the fund receiver
-			genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(fundReceiver.AccountAddress, fundReceiver.NodeAddress,
-				fundReceiver.LockedBalance, fundReceiver.NodePublicKey)
-			genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
+			// register the node for the fund receiver, if relative element in MainChainGenesisConfig contains a NodePublicKey
+			if len(genesisEntry.NodePublicKey) > 0 {
+				genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(genesisEntry.AccountAddress, genesisEntry.NodeAddress,
+					genesisEntry.LockedBalance, genesisEntry.NodePublicKey)
+				genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
+			}
 		}
 
 		return genesisTxs
@@ -60,7 +61,7 @@ func GetGenesisTransactions(chainType chaintype.ChainType) []*model.Transaction 
 	}
 }
 
-// GetGenesisNodeRegistrationTx given a fundReceiver, returns a nodeRegistrationTransaction for genesis block
+// GetGenesisNodeRegistrationTx given a genesisEntry, returns a nodeRegistrationTransaction for genesis block
 func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBalance int64, nodePublicKey []byte) *model.Transaction {
 	// generate a dummy proof of ownership (avoiding to add conditions to tx parsebytes, for genesis block only)
 	poownMessage := &model.ProofOfOwnershipMessage{
@@ -111,27 +112,38 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 
 // AddGenesisAccount create genesis account into `account` and `account_balance` table
 func AddGenesisAccount(executor query.ExecutorInterface) error {
-	// add genesis account
-	genesisAccountBalance := model.AccountBalance{
-		AccountAddress:   constant.MainchainGenesisAccountAddress,
-		BlockHeight:      0,
-		SpendableBalance: 0,
-		Balance:          0,
-		PopRevenue:       0,
-		Latest:           true,
+	var (
+		// add genesis account
+		genesisAccountBalance = model.AccountBalance{
+			AccountAddress:   constant.MainchainGenesisAccountAddress,
+			BlockHeight:      0,
+			SpendableBalance: 0,
+			Balance:          0,
+			PopRevenue:       0,
+			Latest:           true,
+		}
+		genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs = query.NewAccountBalanceQuery().InsertAccountBalance(
+			&genesisAccountBalance)
+
+		genesisQueries [][]interface{}
+		err            error
+	)
+
+	err = executor.BeginTx()
+	if err != nil {
+		return err
 	}
-	genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs := query.NewAccountBalanceQuery().InsertAccountBalance(
-		&genesisAccountBalance)
-	_ = executor.BeginTx()
-	var genesisQueries [][]interface{}
 	genesisQueries = append(genesisQueries,
 		append(
 			[]interface{}{genesisAccountBalanceInsertQ}, genesisAccountBalanceInsertArgs...),
 	)
-	err := executor.ExecuteTransactions(genesisQueries)
+	err = executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		_ = executor.RollbackTx()
-		return errors.New("fail to add genesis account balance")
+		rollbackErr := executor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
+		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis account balance")
 	}
 	err = executor.CommitTx()
 	if err != nil {

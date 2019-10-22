@@ -9,17 +9,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/observer"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 // resetTransactionService resets the singleton back to nil, used in test case teardown

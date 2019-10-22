@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -136,6 +137,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		blockService      coreService.BlockServiceInterface
 		queryService      query.ExecutorInterface
+		logger            *log.Logger
 	}
 	tests := []struct {
 		name    string
@@ -150,6 +152,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 				PeerExplorer:      &mockPeerExplorer{},
 				blockService:      &mockBlockServiceSuccess{},
 				queryService:      &mockQueryServiceSuccess{},
+				logger:            log.New(),
 			},
 			want:    int64(1),
 			wantErr: false,
@@ -161,6 +164,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 				PeerExplorer:      &mockPeerExplorer{},
 				blockService:      &mockBlockServiceFail{},
 				queryService:      &mockQueryServiceSuccess{},
+				logger:            log.New(),
 			},
 			want:    int64(0),
 			wantErr: true,
@@ -172,6 +176,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 				PeerExplorer:      &mockPeerExplorer{},
 				blockService:      &mockBlockServiceSuccess{},
 				queryService:      &mockQueryServiceSuccess{},
+				logger:            log.New(),
 			},
 			want:    int64(0),
 			wantErr: true,
@@ -184,6 +189,7 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 				BlockService:      tt.args.blockService,
 				PeerServiceClient: tt.args.PeerServiceClient,
 				PeerExplorer:      tt.args.PeerExplorer,
+				Logger:            tt.args.logger,
 			}
 			got, err := blockchainDownloader.getPeerCommonBlockID(
 				&model.Peer{},
@@ -288,7 +294,11 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		&[]model.Blocksmith{})
+		nil,
+		nil,
+		&[]model.Blocksmith{},
+		nil,
+	)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,
 		PeerServiceClient: &mockP2pServiceSuccess{},

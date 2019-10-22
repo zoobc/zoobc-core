@@ -35,6 +35,7 @@ type (
 		BlockService      service.BlockServiceInterface
 		PeerServiceClient client.PeerServiceClientInterface
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
+		Logger            *log.Logger
 	}
 
 	PeerBlockchainInfo struct {
@@ -55,7 +56,7 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
 	afterDownloadLastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
-		log.Warnf("failed to get the last block state after block download")
+		bd.Logger.Info("failed to get the last block state after block download")
 		return false
 	}
 	heightAfterDownload := afterDownloadLastBlock.Height
@@ -118,7 +119,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	commonBlockID := chainBlockIds[0]
 	commonBlock, err = bd.BlockService.GetBlockByID(commonBlockID)
 	if err != nil {
-		log.Warnf("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
+		bd.Logger.Infof("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
 		return nil, err
 	}
 	if commonBlock == nil || lastBlockHeight-commonBlock.GetHeight() >= constant.MinRollbackBlocks {
@@ -126,7 +127,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	}
 
 	if !bd.IsDownloading && peerHeight-commonBlock.GetHeight() > 10 {
-		log.Println("Blockchain download in progress")
+		bd.Logger.Info("Blockchain download in progress")
 		bd.IsDownloading = true
 	}
 
@@ -219,7 +220,6 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		nextBlocks, err := bd.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
 			start, commonUtil.MinUint32(start+segSize, stop))
 		if err != nil {
-			log.Warn(err)
 			return nil, err
 		}
 		elapsedTime := time.Since(startTime)
@@ -228,7 +228,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		}
 
 		if len(nextBlocks) < 1 {
-			log.Warnf("disconnecting with peer %v for not responding correctly in getting the next blocks\n", peerUsed.Info.Address)
+			bd.Logger.Warnf("disconnecting with peer %v for not responding correctly in getting the next blocks\n", peerUsed.Info.Address)
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
 			continue
 		}
@@ -263,13 +263,13 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
-				log.Warnf("failed to verify block %v from peer: %s\n", block.ID, err)
+				bd.Logger.Infof("failed to verify block %v from peer: %s\n", block.ID, err)
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
-				log.Warnln("failed to push block from peer:", err)
+				bd.Logger.Info("failed to push block from peer:", err)
 			}
 		} else {
 			forkBlocks = append(forkBlocks, block)
@@ -288,7 +288,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 	lastMilestoneBlockID := int64(0)
 	lastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
-		log.Errorf("failed to get blockchain last block: %v\n", err)
+		bd.Logger.Infof("failed to get blockchain last block: %v\n", err)
 		return 0, err
 	}
 	lastBlockID := lastBlock.ID
@@ -297,7 +297,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 			peer, bd.ChainType, lastBlockID, lastMilestoneBlockID,
 		)
 		if err != nil {
-			log.Warnf("failed to get common milestone from the peer: %v\n", err)
+			bd.Logger.Infof("failed to get common milestone from the peer: %v\n", err)
 			bd.PeerExplorer.DisconnectPeer(peer)
 			return 0, err
 		}

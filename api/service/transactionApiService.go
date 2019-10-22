@@ -100,26 +100,23 @@ func (ts *TransactionService) GetTransactions(
 	var (
 		err          error
 		rows         *sql.Rows
+		rows2        *sql.Rows
 		txs          []*model.Transaction
 		selectQuery  string
 		args         []interface{}
 		totalRecords uint64
+		txQuery      = query.NewTransactionQuery(chainType)
+		caseQuery    = query.NewCaseQuery()
+		// Represent transaction fields
+		txFields = map[string]string{
+			"Height":  "block_height",
+			"BlockID": "block_id",
+		}
 	)
-
-	txQuery := query.NewTransactionQuery(chainType)
-	caseQuery := query.NewCaseQuery()
 	caseQuery.Select(txQuery.TableName, txQuery.Fields...)
 
-	// Represent transaction fields
-	txFields := map[string]string{
-		"Height":  "block_height",
-		"BlockID": "block_id",
-	}
-
-	accountAddress := params.GetAccountAddress()
 	page := params.GetPagination()
 	height := params.GetHeight()
-
 	if height != 0 {
 		caseQuery.Where(caseQuery.Equal("block_height", height))
 		if page != nil && page.GetLimit() == 0 {
@@ -127,10 +124,6 @@ func (ts *TransactionService) GetTransactions(
 		}
 	}
 
-	if accountAddress != "" {
-		caseQuery.And(caseQuery.Equal("sender_account_address", accountAddress)).
-			Or(caseQuery.Equal("recipient_account_address", accountAddress))
-	}
 	timestampStart := params.GetTimestampStart()
 	timestampEnd := params.GetTimestampEnd()
 	if timestampStart > 0 {
@@ -140,6 +133,14 @@ func (ts *TransactionService) GetTransactions(
 	transcationType := params.GetTransactionType()
 	if transcationType > 0 {
 		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
+	}
+
+	accountAddress := params.GetAccountAddress()
+	if accountAddress != "" {
+		caseQuery.AndOr(
+			caseQuery.Equal("sender_account_address", accountAddress),
+			caseQuery.Equal("recipient_account_address", accountAddress),
+		)
 	}
 	selectQuery, args = caseQuery.Build()
 
@@ -169,15 +170,15 @@ func (ts *TransactionService) GetTransactions(
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 	selectQuery, args = caseQuery.Build()
 
-	rows, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
+	rows2, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
+	defer rows2.Close()
 
-	for rows.Next() {
+	for rows2.Next() {
 		var tx model.Transaction
-		err = rows.Scan(
+		err = rows2.Scan(
 			&tx.ID,
 			&tx.BlockID,
 			&tx.Height,

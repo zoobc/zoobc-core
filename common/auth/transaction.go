@@ -1,7 +1,9 @@
 package auth
 
 import (
-	"errors"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -17,10 +19,23 @@ func ValidateTransaction(
 	verifySignature bool,
 ) error {
 	if tx.Fee <= 0 {
-		return errors.New("TxFeeZero")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxFeeZero",
+		)
 	}
 	if tx.SenderAccountAddress == "" {
-		return errors.New("TxSenderEmpty")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxSenderEmpty",
+		)
+	}
+	// check if transaction is coming from future / comparison in second
+	if tx.Timestamp > time.Now().UnixNano()/1e9 {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxComeFromFuture",
+		)
 	}
 
 	// validate sender account
@@ -32,16 +47,25 @@ func ValidateTransaction(
 	defer rows.Close()
 	res := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 	if len(res) == 0 {
-		return errors.New("TxSenderNotFound")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxSenderNotFound",
+		)
 	}
 	senderAccountBalance := res[0]
 	if senderAccountBalance.SpendableBalance < tx.Fee {
-		return errors.New("TxAccountBalanceNotEnough")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxAccountBalanceNotEnough",
+		)
 	}
 
 	// formally validate transaction body
 	if len(tx.TransactionBodyBytes) != int(tx.TransactionBodyLength) {
-		return errors.New("TxInvalidBodyFormat")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxInvalidBodyFormat",
+		)
 	}
 
 	unsignedTransactionBytes, err := util.GetTransactionBytes(tx, false)
@@ -51,7 +75,10 @@ func ValidateTransaction(
 	// verify the signature of the transaction
 	if verifySignature {
 		if !crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress) {
-			return errors.New("TxInvalidSignature")
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"TxInvalidSignature",
+			)
 		}
 	}
 
