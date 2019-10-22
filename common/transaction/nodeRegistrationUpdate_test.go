@@ -166,8 +166,8 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
-		"FROM node_registry WHERE account_address = ? AND latest=1" {
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",

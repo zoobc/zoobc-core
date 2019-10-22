@@ -211,8 +211,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, constant.NodeQueued, true, 100))
 	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
 		"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
-		"WHERE account_address = " + constant.DeletedNodeAccountAddress +
-		" AND nr.latest = 1 AND nr.registration_status = 0 AND ps.score > 0 AND ps.latest = 1":
+		"WHERE nr.registration_status = 0 AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",

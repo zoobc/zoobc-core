@@ -74,6 +74,18 @@ run:
 
 issues:
   exclude-rules:
+    - text: "cuddle"
+      linters:
+        - wsl
+    - text: "block should not start with a whitespace"
+      linters:
+        - wsl
+    - text: "block should not end with a whitespace"
+      linters:
+        - wsl
+    - text: "go statements can only invoke functions assigned on line above"
+      linters:
+        - wsl
     - text: "unnecessary trailing newline"
       linters:
         - whitespace

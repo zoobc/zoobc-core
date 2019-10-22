@@ -53,7 +53,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		RegistrationStatus: constant.NodeDeleted,
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
-		AccountAddress: constant.DeletedNodeAccountAddress,
+		AccountAddress: prevNodeRegistration.AccountAddress,
 	}
 	// update sender balance by refunding the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(

@@ -102,8 +102,8 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size 
 func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
 	return fmt.Sprintf("SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
 		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE "+
-		"account_address = %s AND nr.latest = 1 AND nr.registration_status = 0 AND ps.score > 0 AND ps.latest = 1",
-		nrq.getTableName(), NewParticipationScoreQuery().TableName, constant.DeletedNodeAccountAddress)
+		"nr.registration_status = %d AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1",
+		nrq.getTableName(), NewParticipationScoreQuery().TableName, constant.NodeRegistered)
 }
 
 // GetNodeRegistrationByID returns query string to get Node Registration by node public key
