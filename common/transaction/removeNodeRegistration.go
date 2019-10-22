@@ -50,7 +50,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		RegistrationStatus:             constant.NodeQueued,
+		RegistrationStatus: constant.NodeDeleted,
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
 		AccountAddress: constant.DeletedNodeAccountAddress,
@@ -127,9 +127,13 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	if len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
+	nr := nodeRegistrations[0]
 	// sender must be node owner
-	if tx.SenderAddress != nodeRegistrations[0].AccountAddress {
+	if tx.SenderAddress != nr.AccountAddress {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountNotNodeOwner")
+	}
+	if nr.RegistrationStatus == constant.NodeDeleted {
+		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyDeleted")
 	}
 	return nil
 }
