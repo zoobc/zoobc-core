@@ -51,10 +51,10 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		RegistrationStatus: constant.NodeQueued,
+		RegistrationStatus: constant.NodeDeleted,
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
-		AccountAddress: constant.DeletedNodeAccountAddress,
+		AccountAddress: prevNodeRegistration.AccountAddress,
 	}
 	// update sender balance by claiming the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
@@ -127,21 +127,6 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 
-	// check that sender is node's owner
-	if tx.Body.AccountAddress == "" {
-		return blocker.NewBlocker(blocker.ValidationErr, "AccountAddressRequired")
-	}
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	if rows.Next() {
-		// account address has already an active node registration (either registration_status or not)
-		return blocker.NewBlocker(blocker.ValidationErr, "AccountAlreadyNodeOwner")
-	}
-
 	rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
@@ -153,8 +138,8 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		// public key must be already registered
 		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
 	}
-	if nodeRegistrations[0].AccountAddress == constant.DeletedNodeAccountAddress {
-		return blocker.NewBlocker(blocker.AppErr, "ClaimedNodeIsDeleted")
+	if nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
+		return blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted")
 	}
 
 	return nil
@@ -178,24 +163,14 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 	if err != nil {
 		return nil, err
 	}
-	accountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
-	if err != nil {
-		return nil, err
-	}
-	accountAddressLength := util.ConvertBytesToUint32(accountAddressLengthBytes)
-	accountAddress, err := util.ReadTransactionBytes(buffer, int(accountAddressLength))
-	if err != nil {
-		return nil, err
-	}
 	// parse ProofOfOwnership (message + signature) bytes
 	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
 	if err != nil {
 		return nil, err
 	}
 	return &model.ClaimNodeRegistrationTransactionBody{
-		NodePublicKey:  nodePublicKey,
-		AccountAddress: string(accountAddress),
-		Poown:          poown,
+		NodePublicKey: nodePublicKey,
+		Poown:         poown,
 	}, nil
 }
 
@@ -203,8 +178,6 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 func (tx *ClaimNodeRegistration) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.AccountAddress)))))
-	buffer.Write([]byte(tx.Body.AccountAddress))
 	// convert ProofOfOwnership (message + signature) to bytes
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
 	return buffer.Bytes()

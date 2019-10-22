@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -19,13 +20,13 @@ type (
 		success bool
 		auth.ProofOfOwnershipValidation
 	}
-	mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR struct {
-		query.Executor
-	}
-	mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR struct {
-		query.Executor
-	}
 	mockExecutorValidateSuccessClaimNR struct {
+		query.Executor
+	}
+	mockExecutorValidateFailClaimNRNodeNotRegistered struct {
+		query.Executor
+	}
+	mockExecutorValidateFailClaimNRNodeAlreadyDeleted struct {
 		query.Executor
 	}
 	mockExecutorApplyConfirmedSuccessClaimNR struct {
@@ -54,76 +55,6 @@ func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelect(qe strin
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
-		return db.Query("")
-	}
-	return nil, nil
-}
-
-func (*mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR) ExecuteSelect(qe string, tx bool,
-	args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
-		"FROM node_registry WHERE account_address = ? AND latest=1" {
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
-			"id",
-			"node_public_key",
-			"account_address",
-			"registration_height",
-			"node_address",
-			"locked_balance",
-			"registration_status",
-			"latest",
-			"height",
-		}).AddRow(
-			int64(10000),
-			nodePubKey1,
-			senderAddress1,
-			uint32(1),
-			"10.10.10.10",
-			int64(1000),
-			uint32(constant.NodeRegistered),
-			true,
-			uint32(1),
-		))
-		return db.Query("")
-	}
-	return nil, nil
-}
-
-func (*mockExecutorValidateFailExecuteSelectDuplicateNodePubKeyClaimNR) ExecuteSelect(qe string, tx bool,
-	args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
-		" locked_balance, registration_status, latest, height FROM node_registry WHERE account_address = "+senderAddress2+
-		" AND latest=1" {
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
-		return db.Query("")
-	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
-		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
-			"id",
-			"node_public_key",
-			"account_address",
-			"registration_height",
-			"node_address",
-			"locked_balance",
-			"registration_status",
-			"latest",
-			"height",
-		}).AddRow(
-			int64(10000),
-			nodePubKey1,
-			senderAddress1,
-			uint32(1),
-			"10.10.10.10",
-			int64(1000),
-			uint32(constant.NodeRegistered),
-			true,
-			uint32(1),
-		))
 		return db.Query("")
 	}
 	return nil, nil
@@ -168,11 +99,6 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
-		"FROM node_registry WHERE account_address = ? AND latest=1" {
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
-		return db.Query("")
-	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
 		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -200,6 +126,48 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 	return nil, nil
 }
 
+func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
+		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}).AddRow(
+			int64(10000),
+			nodePubKey1,
+			senderAddress1,
+			uint32(1),
+			"10.10.10.10",
+			int64(0),
+			uint32(constant.NodeDeleted),
+			true,
+			uint32(1),
+		))
+		return db.Query("")
+	}
+	return nil, nil
+}
+
+func (*mockExecutorValidateFailClaimNRNodeNotRegistered) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
+		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
+		return db.Query("")
+	}
+	return nil, nil
+}
+
 func TestClaimNodeRegistration_Validate(t *testing.T) {
 	poown, _, _ := GetFixturesForClaimNoderegistration()
 	txBodyWithoutPoown := &model.ClaimNodeRegistrationTransactionBody{}
@@ -207,8 +175,8 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		Poown: poown,
 	}
 	txBodyFull := &model.ClaimNodeRegistrationTransactionBody{
-		AccountAddress: senderAddress2,
-		Poown:          poown,
+		Poown:         poown,
+		NodePublicKey: []byte{1, 1, 1, 1},
 	}
 
 	type fields struct {
@@ -246,24 +214,26 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 			errText: "MockedError",
 		},
 		{
-			name: "Validate:fail-{AccountAddressRequired}",
+			name: "Validate:fail-{ClaimedNodeNotRegistered}",
 			fields: fields{
-				Body:      txBodyWithPoown,
-				AuthPoown: &mockAuthPoown{success: true},
-			},
-			wantErr: true,
-			errText: "ValidationErr: AccountAddressRequired",
-		},
-		{
-			name: "Validate:fail-{AccountAddressAlreadyRegistered}",
-			fields: fields{
-				Body:                  txBodyFull,
+				Body:                  txBodyWithPoown,
 				AuthPoown:             &mockAuthPoown{success: true},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				QueryExecutor:         &mockExecutorValidateFailExecuteSelectDuplicateAccountClaimNR{},
+				QueryExecutor:         &mockExecutorValidateFailClaimNRNodeNotRegistered{},
 			},
 			wantErr: true,
-			errText: "ValidationErr: AccountAlreadyNodeOwner",
+			errText: blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered").Error(),
+		},
+		{
+			name: "Validate:fail-{ClaimedNodeAlreadyClaimedOrDeleted}",
+			fields: fields{
+				Body:                  txBodyWithPoown,
+				AuthPoown:             &mockAuthPoown{success: true},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         &mockExecutorValidateFailClaimNRNodeAlreadyDeleted{},
+			},
+			wantErr: true,
+			errText: blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted").Error(),
 		},
 		{
 			name: "Validate:success",

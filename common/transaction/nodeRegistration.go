@@ -34,11 +34,14 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		queries            [][]interface{}
 		registrationStatus uint32
 		nodeRegistrations  []*model.NodeRegistration
+		nodeAccountAddress string
 	)
 	if tx.Height > 0 {
 		registrationStatus = constant.NodeQueued
+		nodeAccountAddress = tx.SenderAddress
 	} else {
 		registrationStatus = constant.NodeRegistered
+		nodeAccountAddress = tx.Body.AccountAddress
 	}
 
 	// update sender balance by reducing his spendable balance of the tx fee and locked balance
@@ -66,7 +69,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
 		RegistrationStatus: registrationStatus,
-		AccountAddress:     tx.Body.AccountAddress,
+		AccountAddress:     nodeAccountAddress,
 	}
 	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != constant.NodeDeleted {
 		queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
@@ -159,9 +162,6 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 	if tx.Body.GetNodeAddress() == nil {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "NodeAddressRequired")
-	}
-	if tx.Body.GetAccountAddress() == "" {
-		return blocker.NewBlocker(blocker.RequestParameterErr, "AccountAddressRequired")
 	}
 
 	// validate poown

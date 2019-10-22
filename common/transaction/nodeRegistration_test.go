@@ -610,19 +610,10 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodeAddress: &model.NodeAddress{
 			Address: "10.10.10.1",
 		},
-		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-	}
-	bodyWithNullAccountAddress := &model.NodeRegistrationTransactionBody{
-		Poown:         poown,
-		NodePublicKey: nodePubKey1,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.1",
-		},
 	}
 	bodyWithNullNodeAddress := &model.NodeRegistrationTransactionBody{
-		Poown:          poown,
-		NodePublicKey:  nodePubKey1,
-		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
 	}
 	bodyWithInvalidNodeAddress := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -630,7 +621,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodeAddress: &model.NodeAddress{
 			Address: "invalidAddress",
 		},
-		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 	}
 	txBody := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -638,7 +628,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodeAddress: &model.NodeAddress{
 			Address: "10.10.10.1",
 		},
-		AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 	}
 	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
@@ -777,21 +766,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Height:                1,
 				Body:                  bodyWithNullNodeAddress,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
-				AuthPoown:             &mockAuthPoown{success: true},
-			},
-			wantErr: true,
-		},
-		{
-			name: "Validate:fail-{NullAccountAddress}",
-			fields: fields{
-				Height:                1,
-				Body:                  bodyWithNullAccountAddress,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),

@@ -14,5 +14,4 @@ const (
 	NodeRegistered = iota
 	NodeQueued
 	NodeDeleted
-	NodeExpelled
 )

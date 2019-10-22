@@ -125,9 +125,8 @@ func GetFixturesForClaimNoderegistration() (
 		Signature:    poownSignature,
 	}
 	txBody = &model.ClaimNodeRegistrationTransactionBody{
-		NodePublicKey:  nodePubKey1,
-		AccountAddress: senderAddress2,
-		Poown:          poown,
+		NodePublicKey: nodePubKey1,
+		Poown:         poown,
 	}
 	nr := ClaimNodeRegistration{
 		Body: txBody,
