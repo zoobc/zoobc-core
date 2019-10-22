@@ -6,17 +6,17 @@ import (
 	"github.com/spf13/viper"
 )
 
-var ConfigFile = "././resource/debugConfig.toml"
+var ConfigFile = "././resource/config.toml"
+var isDebugFlag bool
+
+func GetDebugFlag(isActive bool) {
+
+	isDebugFlag = isActive
+}
 
 func setDebug() bool {
 
-	viper.SetConfigFile(ConfigFile)
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Printf("error : %v\n", err)
-	}
-
-	debugMode := viper.GetBool("debugFlag")
-
+	debugMode := isDebugFlag
 	return debugMode
 }
 
@@ -71,13 +71,10 @@ func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Printf("error : %v\n", err)
 	}
-	fmt.Println("var :", viper.GetUint32(key), " ", setDebug())
 	if viper.GetUint32(key) != 0 && setDebug() {
 		Output = viper.GetUint32(key)
-		fmt.Printf("debug on use this \n")
 	} else {
 		Output = defaultVal
-		fmt.Printf("debug off use this \n")
 	}
 
 	return Output

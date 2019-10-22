@@ -57,7 +57,7 @@ var (
 	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
 	sortedBlocksmiths                                            []model.Blocksmith
 	mainchainProcessor                                           smith.BlockchainProcessorInterface
-	configDebug                                                  *bool
+	isDebugMode                                                  bool
 )
 
 func init() {
@@ -70,8 +70,12 @@ func init() {
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "", "Usage")
-	configDebug = flag.Bool("debug", false, "Usage")
+	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.Parse()
+
+	if isDebugMode {
+		go startDebugMode()
+	}
 
 	if configDir == "" {
 		configDir = "./resource"
@@ -145,6 +149,11 @@ func init() {
 	observerInstance = observer.NewObserver()
 
 	initP2pInstance()
+}
+
+func startDebugMode() {
+	log.Infof("starting debug mode...")
+	constant.GetDebugFlag(true)
 }
 
 func initP2pInstance() {
@@ -327,13 +336,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 }
 
 func main() {
-	// if *configDebug {
-
-	// 	viper.Set("debugFlag", true)
-
-	// }
-	// viper.WriteConfigAs("./resource/debugConfig.toml")
-
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		log.Fatal(err)
