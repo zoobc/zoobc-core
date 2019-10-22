@@ -44,6 +44,7 @@ var (
 	queryExecutor                                                *query.Executor
 	kvExecutor                                                   *kvdb.KVExecutor
 	observerInstance                                             *observer.Observer
+	schedulerInstance                                            *util.Scheduler
 	blockServices                                                = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
 	receiptService                                               service.ReceiptServiceInterface
@@ -120,6 +121,7 @@ func init() {
 
 	receiptService = service.NewReceiptService(
 		query.NewReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		kvExecutor,
 		queryExecutor,
@@ -151,6 +153,7 @@ func init() {
 
 	// initialize Observer
 	observerInstance = observer.NewObserver()
+	schedulerInstance = util.NewScheduler(constant.SchedulerInterval)
 	initP2pInstance()
 }
 
@@ -302,7 +305,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		nodeRegistrationService,
 	)
 
-	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
@@ -343,16 +345,38 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService,
 	)
 
-	// Schedulers Init
-	go func() {
-		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
-		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
-		if err != nil {
-			loggerCoreService.Error(err)
-		}
-	}()
 	go func() {
 		mainchainSynchronizer.Start(mainchainSyncChannel)
+
+	}()
+}
+
+// Scheduler Init
+func startScheduler() {
+	var (
+		mainchain               = &chaintype.MainChain{}
+		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
+	)
+	if err := schedulerInstance.AddJob(
+		"Delete Expired Mempool",
+		constant.CheckMempoolExpiration,
+		mainchainMempoolService.DeleteExpiredMempoolTransactions,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
+	if err := schedulerInstance.AddJob(
+		"Generate Receipts Merkle Root",
+		constant.ReceiptGenerateMarkleRootPeriod,
+		receiptService.GenerateReceiptsMerkleRoot,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
+
+	// Start scheduler
+	go func() {
+		if err := schedulerInstance.Start(); err != nil {
+			loggerCoreService.Error(err.Error())
+		}
 	}()
 }
 
@@ -370,6 +394,8 @@ func main() {
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
 	startServices()
+	initObserverListeners()
+	startScheduler()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
