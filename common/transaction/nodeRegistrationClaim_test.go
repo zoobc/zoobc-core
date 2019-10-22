@@ -98,8 +98,8 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
-		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -129,8 +129,8 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
-		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -160,8 +160,8 @@ func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe strin
 func (*mockExecutorValidateFailClaimNRNodeNotRegistered) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, height "+
-		"FROM node_registry WHERE node_public_key = ? AND latest=1" {
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
 	}

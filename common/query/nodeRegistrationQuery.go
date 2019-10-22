@@ -134,7 +134,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAdd
 
 // GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
 // registration_status or not registration_status
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus uint32) string {
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit, registrationStatus uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND registration_status = %d AND latest=1 "+
 		"ORDER BY locked_balance DESC LIMIT %d",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationStatus, limit)
