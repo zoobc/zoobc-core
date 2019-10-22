@@ -101,7 +101,8 @@ func TestAccountBalanceQuery_AddAccountBalance(t *testing.T) {
 func TestAccountBalanceQuery_AddAccountSpendableBalance(t *testing.T) {
 	t.Run("AddAccountSpendableBalance:success", func(t *testing.T) {
 		q, args := mockAccountBalanceQuery.AddAccountSpendableBalance(100, causedFields)
-		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_address = ?"
+		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_address = ?" +
+			" AND latest = 1"
 		wantArg := []interface{}{"BCZ"}
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
