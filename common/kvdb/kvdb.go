@@ -101,8 +101,7 @@ func (kve *KVExecutor) GetByPrefix(prefix string) (map[string][]byte, error) {
 	return result, nil
 }
 
-// Rollback delete multiple data from starting forking point
-
+// Rollback delete multiple data, from latest block created until from beginning of forking block (forking point)
 func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
 
 	var queryResult = make(map[string][]byte)
@@ -125,20 +124,19 @@ func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
 					queryResult[string(k)] = v
 					return nil
 				})
+
+				if err != nil {
+					return err
+				}
+
+				err = txn.Delete(k)
 				if err != nil {
 					return err
 				}
 			}
+
 			endData--
 		}
-
-		for key := range queryResult {
-			err := txn.Delete([]byte(key))
-			if err != nil {
-				return err
-			}
-		}
-
 		return nil
 	})
 	if err != nil {
