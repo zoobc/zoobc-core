@@ -66,7 +66,7 @@ func (s *Scheduler) Start() error {
 			time.Sleep(s.Interval)
 		}
 		if s.Done {
-			return errors.New("Scheduler stoping all job")
+			return errors.New("scheduler stoping all job")
 		}
 	}
 }
