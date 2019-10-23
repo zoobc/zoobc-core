@@ -14,7 +14,7 @@ const (
 
 // PseudoRandomGenerator using multple algorithms
 func PseudoRandomGenerator(id, offset uint64, algo int) (pr uint64) {
-	seed := uint64(id ^ offset)
+	seed := id ^ offset
 	switch algo {
 	case PseudoRandomXoroshiro128:
 		src := Rng128P{}
