@@ -58,15 +58,10 @@ func (ps *ParticipationScoreQuery) AddParticipationScore(
 	nodeID, score int64,
 	blockHeight uint32,
 ) [][]interface{} {
-
 	var (
 		queries            [][]interface{}
 		updateVersionQuery string
 	)
-	// insert participation_score if not in yet
-	insertScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
-		"SELECT %d, %d, %d, 1 WHERE NOT EXISTS (SELECT node_id FROM %s WHERE node_id = %d)", ps.getTableName(),
-		nodeID, score, blockHeight, ps.getTableName(), nodeID)
 	// update or insert new participation_score row
 	updateScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
 		"SELECT node_id, score + %d, %d, latest FROM %s WHERE "+
@@ -75,11 +70,7 @@ func (ps *ParticipationScoreQuery) AddParticipationScore(
 		"score + %d FROM %s WHERE node_id = %d AND latest = 1)",
 		ps.getTableName(), score, blockHeight, ps.getTableName(), nodeID, score, ps.getTableName(), nodeID,
 	)
-
 	queries = append(queries,
-		[]interface{}{
-			insertScoreQuery,
-		},
 		[]interface{}{
 			updateScoreQuery,
 		},

@@ -101,10 +101,6 @@ func TestParticipationScoreQuery_AddParticipationScore(t *testing.T) {
 		res := mockParticipationScoreQuery.AddParticipationScore(12, 1*constant.OneZBC, 1)
 		want := [][]interface{}{
 			{
-				"INSERT INTO participation_score (node_id, score, height, latest) SELECT 12, 100000000, 1, " +
-					"1 WHERE NOT EXISTS (SELECT node_id FROM participation_score WHERE node_id = 12)",
-			},
-			{
 				"INSERT INTO participation_score (node_id, score, height, latest) SELECT node_id, score + " +
 					"100000000, 1, latest FROM participation_score WHERE node_id = 12 AND latest = 1 ON " +
 					"CONFLICT(node_id, height) DO UPDATE SET (score) = (SELECT score + 100000000 FROM participation_score " +
