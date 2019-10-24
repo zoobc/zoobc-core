@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -220,7 +219,7 @@ func (ts *TransactionService) PostTransaction(
 	}
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
-		FeePerByte:              constant.TxFeePerByte,
+		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
 		ID:                      tx.ID,
 		TransactionBytes:        txBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
