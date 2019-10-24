@@ -9,16 +9,13 @@ import (
 	"regexp"
 	"testing"
 
-	"golang.org/x/crypto/sha3"
-
-	"github.com/zoobc/zoobc-core/common/util"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (

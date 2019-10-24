@@ -66,10 +66,12 @@ func (rs *ReceiptService) SelectReceipts(
 		return nil, err
 	}
 	defer rows.Close()
+
 	linkedReceiptTree, err := rs.MerkleTreeQuery.BuildTree(rows)
 	if err != nil {
 		return nil, err
 	}
+
 	for linkedRoot := range linkedReceiptTree {
 		var receipts []*model.Receipt
 		receiptsQ, rootArgs := rs.ReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
@@ -77,12 +79,16 @@ func (rs *ReceiptService) SelectReceipts(
 		if err != nil {
 			return nil, err
 		}
+
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
 				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
 				linkedReceiptList[linkedRoot] = append(linkedReceiptList[linkedRoot], rc)
 			}
+		}
+		if rows != nil {
+			rows.Close()
 		}
 	}
 	// limit the selected portion to `numberOfReceipt` receipts
@@ -127,6 +133,8 @@ func (rs *ReceiptService) SelectReceipts(
 		if err != nil {
 			return nil, err
 		}
+		defer rows.Close()
+
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
@@ -148,6 +156,8 @@ func (rs *ReceiptService) SelectReceipts(
 		if err != nil {
 			return nil, err
 		}
+		defer rows.Close()
+
 		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
 		for _, rc := range receipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
