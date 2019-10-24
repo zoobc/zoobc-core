@@ -302,7 +302,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Wait()
 	}
 
-	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 		block, err = coreUtil.CalculateSmithScale(
 			previousBlock, block, bs.Chaintype.GetSmithingPeriod(), bs.BlockQuery, bs.QueryExecutor,
