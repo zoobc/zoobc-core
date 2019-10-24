@@ -301,11 +301,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	if needLock {
 		bs.Wait()
 	}
-	if previousBlock.GetID() != -1 && block.CumulativeDifficulty == "" && block.SmithScale == 0 {
+
+	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		block = coreUtil.CalculateSmithScale(
+		block, err = coreUtil.CalculateSmithScale(
 			previousBlock, block, bs.Chaintype.GetSmithingPeriod(), bs.BlockQuery, bs.QueryExecutor,
 		)
+		if err != nil {
+			return err
+		}
 	}
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()

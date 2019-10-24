@@ -49,7 +49,7 @@ func CalculateSmithScale(
 	smithingPeriod int64,
 	blockQuery query.BlockQueryInterface,
 	executor query.ExecutorInterface,
-) *model.Block {
+) (*model.Block, error) {
 	switch {
 	case block.Height < constant.AverageSmithingBlockHeight:
 		prevSmithScale := previousBlock.GetSmithScale()
@@ -77,7 +77,7 @@ func CalculateSmithScale(
 		row := executor.ExecuteSelectRow(prev2BlockQ)
 		err := blockQuery.Scan(&prev2Block, row)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		blockTimeAverage := (block.Timestamp - prev2Block.Timestamp) / 3
 		if blockTimeAverage > smithingPeriod {
@@ -109,7 +109,7 @@ func CalculateSmithScale(
 	block.CumulativeDifficulty = new(big.Int).Add(
 		previousBlockCumulativeDifficulty,
 		new(big.Int).Div(two64, big.NewInt(block.GetSmithScale()))).String()
-	return block
+	return block, nil
 }
 
 // GetBlockID generate block ID value if haven't
@@ -171,4 +171,8 @@ func CalculateSmithOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
 func CalculateNodeOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
 	prn := crypto.PseudoRandomGenerator(uint64(nodeID), blockSeed.Uint64())
 	return new(big.Int).Div(new(big.Int).SetUint64(prn), score)
+}
+
+func IsGenesis(previousBlockID int64, block *model.Block) bool {
+	return previousBlockID == -1 && block.CumulativeDifficulty != "" && block.SmithScale != 0
 }
