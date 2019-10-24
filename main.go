@@ -177,7 +177,8 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	badgerDbName = viper.GetString("badgerDbName")
 	configPath = viper.GetString("configPath")
 	nodeKeyFile = viper.GetString("nodeKeyFile")
-	// test only
+	// useful for easily reading if node config params have been overridden by env variables,
+	// especially in a multi node-dockerized test network
 	log.Printf("apiRPCPort: %d", apiRPCPort)
 	log.Printf("apiHTTPPort: %d", apiHTTPPort)
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
