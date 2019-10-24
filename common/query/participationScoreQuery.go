@@ -11,6 +11,10 @@ import (
 type (
 	ParticipationScoreQueryInterface interface {
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
+		AddParticipationScore(
+			nodeID, score int64,
+			blockHeight uint32,
+		) [][]interface{}
 		UpdateParticipationScore(participationScore *model.ParticipationScore) (str []string, args []interface{})
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
@@ -48,6 +52,40 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 		strings.Join(ps.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(ps.Fields)-1)),
 	), ps.ExtractModel(participationScore)
+}
+
+func (ps *ParticipationScoreQuery) AddParticipationScore(
+	nodeID, score int64,
+	blockHeight uint32,
+) [][]interface{} {
+	var (
+		queries            [][]interface{}
+		updateVersionQuery string
+	)
+	// update or insert new participation_score row
+	updateScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
+		"SELECT node_id, score + %d, %d, latest FROM %s WHERE "+
+		"node_id = %d AND latest = 1 ON CONFLICT(node_id, height) "+
+		"DO UPDATE SET (score) = (SELECT "+
+		"score + %d FROM %s WHERE node_id = %d AND latest = 1)",
+		ps.getTableName(), score, blockHeight, ps.getTableName(), nodeID, score, ps.getTableName(), nodeID,
+	)
+	queries = append(queries,
+		[]interface{}{
+			updateScoreQuery,
+		},
+	)
+	if blockHeight != 0 {
+		// set previous version record to latest = false
+		updateVersionQuery = fmt.Sprintf("UPDATE %s SET latest = false WHERE node_id = %d AND height != %d AND latest = true",
+			ps.getTableName(), nodeID, blockHeight)
+		queries = append(queries,
+			[]interface{}{
+				updateVersionQuery,
+			},
+		)
+	}
+	return queries
 }
 
 // UpdateParticipationScore returns a slice of two queries.
