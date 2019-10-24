@@ -286,9 +286,19 @@ func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "Tree", "Timestamp",
-	}))
+
+	switch qStr {
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance", "Queued",
+			"Latest", "Height",
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, false, true, 100))
+	case "SELECT id, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "Tree", "Timestamp",
+		}))
+	}
 	row := db.QueryRow(qStr)
 	return row
 }
@@ -848,6 +858,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		Observer                *observer.Observer
 		SortedBlocksmiths       *[]model.Blocksmith
 		NodeRegistrationService NodeRegistrationServiceInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -871,6 +882,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                observer.NewObserver(),
 				SortedBlocksmiths:       mockBlocksmiths,
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -918,6 +930,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                observer.NewObserver(),
 				SortedBlocksmiths:       mockBlocksmiths,
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -970,6 +983,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                tt.fields.Observer,
 				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
