@@ -267,16 +267,17 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+				break
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
 				bd.Logger.Info("failed to push block from peer:", err)
+				break
 			}
 		} else {
 			forkBlocks = append(forkBlocks, block)
-
 		}
 	}
 
