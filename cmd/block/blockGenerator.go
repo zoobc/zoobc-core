@@ -119,6 +119,13 @@ func initialize(
 		nil,
 		queryExecutor,
 	)
+	nodeRegistrationService := service.NewNodeRegistrationService(
+		queryExecutor,
+		query.NewAccountBalanceQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewParticipationScoreQuery(),
+		log.New(),
+	)
 	blockService = service.NewBlockService(
 		chainType,
 		nil,
@@ -131,19 +138,13 @@ func initialize(
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
+		nodeRegistrationService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		&sortedBlocksmiths,
-		log.New(),
-	)
-	nodeRegistrationService = service.NewNodeRegistrationService(
-		queryExecutor,
-		query.NewAccountBalanceQuery(),
-		query.NewNodeRegistrationQuery(),
-		query.NewParticipationScoreQuery(),
 		log.New(),
 	)
 

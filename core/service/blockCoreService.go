@@ -90,6 +90,7 @@ type (
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ReceiptService          ReceiptServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -112,6 +113,7 @@ func NewBlockService(
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
+	nodeRegistrationService NodeRegistrationServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -132,6 +134,7 @@ func NewBlockService(
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ReceiptService:          receiptService,
+		NodeRegistrationService: nodeRegistrationService,
 		ActionTypeSwitcher:      txTypeSwitcher,
 		AccountBalanceQuery:     accountBalanceQuery,
 		ParticipationScoreQuery: participationScoreQuery,
@@ -430,6 +433,44 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 	}
+
+	// admit/expel nodes from registry at genesis and regular intervals
+	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
+		nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
+		if err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+		if len(nodeRegistrations) > 0 {
+			err = bs.NodeRegistrationService.AdmitNodes(nodeRegistrations, block.Height)
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+		}
+		// expel nodes with zero score from node registry
+		nodeRegistrations, err = bs.NodeRegistrationService.SelectNodesToBeExpelled()
+		if err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+		if len(nodeRegistrations) > 0 {
+			err = bs.NodeRegistrationService.ExpelNodes(nodeRegistrations, block.Height)
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
