@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -354,6 +355,42 @@ func TestReadTransactionBytes(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ReadTransactionBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFeePerByteTransaction(t *testing.T) {
+	type args struct {
+		feeTransaction   int64
+		transactionBytes []byte
+	}
+	tests := []struct {
+		name string
+		args args
+		want int64
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				feeTransaction:   1,
+				transactionBytes: []byte{1},
+			},
+			want: constant.OneFeePerByteTransaction,
+		},
+		{
+			name: "wantSuccess:zeroLengthBytes",
+			args: args{
+				feeTransaction:   1,
+				transactionBytes: []byte{},
+			},
+			want: 1 * constant.OneFeePerByteTransaction,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FeePerByteTransaction(tt.args.feeTransaction, tt.args.transactionBytes); got != tt.want {
+				t.Errorf("FeePerByteTransaction() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -7,14 +7,12 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -48,16 +46,6 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args .
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-
-	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, recipient_account_address FROM mempool":
-		mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
-			"recipient_account_address"})
-		mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-		mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-		mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-		mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-		mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	case getTxByIDQuery:
 		return nil, errors.New("MempoolTransactionNotFound")
 	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
@@ -202,6 +190,34 @@ func TestNewMempoolService(t *testing.T) {
 	}
 }
 
+type (
+	mockQueryExecutorGetMempoolTransactionsSuccess struct {
+		query.Executor
+	}
+	mockQueryExecutorGetMempoolTransactionsFail struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
+		"recipient_account_address"})
+	mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
+	mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
+	mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
+	mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
+	mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockQueryExecutorGetMempoolTransactionsFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockError:executeSelectFail")
+}
+
 func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
@@ -220,7 +236,7 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			fields: fields{
 				Chaintype:           &chaintype.MainChain{},
 				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:       &mockMempoolQueryExecutorSuccess{},
+				QueryExecutor:       &mockQueryExecutorGetMempoolTransactionsSuccess{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
 			want: []*model.MempoolTransaction{
@@ -272,7 +288,7 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			fields: fields{
 				Chaintype:           &chaintype.MainChain{},
 				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:       &mockMempoolQueryExecutorFail{},
+				QueryExecutor:       &mockQueryExecutorGetMempoolTransactionsFail{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
 			want:    nil,
@@ -361,6 +377,26 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	}
 }
 
+type (
+	mockQueryExecutorSelectTransactionsFromMempoolSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
+		"recipient_account_address"})
+	mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
+	mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
+	mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
+	mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
+	mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
@@ -384,7 +420,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 			fields: fields{
 				Chaintype:           &chaintype.MainChain{},
 				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:       &mockMempoolQueryExecutorSuccess{},
+				QueryExecutor:       &mockQueryExecutorSelectTransactionsFromMempoolSuccess{},
 				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 			},
