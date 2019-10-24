@@ -5,14 +5,13 @@ package service
 import (
 	"database/sql"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -94,9 +93,11 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 // GetBlocks fetches multiple blocks from Blockchain system
 func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
-	var rows *sql.Rows
-	var err error
-	var blocks []*model.Block
+	var (
+		rows   *sql.Rows
+		err    error
+		blocks []*model.Block
+	)
 	blockQuery := query.NewBlockQuery(chainType)
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize), false)
 
@@ -104,6 +105,7 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
+
 	blocks = blockQuery.BuildModel(blocks, rows)
 	blocksExt := make([]*model.BlockExtendedInfo, 0)
 	for _, block := range blocks {

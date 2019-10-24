@@ -5,11 +5,6 @@ import (
 	"math"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/zoobc/zoobc-core/observer"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -18,6 +13,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -66,29 +64,23 @@ func (ts *TransactionService) GetTransaction(
 	params *model.GetTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
-		err    error
-		rows   *sql.Rows
-		txTemp []*model.Transaction
-		tx     *model.Transaction
+		err error
+		row *sql.Row
+		tx  model.Transaction
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
-	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID), false)
+	row = ts.Query.ExecuteSelectRow(txQuery.GetTransaction(params.GetID()))
+	err = txQuery.Scan(&tx, row)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-	txTemp = txQuery.BuildModel(txTemp, rows)
-	if len(txTemp) != 0 {
-		tx = txTemp[0]
-		txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			return nil, err
-		}
-		txType.GetTransactionBody(tx)
-		return tx, nil
-	}
-	return nil, status.Error(codes.NotFound, "transaction not found")
+	txType.GetTransactionBody(&tx)
+	return &tx, nil
 }
 
 // GetTransactions fetches a single transaction from DB
@@ -130,9 +122,9 @@ func (ts *TransactionService) GetTransactions(
 		caseQuery.And(caseQuery.Between("timestamp", timestampStart, timestampEnd))
 	}
 
-	transcationType := params.GetTransactionType()
-	if transcationType > 0 {
-		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
+	transactionType := params.GetTransactionType()
+	if transactionType > 0 {
+		caseQuery.And(caseQuery.Equal("transaction_type", transactionType))
 	}
 
 	accountAddress := params.GetAccountAddress()

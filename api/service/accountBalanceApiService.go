@@ -1,11 +1,10 @@
 package service
 
 import (
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -32,12 +31,13 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 		err             error
 		accountBalances []*model.AccountBalance
 	)
+
 	qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(request.AccountAddress)
 	rows, err := abs.Executor.ExecuteSelect(qry, false, args...)
-
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	defer rows.Close()
 
 	accountBalances = abs.AccountBalanceQuery.BuildModel(accountBalances, rows)
 
