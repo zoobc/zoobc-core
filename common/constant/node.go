@@ -10,7 +10,10 @@ var (
 )
 
 const (
+	// NodeRegistered 'registred' node status (= 0): a node in node registry with this status is registered
 	NodeRegistered = iota
+	// NodeQueued 'queued' node status (= 1): a node in node registry with this status is queued, or 'pending registered'
 	NodeQueued
+	// NodeDeleted 'deleted' node status (= 2): a node in node registry with this status is marked as deleted
 	NodeDeleted
 )
