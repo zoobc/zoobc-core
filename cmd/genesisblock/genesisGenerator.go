@@ -34,11 +34,11 @@ type (
 		Smithing           bool
 	}
 	clusterConfigEntry struct {
-		NodePublicKey       string
-		NodeSeed            string
-		OwnerAccountAddress string
-		NodeAddress         string
-		Smithing            bool
+		NodePublicKey       string `json:"NODE_PUBLIC_KEY"`
+		NodeSeed            string `json:"NODE_SEED"`
+		OwnerAccountAddress string `json:"OWNER_ACCOUNT_ADDRESS"`
+		NodeAddress         string `json:"NODE_ADDRESS,omitempty"`
+		Smithing            bool   `json:"SMITHING,omitempty"`
 	}
 )
 
@@ -169,7 +169,6 @@ func generateRandomGenesisEntry() genesisEntry {
 
 	return genesisEntry{
 		AccountAddress:     address,
-		NodeAddress:        "0.0.0.0",
 		NodePublicKey:      nodePublicKey,
 		NodePublicKeyB64:   base64.StdEncoding.EncodeToString(nodePublicKey),
 		NodeSeed:           nodeSeed,
