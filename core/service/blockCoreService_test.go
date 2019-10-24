@@ -837,14 +837,16 @@ func TestBlockService_VerifySeed(t *testing.T) {
 }
 
 func TestBlockService_PushBlock(t *testing.T) {
-	var (
-		mockBlocksmiths = &[]model.Blocksmith{
-			{
-				NodeID:    2,
-				NodeOrder: new(big.Int).SetInt64(1000),
-			},
-		}
-	)
+	var mockBlocksmiths = &[]model.Blocksmith{
+		{
+			NodeID:    2,
+			NodeOrder: new(big.Int).SetInt64(1000),
+		},
+		{
+			NodeID:    3,
+			NodeOrder: new(big.Int).SetInt64(2000),
+		},
+	}
 	type fields struct {
 		Chaintype               chaintype.ChainType
 		QueryExecutor           query.ExecutorInterface
