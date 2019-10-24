@@ -4,6 +4,7 @@ kvdb is key-value database abstraction of badger db implementation
 package kvdb
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -114,8 +115,22 @@ func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
 
 		x := strings.Split(latestBlock, "-")
 		y := strings.Split(forkingPoint, "-")
-		endData, _ := strconv.Atoi(x[1])
-		startData, _ := strconv.Atoi(y[1])
+
+		if len(x) < 2 || len(y) < 2 {
+			errMessage := errors.New("error : rollback data length didn't enough")
+			return errMessage
+		}
+
+		endData, err := strconv.Atoi(x[1])
+		if err != nil {
+			return err
+		}
+
+		startData, err := strconv.Atoi(y[1])
+		if err != nil {
+			return err
+		}
+
 		dataGap := endData - startData
 		for i := 1; i <= dataGap; i++ {
 			prefix := y[0] + "-" + strconv.Itoa(endData)
