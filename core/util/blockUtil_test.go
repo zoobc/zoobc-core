@@ -168,7 +168,7 @@ func TestCalculateSmithScale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CalculateSmithScale(
+			if got, _ := CalculateSmithScale(
 				tt.args.previousBlock,
 				tt.args.block,
 				tt.args.smithingDelayTime,
