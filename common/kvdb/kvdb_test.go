@@ -113,7 +113,6 @@ func TestKVExecutor_Rollback(t *testing.T) {
 		mockExecutor := &KVExecutor{Db: mockKvDb}
 
 		// insert first
-		// key must started with BCZ prefix and the second part of prefix is sequence number, separated by -
 		_ = mockExecutor.Insert("BCZ-105-02021", []byte{1, 1, 1, 1}, 60)
 		_ = mockExecutor.Insert("BCZ-104-02022", []byte{1, 1, 1, 1}, 60)
 		_ = mockExecutor.Insert("BCZ-103-02023", []byte{1, 1, 1, 1}, 60)

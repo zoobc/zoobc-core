@@ -102,6 +102,9 @@ func (kve *KVExecutor) GetByPrefix(prefix string) (map[string][]byte, error) {
 }
 
 // Rollback delete multiple data, from latest block created until from beginning of forking block (forking point)
+// key must started with BCZ prefix and the second part of prefix is sequence number, separated by -
+// data format : BCZ-sequenceNumber-xxxxxxx
+// data example : BCZ-2020-12345678
 func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
 
 	var queryResult = make(map[string][]byte)
