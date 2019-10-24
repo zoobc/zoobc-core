@@ -254,9 +254,19 @@ func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "Tree", "Timestamp",
-	}))
+
+	switch qStr {
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, queued, " +
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance", "Queued",
+			"Latest", "Height",
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, false, true, 100))
+	case "SELECT id, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "Tree", "Timestamp",
+		}))
+	}
 	row := db.QueryRow(qStr)
 	return row
 }
@@ -798,6 +808,10 @@ func TestBlockService_PushBlock(t *testing.T) {
 			NodeID:    2,
 			NodeOrder: new(big.Int).SetInt64(1000),
 		},
+		{
+			NodeID:    3,
+			NodeOrder: new(big.Int).SetInt64(2000),
+		},
 	}
 
 	type fields struct {
@@ -808,6 +822,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		TransactionQuery      query.TransactionQueryInterface
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		ParticipationQuery    query.ParticipationScoreQueryInterface
 		Signature             crypto.SignatureInterface
 		ActionTypeSwitcher    transaction.TypeActionSwitcher
 		Observer              *observer.Observer
@@ -832,6 +847,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				ParticipationQuery:    query.NewParticipationScoreQuery(),
 				Observer:              observer.NewObserver(),
 				SortedBlocksmiths:     mockBlocksmiths,
 			},
@@ -878,6 +894,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				ParticipationQuery:    query.NewParticipationScoreQuery(),
 				Observer:              observer.NewObserver(),
 				SortedBlocksmiths:     mockBlocksmiths,
 			},
@@ -920,17 +937,18 @@ func TestBlockService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				MempoolQuery:          tt.fields.MempoolQuery,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				TransactionQuery:      tt.fields.TransactionQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				Signature:             tt.fields.Signature,
-				ActionTypeSwitcher:    tt.fields.ActionTypeSwitcher,
-				Observer:              tt.fields.Observer,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Signature:               tt.fields.Signature,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				Observer:                tt.fields.Observer,
+				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
+				ParticipationScoreQuery: tt.fields.ParticipationQuery,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, false,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
