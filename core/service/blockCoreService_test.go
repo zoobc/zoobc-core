@@ -91,7 +91,7 @@ var mockBlock = &model.Block{
 
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
-		&model.NodeRegistration{
+		{
 			AccountAddress: "TESTADMITTED",
 		},
 	}, nil
@@ -103,7 +103,7 @@ func (*mockNodeRegistrationServiceSuccess) AdmitNodes(nodeRegistrations []*model
 
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
-		&model.NodeRegistration{
+		{
 			AccountAddress: "TESTEXPELLED",
 		},
 	}, nil
