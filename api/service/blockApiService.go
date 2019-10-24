@@ -5,7 +5,6 @@ package service
 import (
 	"database/sql"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -102,7 +101,7 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlocks(height, blockSize), false)
 
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
@@ -111,7 +110,7 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	for _, block := range blocks {
 		blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(block)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		blocksExt = append(blocksExt, blExt)
 	}

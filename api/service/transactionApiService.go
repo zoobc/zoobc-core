@@ -72,6 +72,9 @@ func (ts *TransactionService) GetTransaction(
 	row = ts.Query.ExecuteSelectRow(txQuery.GetTransaction(params.GetID()))
 	err = txQuery.Scan(&tx, row)
 	if err != nil {
+		if err != sql.ErrNoRows {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
@@ -148,7 +151,7 @@ func (ts *TransactionService) GetTransactions(
 			&totalRecords,
 		)
 		if err != nil {
-			return &model.GetTransactionsResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -186,11 +189,14 @@ func (ts *TransactionService) GetTransactions(
 			&tx.TransactionIndex,
 		)
 		if err != nil {
-			return nil, err
+			if err != sql.ErrNoRows {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		txType.GetTransactionBody(&tx)
 		txs = append(txs, &tx)
@@ -210,12 +216,12 @@ func (ts *TransactionService) PostTransaction(
 	// get unsigned bytes
 	tx, err := util.ParseTransactionBytes(txBytes, true)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Validate Tx
 	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
@@ -227,32 +233,32 @@ func (ts *TransactionService) PostTransaction(
 		RecipientAccountAddress: tx.RecipientAccountAddress,
 	}
 	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
 	err = ts.Query.BeginTx()
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			return nil, errRollback
+			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = ts.MempoolService.AddMempoolTransaction(mpTx)
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = ts.Query.CommitTx()
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
