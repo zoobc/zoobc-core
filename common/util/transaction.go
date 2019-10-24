@@ -5,7 +5,6 @@ import (
 	"errors"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"golang.org/x/crypto/sha3"

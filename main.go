@@ -46,6 +46,7 @@ var (
 	observerInstance                                             *observer.Observer
 	blockServices                                                = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
+	receiptService                                               service.ReceiptServiceInterface
 	peerServiceClient                                            client.PeerServiceClientInterface
 	p2pHost                                                      *model.Host
 	peerExplorer                                                 strategy.PeerExplorerStrategyInterface
@@ -101,7 +102,7 @@ func init() {
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	db, err = dbInstance.OpenDB(dbPath, dbName, 10, 20)
+	db, err = dbInstance.OpenDB(dbPath, dbName, constant.SQLMaxIdleConnections, constant.SQLMaxConnectionLifetime)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -117,6 +118,12 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
+	receiptService = service.NewReceiptService(
+		query.NewReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		kvExecutor,
+		queryExecutor,
+	)
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
@@ -251,6 +258,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
+		query.NewMerkleTreeQuery(),
 		&transaction.TypeSwitcher{
 			Executor: queryExecutor,
 		},
@@ -274,8 +282,10 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
 		query.NewMerkleTreeQuery(),
+		query.NewPublishedReceiptQuery(),
 		crypto.NewSignature(),
 		mempoolService,
+		receiptService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
@@ -294,7 +304,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 
 	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
-
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")

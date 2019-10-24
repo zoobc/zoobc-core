@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"net/url"
+	"strconv"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -165,8 +166,9 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	var (
-		accountBalance       model.AccountBalance
-		prevNodeRegistration model.NodeRegistration
+		accountBalance             model.AccountBalance
+		prevNodeRegistration       *model.NodeRegistration
+		tempNodeRegistrationResult []*model.NodeRegistration
 	)
 	// formally validate tx body fields
 	if tx.Body.Poown == nil {
@@ -180,39 +182,29 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		tx.BlockQuery); err != nil {
 		return err
 	}
-
 	// check that sender is node's owner
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
 		return err
 	}
-	if !rows.Next() {
-		// sender doesn't own any node
-		// note: any account can own exactly one node at the time, meaning that, if this query returns no rows,
+	defer rows.Close()
+	tempNodeRegistrationResult = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+	if len(tempNodeRegistrationResult) > 0 {
+		prevNodeRegistration = tempNodeRegistrationResult[0]
+	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
-	_ = rows.Scan(
-		&prevNodeRegistration.NodeID,
-		&prevNodeRegistration.NodePublicKey,
-		&prevNodeRegistration.AccountAddress,
-		&prevNodeRegistration.RegistrationHeight,
-		&prevNodeRegistration.NodeAddress,
-		&prevNodeRegistration.LockedBalance,
-		&prevNodeRegistration.Queued,
-		&prevNodeRegistration.Latest,
-		&prevNodeRegistration.Height)
-	defer rows.Close()
-
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
-		rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
+		rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
 			GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
 		if err != nil {
 			return err
 		}
-		if rows.Next() {
+		defer rows2.Close()
+		if rows2.Next() {
 			// public key already registered
 			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
@@ -228,11 +220,13 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 
 		// check balance
 		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+		rows3, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		} else if rows.Next() {
-			_ = rows.Scan(
+		}
+		defer rows3.Close()
+		if rows3.Next() {
+			err = rows3.Scan(
 				&accountBalance.AccountAddress,
 				&accountBalance.BlockHeight,
 				&accountBalance.SpendableBalance,
@@ -240,8 +234,10 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 				&accountBalance.PopRevenue,
 				&accountBalance.Latest,
 			)
+			if err != nil {
+				return err
+			}
 		}
-		defer rows.Close()
 
 		if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
 			return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
@@ -251,13 +247,20 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 	}
 
-	fullNodeAddress := tx.NodeRegistrationQuery.ExtractNodeAddress(tx.Body.GetNodeAddress())
-	if fullNodeAddress != "" {
-		_, err := url.ParseRequestURI(fullNodeAddress)
-		if err != nil {
-			if net.ParseIP(fullNodeAddress) == nil {
-				return blocker.NewBlocker(blocker.ValidationErr, "InvalidAddress")
-			}
+	nodeAddress := tx.Body.GetNodeAddress()
+	if nodeAddress == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressEmpty")
+	}
+	_, err = url.ParseRequestURI(tx.NodeRegistrationQuery.ExtractNodeAddress(
+		nodeAddress,
+	))
+	if err != nil {
+		if ip := net.ParseIP(nodeAddress.GetAddress()); ip == nil {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidNodeAddress:IP")
+		}
+		port := int(nodeAddress.GetPort())
+		if _, err := strconv.ParseUint(strconv.Itoa(port), 10, 16); err != nil {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidNodeAddress:Port")
 		}
 	}
 
