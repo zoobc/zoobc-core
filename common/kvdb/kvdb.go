@@ -4,6 +4,9 @@ kvdb is key-value database abstraction of badger db implementation
 package kvdb
 
 import (
+	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dgraph-io/badger"
@@ -97,4 +100,66 @@ func (kve *KVExecutor) GetByPrefix(prefix string) (map[string][]byte, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// Rollback delete multiple data, from latest block created until from beginning of forking block (forking point)
+// key must started with BCZ prefix and the second part of prefix is sequence number, separated by -
+// data format : BCZ-sequenceNumber-xxxxxxx
+// data example : BCZ-2020-12345678
+func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
+
+	var queryResult = make(map[string][]byte)
+	err := kve.Db.Update(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		x := strings.Split(latestBlock, "-")
+		y := strings.Split(forkingPoint, "-")
+
+		if len(x) < 2 || len(y) < 2 {
+			errMessage := errors.New("error : rollback data length didn't enough")
+			return errMessage
+		}
+
+		endData, err := strconv.Atoi(x[1])
+		if err != nil {
+			return err
+		}
+
+		startData, err := strconv.Atoi(y[1])
+		if err != nil {
+			return err
+		}
+
+		dataGap := endData - startData
+		for i := 1; i <= dataGap; i++ {
+			prefix := y[0] + "-" + strconv.Itoa(endData)
+
+			for it.Seek([]byte(prefix)); it.ValidForPrefix([]byte(prefix)); it.Next() {
+				item := it.Item()
+				k := item.Key()
+				err := item.Value(func(v []byte) error {
+					queryResult[string(k)] = v
+					return nil
+				})
+
+				if err != nil {
+					return err
+				}
+
+				err = txn.Delete(k)
+				if err != nil {
+					return err
+				}
+			}
+
+			endData--
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
