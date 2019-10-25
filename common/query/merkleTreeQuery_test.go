@@ -42,8 +42,8 @@ func TestMerkleTreeQuery_SelectMerkleTree(t *testing.T) {
 				limit:       20,
 			},
 			want: "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
-				"published_receipt AS pr WHERE mt.id = pr.rmr_linked AND block_height >= 10 AND block_height <= 0 ) " +
-				"LIMIT 20",
+				"published_receipt AS pr WHERE mt.id = pr.rmr_linked AND block_height >= 10 AND block_height " +
+				"<= 0 ORDER BY block_height ASC) LIMIT 20",
 		},
 	}
 	for _, tt := range tests {
