@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"reflect"
 	"sort"
@@ -758,33 +757,6 @@ func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transact
 	}
 	bs.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
 	return nil
-}
-
-// CalculateSmith calculate seed, smithTime, and Deadline
-func (bs *BlockService) CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith {
-	// try to get the node's participation score (ps) from node public key
-	// if node is not registered, ps will be 0 and this node won't be able to smith
-	// the default ps is 100000, smithing could be slower than when using account balances
-	// since default balance was 1000 times higher than default ps
-	ps, err := bs.GetParticipationScore(generator.NodePublicKey)
-	if ps == 0 {
-		log.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
-	}
-	if err != nil {
-		log.Errorf("Participation score calculation: %s", err)
-		generator.Score = big.NewInt(0)
-	} else {
-		generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
-	}
-	if generator.Score.Sign() == 0 {
-		generator.SmithTime = 0
-		generator.BlockSeed = big.NewInt(0)
-	}
-
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock, generator.SecretPhrase)
-	generator.SmithTime = coreUtil.GetSmithTime(generator.Score, generator.BlockSeed, lastBlock)
-	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
-	return generator
 }
 
 // GenerateBlock generate block from transactions in mempool
