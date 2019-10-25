@@ -887,7 +887,8 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 	)
 	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
 		txBytes, _ := util.GetTransactionBytes(tx, true)
-		if _, err := digest.Write(txBytes); err != nil {
+		txHash := sha3.Sum256(txBytes)
+		if _, err := digest.Write(txHash[:]); err != nil {
 			return nil, err
 		}
 		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
