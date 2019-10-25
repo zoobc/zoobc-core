@@ -383,21 +383,74 @@ type (
 	}
 )
 
+var mockSuccessSelectMempool = []*model.MempoolTransaction{
+	{
+		ID:                      1,
+		FeePerByte:              1,
+		ArrivalTimestamp:        1562893305,
+		TransactionBytes:        getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+		SenderAccountAddress:    "A",
+		RecipientAccountAddress: "B",
+	},
+	{
+		ID:                      2,
+		FeePerByte:              10,
+		ArrivalTimestamp:        1562893304,
+		TransactionBytes:        getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+		SenderAccountAddress:    "A",
+		RecipientAccountAddress: "B",
+	},
+	{
+		ID:                      3,
+		FeePerByte:              1,
+		ArrivalTimestamp:        1562893302,
+		TransactionBytes:        getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+		SenderAccountAddress:    "A",
+		RecipientAccountAddress: "B",
+	},
+	{
+		ID:                      4,
+		FeePerByte:              100,
+		ArrivalTimestamp:        1562893306,
+		TransactionBytes:        getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+		SenderAccountAddress:    "A",
+		RecipientAccountAddress: "B",
+	},
+	{
+		ID:                      5,
+		FeePerByte:              5,
+		ArrivalTimestamp:        1562893303,
+		TransactionBytes:        getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+		SenderAccountAddress:    "A",
+		RecipientAccountAddress: "B",
+	},
+}
+
 func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
 		"recipient_account_address"})
-	mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-	mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-	mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-	mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-	mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+	for _, mp := range mockSuccessSelectMempool {
+		mockedRows.AddRow(
+			mp.ID,
+			mp.FeePerByte,
+			mp.ArrivalTimestamp,
+			mp.TransactionBytes,
+			mp.SenderAccountAddress,
+			mp.RecipientAccountAddress,
+		)
+	}
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	rows, _ := db.Query(qe)
 	return rows, nil
 }
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
+	successTx1, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[0].TransactionBytes, true)
+	successTx2, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[1].TransactionBytes, true)
+	successTx3, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[2].TransactionBytes, true)
+	successTx4, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[3].TransactionBytes, true)
+	successTx5, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[4].TransactionBytes, true)
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
@@ -412,7 +465,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []*model.MempoolTransaction
+		want    []*model.Transaction
 		wantErr bool
 	}{
 		{
@@ -427,47 +480,8 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 			args: args{
 				blockTimestamp: 1562893106,
 			},
-			want: []*model.MempoolTransaction{
-				{
-					ID:                      4,
-					FeePerByte:              100,
-					ArrivalTimestamp:        1562893306,
-					TransactionBytes:        getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
-					SenderAccountAddress:    "A",
-					RecipientAccountAddress: "B",
-				},
-				{
-					ID:                      2,
-					FeePerByte:              10,
-					ArrivalTimestamp:        1562893304,
-					TransactionBytes:        getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
-					SenderAccountAddress:    "A",
-					RecipientAccountAddress: "B",
-				},
-				{
-					ID:                      5,
-					FeePerByte:              5,
-					ArrivalTimestamp:        1562893303,
-					TransactionBytes:        getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
-					SenderAccountAddress:    "A",
-					RecipientAccountAddress: "B",
-				},
-				{
-					ID:                      3,
-					FeePerByte:              1,
-					ArrivalTimestamp:        1562893302,
-					TransactionBytes:        getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
-					SenderAccountAddress:    "A",
-					RecipientAccountAddress: "B",
-				},
-				{
-					ID:                      1,
-					FeePerByte:              1,
-					ArrivalTimestamp:        1562893305,
-					TransactionBytes:        getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
-					SenderAccountAddress:    "A",
-					RecipientAccountAddress: "B",
-				},
+			want: []*model.Transaction{
+				successTx2, successTx1, successTx4, successTx3, successTx5,
 			},
 			wantErr: false,
 		},

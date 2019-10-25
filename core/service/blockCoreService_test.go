@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"testing"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
@@ -1331,10 +1333,12 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool(
 
 // mockMempoolServiceSelectSuccess
 func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
-	return []*model.MempoolTransaction{
+	txByte := getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes
+	txHash := sha3.Sum256(txByte)
+	return []*model.Transaction{
 		{
-			FeePerByte:       1,
-			TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+			ID:              1,
+			TransactionHash: txHash[:],
 		},
 	}, nil
 }
@@ -1345,10 +1349,12 @@ func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestam
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
-	return []*model.MempoolTransaction{
+func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
+	blockTimestamp int64,
+) ([]*model.Transaction, error) {
+	return []*model.Transaction{
 		{
-			FeePerByte: 1,
+			ID: 1,
 		},
 	}, nil
 }
@@ -1402,35 +1408,6 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 					BlockSignature:      []byte{},
 				},
 				secretPhrase:             "phasepress",
-				timestamp:                12344587645,
-				blockSmithAccountAddress: "BCZ",
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantFail:ParseTransactionToByte",
-			fields: fields{
-				Chaintype:      &chaintype.MainChain{},
-				Signature:      &mockSignature{},
-				MempoolQuery:   query.NewMempoolQuery(&chaintype.MainChain{}),
-				MempoolService: &mockMempoolServiceSelectWrongTransactionBytes{},
-			},
-			args: args{
-				previousBlock: &model.Block{
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: bcsNodePubKey1,
-					Timestamp:           12344587645,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-					PayloadLength:       0,
-					BlockSignature:      []byte{},
-				},
-				secretPhrase:             "pharsepress",
 				timestamp:                12344587645,
 				blockSmithAccountAddress: "BCZ",
 			},
