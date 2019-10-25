@@ -281,8 +281,16 @@ func (ps *P2PServerService) GetNextBlocks(
 				break
 			}
 
-			txs, _ := ps.BlockServices[chainType.GetTypeInt()].GetTransactionsByBlockID(block.ID)
+			txs, err := ps.BlockServices[chainType.GetTypeInt()].GetTransactionsByBlockID(block.ID)
+			if err != nil {
+				return nil, err
+			}
+			prs, err := ps.BlockServices[chainType.GetTypeInt()].GetPublishedReceiptsByBlockHeight(block.Height)
+			if err != nil {
+				return nil, err
+			}
 			block.Transactions = txs
+			block.PublishedReceipts = prs
 			blocksMessage = append(blocksMessage, block)
 		}
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
