@@ -67,8 +67,7 @@ func init() {
 	var (
 		configPostfix string
 		configDir     string
-
-		err error
+		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
