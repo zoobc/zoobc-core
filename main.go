@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,46 +34,49 @@ import (
 )
 
 var (
-	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase string
-	dbInstance                                                   *database.SqliteDB
-	badgerDbInstance                                             *database.BadgerDB
-	db                                                           *sql.DB
-	badgerDb                                                     *badger.DB
-	apiRPCPort, apiHTTPPort                                      int
-	peerPort                                                     uint32
-	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
-	queryExecutor                                                *query.Executor
-	kvExecutor                                                   *kvdb.KVExecutor
-	observerInstance                                             *observer.Observer
-	blockServices                                                = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
-	receiptService                                               service.ReceiptServiceInterface
-	peerServiceClient                                            client.PeerServiceClientInterface
-	p2pHost                                                      *model.Host
-	peerExplorer                                                 strategy.PeerExplorerStrategyInterface
-	ownerAccountAddress, myAddress                               string
-	wellknownPeers                                               []string
-	nodeKeyFilePath                                              string
-	smithing                                                     bool
-	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
-	sortedBlocksmiths                                            []model.Blocksmith
-	mainchainProcessor                                           smith.BlockchainProcessorInterface
-	loggerAPIService                                             *log.Logger
-	loggerCoreService                                            *log.Logger
-	loggerP2PService                                             *log.Logger
+	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, configPath, nodeKeyFile string
+	dbInstance                                                                            *database.SqliteDB
+	badgerDbInstance                                                                      *database.BadgerDB
+	db                                                                                    *sql.DB
+	badgerDb                                                                              *badger.DB
+	apiRPCPort, apiHTTPPort                                                               int
+	peerPort                                                                              uint32
+	p2pServiceInstance                                                                    p2p.Peer2PeerServiceInterface
+	queryExecutor                                                                         *query.Executor
+	kvExecutor                                                                            *kvdb.KVExecutor
+	observerInstance                                                                      *observer.Observer
+	blockServices                                                                         = make(map[int32]service.BlockServiceInterface)
+	mempoolServices                                                                       = make(map[int32]service.MempoolServiceInterface)
+	receiptService                                                                        service.ReceiptServiceInterface
+	peerServiceClient                                                                     client.PeerServiceClientInterface
+	p2pHost                                                                               *model.Host
+	peerExplorer                                                                          strategy.PeerExplorerStrategyInterface
+	ownerAccountAddress, myAddress                                                        string
+	wellknownPeers                                                                        []string
+	nodeKeyFilePath                                                                       string
+	smithing                                                                              bool
+	nodeRegistrationService                                                               service.NodeRegistrationServiceInterface
+	sortedBlocksmiths                                                                     []model.Blocksmith
+	mainchainProcessor                                                                    smith.BlockchainProcessorInterface
+	loggerAPIService                                                                      *log.Logger
+	loggerCoreService                                                                     *log.Logger
+	loggerP2PService                                                                      *log.Logger
 	isDebugMode                                                  bool
 )
 
 func init() {
 	var (
-		configPostfix string
-		configDir     string
-		err           error
+		configPostfix     string
+		configDir         string
+		envOverrideConfig bool
+		err               error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
+	flag.BoolVar(&envOverrideConfig, "env-override", false,
+		"boolean flag to enable overriding node configuration with system environment variables.")
 	flag.Parse()
 
 	if isDebugMode {
@@ -83,25 +87,7 @@ func init() {
 		configDir = "./resource"
 	}
 
-	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
-		panic(err)
-	}
-
-	dbPath = viper.GetString("dbPath")
-	dbName = viper.GetString("dbName")
-	badgerDbPath = viper.GetString("badgerDbPath")
-	badgerDbName = viper.GetString("badgerDbName")
-	apiRPCPort = viper.GetInt("apiRPCPort")
-	apiHTTPPort = viper.GetInt("apiHTTPPort")
-	ownerAccountAddress = viper.GetString("ownerAccountAddress")
-	myAddress = viper.GetString("myAddress")
-	peerPort = viper.GetUint32("peerPort")
-	wellknownPeers = viper.GetStringSlice("wellknownPeers")
-
-	configPath := viper.GetString("configPath")
-	nodeKeyFile := viper.GetString("nodeKeyFile")
-	smithing = viper.GetBool("smithing")
-
+	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)
 	initLogInstance()
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -163,6 +149,54 @@ func init() {
 func startDebugMode() {
 	log.Infof("starting debug mode...")
 	constant.GetDebugFlag(true)
+}
+
+func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
+	if err := util.LoadConfig(configDir, configFileName, "toml"); err != nil {
+		panic(err)
+	}
+
+	if envOverrideConfig {
+		util.OverrideConfigKeyArray("WELLKNOWN_PEERS", "wellknownPeers")
+		util.OverrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
+		util.OverrideConfigKey("NODE_ADDRESS", "myAddress")
+		util.OverrideConfigKey("SMITHING", "smithing")
+		util.OverrideConfigKey("API_RPC_PORT", "apiRPCPort")
+		util.OverrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
+		util.OverrideConfigKey("PEER_PORT", "peerPort")
+	}
+
+	myAddress = viper.GetString("myAddress")
+	if myAddress == "" {
+		ipAddr, err := util.GetOutboundIP()
+		if err != nil {
+			myAddress = "127.0.0.1"
+		} else {
+			myAddress = ipAddr.String()
+		}
+		viper.Set("myAddress", myAddress)
+	}
+	apiRPCPort = viper.GetInt("apiRPCPort")
+	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	ownerAccountAddress = viper.GetString("ownerAccountAddress")
+	wellknownPeers = viper.GetStringSlice("wellknownPeers")
+	smithing = viper.GetBool("smithing")
+	peerPort = viper.GetUint32("peerPort")
+	dbPath = viper.GetString("dbPath")
+	dbName = viper.GetString("dbName")
+	badgerDbPath = viper.GetString("badgerDbPath")
+	badgerDbName = viper.GetString("badgerDbName")
+	configPath = viper.GetString("configPath")
+	nodeKeyFile = viper.GetString("nodeKeyFile")
+	// useful for easily reading if node config params have been overridden by env variables,
+	// especially in a multi node-dockerized test network
+	log.Printf("apiRPCPort: %d", apiRPCPort)
+	log.Printf("apiHTTPPort: %d", apiHTTPPort)
+	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
+	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
+	log.Printf("smithing: %v", smithing)
+	log.Printf("peerPort: %d", peerPort)
+	log.Printf("myAddress: %s", myAddress)
 }
 
 func initLogInstance() {
