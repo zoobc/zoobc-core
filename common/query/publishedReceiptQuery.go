@@ -11,9 +11,11 @@ import (
 type (
 	PublishedReceiptQueryInterface interface {
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
+		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
+		BuildModel(prs []*model.PublishedReceipt, rows *sql.Rows) ([]*model.PublishedReceipt, error)
 	}
 
 	PublishedReceiptQuery struct {
@@ -63,6 +65,13 @@ func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (s
 		root,
 	}
 }
+func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = ? ORDER BY published_index ASC",
+		strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		blockHeight,
+	}
+}
 
 func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row) error {
 	err := row.Scan(
@@ -98,4 +107,33 @@ func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedRece
 		&publishedReceipt.ReceiptIndex,
 		&publishedReceipt.PublishedIndex,
 	}
+}
+
+func (prq *PublishedReceiptQuery) BuildModel(
+	prs []*model.PublishedReceipt, rows *sql.Rows,
+) ([]*model.PublishedReceipt, error) {
+	for rows.Next() {
+		var receipt = model.PublishedReceipt{
+			BatchReceipt: &model.BatchReceipt{},
+		}
+		err := rows.Scan(
+			&receipt.BatchReceipt.SenderPublicKey,
+			&receipt.BatchReceipt.RecipientPublicKey,
+			&receipt.BatchReceipt.DatumType,
+			&receipt.BatchReceipt.DatumHash,
+			&receipt.BatchReceipt.ReferenceBlockHeight,
+			&receipt.BatchReceipt.ReferenceBlockHash,
+			&receipt.BatchReceipt.RMRLinked,
+			&receipt.BatchReceipt.RecipientSignature,
+			&receipt.IntermediateHashes,
+			&receipt.BlockHeight,
+			&receipt.ReceiptIndex,
+			&receipt.PublishedIndex,
+		)
+		if err != nil {
+			return nil, err
+		}
+		prs = append(prs, &receipt)
+	}
+	return prs, nil
 }

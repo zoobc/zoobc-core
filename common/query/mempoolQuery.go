@@ -52,7 +52,7 @@ func (mpq *MempoolQuery) getTableName() string {
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
 func (mpq *MempoolQuery) GetMempoolTransactions() string {
-	return fmt.Sprintf("SELECT %s FROM %s", strings.Join(mpq.Fields, ", "), mpq.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s ORDER BY fee_per_byte DESC", strings.Join(mpq.Fields, ", "), mpq.getTableName())
 }
 
 // GetMempoolTransactions returns query string to get multiple mempool transactions
