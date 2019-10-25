@@ -253,7 +253,7 @@ func (*BlockService) VerifySeed(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	if block.GetTimestamp() > curTime+15 {
+	if block.GetTimestamp() > curTime+15 { // (taken by iltoga) code-review : todo 15 should be put to constant
 		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
 	}
 	if coreUtil.GetBlockID(block) == 0 {
@@ -274,6 +274,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 	}
 	// Verify previous block hash
+	// (taken by iltoga) code-review : TODO: validate the entire block hash instead of only 8 bytes
 	previousBlockIDFromHash := new(big.Int)
 	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
 		block.PreviousBlockHash[7],
@@ -288,6 +289,8 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if previousLastBlock.ID != previousBlockIDFromHashInt {
 		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
 	}
+	// (taken by iltoga) code-review : todo : compute the block hash again
+	// (taken by iltoga) code-review : todo : if the same block height is already in the database compare cummulative difficulty.
 	return nil
 }
 
