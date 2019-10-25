@@ -2,56 +2,23 @@ package util
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 )
 
 var (
-	mockScheduler = NewScheduler(30 * time.Millisecond)
+	mockScheduler = NewScheduler()
 )
-
-func TestNewScheduler(t *testing.T) {
-	type args struct {
-		schedulerInterval time.Duration
-	}
-	tests := []struct {
-		name string
-		args args
-		want *Scheduler
-	}{
-		{
-			name: "wanScheduler",
-			args: args{
-				schedulerInterval: time.Millisecond * 30,
-			},
-			want: &Scheduler{
-				Jobs:     make(map[string]*Job),
-				Interval: time.Millisecond * 30,
-				Done:     false,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewScheduler(tt.args.schedulerInterval); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewScheduler() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
 
 func TestScheduler_AddJob(t *testing.T) {
 	type fields struct {
-		Jobs     map[string]*Job
-		Interval time.Duration
-		Done     bool
+		Done         chan bool
+		NumberOfJobs int
 	}
 	type args struct {
-		jobName string
-		period  time.Duration
-		fn      interface{}
-		args    []interface{}
+		period time.Duration
+		fn     interface{}
+		args   []interface{}
 	}
 	tests := []struct {
 		name    string
@@ -59,6 +26,16 @@ func TestScheduler_AddJob(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
+		{
+			name:   "Success",
+			fields: fields(*mockScheduler),
+			args: args{
+				period: time.Millisecond,
+				fn:     func(str string) { fmt.Println(str) },
+				args:   []interface{}{"Ariasa"},
+			},
+			wantErr: false,
+		},
 		{
 			name:   "Error:IsNotFunc",
 			fields: fields(*mockScheduler),
@@ -77,28 +54,18 @@ func TestScheduler_AddJob(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		{
-			name:   "Success",
-			fields: fields(*mockScheduler),
-			args: args{
-				jobName: "jobSuccess",
-				period:  time.Millisecond,
-				fn:      func(str string) { fmt.Println(str) },
-				args:    []interface{}{"Ariasa"},
-			},
-			wantErr: false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Scheduler{
-				Jobs:     tt.fields.Jobs,
-				Interval: tt.fields.Interval,
-				Done:     tt.fields.Done,
+				Done:         tt.fields.Done,
+				NumberOfJobs: tt.fields.NumberOfJobs,
 			}
-			if err := s.AddJob(tt.args.jobName, tt.args.period, tt.args.fn, tt.args.args...); (err != nil) != tt.wantErr {
+			if err := s.AddJob(tt.args.period, tt.args.fn, tt.args.args...); (err != nil) != tt.wantErr {
 				t.Errorf("Scheduler.AddJob() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			time.Sleep(time.Millisecond + 10)
+			s.Stop()
 		})
 	}
 }

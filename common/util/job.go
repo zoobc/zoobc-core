@@ -1,77 +1,58 @@
 package util
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"time"
 )
 
 type (
-	Job struct {
-		WaitDuration time.Duration
-		NextSchedule time.Duration
-		Function     reflect.Value
-		Params       []reflect.Value
-	}
 	Scheduler struct {
-		Jobs     map[string]*Job
-		Interval time.Duration
-		Done     bool
+		Done         chan bool
+		NumberOfJobs int
 	}
 )
 
 // NewScheduler return new scheduler instance
-func NewScheduler(schedulerInterval time.Duration) *Scheduler {
+func NewScheduler() *Scheduler {
 	return &Scheduler{
-		Jobs:     make(map[string]*Job),
-		Interval: schedulerInterval,
-		Done:     false,
+		Done: make(chan bool),
 	}
 }
 
 // AddJob adding new job in scheduler
-func (s *Scheduler) AddJob(jobName string, period time.Duration, fn interface{}, args ...interface{}) error {
+func (s *Scheduler) AddJob(period time.Duration, fn interface{}, args ...interface{}) error {
 	var (
-		jobFunc   = reflect.ValueOf(fn)
-		jobParams = make([]reflect.Value, len(args))
+		jobFunction = reflect.ValueOf(fn)
+		jobParams   = make([]reflect.Value, len(args))
 	)
-	if jobFunc.Kind() != reflect.Func {
+	if jobFunction.Kind() != reflect.Func {
 		return fmt.Errorf("the fn is not function")
 	}
-	if len(args) != jobFunc.Type().NumIn() {
-		return fmt.Errorf("the argument of function not match, %d needed", jobFunc.Type().NumIn())
+	if len(args) != jobFunction.Type().NumIn() {
+		return fmt.Errorf("the argument of function not match, %d needed", jobFunction.Type().NumIn())
 	}
 	for k, arg := range args {
 		jobParams[k] = reflect.ValueOf(arg)
 	}
-	job := Job{
-		WaitDuration: period,
-		NextSchedule: time.Duration(time.Now().Unix())*time.Second + period,
-		Function:     jobFunc,
-		Params:       jobParams,
-	}
-	s.Jobs[jobName] = &job
-	return nil
-}
 
-// Start Scheduler running all job repeatably in some period time
-func (s *Scheduler) Start() error {
-	for {
-		for _, job := range s.Jobs {
-			if job.NextSchedule <= time.Duration(time.Now().Unix())*time.Second {
-				job.NextSchedule = time.Duration(time.Now().Unix())*time.Second + job.WaitDuration
-				job.Function.Call(job.Params)
+	go func() {
+		for {
+			select {
+			case <-s.Done:
+				return
+			case <-time.NewTicker(period).C:
+				jobFunction.Call(jobParams)
 			}
-			time.Sleep(s.Interval)
 		}
-		if s.Done {
-			return errors.New("scheduler stoping all job")
-		}
-	}
+	}()
+	s.NumberOfJobs = s.NumberOfJobs + 1
+	return nil
 }
 
 // Stop handle to stop scheduler
 func (s *Scheduler) Stop() {
-	s.Done = true
+	for stopped := 0; stopped < s.NumberOfJobs; stopped++ {
+		s.Done <- true
+	}
 }

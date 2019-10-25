@@ -153,7 +153,7 @@ func init() {
 
 	// initialize Observer
 	observerInstance = observer.NewObserver()
-	schedulerInstance = util.NewScheduler(constant.SchedulerInterval)
+	schedulerInstance = util.NewScheduler()
 	initP2pInstance()
 }
 
@@ -358,26 +358,17 @@ func startScheduler() {
 		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
 	)
 	if err := schedulerInstance.AddJob(
-		"Delete Expired Mempool",
 		constant.CheckMempoolExpiration,
 		mainchainMempoolService.DeleteExpiredMempoolTransactions,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
 	if err := schedulerInstance.AddJob(
-		"Generate Receipts Merkle Root",
 		constant.ReceiptGenerateMarkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-
-	// Start scheduler
-	go func() {
-		if err := schedulerInstance.Start(); err != nil {
-			loggerCoreService.Error(err.Error())
-		}
-	}()
 }
 
 func main() {
