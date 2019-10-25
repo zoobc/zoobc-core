@@ -102,7 +102,10 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	}
 	// compute and return tx hash and ID too
 	transactionHash := sha3.Sum256(transactionBytes)
-	txID, _ := GetTransactionID(transactionHash[:])
+	txID, err := GetTransactionID(transactionHash[:])
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.ParserErr, "GetTxIDFail")
+	}
 	tx := &model.Transaction{
 		ID:                      txID,
 		TransactionType:         transactionType,
