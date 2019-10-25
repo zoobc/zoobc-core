@@ -7,7 +7,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -155,7 +154,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 
 		// Save to mempool
 		mpTx := &model.MempoolTransaction{
-			FeePerByte:              constant.TxFeePerByte,
+			FeePerByte:              commonUtil.FeePerByteTransaction(tx.GetFee(), txBytes),
 			ID:                      tx.ID,
 			TransactionBytes:        txBytes,
 			ArrivalTimestamp:        time.Now().Unix(),
