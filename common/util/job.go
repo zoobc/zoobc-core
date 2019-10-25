@@ -46,7 +46,7 @@ func (s *Scheduler) AddJob(period time.Duration, fn interface{}, args ...interfa
 			}
 		}
 	}()
-	s.NumberOfJobs = s.NumberOfJobs + 1
+	s.NumberOfJobs++
 	return nil
 }
 
