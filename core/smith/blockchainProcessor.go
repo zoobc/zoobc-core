@@ -198,6 +198,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	if err != nil {
 		return err
 	}
+	return nil
 }
 
 func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener {
