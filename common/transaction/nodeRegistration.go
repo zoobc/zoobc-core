@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"net/url"
 	"strconv"
@@ -71,6 +72,22 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		RegistrationStatus: registrationStatus,
 		AccountAddress:     nodeAccountAddress,
 	}
+	if len(nodeRegistrations) > 0 {
+		if nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
+			queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+			queries = append(queries, accountBalanceSenderQ...)
+		} else {
+			// this can happen if there are two node register tx with same node pub key submitted together,
+			// racing to be included in the same block. Only the first one will make it through
+			return errors.New("NodeAlreadyInRegistry")
+		}
+	} else {
+		insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
+		queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
+			append([]interface{}{insertNodeQ}, insertNodeArg...),
+		)
+	}
+
 	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
 		queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		queries = append(queries, accountBalanceSenderQ...)
