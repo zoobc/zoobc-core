@@ -71,7 +71,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		RegistrationStatus: registrationStatus,
 		AccountAddress:     nodeAccountAddress,
 	}
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != constant.NodeDeleted {
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
 		queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		queries = append(queries, accountBalanceSenderQ...)
 	} else {
