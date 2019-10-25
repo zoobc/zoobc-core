@@ -64,6 +64,9 @@ type (
 	mockApplyConfirmedExecuteTransactionsFail struct {
 		mockExecutorValidateSuccess
 	}
+	mockApplyConfirmedFailNodeAlreadyInRegistry struct {
+		mockExecutorValidateSuccess
+	}
 	mockApplyConfirmedSuccess struct {
 		mockExecutorValidateSuccess
 	}
@@ -369,6 +372,37 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	return nil, nil
 }
 
+func (*mockApplyConfirmedFailNodeAlreadyInRegistry) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
+		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}).AddRow(
+			1,
+			nodePubKey1,
+			"OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+			100,
+			"10.10.10.1",
+			10000000000,
+			constant.NodeQueued,
+			true,
+			110,
+		))
+		return db.Query("A")
+	}
+	return nil, nil
+}
+
 func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:undoFail")
 }
@@ -438,6 +472,23 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Height:                  0,
 				SenderAddress:           senderAddress1,
 				QueryExecutor:           &mockApplyConfirmedSuccess{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Fee:                     1,
+				Body: &model.NodeRegistrationTransactionBody{
+					LockedBalance: 10000,
+				},
+			},
+		},
+		{
+			name:    "ApplyConfirmed:fail-{NodeAreadyInRegistry}",
+			wantErr: true,
+			fields: fields{
+				Height:                  0,
+				SenderAddress:           senderAddress1,
+				QueryExecutor:           &mockApplyConfirmedFailNodeAlreadyInRegistry{},
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
