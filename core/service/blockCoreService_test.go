@@ -474,7 +474,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 		previousBlockHash   []byte
 		blockSeed           []byte
 		blockSmithPublicKey []byte
-		hash                string
 		previousBlockHeight uint32
 		timestamp           int64
 		totalAmount         int64
@@ -503,7 +502,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 				previousBlockHash:   []byte{},
 				blockSeed:           []byte{},
 				blockSmithPublicKey: bcsNodePubKey1,
-				hash:                "hash",
 				previousBlockHeight: 0,
 				timestamp:           15875392,
 				totalAmount:         0,
@@ -548,7 +546,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
 				tt.args.blockSmithPublicKey,
-				tt.args.hash,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
 				tt.args.totalAmount,
@@ -581,7 +578,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		previousBlockHash    []byte
 		blockSeed            []byte
 		blockSmithPublicKey  []byte
-		hash                 string
 		previousBlockHeight  uint32
 		timestamp            int64
 		totalAmount          int64
@@ -612,7 +608,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				previousBlockHash:    []byte{},
 				blockSeed:            []byte{},
 				blockSmithPublicKey:  bcsNodePubKey1,
-				hash:                 "hash",
 				previousBlockHeight:  0,
 				timestamp:            15875392,
 				totalAmount:          0,
@@ -661,7 +656,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
 				tt.args.blockSmithPublicKey,
-				tt.args.hash,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
 				tt.args.totalAmount,
@@ -1336,9 +1330,7 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool(
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(
-	blockTimestamp int64,
-) ([]*model.MempoolTransaction, error) {
+func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
 	return []*model.MempoolTransaction{
 		{
 			FeePerByte:       1,
@@ -1348,16 +1340,12 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(
 }
 
 // mockMempoolServiceSelectFail
-func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(
-	blockTimestamp int64,
-) ([]*model.MempoolTransaction, error) {
+func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
-	blockTimestamp int64,
-) ([]*model.MempoolTransaction, error) {
+func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
 	return []*model.MempoolTransaction{
 		{
 			FeePerByte: 1,

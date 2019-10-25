@@ -33,12 +33,12 @@ import (
 type (
 	BlockServiceInterface interface {
 		VerifySeed(seed, score *big.Int, previousBlock *model.Block, timestamp int64) bool
-		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte, hash string,
+		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, payloadHash []byte, payloadLength uint32,
 			secretPhrase string) *model.Block
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
-			hash string, previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, payloadHash []byte, payloadLength uint32, smithScale int64,
 			cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block
 		GenerateBlock(
@@ -147,7 +147,6 @@ func (bs *BlockService) NewBlock(
 	version uint32,
 	previousBlockHash,
 	blockSeed, blockSmithPublicKey []byte,
-	hash string,
 	previousBlockHeight uint32,
 	timestamp,
 	totalAmount,
@@ -201,7 +200,6 @@ func (bs *BlockService) ChainWriteUnlock() {
 func (bs *BlockService) NewGenesisBlock(
 	version uint32,
 	previousBlockHash, blockSeed, blockSmithPublicKey []byte,
-	hash string,
 	previousBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
@@ -809,29 +807,22 @@ func (bs *BlockService) GenerateBlock(
 		totalAmount, totalFee, totalCoinbase int64
 		payloadLength                        uint32
 		// only for mainchain
-		sortedTx            []*model.Transaction
+		sortedTransactions  []*model.Transaction
 		publishedReceipts   []*model.PublishedReceipt
 		payloadHash         []byte
+		err                 error
 		digest              = sha3.New256()
 		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
 	)
-
 	newBlockHeight := previousBlock.Height + 1
-
 	if _, ok := bs.Chaintype.(*chaintype.MainChain); ok {
 		totalCoinbase = bs.GetCoinbase()
-		mempoolTransactions, err := bs.MempoolService.SelectTransactionsFromMempool(timestamp)
+		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
 		}
-		for _, mpTx := range mempoolTransactions {
-			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
-			if err != nil {
-				return nil, err
-			}
-
-			sortedTx = append(sortedTx, tx)
-			if _, err := digest.Write(mpTx.TransactionBytes); err != nil {
+		for _, tx := range sortedTransactions {
+			if _, err := digest.Write(tx.TransactionHash); err != nil {
 				return nil, err
 			}
 			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
@@ -847,27 +838,21 @@ func (bs *BlockService) GenerateBlock(
 			return nil, err
 		}
 		for _, br := range publishedReceipts {
-			// do we only hash the receipts? or also the intermediate hashes? for now only receipt
-			_, err = digest.Write(util.GetUnsignedBatchReceiptBytes(br.BatchReceipt))
+			_, err = digest.Write(util.GetSignedBatchReceiptBytes(br.BatchReceipt))
 			if err != nil {
 				return nil, err
 			}
 		}
 		payloadHash = digest.Sum([]byte{})
 	}
-
 	// loop through transaction to build block hash
-	hash := digest.Sum([]byte{})
 	digest.Reset() // reset the digest
 	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
 		return nil, err
 	}
 
-	seedHash := digest.Sum([]byte{})
-	seedPayload := bytes.NewBuffer([]byte{})
-	seedPayload.Write(blockSmithPublicKey)
-	seedPayload.Write(seedHash)
-	blockSeed := bs.Signature.SignByNode(seedPayload.Bytes(), secretPhrase)
+	previousSeedHash := digest.Sum([]byte{})
+	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
 	previousBlockHash, err := coreUtil.GetBlockHash(previousBlock)
 	if err != nil {
@@ -878,13 +863,12 @@ func (bs *BlockService) GenerateBlock(
 		previousBlockHash,
 		blockSeed,
 		blockSmithPublicKey,
-		string(hash),
 		newBlockHeight,
 		timestamp,
 		totalAmount,
 		totalFee,
 		totalCoinbase,
-		sortedTx,
+		sortedTransactions,
 		publishedReceipts,
 		payloadHash,
 		payloadLength,
@@ -925,7 +909,6 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		nil,
 		constant.MainchainGenesisBlockSeed,
 		constant.MainchainGenesisNodePublicKey,
-		"",
 		0,
 		constant.MainchainGenesisBlockTimestamp,
 		totalAmount,
