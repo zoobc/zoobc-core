@@ -88,16 +88,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		)
 	}
 
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
-		queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-		queries = append(queries, accountBalanceSenderQ...)
-	} else {
-		insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
-		queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-			append([]interface{}{insertNodeQ}, insertNodeArg...),
-		)
-	}
-
 	// insert default participation score for nodes that are registered at genesis height
 	if tx.Height == 0 {
 		ps := &model.ParticipationScore{
