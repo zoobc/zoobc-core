@@ -115,6 +115,7 @@ func initialize(
 	)
 	receiptService := service.NewReceiptService(
 		query.NewReceiptQuery(),
+		nil,
 		query.NewMerkleTreeQuery(),
 		nil,
 		queryExecutor,
