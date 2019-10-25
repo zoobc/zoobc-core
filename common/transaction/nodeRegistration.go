@@ -197,7 +197,8 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 	defer nodeRow.Close()
 	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	// ok if node is not registered yet or if a node with this public key has been previously deleted
+	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
+	// if any other state validation should fail
 	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != constant.NodeDeleted {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}

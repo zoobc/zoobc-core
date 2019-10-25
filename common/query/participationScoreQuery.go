@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -123,10 +124,10 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(account
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".account_address='%s' "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".registration_status=0 "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
-		accountAddress)
+		accountAddress, constant.NodeRegistered)
 }
 
 func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
@@ -143,9 +144,10 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".node_public_key=? "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".registration_status=0 "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
+		constant.NodeRegistered,
 	), []interface{}{nodePublicKey}
 }
 

@@ -2,12 +2,10 @@ package transaction
 
 import (
 	"bytes"
-	"fmt"
 	"net"
 	"net/url"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -209,9 +207,6 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		defer rows2.Close()
 		tempNodeRegistrationResult2 = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
 		if len(tempNodeRegistrationResult2) > 0 {
-			alreadyRegisteredNode := tempNodeRegistrationResult2[0]
-			// public key already registered to another account address
-			log.Debug(fmt.Sprintf("NodePublicKeyAlredyRegistered to address: %s", alreadyRegisteredNode.AccountAddress))
 			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}

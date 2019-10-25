@@ -102,7 +102,7 @@ func (m *Migration) Init() error {
 				"registration_height" INTEGER,
 				"node_address" VARCHAR(255),
 				"locked_balance" INTEGER,
-				"registration_status" INTEGER,
+				"queued" INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
 				PRIMARY KEY("id", "height")
@@ -182,6 +182,10 @@ func (m *Migration) Init() error {
 			`
 			ALTER TABLE "merkle_tree"
 				ADD COLUMN "timestamp" INTEGER AFTER "tree"
+			`,
+			`
+			ALTER TABLE "node_registry" 
+				RENAME COLUMN "queued" TO "registration_status"
 			`,
 		}
 		return nil
