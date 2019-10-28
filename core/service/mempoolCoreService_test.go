@@ -448,11 +448,11 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 	return rows, nil
 }
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
-	successTx1, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[0].TransactionBytes, true)
-	successTx2, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[1].TransactionBytes, true)
-	successTx3, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[2].TransactionBytes, true)
-	successTx4, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[3].TransactionBytes, true)
-	successTx5, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[4].TransactionBytes, true)
+	successTx1, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[0].TransactionBytes, true)
+	successTx2, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[1].TransactionBytes, true)
+	successTx3, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[2].TransactionBytes, true)
+	successTx4, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[3].TransactionBytes, true)
+	successTx5, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[4].TransactionBytes, true)
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface

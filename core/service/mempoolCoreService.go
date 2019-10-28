@@ -6,11 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"golang.org/x/crypto/sha3"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"

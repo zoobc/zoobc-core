@@ -178,8 +178,9 @@ func ValidateTransaction(
 		return err
 	}
 	defer rows.Close()
-	res := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
-	if len(res) == 0 {
+	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+
+	if err != nil || len(res) == 0 {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxSenderNotFound",
