@@ -17,7 +17,7 @@ type (
 		RemoveBatchReceiptByRoot(merkleRoot []byte) (qStr string, args []interface{})
 		RemoveBatchReceipt(datumType uint32, datumHash []byte) (qStr string, args []interface{})
 		ExtractModel(receipt *model.BatchReceipt) []interface{}
-		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) []*model.BatchReceipt
+		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error)
 		Scan(receipt *model.BatchReceipt, rows *sql.Row) error
 	}
 	// BatchReceiptQuery us query for BatchReceipt
@@ -113,10 +113,13 @@ func (*BatchReceiptQuery) ExtractModel(receipt *model.BatchReceipt) []interface{
 }
 
 // BuildModel extract __*sql.Rows__ into []*model.Receipt
-func (*BatchReceiptQuery) BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) []*model.BatchReceipt {
+func (*BatchReceiptQuery) BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error) {
 	for rows.Next() {
-		var receipt model.BatchReceipt
-		_ = rows.Scan(
+		var (
+			receipt model.BatchReceipt
+			err     error
+		)
+		err = rows.Scan(
 			&receipt.SenderPublicKey,
 			&receipt.RecipientPublicKey,
 			&receipt.DatumType,
@@ -126,10 +129,12 @@ func (*BatchReceiptQuery) BuildModel(receipts []*model.BatchReceipt, rows *sql.R
 			&receipt.RMRLinked,
 			&receipt.RecipientSignature,
 		)
-
+		if err != nil {
+			return nil, err
+		}
 		receipts = append(receipts, &receipt)
 	}
-	return receipts
+	return receipts, nil
 }
 
 func (*BatchReceiptQuery) Scan(receipt *model.BatchReceipt, row *sql.Row) error {

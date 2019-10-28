@@ -168,7 +168,7 @@ func TestCalculateSmithScale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CalculateSmithScale(
+			if got, _ := CalculateSmithScale(
 				tt.args.previousBlock,
 				tt.args.block,
 				tt.args.smithingDelayTime,
@@ -273,6 +273,60 @@ func TestIsBlockIDExist(t *testing.T) { //todo:update test after applying signat
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsBlockIDExist(tt.args.blockIds, tt.args.expectedBlockID); got != tt.want {
 				t.Errorf("TestIsBlockIDExist() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsGenesis(t *testing.T) {
+	type args struct {
+		previousBlockID int64
+		block           *model.Block
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "not genesis",
+			args: args{
+				previousBlockID: 1,
+				block: &model.Block{
+					ID:                   2,
+					PreviousBlockHash:    nil,
+					Height:               2,
+					Timestamp:            0,
+					BlockSeed:            nil,
+					BlockSignature:       nil,
+					CumulativeDifficulty: "",
+					SmithScale:           0,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "genesis",
+			args: args{
+				previousBlockID: -1,
+				block: &model.Block{
+					ID:                   1,
+					PreviousBlockHash:    nil,
+					Height:               2,
+					Timestamp:            0,
+					BlockSeed:            nil,
+					BlockSignature:       nil,
+					CumulativeDifficulty: "11111",
+					SmithScale:           11110,
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsGenesis(tt.args.previousBlockID, tt.args.block); got != tt.want {
+				t.Errorf("IsGenesis() = %v, want %v", got, tt.want)
 			}
 		})
 	}

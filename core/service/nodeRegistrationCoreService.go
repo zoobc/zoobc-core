@@ -26,9 +26,8 @@ type (
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		// mockable variables
-		NodeAdmittanceCycle uint32
-		Logger              *log.Logger
+		NodeAdmittanceCycle     uint32
+		Logger                  *log.Logger
 	}
 )
 
@@ -57,7 +56,11 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if err != nil {
+		return nil, err
+	}
 	return nodeRegistrations, nil
 }
 
@@ -69,7 +72,11 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if err != nil {
+		return nil, err
+	}
 	return nodeRegistrations, nil
 }
 
@@ -80,8 +87,8 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if len(nodeRegistrations) == 0 {
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
 	}
 
@@ -94,8 +101,9 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if len(nodeRegistrations) == 0 {
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
 	}
 

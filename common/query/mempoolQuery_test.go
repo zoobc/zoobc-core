@@ -139,7 +139,7 @@ func TestMempoolQuery_BuildModel(t *testing.T) {
 				mockMempool.SenderAccountAddress, mockMempool.RecipientAccountAddress))
 		rows, _ := db.Query("foo")
 		var tempMempool []*model.MempoolTransaction
-		res := mockMempoolQuery.BuildModel(tempMempool, rows)
+		res, _ := mockMempoolQuery.BuildModel(tempMempool, rows)
 		if !reflect.DeepEqual(res[0], mockMempool) {
 			t.Errorf("returned wrong: get: %v\nwant: %v", res, mockMempool)
 		}

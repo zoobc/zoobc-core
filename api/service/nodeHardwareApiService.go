@@ -5,10 +5,11 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"runtime"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -46,10 +47,7 @@ func (nhs *NodeHardwareService) GetNodeHardware(request *model.GetNodeHardwareRe
 	// memory
 	vmStat, err := mem.VirtualMemory()
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.ServerError,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if runtimeOS == "windows" {
 		diskStat, err = disk.Usage("\\")
@@ -57,33 +55,21 @@ func (nhs *NodeHardwareService) GetNodeHardware(request *model.GetNodeHardwareRe
 		diskStat, err = disk.Usage("/")
 	}
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.ServerError,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// host or machine kernel, uptime, platform Info
 	hostStat, err := host.Info()
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.ServerError,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// cpu - get CPU number of cores and speed
 	cpuStat, err := cpu.Info()
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.ServerError,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	percentage, err := cpu.Percent(0, true)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.ServerError,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// host or machine kernel, uptime, platform Info
 	for i := 0; i < len(cpuStat); i++ {

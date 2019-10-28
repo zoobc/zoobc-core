@@ -19,7 +19,7 @@ type (
 			lowerHeight, upperHeight, limit uint32,
 		) (str string)
 		ExtractModel(receipt *model.Receipt) []interface{}
-		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
+		BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error)
 		Scan(receipt *model.Receipt, row *sql.Row) error
 	}
 
@@ -158,15 +158,16 @@ func (*ReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
 	}
 }
 
-func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt {
+func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error) {
 
 	for rows.Next() {
 		var (
 			receipt      model.Receipt
 			batchReceipt model.BatchReceipt
+			err          error
 		)
 
-		_ = rows.Scan(
+		err = rows.Scan(
 			&batchReceipt.SenderPublicKey,
 			&batchReceipt.RecipientPublicKey,
 			&batchReceipt.DatumType,
@@ -178,11 +179,14 @@ func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*mo
 			&receipt.RMR,
 			&receipt.RMRIndex,
 		)
+		if err != nil {
+			return nil, err
+		}
 		receipt.BatchReceipt = &batchReceipt
 		receipts = append(receipts, &receipt)
 	}
 
-	return receipts
+	return receipts, nil
 }
 
 func (*ReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {

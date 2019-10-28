@@ -175,36 +175,30 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			blocker.SmithingErr, "verify seed return false",
 		)
 	}
-	stop := false
-	for { // start creating block
-		if stop {
-			return nil
-		}
-		previousBlock, err := bp.BlockService.GetLastBlock()
-		if err != nil {
-			return err
-		}
-
-		block, err := bp.BlockService.GenerateBlock(
-			previousBlock,
-			bp.Generator.SecretPhrase,
-			timestamp,
-		)
-		if err != nil {
-			return err
-		}
-		// validate
-		err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
-		if err != nil {
-			return err
-		}
-		// if validated push
-		err = bp.BlockService.PushBlock(previousBlock, block, true, true)
-		if err != nil {
-			return err
-		}
-		stop = true
+	previousBlock, err := bp.BlockService.GetLastBlock()
+	if err != nil {
+		return err
 	}
+
+	block, err := bp.BlockService.GenerateBlock(
+		previousBlock,
+		bp.Generator.SecretPhrase,
+		timestamp,
+	)
+	if err != nil {
+		return err
+	}
+	// validate
+	err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp)
+	if err != nil {
+		return err
+	}
+	// if validated push
+	err = bp.BlockService.PushBlock(previousBlock, block, true, true)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener {

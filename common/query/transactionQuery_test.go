@@ -362,7 +362,7 @@ func TestTransactionQuery_BuildModel(t *testing.T) {
 				TableName: tt.fields.TableName,
 				ChainType: tt.fields.ChainType,
 			}
-			if got := tr.BuildModel(tt.args.txs, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tr.BuildModel(tt.args.txs, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BuildModel() = \n%v, want \n%v", got, tt.want)
 			}
 		})

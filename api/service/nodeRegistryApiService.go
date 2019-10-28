@@ -3,11 +3,10 @@ package service
 import (
 	"database/sql"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -88,7 +87,10 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	}
 	defer rows2.Close()
 
-	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	return &model.GetNodeRegistrationsResponse{
 		Total:             totalRecords,
