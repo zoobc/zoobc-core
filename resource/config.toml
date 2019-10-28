@@ -13,6 +13,7 @@ wellknownPeers=["127.0.0.1:8002"]
 apiRPCPort=7000
 # comment out or set to 0 to disable http proxy, only enable in dev mode
 apiHTTPPort=3031
+monitoringPort=9090
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
