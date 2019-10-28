@@ -156,7 +156,7 @@ func TestAccountBalanceQuery_BuildModel(t *testing.T) {
 				mockAccountBalance.Balance, mockAccountBalance.PopRevenue, mockAccountBalance.Latest))
 		rows, _ := db.Query("foo")
 		var tempAccount []*model.AccountBalance
-		res := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
+		res, _ := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
 		if !reflect.DeepEqual(res[0], mockAccountBalance) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccountBalance)
 		}

@@ -198,7 +198,7 @@ func TestBlockQuery_BuildModel(t *testing.T) {
 
 		rows, _ := db.Query("foo")
 		var tempBlock []*model.Block
-		res := mockBlockQuery.BuildModel(tempBlock, rows)
+		res, _ := mockBlockQuery.BuildModel(tempBlock, rows)
 		if !reflect.DeepEqual(res[0], mockBlock) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockBlock)
 		}

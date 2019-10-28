@@ -35,8 +35,8 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	if err != nil {
 		return err
 	}
-	nodereGistrations = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
-	if len(nodereGistrations) == 0 {
+	nodereGistrations, err = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
+	if (err != nil) || len(nodereGistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
 
@@ -57,7 +57,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	}
 	// update sender balance by refunding the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		(prevNodeRegistration.LockedBalance - tx.Fee),
+		prevNodeRegistration.LockedBalance-tx.Fee,
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
 			"block_height":    tx.Height,
@@ -123,8 +123,8 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
-	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	if len(nodeRegistrations) == 0 {
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
 	nr := nodeRegistrations[0]

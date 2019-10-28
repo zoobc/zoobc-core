@@ -578,13 +578,9 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
-				if err != nil {
-					if !tt.wantErr {
-						t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
-					}
-					if err.Error() != tt.errText {
-						t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
-					}
+				if (err == nil) != tt.wantErr {
+					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					return
 				}
 			}
 		})

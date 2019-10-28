@@ -282,7 +282,7 @@ func TestBatchReceiptQuery_BuildModel(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := b.BuildModel(tt.args.receipts, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := b.BuildModel(tt.args.receipts, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BatchReceiptQuery.BuildModel() = \n%v, want \n%v", got, tt.want)
 			}
 		})
