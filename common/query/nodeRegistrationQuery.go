@@ -25,7 +25,7 @@ type (
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
-		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
+		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
@@ -185,7 +185,10 @@ func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []int
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (nrq *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration {
+func (nrq *NodeRegistrationQuery) BuildModel(
+	nodeRegistrations []*model.NodeRegistration,
+	rows *sql.Rows,
+) ([]*model.NodeRegistration, error) {
 
 	var (
 		ignoredAggregateColumns []interface{}
@@ -221,7 +224,7 @@ func (nrq *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegi
 		nr.NodeAddress = nrq.BuildNodeAddress(fullNodeAddress)
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
-	return nodeRegistrations
+	return nodeRegistrations, nil
 }
 
 func (*NodeRegistrationQuery) BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith {
@@ -255,7 +258,6 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY id
 			)`,
 				nrq.TableName,

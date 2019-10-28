@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -59,25 +60,7 @@ var (
 		Height:             200,
 	}
 	blockAdmittanceHeight1 uint32 = 1440
-	nrsBlock1                     = &model.Block{
-		ID:                   0,
-		Height:               blockAdmittanceHeight1,
-		Version:              1,
-		CumulativeDifficulty: "",
-		SmithScale:           0,
-		PreviousBlockHash:    []byte{},
-		BlockSeed:            []byte{},
-		BlocksmithPublicKey:  nrsNodePubKey1,
-		Timestamp:            12345678,
-		TotalAmount:          0,
-		TotalFee:             0,
-		TotalCoinBase:        0,
-		Transactions:         []*model.Transaction{},
-		PayloadHash:          []byte{},
-		PayloadLength:        0,
-		BlockSignature:       []byte{},
-	}
-	nrsBlock2 = &model.Block{
+	nrsBlock2                     = &model.Block{
 		ID:                   1000,
 		Height:               blockAdmittanceHeight1,
 		Version:              1,
@@ -382,83 +365,6 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	}
 }
 
-func TestNodeRegistrationService_NodeRegistryListener(t *testing.T) {
-	type (
-		fields struct {
-			QueryExecutor           query.ExecutorInterface
-			AccountBalanceQuery     query.AccountBalanceQueryInterface
-			NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-			ParticipationScoreQuery query.ParticipationScoreQueryInterface
-			NodeAdmittanceCycle     uint32
-		}
-		args struct {
-			block *model.Block
-		}
-	)
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   observer.Listener
-	}{
-		{
-			name: "NodeRegistryListener:success",
-			fields: fields{
-				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				NodeAdmittanceCycle:     blockAdmittanceHeight1,
-			},
-			args: args{
-				block: nrsBlock1,
-			},
-			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {
-
-				},
-			},
-		},
-		{
-			name: "NodeRegistryListener:success-{noAdmittanceBlock}",
-			fields: fields{
-				QueryExecutor:           &nrsMockQueryExecutorFailNodeRegistryListener{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				NodeAdmittanceCycle:     blockAdmittanceHeight1 + 1,
-			},
-			args: args{
-				block: nrsBlock1,
-			},
-			want: observer.Listener{
-				OnNotify: func(data interface{}, args interface{}) {},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
-			}
-
-			got := nrs.NodeRegistryListener()
-			if reflect.TypeOf(got) != reflect.TypeOf(tt.want) {
-				t.Errorf("NodeRegistrationService.NodeRegistryListener() = %v, want %v", got, tt.want)
-			}
-			testOnNotifyPushBlockListener(got.OnNotify, tt.args.block)
-		})
-	}
-}
-
-func testOnNotifyPushBlockListener(fn observer.OnNotify, block *model.Block) {
-	fn(block, nil)
-}
-
 func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 	type fields struct {
 		QueryExecutor           query.ExecutorInterface
@@ -725,6 +631,49 @@ func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_GetNodeAdmittanceCycle(t *testing.T) {
+	type fields struct {
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeAdmittanceCycle     uint32
+		Logger                  *log.Logger
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   uint32
+	}{
+		{
+			name: "GetNodeAdmittanceCycle:success-{NodeAdmittanceCycleIsSet}",
+			fields: fields{
+				NodeAdmittanceCycle: 10,
+			},
+			want: 10,
+		},
+		{
+			name: "GetNodeAdmittanceCycle:success-{NodeAdmittanceCycleIsNotSet}",
+			want: constant.NodeAdmittanceCycle,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAdmittanceCycle:     tt.fields.NodeAdmittanceCycle,
+				Logger:                  tt.fields.Logger,
+			}
+			if got := nrs.GetNodeAdmittanceCycle(); got != tt.want {
+				t.Errorf("NodeRegistrationService.GetNodeAdmittanceCycle() = %v, want %v", got, tt.want)
 			}
 		})
 	}

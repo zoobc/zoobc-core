@@ -11,11 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/observer"
-	"github.com/zoobc/zoobc-core/p2p/client"
-	"golang.org/x/crypto/sha3"
-	"google.golang.org/grpc/metadata"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -23,7 +18,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/observer"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/metadata"
 )
 
 type ScrambleNode struct {
@@ -248,7 +247,11 @@ func (ps *PriorityStrategy) BuildScrambleNodes(block *model.Block) {
 		return
 	}
 	defer rows.Close()
-	nodeRegistries = ps.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
+	nodeRegistries, err = ps.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
+	if err != nil {
+		ps.Logger.Error(err.Error())
+		return
+	}
 
 	// sort node registry
 	sort.SliceStable(nodeRegistries, func(i, j int) bool {

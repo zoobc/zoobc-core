@@ -20,7 +20,7 @@ type (
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		ExtractModel(ps *model.ParticipationScore) []interface{}
-		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) []*model.ParticipationScore
+		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
 	}
 
 	ParticipationScoreQuery struct {
@@ -162,18 +162,27 @@ func (*ParticipationScoreQuery) ExtractModel(ps *model.ParticipationScore) []int
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*ParticipationScoreQuery) BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) []*model.ParticipationScore {
+func (*ParticipationScoreQuery) BuildModel(
+	participationScores []*model.ParticipationScore,
+	rows *sql.Rows,
+) ([]*model.ParticipationScore, error) {
 	for rows.Next() {
-		var ps model.ParticipationScore
-		_ = rows.Scan(
+		var (
+			ps  model.ParticipationScore
+			err error
+		)
+		err = rows.Scan(
 			&ps.NodeID,
 			&ps.Score,
 			&ps.Latest,
 			&ps.Height,
 		)
+		if err != nil {
+			return nil, err
+		}
 		participationScores = append(participationScores, &ps)
 	}
-	return participationScores
+	return participationScores, nil
 }
 
 // Rollback delete records `WHERE block_height > `height`
@@ -190,7 +199,6 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 			WHERE height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY id
 			)`,
 				ps.TableName,

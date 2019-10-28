@@ -157,7 +157,7 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 			))
 		rows, _ := db.Query("foo")
 		var tempNode []*model.NodeRegistration
-		res := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
+		res, _ := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
 		if !reflect.DeepEqual(res[0], mockNodeRegistry) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockNodeRegistry)
 		}
@@ -183,7 +183,7 @@ func TestNodeRegistrationQuery_BuildModel(t *testing.T) {
 			))
 		rows, _ := db.Query("foo-withAggregation")
 		var tempNode []*model.NodeRegistration
-		res := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
+		res, _ := mockNodeRegistrationQuery.BuildModel(tempNode, rows)
 		if !reflect.DeepEqual(res[0], mockNodeRegistry) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockNodeRegistry)
 		}
@@ -268,7 +268,6 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM account_balance
-				WHERE latest = 0
 				GROUP BY id
 			)`,
 					1,

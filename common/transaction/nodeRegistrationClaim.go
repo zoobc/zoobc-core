@@ -6,10 +6,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 // ClaimNodeRegistration Implement service layer for claim node registration's transaction
@@ -36,11 +35,12 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 		return err
 	}
 	defer rows.Close()
-	if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
-		prevNodeRegistration = nr[0]
-	} else {
+
+	nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || (len(nr) == 0) {
 		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
 	}
+	prevNodeRegistration = nr[0]
 
 	// tag the node as deleted
 	nodeRegistration := &model.NodeRegistration{
@@ -133,8 +133,8 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	}
 	defer rows2.Close()
 	// cannot claim a deleted node
-	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
-	if len(nodeRegistrations) == 0 {
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	if (len(nodeRegistrations) == 0) || (err != nil) {
 		// public key must be already registered
 		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
 	}
