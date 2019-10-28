@@ -112,10 +112,6 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 
 // AdmitNodes update given node registrations' registrationStatus field to 0 (= node registered) and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
-	err := nrs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 	// prepare all node registrations to be updated (set registrationStatus to 0 and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeRegistered)
@@ -133,30 +129,16 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		queries = append(queries,
 			append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...),
 		)
-		err = nrs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			if rollbackErr := nrs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				nrs.Logger.Error(rollbackErr.Error())
-			}
+		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
 		}
 	}
-
-	if err := nrs.QueryExecutor.CommitTx(); err != nil {
-		return blocker.NewBlocker(blocker.DBErr, "TxNotCommitted")
-	}
-
 	return nil
 }
 
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
 // update the node registration by setting registrationStatus field to 3 (deleted) and locked balance to zero
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
-	err := nrs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-
 	for _, nodeRegistration := range nodeRegistrations {
 		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
@@ -172,18 +154,10 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		)
 
 		queries := append(updateAccountBalanceQ, nodeQueries...)
-		err := nrs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			if rollbackErr := nrs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				nrs.Logger.Error(rollbackErr.Error())
-			}
+		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
 		}
 	}
-	if err := nrs.QueryExecutor.CommitTx(); err != nil {
-		return blocker.NewBlocker(blocker.DBErr, "TxNotCommitted")
-	}
-
 	return nil
 }
 
