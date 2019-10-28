@@ -315,6 +315,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		nil,
+		nil,
 		&transaction.TypeSwitcher{},
 		nil,
 		nil,
