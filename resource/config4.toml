@@ -11,6 +11,7 @@ wellknownPeers=[]
 
 apiRPCPort=3004
 apiHTTPPort=3034
+monitoringPort=9094
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd"
