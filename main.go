@@ -150,7 +150,6 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	}
 
 	if envOverrideConfig {
-		util.OverrideConfigKeyArray("WELLKNOWN_PEERS", "wellknownPeers")
 		util.OverrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
 		util.OverrideConfigKey("NODE_ADDRESS", "myAddress")
 		util.OverrideConfigKey("SMITHING", "smithing")

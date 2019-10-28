@@ -74,8 +74,9 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
-		Queued:             prevNodeRegistration.Queued,
-		AccountAddress:     prevNodeRegistration.AccountAddress,
+		RegistrationStatus: prevNodeRegistration.RegistrationStatus,
+		// account address is the only field that can't be updated via update node registration
+		AccountAddress: prevNodeRegistration.AccountAddress,
 	}
 
 	var effectiveBalanceToLock int64
@@ -166,9 +167,9 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	var (
-		accountBalance             model.AccountBalance
-		prevNodeRegistration       *model.NodeRegistration
-		tempNodeRegistrationResult []*model.NodeRegistration
+		accountBalance                                          model.AccountBalance
+		prevNodeRegistration                                    *model.NodeRegistration
+		tempNodeRegistrationResult, tempNodeRegistrationResult2 []*model.NodeRegistration
 	)
 	// formally validate tx body fields
 	if tx.Body.Poown == nil {
@@ -204,8 +205,8 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 			return err
 		}
 		defer rows2.Close()
-		if rows2.Next() {
-			// public key already registered
+		tempNodeRegistrationResult2 = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
+		if len(tempNodeRegistrationResult2) > 0 {
 			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}

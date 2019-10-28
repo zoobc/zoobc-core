@@ -183,6 +183,10 @@ func (m *Migration) Init() error {
 			ALTER TABLE "merkle_tree"
 				ADD COLUMN "timestamp" INTEGER AFTER "tree"
 			`,
+			`
+			ALTER TABLE "node_registry" 
+				RENAME COLUMN "queued" TO "registration_status"
+			`,
 		}
 		return nil
 	}
