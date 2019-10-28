@@ -3,16 +3,21 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -33,69 +38,52 @@ import (
 )
 
 var (
-	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase string
-	dbInstance                                                   *database.SqliteDB
-	badgerDbInstance                                             *database.BadgerDB
-	db                                                           *sql.DB
-	badgerDb                                                     *badger.DB
-	apiRPCPort, apiHTTPPort                                      int
-	peerPort                                                     uint32
-	p2pServiceInstance                                           p2p.Peer2PeerServiceInterface
-	queryExecutor                                                *query.Executor
-	kvExecutor                                                   *kvdb.KVExecutor
-	observerInstance                                             *observer.Observer
-	blockServices                                                = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                                              = make(map[int32]service.MempoolServiceInterface)
-	receiptService                                               service.ReceiptServiceInterface
-	peerServiceClient                                            client.PeerServiceClientInterface
-	p2pHost                                                      *model.Host
-	peerExplorer                                                 strategy.PeerExplorerStrategyInterface
-	ownerAccountAddress, myAddress                               string
-	wellknownPeers                                               []string
-	nodeKeyFilePath                                              string
-	smithing                                                     bool
-	nodeRegistrationService                                      service.NodeRegistrationServiceInterface
-	sortedBlocksmiths                                            []model.Blocksmith
-	mainchainProcessor                                           smith.BlockchainProcessorInterface
-	loggerAPIService                                             *log.Logger
-	loggerCoreService                                            *log.Logger
-	loggerP2PService                                             *log.Logger
+	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, configPath, nodeKeyFile string
+	dbInstance                                                                            *database.SqliteDB
+	badgerDbInstance                                                                      *database.BadgerDB
+	db                                                                                    *sql.DB
+	badgerDb                                                                              *badger.DB
+	apiRPCPort, apiHTTPPort, monitoringPort                                               int
+	peerPort                                                                              uint32
+	p2pServiceInstance                                                                    p2p.Peer2PeerServiceInterface
+	queryExecutor                                                                         *query.Executor
+	kvExecutor                                                                            *kvdb.KVExecutor
+	observerInstance                                                                      *observer.Observer
+	schedulerInstance                                                                     *util.Scheduler
+	blockServices                                                                         = make(map[int32]service.BlockServiceInterface)
+	mempoolServices                                                                       = make(map[int32]service.MempoolServiceInterface)
+	receiptService                                                                        service.ReceiptServiceInterface
+	peerServiceClient                                                                     client.PeerServiceClientInterface
+	p2pHost                                                                               *model.Host
+	peerExplorer                                                                          strategy.PeerExplorerStrategyInterface
+	ownerAccountAddress, myAddress                                                        string
+	wellknownPeers                                                                        []string
+	nodeKeyFilePath                                                                       string
+	smithing, isDebugMode                                                                 bool
+	nodeRegistrationService                                                               service.NodeRegistrationServiceInterface
+	sortedBlocksmiths                                                                     []model.Blocksmith
+	mainchainProcessor                                                                    smith.BlockchainProcessorInterface
+	loggerAPIService                                                                      *log.Logger
+	loggerCoreService                                                                     *log.Logger
+	loggerP2PService                                                                      *log.Logger
 )
 
 func init() {
 	var (
-		configPostfix string
-		configDir     string
-		err           error
+		configPostfix     string
+		configDir         string
+		envOverrideConfig bool
+		err               error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configDir, "config-path", "", "Usage")
+	flag.StringVar(&configDir, "config-path", "./resource", "Usage")
+	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
+	flag.BoolVar(&envOverrideConfig, "env-override", false,
+		"boolean flag to enable overriding node configuration with system environment variables.")
 	flag.Parse()
 
-	if configDir == "" {
-		configDir = "./resource"
-	}
-
-	if err := util.LoadConfig(configDir, "config"+configPostfix, "toml"); err != nil {
-		panic(err)
-	}
-
-	dbPath = viper.GetString("dbPath")
-	dbName = viper.GetString("dbName")
-	badgerDbPath = viper.GetString("badgerDbPath")
-	badgerDbName = viper.GetString("badgerDbName")
-	apiRPCPort = viper.GetInt("apiRPCPort")
-	apiHTTPPort = viper.GetInt("apiHTTPPort")
-	ownerAccountAddress = viper.GetString("ownerAccountAddress")
-	myAddress = viper.GetString("myAddress")
-	peerPort = viper.GetUint32("peerPort")
-	wellknownPeers = viper.GetStringSlice("wellknownPeers")
-
-	configPath := viper.GetString("configPath")
-	nodeKeyFile := viper.GetString("nodeKeyFile")
-	smithing = viper.GetBool("smithing")
-
+	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)
 	initLogInstance()
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -120,6 +108,7 @@ func init() {
 
 	receiptService = service.NewReceiptService(
 		query.NewReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		kvExecutor,
 		queryExecutor,
@@ -151,7 +140,58 @@ func init() {
 
 	// initialize Observer
 	observerInstance = observer.NewObserver()
+	schedulerInstance = util.NewScheduler()
 	initP2pInstance()
+}
+
+func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
+	if err := util.LoadConfig(configDir, configFileName, "toml"); err != nil {
+		panic(err)
+	}
+
+	if envOverrideConfig {
+		util.OverrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
+		util.OverrideConfigKey("NODE_ADDRESS", "myAddress")
+		util.OverrideConfigKey("SMITHING", "smithing")
+		util.OverrideConfigKey("PEER_PORT", "peerPort")
+		util.OverrideConfigKey("MONITORING_PORT", "monitoringPort")
+		util.OverrideConfigKey("API_RPC_PORT", "apiRPCPort")
+		util.OverrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
+	}
+
+	myAddress = viper.GetString("myAddress")
+	if myAddress == "" {
+		ipAddr, err := util.GetOutboundIP()
+		if err != nil {
+			myAddress = "127.0.0.1"
+		} else {
+			myAddress = ipAddr.String()
+		}
+		viper.Set("myAddress", myAddress)
+	}
+	peerPort = viper.GetUint32("peerPort")
+	monitoringPort = viper.GetInt("monitoringPort")
+	apiRPCPort = viper.GetInt("apiRPCPort")
+	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	ownerAccountAddress = viper.GetString("ownerAccountAddress")
+	wellknownPeers = viper.GetStringSlice("wellknownPeers")
+	smithing = viper.GetBool("smithing")
+	dbPath = viper.GetString("dbPath")
+	dbName = viper.GetString("dbName")
+	badgerDbPath = viper.GetString("badgerDbPath")
+	badgerDbName = viper.GetString("badgerDbName")
+	configPath = viper.GetString("configPath")
+	nodeKeyFile = viper.GetString("nodeKeyFile")
+	// useful for easily reading if node config params have been overridden by env variables,
+	// especially in a multi node-dockerized test network
+	log.Printf("peerPort: %d", peerPort)
+	log.Printf("monitoringPort: %d", monitoringPort)
+	log.Printf("apiRPCPort: %d", apiRPCPort)
+	log.Printf("apiHTTPPort: %d", apiHTTPPort)
+	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
+	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
+	log.Printf("smithing: %v", smithing)
+	log.Printf("myAddress: %s", myAddress)
 }
 
 func initLogInstance() {
@@ -212,7 +252,6 @@ func initObserverListeners() {
 	// init observer listeners
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
-	observerInstance.AddListener(observer.BlockPushed, nodeRegistrationService.NodeRegistryListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
 	observerInstance.AddListener(observer.BlockPushed, peerExplorer.PeerExplorerListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
@@ -238,6 +277,20 @@ func startServices() {
 		nodeKeyFilePath,
 		loggerAPIService,
 	)
+
+	if isDebugMode {
+		go startNodeMonitoring()
+	}
+}
+
+func startNodeMonitoring() {
+	log.Infof("starting node monitoring at port:%d...", monitoringPort)
+	blocker.SetMonitoringActive(true)
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to start monitoring service: %s", err))
+	}
 }
 
 func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
@@ -286,6 +339,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
+		nodeRegistrationService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
@@ -302,7 +356,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		nodeRegistrationService,
 	)
 
-	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
@@ -343,17 +396,30 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService,
 	)
 
-	// Schedulers Init
-	go func() {
-		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
-		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
-		if err != nil {
-			loggerCoreService.Error(err)
-		}
-	}()
 	go func() {
 		mainchainSynchronizer.Start(mainchainSyncChannel)
+
 	}()
+}
+
+// Scheduler Init
+func startScheduler() {
+	var (
+		mainchain               = &chaintype.MainChain{}
+		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
+	)
+	if err := schedulerInstance.AddJob(
+		constant.CheckMempoolExpiration,
+		mainchainMempoolService.DeleteExpiredMempoolTransactions,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
+	if err := schedulerInstance.AddJob(
+		constant.ReceiptGenerateMarkleRootPeriod,
+		receiptService.GenerateReceiptsMerkleRoot,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
 }
 
 func main() {
@@ -370,6 +436,8 @@ func main() {
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
 	startServices()
+	initObserverListeners()
+	startScheduler()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

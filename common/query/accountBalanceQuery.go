@@ -92,7 +92,8 @@ func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[
 
 func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (
 	str string, args []interface{}) {
-	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_address = ?",
+	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_address = ?"+
+		" AND latest = 1",
 		q.TableName, balance), []interface{}{causedFields["account_address"]}
 }
 
@@ -160,7 +161,6 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY account_address
 			)`,
 				q.TableName,
