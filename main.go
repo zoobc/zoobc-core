@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,9 +13,11 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -39,12 +43,13 @@ var (
 	badgerDbInstance                                                                      *database.BadgerDB
 	db                                                                                    *sql.DB
 	badgerDb                                                                              *badger.DB
-	apiRPCPort, apiHTTPPort                                                               int
+	apiRPCPort, apiHTTPPort, monitoringPort                                               int
 	peerPort                                                                              uint32
 	p2pServiceInstance                                                                    p2p.Peer2PeerServiceInterface
 	queryExecutor                                                                         *query.Executor
 	kvExecutor                                                                            *kvdb.KVExecutor
 	observerInstance                                                                      *observer.Observer
+	schedulerInstance                                                                     *util.Scheduler
 	blockServices                                                                         = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                                                                       = make(map[int32]service.MempoolServiceInterface)
 	receiptService                                                                        service.ReceiptServiceInterface
@@ -54,14 +59,13 @@ var (
 	ownerAccountAddress, myAddress                                                        string
 	wellknownPeers                                                                        []string
 	nodeKeyFilePath                                                                       string
-	smithing                                                                              bool
+	smithing, isDebugMode                                                                 bool
 	nodeRegistrationService                                                               service.NodeRegistrationServiceInterface
 	sortedBlocksmiths                                                                     []model.Blocksmith
 	mainchainProcessor                                                                    smith.BlockchainProcessorInterface
 	loggerAPIService                                                                      *log.Logger
 	loggerCoreService                                                                     *log.Logger
 	loggerP2PService                                                                      *log.Logger
-	isDebugMode                                                  bool
 )
 
 func init() {
@@ -73,18 +77,14 @@ func init() {
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configDir, "config-path", "", "Usage")
+	flag.StringVar(&configDir, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&envOverrideConfig, "env-override", false,
 		"boolean flag to enable overriding node configuration with system environment variables.")
 	flag.Parse()
 
 	if isDebugMode {
-		go startDebugMode()
-	}
-
-	if configDir == "" {
-		configDir = "./resource"
+		viper.Set("DebugMode", true)
 	}
 
 	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)
@@ -112,6 +112,7 @@ func init() {
 
 	receiptService = service.NewReceiptService(
 		query.NewReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		kvExecutor,
 		queryExecutor,
@@ -143,12 +144,8 @@ func init() {
 
 	// initialize Observer
 	observerInstance = observer.NewObserver()
+	schedulerInstance = util.NewScheduler()
 	initP2pInstance()
-}
-
-func startDebugMode() {
-	log.Infof("starting debug mode...")
-	constant.GetDebugFlag(true)
 }
 
 func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
@@ -161,9 +158,10 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 		util.OverrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
 		util.OverrideConfigKey("NODE_ADDRESS", "myAddress")
 		util.OverrideConfigKey("SMITHING", "smithing")
+		util.OverrideConfigKey("PEER_PORT", "peerPort")
+		util.OverrideConfigKey("MONITORING_PORT", "monitoringPort")
 		util.OverrideConfigKey("API_RPC_PORT", "apiRPCPort")
 		util.OverrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
-		util.OverrideConfigKey("PEER_PORT", "peerPort")
 	}
 
 	myAddress = viper.GetString("myAddress")
@@ -176,12 +174,13 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 		}
 		viper.Set("myAddress", myAddress)
 	}
+	peerPort = viper.GetUint32("peerPort")
+	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	wellknownPeers = viper.GetStringSlice("wellknownPeers")
 	smithing = viper.GetBool("smithing")
-	peerPort = viper.GetUint32("peerPort")
 	dbPath = viper.GetString("dbPath")
 	dbName = viper.GetString("dbName")
 	badgerDbPath = viper.GetString("badgerDbPath")
@@ -190,12 +189,13 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	nodeKeyFile = viper.GetString("nodeKeyFile")
 	// useful for easily reading if node config params have been overridden by env variables,
 	// especially in a multi node-dockerized test network
+	log.Printf("peerPort: %d", peerPort)
+	log.Printf("monitoringPort: %d", monitoringPort)
 	log.Printf("apiRPCPort: %d", apiRPCPort)
 	log.Printf("apiHTTPPort: %d", apiHTTPPort)
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
-	log.Printf("peerPort: %d", peerPort)
 	log.Printf("myAddress: %s", myAddress)
 }
 
@@ -218,13 +218,11 @@ func initLogInstance() {
 }
 
 func initP2pInstance() {
-
 	// init p2p instances
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {
 		loggerCoreService.Fatal("Initialize P2P Err : ", err.Error())
 	}
-
 	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// initialize peer client service
@@ -253,7 +251,6 @@ func initP2pInstance() {
 		peerExplorer,
 		loggerP2PService,
 	)
-
 }
 
 func initObserverListeners() {
@@ -267,7 +264,6 @@ func initObserverListeners() {
 }
 
 func startServices() {
-
 	p2pServiceInstance.StartP2P(
 		myAddress,
 		peerPort,
@@ -287,6 +283,20 @@ func startServices() {
 		nodeKeyFilePath,
 		loggerAPIService,
 	)
+
+	if isDebugMode {
+		go startNodeMonitoring()
+	}
+}
+
+func startNodeMonitoring() {
+	log.Infof("starting node monitoring at port:%d...", monitoringPort)
+	blocker.SetMonitoringActive(true)
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+	if err != nil {
+		panic(fmt.Sprintf("failed to start monitoring service: %s", err))
+	}
 }
 
 func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
@@ -351,7 +361,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		nodeRegistrationService,
 	)
 
-	initObserverListeners()
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
@@ -392,17 +401,30 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService,
 	)
 
-	// Schedulers Init
-	go func() {
-		mempoolJob := util.NewScheduler(constant.CheckMempoolExpiration)
-		err = mempoolJob.AddJob(mempoolService.DeleteExpiredMempoolTransactions)
-		if err != nil {
-			loggerCoreService.Error(err)
-		}
-	}()
 	go func() {
 		mainchainSynchronizer.Start(mainchainSyncChannel)
+
 	}()
+}
+
+// Scheduler Init
+func startScheduler() {
+	var (
+		mainchain               = &chaintype.MainChain{}
+		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
+	)
+	if err := schedulerInstance.AddJob(
+		constant.CheckMempoolExpiration,
+		mainchainMempoolService.DeleteExpiredMempoolTransactions,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
+	if err := schedulerInstance.AddJob(
+		constant.ReceiptGenerateMarkleRootPeriod,
+		receiptService.GenerateReceiptsMerkleRoot,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
 }
 
 func main() {
@@ -414,10 +436,13 @@ func main() {
 	if err := migration.Apply(); err != nil {
 		loggerCoreService.Fatal(err)
 	}
+
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain(mainchainSyncChannel)
 	startServices()
+	initObserverListeners()
+	startScheduler()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
