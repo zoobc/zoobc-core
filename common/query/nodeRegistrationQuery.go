@@ -258,7 +258,6 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 			WHERE (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY id
 			)`,
 				nrq.TableName,
