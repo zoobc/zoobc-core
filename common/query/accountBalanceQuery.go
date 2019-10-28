@@ -92,7 +92,8 @@ func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[
 
 func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (
 	str string, args []interface{}) {
-	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_address = ?",
+	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_address = ?"+
+		" AND latest = 1",
 		q.TableName, balance), []interface{}{causedFields["account_address"]}
 }
 

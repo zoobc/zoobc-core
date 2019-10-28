@@ -21,8 +21,8 @@ type (
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
-		GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string
-		GetNodeRegistrationsWithZeroScore(queued bool) string
+		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus uint32) string
+		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
@@ -47,7 +47,7 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 			"registration_height",
 			"node_address",
 			"locked_balance",
-			"queued",
+			"registration_status",
 			"latest",
 			"height",
 		},
@@ -100,8 +100,9 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size 
 // GetActiveNodeRegistrations
 func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
 	return fmt.Sprintf("SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
-		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE nr.latest = 1 AND nr.queued = 0 AND ps.score > 0 AND ps.latest = 1",
-		nrq.getTableName(), NewParticipationScoreQuery().TableName)
+		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE "+
+		"nr.registration_status = %d AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1",
+		nrq.getTableName(), NewParticipationScoreQuery().TableName, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
 // GetNodeRegistrationByID returns query string to get Node Registration by node public key
@@ -131,25 +132,15 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAdd
 }
 
 // GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
-// queued or not queued
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit uint32, queued bool) string {
-	var (
-		queuedInt int
-	)
-	if queued {
-		queuedInt = 1
-	} else {
-		queuedInt = 0
-	}
-	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND queued = %d AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName(), queuedInt, limit)
+// registration_status or not registration_status
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit, registrationStatus uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND registration_status = %d AND latest=1 "+
+		"ORDER BY locked_balance DESC LIMIT %d",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationStatus, limit)
 }
 
 // GetNodeRegistrationsWithZeroScore returns query string to get the list of Node Registrations with zero participation score
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(queued bool) string {
-	var (
-		queuedInt int
-	)
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string {
 	nrTable := nrq.getTableName()
 	nrTableAlias := "A"
 	psTable := NewParticipationScoreQuery().getTableName()
@@ -158,25 +149,21 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(queued bool)
 	for _, field := range nrq.Fields {
 		nrTableFields = append(nrTableFields, nrTableAlias+"."+field)
 	}
-	if queued {
-		queuedInt = 1
-	} else {
-		queuedInt = 0
-	}
 
 	return fmt.Sprintf("SELECT %s FROM "+nrTable+" as "+nrTableAlias+" "+
 		"INNER JOIN "+psTable+" as "+psTableAlias+" ON "+nrTableAlias+".id = "+psTableAlias+".node_id "+
 		"WHERE "+psTableAlias+".score = 0 "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=%d "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(nrTableFields, ", "),
-		queuedInt)
+		registrationStatus)
 }
 
 // GetNodeRegistryAtHeight returns unique latest node registry record at specific height
 func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND queued == 0 GROUP BY id ORDER BY height DESC",
+	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND registration_status = 0 "+
+		"GROUP BY id ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), height)
 }
 
@@ -190,7 +177,7 @@ func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []int
 		tx.RegistrationHeight,
 		nrq.ExtractNodeAddress(tx.GetNodeAddress()),
 		tx.LockedBalance,
-		tx.Queued,
+		tx.RegistrationStatus,
 		tx.Latest,
 		tx.Height,
 	}
@@ -224,7 +211,7 @@ func (nrq *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegi
 			&nr.RegistrationHeight,
 			&fullNodeAddress,
 			&nr.LockedBalance,
-			&nr.Queued,
+			&nr.RegistrationStatus,
 			&nr.Latest,
 			&nr.Height,
 		)
@@ -325,7 +312,7 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 		&nr.RegistrationHeight,
 		&stringAddress,
 		&nr.LockedBalance,
-		&nr.Queued,
+		&nr.RegistrationStatus,
 		&nr.Latest,
 		&nr.Height,
 	)
