@@ -10,7 +10,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -86,7 +85,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			uint32(constant.NodeRegistered),
+			uint32(model.NodeRegistrationState_NodeRegistered),
 			true,
 			uint32(1),
 		))
@@ -117,7 +116,7 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			uint32(constant.NodeRegistered),
+			uint32(model.NodeRegistrationState_NodeRegistered),
 			true,
 			uint32(1),
 		))
@@ -148,7 +147,7 @@ func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe strin
 			uint32(1),
 			"10.10.10.10",
 			int64(0),
-			uint32(constant.NodeDeleted),
+			uint32(model.NodeRegistrationState_NodeDeleted),
 			true,
 			uint32(1),
 		))

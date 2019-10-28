@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/observer"
@@ -42,7 +41,7 @@ var (
 			Address: "10.10.10.10",
 		},
 		LockedBalance:      100000000,
-		RegistrationStatus: uint32(constant.NodeQueued),
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 		Latest:             true,
 		Height:             100,
 	}
@@ -55,7 +54,7 @@ var (
 			Address: "10.10.10.10",
 		},
 		LockedBalance:      100000000,
-		RegistrationStatus: uint32(constant.NodeRegistered),
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 		Latest:             true,
 		Height:             200,
 	}
@@ -179,7 +178,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, constant.NodeQueued, true, 100))
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
 		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -193,7 +192,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, constant.NodeQueued, true, 100))
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, A.locked_balance, " +
 		"A.registration_status, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
 		"WHERE B.score = 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1":
@@ -208,7 +207,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, constant.NodeQueued, true, 100))
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
 		"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
 		"WHERE nr.registration_status = 0 AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1":
@@ -233,7 +232,8 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"height",
 			"max_height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, constant.NodeRegistered, true, 200, 200))
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000,
+			uint32(model.NodeRegistrationState_NodeRegistered), true, 200, 200))
 	default:
 		return nil, errors.New("InvalidQuery")
 	}
@@ -545,7 +545,7 @@ func TestNodeRegistrationService_GetNodeRegistrationByNodePublicKey(t *testing.T
 					Address: "10.10.10.10",
 				},
 				LockedBalance:      100000000,
-				RegistrationStatus: uint32(constant.NodeQueued),
+				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 				Latest:             true,
 				Height:             100,
 			},
@@ -616,7 +616,7 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 						Address: "10.10.10.10",
 					},
 					LockedBalance:      100000000,
-					RegistrationStatus: uint32(constant.NodeQueued),
+					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 					Latest:             true,
 					Height:             100,
 				},
@@ -691,7 +691,7 @@ func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
 						Address: "10.10.10.10",
 					},
 					LockedBalance:      100000000,
-					RegistrationStatus: uint32(constant.NodeRegistered),
+					RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 					Latest:             true,
 					Height:             200,
 				},

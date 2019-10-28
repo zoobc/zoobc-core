@@ -38,10 +38,10 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		nodeAccountAddress string
 	)
 	if tx.Height > 0 {
-		registrationStatus = constant.NodeQueued
+		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)
 		nodeAccountAddress = tx.SenderAddress
 	} else {
-		registrationStatus = constant.NodeRegistered
+		registrationStatus = uint32(model.NodeRegistrationState_NodeRegistered)
 		nodeAccountAddress = tx.Body.AccountAddress
 	}
 
@@ -73,7 +73,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		AccountAddress:     nodeAccountAddress,
 	}
 	if len(nodeRegistrations) > 0 {
-		if nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
+		if nodeRegistrations[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
 			queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 			queries = append(queries, accountBalanceSenderQ...)
 		} else {
@@ -206,7 +206,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != constant.NodeDeleted {
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 

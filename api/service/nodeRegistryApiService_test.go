@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -78,7 +77,7 @@ func (*mockQueryGetNodeRegistrationsSuccess) ExecuteSelect(qStr string, tx bool,
 					1,
 					"127.0.0.1",
 					1,
-					constant.NodeQueued,
+					uint32(model.NodeRegistrationState_NodeQueued),
 					true,
 					1,
 				),
@@ -123,7 +122,7 @@ func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
 							Address: "127.0.0.1",
 						},
 						LockedBalance:      1,
-						RegistrationStatus: constant.NodeQueued,
+						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 						Latest:             true,
 						Height:             1,
 					},
@@ -186,7 +185,7 @@ func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, args .
 			1,
 			"127.0.0.1",
 			1,
-			constant.NodeQueued,
+			uint32(model.NodeRegistrationState_NodeQueued),
 			true,
 			1,
 		))
@@ -232,7 +231,7 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 						Address: "127.0.0.1",
 					},
 					LockedBalance:      1,
-					RegistrationStatus: uint32(constant.NodeQueued),
+					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 					Latest:             true,
 					Height:             1,
 				},

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -20,7 +19,7 @@ var (
 		RegistrationHeight: 1,
 		NodeAddress:        mockNodeAddress,
 		LockedBalance:      10000,
-		RegistrationStatus: constant.NodeQueued,
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 		Latest:             true,
 		Height:             0,
 	}
@@ -293,7 +292,7 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 
 func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *testing.T) {
 	t.Run("GetNodeRegistrationsByHighestLockedBalance", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(2, constant.NodeQueued)
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(2, uint32(model.NodeRegistrationState_NodeQueued))
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, " +
 			"locked_balance, registration_status, latest, height FROM node_registry WHERE locked_balance > 0 " +
 			"AND registration_status = 1 AND latest=1 ORDER BY locked_balance DESC LIMIT 2"
@@ -305,7 +304,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *tes
 
 func TestNodeRegistrationQuery_GetNodeRegistrationsWithZeroScore(t *testing.T) {
 	t.Run("GetNodeRegistrationsWithZeroScore", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(constant.NodeRegistered)
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(uint32(model.NodeRegistrationState_NodeRegistered))
 		want := "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, " +
 			"A.locked_balance, A.registration_status, A.latest, A.height FROM node_registry as A " +
 			"INNER JOIN participation_score as B ON A.id = B.node_id WHERE B.score = 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1"
@@ -346,7 +345,7 @@ func (*mockQueryExecutorScan) ExecuteSelectRow(qStr string, args ...interface{})
 			1,
 			"127.0.0.1:8000",
 			10000,
-			constant.NodeQueued,
+			uint32(model.NodeRegistrationState_NodeQueued),
 			true,
 			0,
 		),
@@ -386,7 +385,7 @@ func TestNodeRegistrationQuery_Scan(t *testing.T) {
 				RegistrationHeight: 1,
 				NodeAddress:        mockNodeAddress,
 				LockedBalance:      10000,
-				RegistrationStatus: constant.NodeQueued,
+				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 				Latest:             true,
 				Height:             0,
 			},

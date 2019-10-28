@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -127,7 +126,7 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(account
 		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
-		accountAddress, constant.NodeRegistered)
+		accountAddress, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
 func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
@@ -147,7 +146,7 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
-		constant.NodeRegistered,
+		uint32(model.NodeRegistrationState_NodeRegistered),
 	), []interface{}{nodePublicKey}
 }
 

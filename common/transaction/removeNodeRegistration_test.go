@@ -172,7 +172,7 @@ func (*mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted) Execute
 			1,
 			"10.10.10.10",
 			1,
-			constant.NodeDeleted,
+			uint32(model.NodeRegistrationState_NodeDeleted),
 			1,
 			1,
 		))

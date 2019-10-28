@@ -177,7 +177,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 		1,
 		"127.0.0.1",
 		1000000,
-		uint32(constant.NodeRegistered),
+		uint32(model.NodeRegistrationState_NodeRegistered),
 		true,
 		1,
 	))
@@ -224,7 +224,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(q
 		1,
 		"127.0.0.1",
 		1000000,
-		uint32(constant.NodeDeleted),
+		uint32(model.NodeRegistrationState_NodeDeleted),
 		true,
 		1,
 	))
@@ -394,7 +394,7 @@ func (*mockApplyConfirmedFailNodeAlreadyInRegistry) ExecuteSelect(qe string, tx 
 			100,
 			"10.10.10.1",
 			10000000000,
-			constant.NodeQueued,
+			uint32(model.NodeRegistrationState_NodeQueued),
 			true,
 			110,
 		))

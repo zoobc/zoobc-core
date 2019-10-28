@@ -51,7 +51,7 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		RegistrationStatus: constant.NodeDeleted,
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeDeleted),
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
 		AccountAddress: prevNodeRegistration.AccountAddress,
@@ -138,7 +138,7 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 		// public key must be already registered
 		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
 	}
-	if nodeRegistrations[0].RegistrationStatus == constant.NodeDeleted {
+	if nodeRegistrations[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted")
 	}
 

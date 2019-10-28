@@ -52,7 +52,7 @@ func NewNodeRegistrationService(
 
 // SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, constant.NodeQueued)
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, uint32(model.NodeRegistrationState_NodeQueued))
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 }
 
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(constant.NodeRegistered)
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(uint32(model.NodeRegistrationState_NodeRegistered))
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 	}
 	// prepare all node registrations to be updated (set registrationStatus to 0 and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
-		nodeRegistration.RegistrationStatus = constant.NodeRegistered
+		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeRegistered)
 		nodeRegistration.Height = height
 		// update the node registry (set registrationStatus to zero)
 		queries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
@@ -151,7 +151,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 
 	for _, nodeRegistration := range nodeRegistrations {
 		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
-		nodeRegistration.RegistrationStatus = constant.NodeDeleted
+		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
 		nodeRegistration.LockedBalance = 0
 		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		// return lockedbalance to the node's owner account
