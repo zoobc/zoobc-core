@@ -2,6 +2,8 @@ package util
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -10,11 +12,9 @@ import (
 LoadConfig must be called at first time while start the app
 */
 func LoadConfig(path, name, extension string) error {
-
 	if len(path) < 1 || len(name) < 1 || len(extension) < 1 {
 		return fmt.Errorf("path and extension cannot be nil")
 	}
-
 	viper.SetDefault("dbName", "spinechain.db")
 	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("apiRPCPort", 8080)
@@ -28,7 +28,19 @@ func LoadConfig(path, name, extension string) error {
 	if err := viper.ReadInConfig(); err != nil {
 		return err
 	}
-
 	return nil
+}
 
+func OverrideConfigKey(envKey, cfgFileKey string) {
+	strValue, exists := os.LookupEnv(envKey)
+	if exists {
+		viper.Set(cfgFileKey, strValue)
+	}
+}
+func OverrideConfigKeyArray(envKey, cfgFileKey string) {
+	strValue, exists := os.LookupEnv(envKey)
+	if exists {
+		ary := strings.Split(strValue, ",")
+		viper.Set(cfgFileKey, ary)
+	}
 }

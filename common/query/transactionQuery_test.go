@@ -273,7 +273,8 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{blockID: int64(1)},
-			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ?",
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ? ORDER BY "+
+				"transaction_index ASC",
 				strings.Join(mockTransactionQuery.Fields, ", "),
 			),
 			wantArgs: []interface{}{int64(1)},

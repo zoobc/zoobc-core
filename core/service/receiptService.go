@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 
@@ -18,27 +19,32 @@ type (
 		SelectReceipts(
 			blockTimestamp int64, numberOfReceipt int, lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
+		GenerateReceiptsMerkleRoot() error
 	}
 
 	ReceiptService struct {
-		ReceiptQuery    query.ReceiptQueryInterface
-		MerkleTreeQuery query.MerkleTreeQueryInterface
-		KVExecutor      kvdb.KVExecutorInterface
-		QueryExecutor   query.ExecutorInterface
+		ReceiptQuery      query.ReceiptQueryInterface
+		BatchReceiptQuery query.BatchReceiptQueryInterface
+		MerkleTreeQuery   query.MerkleTreeQueryInterface
+		KVExecutor        kvdb.KVExecutorInterface
+		QueryExecutor     query.ExecutorInterface
 	}
 )
 
 func NewReceiptService(
 	receiptQuery query.ReceiptQueryInterface,
+	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
+
 ) *ReceiptService {
 	return &ReceiptService{
-		ReceiptQuery:    receiptQuery,
-		MerkleTreeQuery: merkleTreeQuery,
-		KVExecutor:      kvExecutor,
-		QueryExecutor:   queryExecutor,
+		ReceiptQuery:      receiptQuery,
+		BatchReceiptQuery: batchReceiptQuery,
+		MerkleTreeQuery:   merkleTreeQuery,
+		KVExecutor:        kvExecutor,
+		QueryExecutor:     queryExecutor,
 	}
 }
 
@@ -160,4 +166,88 @@ func (rs *ReceiptService) SelectReceipts(
 		}
 	}
 	return results, nil
+}
+
+// GenerateReceiptsMerkleRoot generate merkle root of some bacth recipts
+// generating will do when number of collected receipts(batch receipts) already same with number of required
+func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
+	var (
+		err            error
+		count          uint32
+		queries        [][]interface{}
+		batchReceipts  []*model.BatchReceipt
+		receipt        *model.Receipt
+		hashedReceipts []*bytes.Buffer
+		merkleRoot     util.MerkleRoot
+	)
+	countBatchReceiptQ := query.GetTotalRecordOfSelect(
+		rs.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0),
+	)
+	err = rs.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count >= constant.ReceiptBatchMaximum {
+		getBatchReceiptsQ := rs.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
+		rows, err := rs.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		queries = make([][]interface{}, (constant.ReceiptBatchMaximum*2)+1)
+		batchReceipts = rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
+
+		for _, b := range batchReceipts {
+			// hash the receipts
+			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
+			hashedReceipts = append(
+				hashedReceipts,
+				bytes.NewBuffer(hashedBatchReceipt[:]),
+			)
+		}
+		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
+		if err != nil {
+			return err
+		}
+		rootMerkle, treeMerkle := merkleRoot.ToBytes()
+
+		for k, r := range batchReceipts {
+			var (
+				br       = r
+				rmrIndex = uint32(k)
+			)
+
+			receipt = &model.Receipt{
+				BatchReceipt: br,
+				RMR:          rootMerkle,
+				RMRIndex:     rmrIndex,
+			}
+			insertReceiptQ, insertReceiptArgs := rs.ReceiptQuery.InsertReceipt(receipt)
+			queries[k] = append([]interface{}{insertReceiptQ}, insertReceiptArgs...)
+			removeBatchReceiptQ, removeBatchReceiptArgs := rs.BatchReceiptQuery.RemoveBatchReceipt(br.DatumType, br.DatumHash)
+			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
+		}
+
+		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
+		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
+
+		err = rs.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		err = rs.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			_ = rs.QueryExecutor.RollbackTx()
+			return err
+		}
+		err = rs.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+	return nil
 }

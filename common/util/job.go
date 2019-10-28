@@ -8,40 +8,51 @@ import (
 
 type (
 	Scheduler struct {
-		Wait *time.Ticker
+		Done         chan bool
+		NumberOfJobs int
 	}
 )
 
 // NewScheduler return new scheduler instance
-func NewScheduler(period time.Duration) *Scheduler {
+func NewScheduler() *Scheduler {
 	return &Scheduler{
-		Wait: time.NewTicker(period),
+		Done: make(chan bool),
 	}
 }
 
-// AddJob task runner repeatably in some period time
-func (s *Scheduler) AddJob(fn interface{}, args ...interface{}) error {
-
-	f := reflect.ValueOf(fn)
-	if f.Kind() != reflect.Func {
+// AddJob adding new job in scheduler
+func (s *Scheduler) AddJob(period time.Duration, fn interface{}, args ...interface{}) error {
+	var (
+		jobFunction = reflect.ValueOf(fn)
+		jobParams   = make([]reflect.Value, len(args))
+	)
+	if jobFunction.Kind() != reflect.Func {
 		return fmt.Errorf("the fn is not function")
 	}
-	if len(args) != f.Type().NumIn() {
-		return fmt.Errorf("the argument of function not match, %d needed", f.Type().NumIn())
+	if len(args) != jobFunction.Type().NumIn() {
+		return fmt.Errorf("the argument of function not match, %d needed", jobFunction.Type().NumIn())
 	}
-
-	params := make([]reflect.Value, len(args))
 	for k, arg := range args {
-		params[k] = reflect.ValueOf(arg)
+		jobParams[k] = reflect.ValueOf(arg)
 	}
 
-	for {
-		<-s.Wait.C
-		f.Call(params)
-	}
+	go func() {
+		for {
+			select {
+			case <-s.Done:
+				return
+			case <-time.NewTicker(period).C:
+				jobFunction.Call(jobParams)
+			}
+		}
+	}()
+	s.NumberOfJobs++
+	return nil
 }
 
 // Stop handle to stop scheduler
 func (s *Scheduler) Stop() {
-	s.Wait.Stop()
+	for stopped := 0; stopped < s.NumberOfJobs; stopped++ {
+		s.Done <- true
+	}
 }
