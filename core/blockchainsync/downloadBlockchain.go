@@ -189,6 +189,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	var (
 		peersTobeDeactivated []*model.Peer
 		peersSlice           []*model.Peer
+		forkBlocks           []*model.Block
 	)
 	segSize := constant.BlockDownloadSegSize
 
@@ -248,8 +249,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		bd.PeerExplorer.DisconnectPeer(peer)
 	}
 
-	forkBlocks := []*model.Block{}
-	for _, block := range blocksToBeProcessed {
+	for idx, block := range blocksToBeProcessed {
 		if block.Height == 0 {
 			continue
 		}
@@ -277,7 +277,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				break
 			}
 		} else {
-			forkBlocks = append(forkBlocks, block)
+			forkBlocks = blocksToBeProcessed[idx:]
+			break
 		}
 	}
 
