@@ -325,77 +325,74 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		return err
 	}
 	// apply transactions and remove them from mempool
-	transactions := block.GetTransactions()
-	if len(transactions) > 0 {
-		for index, tx := range block.GetTransactions() {
-			// assign block id and block height to tx
-			tx.BlockID = block.ID
-			tx.Height = block.Height
-			tx.TransactionIndex = uint32(index) + 1
-			// validate tx here
-			// check if is in mempool : if yes, undo unconfirmed
-			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
-			if err != nil {
-				rows.Close()
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
-			}
-			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
-			if err != nil {
-				rows.Close()
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
-			}
-			if rows.Next() {
-				// undo unconfirmed
-				err = txType.UndoApplyUnconfirmed()
-				if err != nil {
-					rows.Close()
-					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						bs.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-			}
+	for index, tx := range block.GetTransactions() {
+		// assign block id and block height to tx
+		tx.BlockID = block.ID
+		tx.Height = block.Height
+		tx.TransactionIndex = uint32(index) + 1
+		// validate tx here
+		// check if is in mempool : if yes, undo unconfirmed
+		rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
+		if err != nil {
 			rows.Close()
-			if block.Height > 0 {
-				err = txType.Validate(true)
-				if err != nil {
-					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						bs.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
 			}
-			// validate tx body and apply/perform transaction-specific logic
-			err = txType.ApplyConfirmed()
-			if err == nil {
-				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
-				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
-				if err != nil {
-					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						bs.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-			} else {
+			return err
+		}
+		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			rows.Close()
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+		if rows.Next() {
+			// undo unconfirmed
+			err = txType.UndoApplyUnconfirmed()
+			if err != nil {
+				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				return err
 			}
 		}
-		if block.Height != 0 {
-			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
+		rows.Close()
+		if block.Height > 0 {
+			err = txType.Validate(true)
+			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				return err
 			}
+		}
+		// validate tx body and apply/perform transaction-specific logic
+		err = txType.ApplyConfirmed()
+		if err == nil {
+			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
+			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+		} else {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
+	if block.Height != 0 {
+		if err := bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
 		}
 	}
 	linkedCount, err := bs.processPublishedReceipts(block)
