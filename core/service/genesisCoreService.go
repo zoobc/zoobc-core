@@ -14,7 +14,10 @@ import (
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
-func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []constant.MainchainGenesisConfigEntry) ([]*model.Transaction, error) {
+func GetGenesisTransactions(
+	chainType chaintype.ChainType,
+	genesisEntries []constant.MainchainGenesisConfigEntry,
+) ([]*model.Transaction, error) {
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
@@ -71,8 +74,12 @@ func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []cons
 }
 
 // GetGenesisNodeRegistrationTx given a genesisEntry, returns a nodeRegistrationTransaction for genesis block
-func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBalance int64, nodePublicKey []byte) (*model.Transaction, error) {
-
+func GetGenesisNodeRegistrationTx(
+	accountAddress,
+	nodeAddress string,
+	lockedBalance int64,
+	nodePublicKey []byte,
+) (*model.Transaction, error) {
 	// generate a dummy proof of ownership (avoiding to add conditions to tx parsebytes, for genesis block only)
 	poownMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: accountAddress,
