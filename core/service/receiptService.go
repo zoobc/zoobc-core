@@ -65,13 +65,13 @@ func (rs *ReceiptService) SelectReceipts(
 		lowerBlockHeight = lastBlockHeight - constant.ReceiptNumberOfBlockToPick
 	}
 	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(lowerBlockHeight, lastBlockHeight, uint32(numberOfReceipt))
-	rows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
+	linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer linkedTreeRows.Close()
 
-	linkedReceiptTree, err := rs.MerkleTreeQuery.BuildTree(rows)
+	linkedReceiptTree, err := rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +137,13 @@ func (rs *ReceiptService) SelectReceipts(
 		var receipts []*model.Receipt
 		// look up rmr in table | todo: randomize selection
 		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0, true)
-		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+		uniqueReceiptRows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
+		defer uniqueReceiptRows.Close()
 
-		receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+		receipts, err = rs.ReceiptQuery.BuildModel(receipts, uniqueReceiptRows)
 		if err != nil {
 			return nil, err
 		}
@@ -163,13 +163,13 @@ func (rs *ReceiptService) SelectReceipts(
 		var receipts []*model.Receipt
 		// look up rmr in table | todo: randomize selection
 		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0, false)
-		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+		uniqueReceiptRandRows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
+		defer uniqueReceiptRandRows.Close()
 
-		receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+		receipts, err = rs.ReceiptQuery.BuildModel(receipts, uniqueReceiptRandRows)
 		if err != nil {
 			return nil, err
 		}
