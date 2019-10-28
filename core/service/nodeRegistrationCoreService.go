@@ -6,7 +6,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -18,7 +17,7 @@ type (
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
-		NodeRegistryListener() observer.Listener
+		GetNodeAdmittanceCycle() uint32
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -27,9 +26,8 @@ type (
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		// mockable variables
-		NodeAdmittanceCycle uint32
-		Logger              *log.Logger
+		NodeAdmittanceCycle     uint32
+		Logger                  *log.Logger
 	}
 )
 
@@ -58,10 +56,15 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if err != nil {
+		return nil, err
+	}
 	return nodeRegistrations, nil
 }
 
+// SelectNodesToBeExpelled Select n (=limit) registered nodes with participation score = 0
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
@@ -69,7 +72,11 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if err != nil {
+		return nil, err
+	}
 	return nodeRegistrations, nil
 }
 
@@ -80,8 +87,8 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if len(nodeRegistrations) == 0 {
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
 	}
 
@@ -94,8 +101,9 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistrations := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if len(nodeRegistrations) == 0 {
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
 	}
 
@@ -179,39 +187,10 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	return nil
 }
 
-// NodeRegistryListener handle node admission/expulsion after a block is pushed, at regular interval
-func (nrs *NodeRegistrationService) NodeRegistryListener() observer.Listener {
-	return observer.Listener{
-		OnNotify: func(block interface{}, args interface{}) {
-			pushedBlock := block.(*model.Block)
-			if pushedBlock.Height > 0 && pushedBlock.Height%nrs.NodeAdmittanceCycle != 0 {
-				return
-			}
-			nodeRegistrations, err := nrs.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
-			if err != nil {
-				log.Errorf("Can't get list of nodes from node registry: %s", err)
-				return
-			}
-			if len(nodeRegistrations) > 0 {
-				err = nrs.AdmitNodes(nodeRegistrations, pushedBlock.Height)
-				if err != nil {
-					log.Errorf("Can't admit nodes to registry: %s", err)
-					return
-				}
-			}
-			// expel nodes with zero score from node registry
-			nodeRegistrations, err = nrs.SelectNodesToBeExpelled()
-			if err != nil {
-				log.Errorf("Can't get list of nodes from node registry: %s", err)
-				return
-			}
-			if len(nodeRegistrations) > 0 {
-				err = nrs.ExpelNodes(nodeRegistrations, pushedBlock.Height)
-				if err != nil {
-					log.Errorf("Can't expel nodes from registry: %s", err)
-					return
-				}
-			}
-		},
+// GetNodeAdmittanceCycle get the offset, in number of blocks, when we accept and expel nodes from registry
+func (nrs *NodeRegistrationService) GetNodeAdmittanceCycle() uint32 {
+	if nrs.NodeAdmittanceCycle == 0 {
+		return constant.NodeAdmittanceCycle
 	}
+	return nrs.NodeAdmittanceCycle
 }

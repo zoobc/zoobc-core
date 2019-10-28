@@ -16,7 +16,7 @@ type (
 		GetTransactions(limit uint32, offset uint64) string
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
-		BuildModel(txs []*model.Transaction, rows *sql.Rows) []*model.Transaction
+		BuildModel(txs []*model.Transaction, rows *sql.Rows) ([]*model.Transaction, error)
 		DeleteTransactions(id int64) string
 		Scan(tx *model.Transaction, row *sql.Row) error
 	}
@@ -122,10 +122,13 @@ func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 	}
 }
 
-func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []*model.Transaction {
+func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) ([]*model.Transaction, error) {
 	for rows.Next() {
-		var tx model.Transaction
-		_ = rows.Scan(
+		var (
+			tx  model.Transaction
+			err error
+		)
+		err = rows.Scan(
 			&tx.ID,
 			&tx.BlockID,
 			&tx.Height,
@@ -141,9 +144,12 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) []
 			&tx.Version,
 			&tx.TransactionIndex,
 		)
+		if err != nil {
+			return nil, err
+		}
 		txs = append(txs, &tx)
 	}
-	return txs
+	return txs, nil
 }
 
 func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {

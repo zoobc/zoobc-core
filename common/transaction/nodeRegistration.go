@@ -59,7 +59,11 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		return err
 	}
 	defer nodeRow.Close()
-	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if err != nil {
+		return err
+	}
 	// if a node with this public key has been previously deleted, update its owner to the new registerer
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
@@ -203,7 +207,11 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer nodeRow.Close()
-	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if err != nil {
+		return err
+	}
 	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
 	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
