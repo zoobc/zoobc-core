@@ -1,20 +1,14 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"time"
-
-	"golang.org/x/crypto/sha3"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
-	"github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -341,15 +335,8 @@ func (psc PeerServiceClient) GetNextBlocks(
 // storeReceipt function will decide to storing receipt into node_receipt or batch_receipt
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
-
 	var (
-		err            error
-		count          uint32
-		queries        [][]interface{}
-		batchReceipts  []*model.BatchReceipt
-		receipt        *model.Receipt
-		hashedReceipts []*bytes.Buffer
-		merkleRoot     util.MerkleRoot
+		err error
 	)
 
 	psc.Logger.Info("Insert Batch Receipt")
@@ -358,78 +345,5 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 	if err != nil {
 		return err
 	}
-
-	countBatchReceiptQ := query.GetTotalRecordOfSelect(
-		psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0),
-	)
-	err = psc.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
-	if err != nil {
-		return err
-	}
-	psc.Logger.Info("Count Batch Receipts: ", count)
-
-	if count >= constant.ReceiptBatchMaximum {
-		psc.Logger.Info("Start Store Batch To Receipt: ", count)
-		getBatchReceiptsQ := psc.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
-		rows, err := psc.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		queries = make([][]interface{}, (constant.ReceiptBatchMaximum*2)+1)
-		batchReceipts = psc.BatchReceiptQuery.BuildModel(batchReceipts, rows)
-
-		for _, b := range batchReceipts {
-			// hash the receipts
-			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
-			hashedReceipts = append(
-				hashedReceipts,
-				bytes.NewBuffer(hashedBatchReceipt[:]),
-			)
-		}
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
-		if err != nil {
-			return err
-		}
-		rootMerkle, treeMerkle := merkleRoot.ToBytes()
-
-		for k, r := range batchReceipts {
-			var (
-				br       = r
-				rmrIndex = uint32(k)
-			)
-
-			receipt = &model.Receipt{
-				BatchReceipt: br,
-				RMR:          rootMerkle,
-				RMRIndex:     rmrIndex,
-			}
-			insertReceiptQ, insertReceiptArgs := psc.ReceiptQuery.InsertReceipt(receipt)
-			queries[k] = append([]interface{}{insertReceiptQ}, insertReceiptArgs...)
-			removeBatchReceiptQ, removeBatchReceiptArgs := psc.BatchReceiptQuery.RemoveBatchReceipt(br.DatumType, br.DatumHash)
-			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
-		}
-
-		insertMerkleTreeQ, insertMerkleTreeArgs := psc.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
-		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
-
-		err = psc.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = psc.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = psc.QueryExecutor.RollbackTx()
-			return err
-		}
-		err = psc.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
 	return nil
 }
