@@ -22,7 +22,7 @@ type (
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
-		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance
+		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error)
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
 	}
 )
@@ -119,19 +119,26 @@ func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interf
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance {
+func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error) {
 	for rows.Next() {
-		var accountBalance model.AccountBalance
-		_ = rows.Scan(
+		var (
+			accountBalance model.AccountBalance
+			err            error
+		)
+		err = rows.Scan(
 			&accountBalance.AccountAddress,
 			&accountBalance.BlockHeight,
 			&accountBalance.SpendableBalance,
 			&accountBalance.Balance,
 			&accountBalance.PopRevenue,
-			&accountBalance.Latest)
+			&accountBalance.Latest,
+		)
+		if err != nil {
+			return nil, err
+		}
 		accountBalances = append(accountBalances, &accountBalance)
 	}
-	return accountBalances
+	return accountBalances, nil
 }
 
 // Scan similar with `sql.Scan`

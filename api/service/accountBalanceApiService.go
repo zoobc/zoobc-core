@@ -39,7 +39,10 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 	}
 	defer rows.Close()
 
-	accountBalances = abs.AccountBalanceQuery.BuildModel(accountBalances, rows)
+	accountBalances, err = abs.AccountBalanceQuery.BuildModel(accountBalances, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	if len(accountBalances) == 0 {
 		return nil, status.Error(codes.NotFound, "account not found")

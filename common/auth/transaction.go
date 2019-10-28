@@ -45,7 +45,10 @@ func ValidateTransaction(
 		return err
 	}
 	defer rows.Close()
-	res := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	if err != nil {
+		return err
+	}
 	if len(res) == 0 {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,

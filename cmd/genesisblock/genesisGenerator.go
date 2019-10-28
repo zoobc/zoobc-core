@@ -204,7 +204,10 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		return nil, err
 	}
 	defer rows.Close()
-	accountBalances := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	accountBalances, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	if err != nil {
+		return nil, err
+	}
 	for _, acc := range accountBalances {
 		if acc.AccountAddress == constant.MainchainGenesisAccountAddress {
 			continue
@@ -220,6 +223,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			return nil, err
 		}
 		defer rows.Close()
+
 		nodeRegistrations := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
@@ -238,6 +242,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 				return nil, err
 			}
 			defer rows.Close()
+
 			participationScores := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
 			if len(participationScores) > 0 {
 				bcEntry.ParticipationScore = participationScores[0].Score
@@ -257,7 +262,11 @@ func generateGenesisFile(genesisEntries []genesisEntry, newGenesisFilePath strin
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
-	os.Remove(newGenesisFilePath)
+	err = os.Remove(newGenesisFilePath)
+	if err != nil {
+		log.Printf("remove %s file: %s\n", newGenesisFilePath, err)
+		return
+	}
 	f, err := os.Create(newGenesisFilePath)
 	if err != nil {
 		log.Printf("create %s file: %s\n", newGenesisFilePath, err)
