@@ -6,21 +6,19 @@ import (
 	"sort"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
-	"github.com/zoobc/zoobc-core/common/auth"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"golang.org/x/crypto/sha3"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -96,8 +94,12 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 		return nil, err
 	}
 	defer rows.Close()
+
 	var mempoolTransactions []*model.MempoolTransaction
-	mempoolTransactions = mps.MempoolQuery.BuildModel(mempoolTransactions, rows)
+	mempoolTransactions, err = mps.MempoolQuery.BuildModel(mempoolTransactions, rows)
+	if err != nil {
+		return nil, err
+	}
 	return mempoolTransactions, nil
 }
 
@@ -110,8 +112,12 @@ func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransa
 		}, err
 	}
 	defer rows.Close()
+
 	var mpTx []*model.MempoolTransaction
-	mpTx = mps.MempoolQuery.BuildModel(mpTx, rows)
+	mpTx, err = mps.MempoolQuery.BuildModel(mpTx, rows)
+	if err != nil {
+		return nil, err
+	}
 	if len(mpTx) > 0 {
 		return mpTx[0], nil
 	}
@@ -414,7 +420,10 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	}
 	defer rows.Close()
 
-	mempools = mps.MempoolQuery.BuildModel(mempools, rows)
+	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
+	if err != nil {
+		return err
+	}
 
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {

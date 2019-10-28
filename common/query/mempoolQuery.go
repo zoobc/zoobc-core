@@ -19,7 +19,7 @@ type (
 		DeleteExpiredMempoolTransactions(expiration int64) string
 		GetExpiredMempoolTransactions(expiration int64) string
 		ExtractModel(block *model.MempoolTransaction) []interface{}
-		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction
+		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) ([]*model.MempoolTransaction, error)
 		Scan(mempool *model.MempoolTransaction, row *sql.Row) error
 	}
 
@@ -114,10 +114,13 @@ func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) []*model.MempoolTransaction {
+func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) ([]*model.MempoolTransaction, error) {
 	for rows.Next() {
-		var mempool model.MempoolTransaction
-		_ = rows.Scan(
+		var (
+			mempool model.MempoolTransaction
+			err     error
+		)
+		err = rows.Scan(
 			&mempool.ID,
 			&mempool.FeePerByte,
 			&mempool.ArrivalTimestamp,
@@ -125,9 +128,12 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 			&mempool.SenderAccountAddress,
 			&mempool.RecipientAccountAddress,
 		)
+		if err != nil {
+			return nil, err
+		}
 		mempools = append(mempools, &mempool)
 	}
-	return mempools
+	return mempools, nil
 }
 
 // Scan similar with `sql.Scan`

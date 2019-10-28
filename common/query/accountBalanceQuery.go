@@ -22,7 +22,7 @@ type (
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
-		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance
+		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error)
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
 	}
 )
@@ -92,7 +92,8 @@ func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[
 
 func (q *AccountBalanceQuery) AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (
 	str string, args []interface{}) {
-	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_address = ?",
+	return fmt.Sprintf("UPDATE %s SET spendable_balance = spendable_balance + (%d) WHERE account_address = ?"+
+		" AND latest = 1",
 		q.TableName, balance), []interface{}{causedFields["account_address"]}
 }
 
@@ -118,19 +119,26 @@ func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interf
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) []*model.AccountBalance {
+func (*AccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error) {
 	for rows.Next() {
-		var accountBalance model.AccountBalance
-		_ = rows.Scan(
+		var (
+			accountBalance model.AccountBalance
+			err            error
+		)
+		err = rows.Scan(
 			&accountBalance.AccountAddress,
 			&accountBalance.BlockHeight,
 			&accountBalance.SpendableBalance,
 			&accountBalance.Balance,
 			&accountBalance.PopRevenue,
-			&accountBalance.Latest)
+			&accountBalance.Latest,
+		)
+		if err != nil {
+			return nil, err
+		}
 		accountBalances = append(accountBalances, &accountBalance)
 	}
-	return accountBalances
+	return accountBalances, nil
 }
 
 // Scan similar with `sql.Scan`
@@ -160,7 +168,6 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY account_address
 			)`,
 				q.TableName,

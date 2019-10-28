@@ -8,15 +8,16 @@ nodeKeyFile = "node_keys_2.json"
 # Peer
 peerPort=8002
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3002
 apiHTTPPort=3032
+monitoringPort=9092
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH"
 
-smithing=true
+# smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 logLevels=["warn", "fatal", "error", "panic"]

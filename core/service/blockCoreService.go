@@ -12,14 +12,12 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger"
-
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -54,6 +52,7 @@ type (
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
+		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		GenerateGenesisBlock(genesisEntries []constant.MainchainGenesisConfigEntry) (*model.Block, error)
@@ -90,6 +89,7 @@ type (
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ReceiptService          ReceiptServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -112,6 +112,7 @@ func NewBlockService(
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
+	nodeRegistrationService NodeRegistrationServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -132,6 +133,7 @@ func NewBlockService(
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ReceiptService:          receiptService,
+		NodeRegistrationService: nodeRegistrationService,
 		ActionTypeSwitcher:      txTypeSwitcher,
 		AccountBalanceQuery:     accountBalanceQuery,
 		ParticipationScoreQuery: participationScoreQuery,
@@ -299,11 +301,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	if needLock {
 		bs.Wait()
 	}
-	if previousBlock.GetID() != -1 && block.CumulativeDifficulty == "" && block.SmithScale == 0 {
+
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		block = coreUtil.CalculateSmithScale(
+		block, err = coreUtil.CalculateSmithScale(
 			previousBlock, block, bs.Chaintype.GetSmithingPeriod(), bs.BlockQuery, bs.QueryExecutor,
 		)
+		if err != nil {
+			return err
+		}
 	}
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()
@@ -319,77 +325,74 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		return err
 	}
 	// apply transactions and remove them from mempool
-	transactions := block.GetTransactions()
-	if len(transactions) > 0 {
-		for index, tx := range block.GetTransactions() {
-			// assign block id and block height to tx
-			tx.BlockID = block.ID
-			tx.Height = block.Height
-			tx.TransactionIndex = uint32(index) + 1
-			// validate tx here
-			// check if is in mempool : if yes, undo unconfirmed
-			rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
-			if err != nil {
-				rows.Close()
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
-			}
-			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
-			if err != nil {
-				rows.Close()
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
-			}
-			if rows.Next() {
-				// undo unconfirmed
-				err = txType.UndoApplyUnconfirmed()
-				if err != nil {
-					rows.Close()
-					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						bs.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-			}
+	for index, tx := range block.GetTransactions() {
+		// assign block id and block height to tx
+		tx.BlockID = block.ID
+		tx.Height = block.Height
+		tx.TransactionIndex = uint32(index) + 1
+		// validate tx here
+		// check if is in mempool : if yes, undo unconfirmed
+		rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
+		if err != nil {
 			rows.Close()
-			if block.Height > 0 {
-				err = txType.Validate(true)
-				if err != nil {
-					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						bs.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
 			}
-			// validate tx body and apply/perform transaction-specific logic
-			err = txType.ApplyConfirmed()
-			if err == nil {
-				transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
-				err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
-				if err != nil {
-					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						bs.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-			} else {
+			return err
+		}
+		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			rows.Close()
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+		if rows.Next() {
+			// undo unconfirmed
+			err = txType.UndoApplyUnconfirmed()
+			if err != nil {
+				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				return err
 			}
 		}
-		if block.Height != 0 {
-			if err := bs.RemoveMempoolTransactions(transactions); err != nil {
+		rows.Close()
+		if block.Height > 0 {
+			err = txType.Validate(true)
+			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				return err
 			}
+		}
+		// validate tx body and apply/perform transaction-specific logic
+		err = txType.ApplyConfirmed()
+		if err == nil {
+			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
+			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+		} else {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
+	if block.Height != 0 {
+		if err := bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
 		}
 	}
 	linkedCount, err := bs.processPublishedReceipts(block)
@@ -453,6 +456,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 			return err
 		}
 	}
+
+	// admit/expel nodes from registry at genesis and regular intervals
+	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
+		if err := bs.updateNodeRegistry(block); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -462,6 +476,31 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	return nil
+}
+
+func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
+	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
+	if err != nil {
+		return err
+	}
+	if len(nodeRegistrations) > 0 {
+		err = bs.NodeRegistrationService.AdmitNodes(nodeRegistrations, block.Height)
+		if err != nil {
+			return err
+		}
+	}
+	// expel nodes with zero score from node registry
+	nodeRegistrations, err = bs.NodeRegistrationService.SelectNodesToBeExpelled()
+	if err != nil {
+		return err
+	}
+	if len(nodeRegistrations) > 0 {
+		err = bs.NodeRegistrationService.ExpelNodes(nodeRegistrations, block.Height)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -579,8 +618,8 @@ func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		nr := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if len(nr) == 0 {
+		nr, err := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if (err != nil) || len(nr) == 0 {
 			rows.Close()
 			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
 		}
@@ -630,7 +669,11 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}
@@ -650,7 +693,11 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 	if err != nil {
 		return []*model.Block{}, err
 	}
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	return blocks, nil
 }
 
@@ -668,7 +715,11 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	if len(blocks) > 0 {
 		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
 		if err != nil {
@@ -690,7 +741,24 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	return bs.TransactionQuery.BuildModel(transactions, rows), nil
+	return bs.TransactionQuery.BuildModel(transactions, rows)
+}
+
+func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	var publishedReceipts []*model.PublishedReceipt
+
+	// get published receipts of the block
+	publishedReceiptQ, publishedReceiptArg := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(blockHeight)
+	rows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArg...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, rows)
+	if err != nil {
+		return nil, err
+	}
+	return publishedReceipts, nil
 }
 
 // GetLastBlock return the last pushed block
@@ -707,7 +775,11 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}
@@ -1094,9 +1166,9 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 	if err != nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	participationScores = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
+	participationScores, err = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
 	// if there aren't participation scores for this address/node, return 0
-	if len(participationScores) == 0 {
+	if (err != nil) || len(participationScores) == 0 {
 		return 0, nil
 	}
 	return participationScores[0].Score, nil
@@ -1142,8 +1214,8 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 	}
 	defer rows.Close()
 
-	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if len(nr) == 0 {
+	nr, err = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+	if (err != nil) || len(nr) == 0 {
 		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
 	}
 	return nr[0].AccountAddress, nil
