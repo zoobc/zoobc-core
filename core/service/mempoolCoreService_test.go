@@ -126,11 +126,11 @@ func buildTransaction(timestamp int64, sender, recipient string) *model.Transact
 func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
 	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 
-	txBytes, _ := util.GetTransactionBytes(tx, false)
+	txBytes, _ := transaction.GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
-	txBytes, _ = util.GetTransactionBytes(tx, true)
+	txBytes, _ = transaction.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
 		FeePerByte:              1,

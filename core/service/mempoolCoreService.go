@@ -8,7 +8,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
-	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"golang.org/x/crypto/sha3"
 
@@ -185,12 +184,12 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	parsedTx, err = util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+	parsedTx, err = transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
 		return err
 	}
 
-	if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+	if err := transaction.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx)
@@ -229,7 +228,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		tx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+		tx, err := transaction.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
 		if err != nil {
 			continue
 		}
@@ -240,12 +239,12 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		parsedTx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+		parsedTx, err := transaction.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
 		if err != nil {
 			continue
 		}
 
-		if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+		if err := transaction.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
 
@@ -305,7 +304,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		receivedTx *model.Transaction
 		mempoolTx  *model.MempoolTransaction
 	)
-	receivedTx, err = util.ParseTransactionBytes(receivedTxBytes, true)
+	receivedTx, err = transaction.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +422,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		return err
 	}
 	for _, m := range mempools {
-		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
+		tx, err := transaction.ParseTransactionBytes(m.GetTransactionBytes(), true)
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())

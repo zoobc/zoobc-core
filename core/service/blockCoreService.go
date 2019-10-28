@@ -825,7 +825,7 @@ func (bs *BlockService) GenerateBlock(
 			return nil, errors.New("MempoolReadError")
 		}
 		for _, mpTx := range mempoolTransactions {
-			tx, err := util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+			tx, err := transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
 			if err != nil {
 				return nil, err
 			}
@@ -902,7 +902,7 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		digest                               = sha3.New256()
 	)
 	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
-		txBytes, _ := util.GetTransactionBytes(tx, true)
+		txBytes, _ := transaction.GetTransactionBytes(tx, true)
 		if _, err := digest.Write(txBytes); err != nil {
 			return nil, err
 		}

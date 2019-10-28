@@ -38,13 +38,13 @@ func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []cons
 				Signature:            constant.MainchainGenesisTransactionSignature,
 			}
 
-			transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+			transactionBytes, err := transaction.GetTransactionBytes(genesisTx, true)
 			if err != nil {
 				log.Fatal(err)
 			}
 			transactionHash := sha3.Sum256(transactionBytes)
 			genesisTx.TransactionHash = transactionHash[:]
-			genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
+			genesisTx.ID, _ = transaction.GetTransactionID(transactionHash[:])
 			genesisTxs = append(genesisTxs, genesisTx)
 
 			// register the node for the fund receiver, if relative element in MainChainGenesisConfig contains a NodePublicKey
@@ -100,13 +100,13 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 		Signature:            constant.MainchainGenesisTransactionSignature,
 	}
 
-	transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+	transactionBytes, err := transaction.GetTransactionBytes(genesisTx, true)
 	if err != nil {
 		log.Fatal(err)
 	}
 	transactionHash := sha3.Sum256(transactionBytes)
 	genesisTx.TransactionHash = transactionHash[:]
-	genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
+	genesisTx.ID, _ = transaction.GetTransactionID(transactionHash[:])
 	return genesisTx
 }
 
