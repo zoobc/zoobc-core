@@ -12,14 +12,12 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger"
-
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -633,7 +631,11 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}
@@ -653,7 +655,11 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 	if err != nil {
 		return []*model.Block{}, err
 	}
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	return blocks, nil
 }
 
@@ -671,7 +677,11 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	if len(blocks) > 0 {
 		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
 		if err != nil {
@@ -727,7 +737,11 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = bs.BlockQuery.BuildModel(blocks, rows)
+	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+
 	if len(blocks) > 0 {
 		return blocks[0], nil
 	}

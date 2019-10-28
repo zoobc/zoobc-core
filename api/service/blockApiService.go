@@ -53,7 +53,10 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	}
 	defer rows.Close()
 
-	bl = blockQuery.BuildModel(bl, rows)
+	bl, err = blockQuery.BuildModel(bl, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed build block into model")
+	}
 	if len(bl) == 0 {
 		return nil, status.Error(codes.NotFound, "block not found")
 	}
@@ -83,7 +86,12 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
-	bl = blockQuery.BuildModel(bl, rows)
+
+	bl, err = blockQuery.BuildModel(bl, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed build block into model")
+	}
+
 	if len(bl) == 0 {
 		return nil, status.Error(codes.NotFound, "block not found")
 	}
@@ -105,7 +113,11 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	}
 	defer rows.Close()
 
-	blocks = blockQuery.BuildModel(blocks, rows)
+	blocks, err = blockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed build block into model")
+	}
+
 	blocksExt := make([]*model.BlockExtendedInfo, 0)
 	for _, block := range blocks {
 		blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(block)
