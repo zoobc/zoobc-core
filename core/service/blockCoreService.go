@@ -274,19 +274,11 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
 	}
 	// Verify previous block hash
-	// (taken by iltoga) code-review : TODO: validate the entire block hash instead of only 8 bytes
-	previousBlockIDFromHash := new(big.Int)
-	previousBlockIDFromHashInt := previousBlockIDFromHash.SetBytes([]byte{
-		block.PreviousBlockHash[7],
-		block.PreviousBlockHash[6],
-		block.PreviousBlockHash[5],
-		block.PreviousBlockHash[4],
-		block.PreviousBlockHash[3],
-		block.PreviousBlockHash[2],
-		block.PreviousBlockHash[1],
-		block.PreviousBlockHash[0],
-	}).Int64()
-	if previousLastBlock.ID != previousBlockIDFromHashInt {
+	previousBlockHash, err := util.GetBlockHash(previousLastBlock)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(previousBlockHash, block.PreviousBlockHash) {
 		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
 	}
 	// (taken by iltoga) code-review : todo : compute the block hash again
