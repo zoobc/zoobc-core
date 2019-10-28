@@ -463,6 +463,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	// admit/expel nodes from registry at genesis and regular intervals
 	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
 		if err := bs.updateNodeRegistry(block); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
 			return err
 		}
 	}
@@ -482,34 +485,22 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
 		return err
 	}
 	if len(nodeRegistrations) > 0 {
 		err = bs.NodeRegistrationService.AdmitNodes(nodeRegistrations, block.Height)
 		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
 			return err
 		}
 	}
 	// expel nodes with zero score from node registry
 	nodeRegistrations, err = bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
 		return err
 	}
 	if len(nodeRegistrations) > 0 {
 		err = bs.NodeRegistrationService.ExpelNodes(nodeRegistrations, block.Height)
 		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
 			return err
 		}
 	}
