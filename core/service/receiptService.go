@@ -5,13 +5,11 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
-
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -86,7 +84,11 @@ func (rs *ReceiptService) SelectReceipts(
 			return nil, err
 		}
 
-		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
+		receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+		if err != nil {
+			rows.Close()
+			return nil, err
+		}
 		for _, rc := range receipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
 				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
@@ -141,7 +143,10 @@ func (rs *ReceiptService) SelectReceipts(
 		}
 		defer rows.Close()
 
-		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
+		receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+		if err != nil {
+			return nil, err
+		}
 		for _, rc := range receipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
 				results = append(results, &model.PublishedReceipt{
@@ -164,7 +169,11 @@ func (rs *ReceiptService) SelectReceipts(
 		}
 		defer rows.Close()
 
-		receipts = rs.ReceiptQuery.BuildModel(receipts, rows)
+		receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, rc := range receipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
 				results = append(results, &model.PublishedReceipt{
