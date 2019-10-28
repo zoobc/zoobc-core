@@ -207,7 +207,10 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		defer rows.Close()
 
 		queries = make([][]interface{}, (constant.ReceiptBatchMaximum*2)+1)
-		batchReceipts = rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
+		batchReceipts, err = rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
+		if err != nil {
+			return err
+		}
 
 		for _, b := range batchReceipts {
 			// hash the receipts
