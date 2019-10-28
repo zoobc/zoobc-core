@@ -161,7 +161,6 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY account_address
 			)`,
 				q.TableName,
