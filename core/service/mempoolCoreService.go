@@ -27,7 +27,7 @@ type (
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
-		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error)
+		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error)
 		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
 		ReceivedTransaction(
 			senderPublicKey, receivedTxBytes []byte,
@@ -218,16 +218,17 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 // Note: Tx Order is important to allow every node with a same set of transactions to  build the block and always obtain
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
-func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.MempoolTransaction, error) {
+func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
 	mempoolTransactions, err := mps.GetMempoolTransactions()
 	if err != nil {
 		return nil, err
 	}
 
 	var payloadLength int
-	sortedTransactions := make([]*model.MempoolTransaction, 0)
+	selectedTransactions := make([]*model.Transaction, 0)
+	selectedMempool := make([]*model.MempoolTransaction, 0)
 	for _, mempoolTransaction := range mempoolTransactions {
-		if len(sortedTransactions) >= constant.MaxNumberOfTransactionsInBlock {
+		if len(selectedTransactions) >= constant.MaxNumberOfTransactionsInBlock {
 			break
 		}
 		transactionLength := len(mempoolTransaction.TransactionBytes)
@@ -246,20 +247,15 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		parsedTx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
-		if err != nil {
+		if err := auth.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
-
-		if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
-			continue
-		}
-
-		sortedTransactions = append(sortedTransactions, mempoolTransaction)
+		selectedTransactions = append(selectedTransactions, tx)
+		selectedMempool = append(selectedMempool, mempoolTransaction)
 		payloadLength += transactionLength
 	}
-	sortFeePerByteThenTimestampThenID(sortedTransactions)
-	return sortedTransactions, nil
+	sortFeePerByteThenTimestampThenID(selectedTransactions, selectedMempool)
+	return selectedTransactions, nil
 }
 
 func (mps *MempoolService) generateTransactionReceipt(
@@ -391,9 +387,11 @@ func (mps *MempoolService) ReceivedTransaction(
 }
 
 // sortFeePerByteThenTimestampThenID sort a slice of mpTx by feePerByte, timestamp, id DESC
-func sortFeePerByteThenTimestampThenID(members []*model.MempoolTransaction) {
+// this sort the transaction by the mempool fields, mean both slice should have the same number of elements, and same
+// order for this to work
+func sortFeePerByteThenTimestampThenID(members []*model.Transaction, mempools []*model.MempoolTransaction) {
 	sort.SliceStable(members, func(i, j int) bool {
-		mi, mj := members[i], members[j]
+		mi, mj := mempools[i], mempools[j]
 		switch {
 		case mi.FeePerByte != mj.FeePerByte:
 			return mi.FeePerByte > mj.FeePerByte
