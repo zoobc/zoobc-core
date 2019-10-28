@@ -9,68 +9,78 @@ func setDebug() bool {
 }
 
 func SetCheckVarString(key, defaultVal string) string {
+	var Output string
 
 	if viper.GetString(key) != "" && setDebug() {
-		return viper.GetString(key)
+		Output = viper.GetString(key)
 	} else {
-		return defaultVal
+		Output = defaultVal
 	}
-
+	return Output
 }
 
 func SetCheckVarInt64(key string, defaultVal int64) int64 {
+	var Output int64
 
 	if viper.GetInt64(key) != 0 && setDebug() {
-		return viper.GetInt64(key)
+		Output = viper.GetInt64(key)
 	} else {
-		return defaultVal
+		Output = defaultVal
 	}
-
+	return Output
 }
 
 func SetCheckVarInt32(key string, defaultVal int32) int32 {
+	var Output int32
 
 	if viper.GetInt32(key) != 0 && setDebug() {
-		return viper.GetInt32(key)
+		Output = viper.GetInt32(key)
 	} else {
-		return defaultVal
+		Output = defaultVal
 	}
-
+	return Output
 }
 
 func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
+	var Output uint32
 
 	if viper.GetUint32(key) != 0 && setDebug() {
-		return viper.GetUint32(key)
+		Output = viper.GetUint32(key)
 	} else {
-		return defaultVal
+		Output = defaultVal
 	}
-
+	return Output
 }
 
 func SetCheckVarUint64(key string, defaultVal uint64) uint64 {
+	var Output uint64
 
 	if viper.GetUint32(key) != 0 && setDebug() {
-		return viper.GetUint64(key)
+		Output = viper.GetUint64(key)
 	} else {
-		return defaultVal
+		Output = defaultVal
 	}
-
+	return Output
 }
 
 func SetCheckVarUint(key string, defaultVal uint) uint {
+	var Output uint
+
 	if viper.GetUint(key) != 0 && setDebug() {
-		return viper.GetUint(key)
+		Output = viper.GetUint(key)
 	} else {
-		return defaultVal
+		Output = defaultVal
 	}
+	return Output
 }
 
 func SetCheckVarInt(key string, defaultVal int) int {
-	if viper.GetInt(key) != 0 && setDebug() {
-		return viper.GetInt(key)
-	} else {
-		return defaultVal
-	}
+	var Output int
 
+	if viper.GetInt(key) != 0 && setDebug() {
+		Output = viper.GetInt(key)
+	} else {
+		Output = defaultVal
+	}
+	return Output
 }
