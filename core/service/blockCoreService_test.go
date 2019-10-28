@@ -436,6 +436,8 @@ func (*mockQueryExecutorValidateBlock) ExecuteSelect(qe string, tx bool, args ..
 			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "1000", 1, 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
+	default:
+		return nil, errors.New("InvalidQuery")
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
