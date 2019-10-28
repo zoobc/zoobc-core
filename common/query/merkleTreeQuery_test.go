@@ -9,16 +9,9 @@ import (
 )
 
 var (
-	mockMerkleTreeQuery = &MerkleTreeQuery{
-		Fields: []string{
-			"id",
-			"tree",
-			"timestamp",
-		},
-		TableName: "merkle_tree",
-	}
-	mockRoot = make([]byte, 32)
-	mockTree = make([]byte, 14*32)
+	mockMerkleTreeQuery = NewMerkleTreeQuery()
+	mockRoot            = make([]byte, 32)
+	mockTree            = make([]byte, 14*32)
 )
 
 func TestMerkleTreeQuery_SelectMerkleTree(t *testing.T) {
@@ -49,8 +42,8 @@ func TestMerkleTreeQuery_SelectMerkleTree(t *testing.T) {
 				limit:       20,
 			},
 			want: "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
-				"published_receipt AS pr WHERE mt.id = pr.rmr_linked AND block_height >= 0 AND block_height <= 10 ) " +
-				"LIMIT 20",
+				"published_receipt AS pr WHERE mt.id = pr.rmr_linked AND block_height BETWEEN 0 AND 10 " +
+				"ORDER BY block_height ASC) LIMIT 20",
 		},
 	}
 	for _, tt := range tests {
