@@ -3,9 +3,11 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
+	"github.com/dgraph-io/badger"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -20,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -256,44 +259,6 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 	return sortedTransactions, nil
 }
 
-func (mps *MempoolService) generateTransactionReceipt(
-	receivedTxHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey, receiptKey []byte,
-	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
-	var rmrLinked []byte
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-	lastRmrQ := mps.MerkleTreeQuery.GetLastMerkleRoot()
-	row := mps.QueryExecutor.ExecuteSelectRow(lastRmrQ)
-	rmrLinked, err := mps.MerkleTreeQuery.ScanRoot(row)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	// generate receipt
-	batchReceipt, err := util.GenerateBatchReceipt( // todo: var
-		lastBlock,
-		senderPublicKey,
-		nodePublicKey,
-		receivedTxHash,
-		rmrLinked,
-		constant.ReceiptDatumTypeTransaction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	batchReceipt.RecipientSignature = mps.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(batchReceipt),
-		nodeSecretPhrase,
-	)
-	// store the generated batch receipt hash
-	err = mps.KVExecutor.Insert(string(receiptKey), receivedTxHash, constant.ExpiryPublishedReceiptTransaction)
-	if err != nil {
-		return nil, err
-	}
-	return batchReceipt, nil
-}
-
 func (mps *MempoolService) ReceivedTransaction(
 	senderPublicKey,
 	receivedTxBytes []byte,
@@ -332,13 +297,34 @@ func (mps *MempoolService) ReceivedTransaction(
 		specificErr := err.(blocker.Blocker)
 		if specificErr.Type == blocker.DuplicateMempoolErr {
 			// already exist in mempool, check if already generated a receipt for this sender
-			batchReceipt, err := mps.generateTransactionReceipt(
-				receivedTxHash[:], lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
-			)
+			_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
 			if err != nil {
-				return nil, err
+				fmt.Println(err == badger.ErrKeyNotFound)
+				if err == badger.ErrKeyNotFound {
+					batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+						receivedTxHash[:],
+						lastBlock,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.KVdbTableTransactionReminderKey+string(receiptKey),
+						constant.ReceiptDatumTypeTransaction,
+						mps.Signature,
+						mps.QueryExecutor,
+						mps.KVExecutor,
+					)
+					if err != nil {
+						return nil, blocker.NewBlocker(
+							blocker.DBErr,
+							err.Error(),
+						)
+					}
+					return batchReceipt, nil
+				}
+				return nil, blocker.NewBlocker(
+					blocker.DBErr,
+					err.Error(),
+				)
 			}
-			return batchReceipt, nil
 		}
 		return nil, err
 	}
@@ -375,8 +361,16 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	// broadcast transaction
 	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
-	batchReceipt, err := mps.generateTransactionReceipt(
-		receivedTxHash[:], lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		receivedTxHash[:],
+		lastBlock,
+		senderPublicKey,
+		nodeSecretPhrase,
+		constant.KVdbTableTransactionReminderKey+string(receiptKey),
+		constant.ReceiptDatumTypeTransaction,
+		mps.Signature,
+		mps.QueryExecutor,
+		mps.KVExecutor,
 	)
 	if err != nil {
 		return nil, err
