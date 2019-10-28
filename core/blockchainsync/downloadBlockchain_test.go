@@ -296,6 +296,7 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		&[]model.Blocksmith{},
 		nil,
 	)
