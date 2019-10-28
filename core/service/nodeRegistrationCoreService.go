@@ -63,7 +63,7 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 }
 
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(uint32(model.NodeRegistrationState_NodeRegistered))
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err

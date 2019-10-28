@@ -22,7 +22,7 @@ type (
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus uint32) string
-		GetNodeRegistrationsWithZeroScore(registrationStatus uint32) string
+		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) []*model.NodeRegistration
@@ -140,7 +140,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(lim
 }
 
 // GetNodeRegistrationsWithZeroScore returns query string to get the list of Node Registrations with zero participation score
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registrationStatus uint32) string {
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string {
 	nrTable := nrq.getTableName()
 	nrTableAlias := "A"
 	psTable := NewParticipationScoreQuery().getTableName()
