@@ -441,7 +441,6 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 				WHERE (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					WHERE latest = 0
 					GROUP BY %s
 				)`,
 					mockDatasetQuery.TableName,

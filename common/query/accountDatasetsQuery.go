@@ -266,7 +266,6 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 				WHERE (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					WHERE latest = 0
 					GROUP BY %s
 				)`,
 				adq.TableName,

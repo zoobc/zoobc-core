@@ -123,10 +123,10 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(account
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".account_address='%s' "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=0 "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
-		accountAddress)
+		accountAddress, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
 func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
@@ -143,9 +143,10 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".node_public_key=? "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=0 "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
+		uint32(model.NodeRegistrationState_NodeRegistered),
 	), []interface{}{nodePublicKey}
 }
 
@@ -189,7 +190,6 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 			WHERE height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY id
 			)`,
 				ps.TableName,
