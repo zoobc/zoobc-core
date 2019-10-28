@@ -191,8 +191,9 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer rows.Close()
-	tempNodeRegistrationResult, _ = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
-	if len(tempNodeRegistrationResult) > 0 {
+
+	tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+	if (err != nil) || len(tempNodeRegistrationResult) > 0 {
 		prevNodeRegistration = tempNodeRegistrationResult[0]
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
