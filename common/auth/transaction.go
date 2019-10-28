@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"

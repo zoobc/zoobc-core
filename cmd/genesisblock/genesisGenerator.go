@@ -224,7 +224,11 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		}
 		defer rows.Close()
 
-		nodeRegistrations := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		nodeRegistrations, err := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if err != nil {
+			return nil, err
+		}
+
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance

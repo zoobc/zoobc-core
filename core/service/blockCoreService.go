@@ -580,8 +580,8 @@ func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		nr := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if len(nr) == 0 {
+		nr, err := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if (err != nil) || len(nr) == 0 {
 			rows.Close()
 			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
 		}
@@ -1192,8 +1192,8 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 	}
 	defer rows.Close()
 
-	nr = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if len(nr) == 0 {
+	nr, err = bs.NodeRegistrationQuery.BuildModel(nr, rows)
+	if (err != nil) || len(nr) == 0 {
 		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
 	}
 	return nr[0].AccountAddress, nil

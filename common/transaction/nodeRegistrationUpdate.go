@@ -43,11 +43,11 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	}
 	defer rows.Close()
 
-	if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
-		prevNodeRegistration = nr[0]
-	} else {
+	nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nr) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 	}
+	prevNodeRegistration = nr[0]
 
 	if tx.Body.LockedBalance > 0 {
 		lockedBalance = tx.Body.LockedBalance
@@ -126,11 +126,12 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 			return err
 		}
 		defer rows.Close()
-		if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
-			prevNodeRegistration = nr[0]
-		} else {
+		nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if (err != nil) || len(nr) == 0 {
 			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 		}
+		prevNodeRegistration = nr[0]
+
 		// delta amount to be locked
 		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
 	}
@@ -190,7 +191,7 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer rows.Close()
-	tempNodeRegistrationResult = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+	tempNodeRegistrationResult, _ = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
 	if len(tempNodeRegistrationResult) > 0 {
 		prevNodeRegistration = tempNodeRegistrationResult[0]
 	} else {
@@ -205,8 +206,9 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 			return err
 		}
 		defer rows2.Close()
-		tempNodeRegistrationResult2 = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
-		if len(tempNodeRegistrationResult2) > 0 {
+
+		tempNodeRegistrationResult2, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
+		if (err != nil) || len(tempNodeRegistrationResult2) > 0 {
 			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}
