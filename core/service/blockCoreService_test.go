@@ -11,6 +11,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -851,6 +852,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				ParticipationQuery:    query.NewParticipationScoreQuery(),
 				Observer:              observer.NewObserver(),
+				MempoolQuery:          query.NewMempoolQuery(&chaintype.MainChain{}),
 				SortedBlocksmiths:     mockBlocksmiths,
 			},
 			args: args{
@@ -896,6 +898,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				MempoolQuery:          query.NewMempoolQuery(&chaintype.MainChain{}),
 				ParticipationQuery:    query.NewParticipationScoreQuery(),
 				Observer:              observer.NewObserver(),
 				SortedBlocksmiths:     mockBlocksmiths,
@@ -949,6 +952,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Signature:               tt.fields.Signature,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
+				Logger:                  logrus.New(),
 				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
 				ParticipationScoreQuery: tt.fields.ParticipationQuery,
 			}
@@ -1992,7 +1996,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           nil,
 				MempoolService:      nil,
@@ -2019,7 +2023,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           nil,
 				MempoolService:      nil,
@@ -2043,7 +2047,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           &mockSignatureFail{},
 				MempoolService:      nil,
@@ -2072,7 +2076,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Chaintype:           nil,
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
@@ -2102,7 +2106,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				KVExecutor:          &mockKVExecutorSuccess{},
 				QueryExecutor:       nil,
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
@@ -2135,7 +2139,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				KVExecutor:          &mockKVExecutorSuccessKeyNotFound{},
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				TransactionQuery:    nil,
 				Signature:           &mockSignature{},
@@ -2185,7 +2189,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				KVExecutor:          &mockKVExecutorFailOtherError{},
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				BlockQuery:          nil,
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
@@ -2221,7 +2225,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Chaintype:           &chaintype.MainChain{},
 				QueryExecutor:       &mockQueryExecutorFail{},
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:        nil,
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:    nil,
 				Signature:           &mockSignature{},
 				MempoolService:      nil,
@@ -2260,7 +2264,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				KVExecutor:              &mockKVExecutorSuccess{},
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:            nil,
+				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				TransactionQuery:        nil,
 				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
@@ -2322,6 +2326,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				Observer:                tt.fields.Observer,
 				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
+				Logger:                  logrus.New(),
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
