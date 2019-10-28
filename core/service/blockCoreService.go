@@ -703,7 +703,7 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	return bs.TransactionQuery.BuildModel(transactions, rows), nil
+	return bs.TransactionQuery.BuildModel(transactions, rows)
 }
 
 func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
