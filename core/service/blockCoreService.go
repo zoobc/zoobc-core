@@ -12,6 +12,8 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
@@ -253,36 +255,68 @@ func (*BlockService) VerifySeed(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	if block.GetTimestamp() > curTime+15 { // (taken by iltoga) code-review : todo 15 should be put to constant
-		return blocker.NewBlocker(blocker.BlockErr, "invalid timestamp")
+	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec { // (taken by iltoga) code-review : todo 15 should be put to constant
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
 	if coreUtil.GetBlockID(block) == 0 {
-		return blocker.NewBlocker(blocker.BlockErr, "invalid ID")
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
 	}
 	// Verify Signature
-	sig := new(crypto.Signature)
 	blockByte, err := commonUtils.GetBlockByte(block, false)
 	if err != nil {
 		return err
 	}
 
-	if !sig.VerifyNodeSignature(
+	if !bs.Signature.VerifyNodeSignature(
 		blockByte,
 		block.BlockSignature,
 		block.BlocksmithPublicKey,
 	) {
-		return blocker.NewBlocker(blocker.BlockErr, "invalid signature")
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
 	}
 	// Verify previous block hash
 	previousBlockHash, err := util.GetBlockHash(previousLastBlock)
 	if err != nil {
 		return err
 	}
+	log.Printf("%v", previousBlockHash)
 	if !bytes.Equal(previousBlockHash, block.PreviousBlockHash) {
-		return blocker.NewBlocker(blocker.BlockErr, "invalid previous block hash")
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidPreviousBlockHash")
 	}
-	// (taken by iltoga) code-review : todo : compute the block hash again
-	// (taken by iltoga) code-review : todo : if the same block height is already in the database compare cummulative difficulty.
+	// if the same block height is already in the database compare cummulative difficulty.
+	if err := bs.validateBlockHeight(block); err != nil {
+		return err
+	}
+	return nil
+}
+
+// validateBlockAtHeight Check if the same block height is already in the database compare cummulative difficulty.
+// and return error if current block's cumulative difficulty is lower than the one in db
+func (bs *BlockService) validateBlockHeight(block *model.Block) error {
+	var (
+		bl                                                 []*model.Block
+		refCumulativeDifficulty, blockCumulativeDifficulty *big.Int
+		ok                                                 bool
+	)
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(block.Height), false)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+	bl = bs.BlockQuery.BuildModel(bl, rows)
+	if len(bl) > 0 {
+		refBlock := bl[0]
+		if refCumulativeDifficulty, ok = new(big.Int).SetString(refBlock.CumulativeDifficulty, 10); !ok {
+			return err
+		}
+		if blockCumulativeDifficulty, ok = new(big.Int).SetString(block.CumulativeDifficulty, 10); !ok {
+			return err
+		}
+		// if cumulative difficulty of the referece block is > of the one of the (new) block, new block is invalid
+		if refCumulativeDifficulty.Cmp(blockCumulativeDifficulty) > 0 {
+			return blocker.NewBlocker(blocker.BlockErr, "InvalidCumulativeDifficulty")
+		}
+	}
 	return nil
 }
 
