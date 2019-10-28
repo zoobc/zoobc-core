@@ -200,14 +200,13 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
 		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
-	// check for duplication
-	// TODO: checking full node address (address + port) already used or not
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.NodePublicKey)
+	// check for public key duplication
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		dbTx, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
 	defer nodeRow.Close()
-
 	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	if err != nil {
 		return err
@@ -218,6 +217,24 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 
+	// check for account address duplication (accounts can register one node at the time)
+	qryNodeByAccount, _ := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx)
+	if err != nil {
+		return err
+	}
+	defer nodeRow2.Close()
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow2)
+	if err != nil {
+		return err
+	}
+	// in case a node with same account address, validation must pass only if that node is tagged as deleted
+	// if any other state validation should fail
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+		return blocker.NewBlocker(blocker.AuthErr, "AccountAlreadyNodeOwner")
+	}
+
+	// validate node address
 	nodeAddress := tx.Body.GetNodeAddress()
 	if nodeAddress == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressEmpty")
