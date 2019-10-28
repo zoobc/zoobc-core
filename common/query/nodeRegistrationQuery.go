@@ -185,7 +185,10 @@ func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []int
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (nrq *NodeRegistrationQuery) BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error) {
+func (nrq *NodeRegistrationQuery) BuildModel(
+	nodeRegistrations []*model.NodeRegistration,
+	rows *sql.Rows,
+) ([]*model.NodeRegistration, error) {
 
 	var (
 		ignoredAggregateColumns []interface{}

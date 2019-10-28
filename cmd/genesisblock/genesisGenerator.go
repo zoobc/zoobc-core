@@ -247,8 +247,8 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			}
 			defer rows.Close()
 
-			participationScores := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
-			if len(participationScores) > 0 {
+			participationScores, err := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
+			if (err != nil) || len(participationScores) > 0 {
 				bcEntry.ParticipationScore = participationScores[0].Score
 			}
 		}

@@ -202,8 +202,7 @@ type (
 func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	//mockedRows := sqlmock.NewRows([]string{"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address",
-	//	"recipient_account_address"})
+
 	mockedRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
 	mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
 	mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
@@ -389,7 +388,8 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 	defer db.Close()
 
 	switch qe {
-	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE account_address = ? AND latest = 1":
+	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
+		"WHERE account_address = ? AND latest = 1":
 		abRows := sqlmock.NewRows(query.NewAccountBalanceQuery().Fields)
 		abRows.AddRow([]byte{1}, 1, 10000, 10000, 0, 1)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(abRows)

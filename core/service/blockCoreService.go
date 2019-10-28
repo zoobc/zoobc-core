@@ -1144,9 +1144,9 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 	if err != nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	participationScores = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
+	participationScores, err = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
 	// if there aren't participation scores for this address/node, return 0
-	if len(participationScores) == 0 {
+	if (err != nil) || len(participationScores) == 0 {
 		return 0, nil
 	}
 	return participationScores[0].Score, nil
