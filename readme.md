@@ -32,6 +32,10 @@ Zoobc-core is the main node application to run the zoobc blockchain. This reposi
   ```
   go run main.go
   ```
+  Flags:
+  1. `debug` (bool): enters debug mode with capabilities like `prometheus monitoring` (uses port defined by `monitoringPort` in the config file).
+  2. `config-postfix` (string): defines which config file with defined postfix to use. It will use the config file in `./resource/config{postfix}`.toml.
+  3. `config-path` (string): defines the directory that will hold the resources and configs. by default it will use `./resource`. This will be useful particularly for robust resource placements, for example while used in Zoobc-Testing-Framework.
 - Command line tools
   ```
   cd cmd
@@ -66,7 +70,9 @@ go build -o zoobc
 please refer to [contribute.md](contribute.md) and [code of conduct](code_of_conduct.md).
 
 ### GRPC web proxy for browser
+
 [link](https://github.com/improbable-eng/grpc-web/tree/master/go/grpcwebproxy)
+
 ```
-nohup grpcwebproxy --backend_addr=localhost:7000 --run_tls_server=false --allow_all_origins --server_http_debug_port=7001 --server_http_max_write_timeout 1h & 
+nohup grpcwebproxy --backend_addr=localhost:7000 --run_tls_server=false --allow_all_origins --server_http_debug_port=7001 --server_http_max_write_timeout 1h &
 ```
