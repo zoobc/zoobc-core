@@ -54,6 +54,7 @@ type (
 		GetLastBlock() (*model.Block, error)
 		GetBlocks() ([]*model.Block, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
+		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		GetGenesisBlock() (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		GenerateGenesisBlock(genesisEntries []constant.MainchainGenesisConfigEntry) (*model.Block, error)
@@ -693,6 +694,23 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return bs.TransactionQuery.BuildModel(transactions, rows), nil
+}
+
+func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	var publishedReceipts []*model.PublishedReceipt
+
+	// get published receipts of the block
+	publishedReceiptQ, publishedReceiptArg := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(blockHeight)
+	rows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArg...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, rows)
+	if err != nil {
+		return nil, err
+	}
+	return publishedReceipts, nil
 }
 
 // GetLastBlock return the last pushed block
