@@ -51,7 +51,7 @@ func NewNodeRegistrationService(
 
 // SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, true)
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, uint32(model.NodeRegistrationState_NodeQueued))
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 
 // SelectNodesToBeExpelled Select n (=limit) registered nodes with participation score = 0
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(false)
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -102,17 +102,17 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 	return nodeRegistrations[0], nil
 }
 
-// AdmitNodes update given node registrations' queued field to false and set default participation score to it
+// AdmitNodes update given node registrations' registrationStatus field to 0 (= node registered) and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	err := nrs.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
-	// prepare all node registrations to be updated (set queued to false and new height) and default participation scores to be added
+	// prepare all node registrations to be updated (set registrationStatus to 0 and new height) and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
-		nodeRegistration.Queued = false
+		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeRegistered)
 		nodeRegistration.Height = height
-		// update the node registry (set queued to zero)
+		// update the node registry (set registrationStatus to zero)
 		queries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		ps := &model.ParticipationScore{
 			NodeID: nodeRegistration.NodeID,
@@ -142,7 +142,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 }
 
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
-// update the node registration by setting queued field to true and locked balance to zero
+// update the node registration by setting registrationStatus field to 3 (deleted) and locked balance to zero
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	err := nrs.QueryExecutor.BeginTx()
 	if err != nil {
@@ -150,8 +150,8 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	}
 
 	for _, nodeRegistration := range nodeRegistrations {
-		// update the node registry (set queued to 1 and lockedbalance to 0)
-		nodeRegistration.Queued = true
+		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
+		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
 		nodeRegistration.LockedBalance = 0
 		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		// return lockedbalance to the node's owner account
