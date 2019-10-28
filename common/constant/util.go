@@ -1,98 +1,76 @@
 package constant
 
 import (
-	"fmt"
-
 	"github.com/spf13/viper"
 )
 
 func setDebug() bool {
-	fmt.Printf("starting debug ...... \n")
-	debugMode := viper.GetBool("DebugFlag")
-	fmt.Printf("debug mode :  %v\n", debugMode)
-	return debugMode
+	return viper.GetBool("DebugFlag")
 }
 
 func SetCheckVarString(key, defaultVal string) string {
-	var Output string
 
 	if viper.GetString(key) != "" && setDebug() {
-		Output = viper.GetString(key)
+		return viper.GetString(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
 
-	return Output
 }
 
 func SetCheckVarInt64(key string, defaultVal int64) int64 {
-	var Output int64
 
 	if viper.GetInt64(key) != 0 && setDebug() {
-		Output = viper.GetInt64(key)
+		return viper.GetInt64(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
 
-	return Output
 }
 
 func SetCheckVarInt32(key string, defaultVal int32) int32 {
-	var Output int32
 
 	if viper.GetInt32(key) != 0 && setDebug() {
-		Output = viper.GetInt32(key)
+		return viper.GetInt32(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
 
-	return Output
 }
 
 func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
-	var Output uint32
 
 	if viper.GetUint32(key) != 0 && setDebug() {
-		Output = viper.GetUint32(key)
+		return viper.GetUint32(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
 
-	return Output
 }
 
 func SetCheckVarUint64(key string, defaultVal uint64) uint64 {
-	var Output uint64
 
 	if viper.GetUint32(key) != 0 && setDebug() {
-		Output = viper.GetUint64(key)
+		return viper.GetUint64(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
 
-	return Output
 }
 
 func SetCheckVarUint(key string, defaultVal uint) uint {
-	var Output uint
-
 	if viper.GetUint(key) != 0 && setDebug() {
-		Output = viper.GetUint(key)
+		return viper.GetUint(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
-
-	return Output
 }
 
 func SetCheckVarInt(key string, defaultVal int) int {
-	var Output int
-
 	if viper.GetInt(key) != 0 && setDebug() {
-		Output = viper.GetInt(key)
+		return viper.GetInt(key)
 	} else {
-		Output = defaultVal
+		return defaultVal
 	}
 
-	return Output
 }
