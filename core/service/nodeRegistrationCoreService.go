@@ -120,17 +120,12 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		nodeRegistration.Height = height
 		// update the node registry (set registrationStatus to zero)
 		queries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-		ps := &model.ParticipationScore{
-			NodeID: nodeRegistration.NodeID,
-			Score:  constant.MaxParticipationScore / 10,
-			Latest: true,
-			Height: height,
-		}
 		// add default participation score to the node
-		insertParticipationScoreQ, insertParticipationScoreArg := nrs.ParticipationScoreQuery.InsertParticipationScore(ps)
-		queries = append(queries,
-			append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...),
-		)
+		addParticipationScoreQry := nrs.ParticipationScoreQuery.AddParticipationScore(
+			nodeRegistration.NodeID,
+			constant.DefaultParticipationScore,
+			height)
+		queries = append(queries, addParticipationScoreQry...)
 		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
 		}
