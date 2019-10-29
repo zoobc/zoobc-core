@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"sort"
 	"time"
 
@@ -301,7 +300,6 @@ func (mps *MempoolService) ReceivedTransaction(
 			// already exist in mempool, check if already generated a receipt for this sender
 			_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
 			if err != nil {
-				fmt.Println(err == badger.ErrKeyNotFound)
 				if err == badger.ErrKeyNotFound {
 					batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 						receivedTxHash[:],
