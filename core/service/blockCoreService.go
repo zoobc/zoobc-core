@@ -281,7 +281,6 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if err != nil {
 		return err
 	}
-	log.Printf("%v", previousBlockHash)
 	if !bytes.Equal(previousBlockHash, block.PreviousBlockHash) {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidPreviousBlockHash")
 	}
