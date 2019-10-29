@@ -72,25 +72,6 @@ type (
 	}
 )
 
-var mockBlock = &model.Block{
-	ID:                   0,
-	PreviousBlockHash:    nil,
-	Height:               0,
-	Timestamp:            0,
-	BlockSeed:            nil,
-	BlockSignature:       nil,
-	CumulativeDifficulty: "",
-	SmithScale:           0,
-	BlocksmithPublicKey:  []byte{},
-	TotalAmount:          0,
-	TotalFee:             0,
-	TotalCoinBase:        0,
-	Version:              0,
-	PayloadLength:        0,
-	PayloadHash:          nil,
-	Transactions:         nil,
-}
-
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
