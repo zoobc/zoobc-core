@@ -56,7 +56,7 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 	t.Run("InsertNodeRegistration:success", func(t *testing.T) {
 
 		q, args := mockNodeRegistrationQuery.InsertNodeRegistration(mockNodeRegistry)
-		wantQ := "INSERT INTO node_registry (id,node_public_key,account_address,registration_height,node_address," +
+		wantQ := "INSERT OR IGNORE INTO node_registry (id,node_public_key,account_address,registration_height,node_address," +
 			"locked_balance,registration_status,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := []interface{}{
 			mockNodeRegistry.NodeID,
