@@ -1070,7 +1070,7 @@ func (bs *BlockService) ReceiveBlock(
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
 		// check if already broadcast receipt to this node
-		_, err := bs.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
+		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
@@ -1078,7 +1078,7 @@ func (bs *BlockService) ReceiveBlock(
 					lastBlock,
 					senderPublicKey,
 					nodeSecretPhrase,
-					constant.KVdbTableTransactionReminderKey+string(receiptKey),
+					constant.KVdbTableBlockReminderKey+string(receiptKey),
 					constant.ReceiptDatumTypeBlock,
 					bs.Signature,
 					bs.QueryExecutor,
@@ -1122,7 +1122,7 @@ func (bs *BlockService) ReceiveBlock(
 		lastBlock,
 		senderPublicKey,
 		nodeSecretPhrase,
-		constant.KVdbTableTransactionReminderKey+string(receiptKey),
+		constant.KVdbTableBlockReminderKey+string(receiptKey),
 		constant.ReceiptDatumTypeBlock,
 		bs.Signature,
 		bs.QueryExecutor,
