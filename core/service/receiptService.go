@@ -15,7 +15,9 @@ import (
 type (
 	ReceiptServiceInterface interface {
 		SelectReceipts(
-			blockTimestamp int64, numberOfReceipt int, lastBlockHeight uint32,
+			blockTimestamp int64,
+			numberOfReceipt int,
+			lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
 		GenerateReceiptsMerkleRoot() error
 	}
@@ -187,28 +189,34 @@ func (rs *ReceiptService) SelectReceipts(
 	return results, nil
 }
 
-// GenerateReceiptsMerkleRoot generate merkle root of some bacth recipts
+// GenerateReceiptsMerkleRoot generate merkle root of some batch receipts
 // generating will do when number of collected receipts(batch receipts) already same with number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	var (
-		err            error
-		count          uint32
-		queries        [][]interface{}
-		batchReceipts  []*model.BatchReceipt
-		receipt        *model.Receipt
-		hashedReceipts []*bytes.Buffer
-		merkleRoot     util.MerkleRoot
+		err               error
+		count             uint32
+		queries           [][]interface{}
+		batchReceipts     []*model.BatchReceipt
+		receipt           *model.Receipt
+		hashedReceipts    []*bytes.Buffer
+		merkleRoot        util.MerkleRoot
+		getBatchReceiptsQ string
 	)
-	countBatchReceiptQ := query.GetTotalRecordOfSelect(
-		rs.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0),
-	)
-	err = rs.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
+
+	getBatchReceiptsQ = rs.BatchReceiptQuery.GetBatchReceipts(model.Pagination{
+		Limit:      constant.ReceiptBatchMaximum,
+		OrderField: "reference_block_height",
+		OrderBy:    model.OrderBy_ASC,
+	})
+
+	err = rs.QueryExecutor.ExecuteSelectRow(
+		query.GetTotalRecordOfSelect(getBatchReceiptsQ),
+	).Scan(&count)
 	if err != nil {
 		return err
 	}
 
 	if count >= constant.ReceiptBatchMaximum {
-		getBatchReceiptsQ := rs.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
 		rows, err := rs.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
 		if err != nil {
 			return err
