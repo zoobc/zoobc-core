@@ -50,7 +50,7 @@ func NewNodeRegistrationService(
 
 // SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, uint32(model.NodeRegistrationState_NodeQueued))
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, model.NodeRegistrationState_NodeQueued)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -110,9 +110,11 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 	return nodeRegistrations[0], nil
 }
 
-// AdmitNodes update given node registrations' registrationStatus field to 0 (= node registered) and set default participation score to it
+// AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)
+// and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
-	// prepare all node registrations to be updated (set registrationStatus to 0 and new height) and default participation scores to be added
+	// prepare all node registrations to be updated (set registrationStatus to NodeRegistrationState_NodeRegistered and new height)
+	// and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeRegistered)
 		nodeRegistration.Height = height

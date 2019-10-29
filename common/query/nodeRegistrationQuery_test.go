@@ -291,7 +291,7 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 
 func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *testing.T) {
 	t.Run("GetNodeRegistrationsByHighestLockedBalance", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(2, uint32(model.NodeRegistrationState_NodeQueued))
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(2, model.NodeRegistrationState_NodeQueued)
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, " +
 			"locked_balance, registration_status, latest, height FROM node_registry WHERE locked_balance > 0 " +
 			"AND registration_status = 1 AND latest=1 ORDER BY locked_balance DESC LIMIT 2"
