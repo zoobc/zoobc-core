@@ -329,10 +329,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 	// prepare testing env
 	fixtureGenerateMerkle()
 	type fields struct {
-		ReceiptQuery    query.ReceiptQueryInterface
-		MerkleTreeQuery query.MerkleTreeQueryInterface
-		KVExecutor      kvdb.KVExecutorInterface
-		QueryExecutor   query.ExecutorInterface
+		NodeReceiptQuery query.NodeReceiptQueryInterface
+		MerkleTreeQuery  query.MerkleTreeQueryInterface
+		KVExecutor       kvdb.KVExecutorInterface
+		QueryExecutor    query.ExecutorInterface
 	}
 	type args struct {
 		blockTimestamp  int64
@@ -348,10 +348,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-Fail:selectDB-error",
 			fields: fields{
-				ReceiptQuery:    nil,
-				MerkleTreeQuery: query.NewMerkleTreeQuery(),
-				KVExecutor:      nil,
-				QueryExecutor:   &mockQueryExecutorFailExecuteSelect{},
+				NodeReceiptQuery: nil,
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				KVExecutor:       nil,
+				QueryExecutor:    &mockQueryExecutorFailExecuteSelect{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -363,10 +363,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-Fail:MerkleTreeQuery-BuildTree-Fail",
 			fields: fields{
-				ReceiptQuery:    nil,
-				MerkleTreeQuery: &mockMerkleTreeQueryFailBuildTree{},
-				KVExecutor:      nil,
-				QueryExecutor:   &mockQueryExecutorSuccessMerkle{},
+				NodeReceiptQuery: nil,
+				MerkleTreeQuery:  &mockMerkleTreeQueryFailBuildTree{},
+				KVExecutor:       nil,
+				QueryExecutor:    &mockQueryExecutorSuccessMerkle{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -378,10 +378,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-Fail:ExecuteSelect-Fail_Receipt",
 			fields: fields{
-				ReceiptQuery:    query.NewReceiptQuery(),
-				MerkleTreeQuery: query.NewMerkleTreeQuery(),
-				KVExecutor:      nil,
-				QueryExecutor:   &mockQueryExecutorFailExecuteSelectReceipt{},
+				NodeReceiptQuery: query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				KVExecutor:       nil,
+				QueryExecutor:    &mockQueryExecutorFailExecuteSelectReceipt{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -393,10 +393,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-success-one-linked",
 			fields: fields{
-				ReceiptQuery:    query.NewReceiptQuery(),
-				MerkleTreeQuery: query.NewMerkleTreeQuery(),
-				KVExecutor:      nil,
-				QueryExecutor:   &mockQueryExecutorSuccessOneLinkedReceipts{},
+				NodeReceiptQuery: query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				KVExecutor:       nil,
+				QueryExecutor:    &mockQueryExecutorSuccessOneLinkedReceipts{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -416,10 +416,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-success-one-linked-more-rmr-linked-and-unlinked",
 			fields: fields{
-				ReceiptQuery:    query.NewReceiptQuery(),
-				MerkleTreeQuery: query.NewMerkleTreeQuery(),
-				KVExecutor:      nil,
-				QueryExecutor:   &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
+				NodeReceiptQuery: query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				KVExecutor:       nil,
+				QueryExecutor:    &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -454,10 +454,10 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				ReceiptQuery:    tt.fields.ReceiptQuery,
-				MerkleTreeQuery: tt.fields.MerkleTreeQuery,
-				KVExecutor:      tt.fields.KVExecutor,
-				QueryExecutor:   tt.fields.QueryExecutor,
+				NodeReceiptQuery: tt.fields.NodeReceiptQuery,
+				MerkleTreeQuery:  tt.fields.MerkleTreeQuery,
+				KVExecutor:       tt.fields.KVExecutor,
+				QueryExecutor:    tt.fields.QueryExecutor,
 			}
 			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt, 1000)
 			if (err != nil) != tt.wantErr {
@@ -564,7 +564,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransaction
 
 func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	type fields struct {
-		ReceiptQuery      query.ReceiptQueryInterface
+		NodeReceiptQuery  query.NodeReceiptQueryInterface
 		BatchReceiptQuery query.BatchReceiptQueryInterface
 		MerkleTreeQuery   query.MerkleTreeQueryInterface
 		KVExecutor        kvdb.KVExecutorInterface
@@ -578,7 +578,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ReceiptQuery:      query.NewReceiptQuery(),
+				NodeReceiptQuery:  query.NewNodeReceiptQuery(),
 				BatchReceiptQuery: query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:   query.NewMerkleTreeQuery(),
 				KVExecutor:        nil,
@@ -589,7 +589,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		{
 			name: "wantError:SelectRowFail",
 			fields: fields{
-				ReceiptQuery:      nil,
+				NodeReceiptQuery:  nil,
 				BatchReceiptQuery: query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:   nil,
 				KVExecutor:        nil,
@@ -600,7 +600,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		{
 			name: "wantError:SelectFail",
 			fields: fields{
-				ReceiptQuery:      nil,
+				NodeReceiptQuery:  nil,
 				BatchReceiptQuery: query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:   nil,
 				KVExecutor:        nil,
@@ -612,7 +612,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				ReceiptQuery:      tt.fields.ReceiptQuery,
+				NodeReceiptQuery:  tt.fields.NodeReceiptQuery,
 				BatchReceiptQuery: tt.fields.BatchReceiptQuery,
 				MerkleTreeQuery:   tt.fields.MerkleTreeQuery,
 				KVExecutor:        tt.fields.KVExecutor,
