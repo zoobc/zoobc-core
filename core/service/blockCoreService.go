@@ -478,7 +478,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	return nil
 }
 
+// updateNodeRegistry seelct and admit/expel nodes from node registry
 func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
+	// select n (= MaxNodeAdmittancePerCycle) queued nodes with the highest locked balance from node registry
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
 	if err != nil {
 		return err
@@ -956,7 +958,11 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		payloadLength                        uint32
 		digest                               = sha3.New256()
 	)
-	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
+	genesisTransactions, err := GetGenesisTransactions(bs.Chaintype, genesisEntries)
+	if err != nil {
+		return nil, err
+	}
+	for index, tx := range genesisTransactions {
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}
