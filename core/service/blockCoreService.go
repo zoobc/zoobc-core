@@ -959,7 +959,11 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		payloadLength                        uint32
 		digest                               = sha3.New256()
 	)
-	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
+	genesisTransactions, err := GetGenesisTransactions(bs.Chaintype, genesisEntries)
+	if err != nil {
+		return nil, err
+	}
+	for index, tx := range genesisTransactions {
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}

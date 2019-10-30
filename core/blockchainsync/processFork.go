@@ -146,7 +146,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		if err != nil {
 			return err
 		}
-		txBytes, err = commonUtil.GetTransactionBytes(tx, true)
+		txBytes, err = transaction.GetTransactionBytes(tx, true)
 
 		if err != nil {
 			return err
