@@ -75,7 +75,6 @@ func init() {
 		envOverrideConfig bool
 		err               error
 	)
-
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")

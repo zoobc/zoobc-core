@@ -7,7 +7,6 @@ import (
 func isDebug() bool {
 	return viper.GetBool("dflag")
 }
-
 func SetCheckVarString(key, defaultVal string) string {
 	if viper.GetString(key) != "" && isDebug() {
 		return viper.GetString(key)
