@@ -15,7 +15,6 @@ type (
 			nodeID, score int64,
 			blockHeight uint32,
 		) [][]interface{}
-		UpdateParticipationScore(participationScore *model.ParticipationScore) (str []string, args []interface{})
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
@@ -86,21 +85,6 @@ func (ps *ParticipationScoreQuery) AddParticipationScore(
 		)
 	}
 	return queries
-}
-
-// UpdateParticipationScore returns a slice of two queries.
-// 1st update all old participation scores versions' latest field to 0
-// 2nd insert a new version of the participation score with updated data
-func (ps *ParticipationScoreQuery) UpdateParticipationScore(
-	participationScore *model.ParticipationScore) (str []string, args []interface{}) {
-	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE node_id = %d", ps.getTableName(), participationScore.NodeID)
-	qryInsert := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
-		ps.getTableName(),
-		strings.Join(ps.Fields, ","),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(ps.Fields)-1)),
-	)
-	return []string{qryUpdate, qryInsert}, ps.ExtractModel(participationScore)
 }
 
 // GetParticipationScoreByNodeID returns query string to get participation score by node id

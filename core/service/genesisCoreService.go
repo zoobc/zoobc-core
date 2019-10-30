@@ -14,7 +14,10 @@ import (
 
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
-func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []constant.MainchainGenesisConfigEntry) []*model.Transaction {
+func GetGenesisTransactions(
+	chainType chaintype.ChainType,
+	genesisEntries []constant.MainchainGenesisConfigEntry,
+) ([]*model.Transaction, error) {
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
 	case *chaintype.MainChain:
@@ -38,31 +41,45 @@ func GetGenesisTransactions(chainType chaintype.ChainType, genesisEntries []cons
 				Signature:            constant.MainchainGenesisTransactionSignature,
 			}
 
-			transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+			transactionBytes, err := transaction.GetTransactionBytes(genesisTx, true)
 			if err != nil {
-				log.Fatal(err)
+				return nil, err
 			}
 			transactionHash := sha3.Sum256(transactionBytes)
 			genesisTx.TransactionHash = transactionHash[:]
-			genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
+			genesisTx.ID, err = transaction.GetTransactionID(transactionHash[:])
+			if err != nil {
+				return nil, err
+			}
 			genesisTxs = append(genesisTxs, genesisTx)
 
 			// register the node for the fund receiver, if relative element in MainChainGenesisConfig contains a NodePublicKey
 			if len(genesisEntry.NodePublicKey) > 0 {
-				genesisNodeRegistrationTx := GetGenesisNodeRegistrationTx(genesisEntry.AccountAddress, genesisEntry.NodeAddress,
+				genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(genesisEntry.AccountAddress, genesisEntry.NodeAddress,
 					genesisEntry.LockedBalance, genesisEntry.NodePublicKey)
+				if err != nil {
+					return nil, err
+				}
 				genesisTxs = append(genesisTxs, genesisNodeRegistrationTx)
 			}
 		}
 
-		return genesisTxs
+		return genesisTxs, nil
 	default:
-		return nil
+		return nil, blocker.NewBlocker(
+			blocker.AppErr,
+			"GetGenesisTransactions:ChainTypeNotFound",
+		)
 	}
 }
 
 // GetGenesisNodeRegistrationTx given a genesisEntry, returns a nodeRegistrationTransaction for genesis block
-func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBalance int64, nodePublicKey []byte) *model.Transaction {
+func GetGenesisNodeRegistrationTx(
+	accountAddress,
+	nodeAddress string,
+	lockedBalance int64,
+	nodePublicKey []byte,
+) (*model.Transaction, error) {
 	// generate a dummy proof of ownership (avoiding to add conditions to tx parsebytes, for genesis block only)
 	poownMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: accountAddress,
@@ -100,14 +117,17 @@ func GetGenesisNodeRegistrationTx(accountAddress, nodeAddress string, lockedBala
 		Signature:            constant.MainchainGenesisTransactionSignature,
 	}
 
-	transactionBytes, err := util.GetTransactionBytes(genesisTx, true)
+	transactionBytes, err := transaction.GetTransactionBytes(genesisTx, true)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	transactionHash := sha3.Sum256(transactionBytes)
 	genesisTx.TransactionHash = transactionHash[:]
-	genesisTx.ID, _ = util.GetTransactionID(transactionHash[:])
-	return genesisTx
+	genesisTx.ID, err = transaction.GetTransactionID(transactionHash[:])
+	if err != nil {
+		return nil, err
+	}
+	return genesisTx, nil
 }
 
 // AddGenesisAccount create genesis account into `account` and `account_balance` table
