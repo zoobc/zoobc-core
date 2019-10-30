@@ -214,7 +214,7 @@ func (ts *TransactionService) PostTransaction(
 ) (*model.Transaction, error) {
 	txBytes := req.TransactionBytes
 	// get unsigned bytes
-	tx, err := util.ParseTransactionBytes(txBytes, true)
+	tx, err := transaction.ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
