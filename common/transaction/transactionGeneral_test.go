@@ -1,14 +1,19 @@
-package util
+package transaction
 
 import (
 	"bytes"
+	"database/sql"
 	"math"
 	"reflect"
+	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
 func TestGetTransactionBytes(t *testing.T) {
@@ -239,6 +244,43 @@ func TestParseTransactionBytes(t *testing.T) {
 	}
 }
 
+func TestReadAccountAddress(t *testing.T) {
+	type args struct {
+		accountType uint32
+		buf         *bytes.Buffer
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "TestReadAccountAddress:defult",
+			args: args{
+				accountType: math.MaxUint32,
+				buf: bytes.NewBuffer([]byte{2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122,
+					105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55,
+					0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80,
+					118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4,
+					5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190,
+					78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
+					229, 184, 77, 80, 80, 39, 254, 173, 28, 169}),
+			},
+			want: []byte{
+				2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110,
+				95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGetTransactionID(t *testing.T) {
 	type args struct {
 		tx *model.Transaction
@@ -288,110 +330,116 @@ func TestGetTransactionID(t *testing.T) {
 	}
 }
 
-func TestReadAccountAddress(t *testing.T) {
-	type args struct {
-		accountType uint32
-		buf         *bytes.Buffer
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			name: "TestReadAccountAddress:defult",
-			args: args{
-				accountType: math.MaxUint32,
-				buf: bytes.NewBuffer([]byte{2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122,
-					105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55,
-					0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80,
-					118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4,
-					5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190,
-					78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
-					229, 184, 77, 80, 80, 39, 254, 173, 28, 169}),
-			},
-			want: []byte{
-				2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110,
-				95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+type mockQueryExecutorSuccess struct {
+	query.Executor
 }
 
-func TestReadTransactionBytes(t *testing.T) {
-	type args struct {
-		buf    *bytes.Buffer
-		nBytes int
+func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+
+	getAccountBalanceByAccountID := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
+		"FROM account_balance WHERE account_address = ? AND latest = 1"
+	defer db.Close()
+	switch qe {
+	case getAccountBalanceByAccountID:
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"},
+		).AddRow("BCZ", 1, 10000, 10000, 0, 1))
+	default:
+		return nil, nil
 	}
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func TestValidateTransaction(t *testing.T) {
+	type args struct {
+		tx                  *model.Transaction
+		queryExecutor       query.ExecutorInterface
+		accountBalanceQuery query.AccountBalanceQueryInterface
+		verifySignature     bool
+	}
+	tx := buildTransaction(
+		1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	)
+	txBytes, _ := GetTransactionBytes(tx, false)
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	tx.Signature = signature
 	tests := []struct {
 		name    string
 		args    args
-		want    []byte
 		wantErr bool
 	}{
 		{
-			name: "ReadTransactionBytes:wrong-bytes",
+			name: "TestValidateTransaction:success",
 			args: args{
-				buf:    bytes.NewBuffer([]byte{1, 2}),
-				nBytes: 4,
+				tx: buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"),
+				queryExecutor:       &mockQueryExecutorSuccess{},
+				accountBalanceQuery: query.NewAccountBalanceQuery(),
+				verifySignature:     false,
 			},
-			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "TestValidateTransaction:success - verify signature",
+			args: args{
+				tx:                  tx,
+				queryExecutor:       &mockQueryExecutorSuccess{},
+				accountBalanceQuery: query.NewAccountBalanceQuery(),
+				verifySignature:     true,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ValidateTransaction:Fee<0",
+			args: args{
+				tx: &model.Transaction{
+					Height: 1,
+					Fee:    0,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateTransaction:SenderAddressEmpty",
+			args: args{
+				tx: &model.Transaction{
+					Height: 1,
+					Fee:    1,
+				},
+			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ReadTransactionBytes(tt.args.buf, tt.args.nBytes)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ReadTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReadTransactionBytes() got = %v, want %v", got, tt.want)
+			if err := ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
+				tt.args.verifySignature); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestFeePerByteTransaction(t *testing.T) {
-	type args struct {
-		feeTransaction   int64
-		transactionBytes []byte
-	}
-	tests := []struct {
-		name string
-		args args
-		want int64
-	}{
-		{
-			name: "wantSuccess",
-			args: args{
-				feeTransaction:   1,
-				transactionBytes: []byte{1},
-			},
-			want: constant.OneFeePerByteTransaction,
-		},
-		{
-			name: "wantSuccess:zeroLengthBytes",
-			args: args{
-				feeTransaction:   1,
-				transactionBytes: []byte{},
-			},
-			want: 1 * constant.OneFeePerByteTransaction,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := FeePerByteTransaction(tt.args.feeTransaction, tt.args.transactionBytes); got != tt.want {
-				t.Errorf("FeePerByteTransaction() = %v, want %v", got, tt.want)
-			}
-		})
+func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
+	return &model.Transaction{
+		Version:                 1,
+		ID:                      2774809487,
+		BlockID:                 1,
+		Height:                  1,
+		SenderAccountAddress:    sender,
+		RecipientAccountAddress: recipient,
+		TransactionType:         0,
+		Fee:                     1,
+		Timestamp:               timestamp,
+		TransactionHash:         make([]byte, 32),
+		TransactionBodyLength:   0,
+		TransactionBodyBytes:    make([]byte, 0),
+		TransactionBody:         nil,
+		Signature:               make([]byte, 64),
 	}
 }

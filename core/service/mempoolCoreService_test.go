@@ -126,11 +126,11 @@ func buildTransaction(timestamp int64, sender, recipient string) *model.Transact
 func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
 	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
 
-	txBytes, _ := util.GetTransactionBytes(tx, false)
+	txBytes, _ := transaction.GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
-	txBytes, _ = util.GetTransactionBytes(tx, true)
+	txBytes, _ = transaction.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
 		FeePerByte:              1,
@@ -448,11 +448,11 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 	return rows, nil
 }
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
-	successTx1, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[0].TransactionBytes, true)
-	successTx2, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[1].TransactionBytes, true)
-	successTx3, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[2].TransactionBytes, true)
-	successTx4, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[3].TransactionBytes, true)
-	successTx5, _ := util.ParseTransactionBytes(mockSuccessSelectMempool[4].TransactionBytes, true)
+	successTx1, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[0].TransactionBytes, true)
+	successTx2, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[1].TransactionBytes, true)
+	successTx3, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[2].TransactionBytes, true)
+	successTx4, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[3].TransactionBytes, true)
+	successTx5, _ := transaction.ParseTransactionBytes(mockSuccessSelectMempool[4].TransactionBytes, true)
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
