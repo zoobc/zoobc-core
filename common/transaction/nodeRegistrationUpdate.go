@@ -195,9 +195,13 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
 	if (err != nil) || len(tempNodeRegistrationResult) > 0 {
 		prevNodeRegistration = tempNodeRegistrationResult[0]
+		if prevNodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+			return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
+		}
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
+
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
