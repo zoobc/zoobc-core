@@ -42,7 +42,7 @@ type (
 		Dialer            Dialer
 		Logger            *log.Logger
 		QueryExecutor     query.ExecutorInterface
-		ReceiptQuery      query.ReceiptQueryInterface
+		NodeReceiptQuery  query.NodeReceiptQueryInterface
 		BatchReceiptQuery query.BatchReceiptQueryInterface
 		MerkleTreeQuery   query.MerkleTreeQueryInterface
 		NodePublicKey     []byte
@@ -61,7 +61,7 @@ var ignoredErrors = map[codes.Code]string{
 // ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
 func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
-	receiptQuery query.ReceiptQueryInterface,
+	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	nodePublicKey []byte,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
@@ -82,7 +82,7 @@ func NewPeerServiceClient(
 			return conn, nil
 		},
 		QueryExecutor:     queryExecutor,
-		ReceiptQuery:      receiptQuery,
+		NodeReceiptQuery:  nodeReceiptQuery,
 		BatchReceiptQuery: batchReceiptQuery,
 		MerkleTreeQuery:   merkleTreeQuery,
 		NodePublicKey:     nodePublicKey,
