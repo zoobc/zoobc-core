@@ -21,7 +21,7 @@ type (
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
 		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
 		ExtractModel(dataset *model.AccountDataset) []interface{}
-		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) []*model.AccountDataset
+		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
 	}
 )
@@ -215,10 +215,16 @@ func (adq *AccountDatasetsQuery) ExtractArgsWhere(dataset *model.AccountDataset)
 	}
 }
 
-func (adq *AccountDatasetsQuery) BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) []*model.AccountDataset {
+func (adq *AccountDatasetsQuery) BuildModel(
+	datasets []*model.AccountDataset,
+	rows *sql.Rows,
+) ([]*model.AccountDataset, error) {
 	for rows.Next() {
-		var dataset model.AccountDataset
-		_ = rows.Scan(
+		var (
+			dataset model.AccountDataset
+			err     error
+		)
+		err = rows.Scan(
 			&dataset.SetterAccountAddress,
 			&dataset.RecipientAccountAddress,
 			&dataset.Property,
@@ -228,9 +234,12 @@ func (adq *AccountDatasetsQuery) BuildModel(datasets []*model.AccountDataset, ro
 			&dataset.TimestampExpires,
 			&dataset.Latest,
 		)
+		if err != nil {
+			return nil, err
+		}
 		datasets = append(datasets, &dataset)
 	}
-	return datasets
+	return datasets, nil
 }
 
 func (*AccountDatasetsQuery) Scan(dataset *model.AccountDataset, row *sql.Row) error {
@@ -266,7 +275,6 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 				WHERE (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					WHERE latest = 0
 					GROUP BY %s
 				)`,
 				adq.TableName,

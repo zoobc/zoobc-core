@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"database/sql"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -133,7 +132,10 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	}
 	defer rows2.Close()
 
-	txs = txQuery.BuildModel(txs, rows2)
+	txs, err = txQuery.BuildModel(txs, rows2)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	response = &model.GetMempoolTransactionsResponse{
 		MempoolTransactions: txs,

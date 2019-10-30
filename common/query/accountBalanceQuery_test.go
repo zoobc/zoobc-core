@@ -156,7 +156,7 @@ func TestAccountBalanceQuery_BuildModel(t *testing.T) {
 				mockAccountBalance.Balance, mockAccountBalance.PopRevenue, mockAccountBalance.Latest))
 		rows, _ := db.Query("foo")
 		var tempAccount []*model.AccountBalance
-		res := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
+		res, _ := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
 		if !reflect.DeepEqual(res[0], mockAccountBalance) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccountBalance)
 		}
@@ -191,7 +191,6 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM account_balance
-				WHERE latest = 0
 				GROUP BY account_address
 			)`,
 					1,
