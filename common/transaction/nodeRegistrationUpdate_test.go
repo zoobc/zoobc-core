@@ -21,6 +21,9 @@ type (
 	mockExecutorValidateFailAccountNotNodeOwnerRU struct {
 		query.Executor
 	}
+	mockExecutorValidateFailNodeDeleted struct {
+		query.Executor
+	}
 	mockExecutorValidateFailNodeAlreadyRegisteredRU struct {
 		query.Executor
 	}
@@ -45,6 +48,37 @@ func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, t
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
+		return db.Query("")
+	}
+	return nil, nil
+}
+
+func (*mockExecutorValidateFailNodeDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1" {
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}).AddRow(
+			int64(10000),
+			nodePubKey2,
+			senderAddress1,
+			uint32(1),
+			"10.10.10.10",
+			int64(1000),
+			model.NodeRegistrationState_NodeDeleted,
+			true,
+			uint32(1),
+		))
 		return db.Query("")
 	}
 	return nil, nil
@@ -83,7 +117,7 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			model.NodeRegistrationState_NodeRegistered,
 			true,
 			uint32(1),
 		))
@@ -108,7 +142,7 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			model.NodeRegistrationState_NodeRegistered,
 			true,
 			uint32(1),
 		))
@@ -139,7 +173,7 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			model.NodeRegistrationState_NodeRegistered,
 			true,
 			uint32(1),
 		))
@@ -185,7 +219,7 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...
 			uint32(1),
 			"10.10.10.10",
 			int64(1000),
-			false,
+			model.NodeRegistrationState_NodeRegistered,
 			true,
 			uint32(1),
 		))
@@ -344,6 +378,19 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectFailRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{NodeDeleted}",
+			fields: fields{
+				Body:                  txBodyWithValidPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailNodeDeleted{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
