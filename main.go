@@ -84,7 +84,7 @@ func init() {
 	flag.Parse()
 
 	if isDebugMode {
-		viper.Set("DebugMode", true)
+		viper.Set("dflag", true)
 	}
 
 	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)

@@ -5,7 +5,7 @@ import (
 )
 
 func isDebug() bool {
-	return viper.GetBool("DebugMode")
+	return viper.GetBool("dflag")
 }
 
 func SetCheckVarString(key, defaultVal string) string {
