@@ -35,12 +35,13 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	if err != nil {
 		return err
 	}
-	nodereGistrations = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
-	if len(nodereGistrations) == 0 {
+	nodereGistrations, err = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
+	if (err != nil) || len(nodereGistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
 
 	prevNodeRegistration := nodereGistrations[0]
+	// tag the node as deleted
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             prevNodeRegistration.NodeID,
 		LockedBalance:      0,
@@ -49,14 +50,14 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
-		Queued:             true,
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeDeleted),
 		// We can't just set accountAddress to an empty string,
 		// otherwise it could trigger an error when parsing the transaction from its bytes
-		AccountAddress: "00000000000000000000000000000000000000000000",
+		AccountAddress: prevNodeRegistration.AccountAddress,
 	}
 	// update sender balance by refunding the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		(prevNodeRegistration.LockedBalance - tx.Fee),
+		prevNodeRegistration.LockedBalance-tx.Fee,
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
 			"block_height":    tx.Height,
@@ -122,13 +123,17 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
-	nodeRegistrations = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	if len(nodeRegistrations) == 0 {
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
+	nr := nodeRegistrations[0]
 	// sender must be node owner
-	if tx.SenderAddress != nodeRegistrations[0].AccountAddress {
+	if tx.SenderAddress != nr.AccountAddress {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountNotNodeOwner")
+	}
+	if nr.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyDeleted")
 	}
 	return nil
 }

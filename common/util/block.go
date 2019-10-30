@@ -74,7 +74,10 @@ func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQ
 	var (
 		blocks []*model.Block
 	)
-	blocks = blockQuery.BuildModel(blocks, rows)
+	blocks, err = blockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
+	}
 	if len(blocks) == 0 {
 		return nil, blocker.NewBlocker(blocker.DBErr, "LastBlockNotFound")
 	}
@@ -82,7 +85,11 @@ func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQ
 }
 
 // GetBlockByHeight TODO: this should be used by services instead of blockService.GetLastBlock
-func GetBlockByHeight(height uint32, queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) (*model.Block, error) {
+func GetBlockByHeight(
+	height uint32,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) (*model.Block, error) {
 	qry := blockQuery.GetBlockByHeight(height)
 	rows, err := queryExecutor.ExecuteSelect(qry, false)
 	defer func() {
@@ -94,7 +101,11 @@ func GetBlockByHeight(height uint32, queryExecutor query.ExecutorInterface, bloc
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	var blocks []*model.Block
-	blocks = blockQuery.BuildModel(blocks, rows)
+	blocks, err = blockQuery.BuildModel(blocks, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
+	}
+
 	if len(blocks) == 0 {
 		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
 	}

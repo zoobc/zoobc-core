@@ -341,7 +341,7 @@ func TestAccountDatasetsQuery_BuildModel(t *testing.T) {
 			))
 		rows, _ := db.Query("foo")
 		var tempDataset []*model.AccountDataset
-		if got := mockDatasetQuery.BuildModel(tempDataset, rows); !reflect.DeepEqual(got[0], mockDataset) {
+		if got, _ := mockDatasetQuery.BuildModel(tempDataset, rows); !reflect.DeepEqual(got[0], mockDataset) {
 			t.Errorf("AccountDatasetsQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
 		}
 	})
@@ -441,7 +441,6 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 				WHERE (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					WHERE latest = 0
 					GROUP BY %s
 				)`,
 					mockDatasetQuery.TableName,

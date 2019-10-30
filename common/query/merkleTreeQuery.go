@@ -27,7 +27,7 @@ type (
 )
 
 // NewMerkleTreeQuery func to create new MerkleTreeInterface
-func NewMerkleTreeQuery() MerkleTreeQueryInterface {
+func NewMerkleTreeQuery() *MerkleTreeQuery {
 	return &MerkleTreeQuery{
 		Fields: []string{
 			"id",
@@ -41,7 +41,6 @@ func NewMerkleTreeQuery() MerkleTreeQueryInterface {
 
 func (mrQ *MerkleTreeQuery) getTableName() string {
 	return mrQ.TableName
-
 }
 
 // InsertMerkleTree func build insert Query for MerkleTree
@@ -69,12 +68,17 @@ func (mrQ *MerkleTreeQuery) GetLastMerkleRoot() (qStr string) {
 	return query
 }
 
+/*
+SelectMerkleTree represents get merkle tree in range of block_height
+and order by block_height ascending
+test_expression >= low_expression AND test_expression <= high_expression
+*/
 func (mrQ *MerkleTreeQuery) SelectMerkleTree(
 	lowerHeight, upperHeight, limit uint32,
 ) string {
 	query := fmt.Sprintf("SELECT %s FROM %s AS mt WHERE EXISTS "+
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked AND "+
-		"block_height >= %d AND block_height <= %d ) LIMIT %d",
+		"block_height BETWEEN %d AND %d ORDER BY block_height ASC) LIMIT %d",
 		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(), lowerHeight, upperHeight, limit)
 	return query
 }

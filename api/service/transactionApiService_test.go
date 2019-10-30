@@ -131,6 +131,14 @@ func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.Mempool
 func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:getTxsFail")
 }
+func (*mockGetTransactionExecutorTxsFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(
+		query.NewTransactionQuery(chaintype.GetChainType(0)).Fields,
+	))
+	return db.QueryRow("")
+}
 
 func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -140,6 +148,14 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args
 		"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
 		"Version"}))
 	return db.Query(qe)
+}
+func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(
+		query.NewTransactionQuery(chaintype.GetChainType(0)).Fields,
+	))
+	return db.QueryRow("")
 }
 
 func (*mockTransactionExecutorFailBeginTx) BeginTx() error {
@@ -637,8 +653,11 @@ type (
 	}
 )
 
-func (*mockQueryGetTransactionSuccess) ExecuteSelect(qe string, tx bool,
-	args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetTransactionSuccess) ExecuteSelect(
+	qe string,
+	tx bool,
+	args ...interface{},
+) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).AddRow(
@@ -657,6 +676,28 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(qe string, tx bool,
 		),
 	)
 	return db.Query("")
+}
+func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(query.NewTransactionQuery(chaintype.GetChainType(0)).Fields).
+			AddRow(
+				4545420970999433273,
+				1,
+				1,
+				"senderA",
+				"recipientA",
+				0,
+				1,
+				10000,
+				[]byte{1, 1},
+				8,
+				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+				[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
+			),
+	)
+	return db.QueryRow("")
 }
 func TestTransactionService_GetTransaction(t *testing.T) {
 	type fields struct {
