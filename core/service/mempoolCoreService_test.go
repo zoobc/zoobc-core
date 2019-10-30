@@ -16,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
