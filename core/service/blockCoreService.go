@@ -1093,7 +1093,7 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	//  check equality last block hash with previous block hash from received block
-	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
+	if !bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 		// check if already broadcast receipt to this node
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {

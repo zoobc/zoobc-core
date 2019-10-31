@@ -133,23 +133,6 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey3 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	bcsBlock1 = &model.Block{
-		ID:                   0,
-		PreviousBlockHash:    []byte{},
-		Height:               1,
-		Timestamp:            1562806389280,
-		BlockSeed:            []byte{},
-		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
-		SmithScale:           1,
-		PayloadLength:        0,
-		PayloadHash:          []byte{},
-		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          100000000,
-		TotalFee:             10000000,
-		TotalCoinBase:        1,
-		Version:              0,
-	}
 	mockTransaction = &model.Transaction{
 		ID:                      1,
 		BlockID:                 1,
