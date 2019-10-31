@@ -20,6 +20,7 @@ type (
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
 		GetBodyBytes() []byte
 		GetTransactionBody(transaction *model.Transaction)
+		SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error)
 	}
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) (TypeAction, error)

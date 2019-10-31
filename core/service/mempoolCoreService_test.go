@@ -16,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -839,126 +838,6 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 			}
 			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestMempoolService_generateTransactionReceipt(t *testing.T) {
-	mockSecretPhrase := ""
-	mockSenderPublicKey, mockReceivedTxHash := make([]byte, 32), make([]byte, 32)
-	mockReceiptKey, _ := util.GetReceiptKey(mockReceivedTxHash, mockSenderPublicKey)
-
-	mockNodePublicKey := util.GetPublicKeyFromSeed(mockSecretPhrase)
-	mockSuccessBatchReceipt, _ := util.GenerateBatchReceipt(
-		mockBlock,
-		mockSenderPublicKey,
-		mockNodePublicKey,
-		mockReceivedTxHash,
-		nil,
-		constant.ReceiptDatumTypeTransaction,
-	)
-	mockSuccessBatchReceipt.RecipientSignature = (&crypto.Signature{}).SignByNode(
-		util.GetUnsignedBatchReceiptBytes(mockSuccessBatchReceipt),
-		mockSecretPhrase,
-	)
-	type fields struct {
-		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Observer            *observer.Observer
-	}
-	type args struct {
-		receivedTxHash   []byte
-		lastBlock        *model.Block
-		senderPublicKey  []byte
-		receiptKey       []byte
-		nodeSecretPhrase string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *model.BatchReceipt
-		wantErr bool
-	}{
-		{
-			name: "generateTransactionReceipt:success",
-			fields: fields{
-				Chaintype:           nil,
-				KVExecutor:          &mockKVExecutorSuccess{},
-				QueryExecutor:       &mockQueryExecutorSuccess{},
-				MempoolQuery:        nil,
-				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-				ActionTypeSwitcher:  nil,
-				AccountBalanceQuery: nil,
-				Signature:           &crypto.Signature{},
-				TransactionQuery:    nil,
-				Observer:            nil,
-			},
-			args: args{
-				receivedTxHash:   mockReceivedTxHash,
-				lastBlock:        mockBlock,
-				senderPublicKey:  mockSenderPublicKey,
-				receiptKey:       mockReceiptKey,
-				nodeSecretPhrase: "",
-			},
-			want:    mockSuccessBatchReceipt,
-			wantErr: false,
-		},
-		{
-			name: "generateTransactionReceipt:KVDBInsertFail",
-			fields: fields{
-				Chaintype:           nil,
-				KVExecutor:          &mockKVExecutorFailOtherError{},
-				QueryExecutor:       &mockQueryExecutorSuccess{},
-				MempoolQuery:        nil,
-				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-				ActionTypeSwitcher:  nil,
-				AccountBalanceQuery: nil,
-				Signature:           &crypto.Signature{},
-				TransactionQuery:    nil,
-				Observer:            nil,
-			},
-			args: args{
-				receivedTxHash:   mockReceivedTxHash,
-				lastBlock:        mockBlock,
-				senderPublicKey:  mockSenderPublicKey,
-				receiptKey:       mockReceiptKey,
-				nodeSecretPhrase: "",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mps := &MempoolService{
-				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Signature:           tt.fields.Signature,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Observer:            tt.fields.Observer,
-			}
-			got, err := mps.generateTransactionReceipt(tt.args.receivedTxHash, tt.args.lastBlock, tt.args.senderPublicKey,
-				tt.args.receiptKey, tt.args.nodeSecretPhrase)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("generateTransactionReceipt() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("generateTransactionReceipt() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
