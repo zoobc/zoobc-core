@@ -1413,6 +1413,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		MempoolService     MempoolServiceInterface
 		ReceiptService     ReceiptServiceInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
+		SortedBlocksmiths  *[]model.Blocksmith
 	}
 	type args struct {
 		previousBlock            *model.Block
@@ -1430,10 +1431,11 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		{
 			name: "wantFail:MempoolServiceSelectTransaction",
 			fields: fields{
-				Chaintype:      &chaintype.MainChain{},
-				Signature:      &mockSignature{},
-				MempoolQuery:   query.NewMempoolQuery(&chaintype.MainChain{}),
-				MempoolService: &mockMempoolServiceSelectFail{},
+				Chaintype:         &chaintype.MainChain{},
+				Signature:         &mockSignature{},
+				MempoolQuery:      query.NewMempoolQuery(&chaintype.MainChain{}),
+				MempoolService:    &mockMempoolServiceSelectFail{},
+				SortedBlocksmiths: &[]model.Blocksmith{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1471,6 +1473,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				},
 				ReceiptService:     &mockReceiptServiceReturnEmpty{},
 				ActionTypeSwitcher: &mockTypeActionSuccess{},
+				SortedBlocksmiths:  &[]model.Blocksmith{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1505,6 +1508,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				MempoolService:     tt.fields.MempoolService,
 				ReceiptService:     tt.fields.ReceiptService,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				SortedBlocksmiths:  tt.fields.SortedBlocksmiths,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -1515,7 +1519,6 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				t.Errorf("BlockService.GenerateBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 		})
 	}
 }

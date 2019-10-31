@@ -60,6 +60,9 @@ func (rs *ReceiptService) SelectReceipts(
 		lowerBlockHeight uint32
 	)
 
+	if numberOfReceipt < 1 { // possible no connected node
+		return []*model.PublishedReceipt{}, nil
+	}
 	// get the last merkle tree we have build so far
 	if lastBlockHeight > constant.ReceiptNumberOfBlockToPick {
 		lowerBlockHeight = lastBlockHeight - constant.ReceiptNumberOfBlockToPick
@@ -134,57 +137,51 @@ func (rs *ReceiptService) SelectReceipts(
 	}
 	// prioritize those receipts with rmr_linked != nil
 	if len(results) < numberOfReceipt {
-		var receipts []*model.Receipt
-		// look up rmr in table | todo: randomize selection
-		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0, true)
-		uniqueReceiptRows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+		rmrLinkedReceipts, err := rs.pickReceipts(numberOfReceipt, results, pickedRecipients, true)
 		if err != nil {
 			return nil, err
 		}
-		defer uniqueReceiptRows.Close()
-
-		receipts, err = rs.ReceiptQuery.BuildModel(receipts, uniqueReceiptRows)
-		if err != nil {
-			return nil, err
-		}
-		for _, rc := range receipts {
-			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
-				results = append(results, &model.PublishedReceipt{
-					BatchReceipt:       rc.BatchReceipt,
-					IntermediateHashes: nil,
-					ReceiptIndex:       rc.RMRIndex,
-				})
-				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
-			}
-		}
+		results = rmrLinkedReceipts
 	}
 	// fill in unlinked receipts if the limit has not been reached
 	if len(results) < numberOfReceipt { // get unlinked receipts randomly, in future additional filter may be added
-		var receipts []*model.Receipt
-		// look up rmr in table | todo: randomize selection
-		receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(results)), 0, false)
-		uniqueReceiptRandRows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+		rmrLinkedReceipts, err := rs.pickReceipts(numberOfReceipt, results, pickedRecipients, false)
 		if err != nil {
 			return nil, err
 		}
-		defer uniqueReceiptRandRows.Close()
-
-		receipts, err = rs.ReceiptQuery.BuildModel(receipts, uniqueReceiptRandRows)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, rc := range receipts {
-			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
-				results = append(results, &model.PublishedReceipt{
-					BatchReceipt:       rc.BatchReceipt,
-					IntermediateHashes: nil,
-					ReceiptIndex:       rc.RMRIndex,
-				})
-			}
-		}
+		results = rmrLinkedReceipts
 	}
 	return results, nil
+}
+
+func (rs *ReceiptService) pickReceipts(
+	numberOfReceipt int,
+	pickedReceipts []*model.PublishedReceipt,
+	pickedRecipients map[string]bool,
+	rmrLinked bool,
+) ([]*model.PublishedReceipt, error) {
+	var receipts []*model.Receipt
+	receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(pickedReceipts)), 0, rmrLinked)
+	rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+	if err != nil {
+		return nil, err
+	}
+	for _, rc := range receipts {
+		if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
+			pickedReceipts = append(pickedReceipts, &model.PublishedReceipt{
+				BatchReceipt:       rc.BatchReceipt,
+				IntermediateHashes: nil,
+				ReceiptIndex:       rc.RMRIndex,
+			})
+			pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
+		}
+	}
+	return pickedReceipts, nil
 }
 
 // GenerateReceiptsMerkleRoot generate merkle root of some bacth recipts
