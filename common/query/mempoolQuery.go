@@ -35,6 +35,7 @@ func NewMempoolQuery(chaintype chaintype.ChainType) *MempoolQuery {
 	return &MempoolQuery{
 		Fields: []string{
 			"id",
+			"block_height",
 			"fee_per_byte",
 			"arrival_timestamp",
 			"transaction_bytes",
@@ -63,11 +64,15 @@ func (mpq *MempoolQuery) GetMempoolTransaction() string {
 func (mpq *MempoolQuery) InsertMempoolTransaction() string {
 	var value = ":" + mpq.Fields[0]
 	for _, field := range mpq.Fields[1:] {
-		value += (", :" + field)
+		value += ", :" + field
 
 	}
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
-		mpq.getTableName(), strings.Join(mpq.Fields, ", "), value)
+	query := fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		mpq.getTableName(),
+		strings.Join(mpq.Fields, ", "),
+		value,
+	)
 	return query
 }
 
@@ -104,6 +109,7 @@ func (mpq *MempoolQuery) GetExpiredMempoolTransactions(expiration int64) string 
 func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface{} {
 	return []interface{}{
 		mempool.ID,
+		mempool.BlockHeight,
 		mempool.FeePerByte,
 		mempool.ArrivalTimestamp,
 		mempool.TransactionBytes,
@@ -114,7 +120,10 @@ func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) ([]*model.MempoolTransaction, error) {
+func (*MempoolQuery) BuildModel(
+	mempools []*model.MempoolTransaction,
+	rows *sql.Rows,
+) ([]*model.MempoolTransaction, error) {
 	for rows.Next() {
 		var (
 			mempool model.MempoolTransaction
@@ -122,6 +131,7 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 		)
 		err = rows.Scan(
 			&mempool.ID,
+			&mempool.BlockHeight,
 			&mempool.FeePerByte,
 			&mempool.ArrivalTimestamp,
 			&mempool.TransactionBytes,
@@ -140,6 +150,7 @@ func (*MempoolQuery) BuildModel(mempools []*model.MempoolTransaction, rows *sql.
 func (*MempoolQuery) Scan(mempool *model.MempoolTransaction, row *sql.Row) error {
 	err := row.Scan(
 		&mempool.ID,
+		&mempool.BlockHeight,
 		&mempool.FeePerByte,
 		&mempool.ArrivalTimestamp,
 		&mempool.TransactionBytes,
@@ -147,4 +158,14 @@ func (*MempoolQuery) Scan(mempool *model.MempoolTransaction, row *sql.Row) error
 		&mempool.RecipientAccountAddress,
 	)
 	return err
+}
+
+// Rollback delete records `WHERE height > "block_height"
+func (mpq *MempoolQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", mpq.getTableName()),
+			height,
+		},
+	}
 }

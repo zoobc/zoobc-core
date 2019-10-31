@@ -15,6 +15,7 @@ var (
 	mockMempoolQuery = NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempool      = &model.MempoolTransaction{
 		ID:                      1,
+		BlockHeight:             0,
 		ArrivalTimestamp:        1000,
 		FeePerByte:              10,
 		TransactionBytes:        []byte{1, 2, 3, 4, 5},
@@ -61,7 +62,7 @@ func TestMempoolQuery_getTableName(t *testing.T) {
 func TestMempoolQuery_GetMempoolTransactions(t *testing.T) {
 	t.Run("GetMempoolTransactions:success", func(t *testing.T) {
 		q := mockMempoolQuery.GetMempoolTransactions()
-		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address" +
+		wantQ := "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address" +
 			", recipient_account_address FROM mempool ORDER BY fee_per_byte DESC"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -72,7 +73,7 @@ func TestMempoolQuery_GetMempoolTransactions(t *testing.T) {
 func TestMempoolQuery_GetMempoolTransaction(t *testing.T) {
 	t.Run("GetMempoolTransaction:success", func(t *testing.T) {
 		q := mockMempoolQuery.GetMempoolTransaction()
-		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
+		wantQ := "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
 			" recipient_account_address FROM mempool WHERE id = :id"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -83,8 +84,8 @@ func TestMempoolQuery_GetMempoolTransaction(t *testing.T) {
 func TestMempoolQuery_InsertMempoolTransaction(t *testing.T) {
 	t.Run("InsertMempoolTransaction:success", func(t *testing.T) {
 		q := mockMempoolQuery.InsertMempoolTransaction()
-		wantQ := "INSERT INTO mempool (id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
-			" recipient_account_address) VALUES(:id, :fee_per_byte, :arrival_timestamp, :transaction_bytes," +
+		wantQ := "INSERT INTO mempool (id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
+			" recipient_account_address) VALUES(:id, :block_height, :fee_per_byte, :arrival_timestamp, :transaction_bytes," +
 			" :sender_account_address, :recipient_account_address)"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -117,6 +118,7 @@ func TestMempoolQuery_ExtractModel(t *testing.T) {
 		res := mockMempoolQuery.ExtractModel(mockMempool)
 		want := []interface{}{
 			mockMempool.ID,
+			mockMempool.BlockHeight,
 			mockMempool.FeePerByte,
 			mockMempool.ArrivalTimestamp,
 			mockMempool.TransactionBytes,
@@ -124,7 +126,7 @@ func TestMempoolQuery_ExtractModel(t *testing.T) {
 			mockMempool.RecipientAccountAddress,
 		}
 		if !reflect.DeepEqual(res, want) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, want)
+			t.Errorf("arguments returned wrong: get: \n%v, want: \n%v", res, want)
 		}
 	})
 }
@@ -134,8 +136,8 @@ func TestMempoolQuery_BuildModel(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes", "SenderAccountAddress", "RecipientAccountAddress"}).
-			AddRow(mockMempool.ID, mockMempool.FeePerByte, mockMempool.ArrivalTimestamp, mockMempool.TransactionBytes,
+			"ID", "block_height", "FeePerByte", "ArrivalTimestamp", "TransactionBytes", "SenderAccountAddress", "RecipientAccountAddress"}).
+			AddRow(mockMempool.ID, mockMempool.BlockHeight, mockMempool.FeePerByte, mockMempool.ArrivalTimestamp, mockMempool.TransactionBytes,
 				mockMempool.SenderAccountAddress, mockMempool.RecipientAccountAddress))
 		rows, _ := db.Query("foo")
 		var tempMempool []*model.MempoolTransaction
@@ -157,6 +159,7 @@ func (*mockRowMempoolQueryScan) ExecuteSelectRow(qStr string, args ...interface{
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(NewMempoolQuery(&chaintype.MainChain{}).Fields).AddRow(
 			1,
+			0,
 			1,
 			1000,
 			make([]byte, 88),
