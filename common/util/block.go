@@ -63,14 +63,10 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) (*model.Block, error) {
 	qry := blockQuery.GetLastBlock()
 	rows, err := queryExecutor.ExecuteSelect(qry, false)
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var (
 		blocks []*model.Block
 	)
@@ -92,14 +88,10 @@ func GetBlockByHeight(
 ) (*model.Block, error) {
 	qry := blockQuery.GetBlockByHeight(height)
 	rows, err := queryExecutor.ExecuteSelect(qry, false)
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var blocks []*model.Block
 	blocks, err = blockQuery.BuildModel(blocks, rows)
 	if err != nil {
