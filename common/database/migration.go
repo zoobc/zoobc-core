@@ -187,6 +187,10 @@ func (m *Migration) Init() error {
 			ALTER TABLE "node_registry" 
 				RENAME COLUMN "queued" TO "registration_status"
 			`,
+			`
+			ALTER TABLE "mempool"
+				ADD COLUMN "block_height" INTEGER AFTER "id"
+			`,
 		}
 		return nil
 	}
