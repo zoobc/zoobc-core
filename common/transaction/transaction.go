@@ -89,7 +89,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &UpdateNodeRegistration{
-				ID:                    tx.ID, // assign tx ID to nodeID
 				Body:                  nodeRegistrationBody.(*model.UpdateNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
@@ -106,7 +105,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
-				ID:                    tx.ID, // assign tx ID to nodeID
 				Body:                  removeNodeRegistrationBody.(*model.RemoveNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
@@ -121,7 +119,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
-				ID:                    tx.ID, // assign tx ID to nodeID
 				Body:                  claimNodeRegistrationBody.(*model.ClaimNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),

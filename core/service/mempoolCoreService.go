@@ -251,14 +251,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 		if err := transaction.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
-		selectedTransactions = append(selectedTransactions, tx)
-		selectedMempool = append(selectedMempool, mempoolTransaction)
-		payloadLength += transactionLength
-	}
-	sortFeePerByteThenTimestampThenID(selectedTransactions, selectedMempool)
 
-	filteredTransactions := make([]*model.Transaction, 0)
-	for _, tx := range selectedTransactions {
 		txType, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
 			return nil, err
@@ -267,11 +260,16 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 		if err != nil {
 			return nil, err
 		}
-		if !toRemove {
-			filteredTransactions = append(filteredTransactions, tx)
+		if toRemove {
+			continue
 		}
+
+		selectedTransactions = append(selectedTransactions, tx)
+		selectedMempool = append(selectedMempool, mempoolTransaction)
+		payloadLength += transactionLength
 	}
-	return filteredTransactions, nil
+	sortFeePerByteThenTimestampThenID(selectedTransactions, selectedMempool)
+	return selectedTransactions, nil
 }
 
 func (mps *MempoolService) ReceivedTransaction(
