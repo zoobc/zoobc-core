@@ -30,7 +30,7 @@ func (tx *ClaimNodeRegistration) FilterMempoolTransaction(selectedTransactions [
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
 		buf := util.ConvertUint32ToBytes(sel.GetTransactionType())
-		if buf[0] == 2 {
+		if buf[0] == 2 && tx.SenderAddress == sel.SenderAccountAddress {
 			return true, nil
 		}
 	}
