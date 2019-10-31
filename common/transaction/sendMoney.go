@@ -26,7 +26,7 @@ type SendMoney struct {
 
 // FilterMempoolTransaction this tx type has no mempool filter
 func (tx *SendMoney) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
-	return true, nil
+	return false, nil
 }
 
 /*

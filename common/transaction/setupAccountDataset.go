@@ -23,7 +23,7 @@ type SetupAccountDataset struct {
 
 // FilterMempoolTransaction this tx type has no mempool filter
 func (tx *SetupAccountDataset) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
-	return true, nil
+	return false, nil
 }
 
 /*

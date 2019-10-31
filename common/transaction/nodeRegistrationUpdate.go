@@ -37,7 +37,6 @@ func (tx *UpdateNodeRegistration) FilterMempoolTransaction(selectedTransactions 
 			return true, nil
 		}
 	}
-	// no tx found matching filter conditions, so do not filter (we should never get here anyways)
 	return false, nil
 }
 
