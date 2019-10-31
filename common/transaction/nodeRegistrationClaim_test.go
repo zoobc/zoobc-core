@@ -755,7 +755,7 @@ func TestClaimNodeRegistration_GetTransactionBody(t *testing.T) {
 	}
 }
 
-func TestClaimNodeRegistration_FilterMempoolTransaction(t *testing.T) {
+func TestClaimNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
 		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
@@ -780,7 +780,7 @@ func TestClaimNodeRegistration_FilterMempoolTransaction(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "FilterMempoolTransaction:success-{Filtered}",
+			name: "SkipMempoolTransaction:success-{Filtered}",
 			fields: fields{
 				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			},
@@ -803,7 +803,7 @@ func TestClaimNodeRegistration_FilterMempoolTransaction(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "FilterMempoolTransaction:success-{UnFiltered_DifferentSenders}",
+			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
 			fields: fields{
 				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			},
@@ -825,7 +825,7 @@ func TestClaimNodeRegistration_FilterMempoolTransaction(t *testing.T) {
 			},
 		},
 		{
-			name: "FilterMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
+			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
 			fields: fields{
 				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			},
@@ -862,13 +862,13 @@ func TestClaimNodeRegistration_FilterMempoolTransaction(t *testing.T) {
 				QueryExecutor:           tt.fields.QueryExecutor,
 				AuthPoown:               tt.fields.AuthPoown,
 			}
-			got, err := tx.FilterMempoolTransaction(tt.args.selectedTransactions)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NodeRegistration.FilterMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NodeRegistration.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("NodeRegistration.FilterMempoolTransaction() = %v, want %v", got, tt.want)
+				t.Errorf("NodeRegistration.SkipMempoolTransaction() = %v, want %v", got, tt.want)
 			}
 		})
 	}

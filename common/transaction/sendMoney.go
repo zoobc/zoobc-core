@@ -24,8 +24,8 @@ type SendMoney struct {
 	QueryExecutor       query.ExecutorInterface
 }
 
-// FilterMempoolTransaction this tx type has no mempool filter
-func (tx *SendMoney) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+// SkipMempoolTransaction this tx type has no mempool filter
+func (tx *SendMoney) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
 	return false, nil
 }
 

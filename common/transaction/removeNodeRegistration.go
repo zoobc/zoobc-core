@@ -21,9 +21,9 @@ type RemoveNodeRegistration struct {
 	QueryExecutor         query.ExecutorInterface
 }
 
-// FilterMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
+// SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
 // to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
-func (tx *RemoveNodeRegistration) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *RemoveNodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
 		txType := sel.TransactionType
