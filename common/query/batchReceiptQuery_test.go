@@ -124,17 +124,24 @@ func TestBatchReceiptQuery_GetBatchReceipts(t *testing.T) {
 		Fields    []string
 		TableName string
 	}
+	type args struct {
+		paginate model.Pagination
+	}
 	tests := []struct {
 		name   string
 		fields fields
+		args   args
 		want   string
 	}{
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockBatchQuery),
+			args: args{paginate: model.Pagination{
+				OrderBy: model.OrderBy_ASC,
+			}},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, " +
 				"reference_block_height, reference_block_hash, rmr_linked, recipient_signature " +
-				"FROM batch_receipt ORDER BY reference_block_height LIMIT 10 OFFSET 0",
+				"FROM batch_receipt ORDER BY reference_block_height ASC LIMIT 8 OFFSET 0",
 		},
 	}
 	for _, tt := range tests {
@@ -143,8 +150,8 @@ func TestBatchReceiptQuery_GetBatchReceipts(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := br.GetBatchReceipts(10, 0); got != tt.want {
-				t.Errorf("BatchReceiptQuery.GetBatchReceipts() = %v, want %v", got, tt.want)
+			if got := br.GetBatchReceipts(tt.args.paginate); got != tt.want {
+				t.Errorf("BatchReceiptQuery.GetBatchReceipts() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

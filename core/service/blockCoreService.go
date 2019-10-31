@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
@@ -992,7 +991,11 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		payloadLength                        uint32
 		digest                               = sha3.New256()
 	)
-	for index, tx := range GetGenesisTransactions(bs.Chaintype, genesisEntries) {
+	genesisTransactions, err := GetGenesisTransactions(bs.Chaintype, genesisEntries)
+	if err != nil {
+		return nil, err
+	}
+	for index, tx := range genesisTransactions {
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}
@@ -1058,43 +1061,6 @@ func (bs *BlockService) CheckGenesis() bool {
 	return true
 }
 
-func (bs *BlockService) generateBlockReceipt(
-	currentBlockHash []byte,
-	previousBlock *model.Block,
-	senderPublicKey, receiptKey []byte,
-	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
-	var rmrLinked []byte
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-	lastRmrQ := bs.MerkleTreeQuery.GetLastMerkleRoot()
-	row := bs.QueryExecutor.ExecuteSelectRow(lastRmrQ)
-	rmrLinked, err := bs.MerkleTreeQuery.ScanRoot(row)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	batchReceipt, err := util.GenerateBatchReceipt(
-		previousBlock,
-		senderPublicKey,
-		nodePublicKey,
-		currentBlockHash,
-		rmrLinked,
-		constant.ReceiptDatumTypeBlock,
-	)
-	if err != nil {
-		return nil, err
-	}
-	batchReceipt.RecipientSignature = bs.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(batchReceipt),
-		nodeSecretPhrase,
-	)
-	// store the generated batch receipt hash
-	err = bs.KVExecutor.Insert(string(receiptKey), currentBlockHash, constant.ExpiryPublishedReceiptBlock)
-	if err != nil {
-		return nil, err
-	}
-	return batchReceipt, nil
-}
-
 // ReceiveBlock handle the block received from connected peers
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
@@ -1143,11 +1109,19 @@ func (bs *BlockService) ReceiveBlock(
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
 		// check if already broadcast receipt to this node
-		_, err := bs.KVExecutor.Get(constant.TablePublishedReceiptBlock + string(receiptKey))
+		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
-				batchReceipt, err := bs.generateBlockReceipt(
-					blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+					blockHash,
+					lastBlock,
+					senderPublicKey,
+					nodeSecretPhrase,
+					constant.KVdbTableBlockReminderKey+string(receiptKey),
+					constant.ReceiptDatumTypeBlock,
+					bs.Signature,
+					bs.QueryExecutor,
+					bs.KVExecutor,
 				)
 				if err != nil {
 					return nil, err
@@ -1182,8 +1156,16 @@ func (bs *BlockService) ReceiveBlock(
 		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 	// generate receipt and return as response
-	batchReceipt, err := bs.generateBlockReceipt(
-		blockHash, lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		blockHash,
+		lastBlock,
+		senderPublicKey,
+		nodeSecretPhrase,
+		constant.KVdbTableBlockReminderKey+string(receiptKey),
+		constant.ReceiptDatumTypeBlock,
+		bs.Signature,
+		bs.QueryExecutor,
+		bs.KVExecutor,
 	)
 	if err != nil {
 		return nil, err
