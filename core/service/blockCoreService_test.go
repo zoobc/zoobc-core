@@ -133,23 +133,6 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey3 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	bcsBlock1 = &model.Block{
-		ID:                   0,
-		PreviousBlockHash:    []byte{},
-		Height:               1,
-		Timestamp:            1562806389280,
-		BlockSeed:            []byte{},
-		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
-		SmithScale:           1,
-		PayloadLength:        0,
-		PayloadHash:          []byte{},
-		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          100000000,
-		TotalFee:             10000000,
-		TotalCoinBase:        1,
-		Version:              0,
-	}
 	mockTransaction = &model.Transaction{
 		ID:                      1,
 		BlockID:                 1,
@@ -1415,6 +1398,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		MempoolService     MempoolServiceInterface
 		ReceiptService     ReceiptServiceInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
+		SortedBlocksmiths  *[]model.Blocksmith
 	}
 	type args struct {
 		previousBlock            *model.Block
@@ -1432,10 +1416,11 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		{
 			name: "wantFail:MempoolServiceSelectTransaction",
 			fields: fields{
-				Chaintype:      &chaintype.MainChain{},
-				Signature:      &mockSignature{},
-				MempoolQuery:   query.NewMempoolQuery(&chaintype.MainChain{}),
-				MempoolService: &mockMempoolServiceSelectFail{},
+				Chaintype:         &chaintype.MainChain{},
+				Signature:         &mockSignature{},
+				MempoolQuery:      query.NewMempoolQuery(&chaintype.MainChain{}),
+				MempoolService:    &mockMempoolServiceSelectFail{},
+				SortedBlocksmiths: &[]model.Blocksmith{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1473,6 +1458,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				},
 				ReceiptService:     &mockReceiptServiceReturnEmpty{},
 				ActionTypeSwitcher: &mockTypeActionSuccess{},
+				SortedBlocksmiths:  &[]model.Blocksmith{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1507,6 +1493,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				MempoolService:     tt.fields.MempoolService,
 				ReceiptService:     tt.fields.ReceiptService,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				SortedBlocksmiths:  tt.fields.SortedBlocksmiths,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -1517,7 +1504,6 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				t.Errorf("BlockService.GenerateBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 		})
 	}
 }
@@ -2007,89 +1993,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:        nil,
 				Signature:               nil,
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				Observer:                nil,
-				SortedBlocksmiths:       nil,
-				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:fail - {incoming block signature == nil}",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       nil,
-				block: &model.Block{
-					PreviousBlockHash: nil,
-					BlockSignature:    nil,
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               nil,
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				Observer:                nil,
-				SortedBlocksmiths:       nil,
-				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:fail - {signature validation fail}",
-			args: args{
-				senderPublicKey:  bcsNodePubKey1,
-				block:            bcsBlock1,
-				lastBlock:        nil,
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               &mockSignatureFail{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				Observer:                nil,
-				SortedBlocksmiths:       nil,
-				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:fail - {get last block byte error : no signature}",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock: &model.Block{
-					BlockSignature: nil,
-				},
-				block: &model.Block{
-					PreviousBlockHash: []byte{},
-					BlockSignature:    nil,
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               &mockSignature{},
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,

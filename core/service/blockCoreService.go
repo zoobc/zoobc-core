@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/dgraph-io/badger"
 
@@ -901,7 +902,7 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, constant.ReceiptNumberToPick, previousBlock.Height)
+		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height)
 		if err != nil {
 			return nil, err
 		}
@@ -1036,29 +1037,16 @@ func (bs *BlockService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	// check signature of the incoming block
-	blockUnsignedByte, err := util.GetBlockByte(block, false)
-	if err != nil {
-		return nil, err
-	}
-	if !bs.Signature.VerifyNodeSignature(blockUnsignedByte, block.BlockSignature, block.BlocksmithPublicKey) {
-		return nil, blocker.NewBlocker(
-			blocker.ValidationErr,
-			"block signature invalid")
-	}
+	// get hash of incoming block
 	blockHash, err := util.GetBlockHash(block)
 	if err != nil {
 		return nil, err
 	}
-	// check previous block hash
-	lastBlockByte, err := util.GetBlockByte(lastBlock, true)
+	// get hash of last block in this node
+	lastBlockHash, err := util.GetBlockHash(lastBlock)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			err.Error(),
-		)
+		return nil, err
 	}
-	lastBlockHash := sha3.Sum256(lastBlockByte)
 	receiptKey, err := commonUtils.GetReceiptKey(
 		blockHash, senderPublicKey,
 	)
@@ -1069,7 +1057,7 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	//  check equality last block hash with previous block hash from received block
-	if !bytes.Equal(lastBlockHash[:], block.PreviousBlockHash) {
+	if !bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 		// check if already broadcast receipt to this node
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
@@ -1113,6 +1101,11 @@ func (bs *BlockService) ReceiveBlock(
 			blocker.BlockErr, "invalid blocksmith")
 	}
 	// base on index we can calculate punishment and reward
+	// Validate incoming block
+	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+	if err != nil {
+		return nil, err
+	}
 	err = bs.PushBlock(lastBlock, block, true, true)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
