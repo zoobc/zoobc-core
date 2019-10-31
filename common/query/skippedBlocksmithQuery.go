@@ -16,6 +16,7 @@ type (
 		ExtractModel(skippedBlocksmith *model.SkippedBlocksmith) []interface{}
 		BuildModel(skippedBlocksmiths []*model.SkippedBlocksmith, rows *sql.Rows) ([]*model.SkippedBlocksmith, error)
 		Scan(skippedBlocksmith *model.SkippedBlocksmith, rows *sql.Row) error
+		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	SkippedBlocksmithQuery struct {
@@ -45,6 +46,8 @@ func (sbq *SkippedBlocksmithQuery) getTableName() string {
 func (sbq *SkippedBlocksmithQuery) GetSkippedBlocksmithsByBlockHeight(blockHeight uint32) string {
 	return fmt.Sprintf(
 		"SELECT %s FROM %s WHERE block_height = %d",
+		strings.Join(sbq.Fields, ", "),
+		sbq.getTableName(),
 		blockHeight,
 	)
 }
@@ -101,4 +104,12 @@ func (*SkippedBlocksmithQuery) Scan(skippedBlocksmith *model.SkippedBlocksmith, 
 		&skippedBlocksmith.BlocksmithIndex,
 	)
 	return err
+}
+func (sbq *SkippedBlocksmithQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", sbq.getTableName()),
+			height,
+		},
+	}
 }
