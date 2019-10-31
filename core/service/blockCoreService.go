@@ -88,6 +88,7 @@ type (
 		TransactionQuery        query.TransactionQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ReceiptService          ReceiptServiceInterface
@@ -111,6 +112,7 @@ func NewBlockService(
 	transactionQuery query.TransactionQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
@@ -132,6 +134,7 @@ func NewBlockService(
 		TransactionQuery:        transactionQuery,
 		MerkleTreeQuery:         merkleTreeQuery,
 		PublishedReceiptQuery:   publishedReceiptQuery,
+		SkippedBlocksmithQuery:  skippedBlocksmithQuery,
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ReceiptService:          receiptService,
@@ -538,7 +541,27 @@ func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 }
 
 func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error {
-	var blocksmithNode model.NodeRegistration
+	var (
+		blocksmithNode  model.NodeRegistration
+		blocksmithIndex int
+	)
+	for i, bsm := range *bs.SortedBlocksmiths {
+		if reflect.DeepEqual(bsm.NodePublicKey, bsm.NodePublicKey) {
+			blocksmithIndex = i
+		}
+	}
+
+	// punish the skipped (index earlier than current blocksmith) blocksmith
+	for _, bsm := range (*bs.SortedBlocksmiths)[:blocksmithIndex] {
+		qStr, args := bs.SkippedBlocksmithQuery.InsertSkippedBlocksmith(
+			&model.SkippedBlocksmith{
+				BlocksmithPublicKey: nil,
+				POPChange:           0,
+				BlockHeight:         block.Height,
+				BlocksmithIndex:     0,
+			},
+		)
+	}
 	blocksmithNodeIDQ := bs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey()
 	row := bs.QueryExecutor.ExecuteSelectRow(blocksmithNodeIDQ, block.BlocksmithPublicKey)
 	err := bs.NodeRegistrationQuery.Scan(&blocksmithNode, row)

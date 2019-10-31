@@ -136,6 +136,7 @@ func initialize(
 		query.NewTransactionQuery(chainType),
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,

@@ -335,6 +335,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewTransactionQuery(mainchain),
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
