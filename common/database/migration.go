@@ -187,6 +187,14 @@ func (m *Migration) Init() error {
 			ALTER TABLE "node_registry" 
 				RENAME COLUMN "queued" TO "registration_status"
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "skipped_blocksmith" (
+				"blocksmith_public_key" BLOB,
+				"pop_change" INTEGER,
+				"block_height" INTEGER,
+				"blocksmith_index" INTEGER
+			)
+			`,
 		}
 		return nil
 	}
