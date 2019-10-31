@@ -254,7 +254,7 @@ func (*BlockService) VerifySeed(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec { // (taken by iltoga) code-review : todo 15 should be put to constant
+	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
 	if coreUtil.GetBlockID(block) == 0 {
