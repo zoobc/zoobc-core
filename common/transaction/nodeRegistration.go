@@ -35,7 +35,7 @@ type NodeRegistration struct {
 func (tx *NodeRegistration) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		txType := sel.GetTransactionType()
+		txType := sel.TransactionType
 		if (txType == uint32(model.TransactionType_NodeRegistrationTransaction) ||
 			txType == uint32(model.TransactionType_ClaimNodeRegistrationTransaction) ||
 			txType == uint32(model.TransactionType_UpdateNodeRegistrationTransaction) ||
