@@ -12,4 +12,5 @@ var (
 	SmithscaleGamma            = SetCheckVarInt64("MinSmithscaleGamma", 64)
 	AverageSmithingBlockHeight = SetCheckVarUint32("AverageSmithingBlockHeight", 10)
 	MaxNumBlocksmithRewards    = SetCheckVarInt("MaxNumBlocksmithRewards", 5)
+	GenerateBlockTimeoutSec    = SetCheckVarInt64("GenerateBlockTimeoutSec", 15)
 )
