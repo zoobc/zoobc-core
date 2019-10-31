@@ -11,8 +11,6 @@ import (
 	"sync"
 
 	"github.com/dgraph-io/badger"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/kvdb"
 
@@ -300,7 +298,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 	)
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(block.Height), false)
 	if err != nil {
-		return status.Error(codes.Internal, err.Error())
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 	bl, err = bs.BlockQuery.BuildModel(bl, rows)
