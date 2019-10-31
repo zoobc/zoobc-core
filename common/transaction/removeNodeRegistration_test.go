@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -708,6 +709,125 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
 			tx.GetTransactionBody(tt.args.transaction)
+		})
+	}
+}
+
+func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
+	type fields struct {
+		ID                      int64
+		Body                    *model.NodeRegistrationTransactionBody
+		Fee                     int64
+		SenderAddress           string
+		Height                  uint32
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		AuthPoown               auth.ProofOfOwnershipValidationInterface
+	}
+	type args struct {
+		selectedTransactions []*model.Transaction
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "SkipMempoolTransaction:success-{Filtered}",
+			fields: fields{
+				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			},
+			args: args{
+				selectedTransactions: []*model.Transaction{
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
+					},
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
+					},
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
+			fields: fields{
+				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			},
+			args: args{
+				selectedTransactions: []*model.Transaction{
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
+					},
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
+					},
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
+					},
+				},
+			},
+		},
+		{
+			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
+			fields: fields{
+				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			},
+			args: args{
+				selectedTransactions: []*model.Transaction{
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_SetupAccountDatasetTransaction),
+					},
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
+					},
+					{
+						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						TransactionType:      uint32(model.TransactionType_SendMoneyTransaction),
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &NodeRegistration{
+				ID:                      tt.fields.ID,
+				Body:                    tt.fields.Body,
+				Fee:                     tt.fields.Fee,
+				SenderAddress:           tt.fields.SenderAddress,
+				Height:                  tt.fields.Height,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AuthPoown:               tt.fields.AuthPoown,
+			}
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistration.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("NodeRegistration.SkipMempoolTransaction() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

@@ -21,6 +21,23 @@ type RemoveNodeRegistration struct {
 	QueryExecutor         query.ExecutorInterface
 }
 
+// SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
+// to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
+func (tx *RemoveNodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	authorizedType := map[model.TransactionType]bool{
+		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
+		model.TransactionType_UpdateNodeRegistrationTransaction: true,
+		model.TransactionType_RemoveNodeRegistrationTransaction: true,
+	}
+	for _, sel := range selectedTransactions {
+		// if we find another node registration tx in currently selected transactions, filter current one out of selection
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 
 	var (
