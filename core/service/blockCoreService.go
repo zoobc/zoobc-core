@@ -938,7 +938,7 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, constant.ReceiptNumberToPick, previousBlock.Height)
+		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height)
 		if err != nil {
 			return nil, err
 		}

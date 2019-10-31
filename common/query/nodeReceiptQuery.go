@@ -80,6 +80,8 @@ func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
 	return query
 }
 
+// GetReceiptsWithUniqueRecipient get receipt with unique recipient_public_key, rmr_linked is passed as an option to
+// get receipt with rmr_linked or not
 func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string {
 	var query string
 	if limit == 0 {
