@@ -22,3 +22,5 @@ smithing=true
 proofOfOwnershipReqTimeoutSec = 2
 # Log Levels
 logLevels=["warn", "fatal", "error", "panic"]
+
+debugFlag = false

@@ -1,12 +1,22 @@
 package constant
 
 import (
+	"log"
+
 	"github.com/spf13/viper"
 )
 
 func isDebug() bool {
-	return viper.GetBool("dflag")
+	viper.SetConfigName("config")
+	viper.SetConfigType("toml")
+	viper.AddConfigPath("././resource")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("Error : %v \n", err.Error())
+	}
+	return viper.GetBool("debugFlag")
 }
+
 func SetCheckVarString(key, defaultVal string) string {
 	if viper.GetString(key) != "" && isDebug() {
 		return viper.GetString(key)
@@ -29,6 +39,7 @@ func SetCheckVarInt32(key string, defaultVal int32) int32 {
 }
 
 func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
+
 	if viper.GetUint32(key) != 0 && isDebug() {
 		return viper.GetUint32(key)
 	}
@@ -36,6 +47,7 @@ func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
 }
 
 func SetCheckVarUint64(key string, defaultVal uint64) uint64 {
+
 	if viper.GetUint32(key) != 0 && isDebug() {
 		return viper.GetUint64(key)
 	}

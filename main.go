@@ -81,12 +81,11 @@ func init() {
 	flag.BoolVar(&envOverrideConfig, "env-override", false,
 		"boolean flag to enable overriding node configuration with system environment variables.")
 	flag.Parse()
-
 	if isDebugMode {
-		viper.Set("dflag", true)
+		viper.Set("isDebug", true)
 	}
-
 	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)
+
 	initLogInstance()
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -426,6 +425,7 @@ func startScheduler() {
 }
 
 func main() {
+
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		loggerCoreService.Fatal(err)
