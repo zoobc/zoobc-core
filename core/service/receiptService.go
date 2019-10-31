@@ -15,13 +15,15 @@ import (
 type (
 	ReceiptServiceInterface interface {
 		SelectReceipts(
-			blockTimestamp int64, numberOfReceipt int, lastBlockHeight uint32,
+			blockTimestamp int64,
+			numberOfReceipt int,
+			lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
 		GenerateReceiptsMerkleRoot() error
 	}
 
 	ReceiptService struct {
-		ReceiptQuery      query.ReceiptQueryInterface
+		NodeReceiptQuery  query.NodeReceiptQueryInterface
 		BatchReceiptQuery query.BatchReceiptQueryInterface
 		MerkleTreeQuery   query.MerkleTreeQueryInterface
 		KVExecutor        kvdb.KVExecutorInterface
@@ -30,15 +32,14 @@ type (
 )
 
 func NewReceiptService(
-	receiptQuery query.ReceiptQueryInterface,
+	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
-
 ) *ReceiptService {
 	return &ReceiptService{
-		ReceiptQuery:      receiptQuery,
+		NodeReceiptQuery:  nodeReceiptQuery,
 		BatchReceiptQuery: batchReceiptQuery,
 		MerkleTreeQuery:   merkleTreeQuery,
 		KVExecutor:        kvExecutor,
@@ -80,19 +81,19 @@ func (rs *ReceiptService) SelectReceipts(
 	}
 
 	for linkedRoot := range linkedReceiptTree {
-		var receipts []*model.Receipt
-		receiptsQ, rootArgs := rs.ReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
-		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false, rootArgs...)
+		var nodeReceipts []*model.Receipt
+		nodeReceiptsQ, rootArgs := rs.NodeReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
+		rows, err := rs.QueryExecutor.ExecuteSelect(nodeReceiptsQ, false, rootArgs...)
 		if err != nil {
 			return nil, err
 		}
 
-		receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+		nodeReceipts, err = rs.NodeReceiptQuery.BuildModel(nodeReceipts, rows)
 		if err != nil {
 			rows.Close()
 			return nil, err
 		}
-		for _, rc := range receipts {
+		for _, rc := range nodeReceipts {
 			if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
 				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
 				linkedReceiptList[linkedRoot] = append(linkedReceiptList[linkedRoot], rc)
@@ -161,13 +162,13 @@ func (rs *ReceiptService) pickReceipts(
 	rmrLinked bool,
 ) ([]*model.PublishedReceipt, error) {
 	var receipts []*model.Receipt
-	receiptsQ := rs.ReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(pickedReceipts)), 0, rmrLinked)
+	receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(pickedReceipts)), 0, rmrLinked)
 	rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	receipts, err = rs.ReceiptQuery.BuildModel(receipts, rows)
+	receipts, err = rs.NodeReceiptQuery.BuildModel(receipts, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -184,28 +185,34 @@ func (rs *ReceiptService) pickReceipts(
 	return pickedReceipts, nil
 }
 
-// GenerateReceiptsMerkleRoot generate merkle root of some bacth recipts
+// GenerateReceiptsMerkleRoot generate merkle root of some batch receipts
 // generating will do when number of collected receipts(batch receipts) already same with number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	var (
-		err            error
-		count          uint32
-		queries        [][]interface{}
-		batchReceipts  []*model.BatchReceipt
-		receipt        *model.Receipt
-		hashedReceipts []*bytes.Buffer
-		merkleRoot     util.MerkleRoot
+		err               error
+		count             uint32
+		queries           [][]interface{}
+		batchReceipts     []*model.BatchReceipt
+		receipt           *model.Receipt
+		hashedReceipts    []*bytes.Buffer
+		merkleRoot        util.MerkleRoot
+		getBatchReceiptsQ string
 	)
-	countBatchReceiptQ := query.GetTotalRecordOfSelect(
-		rs.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0),
-	)
-	err = rs.QueryExecutor.ExecuteSelectRow(countBatchReceiptQ).Scan(&count)
+
+	getBatchReceiptsQ = rs.BatchReceiptQuery.GetBatchReceipts(model.Pagination{
+		Limit:      constant.ReceiptBatchMaximum,
+		OrderField: "reference_block_height",
+		OrderBy:    model.OrderBy_ASC,
+	})
+
+	err = rs.QueryExecutor.ExecuteSelectRow(
+		query.GetTotalRecordOfSelect(getBatchReceiptsQ),
+	).Scan(&count)
 	if err != nil {
 		return err
 	}
 
 	if count >= constant.ReceiptBatchMaximum {
-		getBatchReceiptsQ := rs.BatchReceiptQuery.GetBatchReceipts(constant.ReceiptBatchMaximum, 0)
 		rows, err := rs.QueryExecutor.ExecuteSelect(getBatchReceiptsQ, false)
 		if err != nil {
 			return err
@@ -243,8 +250,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 				RMR:          rootMerkle,
 				RMRIndex:     rmrIndex,
 			}
-			insertReceiptQ, insertReceiptArgs := rs.ReceiptQuery.InsertReceipt(receipt)
-			queries[k] = append([]interface{}{insertReceiptQ}, insertReceiptArgs...)
+			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(receipt)
+			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
 			removeBatchReceiptQ, removeBatchReceiptArgs := rs.BatchReceiptQuery.RemoveBatchReceipt(br.DatumType, br.DatumHash)
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}

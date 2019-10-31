@@ -13,7 +13,7 @@ type (
 	// BatchReceiptQueryInterface interface for BatchReceiptQuery
 	BatchReceiptQueryInterface interface {
 		InsertBatchReceipt(receipt *model.BatchReceipt) (qStr string, args []interface{})
-		GetBatchReceipts(limit uint32, offset uint64) string
+		GetBatchReceipts(paginate model.Pagination) string
 		RemoveBatchReceiptByRoot(merkleRoot []byte) (qStr string, args []interface{})
 		RemoveBatchReceipt(datumType uint32, datumHash []byte) (qStr string, args []interface{})
 		ExtractModel(receipt *model.BatchReceipt) []interface{}
@@ -60,7 +60,7 @@ func (br *BatchReceiptQuery) InsertBatchReceipt(receipt *model.BatchReceipt) (qS
 }
 
 // GetBatchReceipts build select query for `batch_receipt` table
-func (br *BatchReceiptQuery) GetBatchReceipts(limit uint32, offset uint64) string {
+func (br *BatchReceiptQuery) GetBatchReceipts(paginate model.Pagination) string {
 
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s ",
@@ -68,14 +68,21 @@ func (br *BatchReceiptQuery) GetBatchReceipts(limit uint32, offset uint64) strin
 		br.getTableName(),
 	)
 
-	newLimit := limit
-	if limit == 0 {
+	newLimit := paginate.GetLimit()
+	if newLimit == 0 {
 		newLimit = constant.ReceiptBatchMaximum
 	}
+	orderField := paginate.GetOrderField()
+	if orderField == "" {
+		orderField = "reference_block_height"
+	}
+
 	query += fmt.Sprintf(
-		"ORDER BY reference_block_height LIMIT %d OFFSET %d",
+		"ORDER BY %s %s LIMIT %d OFFSET %d",
+		orderField,
+		paginate.GetOrderBy(),
 		newLimit,
-		offset,
+		paginate.GetPage(),
 	)
 	return query
 }
@@ -150,5 +157,4 @@ func (*BatchReceiptQuery) Scan(receipt *model.BatchReceipt, row *sql.Row) error 
 		&receipt.RecipientSignature,
 	)
 	return err
-
 }
