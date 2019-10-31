@@ -21,6 +21,11 @@ type SetupAccountDataset struct {
 	QueryExecutor       query.ExecutorInterface
 }
 
+// FilterMempoolTransaction this tx type has no mempool filter
+func (tx *SetupAccountDataset) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	return true, nil
+}
+
 /*
 ApplyConfirmed is func that for applying Transaction SetupAccountDataset type,
 */

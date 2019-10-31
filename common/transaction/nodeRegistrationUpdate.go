@@ -16,6 +16,7 @@ import (
 
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
+	ID                    int64
 	Body                  *model.UpdateNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
@@ -25,6 +26,25 @@ type UpdateNodeRegistration struct {
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.ProofOfOwnershipValidationInterface
+}
+
+// FilterMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
+// to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
+func (tx *UpdateNodeRegistration) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	for _, sel := range selectedTransactions {
+		// if 1st tx found is itself do not filter (keep in selection)
+		if tx.ID == sel.ID {
+			return false, nil
+		}
+		// if 1st found is another node registration tx, it means there is another tx of the same type
+		// to be applied before current one, then filter current one out of selection
+		buf := util.ConvertUint32ToBytes(sel.GetTransactionType())
+		if buf[0] == 2 {
+			return true, nil
+		}
+	}
+	// no tx found matching filter conditions, so do not filter (we should never get here anyways)
+	return false, nil
 }
 
 func (tx *UpdateNodeRegistration) ApplyConfirmed() error {

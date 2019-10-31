@@ -8,6 +8,11 @@ type TXEmpty struct {
 	Body *model.EmptyTransactionBody
 }
 
+// FilterMempoolTransaction this tx type has no mempool filter
+func (tx *TXEmpty) FilterMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	return true, nil
+}
+
 func (tx *TXEmpty) ApplyConfirmed() error {
 	return nil
 }
