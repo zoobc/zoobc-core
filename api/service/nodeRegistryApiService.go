@@ -3,11 +3,10 @@ package service
 import (
 	"database/sql"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -49,7 +48,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
 	caseQuery.Where(caseQuery.Equal("latest", 1))
-	caseQuery.And(caseQuery.Equal("queued", params.GetQueued()))
+	caseQuery.And(caseQuery.Equal("registration_status", params.GetRegistrationStatus()))
 	caseQuery.And(caseQuery.GreaterEqual("registration_height", params.GetMinRegistrationHeight()))
 	if maxHeight > 0 {
 		caseQuery.And(caseQuery.LessEqual("registration_height", maxHeight))
@@ -88,7 +87,10 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	}
 	defer rows2.Close()
 
-	nodeRegistrations = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	return &model.GetNodeRegistrationsResponse{
 		Total:             totalRecords,

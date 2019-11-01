@@ -1,6 +1,10 @@
 package blocker
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 type (
 	TypeBlocker string
@@ -25,9 +29,26 @@ var (
 	ServerError             TypeBlocker = "ServerError"
 	SmithingErr             TypeBlocker = "SmithingErr"
 	ChainValidationErr      TypeBlocker = "ChainValidationErr"
+
+	isMonitoringActive bool
+	prometheusCounter  = make(map[TypeBlocker]prometheus.Counter)
 )
 
+func SetMonitoringActive(isActive bool) {
+	isMonitoringActive = isActive
+}
+
 func NewBlocker(typeBlocker TypeBlocker, message string) error {
+	if isMonitoringActive {
+		if prometheusCounter[typeBlocker] == nil {
+			prometheusCounter[typeBlocker] = prometheus.NewCounter(prometheus.CounterOpts{
+				Name: fmt.Sprintf("zoobc_err_%s", typeBlocker),
+				Help: fmt.Sprintf("Error %s counter", typeBlocker),
+			})
+			prometheus.MustRegister(prometheusCounter[typeBlocker])
+		}
+		prometheusCounter[typeBlocker].Inc()
+	}
 	return Blocker{
 		Type:    typeBlocker,
 		Message: message,

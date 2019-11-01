@@ -5,19 +5,16 @@ import (
 	"math"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
-	"github.com/zoobc/zoobc-core/observer"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -66,29 +63,26 @@ func (ts *TransactionService) GetTransaction(
 	params *model.GetTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
-		err    error
-		rows   *sql.Rows
-		txTemp []*model.Transaction
-		tx     *model.Transaction
+		err error
+		row *sql.Row
+		tx  model.Transaction
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
-	rows, err = ts.Query.ExecuteSelect(txQuery.GetTransaction(params.ID), false)
+	row = ts.Query.ExecuteSelectRow(txQuery.GetTransaction(params.GetID()))
+	err = txQuery.Scan(&tx, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-	txTemp = txQuery.BuildModel(txTemp, rows)
-	if len(txTemp) != 0 {
-		tx = txTemp[0]
-		txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			return nil, err
-		}
-		txType.GetTransactionBody(tx)
-		return tx, nil
-	}
-	return nil, status.Error(codes.NotFound, "transaction not found")
+	txType.GetTransactionBody(&tx)
+	return &tx, nil
 }
 
 // GetTransactions fetches a single transaction from DB
@@ -130,9 +124,9 @@ func (ts *TransactionService) GetTransactions(
 		caseQuery.And(caseQuery.Between("timestamp", timestampStart, timestampEnd))
 	}
 
-	transcationType := params.GetTransactionType()
-	if transcationType > 0 {
-		caseQuery.And(caseQuery.Equal("transaction_type", transcationType))
+	transactionType := params.GetTransactionType()
+	if transactionType > 0 {
+		caseQuery.And(caseQuery.Equal("transaction_type", transactionType))
 	}
 
 	accountAddress := params.GetAccountAddress()
@@ -157,7 +151,7 @@ func (ts *TransactionService) GetTransactions(
 			&totalRecords,
 		)
 		if err != nil {
-			return &model.GetTransactionsResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -195,11 +189,14 @@ func (ts *TransactionService) GetTransactions(
 			&tx.TransactionIndex,
 		)
 		if err != nil {
-			return nil, err
+			if err != sql.ErrNoRows {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		txType.GetTransactionBody(&tx)
 		txs = append(txs, &tx)
@@ -217,18 +214,18 @@ func (ts *TransactionService) PostTransaction(
 ) (*model.Transaction, error) {
 	txBytes := req.TransactionBytes
 	// get unsigned bytes
-	tx, err := util.ParseTransactionBytes(txBytes, true)
+	tx, err := transaction.ParseTransactionBytes(txBytes, true)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Validate Tx
 	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
-		FeePerByte:              constant.TxFeePerByte,
+		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
 		ID:                      tx.ID,
 		TransactionBytes:        txBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
@@ -236,32 +233,32 @@ func (ts *TransactionService) PostTransaction(
 		RecipientAccountAddress: tx.RecipientAccountAddress,
 	}
 	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
 	err = ts.Query.BeginTx()
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			return nil, errRollback
+			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = ts.MempoolService.AddMempoolTransaction(mpTx)
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	err = ts.Query.CommitTx()
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)

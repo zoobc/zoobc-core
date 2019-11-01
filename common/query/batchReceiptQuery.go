@@ -13,11 +13,11 @@ type (
 	// BatchReceiptQueryInterface interface for BatchReceiptQuery
 	BatchReceiptQueryInterface interface {
 		InsertBatchReceipt(receipt *model.BatchReceipt) (qStr string, args []interface{})
-		GetBatchReceipts(limit uint32, offset uint64) string
+		GetBatchReceipts(paginate model.Pagination) string
 		RemoveBatchReceiptByRoot(merkleRoot []byte) (qStr string, args []interface{})
 		RemoveBatchReceipt(datumType uint32, datumHash []byte) (qStr string, args []interface{})
 		ExtractModel(receipt *model.BatchReceipt) []interface{}
-		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) []*model.BatchReceipt
+		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error)
 		Scan(receipt *model.BatchReceipt, rows *sql.Row) error
 	}
 	// BatchReceiptQuery us query for BatchReceipt
@@ -60,7 +60,7 @@ func (br *BatchReceiptQuery) InsertBatchReceipt(receipt *model.BatchReceipt) (qS
 }
 
 // GetBatchReceipts build select query for `batch_receipt` table
-func (br *BatchReceiptQuery) GetBatchReceipts(limit uint32, offset uint64) string {
+func (br *BatchReceiptQuery) GetBatchReceipts(paginate model.Pagination) string {
 
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s ",
@@ -68,14 +68,21 @@ func (br *BatchReceiptQuery) GetBatchReceipts(limit uint32, offset uint64) strin
 		br.getTableName(),
 	)
 
-	newLimit := limit
-	if limit == 0 {
+	newLimit := paginate.GetLimit()
+	if newLimit == 0 {
 		newLimit = constant.ReceiptBatchMaximum
 	}
+	orderField := paginate.GetOrderField()
+	if orderField == "" {
+		orderField = "reference_block_height"
+	}
+
 	query += fmt.Sprintf(
-		"ORDER BY reference_block_height LIMIT %d OFFSET %d",
+		"ORDER BY %s %s LIMIT %d OFFSET %d",
+		orderField,
+		paginate.GetOrderBy(),
 		newLimit,
-		offset,
+		paginate.GetPage(),
 	)
 	return query
 }
@@ -113,10 +120,13 @@ func (*BatchReceiptQuery) ExtractModel(receipt *model.BatchReceipt) []interface{
 }
 
 // BuildModel extract __*sql.Rows__ into []*model.Receipt
-func (*BatchReceiptQuery) BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) []*model.BatchReceipt {
+func (*BatchReceiptQuery) BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error) {
 	for rows.Next() {
-		var receipt model.BatchReceipt
-		_ = rows.Scan(
+		var (
+			receipt model.BatchReceipt
+			err     error
+		)
+		err = rows.Scan(
 			&receipt.SenderPublicKey,
 			&receipt.RecipientPublicKey,
 			&receipt.DatumType,
@@ -126,10 +136,12 @@ func (*BatchReceiptQuery) BuildModel(receipts []*model.BatchReceipt, rows *sql.R
 			&receipt.RMRLinked,
 			&receipt.RecipientSignature,
 		)
-
+		if err != nil {
+			return nil, err
+		}
 		receipts = append(receipts, &receipt)
 	}
-	return receipts
+	return receipts, nil
 }
 
 func (*BatchReceiptQuery) Scan(receipt *model.BatchReceipt, row *sql.Row) error {
@@ -145,5 +157,4 @@ func (*BatchReceiptQuery) Scan(receipt *model.BatchReceipt, row *sql.Row) error 
 		&receipt.RecipientSignature,
 	)
 	return err
-
 }

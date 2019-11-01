@@ -5,33 +5,32 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
-	ReceiptQueryInterface interface {
+	NodeReceiptQueryInterface interface {
 		InsertReceipt(receipt *model.Receipt) (str string, args []interface{})
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
-		GetReceipts(limit uint32, offset uint64) string
+		GetReceipts(paginate model.Pagination) string
 		GetReceiptByRoot(root []byte) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string
-		SelectReceipt(
-			lowerHeight, upperHeight, limit uint32,
-		) (str string)
+		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
 		ExtractModel(receipt *model.Receipt) []interface{}
-		BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt
+		BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error)
 		Scan(receipt *model.Receipt, row *sql.Row) error
 	}
 
-	ReceiptQuery struct {
+	NodeReceiptQuery struct {
 		Fields    []string
 		TableName string
 	}
 )
 
 // NewTransactionQuery returns TransactionQuery instance
-func NewReceiptQuery() *ReceiptQuery {
-	return &ReceiptQuery{
+func NewNodeReceiptQuery() *NodeReceiptQuery {
+	return &NodeReceiptQuery{
 		Fields: []string{
 			"sender_public_key",
 			"recipient_public_key",
@@ -48,22 +47,42 @@ func NewReceiptQuery() *ReceiptQuery {
 	}
 }
 
-func (rq *ReceiptQuery) getTableName() string {
+func (rq *NodeReceiptQuery) getTableName() string {
 	return rq.TableName
 }
 
 // GetReceipts get a set of receipts that satisfies the params from DB
-func (rq *ReceiptQuery) GetReceipts(limit uint32, offset uint64) string {
-	query := fmt.Sprintf("SELECT %s from %s", strings.Join(rq.Fields, ", "), rq.getTableName())
-	newLimit := limit
-	if limit == 0 {
-		newLimit = uint32(10)
+func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
+
+	query := fmt.Sprintf(
+		"SELECT %s FROM %s ",
+		strings.Join(rq.Fields, ", "),
+		rq.getTableName(),
+	)
+
+	newLimit := paginate.GetLimit()
+	if newLimit == 0 {
+		newLimit = constant.ReceiptNodeMaximum
 	}
-	query += fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
+
+	orderField := paginate.GetOrderField()
+	if orderField == "" {
+		orderField = "reference_block_height"
+	}
+
+	query += fmt.Sprintf(
+		"ORDER BY %s %s LIMIT %d OFFSET %d",
+		orderField,
+		paginate.GetOrderBy(),
+		newLimit,
+		paginate.GetPage(),
+	)
 	return query
 }
 
-func (rq *ReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string {
+// GetReceiptsWithUniqueRecipient get receipt with unique recipient_public_key, rmr_linked is passed as an option to
+// get receipt with rmr_linked or not
+func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string {
 	var query string
 	if limit == 0 {
 		limit = 10
@@ -84,7 +103,7 @@ func (rq *ReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint
 
 // GetReceiptByRoot return sql query to fetch receipts by its merkle root, the datum_hash should not already exists in
 // published_receipt table
-func (rq *ReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
+func (rq *NodeReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
 		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) "+
@@ -96,7 +115,7 @@ func (rq *ReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interf
 }
 
 // SelectReceipt select list of receipt by some filter
-func (rq *ReceiptQuery) SelectReceipt(
+func (rq *NodeReceiptQuery) SelectReceipt(
 	lowerHeight, upperHeight, limit uint32,
 ) (str string) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS nr WHERE EXISTS "+
@@ -108,7 +127,7 @@ func (rq *ReceiptQuery) SelectReceipt(
 }
 
 // InsertReceipts inserts a new receipts into DB
-func (rq *ReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args []interface{}) {
+func (rq *NodeReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args []interface{}) {
 
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
@@ -119,7 +138,7 @@ func (rq *ReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args 
 }
 
 // InsertReceipts build query for bulk store receipts
-func (rq *ReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, args []interface{}) {
+func (rq *NodeReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, args []interface{}) {
 
 	var (
 		query  string
@@ -142,8 +161,8 @@ func (rq *ReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, 
 	return query, values
 }
 
-// ExtractModel extract the model struct fields to the order of ReceiptQuery.Fields
-func (*ReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
+// ExtractModel extract the model struct fields to the order of NodeReceiptQuery.Fields
+func (*NodeReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
 	return []interface{}{
 		&receipt.BatchReceipt.SenderPublicKey,
 		&receipt.BatchReceipt.RecipientPublicKey,
@@ -158,15 +177,16 @@ func (*ReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
 	}
 }
 
-func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*model.Receipt {
+func (*NodeReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error) {
 
 	for rows.Next() {
 		var (
 			receipt      model.Receipt
 			batchReceipt model.BatchReceipt
+			err          error
 		)
 
-		_ = rows.Scan(
+		err = rows.Scan(
 			&batchReceipt.SenderPublicKey,
 			&batchReceipt.RecipientPublicKey,
 			&batchReceipt.DatumType,
@@ -178,14 +198,17 @@ func (*ReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) []*mo
 			&receipt.RMR,
 			&receipt.RMRIndex,
 		)
+		if err != nil {
+			return nil, err
+		}
 		receipt.BatchReceipt = &batchReceipt
 		receipts = append(receipts, &receipt)
 	}
 
-	return receipts
+	return receipts, nil
 }
 
-func (*ReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
+func (*NodeReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
 
 	err := row.Scan(
 		&receipt.BatchReceipt.SenderPublicKey,

@@ -20,7 +20,7 @@ type (
 		GetBlockFromHeight(uint32, uint32) string
 		InsertBlock(block *model.Block) (str string, args []interface{})
 		ExtractModel(block *model.Block) []interface{}
-		BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block
+		BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
 		Scan(block *model.Block, row *sql.Row) error
 	}
 
@@ -118,10 +118,14 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 	}
 }
 
-func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Block {
+func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error) {
 	for rows.Next() {
-		var block model.Block
-		_ = rows.Scan(
+		var (
+			block model.Block
+			err   error
+		)
+
+		err = rows.Scan(
 			&block.ID,
 			&block.PreviousBlockHash,
 			&block.Height,
@@ -138,9 +142,12 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) []*model.Bl
 			&block.TotalCoinBase,
 			&block.Version,
 		)
+		if err != nil {
+			return nil, err
+		}
 		blocks = append(blocks, &block)
 	}
-	return blocks
+	return blocks, nil
 }
 
 func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {

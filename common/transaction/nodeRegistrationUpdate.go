@@ -27,6 +27,23 @@ type UpdateNodeRegistration struct {
 	AuthPoown             auth.ProofOfOwnershipValidationInterface
 }
 
+// SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
+// to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
+func (tx *UpdateNodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	authorizedType := map[model.TransactionType]bool{
+		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
+		model.TransactionType_UpdateNodeRegistrationTransaction: true,
+		model.TransactionType_RemoveNodeRegistrationTransaction: true,
+	}
+	for _, sel := range selectedTransactions {
+		// if we find another node registration tx in currently selected transactions, filter current one out of selection
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	var (
 		nodeQueries          [][]interface{}
@@ -43,11 +60,11 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	}
 	defer rows.Close()
 
-	if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
-		prevNodeRegistration = nr[0]
-	} else {
+	nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nr) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 	}
+	prevNodeRegistration = nr[0]
 
 	if tx.Body.LockedBalance > 0 {
 		lockedBalance = tx.Body.LockedBalance
@@ -74,8 +91,9 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
-		Queued:             prevNodeRegistration.Queued,
-		AccountAddress:     prevNodeRegistration.AccountAddress,
+		RegistrationStatus: prevNodeRegistration.RegistrationStatus,
+		// account address is the only field that can't be updated via update node registration
+		AccountAddress: prevNodeRegistration.AccountAddress,
 	}
 
 	var effectiveBalanceToLock int64
@@ -125,11 +143,12 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 			return err
 		}
 		defer rows.Close()
-		if nr := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows); len(nr) > 0 {
-			prevNodeRegistration = nr[0]
-		} else {
+		nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		if (err != nil) || len(nr) == 0 {
 			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 		}
+		prevNodeRegistration = nr[0]
+
 		// delta amount to be locked
 		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
 	}
@@ -166,9 +185,9 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	var (
-		accountBalance             model.AccountBalance
-		prevNodeRegistration       *model.NodeRegistration
-		tempNodeRegistrationResult []*model.NodeRegistration
+		accountBalance                                          model.AccountBalance
+		prevNodeRegistration                                    *model.NodeRegistration
+		tempNodeRegistrationResult, tempNodeRegistrationResult2 []*model.NodeRegistration
 	)
 	// formally validate tx body fields
 	if tx.Body.Poown == nil {
@@ -189,12 +208,17 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer rows.Close()
-	tempNodeRegistrationResult = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
-	if len(tempNodeRegistrationResult) > 0 {
+
+	tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+	if (err != nil) || len(tempNodeRegistrationResult) > 0 {
 		prevNodeRegistration = tempNodeRegistrationResult[0]
+		if prevNodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+			return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
+		}
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
+
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
@@ -204,8 +228,9 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 			return err
 		}
 		defer rows2.Close()
-		if rows2.Next() {
-			// public key already registered
+
+		tempNodeRegistrationResult2, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
+		if (err != nil) || len(tempNodeRegistrationResult2) > 0 {
 			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}

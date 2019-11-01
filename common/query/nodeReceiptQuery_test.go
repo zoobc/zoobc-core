@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	mockReceiptQuery = NewReceiptQuery()
+	mockReceiptQuery = NewNodeReceiptQuery()
 	mockReceipt      = &model.Receipt{
 		BatchReceipt: &model.BatchReceipt{
 			SenderPublicKey:      []byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
@@ -69,17 +69,17 @@ func TestReceiptQuery_InsertReceipts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &ReceiptQuery{
+			rq := &NodeReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			gotQStr, gotArgs := rq.InsertReceipts(tt.args.receipts)
 			if gotQStr != tt.wantQStr {
-				t.Errorf("ReceiptQuery.InsertReceipts() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
+				t.Errorf("NodeReceiptQuery.InsertReceipts() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("ReceiptQuery.InsertReceipts() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("NodeReceiptQuery.InsertReceipts() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -126,17 +126,17 @@ func TestReceiptQuery_InsertReceipt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &ReceiptQuery{
+			rq := &NodeReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			gotStr, gotArgs := rq.InsertReceipt(tt.args.receipt)
 			if gotStr != tt.wantStr {
-				t.Errorf("ReceiptQuery.InsertReceipt() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				t.Errorf("NodeReceiptQuery.InsertReceipt() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("ReceiptQuery.InsertReceipt() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("NodeReceiptQuery.InsertReceipt() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -148,8 +148,7 @@ func TestReceiptQuery_GetReceipts(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		limit  uint32
-		offset uint64
+		paginate model.Pagination
 	}
 	tests := []struct {
 		name   string
@@ -160,23 +159,23 @@ func TestReceiptQuery_GetReceipts(t *testing.T) {
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockReceiptQuery),
-			args: args{
-				limit:  uint32(10),
-				offset: uint64(0),
-			},
+			args: args{paginate: model.Pagination{
+				OrderBy: model.OrderBy_ASC,
+			}},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, " +
 				"datum_hash, reference_block_height, reference_block_hash, rmr_linked, " +
-				"recipient_signature, rmr, rmr_index from node_receipt LIMIT 0,10",
+				"recipient_signature, rmr, rmr_index FROM node_receipt ORDER BY reference_block_height " +
+				"ASC LIMIT 8 OFFSET 0",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &ReceiptQuery{
+			rq := &NodeReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := rq.GetReceipts(tt.args.limit, tt.args.offset); got != tt.want {
-				t.Errorf("ReceiptQuery.GetReceipts() = \n%v, want \n%v", got, tt.want)
+			if got := rq.GetReceipts(tt.args.paginate); got != tt.want {
+				t.Errorf("NodeReceiptQuery.GetReceipts() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -232,12 +231,12 @@ func TestReceiptQuery_Scan(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &ReceiptQuery{
+			r := &NodeReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			if err := r.Scan(tt.args.receipt, tt.args.row); (err != nil) != tt.wantErr {
-				t.Errorf("ReceiptQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NodeReceiptQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -300,11 +299,11 @@ func TestReceiptQuery_BuildModel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			re := &ReceiptQuery{
+			re := &NodeReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := re.BuildModel(tt.args.receipts, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := re.BuildModel(tt.args.receipts, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BuildModel() = %v, want %v", got, tt.want)
 			}
 		})

@@ -101,7 +101,8 @@ func TestAccountBalanceQuery_AddAccountBalance(t *testing.T) {
 func TestAccountBalanceQuery_AddAccountSpendableBalance(t *testing.T) {
 	t.Run("AddAccountSpendableBalance:success", func(t *testing.T) {
 		q, args := mockAccountBalanceQuery.AddAccountSpendableBalance(100, causedFields)
-		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_address = ?"
+		wantQ := "UPDATE account_balance SET spendable_balance = spendable_balance + (100) WHERE account_address = ?" +
+			" AND latest = 1"
 		wantArg := []interface{}{"BCZ"}
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -155,7 +156,7 @@ func TestAccountBalanceQuery_BuildModel(t *testing.T) {
 				mockAccountBalance.Balance, mockAccountBalance.PopRevenue, mockAccountBalance.Latest))
 		rows, _ := db.Query("foo")
 		var tempAccount []*model.AccountBalance
-		res := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
+		res, _ := mockAccountBalanceQuery.BuildModel(tempAccount, rows)
 		if !reflect.DeepEqual(res[0], mockAccountBalance) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, mockAccountBalance)
 		}
@@ -190,7 +191,6 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 			WHERE (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM account_balance
-				WHERE latest = 0
 				GROUP BY account_address
 			)`,
 					1,

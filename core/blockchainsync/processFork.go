@@ -7,7 +7,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -71,7 +70,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if err != nil {
 					// TODO: analyze the mechanism of blacklisting peer here
 					// bd.P2pService.Blacklist(peer)
-					log.Warnf("failed to verify block %v from peer: %s\n", block.ID, err)
+					log.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false, false)
 				if err != nil {
@@ -118,7 +117,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
-				log.Warnf("failed to verify block %v from peer: %s\n", block.ID, err)
+				log.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
 			err = fp.BlockService.PushBlock(lastBlock, block, false, false)
@@ -147,7 +146,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		if err != nil {
 			return err
 		}
-		txBytes, err = commonUtil.GetTransactionBytes(tx, true)
+		txBytes, err = transaction.GetTransactionBytes(tx, true)
 
 		if err != nil {
 			return err
@@ -155,7 +154,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 
 		// Save to mempool
 		mpTx := &model.MempoolTransaction{
-			FeePerByte:              constant.TxFeePerByte,
+			FeePerByte:              commonUtil.FeePerByteTransaction(tx.GetFee(), txBytes),
 			ID:                      tx.ID,
 			TransactionBytes:        txBytes,
 			ArrivalTimestamp:        time.Now().Unix(),

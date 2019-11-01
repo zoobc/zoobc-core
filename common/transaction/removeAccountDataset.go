@@ -22,6 +22,11 @@ type RemoveAccountDataset struct {
 	QueryExecutor       query.ExecutorInterface
 }
 
+// SkipMempoolTransaction this tx type has no mempool filter
+func (tx *RemoveAccountDataset) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	return false, nil
+}
+
 /*
 ApplyConfirmed is func that for applying Transaction RemoveAccountDataset type,
 */

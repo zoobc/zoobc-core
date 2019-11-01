@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"net/url"
 	"strconv"
@@ -29,24 +30,38 @@ type NodeRegistration struct {
 	AuthPoown               auth.ProofOfOwnershipValidationInterface
 }
 
+// SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
+// to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
+func (tx *NodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	authorizedType := map[model.TransactionType]bool{
+		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
+		model.TransactionType_UpdateNodeRegistrationTransaction: true,
+		model.TransactionType_RemoveNodeRegistrationTransaction: true,
+	}
+	for _, sel := range selectedTransactions {
+		// if we find another node registration tx in currently selected transactions, filter current one out of selection
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
-		queries [][]interface{}
-		queued  bool
+		queries            [][]interface{}
+		registrationStatus uint32
+		nodeRegistrations  []*model.NodeRegistration
+		nodeAccountAddress string
 	)
-	queued = tx.Height > 0
-
-	nodeRegistration := &model.NodeRegistration{
-		NodeID:             tx.ID,
-		LockedBalance:      tx.Body.LockedBalance,
-		Height:             tx.Height,
-		NodeAddress:        tx.Body.NodeAddress,
-		RegistrationHeight: tx.Height,
-		NodePublicKey:      tx.Body.NodePublicKey,
-		Latest:             true,
-		Queued:             queued,
-		AccountAddress:     tx.Body.AccountAddress,
+	if tx.Height > 0 {
+		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)
+		nodeAccountAddress = tx.SenderAddress
+	} else {
+		registrationStatus = uint32(model.NodeRegistrationState_NodeRegistered)
+		nodeAccountAddress = tx.Body.AccountAddress
 	}
+
 	// update sender balance by reducing his spendable balance of the tx fee and locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
 		-(tx.Body.LockedBalance + tx.Fee),
@@ -55,10 +70,45 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
-	insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
-	queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
-		append([]interface{}{insertNodeQ}, insertNodeArg...),
-	)
+
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+	if err != nil {
+		return err
+	}
+	defer nodeRow.Close()
+
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if err != nil {
+		return err
+	}
+	// if a node with this public key has been previously deleted, update its owner to the new registerer
+	nodeRegistration := &model.NodeRegistration{
+		NodeID:             tx.ID,
+		LockedBalance:      tx.Body.LockedBalance,
+		Height:             tx.Height,
+		NodeAddress:        tx.Body.NodeAddress,
+		RegistrationHeight: tx.Height,
+		NodePublicKey:      tx.Body.NodePublicKey,
+		Latest:             true,
+		RegistrationStatus: registrationStatus,
+		AccountAddress:     nodeAccountAddress,
+	}
+	if len(nodeRegistrations) > 0 {
+		if nodeRegistrations[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+			queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+			queries = append(queries, accountBalanceSenderQ...)
+		} else {
+			// this can happen if there are two node register tx with same node pub key submitted together,
+			// racing to be included in the same block. Only the first one will make it through
+			return errors.New("NodeAlreadyInRegistry")
+		}
+	} else {
+		insertNodeQ, insertNodeArg := tx.NodeRegistrationQuery.InsertNodeRegistration(nodeRegistration)
+		queries = append(append([][]interface{}{}, accountBalanceSenderQ...),
+			append([]interface{}{insertNodeQ}, insertNodeArg...),
+		)
+	}
+
 	// insert default participation score for nodes that are registered at genesis height
 	if tx.Height == 0 {
 		ps := &model.ParticipationScore{
@@ -72,7 +122,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		queries = append(queries, newQ)
 	}
 
-	err := tx.QueryExecutor.ExecuteTransactions(queries)
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
 	}
@@ -125,7 +175,8 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 func (tx *NodeRegistration) Validate(dbTx bool) error {
 
 	var (
-		accountBalance model.AccountBalance
+		accountBalance    model.AccountBalance
+		nodeRegistrations []*model.NodeRegistration
 	)
 
 	// no need to validate node registration transaction for genesis block
@@ -174,8 +225,14 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 	defer nodeRow.Close()
 
-	if nodeRow.Next() {
-		return blocker.NewBlocker(blocker.AppErr, "NodeAlreadyRegistered")
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if err != nil {
+		return err
+	}
+	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
+	// if any other state validation should fail
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 
 	nodeAddress := tx.Body.GetNodeAddress()

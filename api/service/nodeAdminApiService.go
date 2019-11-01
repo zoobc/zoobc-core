@@ -6,6 +6,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -48,7 +50,7 @@ func NewNodeAdminService(
 func (nas *NodeAdminService) GetProofOfOwnership() (*model.ProofOfOwnership, error) {
 	poown, err := nas.NodeAdminCoreService.GenerateProofOfOwnership(nas.ownerAccountAddress)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return poown, nil
 }
@@ -58,7 +60,7 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 	// generate a node key pairs, store the private and return the public key
 	nodePublicKey, err := nas.NodeAdminCoreService.GenerateNodeKey(seed)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return nodePublicKey, nil
 }

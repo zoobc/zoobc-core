@@ -34,11 +34,11 @@ type (
 		Smithing           bool
 	}
 	clusterConfigEntry struct {
-		NodePublicKey       string
-		NodeSeed            string
-		OwnerAccountAddress string
-		NodeAddress         string
-		Smithing            bool
+		NodePublicKey       string `json:"NODE_PUBLIC_KEY"`
+		NodeSeed            string `json:"NODE_SEED"`
+		OwnerAccountAddress string `json:"OWNER_ACCOUNT_ADDRESS"`
+		NodeAddress         string `json:"NODE_ADDRESS,omitempty"`
+		Smithing            bool   `json:"SMITHING,omitempty"`
 	}
 )
 
@@ -169,7 +169,6 @@ func generateRandomGenesisEntry() genesisEntry {
 
 	return genesisEntry{
 		AccountAddress:     address,
-		NodeAddress:        "0.0.0.0",
 		NodePublicKey:      nodePublicKey,
 		NodePublicKeyB64:   base64.StdEncoding.EncodeToString(nodePublicKey),
 		NodeSeed:           nodeSeed,
@@ -200,12 +199,15 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	// get all account balances
 	// get the participation score for this node registration
 	qry := accountBalanceQuery.GetAccountBalances()
-	rows, err := queryExecutor.ExecuteSelect(qry, false)
+	balanceRows, err := queryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	accountBalances := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	defer balanceRows.Close()
+	accountBalances, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, balanceRows)
+	if err != nil {
+		return nil, err
+	}
 	for _, acc := range accountBalances {
 		if acc.AccountAddress == constant.MainchainGenesisAccountAddress {
 			continue
@@ -216,12 +218,17 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 
 		// get node registration for this account, if exists
 		qry, args := nodeRegistrationQuery.GetNodeRegistrationByAccountAddress(acc.AccountAddress)
-		rows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+		nrRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
-		nodeRegistrations := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+		defer nrRows.Close()
+
+		nodeRegistrations, err := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, nrRows)
+		if err != nil {
+			return nil, err
+		}
+
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance
@@ -234,13 +241,14 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
 			// get the participation score for this node registration
 			qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
-			rows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+			psRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
 			if err != nil {
 				return nil, err
 			}
-			defer rows.Close()
-			participationScores := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
-			if len(participationScores) > 0 {
+			defer psRows.Close()
+
+			participationScores, err := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, psRows)
+			if (err != nil) || len(participationScores) > 0 {
 				bcEntry.ParticipationScore = participationScores[0].Score
 			}
 		}
@@ -258,7 +266,11 @@ func generateGenesisFile(genesisEntries []genesisEntry, newGenesisFilePath strin
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
-	os.Remove(newGenesisFilePath)
+	err = os.Remove(newGenesisFilePath)
+	if err != nil {
+		log.Printf("remove %s file: %s\n", newGenesisFilePath, err)
+		return
+	}
 	f, err := os.Create(newGenesisFilePath)
 	if err != nil {
 		log.Printf("create %s file: %s\n", newGenesisFilePath, err)
@@ -293,6 +305,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 	}
 	bs := service.NewBlockService(
 		&chaintype.MainChain{},
+		nil,
 		nil,
 		nil,
 		nil,

@@ -273,7 +273,8 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{blockID: int64(1)},
-			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ?",
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ? ORDER BY "+
+				"transaction_index ASC",
 				strings.Join(mockTransactionQuery.Fields, ", "),
 			),
 			wantArgs: []interface{}{int64(1)},
@@ -361,7 +362,7 @@ func TestTransactionQuery_BuildModel(t *testing.T) {
 				TableName: tt.fields.TableName,
 				ChainType: tt.fields.ChainType,
 			}
-			if got := tr.BuildModel(tt.args.txs, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tr.BuildModel(tt.args.txs, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BuildModel() = \n%v, want \n%v", got, tt.want)
 			}
 		})

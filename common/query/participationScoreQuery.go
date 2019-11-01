@@ -11,12 +11,15 @@ import (
 type (
 	ParticipationScoreQueryInterface interface {
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
-		UpdateParticipationScore(participationScore *model.ParticipationScore) (str []string, args []interface{})
+		AddParticipationScore(
+			nodeID, score int64,
+			blockHeight uint32,
+		) [][]interface{}
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		ExtractModel(ps *model.ParticipationScore) []interface{}
-		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) []*model.ParticipationScore
+		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
 	}
 
 	ParticipationScoreQuery struct {
@@ -50,19 +53,38 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 	), ps.ExtractModel(participationScore)
 }
 
-// UpdateParticipationScore returns a slice of two queries.
-// 1st update all old participation scores versions' latest field to 0
-// 2nd insert a new version of the participation score with updated data
-func (ps *ParticipationScoreQuery) UpdateParticipationScore(
-	participationScore *model.ParticipationScore) (str []string, args []interface{}) {
-	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE node_id = %d", ps.getTableName(), participationScore.NodeID)
-	qryInsert := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
-		ps.getTableName(),
-		strings.Join(ps.Fields, ","),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(ps.Fields)-1)),
+func (ps *ParticipationScoreQuery) AddParticipationScore(
+	nodeID, score int64,
+	blockHeight uint32,
+) [][]interface{} {
+	var (
+		queries            [][]interface{}
+		updateVersionQuery string
 	)
-	return []string{qryUpdate, qryInsert}, ps.ExtractModel(participationScore)
+	// update or insert new participation_score row
+	updateScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
+		"SELECT node_id, score + %d, %d, latest FROM %s WHERE "+
+		"node_id = %d AND latest = 1 ON CONFLICT(node_id, height) "+
+		"DO UPDATE SET (score) = (SELECT "+
+		"score + %d FROM %s WHERE node_id = %d AND latest = 1)",
+		ps.getTableName(), score, blockHeight, ps.getTableName(), nodeID, score, ps.getTableName(), nodeID,
+	)
+	queries = append(queries,
+		[]interface{}{
+			updateScoreQuery,
+		},
+	)
+	if blockHeight != 0 {
+		// set previous version record to latest = false
+		updateVersionQuery = fmt.Sprintf("UPDATE %s SET latest = false WHERE node_id = %d AND height != %d AND latest = true",
+			ps.getTableName(), nodeID, blockHeight)
+		queries = append(queries,
+			[]interface{}{
+				updateVersionQuery,
+			},
+		)
+	}
+	return queries
 }
 
 // GetParticipationScoreByNodeID returns query string to get participation score by node id
@@ -85,10 +107,10 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(account
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".account_address='%s' "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=0 "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
-		accountAddress)
+		accountAddress, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
 func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {
@@ -105,9 +127,10 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
 		"WHERE "+nrTableAlias+".node_public_key=? "+
 		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".queued=0 "+
+		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",
 		strings.Join(psTableFields, ", "),
+		uint32(model.NodeRegistrationState_NodeRegistered),
 	), []interface{}{nodePublicKey}
 }
 
@@ -123,18 +146,27 @@ func (*ParticipationScoreQuery) ExtractModel(ps *model.ParticipationScore) []int
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (*ParticipationScoreQuery) BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) []*model.ParticipationScore {
+func (*ParticipationScoreQuery) BuildModel(
+	participationScores []*model.ParticipationScore,
+	rows *sql.Rows,
+) ([]*model.ParticipationScore, error) {
 	for rows.Next() {
-		var ps model.ParticipationScore
-		_ = rows.Scan(
+		var (
+			ps  model.ParticipationScore
+			err error
+		)
+		err = rows.Scan(
 			&ps.NodeID,
 			&ps.Score,
 			&ps.Latest,
 			&ps.Height,
 		)
+		if err != nil {
+			return nil, err
+		}
 		participationScores = append(participationScores, &ps)
 	}
-	return participationScores
+	return participationScores, nil
 }
 
 // Rollback delete records `WHERE block_height > `height`
@@ -151,7 +183,6 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 			WHERE height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
-				WHERE latest = 0
 				GROUP BY id
 			)`,
 				ps.TableName,

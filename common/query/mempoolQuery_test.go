@@ -62,7 +62,7 @@ func TestMempoolQuery_GetMempoolTransactions(t *testing.T) {
 	t.Run("GetMempoolTransactions:success", func(t *testing.T) {
 		q := mockMempoolQuery.GetMempoolTransactions()
 		wantQ := "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address" +
-			", recipient_account_address FROM mempool"
+			", recipient_account_address FROM mempool ORDER BY fee_per_byte DESC"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -139,7 +139,7 @@ func TestMempoolQuery_BuildModel(t *testing.T) {
 				mockMempool.SenderAccountAddress, mockMempool.RecipientAccountAddress))
 		rows, _ := db.Query("foo")
 		var tempMempool []*model.MempoolTransaction
-		res := mockMempoolQuery.BuildModel(tempMempool, rows)
+		res, _ := mockMempoolQuery.BuildModel(tempMempool, rows)
 		if !reflect.DeepEqual(res[0], mockMempool) {
 			t.Errorf("returned wrong: get: %v\nwant: %v", res, mockMempool)
 		}

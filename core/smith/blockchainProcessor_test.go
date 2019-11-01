@@ -351,104 +351,40 @@ func TestBlockchainProcessor_SortBlocksmith_03(t *testing.T) {
 		nodeID7 = int64(1032547846084)
 		nodeID8 = int64(69023893290543834)
 		nodeID9 = int64(409580358990)
-		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
-		for i, s := range sortedBlocksmiths {
-			switch i {
-			case 0:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[8]) {
-					t.Error("invalid sort")
-				}
-			case 1:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[1]) {
-					t.Error("invalid sort")
-				}
-			case 2:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[4]) {
-					t.Error("invalid sort")
-				}
-			case 3:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[0]) {
-					t.Error("invalid sort")
-				}
-			case 4:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[2]) {
-					t.Error("invalid sort")
-				}
-			case 5:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[3]) {
-					t.Error("invalid sort")
-				}
-			case 6:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[5]) {
-					t.Error("invalid sort")
-				}
-			case 7:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[7]) {
-					t.Error("invalid sort")
-				}
-			case 8:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[6]) {
-					t.Error("invalid sort")
-				}
-			}
-		}
-	})
-}
 
-func TestBlockchainProcessor_SortBlocksmith_04(t *testing.T) {
-	t.Run("SortBlocksmith_04:success", func(t *testing.T) {
-		var sortedBlocksmiths []model.Blocksmith
-		bProcessor := NewBlockchainProcessor(
-			&chaintype.MainChain{},
-			&model.Blocksmith{
-				NodeID:        0,
-				NodePublicKey: nil,
-				Score:         nil,
-				SmithTime:     0,
-				BlockSeed:     nil,
-				SecretPhrase:  "",
-				Deadline:      0,
-			},
-			&mockBlockService{},
-			nil,
-		)
-		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
-		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
-		// sort randomizing node id between blocksmiths and changing blockseed
-		blockSeed = new(big.Int).SetUint64(39053285908984532)
 		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
 		for i, s := range sortedBlocksmiths {
 			switch i {
 			case 0:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[1]) {
-					t.Error("invalid sort")
-				}
-			case 1:
 				if !reflect.DeepEqual(s, *getMockBlocksmiths()[8]) {
 					t.Error("invalid sort")
 				}
+			case 1:
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[1]) {
+					t.Error("invalid sort")
+				}
 			case 2:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[0]) {
-					t.Error("invalid sort")
-				}
-			case 3:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[2]) {
-					t.Error("invalid sort")
-				}
-			case 4:
 				if !reflect.DeepEqual(s, *getMockBlocksmiths()[3]) {
 					t.Error("invalid sort")
 				}
-			case 5:
+			case 3:
 				if !reflect.DeepEqual(s, *getMockBlocksmiths()[4]) {
 					t.Error("invalid sort")
 				}
+			case 4:
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[2]) {
+					t.Error("invalid sort")
+				}
+			case 5:
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[0]) {
+					t.Error("invalid sort")
+				}
 			case 6:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[7]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[6]) {
 					t.Error("invalid sort")
 				}
 			case 7:
-				if !reflect.DeepEqual(s, *getMockBlocksmiths()[6]) {
+				if !reflect.DeepEqual(s, *getMockBlocksmiths()[7]) {
 					t.Error("invalid sort")
 				}
 			case 8:
