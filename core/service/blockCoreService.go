@@ -1011,8 +1011,8 @@ func (bs *BlockService) CheckGenesis() bool {
 }
 
 // ReceiveBlock handle the block received from connected peers
-// argument lastBlock is lastblock in current block
-// argument block is comming block
+// argument lastBlock is the lastblock in this node
+// argument block is the in comming block from peer
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
@@ -1068,7 +1068,6 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	// check if the block broadcaster is the valid blocksmith
 	index := -1 // use index to determine if is in list, and who to punish
-	fmt.Println("bs.SortedBlocksmiths ---->", bs.SortedBlocksmiths)
 	for i, bs := range *bs.SortedBlocksmiths {
 		if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
 			index = i
