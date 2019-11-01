@@ -14,7 +14,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 func TestGetBlockSeed(t *testing.T) {
@@ -463,23 +462,6 @@ func getBlockSeedsFromFile(fileName string) (blockSeeds []*big.Int) {
 		seed, _ := new(big.Int).SetString(rec[0], 10)
 		blockSeeds = append(blockSeeds, seed)
 	}
-	return blockSeeds
-}
-
-func generateBlockSeeds(n int) (blockSeeds []*big.Int) {
-	var str string
-	for i := 0; i < n; i++ {
-		rndSeed := new(big.Int).SetInt64(util.GetSecureRandom())
-		blockSeeds = append(blockSeeds, rndSeed)
-		str += fmt.Sprintf("%v\n", rndSeed)
-	}
-	d1 := []byte(str)
-	fileName := fmt.Sprintf("blockSeeds%d.csv", n)
-	err := ioutil.WriteFile(filepath.Join("testdata", fileName), d1, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	return blockSeeds
 }
 
