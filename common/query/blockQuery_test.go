@@ -25,6 +25,7 @@ var (
 		CumulativeDifficulty: "0",
 		PayloadHash:          []byte{},
 		PayloadLength:        1,
+		BlockHash:            []byte{},
 		PreviousBlockHash:    []byte{},
 		SmithScale:           0,
 		Timestamp:            1000,
@@ -75,7 +76,7 @@ func TestBlockQuery_getTableName(t *testing.T) {
 func TestBlockQuery_GetBlocks(t *testing.T) {
 	t.Run("GetBlocks:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlocks(0, 10)
-		wantQ := "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height " +
 			">= 0 ORDER BY height ASC LIMIT 10"
 		if q != wantQ {
@@ -87,7 +88,7 @@ func TestBlockQuery_GetBlocks(t *testing.T) {
 func TestBlockQuery_GetLastBlock(t *testing.T) {
 	t.Run("GetLastBlock:success", func(t *testing.T) {
 		q := mockBlockQuery.GetLastBlock()
-		wantQ := "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
 			"version FROM main_block ORDER BY height DESC LIMIT 1"
 		if q != wantQ {
@@ -99,7 +100,7 @@ func TestBlockQuery_GetLastBlock(t *testing.T) {
 func TestBlockQuery_GetGenesisBlock(t *testing.T) {
 	t.Run("GetGenesisBlock:success", func(t *testing.T) {
 		q := mockBlockQuery.GetGenesisBlock()
-		wantQ := "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height " +
 			"= 0 LIMIT 1"
 		if q != wantQ {
@@ -111,9 +112,9 @@ func TestBlockQuery_GetGenesisBlock(t *testing.T) {
 func TestBlockQuery_InsertBlock(t *testing.T) {
 	t.Run("InsertBlock:success", func(t *testing.T) {
 		q, args := mockBlockQuery.InsertBlock(mockBlock)
-		wantQ := "INSERT INTO main_block (id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		wantQ := "INSERT INTO main_block (id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 			"smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
-			"version) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+			"version) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := mockBlockQuery.ExtractModel(mockBlock)
 
 		if q != wantQ {
@@ -128,7 +129,7 @@ func TestBlockQuery_InsertBlock(t *testing.T) {
 func TestBlockQuery_GetBlockByID(t *testing.T) {
 	t.Run("GetBlockByID:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlockByID(1)
-		wantQ := "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -139,7 +140,7 @@ func TestBlockQuery_GetBlockByID(t *testing.T) {
 func TestBlockQuery_GetBlockByHeight(t *testing.T) {
 	t.Run("GetBlockByHeight:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlockByHeight(0)
-		wantQ := "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -152,6 +153,7 @@ func TestBlockQuery_ExtractModel(t *testing.T) {
 		res := mockBlockQuery.ExtractModel(mockBlock)
 		want := []interface{}{
 			mockBlock.ID,
+			mockBlock.BlockHash,
 			mockBlock.PreviousBlockHash,
 			mockBlock.Height,
 			mockBlock.Timestamp,
@@ -177,24 +179,24 @@ func TestBlockQuery_BuildModel(t *testing.T) {
 	t.Run("BlockQuery-BuildModel:success", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase", "Version"}).
-			AddRow(mockBlock.ID,
-				mockBlock.PreviousBlockHash,
-				mockBlock.Height,
-				mockBlock.Timestamp,
-				mockBlock.BlockSeed,
-				mockBlock.BlockSignature,
-				mockBlock.CumulativeDifficulty,
-				mockBlock.SmithScale,
-				mockBlock.PayloadLength,
-				mockBlock.PayloadHash,
-				mockBlock.BlocksmithPublicKey,
-				mockBlock.TotalAmount,
-				mockBlock.TotalFee,
-				mockBlock.TotalCoinBase,
-				mockBlock.Version))
+		mock.ExpectQuery("foo").WillReturnRows(
+			sqlmock.NewRows(mockBlockQuery.Fields).
+				AddRow(mockBlock.ID,
+					mockBlock.BlockHash,
+					mockBlock.PreviousBlockHash,
+					mockBlock.Height,
+					mockBlock.Timestamp,
+					mockBlock.BlockSeed,
+					mockBlock.BlockSignature,
+					mockBlock.CumulativeDifficulty,
+					mockBlock.SmithScale,
+					mockBlock.PayloadLength,
+					mockBlock.PayloadHash,
+					mockBlock.BlocksmithPublicKey,
+					mockBlock.TotalAmount,
+					mockBlock.TotalFee,
+					mockBlock.TotalCoinBase,
+					mockBlock.Version))
 
 		rows, _ := db.Query("foo")
 		var tempBlock []*model.Block
