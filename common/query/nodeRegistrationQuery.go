@@ -26,7 +26,7 @@ type (
 		GetNodeRegistryAtHeight(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
-		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith
+		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
@@ -230,21 +230,26 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 	return nodeRegistrations, nil
 }
 
-func (*NodeRegistrationQuery) BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith {
+func (*NodeRegistrationQuery) BuildBlocksmith(
+	blocksmiths []*model.Blocksmith, rows *sql.Rows,
+) ([]*model.Blocksmith, error) {
 	for rows.Next() {
 		var (
 			blocksmith  model.Blocksmith
 			scoreString string
 		)
-		_ = rows.Scan(
+		err := rows.Scan(
 			&blocksmith.NodeID,
 			&blocksmith.NodePublicKey,
 			&scoreString,
 		)
+		if err != nil {
+			return nil, err
+		}
 		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
 		blocksmiths = append(blocksmiths, &blocksmith)
 	}
-	return blocksmiths
+	return blocksmiths, nil
 }
 
 // Rollback delete records `WHERE block_height > `height`
