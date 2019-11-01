@@ -68,7 +68,7 @@ func TestBlockQuery_getTableName(t *testing.T) {
 		tableName := mockBlockQuery.getTableName()
 		want := "main_block"
 		if tableName != want {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", tableName, want)
+			t.Errorf("arguments returned wrong: get: \n%vwant: \n%v", tableName, want)
 		}
 	})
 }
@@ -90,9 +90,9 @@ func TestBlockQuery_GetLastBlock(t *testing.T) {
 		q := mockBlockQuery.GetLastBlock()
 		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-			"total_fee, total_coinbase,  version FROM main_block ORDER BY height DESC LIMIT 1"
+			"total_fee, total_coinbase, version FROM main_block ORDER BY height DESC LIMIT 1"
 		if q != wantQ {
-			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
+			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
 	})
 }
@@ -101,10 +101,10 @@ func TestBlockQuery_GetGenesisBlock(t *testing.T) {
 	t.Run("GetGenesisBlock:success", func(t *testing.T) {
 		q := mockBlockQuery.GetGenesisBlock()
 		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-			"cumulative_difficulty, smith_scale,  payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+			"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 			"total_fee, total_coinbase, version FROM main_block WHERE height = 0 LIMIT 1"
 		if q != wantQ {
-			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
+			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
 	})
 }
@@ -113,13 +113,13 @@ func TestBlockQuery_InsertBlock(t *testing.T) {
 	t.Run("InsertBlock:success", func(t *testing.T) {
 		q, args := mockBlockQuery.InsertBlock(mockBlock)
 		wantQ := "INSERT INTO main_block (id, block_hash, previous_block_hash, height, timestamp, block_seed, " +
-			"block_signature, cumulative_difficulty,  smith_scale, payload_length, payload_hash, " +
-			"blocksmith_public_key, total_amount, total_fee, total_coinbase,  " +
-			" version) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+			"block_signature, cumulative_difficulty, smith_scale, payload_length, payload_hash, " +
+			"blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
+			"version) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := mockBlockQuery.ExtractModel(mockBlock)
 
 		if q != wantQ {
-			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
+			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
 		if !reflect.DeepEqual(args, wantArg) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
@@ -131,7 +131,7 @@ func TestBlockQuery_GetBlockByID(t *testing.T) {
 	t.Run("GetBlockByID:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlockByID(1)
 		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-			"cumulative_difficulty, smith_scale,  payload_length, payload_hash, blocksmith_public_key, " +
+			"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, " +
 			"total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
@@ -143,7 +143,7 @@ func TestBlockQuery_GetBlockByHeight(t *testing.T) {
 	t.Run("GetBlockByHeight:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlockByHeight(0)
 		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-			"cumulative_difficulty, smith_scale,  payload_length, payload_hash, blocksmith_public_key, " +
+			"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, " +
 			"total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
