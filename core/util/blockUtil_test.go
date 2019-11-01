@@ -468,23 +468,21 @@ func getBlockSeedsFromFile(fileName string) (blockSeeds []*big.Int) {
 func testCalculateSmithDistribution(distribution map[int64]int, score *big.Int, blockSeeds []*big.Int) map[int64]int {
 	for i := 0; i < len(blockSeeds); i++ {
 		var maxSmithRndNum *big.Int
-		var selectedId int64
+		var selectedID int64
 		j := 0
-		for nodeID, _ := range distribution {
+		for nodeID := range distribution {
 			smithRndNum := CalculateSmithOrder(score, blockSeeds[i], nodeID)
 			if j == 0 {
 				maxSmithRndNum = smithRndNum
-				selectedId = nodeID
+				selectedID = nodeID
 				j++
 				continue
-			} else {
-				if smithRndNum.Cmp(maxSmithRndNum) > 0 {
-					maxSmithRndNum = smithRndNum
-					selectedId = nodeID
-				}
+			} else if smithRndNum.Cmp(maxSmithRndNum) > 0 {
+				maxSmithRndNum = smithRndNum
+				selectedID = nodeID
 			}
 		}
-		distribution[selectedId] = distribution[selectedId] + 1
+		distribution[selectedID]++
 	}
 	return distribution
 }
