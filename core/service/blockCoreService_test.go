@@ -385,6 +385,18 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes", "SenderAccountAddress", "RecipientAccountAddress",
 		}))
+	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score FROM node_registry " +
+		"AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id WHERE nr.registration_status = 0 AND nr.latest " +
+		"= 1 AND ps.score > 0 AND ps.latest = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"node_public_key", "score",
+		}).AddRow(
+			(*mockBlocksmiths)[0].NodePublicKey,
+			(*mockBlocksmiths)[0].Score,
+		).AddRow(
+			(*mockBlocksmiths)[1].NodePublicKey,
+			(*mockBlocksmiths)[1].Score,
+		))
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -423,6 +435,7 @@ func TestNewBlockService(t *testing.T) {
 		transactionQuery        query.TransactionQueryInterface
 		merkleTreeQuery         query.MerkleTreeQueryInterface
 		publishedReceiptQuery   query.PublishedReceiptQueryInterface
+		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		signature               crypto.SignatureInterface
 		mempoolService          MempoolServiceInterface
 		receiptService          ReceiptServiceInterface
@@ -465,6 +478,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.transactionQuery,
 				tt.args.merkleTreeQuery,
 				tt.args.publishedReceiptQuery,
+				tt.args.skippedBlocksmithQuery,
 				tt.args.signature,
 				tt.args.mempoolService,
 				tt.args.receiptService,
@@ -820,17 +834,20 @@ func TestBlockService_VerifySeed(t *testing.T) {
 	}
 }
 
+var mockBlocksmiths = &[]model.Blocksmith{
+	{
+		NodePublicKey: bcsNodePubKey1,
+		NodeID:        2,
+		NodeOrder:     new(big.Int).SetInt64(1000),
+	},
+	{
+		NodePublicKey: bcsNodePubKey2,
+		NodeID:        3,
+		NodeOrder:     new(big.Int).SetInt64(2000),
+	},
+}
+
 func TestBlockService_PushBlock(t *testing.T) {
-	var mockBlocksmiths = &[]model.Blocksmith{
-		{
-			NodeID:    2,
-			NodeOrder: new(big.Int).SetInt64(1000),
-		},
-		{
-			NodeID:    3,
-			NodeOrder: new(big.Int).SetInt64(2000),
-		},
-	}
 	type fields struct {
 		Chaintype               chaintype.ChainType
 		QueryExecutor           query.ExecutorInterface
