@@ -33,7 +33,7 @@ type (
 		BlockService            service.BlockServiceInterface
 		NodeRegistrationService service.NodeRegistrationServiceInterface
 		LastBlockID             int64
-		canSmith                *bool
+		canSmith                bool
 	}
 )
 
@@ -166,10 +166,10 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			}
 		}
 		if blocksmithIndex < 0 {
-			*(bp.canSmith) = false
+			bp.canSmith = false
 			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
-		*(bp.canSmith) = true
+		bp.canSmith = true
 		// if lastBlock.Timestamp > time.Now().Unix()-bp.Chaintype.GetChainSmithingDelayTime()*10 {
 		// TODO: andy-shi88
 		// pop off last block if has been absent for 10*delay
@@ -178,7 +178,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		// caching: only calculate smith time once per new block
 		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
 	}
-	if !*(bp.canSmith) {
+	if !bp.canSmith {
 		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 	}
 	if bp.Generator.SmithTime > smithMax {
