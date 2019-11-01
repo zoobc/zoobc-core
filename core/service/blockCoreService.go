@@ -743,16 +743,10 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 // GetBlockByID return the last pushed block
 func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id), false)
-	defer func() {
-		if rows != nil {
-			if err := rows.Close(); err != nil {
-				bs.Logger.Error(err.Error())
-			}
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var blocks []*model.Block
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
@@ -768,16 +762,10 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
-	defer func() {
-		if rows != nil {
-			if err := rows.Close(); err != nil {
-				bs.Logger.Error(err.Error())
-			}
-		}
-	}()
 	if err != nil {
 		return []*model.Block{}, err
 	}
+	defer rows.Close()
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
@@ -789,16 +777,10 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock(), false)
-	defer func() {
-		if rows != nil {
-			if err := rows.Close(); err != nil {
-				bs.Logger.Error(err.Error())
-			}
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var blocks []*model.Block
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
@@ -849,16 +831,10 @@ func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height), false)
-	defer func() {
-		if rows != nil {
-			if err := rows.Close(); err != nil {
-				bs.Logger.Error(err.Error())
-			}
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var blocks []*model.Block
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
@@ -875,16 +851,10 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 // GetGenesis return the last pushed block
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetGenesisBlock(), false)
-	defer func() {
-		if rows != nil {
-			if err := rows.Close(); err != nil {
-				bs.Logger.Error(err.Error())
-			}
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 	}
+	defer rows.Close()
 	var lastBlock model.Block
 	if rows.Next() {
 		err = rows.Scan(
@@ -917,16 +887,10 @@ func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlocks(0, 100), false)
-	defer func() {
-		if rows != nil {
-			if err := rows.Close(); err != nil {
-				bs.Logger.Error(err.Error())
-			}
-		}
-	}()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var block model.Block
 		err = rows.Scan(&block.ID, &block.PreviousBlockHash, &block.Height, &block.Timestamp, &block.BlockSeed, &block.BlockSignature,

@@ -251,6 +251,19 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 		if err := transaction.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
+
+		txType, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+		toRemove, err := txType.SkipMempoolTransaction(selectedTransactions)
+		if err != nil {
+			return nil, err
+		}
+		if toRemove {
+			continue
+		}
+
 		selectedTransactions = append(selectedTransactions, tx)
 		selectedMempool = append(selectedMempool, mempoolTransaction)
 		payloadLength += transactionLength
