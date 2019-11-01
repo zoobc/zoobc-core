@@ -22,9 +22,6 @@ func ResetBlockService() {
 }
 
 var (
-	basNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-
 	mockGoodBlock = model.Block{
 		ID:                   1,
 		BlockHash:            []byte{},

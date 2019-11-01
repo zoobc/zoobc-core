@@ -1012,7 +1012,7 @@ func (bs *BlockService) CheckGenesis() bool {
 
 // ReceiveBlock handle the block received from connected peers
 // argument lastBlock is the lastblock in this node
-// argument block is the in comming block from peer
+// argument block is the in coming block from peer
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
