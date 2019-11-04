@@ -189,7 +189,8 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// validate
-	err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp)
+	currentTime := time.Now().UTC().Unix()
+	err = bp.BlockService.ValidateBlock(block, previousBlock, currentTime)
 	if err != nil {
 		return err
 	}
