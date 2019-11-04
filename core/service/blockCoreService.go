@@ -1201,8 +1201,12 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 // GetParticipationScore handle received block from another node
 func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
 	var (
-		blExt = &model.BlockExtendedInfo{}
-		err   error
+		blExt                         = &model.BlockExtendedInfo{}
+		skippedBlocksmiths            []*model.SkippedBlocksmith
+		publishedReceipts             []*model.PublishedReceipt
+		linkedPublishedReceiptCount   uint32
+		unLinkedPublishedReceiptCount uint32
+		err                           error
 	)
 	blExt.Block = block
 	// block extra (computed) info
@@ -1214,15 +1218,42 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	} else {
 		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-	// Total number of receipts at a block height
-	// STEF: do we need to get all receipts that have reference_block_height <= block.height
-	blExt.TotalReceipts = 99
-	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
-	// STEF: how to compute the receipt score?
-	blExt.ReceiptValue = 99
-	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
-	blExt.PopChange = -20
-
+	skippedBlocksmithsQuery := bs.SkippedBlocksmithQuery.GetSkippedBlocksmithsByBlockHeight(block.Height)
+	skippedBlocksmithsRows, err := bs.QueryExecutor.ExecuteSelect(skippedBlocksmithsQuery, false)
+	if err != nil {
+		return nil, err
+	}
+	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
+	if err != nil {
+		return nil, err
+	}
+	publishedReceiptQ, publishedReceiptArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
+	publishedReceiptRows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArgs...)
+	if err != nil {
+		return nil, err
+	}
+	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
+	if err != nil {
+		return nil, err
+	}
+	blExt.TotalReceipts = int64(len(publishedReceipts))
+	for _, pr := range publishedReceipts {
+		if pr.IntermediateHashes != nil {
+			linkedPublishedReceiptCount++
+		} else {
+			unLinkedPublishedReceiptCount++
+		}
+	}
+	blExt.ReceiptValue = commonUtils.GetReceiptValue(linkedPublishedReceiptCount, unLinkedPublishedReceiptCount)
+	// todo: POPChange value will not be correct until we have scrambled node list at n-th height for `maxReceipt` parameter
+	blExt.PopChange, err = util.CalculateParticipationScore(
+		linkedPublishedReceiptCount,
+		unLinkedPublishedReceiptCount,
+		uint32(len(publishedReceipts)),
+	)
+	if err != nil {
+		return nil, err
+	}
 	return blExt, nil
 }
 
