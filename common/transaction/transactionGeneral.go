@@ -164,7 +164,7 @@ func ValidateTransaction(
 	}
 	// check if transaction is coming from future / comparison in second
 	// There is additional time offset for the transaction timestamp before comparing with time now
-	if time.Duration(tx.Timestamp)*time.Second+constant.TransactionTimeOffset > time.Duration(time.Now().UnixNano()) {
+	if time.Duration(tx.Timestamp)*time.Second-constant.TransactionTimeOffset > time.Duration(time.Now().UnixNano()) {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxComeFromFuture",
