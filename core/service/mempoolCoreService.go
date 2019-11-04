@@ -122,13 +122,12 @@ func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransa
 	if len(mpTx) > 0 {
 		return mpTx[0], nil
 	}
-	return &model.MempoolTransaction{
-		ID: -1,
-	}, errors.New("MempoolTransactionNotFound")
+	return nil, errors.New("MempoolTransactionNotFound")
 }
 
 // AddMempoolTransaction validates and insert a transaction into the mempool
 func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+
 	// check maximum mempool
 	if constant.MaxMempoolTransactions > 0 {
 		var count int
@@ -145,13 +144,14 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	// check if already in db
 	_, err := mps.GetMempoolTransaction(mpTx.ID)
 	if err == nil {
-		return errors.New("DuplicateRecordAttempted")
+		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
 	}
 	if err.Error() != "MempoolTransactionNotFound" {
-		return errors.New("DatabaseError")
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	err = mps.QueryExecutor.ExecuteTransaction(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
+	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
+	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs)
 	if err != nil {
 		return err
 	}
@@ -169,27 +169,19 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.ID)
 	row := mps.QueryExecutor.ExecuteSelectRow(transactionQ)
 	err = mps.TransactionQuery.Scan(&tx, row)
-	if tx.ID != 0 {
-		return blocker.NewBlocker(
-			blocker.DuplicateTransactionErr,
-			"mempool validation: duplicate transaction",
-		)
-	}
-	if err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	if tx.ID != 0 || err != nil {
+		if err != nil && err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
 	}
 	// check for duplication in mempool table
 	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
 	row = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, mpTx.ID)
 	err = mps.MempoolQuery.Scan(&mempoolTx, row)
-	if mempoolTx.ID != 0 {
-		return blocker.NewBlocker(
-			blocker.DuplicateMempoolErr,
-			"mempool validation: duplicate mempool",
-		)
-	}
-	if err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	if mempoolTx.ID != 0 || err != nil {
+		if err != nil && err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
 	}
 
 	parsedTx, err = transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
@@ -204,6 +196,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	if err != nil {
 		return err
 	}
+
 	err = txType.Validate(false)
 	if err != nil {
 		return err
@@ -277,6 +270,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	mempoolTx = &model.MempoolTransaction{
 		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
+		BlockHeight:             lastBlock.GetHeight(),
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
 		SenderAccountAddress:    receivedTx.SenderAccountAddress,

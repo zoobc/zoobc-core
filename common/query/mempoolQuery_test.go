@@ -82,17 +82,56 @@ func TestMempoolQuery_GetMempoolTransaction(t *testing.T) {
 }
 
 func TestMempoolQuery_InsertMempoolTransaction(t *testing.T) {
-	t.Run("InsertMempoolTransaction:success", func(t *testing.T) {
-		q := mockMempoolQuery.InsertMempoolTransaction()
-		wantQ := "INSERT INTO mempool (id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address," +
-			" recipient_account_address) VALUES(:id, :block_height, :fee_per_byte, :arrival_timestamp, :transaction_bytes," +
-			" :sender_account_address, :recipient_account_address)"
-		if q != wantQ {
-			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
-		}
-	})
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		mempoolTx *model.MempoolTransaction
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantQStr string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockMempoolQuery),
+			args:   args{mempoolTx: mockMempool},
+			wantQStr: "INSERT INTO mempool (id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
+				"recipient_account_address) VALUES(? , ?, ?, ?, ?, ?, ?)",
+			wantArgs: []interface{}{
+				int64(1),
+				uint32(0),
+				int64(10),
+				int64(1000),
+				[]byte{1, 2, 3, 4, 5},
+				"BCZ",
+				"ZCB",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mpq := &MempoolQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			gotQStr, gotArgs := mpq.InsertMempoolTransaction(tt.args.mempoolTx)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("InsertMempoolTransaction() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertMempoolTransaction() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
 }
-
 func TestMempoolQuery_DeleteMempoolTransaction(t *testing.T) {
 	t.Run("DeleteMempoolTransaction:success", func(t *testing.T) {
 		q := mockMempoolQuery.DeleteMempoolTransaction()

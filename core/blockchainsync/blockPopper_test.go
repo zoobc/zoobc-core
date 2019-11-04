@@ -40,7 +40,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 				},
 			},
 			want: func() []*model.Block {
-				blocks := []*model.Block{}
+				var blocks []*model.Block
 				for i := 66; i >= 1; i-- {
 					// pop off should allow node to pop off block to before genesis, since the first block may already be different
 					blocks = append(blocks, &model.Block{ID: 58, Height: uint32(i),

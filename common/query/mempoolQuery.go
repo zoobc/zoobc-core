@@ -13,7 +13,7 @@ type (
 	MempoolQueryInterface interface {
 		GetMempoolTransactions() string
 		GetMempoolTransaction() string
-		InsertMempoolTransaction() string
+		InsertMempoolTransaction(mempoolTx *model.MempoolTransaction) (qStr string, args []interface{})
 		DeleteMempoolTransaction() string
 		DeleteMempoolTransactions([]string) string
 		DeleteExpiredMempoolTransactions(expiration int64) string
@@ -61,19 +61,13 @@ func (mpq *MempoolQuery) GetMempoolTransaction() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE id = :id", strings.Join(mpq.Fields, ", "), mpq.getTableName())
 }
 
-func (mpq *MempoolQuery) InsertMempoolTransaction() string {
-	var value = ":" + mpq.Fields[0]
-	for _, field := range mpq.Fields[1:] {
-		value += ", :" + field
-
-	}
-	query := fmt.Sprintf(
+func (mpq *MempoolQuery) InsertMempoolTransaction(mempoolTx *model.MempoolTransaction) (qStr string, args []interface{}) {
+	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		mpq.getTableName(),
 		strings.Join(mpq.Fields, ", "),
-		value,
-	)
-	return query
+		fmt.Sprintf("? %s", strings.Repeat(", ?", len(mpq.Fields)-1)),
+	), mpq.ExtractModel(mempoolTx)
 }
 
 // DeleteMempoolTransaction delete one mempool transaction by id

@@ -38,7 +38,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	poppedBlocks := []*model.Block{}
+	var poppedBlocks []*model.Block
 	block := lastBlock
 	txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 	block.Transactions = txs

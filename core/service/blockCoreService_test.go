@@ -9,8 +9,6 @@ import (
 	"regexp"
 	"testing"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
 	"github.com/sirupsen/logrus"
@@ -24,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	util2 "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -1508,6 +1507,27 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 	}
 }
 
+type (
+	mockAddGenesisExecutor struct {
+		query.Executor
+	}
+)
+
+func (*mockAddGenesisExecutor) BeginTx() error    { return nil }
+func (*mockAddGenesisExecutor) RollbackTx() error { return nil }
+func (*mockAddGenesisExecutor) CommitTx() error   { return nil }
+func (*mockAddGenesisExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+func (*mockAddGenesisExecutor) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields),
+	)
+	return db.Query(qStr)
+}
+
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1530,13 +1550,14 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				Signature:               &mockSignature{},
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				MempoolService:          &mockMempoolServiceSelectFail{},
-				ActionTypeSwitcher:      &mockTypeActionSuccess{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
+				Chaintype:           &chaintype.MainChain{},
+				Signature:           &mockSignature{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				MempoolService:      &mockMempoolServiceSelectFail{},
+				ActionTypeSwitcher:  &mockTypeActionSuccess{},
+				//QueryExecutor:       &mockQueryExecutorSuccess{},
+				QueryExecutor:           &mockAddGenesisExecutor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),

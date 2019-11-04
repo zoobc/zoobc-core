@@ -26,11 +26,12 @@ type (
 )
 
 var (
-	getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
+	getTxByIDQuery = "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
 		"recipient_account_address FROM mempool WHERE id = :id"
 	mockMempoolQuery       = query.NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempoolTransaction = &model.MempoolTransaction{
 		ID:                      1,
+		BlockHeight:             0,
 		ArrivalTimestamp:        1000,
 		FeePerByte:              10,
 		TransactionBytes:        []byte{1, 2, 3, 4, 5},
@@ -84,9 +85,9 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, tx bool, args ...i
 	switch qe {
 	// before adding mempool transactions to db we check for duplicate transactions
 	case getTxByIDQuery:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address", "recipient_account_address"},
-		).AddRow(3, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewMempoolQuery(chaintype.GetChainType(0)).Fields,
+		).AddRow(3, 0, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
 	default:
 		return nil, errors.New("MockedError")
 	}
@@ -132,6 +133,7 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 	txBytes, _ = transaction.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
+		BlockHeight:             0,
 		FeePerByte:              1,
 		ArrivalTimestamp:        timestamp,
 		TransactionBytes:        txBytes,
@@ -203,11 +205,11 @@ func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, 
 	defer db.Close()
 
 	mockedRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
-	mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-	mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-	mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-	mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-	mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+	mockedRows.AddRow(1, 0, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
+	mockedRows.AddRow(2, 0, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
+	mockedRows.AddRow(3, 0, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
+	mockedRows.AddRow(4, 0, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
+	mockedRows.AddRow(5, 0, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -436,11 +438,11 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(abRows)
 	default:
 		mtxRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
-		mtxRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-		mtxRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-		mtxRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-		mtxRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-		mtxRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+		mtxRows.AddRow(1, 0, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
+		mtxRows.AddRow(2, 0, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
+		mtxRows.AddRow(3, 0, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
+		mtxRows.AddRow(4, 0, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
+		mtxRows.AddRow(5, 0, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mtxRows)
 	}
 	rows, _ := db.Query(qe)
@@ -770,6 +772,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(mockMempoolQuery.Fields).AddRow(
 			1,
+			0,
 			1000,
 			10,
 			[]byte{1, 0, 0, 0, 1, 210, 225, 121, 93, 0, 0, 0, 0, 44, 0, 0, 0, 110, 75, 95, 111, 117, 120, 100, 68,
