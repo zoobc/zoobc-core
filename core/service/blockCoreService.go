@@ -258,8 +258,8 @@ func (*BlockService) VerifySeed(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
+	if block.GetTimestamp() < curTime+constant.GenerateBlockTimeoutSec {
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp test")
 	}
 	if coreUtil.GetBlockID(block) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
@@ -931,7 +931,7 @@ func (bs *BlockService) GenerateBlock(
 		return nil, err
 	}
 
-	currentTimestamp := time.Now().Unix()
+	currentTimestamp := time.Now().UTC().Unix()
 
 	block := bs.NewBlock(
 		1,
