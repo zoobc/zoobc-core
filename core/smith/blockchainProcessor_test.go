@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 
@@ -21,6 +22,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		blocksmith              *model.Blocksmith
 		blockService            service.BlockServiceInterface
 		nodeRegistrationService service.NodeRegistrationServiceInterface
+		logger                  *log.Logger
 	}
 	tests := []struct {
 		name string
@@ -46,7 +48,12 @@ func TestNewBlockchainProcessor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockchainProcessor(
-				tt.args.ct, tt.args.blocksmith, tt.args.blockService, tt.args.nodeRegistrationService); !reflect.DeepEqual(got, tt.want) {
+				tt.args.ct,
+				tt.args.blocksmith,
+				tt.args.blockService,
+				tt.args.nodeRegistrationService,
+				tt.args.logger,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}
 		})
@@ -212,6 +219,7 @@ func TestBlockchainProcessor_SortBlocksmith_01(t *testing.T) {
 			},
 			&mockBlockService{},
 			nil,
+			log.New(),
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
 		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
@@ -274,6 +282,7 @@ func TestBlockchainProcessor_SortBlocksmith_02(t *testing.T) {
 			},
 			&mockBlockService{},
 			nil,
+			log.New(),
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
 		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
@@ -338,6 +347,7 @@ func TestBlockchainProcessor_SortBlocksmith_03(t *testing.T) {
 			},
 			&mockBlockService{},
 			nil,
+			log.New(),
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
 		listener.OnNotify(&model.Block{}, &chaintype.MainChain{})
@@ -412,6 +422,7 @@ func TestBlockchainProcessor_SortBlocksmith_fail(t *testing.T) {
 			},
 			&mockBlockServiceFail{},
 			nil,
+			log.New(),
 		)
 		listener := bProcessor.SortBlocksmith(&sortedBlocksmiths)
 		listener.OnNotify(&model.Block{
