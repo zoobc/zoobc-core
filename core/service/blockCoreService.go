@@ -1204,6 +1204,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 		blExt                         = &model.BlockExtendedInfo{}
 		skippedBlocksmiths            []*model.SkippedBlocksmith
 		publishedReceipts             []*model.PublishedReceipt
+		nodeRegistryAtHeight          []*model.NodeRegistration
 		linkedPublishedReceiptCount   uint32
 		unLinkedPublishedReceiptCount uint32
 		err                           error
@@ -1244,12 +1245,20 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 			unLinkedPublishedReceiptCount++
 		}
 	}
+	nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.Height)
+	nodeRegistryAtHeightRows, err := bs.QueryExecutor.ExecuteSelect(nodeRegistryAtHeightQ, false)
+	if err != nil {
+		return nil, err
+	}
+	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
+	if err != nil {
+		return nil, err
+	}
 	blExt.ReceiptValue = commonUtils.GetReceiptValue(linkedPublishedReceiptCount, unLinkedPublishedReceiptCount)
-	// todo: POPChange value will not be correct until we have scrambled node list at n-th height for `maxReceipt` parameter
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
-		uint32(len(publishedReceipts)),
+		uint32(len(nodeRegistryAtHeight)),
 	)
 	if err != nil {
 		return nil, err

@@ -439,6 +439,20 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockPublishedReceipt[0].ReceiptIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height, max(height) AS max_height FROM node_registry where height <= 0 AND " +
+		"registration_status = 0 GROUP BY id ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"registration_status", "latest", "height",
+		}))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height, max(height) AS max_height FROM node_registry where height <= 1 " +
+		"AND registration_status = 0 GROUP BY id ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"registration_status", "latest", "height",
+		}))
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -2455,7 +2469,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
 				TotalReceipts:            1,
 				ReceiptValue:             50000000,
-				PopChange:                -500000000,
+				PopChange:                1000000000,
 				SkippedBlocksmiths: []*model.SkippedBlocksmith{
 					{
 						BlocksmithPublicKey: (*mockBlocksmiths)[0].NodePublicKey,
@@ -2498,7 +2512,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				BlocksmithAccountAddress: bcsAddress1,
 				TotalReceipts:            int64(len(mockPublishedReceipt)),
 				ReceiptValue:             50000000,
-				PopChange:                -500000000,
+				PopChange:                1000000000,
 				SkippedBlocksmiths: []*model.SkippedBlocksmith{
 					{
 						BlocksmithPublicKey: (*mockBlocksmiths)[0].NodePublicKey,
