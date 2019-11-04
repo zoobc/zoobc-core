@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
 
 	"golang.org/x/crypto/sha3"
@@ -22,7 +23,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	util2 "github.com/zoobc/zoobc-core/core/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -389,13 +390,15 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		"AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id WHERE nr.registration_status = 0 AND nr.latest " +
 		"= 1 AND ps.score > 0 AND ps.latest = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"node_public_key", "score",
+			"node_id", "node_public_key", "score",
 		}).AddRow(
+			(*mockBlocksmiths)[0].NodeID,
 			(*mockBlocksmiths)[0].NodePublicKey,
-			(*mockBlocksmiths)[0].Score,
+			score1.String(),
 		).AddRow(
+			(*mockBlocksmiths)[1].NodeID,
 			(*mockBlocksmiths)[1].NodePublicKey,
-			(*mockBlocksmiths)[1].Score,
+			score2.String(),
 		))
 	case "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith WHERE block_height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -915,6 +918,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Signature               crypto.SignatureInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		SortedBlocksmiths       *[]model.Blocksmith
@@ -942,6 +946,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				Observer:                observer.NewObserver(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
 				SortedBlocksmiths:       mockBlocksmiths,
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
@@ -992,6 +997,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Observer:                observer.NewObserver(),
 				SortedBlocksmiths:       mockBlocksmiths,
 			},
@@ -1041,6 +1047,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				TransactionQuery:        tt.fields.TransactionQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
 				Signature:               tt.fields.Signature,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
@@ -2248,9 +2255,10 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				block: &model.Block{
 					PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
 						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255},
-					BlockSignature:      nil,
-					SmithScale:          1,
-					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
+					BlockSignature: nil,
+					SmithScale:     1,
+					BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 				},
 				nodeSecretPhrase: "",
 			},
@@ -2271,14 +2279,15 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                observer.NewObserver(),
 				SortedBlocksmiths: &[]model.Blocksmith{
 					{
-						NodePublicKey: []byte{1, 3, 4, 5, 6},
-						NodeID:        2,
-						NodeOrder:     big.NewInt(2),
-					},
-					{
 						NodePublicKey: []byte{1, 3, 4, 5, 7},
 						NodeID:        1,
 						NodeOrder:     big.NewInt(1),
+					},
+					{
+						NodePublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+							45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+						NodeID:    2,
+						NodeOrder: big.NewInt(2),
 					},
 				},
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
@@ -2716,8 +2725,8 @@ func TestBlockService_GetBlocksmiths(t *testing.T) {
 				{
 					NodeID:        1,
 					NodePublicKey: nrsNodePubKey1,
-					SmithOrder:    util2.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
-					NodeOrder:     util2.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
+					SmithOrder:    coreUtil.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
+					NodeOrder:     coreUtil.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
 					BlockSeed:     new(big.Int).SetBytes(nrsBlock2.BlockSeed),
 					Score:         new(big.Int).SetInt64(8000),
 				},
@@ -3030,6 +3039,239 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock, tt.args.curTime); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.ValidateBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
+		})
+	}
+}
+
+var (
+	blockSeed = new(big.Int).SetUint64(10000000)
+	score1    = new(big.Int).SetInt64(8000)
+	nodeID1   = int64(12536845)
+	score2    = new(big.Int).SetInt64(1000)
+	nodeID2   = int64(12536845)
+	score3    = new(big.Int).SetInt64(5000)
+	nodeID3   = int64(12536845)
+	score4    = new(big.Int).SetInt64(10000)
+	nodeID4   = int64(12536845)
+	score5    = new(big.Int).SetInt64(9000)
+	nodeID5   = int64(12536845)
+	score6    = new(big.Int).SetInt64(100000)
+	nodeID6   = int64(12536845)
+	score7    = new(big.Int).SetInt64(90000)
+	nodeID7   = int64(12536845)
+	score8    = new(big.Int).SetInt64(65000)
+	nodeID8   = int64(12536845)
+	score9    = new(big.Int).SetInt64(999)
+	nodeID9   = int64(12536845)
+)
+
+func getMockBlocksmiths() *[]model.Blocksmith {
+	mockBlocksmiths := []model.Blocksmith{
+		{
+			NodeID:        nodeID1,
+			NodePublicKey: []byte{1},
+			Score:         score1,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score1, blockSeed, nodeID1),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score1, blockSeed, nodeID1),
+		},
+		{
+			NodeID:        nodeID2,
+			NodePublicKey: []byte{2},
+			Score:         score2,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score2, blockSeed, nodeID2),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score2, blockSeed, nodeID2),
+		},
+		{
+			NodeID:        nodeID3,
+			NodePublicKey: []byte{3},
+			Score:         score3,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score3, blockSeed, nodeID3),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score3, blockSeed, nodeID3),
+		},
+		{
+			NodeID:        nodeID4,
+			NodePublicKey: []byte{4},
+			Score:         score4,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score4, blockSeed, nodeID4),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score4, blockSeed, nodeID4),
+		},
+		{
+			NodeID:        nodeID5,
+			NodePublicKey: []byte{5},
+			Score:         score5,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score5, blockSeed, nodeID5),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score5, blockSeed, nodeID5),
+		},
+		{
+			NodeID:        nodeID6,
+			NodePublicKey: []byte{6},
+			Score:         score6,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score6, blockSeed, nodeID6),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score6, blockSeed, nodeID6),
+		},
+		{
+			NodeID:        nodeID7,
+			NodePublicKey: []byte{7},
+			Score:         score7,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score7, blockSeed, nodeID7),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score7, blockSeed, nodeID7),
+		},
+		{
+			NodeID:        nodeID8,
+			NodePublicKey: []byte{8},
+			Score:         score8,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score8, blockSeed, nodeID8),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score8, blockSeed, nodeID8),
+		},
+		{
+			NodeID:        nodeID9,
+			NodePublicKey: []byte{9},
+			Score:         score9,
+			SmithTime:     0,
+			BlockSeed:     blockSeed,
+			SecretPhrase:  "",
+			Deadline:      0,
+			SmithOrder:    coreUtil.CalculateSmithOrder(score9, blockSeed, nodeID9),
+			NodeOrder:     coreUtil.CalculateNodeOrder(score9, blockSeed, nodeID9),
+		},
+	}
+	return &mockBlocksmiths
+}
+
+func TestBlockService_SortBlocksmiths(t *testing.T) {
+	type fields struct {
+		WaitGroup               sync.WaitGroup
+		Chaintype               chaintype.ChainType
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		Observer                *observer.Observer
+		SortedBlocksmiths       *[]model.Blocksmith
+		Logger                  *log.Logger
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "success",
+			fields: fields{
+				WaitGroup:             sync.WaitGroup{},
+				Chaintype:             &chaintype.MainChain{},
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorSuccess{},
+				BlockQuery:            nil,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				SortedBlocksmiths:     getMockBlocksmiths(),
+				Logger:                logrus.New(),
+			},
+			args: args{
+				block: &model.Block{
+					ID:                   0,
+					PreviousBlockHash:    nil,
+					Height:               0,
+					Timestamp:            0,
+					BlockSeed:            nil,
+					BlockSignature:       nil,
+					CumulativeDifficulty: "",
+					SmithScale:           0,
+					BlocksmithPublicKey:  nil,
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Version:              0,
+					PayloadLength:        0,
+					PayloadHash:          nil,
+					Transactions:         nil,
+					PublishedReceipts:    nil,
+					XXX_NoUnkeyedLiteral: struct{}{},
+					XXX_unrecognized:     nil,
+					XXX_sizecache:        0,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				WaitGroup:               tt.fields.WaitGroup,
+				Chaintype:               tt.fields.Chaintype,
+				KVExecutor:              tt.fields.KVExecutor,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ReceiptService:          tt.fields.ReceiptService,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Observer:                tt.fields.Observer,
+				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
+				Logger:                  tt.fields.Logger,
+			}
+			bs.SortBlocksmiths(tt.args.block)
+
+			if (*bs.SortedBlocksmiths)[0].NodeID != (*mockBlocksmiths)[1].NodeID ||
+				(*bs.SortedBlocksmiths)[1].NodeID != (*mockBlocksmiths)[0].NodeID {
+				t.Error("invalid sort")
+			}
+
 		})
 	}
 }
