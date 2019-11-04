@@ -172,7 +172,6 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string 
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
 func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []interface{} {
-
 	return []interface{}{
 		tx.NodeID,
 		tx.NodePublicKey,
@@ -198,7 +197,10 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 		dumpString              string
 	)
 
-	columns, _ := rows.Columns()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < len(columns)-len(nrq.Fields); i++ {
 		ignoredAggregateColumns = append(ignoredAggregateColumns, &dumpString)
 	}
@@ -222,8 +224,10 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 			&nr.Height,
 		)
 		basicFieldsReceiver = append(basicFieldsReceiver, ignoredAggregateColumns...)
-		_ = rows.Scan(basicFieldsReceiver...)
-
+		err := rows.Scan(basicFieldsReceiver...)
+		if err != nil {
+			return nil, err
+		}
 		nr.NodeAddress = nrq.BuildNodeAddress(fullNodeAddress)
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
