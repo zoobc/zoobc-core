@@ -397,9 +397,67 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			(*mockBlocksmiths)[1].NodePublicKey,
 			(*mockBlocksmiths)[1].Score,
 		))
+	case "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith WHERE block_height = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"blocksmith_public_key", "pop_change", "block_height", "blocksmith_index",
+		}).AddRow(
+			(*mockBlocksmiths)[0].NodePublicKey,
+			5000,
+			mockPublishedReceipt[0].BlockHeight,
+			0,
+		))
+	case "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith WHERE block_height = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"blocksmith_public_key", "pop_change", "block_height", "blocksmith_index",
+		}).AddRow(
+			(*mockBlocksmiths)[0].NodePublicKey,
+			5000,
+			mockPublishedReceipt[0].BlockHeight,
+			0,
+		))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"sender_public_key", "recipient_public_key", "datum_type", "datum_hash", "reference_block_height",
+			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
+			"receipt_index", "published_index",
+		}).AddRow(
+			mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
+			mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
+			mockPublishedReceipt[0].BatchReceipt.DatumType,
+			mockPublishedReceipt[0].BatchReceipt.DatumHash,
+			mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
+			mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
+			mockPublishedReceipt[0].BatchReceipt.RMRLinked,
+			mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+			mockPublishedReceipt[0].IntermediateHashes,
+			mockPublishedReceipt[0].BlockHeight,
+			mockPublishedReceipt[0].ReceiptIndex,
+			mockPublishedReceipt[0].PublishedIndex,
+		))
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
+}
+
+var mockPublishedReceipt = []*model.PublishedReceipt{
+	{
+		BatchReceipt: &model.BatchReceipt{
+			SenderPublicKey:      make([]byte, 32),
+			RecipientPublicKey:   make([]byte, 32),
+			DatumType:            0,
+			DatumHash:            make([]byte, 32),
+			ReferenceBlockHeight: 0,
+			ReferenceBlockHash:   make([]byte, 32),
+			RMRLinked:            nil,
+			RecipientSignature:   make([]byte, 64),
+		},
+		IntermediateHashes: nil,
+		BlockHeight:        1,
+		ReceiptIndex:       0,
+		PublishedIndex:     0,
+	},
 }
 
 func (*mockQueryExecutorValidateBlock) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -2323,6 +2381,8 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 		TransactionQuery        query.TransactionQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -2345,8 +2405,10 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				block: block,
 			},
 			fields: fields{
-				QueryExecutor:         &mockQueryExecutorNotFound{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:          &mockQueryExecutorNotFound{},
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
+				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
 			},
 			wantErr: true,
 			want:    nil,
@@ -2357,8 +2419,10 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				block: genesisBlock,
 			},
 			fields: fields{
-				QueryExecutor:         &mockQueryExecutorSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:          &mockQueryExecutorSuccess{},
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
+				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
 			},
 			wantErr: false,
 			want: &model.BlockExtendedInfo{
@@ -2380,9 +2444,16 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					Version:              0,
 				},
 				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
-				TotalReceipts:            99,
-				ReceiptValue:             99,
-				PopChange:                -20,
+				TotalReceipts:            1,
+				ReceiptValue:             50000000,
+				PopChange:                -500000000,
+				SkippedBlocksmiths: []*model.SkippedBlocksmith{
+					{
+						BlocksmithPublicKey: (*mockBlocksmiths)[0].NodePublicKey,
+						POPChange:           5000,
+						BlockHeight:         1,
+					},
+				},
 			},
 		},
 		{
@@ -2391,8 +2462,10 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				block: block,
 			},
 			fields: fields{
-				QueryExecutor:         &mockQueryExecutorSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:          &mockQueryExecutorSuccess{},
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
+				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
 			},
 			wantErr: false,
 			want: &model.BlockExtendedInfo{
@@ -2414,9 +2487,16 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					Version:              0,
 				},
 				BlocksmithAccountAddress: bcsAddress1,
-				TotalReceipts:            99,
-				ReceiptValue:             99,
-				PopChange:                -20,
+				TotalReceipts:            int64(len(mockPublishedReceipt)),
+				ReceiptValue:             50000000,
+				PopChange:                -500000000,
+				SkippedBlocksmiths: []*model.SkippedBlocksmith{
+					{
+						BlocksmithPublicKey: (*mockBlocksmiths)[0].NodePublicKey,
+						POPChange:           5000,
+						BlockHeight:         1,
+					},
+				},
 			},
 		},
 	}
@@ -2431,6 +2511,8 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				Signature:               tt.fields.Signature,
 				MempoolService:          tt.fields.MempoolService,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
