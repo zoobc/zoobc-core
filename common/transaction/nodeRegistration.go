@@ -235,8 +235,8 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check for account address duplication (accounts can register one node at the time)
-	qryNodeByAccount, _ := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx)
+	qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx, args...)
 	if err != nil {
 		return err
 	}
