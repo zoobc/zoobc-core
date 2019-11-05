@@ -4,7 +4,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 var (
@@ -37,7 +36,7 @@ func GetFixturesProofOfOwnershipValidation(height uint32, hash []byte, block *mo
 		block = block1
 	}
 	if len(hash) == 0 {
-		blockHash, _ := coreUtil.GetBlockHash(block)
+		blockHash, _ := util.GetBlockHash(block)
 		hash = blockHash
 	}
 	poownMessage := &model.ProofOfOwnershipMessage{

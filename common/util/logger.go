@@ -38,10 +38,11 @@ InitLogger is function that should be implemeneted with interceptor. That can ce
 */
 func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) {
 	var (
-		logLevels []logrus.Level
-		logger    *logrus.Logger
-		err       error
-		logFile   *os.File
+		logLevels   []logrus.Level
+		lowestLevel logrus.Level
+		logger      *logrus.Logger
+		err         error
+		logFile     *os.File
 	)
 	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
@@ -69,6 +70,10 @@ func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) 
 		case "panic":
 			logLevels = append(logLevels, logrus.PanicLevel)
 		}
+		// lowestLevel will based on the list log level will use
+		if lowestLevel < logLevels[len(logLevels)-1] {
+			lowestLevel = logLevels[len(logLevels)-1]
+		}
 	}
 	if len(logLevels) < 1 {
 		logLevels = append(
@@ -84,6 +89,8 @@ func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) 
 		Writer:      logFile,
 		EntryLevels: logLevels,
 	})
+	// lowestLevel use to set lowest level will fire
+	logger.SetLevel(lowestLevel)
 
 	return logger, nil
 }

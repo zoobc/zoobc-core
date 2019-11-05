@@ -355,6 +355,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
 		mainchainBlockService,
 		nodeRegistrationService,
+		loggerCoreService,
 	)
 
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist

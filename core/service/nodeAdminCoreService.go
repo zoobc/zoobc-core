@@ -10,7 +10,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
-	"github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -65,7 +64,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	if err != nil {
 		return nil, err
 	}
-	lastBlockHash, err := util.GetBlockHash(lastBlock)
+	lastBlockHash, err := commonUtils.GetBlockHash(lastBlock)
 	if err != nil {
 		return nil, err
 	}
