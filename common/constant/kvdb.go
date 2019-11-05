@@ -7,5 +7,5 @@ var (
 	KVdbTableBlockReminderKey       = "block_reminder_"
 	KVdbTableTransactionReminderKey = "transaction_reminder_"
 	KVDBMempoolsBackup              = "mempools_backup"
-	KVDBMempoolsBackupExpiry        = 60 * time.Hour
+	KVDBMempoolsBackupExpiry        = 60 * time.Minute
 )
