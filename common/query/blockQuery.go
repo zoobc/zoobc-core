@@ -36,6 +36,7 @@ func NewBlockQuery(chaintype chaintype.ChainType) *BlockQuery {
 	return &BlockQuery{
 		Fields: []string{
 			"id",
+			"block_hash",
 			"previous_block_hash",
 			"height",
 			"timestamp",
@@ -101,6 +102,7 @@ func (bq *BlockQuery) GetBlockFromHeight(startHeight, limit uint32) string {
 func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 	return []interface{}{
 		block.ID,
+		block.BlockHash,
 		block.PreviousBlockHash,
 		block.Height,
 		block.Timestamp,
@@ -127,6 +129,7 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 
 		err = rows.Scan(
 			&block.ID,
+			&block.BlockHash,
 			&block.PreviousBlockHash,
 			&block.Height,
 			&block.Timestamp,
@@ -153,6 +156,7 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
 	err := row.Scan(
 		&block.ID,
+		&block.BlockHash,
 		&block.PreviousBlockHash,
 		&block.Height,
 		&block.Timestamp,

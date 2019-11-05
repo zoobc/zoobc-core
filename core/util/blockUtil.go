@@ -116,10 +116,10 @@ func CalculateSmithScale(
 // return the assigned ID if assigned
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
-		digest := sha3.New256()
-		blockByte, _ := commonUtils.GetBlockByte(block, true)
-		_, _ = digest.Write(blockByte)
-		hash, _ := GetBlockHash(block)
+		hash, err := commonUtils.GetBlockHash(block)
+		if err != nil {
+			return 0
+		}
 		block.ID = GetBlockIDFromHash(hash)
 	}
 	return block.ID
@@ -138,18 +138,6 @@ func GetBlockIDFromHash(blockHash []byte) int64 {
 		blockHash[1],
 		blockHash[0],
 	}).Int64()
-}
-
-// GetBlockHash return the block's bytes hash.
-// note: the block must be signed, otherwise this function returns an error
-func GetBlockHash(block *model.Block) ([]byte, error) {
-	digest := sha3.New256()
-	blockByte, _ := commonUtils.GetBlockByte(block, true)
-	_, err := digest.Write(blockByte)
-	if err != nil {
-		return nil, err
-	}
-	return digest.Sum([]byte{}), nil
 }
 
 func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
