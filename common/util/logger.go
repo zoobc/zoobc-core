@@ -70,6 +70,7 @@ func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) 
 		case "panic":
 			logLevels = append(logLevels, logrus.PanicLevel)
 		}
+		// lowestLevel will based on the list log level will use
 		if lowestLevel < logLevels[len(logLevels)-1] {
 			lowestLevel = logLevels[len(logLevels)-1]
 		}

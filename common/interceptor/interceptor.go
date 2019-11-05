@@ -58,7 +58,7 @@ func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.Unary
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errHandler != nil:
-					logger.WithFields(fields).Warning(errHandler)
+					logger.WithFields(fields).Error(errHandler)
 				default:
 					logger.WithFields(fields).Info("success")
 				}
@@ -119,7 +119,7 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 				case errInvoker != nil:
 					statusCode, isKnownErr := status.FromError(errInvoker)
 					if !isKnownErr || (ignoredErrors[statusCode.Code()] == "") {
-						logger.WithFields(fields).Warning(fmt.Sprint(errInvoker))
+						logger.WithFields(fields).Error(fmt.Sprint(errInvoker))
 					}
 				default:
 					logger.WithFields(fields).Info("success")
