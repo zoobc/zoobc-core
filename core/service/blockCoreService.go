@@ -915,7 +915,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 
 	currentTimestamp := time.Now().UTC().Unix()
-	block := bs.NewBlock(
+	block, err := bs.NewBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
