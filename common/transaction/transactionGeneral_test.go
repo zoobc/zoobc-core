@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -376,7 +377,9 @@ func TestValidateTransaction(t *testing.T) {
 		{
 			name: "TestValidateTransaction:success",
 			args: args{
-				tx: buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				tx: buildTransaction(
+					time.Now().Unix()+int64(constant.TransactionTimeOffset)-1,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"),
 				queryExecutor:       &mockQueryExecutorSuccess{},
 				accountBalanceQuery: query.NewAccountBalanceQuery(),
