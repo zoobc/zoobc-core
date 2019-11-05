@@ -982,6 +982,9 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
+	if block.ID == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "Invalid Genesis Block ID")
+	}
 	return block, nil
 }
 
