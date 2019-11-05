@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -36,6 +37,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 	mempoolService service.MempoolServiceInterface,
 	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
+	kvdb kvdb.KVExecutorInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -56,9 +58,12 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 			ActionTypeSwitcher: txActionSwitcher,
 			MempoolService:     mempoolService,
 			BlockPopper: &BlockPopper{
-				ChainType:     blockService.GetChainType(),
-				BlockService:  blockService,
-				QueryExecutor: queryExecutor,
+				ChainType:          blockService.GetChainType(),
+				BlockService:       blockService,
+				MempoolService:     mempoolService,
+				QueryExecutor:      queryExecutor,
+				ActionTypeSwitcher: txActionSwitcher,
+				KVDB:               kvdb,
 			},
 		},
 		Logger: logger,

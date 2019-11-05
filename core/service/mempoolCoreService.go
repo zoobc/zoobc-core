@@ -36,6 +36,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
+		GetMempoolTransactionsByBlockHeight(height uint32) ([]*model.MempoolTransaction, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -451,4 +452,24 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		return err
 	}
 	return nil
+}
+
+func (mps *MempoolService) GetMempoolTransactionsByBlockHeight(height uint32) ([]*model.MempoolTransaction, error) {
+	var (
+		mempools []*model.MempoolTransaction
+		rows     *sql.Rows
+		err      error
+	)
+
+	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransactionsByHeight(height), false)
+	if err != nil {
+		return nil, err
+	}
+
+	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return mempools, nil
 }

@@ -845,3 +845,88 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetMempoolTransactionsByBlockHeightExecutor struct {
+		query.Executor
+	}
+)
+
+func (*mockGetMempoolTransactionsByBlockHeightExecutor) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields).AddRow(
+			1,
+			0,
+			10,
+			1000,
+			[]byte{1, 2, 3, 4, 5},
+			"BCZ",
+			"ZCB",
+		),
+	)
+	return db.Query("")
+}
+
+func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+		Logger              *log.Logger
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.MempoolTransaction
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:  query.NewMempoolQuery(chaintype.GetChainType(0)),
+			},
+			args: args{height: 0},
+			want: []*model.MempoolTransaction{mockMempoolTransaction},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+				Logger:              tt.fields.Logger,
+			}
+			got, err := mps.GetMempoolTransactionsByBlockHeight(tt.args.height)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetMempoolTransactionsByBlockHeight() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetMempoolTransactionsByBlockHeight() got = \n%v, want \n%v", got, tt.want)
+			}
+		})
+	}
+}

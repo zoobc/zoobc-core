@@ -18,6 +18,7 @@ type (
 		DeleteMempoolTransactions([]string) string
 		DeleteExpiredMempoolTransactions(expiration int64) string
 		GetExpiredMempoolTransactions(expiration int64) string
+		GetMempoolTransactionsByHeight(height uint32) (qStr string)
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) ([]*model.MempoolTransaction, error)
 		Scan(mempool *model.MempoolTransaction, row *sql.Row) error
@@ -96,6 +97,15 @@ func (mpq *MempoolQuery) GetExpiredMempoolTransactions(expiration int64) string 
 		strings.Join(mpq.Fields, ", "),
 		mpq.getTableName(),
 		expiration,
+	)
+}
+
+func (mpq *MempoolQuery) GetMempoolTransactionsByHeight(height uint32) (qStr string) {
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE block_height = %d",
+		strings.Join(mpq.Fields, ", "),
+		mpq.getTableName(),
+		height,
 	)
 }
 

@@ -393,6 +393,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 		loggerCoreService,
+		kvExecutor,
 	)
 
 	go func() {
