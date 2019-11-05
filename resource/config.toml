@@ -21,4 +21,5 @@ ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
 smithing=true
 proofOfOwnershipReqTimeoutSec = 2
 # Log Levels
-logLevels=["warn", "fatal", "error", "panic"]
+# Available log level: info, warn, error, fatal, panic
+logLevels=["fatal", "error", "panic"]

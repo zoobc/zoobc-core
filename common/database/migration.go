@@ -190,6 +190,9 @@ func (m *Migration) Init() error {
 			`
 			ALTER TABLE "mempool"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
+				`,
+			`AlTER TABLE "main_block"
+				ADD COLUMN "block_hash" BLOB AFTER "id"
 			`,
 		}
 		return nil

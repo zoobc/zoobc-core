@@ -12,8 +12,12 @@ import (
 // GetBlockHash return the block's bytes hash.
 // note: the block must be signed, otherwise this function returns an error
 func GetBlockHash(block *model.Block) ([]byte, error) {
-	digest := sha3.New256()
-	blockByte, _ := GetBlockByte(block, true)
+	var (
+		digest     = sha3.New256()
+		cloneBlock = *block
+	)
+	cloneBlock.BlockHash = nil
+	blockByte, _ := GetBlockByte(&cloneBlock, true)
 	_, err := digest.Write(blockByte)
 	if err != nil {
 		return nil, err
@@ -63,14 +67,10 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) (*model.Block, error) {
 	qry := blockQuery.GetLastBlock()
 	rows, err := queryExecutor.ExecuteSelect(qry, false)
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var (
 		blocks []*model.Block
 	)
@@ -92,14 +92,10 @@ func GetBlockByHeight(
 ) (*model.Block, error) {
 	qry := blockQuery.GetBlockByHeight(height)
 	rows, err := queryExecutor.ExecuteSelect(qry, false)
-	defer func() {
-		if rows != nil {
-			_ = rows.Close()
-		}
-	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	var blocks []*model.Block
 	blocks, err = blockQuery.BuildModel(blocks, rows)
 	if err != nil {

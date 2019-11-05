@@ -1314,6 +1314,7 @@ type (
 
 var mockBlockData = model.Block{
 	ID:                1,
+	BlockHash:         []byte{},
 	PreviousBlockHash: []byte{},
 	Height:            11,
 	Timestamp:         1,
@@ -1338,6 +1339,7 @@ func (*executorGetBlockBuildScrumbleNodeSuccess) ExecuteSelectRow(qStr string, a
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
 			mockBlockData.GetID(),
+			mockBlockData.GetBlockHash(),
 			mockBlockData.GetPreviousBlockHash(),
 			mockBlockData.GetHeight(),
 			mockBlockData.GetTimestamp(),
