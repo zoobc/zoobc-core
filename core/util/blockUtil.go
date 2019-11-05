@@ -117,9 +117,18 @@ func CalculateSmithScale(
 func GetBlockID(block *model.Block) int64 {
 	if block.ID == 0 {
 		digest := sha3.New256()
-		blockByte, _ := commonUtils.GetBlockByte(block, true)
-		_, _ = digest.Write(blockByte)
-		hash, _ := commonUtils.GetBlockHash(block)
+		blockByte, err := commonUtils.GetBlockByte(block, true)
+		if err != nil {
+			return 0
+		}
+		_, err = digest.Write(blockByte)
+		if err != nil {
+			return 0
+		}
+		hash, err := commonUtils.GetBlockHash(block)
+		if err != nil {
+			return 0
+		}
 		block.ID = GetBlockIDFromHash(hash)
 	}
 	return block.ID

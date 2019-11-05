@@ -63,7 +63,10 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				return err
 			}
-			lastBlockHash, _ := commonUtil.GetBlockHash(lastBlock)
+			lastBlockHash, err := commonUtil.GetBlockHash(lastBlock)
+			if err != nil {
+				return err
+			}
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 				if err != nil {
