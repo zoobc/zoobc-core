@@ -1,8 +1,7 @@
 package constant
 
 import (
-	"log"
-
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -12,7 +11,7 @@ func isDebug() bool {
 	viper.AddConfigPath("././resource")
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("Error : %v \n", err.Error())
+		logrus.Printf("Error : %v \n", err.Error())
 	}
 	return viper.GetBool("debugFlag")
 }
