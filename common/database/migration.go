@@ -187,6 +187,10 @@ func (m *Migration) Init() error {
 			ALTER TABLE "node_registry" 
 				RENAME COLUMN "queued" TO "registration_status"
 			`,
+			`
+			AlTER TABLE "main_block"
+				ADD COLUMN "block_hash" BLOB AFTER "id"
+			`,
 		}
 		return nil
 	}
