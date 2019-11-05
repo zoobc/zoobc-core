@@ -1,11 +1,17 @@
 package service
 
 import (
+	"math/big"
+	"sort"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -18,6 +24,9 @@ type (
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		GetNodeAdmittanceCycle() uint32
+		BuildScrambledNodes(block *model.Block) error
+		ResetMemoizedScrambledNodes()
+		GetScrambledNodes() *ScrambledNodes
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -28,6 +37,15 @@ type (
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeAdmittanceCycle     uint32
 		Logger                  *log.Logger
+		ScrambledNodes          *ScrambledNodes
+		ScrambledNodesLock      sync.RWMutex
+		MomoizedScrambledNodes  *ScrambledNodes
+	}
+
+	ScrambledNodes struct {
+		IndexNodes   map[string]*int // if we use normal int, we won't be able to detect null values
+		AddressNodes []*model.Peer
+		BlockHeight  uint32
 	}
 )
 
@@ -193,4 +211,116 @@ func (nrs *NodeRegistrationService) GetNodeAdmittanceCycle() uint32 {
 		return constant.NodeAdmittanceCycle
 	}
 	return nrs.NodeAdmittanceCycle
+}
+
+// BuildScrambleNodes,  buil sorted scramble nodes based on node registry
+func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
+	var (
+		nodeRegistries  []*model.NodeRegistration
+		newAddressNodes []*model.Peer
+		newIndexNodes   = make(map[string]*int)
+	)
+	// get node registry list
+	rows, err := nrs.QueryExecutor.ExecuteSelect(
+		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
+		false,
+	)
+	if err != nil {
+		nrs.Logger.Error(err.Error())
+		return err
+	}
+	defer rows.Close()
+	nodeRegistries, err = nrs.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
+	if err != nil {
+		nrs.Logger.Error(err.Error())
+		return err
+	}
+
+	// sort node registry
+	sort.SliceStable(nodeRegistries, func(i, j int) bool {
+		ni, nj := nodeRegistries[i], nodeRegistries[j]
+
+		// Get Hash of joined  with block seed & node ID
+		// TODO : Enhance, to precomputing the hash/bigInt before sorting
+		// 		  to avoid repeated hash computation while sorting
+		hashI := sha3.Sum256(append(block.GetBlockSeed(), byte(ni.GetNodeID())))
+		hashJ := sha3.Sum256(append(block.GetBlockSeed(), byte(nj.GetNodeID())))
+		resI := new(big.Int).SetBytes(hashI[:])
+		resJ := new(big.Int).SetBytes(hashJ[:])
+
+		res := resI.Cmp(resJ)
+		// Ascending sort
+		return res < 0
+	})
+
+	// Restructure & validating node address
+	for key, node := range nodeRegistries {
+		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
+		// Checking port of address,
+		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
+		fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
+			Info: nodeInfo,
+		})
+		peer := &model.Peer{
+			Info: &model.Node{
+				Address:       nodeInfo.GetAddress(),
+				Port:          nodeInfo.GetPort(),
+				SharedAddress: nodeInfo.GetAddress(),
+			},
+		}
+		index := key
+		newIndexNodes[fullAddresss] = &index
+		newAddressNodes = append(newAddressNodes, peer)
+	}
+
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
+	nrs.ScrambledNodes = &ScrambledNodes{
+		AddressNodes: newAddressNodes,
+		IndexNodes:   newIndexNodes,
+		BlockHeight:  block.Height,
+	}
+	nrs.ResetMemoizedScrambledNodes()
+	return nil
+}
+
+func (nrs *NodeRegistrationService) ResetMemoizedScrambledNodes() {
+	nrs.MomoizedScrambledNodes = nil
+}
+
+func (nrs *NodeRegistrationService) GetScrambledNodes() *ScrambledNodes {
+	if nrs.ScrambledNodes == nil {
+		return &ScrambledNodes{
+			AddressNodes: []*model.Peer{},
+		}
+	}
+
+	var (
+		newIndexNodes   = make(map[string]*int)
+		newAddressNodes []*model.Peer
+	)
+
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
+
+	if nrs.MomoizedScrambledNodes != nil && nrs.MomoizedScrambledNodes.BlockHeight == nrs.ScrambledNodes.BlockHeight {
+		return nrs.MomoizedScrambledNodes
+	}
+
+	for _, addressNode := range nrs.ScrambledNodes.AddressNodes {
+		newAddressNodes = append(newAddressNodes, addressNode)
+	}
+
+	for key, indexNode := range nrs.ScrambledNodes.IndexNodes {
+		tempVal := *indexNode
+		newIndexNodes[key] = &tempVal
+	}
+
+	nrs.MomoizedScrambledNodes = &ScrambledNodes{
+		AddressNodes: newAddressNodes,
+		IndexNodes:   newIndexNodes,
+		BlockHeight:  nrs.ScrambledNodes.BlockHeight,
+	}
+
+	return nrs.MomoizedScrambledNodes
 }

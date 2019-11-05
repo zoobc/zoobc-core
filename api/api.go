@@ -32,7 +32,9 @@ func startGrpcServer(
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+	blockServices map[int32]coreService.BlockServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 ) {
 	grpcServer := grpc.NewServer(
@@ -80,7 +82,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -124,11 +126,13 @@ func Start(
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+	blockServices map[int32]coreService.BlockServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath, logger,
+		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService, ownerAccountAddress, nodefilePath, logger,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

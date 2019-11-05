@@ -236,8 +236,8 @@ func initP2pInstance() {
 	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
+		nodeRegistrationService,
 		queryExecutor,
-		query.NewNodeRegistrationQuery(),
 		loggerP2PService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
@@ -253,7 +253,6 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
-	observerInstance.AddListener(observer.BlockPushed, peerExplorer.PeerExplorerListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 }
 
@@ -273,6 +272,7 @@ func startServices() {
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
+		nodeRegistrationService,
 		ownerAccountAddress,
 		nodeKeyFilePath,
 		loggerAPIService,

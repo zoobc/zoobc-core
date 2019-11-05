@@ -14,9 +14,10 @@ type (
 	}
 
 	HostService struct {
-		Query         query.ExecutorInterface
-		BlockServices map[int32]coreService.BlockServiceInterface
-		P2pService    p2p.Peer2PeerServiceInterface
+		Query                   query.ExecutorInterface
+		P2pService              p2p.Peer2PeerServiceInterface
+		BlockServices           map[int32]coreService.BlockServiceInterface
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
 	}
 )
 
@@ -24,12 +25,14 @@ var hostServiceInstance *HostService
 
 // NewHostService create a singleton instance of PeerExplorer
 func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface) HostServiceInterface {
+	// blockServices map[int32]coreService.BlockServiceInterface) HostServiceInterface {
+	blockServices map[int32]coreService.BlockServiceInterface, nodeRegistrationService coreService.NodeRegistrationServiceInterface) HostServiceInterface {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{
-			Query:         queryExecutor,
-			P2pService:    p2pService,
-			BlockServices: blockServices,
+			Query:                   queryExecutor,
+			P2pService:              p2pService,
+			BlockServices:           blockServices,
+			NodeRegistrationService: nodeRegistrationService,
 		}
 	}
 	return hostServiceInstance
@@ -48,8 +51,13 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 			LastBlock: lastBlock,
 		})
 	}
+
+	host := hs.P2pService.GetHostInfo()
+	scrambledNodes := hs.NodeRegistrationService.GetScrambledNodes()
+	host.ScrambledNodes = scrambledNodes.AddressNodes
+
 	return &model.HostInfo{
-		Host:          hs.P2pService.GetHostInfo(),
+		Host:          host,
 		ChainStatuses: chainStatuses,
 	}, nil
 }

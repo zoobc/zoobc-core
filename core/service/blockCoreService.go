@@ -467,6 +467,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
+	// scrambling node registry
+	if block.GetHeight()%constant.PriorityStrategyBuildScrambleNodesGap == 0 {
+		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
+		if err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
