@@ -9,7 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -58,7 +57,7 @@ func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
 	if err != nil {
 		return err
 	}
-	poownBlockHashRef, err := coreUtil.GetBlockHash(poownBlockRef)
+	poownBlockHashRef, err := util.GetBlockHash(poownBlockRef)
 	if err != nil {
 		return err
 	}

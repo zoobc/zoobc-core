@@ -36,6 +36,7 @@ type (
 		BlockService            service.BlockServiceInterface
 		NodeRegistrationService service.NodeRegistrationServiceInterface
 		LastBlockID             int64
+		Logger                  *log.Logger
 	}
 )
 
@@ -45,12 +46,14 @@ func NewBlockchainProcessor(
 	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
+	logger *log.Logger,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
 		Chaintype:               ct,
 		Generator:               blocksmith,
 		BlockService:            blockService,
 		NodeRegistrationService: nodeRegistrationService,
+		Logger:                  logger,
 	}
 }
 
@@ -62,10 +65,10 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	// since default balance was 1000 times higher than default ps
 	ps, err := bp.BlockService.GetParticipationScore(generator.NodePublicKey)
 	if ps == 0 {
-		log.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
+		bp.Logger.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
 	}
 	if err != nil {
-		log.Errorf("Participation score calculation: %s", err)
+		bp.Logger.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
 		generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
@@ -210,7 +213,7 @@ func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksm
 			var blocksmiths []model.Blocksmith
 			nextBlocksmiths, err := bp.BlockService.GetBlocksmiths(lastBlock)
 			if err != nil {
-				log.Errorf("SortBlocksmith: %s", err)
+				bp.Logger.Errorf("SortBlocksmith: %s", err)
 				return
 			}
 			// copy the nextBlocksmiths pointers array into an array of blocksmiths

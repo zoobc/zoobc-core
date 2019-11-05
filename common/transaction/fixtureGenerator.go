@@ -5,7 +5,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 var (
@@ -41,7 +40,7 @@ func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistration
 	txBody *model.NodeRegistrationTransactionBody,
 	txBodyBytes []byte,
 ) {
-	blockHash, _ := coreUtil.GetBlockHash(block1)
+	blockHash, _ := util.GetBlockHash(block1)
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
 		BlockHash:      blockHash,
@@ -76,7 +75,7 @@ func GetFixturesForUpdateNoderegistration(nodeRegistrationQuery query.NodeRegist
 	txBody *model.UpdateNodeRegistrationTransactionBody,
 	txBodyBytes []byte,
 ) {
-	blockHash, _ := coreUtil.GetBlockHash(block1)
+	blockHash, _ := util.GetBlockHash(block1)
 
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
@@ -111,7 +110,7 @@ func GetFixturesForClaimNoderegistration() (
 	txBodyBytes []byte,
 ) {
 
-	blockHash, _ := coreUtil.GetBlockHash(block1)
+	blockHash, _ := util.GetBlockHash(block1)
 	poownMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
 		BlockHash:      blockHash,
