@@ -158,8 +158,8 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 func (tx *NodeRegistration) Validate(dbTx bool) error {
 
 	var (
-		accountBalance    model.AccountBalance
-		nodeRegistrations []*model.NodeRegistration
+		accountBalance                        model.AccountBalance
+		nodeRegistrations, nodeRegistrations2 []*model.NodeRegistration
 	)
 
 	// no need to validate node registration transaction for genesis block
@@ -224,13 +224,13 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer nodeRow2.Close()
-	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow2)
+	nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
 	if err != nil {
 		return err
 	}
 	// in case a node with same account address, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+	if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountAlreadyNodeOwner")
 	}
 
