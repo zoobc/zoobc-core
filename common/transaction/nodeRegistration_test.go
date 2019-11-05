@@ -191,9 +191,8 @@ func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(q
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, "+
-		"locked_balance, registration_status, latest, height FROM node_registry "+
-		"WHERE account_address = ? AND latest=1" {
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"NodeID",
 			"NodePublicKey",
@@ -211,7 +210,7 @@ func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(q
 			1,
 			"127.0.0.1",
 			1000000,
-			uint32(model.NodeRegistrationState_NodeDeleted),
+			uint32(model.NodeRegistrationState_NodeRegistered),
 			true,
 			1,
 		))
@@ -543,6 +542,21 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		}))
 		return db.Query("A")
 	}
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1" {
+		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}))
+		return db.Query("A")
+	}
 	return nil, nil
 }
 
@@ -829,24 +843,24 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 
 func TestNodeRegistration_Validate(t *testing.T) {
 	_, poown, _, _ := GetFixturesForNoderegistration(query.NewNodeRegistrationQuery())
-	// bodyWithPoown := &model.NodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	NodePublicKey: nodePubKey1,
-	// 	NodeAddress: &model.NodeAddress{
-	// 		Address: "10.10.10.1",
-	// 	},
-	// }
-	// bodyWithNullNodeAddress := &model.NodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	NodePublicKey: nodePubKey1,
-	// }
-	// bodyWithInvalidNodeAddress := &model.NodeRegistrationTransactionBody{
-	// 	Poown:         poown,
-	// 	NodePublicKey: nodePubKey1,
-	// 	NodeAddress: &model.NodeAddress{
-	// 		Address: "invalidAddress",
-	// 	},
-	// }
+	bodyWithPoown := &model.NodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+		NodeAddress: &model.NodeAddress{
+			Address: "10.10.10.1",
+		},
+	}
+	bodyWithNullNodeAddress := &model.NodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+	}
+	bodyWithInvalidNodeAddress := &model.NodeRegistrationTransactionBody{
+		Poown:         poown,
+		NodePublicKey: nodePubKey1,
+		NodeAddress: &model.NodeAddress{
+			Address: "invalidAddress",
+		},
+	}
 	txBody := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
@@ -854,7 +868,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			Address: "10.10.10.1",
 		},
 	}
-	// bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
+	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
@@ -871,166 +885,166 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// {
-		// 	name: "Validate:success-{GenesisHeight}",
-		// 	fields: fields{
-		// 		Height:              0,
-		// 		Body:                bodyWithoutPoown,
-		// 		SenderAddress:       constant.MainchainGenesisAccountAddress,
-		// 		QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
-		// 		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:           &mockAuthPoown{success: false},
-		// 	},
-		// 	wantErr: false,
-		// },
-		// {
-		// 	name: "Validate:fail-{PoownRequired}",
-		// 	fields: fields{
-		// 		Height:              1,
-		// 		Body:                bodyWithoutPoown,
-		// 		SenderAddress:       senderAddress1,
-		// 		QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
-		// 		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:           &mockAuthPoown{success: false},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{PoownAuth}",
-		// 	fields: fields{
-		// 		Height:              1,
-		// 		Body:                bodyWithPoown,
-		// 		SenderAddress:       senderAddress1,
-		// 		QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
-		// 		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:           &mockAuthPoown{success: false},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{executeSelectFail}",
-		// 	fields: fields{
-		// 		Height:              1,
-		// 		Body:                bodyWithPoown,
-		// 		SenderAddress:       senderAddress1,
-		// 		QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
-		// 		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		AuthPoown:           &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{balanceNotEnough}",
-		// 	fields: fields{
-		// 		Height: 1,
-		// 		Body: &model.NodeRegistrationTransactionBody{
-		// 			Poown:         poown,
-		// 			NodePublicKey: nodePubKey1,
-		// 			LockedBalance: 10000,
-		// 		},
-		// 		SenderAddress:       senderAddress1,
-		// 		QueryExecutor:       &mockExecutorValidateFailBalanceNotEnough{},
-		// 		AccountBalanceQuery: query.NewAccountBalanceQuery(),
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                 1,
-		// 		AuthPoown:           &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{failGetNode}",
-		// 	fields: fields{
-		// 		Height:                1,
-		// 		Body:                  bodyWithPoown,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeFail{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                   1,
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{nodeExist}",
-		// 	fields: fields{
-		// 		Height:                1,
-		// 		Body:                  bodyWithPoown,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExist{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                   1,
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{nodeExistButDeleted}",
-		// 	fields: fields{
-		// 		Height:                1,
-		// 		Body:                  bodyWithPoown,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExistButDeleted{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                   1,
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: false,
-		// },
-		// {
-		// 	name: "Validate:fail-{AccountAlreadyNodeOwner}",
-		// 	fields: fields{
-		// 		Height:                1,
-		// 		Body:                  bodyWithPoown,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                   1,
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{NullNodeAddress}",
-		// 	fields: fields{
-		// 		Height:                1,
-		// 		Body:                  bodyWithNullNodeAddress,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateSuccess{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                   1,
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "Validate:fail-{InvalidNodeAddress}",
-		// 	fields: fields{
-		// 		Height:                1,
-		// 		Body:                  bodyWithInvalidNodeAddress,
-		// 		SenderAddress:         senderAddress1,
-		// 		QueryExecutor:         &mockExecutorValidateSuccess{},
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		Fee:                   1,
-		// 		AuthPoown:             &mockAuthPoown{success: true},
-		// 	},
-		// 	wantErr: true,
-		// },
+		{
+			name: "Validate:success-{GenesisHeight}",
+			fields: fields{
+				Height:              0,
+				Body:                bodyWithoutPoown,
+				SenderAddress:       constant.MainchainGenesisAccountAddress,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Validate:fail-{PoownRequired}",
+			fields: fields{
+				Height:              1,
+				Body:                bodyWithoutPoown,
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{PoownAuth}",
+			fields: fields{
+				Height:              1,
+				Body:                bodyWithPoown,
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: false},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{executeSelectFail}",
+			fields: fields{
+				Height:              1,
+				Body:                bodyWithPoown,
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailExecuteSelectFail{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:           &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{balanceNotEnough}",
+			fields: fields{
+				Height: 1,
+				Body: &model.NodeRegistrationTransactionBody{
+					Poown:         poown,
+					NodePublicKey: nodePubKey1,
+					LockedBalance: 10000,
+				},
+				SenderAddress:       senderAddress1,
+				QueryExecutor:       &mockExecutorValidateFailBalanceNotEnough{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                 1,
+				AuthPoown:           &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{failGetNode}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeFail{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{nodeExist}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExist{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{nodeExistButDeleted}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailExecuteSelectNodeExistButDeleted{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Validate:fail-{AccountAlreadyNodeOwner}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithPoown,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{NullNodeAddress}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithNullNodeAddress,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{InvalidNodeAddress}",
+			fields: fields{
+				Height:                1,
+				Body:                  bodyWithInvalidNodeAddress,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockExecutorValidateSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Fee:                   1,
+				AuthPoown:             &mockAuthPoown{success: true},
+			},
+			wantErr: true,
+		},
 		{
 			name: "Validate:success",
 			fields: fields{
