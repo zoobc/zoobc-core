@@ -38,34 +38,33 @@ import (
 )
 
 var (
-	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, configPath, nodeKeyFile string
-	dbInstance                                                                            *database.SqliteDB
-	badgerDbInstance                                                                      *database.BadgerDB
-	db                                                                                    *sql.DB
-	badgerDb                                                                              *badger.DB
-	apiRPCPort, apiHTTPPort, monitoringPort                                               int
-	peerPort                                                                              uint32
-	p2pServiceInstance                                                                    p2p.Peer2PeerServiceInterface
-	queryExecutor                                                                         *query.Executor
-	kvExecutor                                                                            *kvdb.KVExecutor
-	observerInstance                                                                      *observer.Observer
-	schedulerInstance                                                                     *util.Scheduler
-	blockServices                                                                         = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                                                                       = make(map[int32]service.MempoolServiceInterface)
-	receiptService                                                                        service.ReceiptServiceInterface
-	peerServiceClient                                                                     client.PeerServiceClientInterface
-	p2pHost                                                                               *model.Host
-	peerExplorer                                                                          strategy.PeerExplorerStrategyInterface
-	ownerAccountAddress, myAddress                                                        string
-	wellknownPeers                                                                        []string
-	nodeKeyFilePath                                                                       string
-	smithing, isDebugMode                                                                 bool
-	nodeRegistrationService                                                               service.NodeRegistrationServiceInterface
-	sortedBlocksmiths                                                                     []model.Blocksmith
-	mainchainProcessor                                                                    smith.BlockchainProcessorInterface
-	loggerAPIService                                                                      *log.Logger
-	loggerCoreService                                                                     *log.Logger
-	loggerP2PService                                                                      *log.Logger
+	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, configPath,
+	nodeKeyFile, ownerAccountAddress, myAddress, nodeKeyFilePath string
+	dbInstance                              *database.SqliteDB
+	badgerDbInstance                        *database.BadgerDB
+	db                                      *sql.DB
+	badgerDb                                *badger.DB
+	apiRPCPort, apiHTTPPort, monitoringPort int
+	peerPort                                uint32
+	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
+	queryExecutor                           *query.Executor
+	kvExecutor                              *kvdb.KVExecutor
+	observerInstance                        *observer.Observer
+	schedulerInstance                       *util.Scheduler
+	blockServices                           = make(map[int32]service.BlockServiceInterface)
+	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
+	receiptService                          service.ReceiptServiceInterface
+	peerServiceClient                       client.PeerServiceClientInterface
+	p2pHost                                 *model.Host
+	peerExplorer                            strategy.PeerExplorerStrategyInterface
+	wellknownPeers                          []string
+	smithing, isDebugMode                   bool
+	nodeRegistrationService                 service.NodeRegistrationServiceInterface
+	sortedBlocksmiths                       []model.Blocksmith
+	mainchainProcessor                      smith.BlockchainProcessorInterface
+	loggerAPIService                        *log.Logger
+	loggerCoreService                       *log.Logger
+	loggerP2PService                        *log.Logger
 )
 
 func init() {
@@ -107,7 +106,7 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	receiptService = service.NewReceiptService(
-		query.NewReceiptQuery(),
+		query.NewNodeReceiptQuery(),
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		kvExecutor,
@@ -224,7 +223,7 @@ func initP2pInstance() {
 	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
-		query.NewReceiptQuery(),
+		query.NewNodeReceiptQuery(),
 		nodePublicKey,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
@@ -354,6 +353,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
 		mainchainBlockService,
 		nodeRegistrationService,
+		loggerCoreService,
 	)
 
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist

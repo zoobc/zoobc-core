@@ -21,7 +21,7 @@ type (
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
-		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus uint32) string
+		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
@@ -60,8 +60,10 @@ func (nrq *NodeRegistrationQuery) getTableName() string {
 }
 
 func (nrq *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
+	// the OR IGNORE clause is added as a failsafe in case two InsertNodeRegistraiton happens at the same block height
+	// Since there is no way to know which one should take precedence, after the first one is executed, the other ones are ignored
 	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		"INSERT OR IGNORE INTO %s (%s) VALUES(%s)",
 		nrq.getTableName(),
 		strings.Join(nrq.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nrq.Fields)-1)),
@@ -133,7 +135,8 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAdd
 
 // GetNodeRegistrationsByHighestLockedBalance returns query string to get the list of Node Registrations with highest locked balance
 // registration_status or not registration_status
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit, registrationStatus uint32) string {
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(limit uint32,
+	registrationStatus model.NodeRegistrationState) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE locked_balance > 0 AND registration_status = %d AND latest=1 "+
 		"ORDER BY locked_balance DESC LIMIT %d",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationStatus, limit)
