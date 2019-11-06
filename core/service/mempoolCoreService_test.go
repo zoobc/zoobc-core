@@ -19,12 +19,6 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 )
 
-type (
-	mockMempoolQueryExecutorSuccess struct {
-		query.Executor
-	}
-)
-
 var (
 	getTxByIDQuery = "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
 		"recipient_account_address FROM mempool WHERE id = :id"
@@ -41,39 +35,6 @@ var (
 )
 
 var _ = mockMempoolTransaction
-
-func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case getTxByIDQuery:
-		return nil, errors.New("MempoolTransactionNotFound")
-	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
-		"WHERE account_address = ? AND latest = 1":
-		mockedRows := sqlmock.NewRows([]string{"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"})
-		mockedRows.AddRow("BCZ", 1, 1000, 10000, nil, 1)
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
-	return nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
-	return nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
-	return nil
-}
 
 type mockMempoolQueryExecutorFail struct {
 	query.Executor
@@ -314,6 +275,42 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			}
 		})
 	}
+}
+
+type (
+	mockMempoolQueryExecutorSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
+		"WHERE account_address = ? AND latest = 1":
+		mockedRows := sqlmock.NewRows([]string{"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"})
+		mockedRows.AddRow("BCZ", 1, 1000, 10000, nil, 1)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	default:
+		mockedRows := sqlmock.NewRows(mockMempoolQuery.Fields)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	}
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
+	return nil, nil
+}
+func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
+	return nil
+}
+func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
+	return nil
+}
+func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
+	return nil
 }
 
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {

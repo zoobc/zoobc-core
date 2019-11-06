@@ -126,7 +126,7 @@ func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransa
 		return mpTx[0], nil
 	}
 
-	return nil, blocker.NewBlocker(blocker.DBErr, "MempoolTransactionNotFound")
+	return nil, blocker.NewBlocker(blocker.DBRowNotFound, "MempoolTransactionNotFound")
 }
 
 // AddMempoolTransaction validates and insert a transaction into the mempool
@@ -146,14 +146,15 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	}
 
 	// check if already in db
-	_, err := mps.GetMempoolTransaction(mpTx.ID)
-	if err == nil {
+	mempool, err := mps.GetMempoolTransaction(mpTx.ID)
+	if err != nil {
+		if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type != blocker.DBRowNotFound {
+			return blocker.NewBlocker(blocker.ValidationErr, blockErr.Message)
+		}
+	}
+	if mempool != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
 	}
-	if err.Error() != "MempoolTransactionNotFound" {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-
 	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
 	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs)
 	if err != nil {
