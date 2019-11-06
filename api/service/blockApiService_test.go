@@ -22,8 +22,24 @@ func ResetBlockService() {
 }
 
 var (
-	basNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+	mockGoodBlock = model.Block{
+		ID:                   1,
+		BlockHash:            []byte{},
+		PreviousBlockHash:    []byte{},
+		Height:               1,
+		Timestamp:            10000,
+		BlockSeed:            []byte{},
+		BlockSignature:       []byte{3},
+		CumulativeDifficulty: "1",
+		SmithScale:           1,
+		PayloadLength:        1,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey:  []byte{},
+		TotalAmount:          1000,
+		TotalFee:             0,
+		TotalCoinBase:        1,
+		Version:              0,
+	}
 )
 
 type (
@@ -58,10 +74,7 @@ func (*mockQueryExecutorBlockByIDFail) ExecuteSelect(query string, tx bool, args
 func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
-		"Version"}))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields))
 	rows, _ := db.Query(qe)
 	return rows, nil
 }
@@ -69,11 +82,43 @@ func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, tx bool, arg
 func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
-		"Version"}).AddRow(1, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1).AddRow(1,
-		[]byte{}, 2, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, []byte{}, 0, 0, 0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(
+		query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+	).AddRow(
+		mockGoodBlock.GetID(),
+		mockGoodBlock.GetBlockHash(),
+		mockGoodBlock.GetPreviousBlockHash(),
+		mockGoodBlock.GetHeight(),
+		mockGoodBlock.GetTimestamp(),
+		mockGoodBlock.GetBlockSeed(),
+		mockGoodBlock.GetBlockSignature(),
+		mockGoodBlock.GetCumulativeDifficulty(),
+		mockGoodBlock.GetSmithScale(),
+		mockGoodBlock.GetPayloadLength(),
+		mockGoodBlock.GetPayloadHash(),
+		mockGoodBlock.GetBlocksmithPublicKey(),
+		mockGoodBlock.GetTotalAmount(),
+		mockGoodBlock.GetTotalFee(),
+		mockGoodBlock.GetTotalCoinBase(),
+		mockGoodBlock.GetVersion(),
+	).AddRow(
+		mockGoodBlock.GetID(),
+		mockGoodBlock.GetBlockHash(),
+		mockGoodBlock.GetPreviousBlockHash(),
+		mockGoodBlock.GetHeight(),
+		mockGoodBlock.GetTimestamp(),
+		mockGoodBlock.GetBlockSeed(),
+		mockGoodBlock.GetBlockSignature(),
+		mockGoodBlock.GetCumulativeDifficulty(),
+		mockGoodBlock.GetSmithScale(),
+		mockGoodBlock.GetPayloadLength(),
+		mockGoodBlock.GetPayloadHash(),
+		mockGoodBlock.GetBlocksmithPublicKey(),
+		mockGoodBlock.GetTotalAmount(),
+		mockGoodBlock.GetTotalFee(),
+		mockGoodBlock.GetTotalCoinBase(),
+		mockGoodBlock.GetVersion(),
+	))
 	rows, _ := db.Query(qe)
 	return rows, nil
 }
@@ -96,21 +141,22 @@ func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ..
 
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
-			1,
-			[]byte{1},
-			1,
-			10000,
-			[]byte{2},
-			[]byte{3},
-			"cumulative",
-			1,
-			1,
-			[]byte{4},
-			basNodePubKey1,
-			1,
-			1,
-			1,
-			1,
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetSmithScale(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
 		),
 	)
 	return db.Query(qStr)
@@ -209,21 +255,22 @@ func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, arg
 
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
-			1,
-			[]byte{1},
-			1,
-			10000,
-			[]byte{2},
-			[]byte{3},
-			"cumulative",
-			1,
-			1,
-			[]byte{4},
-			basNodePubKey1,
-			1,
-			1,
-			1,
-			1,
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetSmithScale(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
 		),
 	)
 	return db.Query(qStr)
@@ -323,21 +370,22 @@ func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, args ...in
 
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
-			1,
-			[]byte{1},
-			1,
-			10000,
-			[]byte{2},
-			[]byte{3},
-			"cumulative",
-			1,
-			1,
-			[]byte{4},
-			basNodePubKey1,
-			1,
-			1,
-			1,
-			1,
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetSmithScale(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
 		),
 	)
 	return db.Query(qStr)

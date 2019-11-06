@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 )
@@ -191,12 +192,12 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	parsedTx, err = util.ParseTransactionBytes(mpTx.TransactionBytes, true)
+	parsedTx, err = transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
 		return err
 	}
 
-	if err := auth.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+	if err := transaction.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 		return err
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx)
@@ -236,7 +237,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		tx, err := util.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+		tx, err := transaction.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
 		if err != nil {
 			continue
 		}
@@ -247,53 +248,28 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		if err := auth.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+		if err := transaction.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
+
+		txType, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+		toRemove, err := txType.SkipMempoolTransaction(selectedTransactions)
+		if err != nil {
+			return nil, err
+		}
+		if toRemove {
+			continue
+		}
+
 		selectedTransactions = append(selectedTransactions, tx)
 		selectedMempool = append(selectedMempool, mempoolTransaction)
 		payloadLength += transactionLength
 	}
 	sortFeePerByteThenTimestampThenID(selectedTransactions, selectedMempool)
 	return selectedTransactions, nil
-}
-
-func (mps *MempoolService) generateTransactionReceipt(
-	receivedTxHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey, receiptKey []byte,
-	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
-	var rmrLinked []byte
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-	lastRmrQ := mps.MerkleTreeQuery.GetLastMerkleRoot()
-	row := mps.QueryExecutor.ExecuteSelectRow(lastRmrQ)
-	rmrLinked, err := mps.MerkleTreeQuery.ScanRoot(row)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	// generate receipt
-	batchReceipt, err := util.GenerateBatchReceipt( // todo: var
-		lastBlock,
-		senderPublicKey,
-		nodePublicKey,
-		receivedTxHash,
-		rmrLinked,
-		constant.ReceiptDatumTypeTransaction,
-	)
-	if err != nil {
-		return nil, err
-	}
-	batchReceipt.RecipientSignature = mps.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(batchReceipt),
-		nodeSecretPhrase,
-	)
-	// store the generated batch receipt hash
-	err = mps.KVExecutor.Insert(string(receiptKey), receivedTxHash, constant.ExpiryPublishedReceiptTransaction)
-	if err != nil {
-		return nil, err
-	}
-	return batchReceipt, nil
 }
 
 func (mps *MempoolService) ReceivedTransaction(
@@ -307,7 +283,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		receivedTx *model.Transaction
 		mempoolTx  *model.MempoolTransaction
 	)
-	receivedTx, err = util.ParseTransactionBytes(receivedTxBytes, true)
+	receivedTx, err = transaction.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
 		return nil, err
 	}
@@ -334,13 +310,33 @@ func (mps *MempoolService) ReceivedTransaction(
 		specificErr := err.(blocker.Blocker)
 		if specificErr.Type == blocker.DuplicateMempoolErr {
 			// already exist in mempool, check if already generated a receipt for this sender
-			batchReceipt, err := mps.generateTransactionReceipt(
-				receivedTxHash[:], lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
-			)
+			_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
 			if err != nil {
-				return nil, err
+				if err == badger.ErrKeyNotFound {
+					batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+						receivedTxHash[:],
+						lastBlock,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.KVdbTableTransactionReminderKey+string(receiptKey),
+						constant.ReceiptDatumTypeTransaction,
+						mps.Signature,
+						mps.QueryExecutor,
+						mps.KVExecutor,
+					)
+					if err != nil {
+						return nil, blocker.NewBlocker(
+							blocker.DBErr,
+							err.Error(),
+						)
+					}
+					return batchReceipt, nil
+				}
+				return nil, blocker.NewBlocker(
+					blocker.DBErr,
+					err.Error(),
+				)
 			}
-			return batchReceipt, nil
 		}
 		return nil, err
 	}
@@ -377,8 +373,16 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	// broadcast transaction
 	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
-	batchReceipt, err := mps.generateTransactionReceipt(
-		receivedTxHash[:], lastBlock, senderPublicKey, receiptKey, nodeSecretPhrase,
+	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		receivedTxHash[:],
+		lastBlock,
+		senderPublicKey,
+		nodeSecretPhrase,
+		constant.KVdbTableTransactionReminderKey+string(receiptKey),
+		constant.ReceiptDatumTypeTransaction,
+		mps.Signature,
+		mps.QueryExecutor,
+		mps.KVExecutor,
 	)
 	if err != nil {
 		return nil, err
@@ -430,7 +434,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		return err
 	}
 	for _, m := range mempools {
-		tx, err := util.ParseTransactionBytes(m.GetTransactionBytes(), true)
+		tx, err := transaction.ParseTransactionBytes(m.GetTransactionBytes(), true)
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())

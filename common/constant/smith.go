@@ -12,4 +12,5 @@ var (
 	SmithscaleGamma            = int64(64)
 	AverageSmithingBlockHeight = uint32(10)
 	MaxNumBlocksmithRewards    = int(5)
+	GenerateBlockTimeoutSec    = int64(15)
 )

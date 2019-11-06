@@ -114,7 +114,7 @@ func initialize(
 		log.New(),
 	)
 	receiptService := service.NewReceiptService(
-		query.NewReceiptQuery(),
+		query.NewNodeReceiptQuery(),
 		nil,
 		query.NewMerkleTreeQuery(),
 		nil,
@@ -161,6 +161,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blocksmith,
 		blockService,
 		nodeRegistrationService,
+		log.New(),
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)
