@@ -68,7 +68,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	// get the blockhash of a block that most likely have been already downloaded by all nodes
 	// so that, every node will be able to validate it
 	if lastBlock.Height > constant.BlockHeightOffset {
-		lastBlock, err = nas.BlockService.GetBlockByHeight(constant.BlockHeightOffset)
+		lastBlock, err = nas.BlockService.GetBlockByHeight(lastBlock.Height - constant.BlockHeightOffset)
 		if err != nil {
 			return nil, err
 		}
