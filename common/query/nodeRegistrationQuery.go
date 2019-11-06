@@ -13,7 +13,6 @@ import (
 
 type (
 	NodeRegistrationQueryInterface interface {
-		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
@@ -57,17 +56,6 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 
 func (nrq *NodeRegistrationQuery) getTableName() string {
 	return nrq.TableName
-}
-
-func (nrq *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
-	// the OR IGNORE clause is added as a failsafe in case two InsertNodeRegistraiton happens at the same block height
-	// Since there is no way to know which one should take precedence, after the first one is executed, the other ones are ignored
-	return fmt.Sprintf(
-		"INSERT OR IGNORE INTO %s (%s) VALUES(%s)",
-		nrq.getTableName(),
-		strings.Join(nrq.Fields, ","),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nrq.Fields)-1)),
-	), nrq.ExtractModel(nodeRegistration)
 }
 
 // UpdateNodeRegistration returns a slice of two queries.

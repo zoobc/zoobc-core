@@ -619,6 +619,27 @@ func (*mockApplyConfirmedSuccess) ExecuteTransactions(queries [][]interface{}) e
 	return nil
 }
 
+func (*mockApplyConfirmedSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
+		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}))
+		return db.Query("A")
+	}
+	return nil, nil
+}
+
 func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		Body                    *model.NodeRegistrationTransactionBody
