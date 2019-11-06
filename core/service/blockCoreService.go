@@ -76,6 +76,8 @@ type (
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
+		SortBlocksmiths(block *model.Block)
+		GetSortedBlocksmiths() *[]model.Blocksmith
 	}
 
 	BlockService struct {
@@ -88,6 +90,7 @@ type (
 		TransactionQuery        query.TransactionQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ReceiptService          ReceiptServiceInterface
@@ -111,6 +114,7 @@ func NewBlockService(
 	transactionQuery query.TransactionQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
@@ -132,6 +136,7 @@ func NewBlockService(
 		TransactionQuery:        transactionQuery,
 		MerkleTreeQuery:         merkleTreeQuery,
 		PublishedReceiptQuery:   publishedReceiptQuery,
+		SkippedBlocksmithQuery:  skippedBlocksmithQuery,
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ReceiptService:          receiptService,
@@ -443,21 +448,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
-		if len(*bs.SortedBlocksmiths) == 0 {
-			blocksmiths, err := bs.GetBlocksmiths(block)
-			if err != nil {
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
-			}
-			tmpBlocksmiths := make([]model.Blocksmith, 0)
-			// copy the nextBlocksmiths pointers array into an array of blocksmiths
-			for _, blocksmith := range blocksmiths {
-				tmpBlocksmiths = append(tmpBlocksmiths, *blocksmith)
-			}
-			*bs.SortedBlocksmiths = tmpBlocksmiths
-		}
+		// sort blocksmiths for current block
+		bs.SortBlocksmiths(previousBlock)
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
@@ -516,6 +508,34 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	return nil
 }
 
+func (bs *BlockService) SortBlocksmiths(block *model.Block) {
+	// fetch valid blocksmiths
+	var blocksmiths []model.Blocksmith
+	nextBlocksmiths, err := bs.GetBlocksmiths(block)
+	if err != nil {
+		log.Errorf("SortBlocksmith: %s", err)
+		return
+	}
+	// copy the nextBlocksmiths pointers array into an array of blocksmiths
+	for _, blocksmith := range nextBlocksmiths {
+		blocksmiths = append(blocksmiths, *blocksmith)
+	}
+	// sort blocksmiths by SmithOrder
+	sort.SliceStable(blocksmiths, func(i, j int) bool {
+		bi, bj := blocksmiths[i], blocksmiths[j]
+		res := bi.SmithOrder.Cmp(bj.SmithOrder)
+		if res == 0 {
+			// compare node ID
+			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
+			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
+			res = nodePKI.Cmp(nodePKJ)
+		}
+		// ascending sort
+		return res < 0
+	})
+	bs.SortedBlocksmiths = &blocksmiths
+}
+
 // updateNodeRegistry seelct and admit/expel nodes from node registry
 func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 	// select n (= MaxNodeAdmittancePerCycle) queued nodes with the highest locked balance from node registry
@@ -544,12 +564,44 @@ func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 }
 
 func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error {
-	var blocksmithNode model.NodeRegistration
-	blocksmithNodeIDQ := bs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey()
-	row := bs.QueryExecutor.ExecuteSelectRow(blocksmithNodeIDQ, block.BlocksmithPublicKey)
-	err := bs.NodeRegistrationQuery.Scan(&blocksmithNode, row)
-	if err != nil {
-		return err
+	var (
+		blocksmithNode  model.Blocksmith
+		blocksmithIndex = -1
+		err             error
+	)
+	for i, bsm := range *bs.SortedBlocksmiths {
+		if reflect.DeepEqual(block.BlocksmithPublicKey, bsm.NodePublicKey) {
+			blocksmithIndex = i
+			blocksmithNode = bsm
+			break
+		}
+	}
+	if blocksmithIndex < 0 {
+		return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInBlocksmithList")
+	}
+	// punish the skipped (index earlier than current blocksmith) blocksmith
+	for i, bsm := range (*bs.SortedBlocksmiths)[:blocksmithIndex] {
+		skippedBlocksmith := &model.SkippedBlocksmith{
+			BlocksmithPublicKey: bsm.NodePublicKey,
+			POPChange:           constant.ParticipationScorePunishAmount,
+			BlockHeight:         block.Height,
+			BlocksmithIndex:     int32(i),
+		}
+		// store to skipped_blocksmith table
+		qStr, args := bs.SkippedBlocksmithQuery.InsertSkippedBlocksmith(
+			skippedBlocksmith,
+		)
+		err = bs.QueryExecutor.ExecuteTransaction(qStr, args...)
+		if err != nil {
+			return err
+		}
+		// punish score
+		addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
+			bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height)
+		err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+		if err != nil {
+			return err
+		}
 	}
 	addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
 		blocksmithNode.NodeID, popScore, block.Height)
@@ -1130,8 +1182,13 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 // GetParticipationScore handle received block from another node
 func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
 	var (
-		blExt = &model.BlockExtendedInfo{}
-		err   error
+		blExt                         = &model.BlockExtendedInfo{}
+		skippedBlocksmiths            []*model.SkippedBlocksmith
+		publishedReceipts             []*model.PublishedReceipt
+		nodeRegistryAtHeight          []*model.NodeRegistration
+		linkedPublishedReceiptCount   uint32
+		unLinkedPublishedReceiptCount uint32
+		err                           error
 	)
 	blExt.Block = block
 	// block extra (computed) info
@@ -1143,15 +1200,50 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	} else {
 		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-	// Total number of receipts at a block height
-	// STEF: do we need to get all receipts that have reference_block_height <= block.height
-	blExt.TotalReceipts = 99
-	//TODO: from @barton: Receipt value will be the "score" of all the receipts in a block added together
-	// STEF: how to compute the receipt score?
-	blExt.ReceiptValue = 99
-	// once we have the receipt for this blExt we should be able to calculate this using util.CalculateParticipationScore
-	blExt.PopChange = -20
-
+	skippedBlocksmithsQuery := bs.SkippedBlocksmithQuery.GetSkippedBlocksmithsByBlockHeight(block.Height)
+	skippedBlocksmithsRows, err := bs.QueryExecutor.ExecuteSelect(skippedBlocksmithsQuery, false)
+	if err != nil {
+		return nil, err
+	}
+	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
+	if err != nil {
+		return nil, err
+	}
+	publishedReceiptQ, publishedReceiptArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
+	publishedReceiptRows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArgs...)
+	if err != nil {
+		return nil, err
+	}
+	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
+	if err != nil {
+		return nil, err
+	}
+	blExt.TotalReceipts = int64(len(publishedReceipts))
+	for _, pr := range publishedReceipts {
+		if pr.IntermediateHashes != nil {
+			linkedPublishedReceiptCount++
+		} else {
+			unLinkedPublishedReceiptCount++
+		}
+	}
+	nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.Height)
+	nodeRegistryAtHeightRows, err := bs.QueryExecutor.ExecuteSelect(nodeRegistryAtHeightQ, false)
+	if err != nil {
+		return nil, err
+	}
+	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
+	if err != nil {
+		return nil, err
+	}
+	blExt.ReceiptValue = commonUtils.GetReceiptValue(linkedPublishedReceiptCount, unLinkedPublishedReceiptCount)
+	blExt.PopChange, err = util.CalculateParticipationScore(
+		linkedPublishedReceiptCount,
+		unLinkedPublishedReceiptCount,
+		uint32(len(nodeRegistryAtHeight)),
+	)
+	if err != nil {
+		return nil, err
+	}
 	return blExt, nil
 }
 
@@ -1178,6 +1270,7 @@ func (*BlockService) GetCoinbase() int64 {
 	return 50 * constant.OneZBC
 }
 
+// todo: move this to blocksmith service
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
 func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
@@ -1188,7 +1281,10 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 		return nil, err
 	}
 	defer rows.Close()
-	activeBlocksmiths = bs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	activeBlocksmiths, err = bs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	if err != nil {
+		return nil, err
+	}
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
 	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {
@@ -1198,4 +1294,8 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
 	return blocksmiths, nil
+}
+
+func (bs *BlockService) GetSortedBlocksmiths() *[]model.Blocksmith {
+	return bs.SortedBlocksmiths
 }
