@@ -191,6 +191,14 @@ func (m *Migration) Init() error {
 			AlTER TABLE "main_block"
 				ADD COLUMN "block_hash" BLOB AFTER "id"
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "skipped_blocksmith" (
+				"blocksmith_public_key" BLOB,
+				"pop_change" INTEGER,
+				"block_height" INTEGER,
+				"blocksmith_index" INTEGER
+			)
+			`,
 		}
 		return nil
 	}

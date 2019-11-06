@@ -25,6 +25,8 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewNodeRegistrationQuery(),
 				NewAccountBalanceQuery(),
 				NewAccountDatasetsQuery(),
+				NewSkippedBlocksmithQuery(),
+				NewParticipationScoreQuery(),
 			},
 		},
 	}
