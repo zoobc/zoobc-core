@@ -116,7 +116,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 			mempoolsBackupBytes format is
 			[...{4}byteSize,[bytesSize]transactionBytes]
 		*/
-
+		// TODO: Need to restore the backups from badger while getting mempool transactions before PushBlock process
 		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
 		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
 		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
