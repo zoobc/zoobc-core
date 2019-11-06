@@ -182,8 +182,14 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
 	row = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, mpTx.ID)
 	err = mps.MempoolQuery.Scan(&mempoolTx, row)
-	if err != nil && err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+	}
+	if mpTx.GetID() == mempoolTx.GetID() {
+		return blocker.NewBlocker(blocker.ValidationErr, "MempoolDuplicated")
 	}
 
 	parsedTx, err = transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
@@ -203,6 +209,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
+
 	return nil
 }
 
