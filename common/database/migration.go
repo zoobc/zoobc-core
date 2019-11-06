@@ -188,11 +188,12 @@ func (m *Migration) Init() error {
 				RENAME COLUMN "queued" TO "registration_status"
 			`,
 			`
+			AlTER TABLE "main_block"
+				ADD COLUMN "block_hash" BLOB AFTER "id"
+			`,
+			`
 			ALTER TABLE "mempool"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
-				`,
-			`AlTER TABLE "main_block"
-				ADD COLUMN "block_hash" BLOB AFTER "id"
 			`,
 		}
 		return nil

@@ -2,7 +2,6 @@ package blockchainsync
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
@@ -116,9 +116,9 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 			mempoolsBackupBytes format is
 			[...{4}byteSize,[bytesSize]transactionBytes]
 		*/
-		sizeMempool := make([]byte, 4)
-		binary.LittleEndian.PutUint32(sizeMempool, uint32(len(mempool.GetTransactionBytes())))
-		mempoolsBackupBytes.Write(sizeMempool)
+
+		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
+		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
 		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
 	}
 	err = bp.KVDB.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
