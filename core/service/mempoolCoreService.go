@@ -156,7 +156,7 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
 	}
 	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
-	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs)
+	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 	if err != nil {
 		return err
 	}

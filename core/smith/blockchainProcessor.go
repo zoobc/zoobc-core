@@ -6,13 +6,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -216,5 +213,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	if err != nil {
 		return err
 	}
+	bp.Logger.Infof("Block Pushed ID: %d", block.GetID())
 	return nil
 }
