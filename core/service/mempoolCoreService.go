@@ -178,6 +178,10 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
+	if mpTx.GetID() == tx.GetID() {
+		return blocker.NewBlocker(blocker.ValidationErr, "MempoolDuplicated")
+	}
+
 	// check for duplication in mempool table
 	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
 	row = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, mpTx.ID)
