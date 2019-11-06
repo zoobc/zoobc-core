@@ -27,6 +27,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewAccountDatasetsQuery(),
 				NewSkippedBlocksmithQuery(),
 				NewParticipationScoreQuery(),
+				NewPublishedReceiptQuery(),
 			},
 		},
 	}
