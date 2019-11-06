@@ -192,6 +192,14 @@ func (m *Migration) Init() error {
 				ADD COLUMN "block_hash" BLOB AFTER "id"
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "skipped_blocksmith" (
+				"blocksmith_public_key" BLOB,
+				"pop_change" INTEGER,
+				"block_height" INTEGER,
+				"blocksmith_index" INTEGER
+			)
+			`,
+			`
 			ALTER TABLE "mempool"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
 			`,

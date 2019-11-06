@@ -10,6 +10,8 @@ const (
 	UnlinkedReceiptScore float32 = 0.5
 	// MaxScoreChange the maximum score that node wll get
 	MaxScoreChange = 10 * int64(ScalarReceiptScore)
+	// punishment amount
+	ParticipationScorePunishAmount = -1 * MaxScoreChange / 2
 	// MaxReceipt the maximum receipt will publish in every block
 	MaxReceipt uint32 = 20
 	// MaxParticipationScore maximum achievable score, this will be important to maintain smithing process so it doesn't
