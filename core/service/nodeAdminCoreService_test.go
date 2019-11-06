@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -41,11 +42,15 @@ var (
 )
 
 func (*blockServiceMocked) GetLastBlock() (*model.Block, error) {
-	return new(model.Block), nil
+	return &model.Block{
+		Height: constant.BlockHeightOffset + 1,
+	}, nil
 }
 
 func (*blockServiceMocked) GetBlockByHeight(height uint32) (*model.Block, error) {
-	return new(model.Block), nil
+	return &model.Block{
+		Height: 1,
+	}, nil
 }
 
 func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
@@ -284,15 +289,38 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 			},
 			want: &model.ProofOfOwnership{
-				MessageBytes: []byte{66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68, 79, 86, 102, 57, 90, 83,
-					52, 69, 106, 118, 79, 73, 118, 95, 85, 101, 87, 52, 84, 86, 66, 81, 74, 95, 54, 116, 72, 75, 108,
-					69, 167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77,
-					228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74, 0, 0, 0, 0,
+				MessageBytes: []byte{66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68, 79, 86, 102, 57, 90,
+					83, 52, 69, 106, 118, 79, 73, 118, 95, 85, 101, 87, 52, 84, 86, 66, 81, 74, 95, 54, 116, 72,
+					75, 108, 69, 167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245,
+					128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74, 1, 0, 0, 0,
 				},
-				Signature: []byte{136, 42, 229, 9, 180, 76, 138, 119, 13, 125, 230, 79, 107, 59, 25, 46, 33,
-					55, 42, 80, 171, 138, 8, 231, 184, 59, 168, 163, 213, 159, 91, 101, 167, 5, 82, 223, 30, 2, 112, 51,
-					202, 197, 65, 30, 67, 248, 190, 10, 69, 158, 234, 178, 237, 1, 128, 107, 73, 141, 120, 68, 73, 226,
-					37, 3},
+				Signature: []byte{48, 70, 23, 184, 44, 255, 224, 139, 160, 8, 246, 215, 97, 87, 129, 234,
+					132, 210, 55, 90, 43, 103, 79, 135, 118, 136, 217, 173, 20, 250, 245, 251, 78, 152,
+					174, 250, 163, 49, 131, 65, 45, 37, 221, 247, 98, 99, 207, 139, 192, 101, 18,
+					57, 216, 137, 97, 231, 183, 199, 93, 227, 19, 48, 78, 15},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GenerateProofOfOwnership:Success-{safeBlockHeight}",
+			fields: fields{
+				BlockService: &blockServiceMocked{},
+				FilePath:     "testdata/node_keys.json",
+			},
+			args: args{
+				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			},
+			want: &model.ProofOfOwnership{
+				MessageBytes: []byte{66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68, 79, 86,
+					102, 57, 90, 83, 52, 69, 106, 118, 79, 73, 118, 95, 85, 101, 87, 52, 84, 86, 66, 81,
+					74, 95, 54, 116, 72, 75, 108, 69, 167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71,
+					86, 160, 97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10,
+					75, 128, 248, 67, 74, 1, 0, 0, 0,
+				},
+				Signature: []byte{48, 70, 23, 184, 44, 255, 224, 139, 160, 8, 246, 215, 97, 87, 129, 234,
+					132, 210, 55, 90, 43, 103, 79, 135, 118, 136, 217, 173, 20, 250, 245, 251, 78, 152,
+					174, 250, 163, 49, 131, 65, 45, 37, 221, 247, 98, 99, 207, 139, 192, 101, 18, 57, 216,
+					137, 97, 231, 183, 199, 93, 227, 19, 48, 78, 15},
 			},
 			wantErr: false,
 		},
