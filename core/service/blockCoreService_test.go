@@ -1061,12 +1061,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				Observer:                observer.NewObserver(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				NodeRegistrationService: &mockNodeRegistrationServiceFail{},
-				SortedBlocksmiths:       mockBlocksmiths,
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
+				Observer:                observer.NewObserver(),
+				SortedBlocksmiths:       mockBlocksmiths,
 			},
 			args: args{
 				previousBlock: &model.Block{

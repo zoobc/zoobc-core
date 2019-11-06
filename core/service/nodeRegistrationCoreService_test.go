@@ -697,9 +697,9 @@ func (*executorBuildScrambleNodesSuccess) ExecuteSelect(qStr string, tx bool, ar
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
 		query.NewNodeRegistrationQuery().Fields,
 	).AddRow(
-		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76}, "accountA", 0, "127.0.0.1:3000", 0, false, true, 0,
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76}, "accountA", 0, "127.0.0.1:3000", 0, 0, true, 0,
 	).AddRow(
-		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78}, "accountB", 0, "127.0.0.1:3001", 0, false, true, 0,
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78}, "accountB", 0, "127.0.0.1:3001", 0, 0, true, 0,
 	))
 
 	return db.Query(qStr, 1)
