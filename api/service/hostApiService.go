@@ -55,9 +55,10 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	scrambledNodes := hs.NodeRegistrationService.GetScrambledNodes()
 
 	return &model.HostInfo{
-		Host:           hs.P2pService.GetHostInfo(),
-		ChainStatuses:  chainStatuses,
-		ScrambledNodes: scrambledNodes.AddressNodes,
+		Host:                 hs.P2pService.GetHostInfo(),
+		ChainStatuses:        chainStatuses,
+		ScrambledNodes:       scrambledNodes.AddressNodes,
+		ScrambledNodesHeight: scrambledNodes.BlockHeight,
 	}, nil
 }
 
