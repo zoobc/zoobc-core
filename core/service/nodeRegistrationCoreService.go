@@ -27,6 +27,7 @@ type (
 		BuildScrambledNodes(block *model.Block) error
 		ResetMemoizedScrambledNodes()
 		GetScrambledNodes() *ScrambledNodes
+		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -39,7 +40,7 @@ type (
 		Logger                  *log.Logger
 		ScrambledNodes          *ScrambledNodes
 		ScrambledNodesLock      sync.RWMutex
-		MomoizedScrambledNodes  *ScrambledNodes
+		MemoizedScrambledNodes  *ScrambledNodes
 	}
 
 	ScrambledNodes struct {
@@ -263,6 +264,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 		})
 		peer := &model.Peer{
 			Info: &model.Node{
+				ID:            node.GetNodeID(),
 				Address:       nodeInfo.GetAddress(),
 				Port:          nodeInfo.GetPort(),
 				SharedAddress: nodeInfo.GetAddress(),
@@ -285,7 +287,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 }
 
 func (nrs *NodeRegistrationService) ResetMemoizedScrambledNodes() {
-	nrs.MomoizedScrambledNodes = nil
+	nrs.MemoizedScrambledNodes = nil
 }
 
 func (nrs *NodeRegistrationService) GetScrambledNodes() *ScrambledNodes {
@@ -303,24 +305,26 @@ func (nrs *NodeRegistrationService) GetScrambledNodes() *ScrambledNodes {
 	nrs.ScrambledNodesLock.Lock()
 	defer nrs.ScrambledNodesLock.Unlock()
 
-	if nrs.MomoizedScrambledNodes != nil && nrs.MomoizedScrambledNodes.BlockHeight == nrs.ScrambledNodes.BlockHeight {
-		return nrs.MomoizedScrambledNodes
+	if nrs.MemoizedScrambledNodes != nil && nrs.MemoizedScrambledNodes.BlockHeight == nrs.ScrambledNodes.BlockHeight {
+		return nrs.MemoizedScrambledNodes
 	}
 
-	for _, addressNode := range nrs.ScrambledNodes.AddressNodes {
-		newAddressNodes = append(newAddressNodes, addressNode)
-	}
+	newAddressNodes = append(newAddressNodes, nrs.ScrambledNodes.AddressNodes...)
 
 	for key, indexNode := range nrs.ScrambledNodes.IndexNodes {
 		tempVal := *indexNode
 		newIndexNodes[key] = &tempVal
 	}
 
-	nrs.MomoizedScrambledNodes = &ScrambledNodes{
+	nrs.MemoizedScrambledNodes = &ScrambledNodes{
 		AddressNodes: newAddressNodes,
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  nrs.ScrambledNodes.BlockHeight,
 	}
 
-	return nrs.MomoizedScrambledNodes
+	return nrs.MemoizedScrambledNodes
+}
+
+func (nrs *NodeRegistrationService) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return lastBlockHeight - (lastBlockHeight % constant.PriorityStrategyBuildScrambleNodesGap)
 }

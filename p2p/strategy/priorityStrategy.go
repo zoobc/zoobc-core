@@ -10,8 +10,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -60,43 +58,6 @@ func (ps *PriorityStrategy) Start() {
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
-
-	go func() {
-		block, err := ps.GetBlockBuildScrumbleNode()
-		if err != nil {
-			ps.Logger.Warn(err.Error())
-		} else {
-			ps.NodeRegistrationService.BuildScrambledNodes(block)
-		}
-	}()
-
-}
-
-func (ps *PriorityStrategy) GetBlockBuildScrumbleNode() (*model.Block, error) {
-	var (
-		block      model.Block
-		err        error
-		blockQuery = query.NewBlockQuery(&chaintype.MainChain{})
-		row        = ps.QueryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
-	)
-	err = blockQuery.Scan(&block, row)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-
-	lastBlockHeight := block.GetHeight()
-	if lastBlockHeight != 0 {
-		blockHeightBuildScrumble := lastBlockHeight - (lastBlockHeight % constant.PriorityStrategyBuildScrambleNodesGap)
-		if blockHeightBuildScrumble != 0 {
-			row = ps.QueryExecutor.ExecuteSelectRow(blockQuery.GetBlockByHeight(blockHeightBuildScrumble), false)
-			err = blockQuery.Scan(&block, row)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
-			return &block, nil
-		}
-	}
-	return nil, blocker.NewBlocker(blocker.AppErr, "No need to build sramble node at start of p2p service")
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -107,7 +68,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
 	for {
 		select {
 		case <-ticker.C:
-			// go ps.ConnectPriorityPeersGradually()
+			go ps.ConnectPriorityPeersGradually()
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -168,7 +129,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	}
 }
 
-// GetPriorityPeers, to get a list peer should connect if host in scrumble node
+// GetPriorityPeers, to get a list peer should connect if host in scramble node
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	var (
 		priorityPeers   = make(map[string]*model.Peer)
@@ -247,7 +208,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 		md, _ := metadata.FromIncomingContext(ctx)
 		// Check have default context
 		if len(md.Get(p2pUtil.DefaultConnectionMetadata)) != 0 {
-			// Check host in scrumble nodes
+			// Check host in scramble nodes
 			if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
 				var (
 					fullAddress   = md.Get(p2pUtil.DefaultConnectionMetadata)[0]

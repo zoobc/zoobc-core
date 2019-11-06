@@ -467,14 +467,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
-	// scrambling node registry
-	if block.GetHeight()%constant.PriorityStrategyBuildScrambleNodesGap == 0 {
+	// building scrambled node registry
+	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
 		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
 		if err != nil {
 			bs.Logger.Error(err.Error())
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
+			return err
 		}
 	}
 

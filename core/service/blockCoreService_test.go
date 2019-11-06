@@ -71,6 +71,10 @@ type (
 	mockNodeRegistrationServiceSuccess struct {
 		NodeRegistrationService
 	}
+
+	mockNodeRegistrationServiceFail struct {
+		NodeRegistrationService
+	}
 )
 
 var mockBlock = &model.Block{
@@ -118,6 +122,22 @@ func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
 
 func (*mockNodeRegistrationServiceSuccess) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) BuildScrambledNodes(block *model.Block) error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return lastBlockHeight
+}
+
+func (*mockNodeRegistrationServiceFail) BuildScrambledNodes(block *model.Block) error {
+	return errors.New("mock Error")
+}
+
+func (*mockNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return lastBlockHeight
 }
 
 func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
@@ -969,6 +989,55 @@ func TestBlockService_PushBlock(t *testing.T) {
 				broadcast: true,
 			},
 			wantErr: false,
+		},
+		{
+			name: "PushBlock_FAIL:BuildScrambledNodes_Fails",
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				QueryExecutor:           &mockQueryExecutorSuccess{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				Observer:                observer.NewObserver(),
+				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
+				NodeRegistrationService: &mockNodeRegistrationServiceFail{},
+				SortedBlocksmiths:       mockBlocksmiths,
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+			},
+			args: args{
+				previousBlock: &model.Block{
+					ID:                   0,
+					SmithScale:           10,
+					Timestamp:            10000,
+					CumulativeDifficulty: "10000",
+					Version:              1,
+					PreviousBlockHash:    []byte{},
+					BlockSeed:            []byte{},
+					BlocksmithPublicKey:  bcsNodePubKey1,
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					BlockSignature:       []byte{},
+				},
+				block: &model.Block{
+					ID:                  1,
+					Timestamp:           12000,
+					Version:             1,
+					PreviousBlockHash:   []byte{},
+					BlockSeed:           []byte{},
+					BlocksmithPublicKey: bcsNodePubKey1,
+					TotalAmount:         0,
+					TotalFee:            0,
+					TotalCoinBase:       0,
+					Transactions:        []*model.Transaction{},
+					PayloadHash:         []byte{},
+					BlockSignature:      []byte{},
+				},
+				broadcast: false,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

@@ -304,6 +304,10 @@ func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
+	var (
+		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
+		err                                         error
+	)
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
@@ -349,6 +353,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+
 	mainchainProcessor = smith.NewBlockchainProcessor(
 		mainchain,
 		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
@@ -367,14 +372,26 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		}
 	}
 
-	// Check computer/node local time. Comparing with last block timestamp
-	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
-	lastBlock, err := mainchainBlockService.GetLastBlock()
+	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	if time.Now().Unix() < lastBlock.GetTimestamp() {
+
+	// Check computer/node local time. Comparing with last block timestamp
+	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
+	if time.Now().Unix() < lastBlockAtStart.GetTimestamp() {
 		loggerCoreService.Fatal("Your computer clock is behind from the correct time")
+	}
+
+	// initializing scrambled nodes
+	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
+	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	err = nodeRegistrationService.BuildScrambledNodes(blockToBuildScrambleNodes)
+	if err != nil {
+		loggerCoreService.Fatal(err)
 	}
 
 	// no nodes registered with current node public key

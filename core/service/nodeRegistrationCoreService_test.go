@@ -678,3 +678,174 @@ func TestNodeRegistrationService_GetNodeAdmittanceCycle(t *testing.T) {
 		})
 	}
 }
+
+type (
+	executorBuildScrambleNodesSuccess struct {
+		query.Executor
+	}
+	executorBuildScrambleNodesFail struct {
+		query.Executor
+	}
+)
+
+func (*executorBuildScrambleNodesSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
+		query.NewNodeRegistrationQuery().Fields,
+	).AddRow(
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76}, "accountA", 0, "127.0.0.1:3000", 0, false, true, 0,
+	).AddRow(
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78}, "accountB", 0, "127.0.0.1:3001", 0, false, true, 0,
+	))
+
+	return db.Query(qStr, 1)
+}
+
+func (*executorBuildScrambleNodesFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockError:executeSelectFail")
+}
+
+func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		Logger                *log.Logger
+	}
+	type args struct {
+		block *model.Block
+	}
+
+	// test the building logic and result as well
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *ScrambledNodes
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &executorBuildScrambleNodesSuccess{
+					query.Executor{
+						Db: db,
+					},
+				},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                log.New(),
+			},
+			args: args{
+				block: &model.Block{
+					Height:    1,
+					BlockSeed: []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
+				},
+			},
+		},
+		{
+			name: "wantFail",
+			fields: fields{
+				QueryExecutor: &executorBuildScrambleNodesFail{
+					query.Executor{
+						Db: db,
+					},
+				},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                log.New(),
+			},
+			args: args{
+				block: &model.Block{
+					Height:    1,
+					BlockSeed: []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Logger:                tt.fields.Logger,
+			}
+			errResult := nrs.BuildScrambledNodes(tt.args.block)
+			if (errResult != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.BuildScrambledNodes() error = %v, wantErr %v", errResult, tt.wantErr)
+				return
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationService_ResetMemoizedScrambledNodes(t *testing.T) {
+	mockNodeRegistrationService := &NodeRegistrationService{
+		MemoizedScrambledNodes: &ScrambledNodes{},
+	}
+
+	mockNodeRegistrationService.ResetMemoizedScrambledNodes()
+	if mockNodeRegistrationService.MemoizedScrambledNodes != nil {
+		t.Error("NodeRegistrationService.ResetMemoizedScrambledNodes() should reset MemoizedScrambledNodes")
+	}
+}
+
+func TestNodeRegistrationService_GetScrambledNodes(t *testing.T) {
+	mockScrambledNodes := &ScrambledNodes{
+		BlockHeight: 120,
+	}
+	mockMemoizedScrambledNodes := &ScrambledNodes{
+		BlockHeight: 60,
+	}
+
+	type fields struct {
+		MemoizedScrambledNodes *ScrambledNodes
+		ScrambledNodes         *ScrambledNodes
+	}
+	// test the building logic and result as well
+	tests := []struct {
+		name    string
+		fields  fields
+		want    *ScrambledNodes
+		wantNot *ScrambledNodes
+	}{
+		{
+			name: "GetMemoizedData",
+			fields: fields{
+				MemoizedScrambledNodes: mockMemoizedScrambledNodes,
+			},
+			want: mockMemoizedScrambledNodes,
+		},
+		{
+			name:    "NoMemoizedData",
+			wantNot: mockMemoizedScrambledNodes,
+		},
+		{
+			name: "MemoizedDataDifferentWithScrambledNodes",
+			fields: fields{
+				ScrambledNodes:         mockScrambledNodes,
+				MemoizedScrambledNodes: mockMemoizedScrambledNodes,
+			},
+			wantNot: mockMemoizedScrambledNodes,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				MemoizedScrambledNodes: tt.fields.MemoizedScrambledNodes,
+			}
+			got := nrs.GetScrambledNodes()
+			if (tt.want != nil && got != tt.want && got == tt.wantNot) || (tt.wantNot != nil && got != tt.wantNot && got == tt.want) {
+				t.Errorf("NodeRegistrationService.GetScrambledNodes() got = %v, want = %v, wanNot = %v", got, tt.want, tt.wantNot)
+				return
+			}
+		})
+	}
+}
