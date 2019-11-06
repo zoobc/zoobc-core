@@ -175,20 +175,20 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE height > ?", ps.TableName),
-			[]interface{}{height},
+			height,
 		},
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE height || '_' || id) IN (
-				SELECT (MAX(height) || '_' || id) as con
+			WHERE (height || '_' || node_id) IN (
+				SELECT (MAX(height) || '_' || node_id) as con
 				FROM %s
-				GROUP BY id
+				GROUP BY node_id
 			)`,
 				ps.TableName,
 				ps.TableName,
 			),
-			[]interface{}{1},
+			1,
 		},
 	}
 }

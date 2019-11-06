@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -198,14 +199,15 @@ func (m *Block) GetPublishedReceipts() []*PublishedReceipt {
 
 // BlockExtendedInfo represent the Block data plus part of block data not to be persisted to database
 type BlockExtendedInfo struct {
-	Block                    *Block   `protobuf:"bytes,1,opt,name=Block,proto3" json:"Block,omitempty"`
-	TotalReceipts            int64    `protobuf:"varint,2,opt,name=TotalReceipts,proto3" json:"TotalReceipts,omitempty"`
-	ReceiptValue             int64    `protobuf:"varint,3,opt,name=ReceiptValue,proto3" json:"ReceiptValue,omitempty"`
-	BlocksmithAccountAddress string   `protobuf:"bytes,4,opt,name=BlocksmithAccountAddress,proto3" json:"BlocksmithAccountAddress,omitempty"`
-	PopChange                int64    `protobuf:"varint,5,opt,name=PopChange,proto3" json:"PopChange,omitempty"`
-	XXX_NoUnkeyedLiteral     struct{} `json:"-"`
-	XXX_unrecognized         []byte   `json:"-"`
-	XXX_sizecache            int32    `json:"-"`
+	Block                    *Block               `protobuf:"bytes,1,opt,name=Block,proto3" json:"Block,omitempty"`
+	TotalReceipts            int64                `protobuf:"varint,2,opt,name=TotalReceipts,proto3" json:"TotalReceipts,omitempty"`
+	ReceiptValue             int64                `protobuf:"varint,3,opt,name=ReceiptValue,proto3" json:"ReceiptValue,omitempty"`
+	BlocksmithAccountAddress string               `protobuf:"bytes,4,opt,name=BlocksmithAccountAddress,proto3" json:"BlocksmithAccountAddress,omitempty"`
+	PopChange                int64                `protobuf:"varint,5,opt,name=PopChange,proto3" json:"PopChange,omitempty"`
+	SkippedBlocksmiths       []*SkippedBlocksmith `protobuf:"bytes,6,rep,name=SkippedBlocksmiths,proto3" json:"SkippedBlocksmiths,omitempty"`
+	XXX_NoUnkeyedLiteral     struct{}             `json:"-"`
+	XXX_unrecognized         []byte               `json:"-"`
+	XXX_sizecache            int32                `json:"-"`
 }
 
 func (m *BlockExtendedInfo) Reset()         { *m = BlockExtendedInfo{} }
@@ -266,6 +268,13 @@ func (m *BlockExtendedInfo) GetPopChange() int64 {
 		return m.PopChange
 	}
 	return 0
+}
+
+func (m *BlockExtendedInfo) GetSkippedBlocksmiths() []*SkippedBlocksmith {
+	if m != nil {
+		return m.SkippedBlocksmiths
+	}
+	return nil
 }
 
 // GetBlockRequest create request for single block
