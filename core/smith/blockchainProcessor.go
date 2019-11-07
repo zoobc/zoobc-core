@@ -213,6 +213,5 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	if err != nil {
 		return err
 	}
-	bp.Logger.Infof("Block Pushed ID: %d", block.GetID())
 	return nil
 }

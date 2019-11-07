@@ -1663,6 +1663,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
+		Logger                  *logrus.Logger
 	}
 	tests := []struct {
 		name    string
@@ -1672,18 +1673,18 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Chaintype:           &chaintype.MainChain{},
-				Signature:           &mockSignature{},
-				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				MempoolService:      &mockMempoolServiceSelectFail{},
-				ActionTypeSwitcher:  &mockTypeActionSuccess{},
-				//QueryExecutor:       &mockQueryExecutorSuccess{},
+				Chaintype:               &chaintype.MainChain{},
+				Signature:               &mockSignature{},
+				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				MempoolService:          &mockMempoolServiceSelectFail{},
+				ActionTypeSwitcher:      &mockTypeActionSuccess{},
 				QueryExecutor:           &mockAddGenesisExecutor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				Logger:                  log.New(),
 			},
 			wantErr: false,
 		},
@@ -1702,6 +1703,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Logger:                  tt.fields.Logger,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
