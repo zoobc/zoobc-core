@@ -52,32 +52,6 @@ func TestNodeRegistrationQuery_getTableName(t *testing.T) {
 	})
 }
 
-func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
-	t.Run("InsertNodeRegistration:success", func(t *testing.T) {
-
-		q, args := mockNodeRegistrationQuery.InsertNodeRegistration(mockNodeRegistry)
-		wantQ := "INSERT OR IGNORE INTO node_registry (id,node_public_key,account_address,registration_height,node_address," +
-			"locked_balance,registration_status,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?)"
-		wantArg := []interface{}{
-			mockNodeRegistry.NodeID,
-			mockNodeRegistry.NodePublicKey,
-			mockNodeRegistry.AccountAddress,
-			mockNodeRegistry.RegistrationHeight,
-			mockNodeRegistrationQuery.ExtractNodeAddress(mockNodeRegistry.GetNodeAddress()),
-			mockNodeRegistry.LockedBalance,
-			mockNodeRegistry.RegistrationStatus,
-			mockNodeRegistry.Latest,
-			mockNodeRegistry.Height,
-		}
-		if q != wantQ {
-			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
-		}
-		if !reflect.DeepEqual(args, wantArg) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
-		}
-	})
-}
-
 func TestNodeRegistrationQuery_GetNodeRegistrations(t *testing.T) {
 	t.Run("GetNodeRegistrations", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetNodeRegistrations(0, 2)
