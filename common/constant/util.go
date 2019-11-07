@@ -38,7 +38,6 @@ func SetCheckVarInt32(key string, defaultVal int32) int32 {
 }
 
 func SetCheckVarUint32(key string, defaultVal uint32) uint32 {
-
 	if viper.GetUint32(key) != 0 && isDebug() {
 		return viper.GetUint32(key)
 	}

@@ -58,7 +58,7 @@ var (
 	p2pHost                                 *model.Host
 	peerExplorer                            strategy.PeerExplorerStrategyInterface
 	wellknownPeers                          []string
-	smithing, isDebugMode                   bool
+	smithing                                bool
 	nodeRegistrationService                 service.NodeRegistrationServiceInterface
 	sortedBlocksmiths                       []model.Blocksmith
 	mainchainProcessor                      smith.BlockchainProcessorInterface
@@ -76,13 +76,10 @@ func init() {
 	)
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configDir, "config-path", "./resource", "Usage")
-	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&envOverrideConfig, "env-override", false,
 		"boolean flag to enable overriding node configuration with system environment variables.")
 	flag.Parse()
-	if isDebugMode {
-		viper.Set("isDebug", true)
-	}
+
 	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)
 
 	initLogInstance()
@@ -278,7 +275,7 @@ func startServices() {
 		loggerAPIService,
 	)
 
-	if isDebugMode {
+	if viper.GetBool("debugFlag") {
 		go startNodeMonitoring()
 	}
 }
