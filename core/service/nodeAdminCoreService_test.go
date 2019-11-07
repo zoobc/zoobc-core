@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -16,6 +15,7 @@ import (
 type (
 	blockServiceMocked struct {
 		BlockService
+		height uint32
 	}
 )
 
@@ -41,15 +41,15 @@ var (
 	}
 )
 
-func (*blockServiceMocked) GetLastBlock() (*model.Block, error) {
+func (bsMock *blockServiceMocked) GetLastBlock() (*model.Block, error) {
 	return &model.Block{
-		Height: constant.BlockHeightOffset + 1,
+		Height: bsMock.height,
 	}, nil
 }
 
 func (*blockServiceMocked) GetBlockByHeight(height uint32) (*model.Block, error) {
 	return &model.Block{
-		Height: 1,
+		Height: height,
 	}, nil
 }
 
@@ -282,8 +282,10 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 		{
 			name: "GenerateProofOfOwnership:Success",
 			fields: fields{
-				BlockService: &blockServiceMocked{},
-				FilePath:     "testdata/node_keys.json",
+				BlockService: &blockServiceMocked{
+					height: 1,
+				},
+				FilePath: "testdata/node_keys.json",
 			},
 			args: args{
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
@@ -304,8 +306,10 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 		{
 			name: "GenerateProofOfOwnership:Success-{safeBlockHeight}",
 			fields: fields{
-				BlockService: &blockServiceMocked{},
-				FilePath:     "testdata/node_keys.json",
+				BlockService: &blockServiceMocked{
+					height: 11,
+				},
+				FilePath: "testdata/node_keys.json",
 			},
 			args: args{
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
