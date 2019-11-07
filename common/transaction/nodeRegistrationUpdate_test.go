@@ -322,12 +322,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		},
 	}
 
-	txBodyWithInvalidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
-		Poown: poown,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.x",
-		},
-	}
 	txBodyWithValidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
 		Poown: poown,
 		NodeAddress: &model.NodeAddress{
@@ -486,19 +480,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
 			wantErr: false,
-		},
-		{
-			name: "Validate:fail-{UpdateNodeAddress.InvalidIP}",
-			fields: fields{
-				Body:                  txBodyWithInvalidNodeAddress,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccessRU{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &mockAuthPoown{success: true},
-			},
-			wantErr: true,
 		},
 		{
 			name: "Validate:success-{UpdateNodeAddressValidURI}",
