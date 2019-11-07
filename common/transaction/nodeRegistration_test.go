@@ -875,13 +875,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
 	}
-	bodyWithInvalidNodeAddress := &model.NodeRegistrationTransactionBody{
-		Poown:         poown,
-		NodePublicKey: nodePubKey1,
-		NodeAddress: &model.NodeAddress{
-			Address: "invalidAddress",
-		},
-	}
 	txBody := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
@@ -1041,21 +1034,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Height:                1,
 				Body:                  bodyWithNullNodeAddress,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
-				AuthPoown:             &mockAuthPoown{success: true},
-			},
-			wantErr: true,
-		},
-		{
-			name: "Validate:fail-{InvalidNodeAddress}",
-			fields: fields{
-				Height:                1,
-				Body:                  bodyWithInvalidNodeAddress,
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),

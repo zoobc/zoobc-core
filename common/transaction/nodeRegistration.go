@@ -3,9 +3,6 @@ package transaction
 import (
 	"bytes"
 	"errors"
-	"net"
-	"net/url"
-	"strconv"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -245,18 +242,6 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	nodeAddress := tx.Body.GetNodeAddress()
 	if nodeAddress == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressEmpty")
-	}
-	_, err = url.ParseRequestURI(tx.NodeRegistrationQuery.ExtractNodeAddress(
-		nodeAddress,
-	))
-	if err != nil {
-		if ip := net.ParseIP(nodeAddress.GetAddress()); ip == nil {
-			return blocker.NewBlocker(blocker.ValidationErr, "InvalidNodeAddress:IP")
-		}
-		port := int(nodeAddress.GetPort())
-		if _, err := strconv.ParseUint(strconv.Itoa(port), 10, 16); err != nil {
-			return blocker.NewBlocker(blocker.ValidationErr, "InvalidNodeAddress:Port")
-		}
 	}
 
 	return nil
