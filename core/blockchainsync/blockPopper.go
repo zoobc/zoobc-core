@@ -73,7 +73,6 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	if err != nil {
 		return nil, err
 	}
-	log.Warnf("Prepared Backup mempool transactions with block_height more than %d, count: %d", commonBlock.GetHeight(), len(mempoolsBackup))
 
 	derivedQueries := query.GetDerivedQuery(bp.ChainType)
 	err = bp.QueryExecutor.BeginTx()
