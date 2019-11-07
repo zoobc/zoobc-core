@@ -1,9 +1,9 @@
 dbPath = "./resource/"
 dbName = "zoobc.db"
 badgerDbPath="./resource"
-badgerDbName="zoobc_1_kv/"
+badgerDbName="zoobc_5_kv/"
 configPath = "./resource/"
-nodeKeyFile = "node_keys.json"
+nodeKeyFile = "node_keys_5.json"
 
 # Peer
 peerPort=8001
@@ -16,7 +16,7 @@ apiHTTPPort=3031
 monitoringPort=9090
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "AFiTqqX99kYXjLFJJ2AWuzKK5zxYUT1Pn0p3s6lutkai"
+ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"
 
 smithing=true
 proofOfOwnershipReqTimeoutSec = 2
