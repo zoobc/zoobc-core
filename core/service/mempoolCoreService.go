@@ -35,7 +35,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
-		GetMempoolTransactionsByBlockHeight(height uint32) ([]*model.MempoolTransaction, error)
+		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -47,8 +47,9 @@ type (
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
+		BlockQuery          query.BlockQueryInterface
 		TransactionQuery    query.TransactionQueryInterface
+		Signature           crypto.SignatureInterface
 		Observer            *observer.Observer
 		Logger              *log.Logger
 	}
@@ -63,8 +64,9 @@ func NewMempoolService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
-	signature crypto.SignatureInterface,
+	blockQuery query.BlockQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
+	signature crypto.SignatureInterface,
 	observer *observer.Observer,
 	logger *log.Logger,
 ) *MempoolService {
@@ -80,6 +82,7 @@ func NewMempoolService(
 		TransactionQuery:    transactionQuery,
 		Observer:            observer,
 		Logger:              logger,
+		BlockQuery:          blockQuery,
 	}
 }
 
@@ -155,6 +158,15 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	if mempool != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
 	}
+
+	row := mps.QueryExecutor.ExecuteSelectRow(mps.BlockQuery.GetLastBlock())
+	var lastBlock model.Block
+	err = mps.BlockQuery.Scan(&lastBlock, row)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "GetLastBlockFail")
+	}
+
+	mpTx.BlockHeight = lastBlock.GetHeight()
 	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
 	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 	if err != nil {
@@ -296,7 +308,6 @@ func (mps *MempoolService) ReceivedTransaction(
 	mempoolTx = &model.MempoolTransaction{
 		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
-		BlockHeight:             lastBlock.GetHeight(),
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
 		SenderAccountAddress:    receivedTx.SenderAccountAddress,
@@ -479,14 +490,14 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	return nil
 }
 
-func (mps *MempoolService) GetMempoolTransactionsByBlockHeight(height uint32) ([]*model.MempoolTransaction, error) {
+func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error) {
 	var (
 		mempools []*model.MempoolTransaction
 		rows     *sql.Rows
 		err      error
 	)
 
-	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransactionsByHeight(height), false)
+	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransactionsWantToByHeight(height), false)
 	if err != nil {
 		return nil, err
 	}

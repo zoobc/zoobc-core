@@ -813,6 +813,8 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
+
 	return bs.TransactionQuery.BuildModel(transactions, rows)
 }
 
@@ -1120,18 +1122,7 @@ func (bs *BlockService) ReceiveBlock(
 			"previous block hash does not match with last block hash",
 		)
 	}
-	// check if the block broadcaster is the valid blocksmith
-	index := -1 // use index to determine if is in list, and who to punish
-	for i, bs := range *bs.SortedBlocksmiths {
-		if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr, "invalid blocksmith")
-	}
+
 	// base on index we can calculate punishment and reward
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())

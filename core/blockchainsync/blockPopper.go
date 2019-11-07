@@ -69,31 +69,37 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	}
 
 	// Backup existing transactions from mempool before rollback
-	mempoolsBackup, err = bp.MempoolService.GetMempoolTransactionsByBlockHeight(commonBlock.Height)
+	mempoolsBackup, err = bp.MempoolService.GetMempoolTransactionsWantToBackup(commonBlock.Height)
 	if err != nil {
 		return nil, err
 	}
+	log.Warnf("Prepared Backup mempool transactions with block_height more than %d, count: %d", commonBlock.GetHeight(), len(mempoolsBackup))
 
 	derivedQueries := query.GetDerivedQuery(bp.ChainType)
-	errTx := bp.QueryExecutor.BeginTx()
-	if errTx != nil {
-		return []*model.Block{}, errTx
+	err = bp.QueryExecutor.BeginTx()
+	if err != nil {
+		return []*model.Block{}, err
 	}
 
 	for _, dQuery := range derivedQueries {
 		queries := dQuery.Rollback(commonBlock.Height)
-		errTx = bp.QueryExecutor.ExecuteTransactions(queries)
-		if errTx != nil {
+		err = bp.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
 			_ = bp.QueryExecutor.RollbackTx()
-			return []*model.Block{}, errTx
+			return []*model.Block{}, err
 		}
 	}
-	errTx = bp.QueryExecutor.CommitTx()
-	if errTx != nil {
-		return []*model.Block{}, errTx
+	err = bp.QueryExecutor.CommitTx()
+	if err != nil {
+		return []*model.Block{}, err
 	}
 
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
+	err = bp.QueryExecutor.BeginTx()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+
 	for _, mempool := range mempoolsBackup {
 		var (
 			tx     *model.Transaction
@@ -121,9 +127,16 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
 		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
 	}
-	err = bp.KVDB.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+	err = bp.QueryExecutor.CommitTx()
 	if err != nil {
 		return nil, err
+	}
+
+	if mempoolsBackupBytes.Len() > 0 {
+		err = bp.KVDB.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return poppedBlocks, nil
 }

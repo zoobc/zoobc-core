@@ -202,6 +202,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 					nil,
 					nil,
 					nil,
+					nil,
 				),
 			},
 			args: args{
@@ -231,6 +232,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 					nil,
 					nil,
 					nil,
+					nil,
 				),
 			},
 			args: args{
@@ -255,6 +257,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 					query.NewMempoolQuery(chaintype.GetChainType(0)),
 					nil,
 					&transaction.TypeSwitcher{Executor: &mockPopOffToBlockReturnWantFailOnCommit{}},
+					nil,
 					nil,
 					nil,
 					nil,

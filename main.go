@@ -310,12 +310,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
 		query.NewMerkleTreeQuery(),
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		&transaction.TypeSwitcher{Executor: queryExecutor},
 		query.NewAccountBalanceQuery(),
-		crypto.NewSignature(),
+		query.NewBlockQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
 		observerInstance,
 		loggerCoreService,
 	)

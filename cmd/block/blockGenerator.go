@@ -108,8 +108,9 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		crypto.NewSignature(),
+		query.NewBlockQuery(chainType),
 		query.NewTransactionQuery(chainType),
+		crypto.NewSignature(),
 		observerInstance,
 		log.New(),
 	)

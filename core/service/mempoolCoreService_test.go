@@ -110,9 +110,10 @@ func TestNewMempoolService(t *testing.T) {
 		queryExecutor       query.ExecutorInterface
 		mempoolQuery        query.MempoolQueryInterface
 		merkleTreeQuery     query.MerkleTreeQueryInterface
-		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		transactionQuery    query.TransactionQueryInterface
+		blockQuery          query.BlockQueryInterface
+		actionTypeSwitcher  transaction.TypeActionSwitcher
 		obsr                *observer.Observer
 		signature           crypto.SignatureInterface
 		logger              *log.Logger
@@ -142,8 +143,9 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.merkleTreeQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
-		test.args.signature,
+		test.args.blockQuery,
 		test.args.transactionQuery,
+		test.args.signature,
 		test.args.obsr,
 		test.args.logger,
 	)
@@ -306,6 +308,31 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...inte
 func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
 	return nil
 }
+func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+	// While getting last block
+	db, mock, _ := sqlmock.New()
+	mockedRow := sqlmock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockedRow.AddRow(
+		mockBlockData.GetID(),
+		mockBlockData.GetBlockHash(),
+		mockBlockData.GetPreviousBlockHash(),
+		mockBlockData.GetHeight(),
+		mockBlockData.GetTimestamp(),
+		mockBlockData.GetBlockSeed(),
+		mockBlockData.GetBlockSignature(),
+		mockBlockData.GetCumulativeDifficulty(),
+		mockBlockData.GetSmithScale(),
+		mockBlockData.GetPayloadLength(),
+		mockBlockData.GetPayloadHash(),
+		mockBlockData.GetBlocksmithPublicKey(),
+		mockBlockData.GetTotalAmount(),
+		mockBlockData.GetTotalFee(),
+		mockBlockData.GetTotalCoinBase(),
+		mockBlockData.GetVersion(),
+	)
+	mock.ExpectQuery("").WillReturnRows(mockedRow)
+	return db.QueryRow("")
+}
 func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
 	return nil
 }
@@ -318,6 +345,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		MempoolQuery       query.MempoolQueryInterface
+		BlockQuery         query.BlockQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		Observer           *observer.Observer
 	}
@@ -335,6 +363,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 			fields: fields{
 				Chaintype:          &chaintype.MainChain{},
 				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				BlockQuery:         query.NewBlockQuery(chaintype.GetChainType(0)),
 				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 				Observer:           observer.NewObserver(),
@@ -365,6 +394,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				Chaintype:          tt.fields.Chaintype,
 				QueryExecutor:      tt.fields.QueryExecutor,
 				MempoolQuery:       tt.fields.MempoolQuery,
+				BlockQuery:         tt.fields.BlockQuery,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				Observer:           tt.fields.Observer,
 			}
@@ -916,13 +946,13 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 				Observer:            tt.fields.Observer,
 				Logger:              tt.fields.Logger,
 			}
-			got, err := mps.GetMempoolTransactionsByBlockHeight(tt.args.height)
+			got, err := mps.GetMempoolTransactionsWantToBackup(tt.args.height)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMempoolTransactionsByBlockHeight() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetMempoolTransactionsWantToBackup() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetMempoolTransactionsByBlockHeight() got = \n%v, want \n%v", got, tt.want)
+				t.Errorf("GetMempoolTransactionsWantToBackup() got = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
