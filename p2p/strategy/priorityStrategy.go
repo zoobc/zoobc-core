@@ -179,8 +179,8 @@ func (ps *PriorityStrategy) ValidateScrambleNode(node *model.Node) bool {
 
 // ValidatePriorityPeer, check peer is in priority list peer of host node
 func (ps *PriorityStrategy) ValidatePriorityPeer(host, peer *model.Node) bool {
-	scrambledNodes := ps.NodeRegistrationService.GetScrambledNodes()
 	if ps.ValidateScrambleNode(host) && ps.ValidateScrambleNode(peer) {
+		scrambledNodes := ps.NodeRegistrationService.GetScrambledNodes()
 		var (
 			hostIndex          = *scrambledNodes.IndexNodes[p2pUtil.GetFullAddress(host)]
 			peerIndex          = *scrambledNodes.IndexNodes[p2pUtil.GetFullAddress(peer)]
