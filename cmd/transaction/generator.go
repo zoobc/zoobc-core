@@ -37,14 +37,10 @@ func GenerateTxRegisterNode(
 	if err != nil {
 		panic(err)
 	}
-	nodeBlockHash, err := util.GetBlockHash(lastBlock)
-	if err != nil {
-		panic(err)
-	}
 	poowMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      nodeBlockHash,
-		BlockHeight:    lastBlock.GetHeight(),
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
 	}
 
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
@@ -86,14 +82,10 @@ func GenerateTxUpdateNode(
 	if err != nil {
 		panic(err)
 	}
-	nodeBlockHash, err := util.GetBlockHash(lastBlock)
-	if err != nil {
-		panic(err)
-	}
 	poowMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      nodeBlockHash,
-		BlockHeight:    lastBlock.GetHeight(),
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
 	}
 
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
@@ -154,14 +146,10 @@ func GenerateTxClaimNode(
 	if err != nil {
 		panic(err)
 	}
-	nodeBlockHash, err := util.GetBlockHash(lastBlock)
-	if err != nil {
-		panic(err)
-	}
 	poowMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      nodeBlockHash,
-		BlockHeight:    lastBlock.GetHeight(),
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
 	}
 
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
