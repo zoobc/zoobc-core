@@ -100,7 +100,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	lastBlockID := lastBlock.ID
 
 	if peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
-		return nil, errors.New(fmt.Sprintf("peer's cumulative difficulty %s:%s is lower/same with the current node's", peer.GetInfo().Address, peer.GetInfo().Port))
+		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's", peer.GetInfo().Address, peer.GetInfo().Port)
 	}
 
 	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
@@ -177,7 +177,7 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 
 	otherPeerCumulativeDifficulty, _ := new(big.Int).SetString(otherPeerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	if otherPeerCumulativeDifficulty.Cmp(currentLastBlockCumulativeDifficulty) <= 0 {
-		return []int64{}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("peer's cumulative difficulty %s:%s is lower than ours",
+		return []int64{}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("peer's cumulative difficulty %s:%v is lower than ours",
 			peerToCheck.GetInfo().Address, peerToCheck.GetInfo().Port))
 	}
 
