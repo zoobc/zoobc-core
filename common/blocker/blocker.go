@@ -17,6 +17,7 @@ type (
 
 var (
 	DBErr                   TypeBlocker = "DBErr"
+	DBRowNotFound           TypeBlocker = "DBRowNotFound"
 	BlockErr                TypeBlocker = "BlockErr"
 	BlockNotFoundErr        TypeBlocker = "BlockNotFoundErr"
 	RequestParameterErr     TypeBlocker = "RequestParameterErr"

@@ -79,7 +79,6 @@ func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64) string 
 	}
 
 	query = query + " ORDER BY block_height, timestamp" + fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
-
 	return query
 }
 

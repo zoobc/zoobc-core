@@ -1,25 +1,38 @@
 package blockchainsync
 
 import (
+	"bytes"
 	"fmt"
-
-	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
 type BlockPopper struct {
-	BlockService  service.BlockServiceInterface
-	QueryExecutor query.ExecutorInterface
-	ChainType     chaintype.ChainType
+	BlockService       service.BlockServiceInterface
+	MempoolService     service.MempoolServiceInterface
+	QueryExecutor      query.ExecutorInterface
+	ChainType          chaintype.ChainType
+	ActionTypeSwitcher transaction.TypeActionSwitcher
+	KVDB               kvdb.KVExecutorInterface
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
 func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
+
+	var (
+		mempoolsBackupBytes *bytes.Buffer
+		mempoolsBackup      []*model.MempoolTransaction
+		err                 error
+	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
@@ -38,7 +51,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	poppedBlocks := []*model.Block{}
+	var poppedBlocks []*model.Block
 	block := lastBlock
 	txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 	block.Transactions = txs
@@ -55,23 +68,74 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		block.Transactions = txs
 	}
 
+	// Backup existing transactions from mempool before rollback
+	mempoolsBackup, err = bp.MempoolService.GetMempoolTransactionsWantToBackup(commonBlock.Height)
+	if err != nil {
+		return nil, err
+	}
+
 	derivedQueries := query.GetDerivedQuery(bp.ChainType)
-	errTx := bp.QueryExecutor.BeginTx()
-	if errTx != nil {
-		return []*model.Block{}, errTx
+	err = bp.QueryExecutor.BeginTx()
+	if err != nil {
+		return []*model.Block{}, err
 	}
 
 	for _, dQuery := range derivedQueries {
 		queries := dQuery.Rollback(commonBlock.Height)
-		errTx = bp.QueryExecutor.ExecuteTransactions(queries)
-		if errTx != nil {
+		err = bp.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
 			_ = bp.QueryExecutor.RollbackTx()
-			return []*model.Block{}, errTx
+			return []*model.Block{}, err
 		}
 	}
-	errTx = bp.QueryExecutor.CommitTx()
-	if errTx != nil {
-		return []*model.Block{}, errTx
+	err = bp.QueryExecutor.CommitTx()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+
+	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
+	err = bp.QueryExecutor.BeginTx()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+
+	for _, mempool := range mempoolsBackup {
+		var (
+			tx     *model.Transaction
+			txType transaction.TypeAction
+		)
+		tx, err := transaction.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
+		if err != nil {
+			return nil, err
+		}
+		txType, err = bp.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		err = txType.UndoApplyUnconfirmed()
+		if err != nil {
+			return nil, err
+		}
+		/*
+			mempoolsBackupBytes format is
+			[...{4}byteSize,[bytesSize]transactionBytes]
+		*/
+		// TODO: Need to restore the backups from badger while getting mempool transactions before PushBlock process
+		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
+		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
+		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
+	}
+	err = bp.QueryExecutor.CommitTx()
+	if err != nil {
+		return nil, err
+	}
+
+	if mempoolsBackupBytes.Len() > 0 {
+		err = bp.KVDB.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return poppedBlocks, nil
 }
