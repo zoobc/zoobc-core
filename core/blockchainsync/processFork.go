@@ -7,13 +7,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/query"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
-	commonUtil "github.com/zoobc/zoobc-core/common/util"
-
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 

@@ -24,7 +24,7 @@ func TestNewMempoolTransactionsService(t *testing.T) {
 		want *MempoolTransactionService
 	}{
 		{
-			name: "NewMempoolTranscationService",
+			name: "NewMempoolTransactionService",
 			args: args{
 				queryExecutor: &query.Executor{},
 			},
@@ -72,6 +72,7 @@ func (*mockQueryExecutorGetMempoolTXs) ExecuteSelect(qStr string, tx bool, args 
 			WillReturnRows(sqlmock.NewRows(query.NewMempoolQuery(&chaintype.MainChain{}).Fields).
 				AddRow(
 					1,
+					0,
 					1,
 					1000,
 					make([]byte, 88),
@@ -215,6 +216,7 @@ func (*mockQueryExecutorGetMempoolTXSuccess) ExecuteSelectRow(qStr string, args 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows(query.NewMempoolQuery(&chaintype.MainChain{}).Fields).AddRow(
 			1,
+			0,
 			1,
 			1000,
 			make([]byte, 88),

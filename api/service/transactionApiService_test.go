@@ -206,8 +206,13 @@ func TestNewTransactionService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewTransactionService(query.NewQueryExecutor(db),
-				nil, nil, nil, nil); !reflect.DeepEqual(got, tt.want) {
+			if got := NewTransactionService(
+				query.NewQueryExecutor(db),
+				nil,
+				nil,
+				nil,
+				nil,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
 			defer resetTransactionService()

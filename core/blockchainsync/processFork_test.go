@@ -145,7 +145,8 @@ func (*mockServiceBlockFailGetLastBlock) GetBlockByID(int64) (*model.Block, erro
 
 func (*mockServiceBlockFailGetLastBlock) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
 	transaction := []*model.Transaction{
-		{Version: 1,
+		{
+			Version: 1,
 			ID:      789,
 			BlockID: 40,
 			Height:  69,
