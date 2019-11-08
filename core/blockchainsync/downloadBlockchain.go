@@ -55,7 +55,7 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
 	afterDownloadLastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
-		bd.Logger.Error("failed to get the last block state after block download")
+		bd.Logger.Warnf("failed to get the last block state after block download: %v\n", err)
 		return false
 	}
 	heightAfterDownload := afterDownloadLastBlock.Height
