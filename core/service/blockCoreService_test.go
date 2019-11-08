@@ -10,8 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
 	"github.com/sirupsen/logrus"
@@ -26,6 +24,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -1630,6 +1629,27 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 	}
 }
 
+type (
+	mockAddGenesisExecutor struct {
+		query.Executor
+	}
+)
+
+func (*mockAddGenesisExecutor) BeginTx() error    { return nil }
+func (*mockAddGenesisExecutor) RollbackTx() error { return nil }
+func (*mockAddGenesisExecutor) CommitTx() error   { return nil }
+func (*mockAddGenesisExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+func (*mockAddGenesisExecutor) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields),
+	)
+	return db.Query(qStr)
+}
+
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1643,6 +1663,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
+		Logger                  *logrus.Logger
 	}
 	tests := []struct {
 		name    string
@@ -1658,11 +1679,12 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				MempoolService:          &mockMempoolServiceSelectFail{},
 				ActionTypeSwitcher:      &mockTypeActionSuccess{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
+				QueryExecutor:           &mockAddGenesisExecutor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				Logger:                  log.New(),
 			},
 			wantErr: false,
 		},
@@ -1681,6 +1703,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Logger:                  tt.fields.Logger,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)

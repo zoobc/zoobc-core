@@ -9,14 +9,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/p2p/client"
-	"github.com/zoobc/zoobc-core/p2p/strategy"
-
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/p2p/client"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
 
 type (
@@ -238,7 +237,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		start += uint32(len(nextBlocks))
 	}
 
-	blocksToBeProcessed := []*model.Block{}
+	var blocksToBeProcessed []*model.Block
 	for _, blockSegment := range blocksSegments {
 		for i := 0; i < len(blockSegment); i++ {
 			if coreUtil.IsBlockIDExist(chainBlockIds, blockSegment[i].ID) {

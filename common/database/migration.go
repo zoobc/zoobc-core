@@ -199,6 +199,10 @@ func (m *Migration) Init() error {
 				"blocksmith_index" INTEGER
 			)
 			`,
+			`
+			ALTER TABLE "mempool"
+				ADD COLUMN "block_height" INTEGER AFTER "id"
+			`,
 		}
 		return nil
 	}

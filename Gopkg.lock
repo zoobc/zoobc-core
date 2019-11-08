@@ -84,6 +84,14 @@
   version = "v1.2.4"
 
 [[projects]]
+  digest = "1:be408f349cae090a7c17a279633d6e62b00068e64af66a582cae0983de8890ea"
+  name = "github.com/golang/mock"
+  packages = ["gomock"]
+  pruneopts = "UT"
+  revision = "9fa652df1129bef0e734c9cf9bf6dbae9ef3b9fa"
+  version = "1.3.1"
+
+[[projects]]
   digest = "1:e3839df32927e8d3403cd5aa7253d966e8ff80fc8f10e2e35d146461cd83fcfa"
   name = "github.com/golang/protobuf"
   packages = [
@@ -524,6 +532,7 @@
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
     "github.com/dgraph-io/badger",
+    "github.com/golang/mock/gomock",
     "github.com/golang/protobuf/proto",
     "github.com/google/go-cmp/cmp",
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
