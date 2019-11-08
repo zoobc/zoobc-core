@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"math/big"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -105,7 +106,10 @@ func CalculateSmithScale(
 		block.SmithScale = previousBlock.GetSmithScale()
 	}
 	two64, _ := new(big.Int).SetString(constant.Two64, 0)
-	previousBlockCumulativeDifficulty, _ := new(big.Int).SetString(previousBlock.GetCumulativeDifficulty(), 10)
+	previousBlockCumulativeDifficulty, isParsed := new(big.Int).SetString(previousBlock.GetCumulativeDifficulty(), 10)
+	if !isParsed {
+		return nil, blocker.NewBlocker(blocker.ParserErr, "Faild parse cumulativeDifficulty block")
+	}
 	block.CumulativeDifficulty = new(big.Int).Add(
 		previousBlockCumulativeDifficulty,
 		new(big.Int).Div(two64, big.NewInt(block.GetSmithScale()))).String()

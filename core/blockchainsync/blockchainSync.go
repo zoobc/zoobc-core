@@ -97,6 +97,9 @@ func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
 }
 
 func (bss *Service) getMoreBlocks(runNext chan bool) {
+	// Pausing another process when they are using blockService.ChainWriteLock()
+	bss.BlockService.ChainWriteLock()
+	defer bss.BlockService.ChainWriteUnlock()
 	bss.Logger.Info("Get more blocks...")
 	// notify observer about start of blockchain download of this specific chain
 
@@ -113,9 +116,6 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 	// bss.BlockService.ChainWriteLock()
 	// defer bss.BlockService.ChainWriteUnlock()
 	func() {
-		bss.BlockService.ChainWriteLock()
-		defer bss.BlockService.ChainWriteUnlock()
-
 		var (
 			err                    error
 			peerBlockchainInfo     *PeerBlockchainInfo
