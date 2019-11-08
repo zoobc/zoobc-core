@@ -771,6 +771,11 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 	}
 
 	if len(blocks) > 0 {
+		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		blocks[0].Transactions = transactions
 		return blocks[0], nil
 	}
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
@@ -793,26 +798,17 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock(), false)
+	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-	var blocks []*model.Block
-	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
 
-	if len(blocks) > 0 {
-		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		blocks[0].Transactions = transactions
-		return blocks[0], nil
+	transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "last block is not found")
+	lastBlock.Transactions = transactions
+	return lastBlock, nil
 }
 
 // GetTransactionsByBlockID get transactions of the block
@@ -849,22 +845,18 @@ func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height), false)
+	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-	var blocks []*model.Block
-	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+
+	transactions, err := bs.GetTransactionsByBlockID(block.ID)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	block.Transactions = transactions
 
-	if len(blocks) > 0 {
-		return blocks[0], nil
-	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block with height %v is not found", height))
-
+	return block, nil
 }
 
 // GetGenesis return the last pushed block
