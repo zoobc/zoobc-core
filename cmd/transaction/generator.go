@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -234,6 +235,9 @@ func GenerateBasicTransaction(senderSeed string,
 	recipientAccountAddress string,
 ) *model.Transaction {
 	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+	if timestamp <= 0 {
+		timestamp = time.Now().Unix()
+	}
 	return &model.Transaction{
 		Version:                 version,
 		Timestamp:               timestamp,
