@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -24,7 +23,6 @@ type (
 		GetBlacklistedPeers() map[string]*model.Peer
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
-		PeerExplorerListener() observer.Listener
 		ValidateRequest(ctx context.Context) bool
 	}
 )
