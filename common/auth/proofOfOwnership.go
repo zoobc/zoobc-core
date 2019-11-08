@@ -43,7 +43,6 @@ func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
 		return err
 	}
 
-	//TODO: refactor this using blockExecutor when implemented
 	lastBlock, err := util.GetLastBlock(queryExecutor, blockQuery)
 	if err != nil {
 		return err
@@ -57,11 +56,7 @@ func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
 	if err != nil {
 		return err
 	}
-	poownBlockHashRef, err := util.GetBlockHash(poownBlockRef)
-	if err != nil {
-		return err
-	}
-	if !bytes.Equal(poownBlockHashRef, message.BlockHash) {
+	if !bytes.Equal(poownBlockRef.BlockHash, message.BlockHash) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 	}
 	return nil
