@@ -75,8 +75,8 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 0,
 				maxReceipt:      0,
 			},
-			want:    0,
-			wantErr: true,
+			want:    constant.MaxScoreChange,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

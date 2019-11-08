@@ -3,18 +3,13 @@ package smith
 import (
 	"math"
 	"math/big"
-	"sort"
+	"reflect"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-
-	"github.com/zoobc/zoobc-core/observer"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -24,7 +19,6 @@ type (
 	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
 	BlockchainProcessorInterface interface {
 		CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith
-		SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener
 		StartSmithing() error
 		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
 	}
@@ -36,6 +30,7 @@ type (
 		BlockService            service.BlockServiceInterface
 		NodeRegistrationService service.NodeRegistrationServiceInterface
 		LastBlockID             int64
+		canSmith                bool
 		Logger                  *log.Logger
 	}
 )
@@ -158,6 +153,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.BlockService.ChainWriteLock()
 	defer bp.BlockService.ChainWriteUnlock()
 
+	var blocksmithIndex = -1
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return blocker.NewBlocker(
@@ -166,6 +162,19 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	if lastBlock.GetID() != bp.LastBlockID {
 		bp.LastBlockID = lastBlock.GetID()
+		bp.BlockService.SortBlocksmiths(lastBlock)
+		// check if eligible to create block in this round
+		for i, bs := range *(bp.BlockService.GetSortedBlocksmiths()) {
+			if reflect.DeepEqual(bs.NodePublicKey, bp.Generator.NodePublicKey) {
+				blocksmithIndex = i
+				break
+			}
+		}
+		if blocksmithIndex < 0 {
+			bp.canSmith = false
+			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
+		}
+		bp.canSmith = true
 		// if lastBlock.Timestamp > time.Now().Unix()-bp.Chaintype.GetChainSmithingDelayTime()*10 {
 		// TODO: andy-shi88
 		// pop off last block if has been absent for 10*delay
@@ -173,6 +182,9 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		// }
 		// caching: only calculate smith time once per new block
 		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
+	}
+	if !bp.canSmith {
+		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 	}
 	if bp.Generator.SmithTime > smithMax {
 		return nil
@@ -207,37 +219,4 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	return nil
-}
-
-func (bp *BlockchainProcessor) SortBlocksmith(sortedBlocksmiths *[]model.Blocksmith) observer.Listener {
-	return observer.Listener{
-		OnNotify: func(block interface{}, args interface{}) {
-			// fetch valid blocksmiths
-			lastBlock := block.(*model.Block)
-			var blocksmiths []model.Blocksmith
-			nextBlocksmiths, err := bp.BlockService.GetBlocksmiths(lastBlock)
-			if err != nil {
-				bp.Logger.Errorf("SortBlocksmith: %s", err)
-				return
-			}
-			// copy the nextBlocksmiths pointers array into an array of blocksmiths
-			for _, blocksmith := range nextBlocksmiths {
-				blocksmiths = append(blocksmiths, *blocksmith)
-			}
-			// sort blocksmiths by SmithOrder
-			sort.SliceStable(blocksmiths, func(i, j int) bool {
-				bi, bj := blocksmiths[i], blocksmiths[j]
-				res := bi.SmithOrder.Cmp(bj.SmithOrder)
-				if res == 0 {
-					// compare node ID
-					nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-					nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-					res = nodePKI.Cmp(nodePKJ)
-				}
-				// ascending sort
-				return res < 0
-			})
-			*sortedBlocksmiths = blocksmiths
-		},
-	}
 }

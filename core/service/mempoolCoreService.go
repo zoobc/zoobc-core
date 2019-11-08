@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"errors"
 	"sort"
 	"time"
 
@@ -36,6 +35,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
+		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -47,8 +47,9 @@ type (
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
 		ActionTypeSwitcher  transaction.TypeActionSwitcher
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
+		BlockQuery          query.BlockQueryInterface
 		TransactionQuery    query.TransactionQueryInterface
+		Signature           crypto.SignatureInterface
 		Observer            *observer.Observer
 		Logger              *log.Logger
 	}
@@ -63,8 +64,9 @@ func NewMempoolService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
-	signature crypto.SignatureInterface,
+	blockQuery query.BlockQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
+	signature crypto.SignatureInterface,
 	observer *observer.Observer,
 	logger *log.Logger,
 ) *MempoolService {
@@ -80,6 +82,7 @@ func NewMempoolService(
 		TransactionQuery:    transactionQuery,
 		Observer:            observer,
 		Logger:              logger,
+		BlockQuery:          blockQuery,
 	}
 }
 
@@ -106,29 +109,32 @@ func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction
 
 // GetMempoolTransaction return a mempool transaction by its ID
 func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransaction, error) {
-	rows, err := mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), false, id)
+	var (
+		rows *sql.Rows
+		mpTx []*model.MempoolTransaction
+		err  error
+	)
+
+	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), false, id)
 	if err != nil {
-		return &model.MempoolTransaction{
-			ID: -1,
-		}, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 
-	var mpTx []*model.MempoolTransaction
 	mpTx, err = mps.MempoolQuery.BuildModel(mpTx, rows)
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	if len(mpTx) > 0 {
 		return mpTx[0], nil
 	}
-	return &model.MempoolTransaction{
-		ID: -1,
-	}, errors.New("MempoolTransactionNotFound")
+
+	return nil, blocker.NewBlocker(blocker.DBRowNotFound, "MempoolTransactionNotFound")
 }
 
 // AddMempoolTransaction validates and insert a transaction into the mempool
 func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+
 	// check maximum mempool
 	if constant.MaxMempoolTransactions > 0 {
 		var count int
@@ -143,15 +149,26 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	}
 
 	// check if already in db
-	_, err := mps.GetMempoolTransaction(mpTx.ID)
-	if err == nil {
-		return errors.New("DuplicateRecordAttempted")
+	mempool, err := mps.GetMempoolTransaction(mpTx.ID)
+	if err != nil {
+		if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type != blocker.DBRowNotFound {
+			return blocker.NewBlocker(blocker.ValidationErr, blockErr.Message)
+		}
 	}
-	if err.Error() != "MempoolTransactionNotFound" {
-		return errors.New("DatabaseError")
+	if mempool != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
 	}
 
-	err = mps.QueryExecutor.ExecuteTransaction(mps.MempoolQuery.InsertMempoolTransaction(), mps.MempoolQuery.ExtractModel(mpTx)...)
+	row := mps.QueryExecutor.ExecuteSelectRow(mps.BlockQuery.GetLastBlock())
+	var lastBlock model.Block
+	err = mps.BlockQuery.Scan(&lastBlock, row)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "GetLastBlockFail")
+	}
+
+	mpTx.BlockHeight = lastBlock.GetHeight()
+	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
+	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 	if err != nil {
 		return err
 	}
@@ -169,45 +186,46 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.ID)
 	row := mps.QueryExecutor.ExecuteSelectRow(transactionQ)
 	err = mps.TransactionQuery.Scan(&tx, row)
-	if tx.ID != 0 {
-		return blocker.NewBlocker(
-			blocker.DuplicateTransactionErr,
-			"mempool validation: duplicate transaction",
-		)
-	}
-	if err != sql.ErrNoRows {
+	if err != nil && err != sql.ErrNoRows {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+
+	if mpTx.GetID() == tx.GetID() {
+		return blocker.NewBlocker(blocker.ValidationErr, "MempoolDuplicated")
+	}
+
 	// check for duplication in mempool table
 	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
 	row = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, mpTx.ID)
 	err = mps.MempoolQuery.Scan(&mempoolTx, row)
-	if mempoolTx.ID != 0 {
-		return blocker.NewBlocker(
-			blocker.DuplicateMempoolErr,
-			"mempool validation: duplicate mempool",
-		)
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
 	}
-	if err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	if mpTx.GetID() == mempoolTx.GetID() {
+		return blocker.NewBlocker(blocker.ValidationErr, "MempoolDuplicated")
 	}
 
 	parsedTx, err = transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
 	if err := transaction.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
-		return err
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
+
 	err = txType.Validate(false)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
+
 	return nil
 }
 
@@ -470,4 +488,24 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		return err
 	}
 	return nil
+}
+
+func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error) {
+	var (
+		mempools []*model.MempoolTransaction
+		rows     *sql.Rows
+		err      error
+	)
+
+	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransactionsWantToByHeight(height), false)
+	if err != nil {
+		return nil, err
+	}
+
+	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return mempools, nil
 }

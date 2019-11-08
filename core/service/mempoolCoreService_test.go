@@ -19,18 +19,13 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 )
 
-type (
-	mockMempoolQueryExecutorSuccess struct {
-		query.Executor
-	}
-)
-
 var (
-	getTxByIDQuery = "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
+	getTxByIDQuery = "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
 		"recipient_account_address FROM mempool WHERE id = :id"
 	mockMempoolQuery       = query.NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempoolTransaction = &model.MempoolTransaction{
 		ID:                      1,
+		BlockHeight:             0,
 		ArrivalTimestamp:        1000,
 		FeePerByte:              10,
 		TransactionBytes:        []byte{1, 2, 3, 4, 5},
@@ -40,39 +35,6 @@ var (
 )
 
 var _ = mockMempoolTransaction
-
-func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	case getTxByIDQuery:
-		return nil, errors.New("MempoolTransactionNotFound")
-	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
-		"WHERE account_address = ? AND latest = 1":
-		mockedRows := sqlmock.NewRows([]string{"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"})
-		mockedRows.AddRow("BCZ", 1, 1000, 10000, nil, 1)
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
-	return nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
-	return nil
-}
-
-func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
-	return nil
-}
 
 type mockMempoolQueryExecutorFail struct {
 	query.Executor
@@ -84,9 +46,9 @@ func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, tx bool, args ...i
 	switch qe {
 	// before adding mempool transactions to db we check for duplicate transactions
 	case getTxByIDQuery:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "fee_per_byte", "arrival_timestamp", "transaction_bytes", "sender_account_address", "recipient_account_address"},
-		).AddRow(3, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewMempoolQuery(chaintype.GetChainType(0)).Fields,
+		).AddRow(3, 0, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
 	default:
 		return nil, errors.New("MockedError")
 	}
@@ -132,6 +94,7 @@ func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransact
 	txBytes, _ = transaction.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
+		BlockHeight:             0,
 		FeePerByte:              1,
 		ArrivalTimestamp:        timestamp,
 		TransactionBytes:        txBytes,
@@ -147,9 +110,10 @@ func TestNewMempoolService(t *testing.T) {
 		queryExecutor       query.ExecutorInterface
 		mempoolQuery        query.MempoolQueryInterface
 		merkleTreeQuery     query.MerkleTreeQueryInterface
-		actionTypeSwitcher  transaction.TypeActionSwitcher
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		transactionQuery    query.TransactionQueryInterface
+		blockQuery          query.BlockQueryInterface
+		actionTypeSwitcher  transaction.TypeActionSwitcher
 		obsr                *observer.Observer
 		signature           crypto.SignatureInterface
 		logger              *log.Logger
@@ -179,8 +143,9 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.merkleTreeQuery,
 		test.args.actionTypeSwitcher,
 		test.args.accountBalanceQuery,
-		test.args.signature,
+		test.args.blockQuery,
 		test.args.transactionQuery,
+		test.args.signature,
 		test.args.obsr,
 		test.args.logger,
 	)
@@ -203,11 +168,11 @@ func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, 
 	defer db.Close()
 
 	mockedRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
-	mockedRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-	mockedRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-	mockedRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-	mockedRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-	mockedRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+	mockedRows.AddRow(1, 0, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
+	mockedRows.AddRow(2, 0, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
+	mockedRows.AddRow(3, 0, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
+	mockedRows.AddRow(4, 0, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
+	mockedRows.AddRow(5, 0, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -314,11 +279,73 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 	}
 }
 
+type (
+	mockMempoolQueryExecutorSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockMempoolQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance " +
+		"WHERE account_address = ? AND latest = 1":
+		mockedRows := sqlmock.NewRows([]string{"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"})
+		mockedRows.AddRow("BCZ", 1, 1000, 10000, nil, 1)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	default:
+		mockedRows := sqlmock.NewRows(mockMempoolQuery.Fields)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	}
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
+	return nil, nil
+}
+func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
+	return nil
+}
+func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+	// While getting last block
+	db, mock, _ := sqlmock.New()
+	mockedRow := sqlmock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockedRow.AddRow(
+		mockBlockData.GetID(),
+		mockBlockData.GetBlockHash(),
+		mockBlockData.GetPreviousBlockHash(),
+		mockBlockData.GetHeight(),
+		mockBlockData.GetTimestamp(),
+		mockBlockData.GetBlockSeed(),
+		mockBlockData.GetBlockSignature(),
+		mockBlockData.GetCumulativeDifficulty(),
+		mockBlockData.GetSmithScale(),
+		mockBlockData.GetPayloadLength(),
+		mockBlockData.GetPayloadHash(),
+		mockBlockData.GetBlocksmithPublicKey(),
+		mockBlockData.GetTotalAmount(),
+		mockBlockData.GetTotalFee(),
+		mockBlockData.GetTotalCoinBase(),
+		mockBlockData.GetVersion(),
+	)
+	mock.ExpectQuery("").WillReturnRows(mockedRow)
+	return db.QueryRow("")
+}
+func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
+	return nil
+}
+func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
+	return nil
+}
+
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	type fields struct {
 		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
 		MempoolQuery       query.MempoolQueryInterface
+		BlockQuery         query.BlockQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		Observer           *observer.Observer
 	}
@@ -336,6 +363,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 			fields: fields{
 				Chaintype:          &chaintype.MainChain{},
 				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				BlockQuery:         query.NewBlockQuery(chaintype.GetChainType(0)),
 				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 				Observer:           observer.NewObserver(),
@@ -366,6 +394,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				Chaintype:          tt.fields.Chaintype,
 				QueryExecutor:      tt.fields.QueryExecutor,
 				MempoolQuery:       tt.fields.MempoolQuery,
+				BlockQuery:         tt.fields.BlockQuery,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				Observer:           tt.fields.Observer,
 			}
@@ -436,11 +465,11 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(abRows)
 	default:
 		mtxRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
-		mtxRows.AddRow(1, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-		mtxRows.AddRow(2, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-		mtxRows.AddRow(3, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-		mtxRows.AddRow(4, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-		mtxRows.AddRow(5, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+		mtxRows.AddRow(1, 0, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
+		mtxRows.AddRow(2, 0, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
+		mtxRows.AddRow(3, 0, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
+		mtxRows.AddRow(4, 0, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
+		mtxRows.AddRow(5, 0, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mtxRows)
 	}
 	rows, _ := db.Query(qe)
@@ -770,6 +799,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(mockMempoolQuery.Fields).AddRow(
 			1,
+			0,
 			1000,
 			10,
 			[]byte{1, 0, 0, 0, 1, 210, 225, 121, 93, 0, 0, 0, 0, 44, 0, 0, 0, 110, 75, 95, 111, 117, 120, 100, 68,
@@ -838,6 +868,91 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 			}
 			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockGetMempoolTransactionsByBlockHeightExecutor struct {
+		query.Executor
+	}
+)
+
+func (*mockGetMempoolTransactionsByBlockHeightExecutor) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields).AddRow(
+			1,
+			0,
+			10,
+			1000,
+			[]byte{1, 2, 3, 4, 5},
+			"BCZ",
+			"ZCB",
+		),
+	)
+	return db.Query("")
+}
+
+func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+		Logger              *log.Logger
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.MempoolTransaction
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:  query.NewMempoolQuery(chaintype.GetChainType(0)),
+			},
+			args: args{height: 0},
+			want: []*model.MempoolTransaction{mockMempoolTransaction},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mps := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+				Logger:              tt.fields.Logger,
+			}
+			got, err := mps.GetMempoolTransactionsWantToBackup(tt.args.height)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetMempoolTransactionsWantToBackup() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetMempoolTransactionsWantToBackup() got = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

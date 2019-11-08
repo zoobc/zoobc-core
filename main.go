@@ -235,8 +235,8 @@ func initP2pInstance() {
 	peerExplorer = strategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
+		nodeRegistrationService,
 		queryExecutor,
-		query.NewNodeRegistrationQuery(),
 		loggerP2PService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
@@ -251,8 +251,6 @@ func initObserverListeners() {
 	// init observer listeners
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
-	observerInstance.AddListener(observer.BlockPushed, mainchainProcessor.SortBlocksmith(&sortedBlocksmiths))
-	observerInstance.AddListener(observer.BlockPushed, peerExplorer.PeerExplorerListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 }
 
@@ -272,6 +270,7 @@ func startServices() {
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
+		nodeRegistrationService,
 		ownerAccountAddress,
 		nodeKeyFilePath,
 		loggerAPIService,
@@ -303,6 +302,10 @@ func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 }
 
 func startMainchain(mainchainSyncChannel chan bool) {
+	var (
+		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
+		err                                         error
+	)
 	mainchain := &chaintype.MainChain{}
 	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
@@ -311,12 +314,11 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
 		query.NewMerkleTreeQuery(),
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		&transaction.TypeSwitcher{Executor: queryExecutor},
 		query.NewAccountBalanceQuery(),
-		crypto.NewSignature(),
+		query.NewBlockQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
 		observerInstance,
 		loggerCoreService,
 	)
@@ -335,6 +337,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		query.NewTransactionQuery(mainchain),
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -348,6 +351,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+
 	mainchainProcessor = smith.NewBlockchainProcessor(
 		mainchain,
 		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
@@ -367,14 +371,26 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		}
 	}
 
-	// Check computer/node local time. Comparing with last block timestamp
-	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
-	lastBlock, err := mainchainBlockService.GetLastBlock()
+	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	if time.Now().Unix() < lastBlock.GetTimestamp() {
+
+	// Check computer/node local time. Comparing with last block timestamp
+	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
+	if time.Now().Unix() < lastBlockAtStart.GetTimestamp() {
 		loggerCoreService.Fatal("Your computer clock is behind from the correct time")
+	}
+
+	// initializing scrambled nodes
+	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
+	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	err = nodeRegistrationService.BuildScrambledNodes(blockToBuildScrambleNodes)
+	if err != nil {
+		loggerCoreService.Fatal(err)
 	}
 
 	// no nodes registered with current node public key
@@ -394,6 +410,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		mempoolService,
 		actionSwitcher,
 		loggerCoreService,
+		kvExecutor,
 	)
 
 	go func() {

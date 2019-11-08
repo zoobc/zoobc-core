@@ -13,7 +13,6 @@ import (
 
 type (
 	NodeRegistrationQueryInterface interface {
-		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
@@ -26,7 +25,7 @@ type (
 		GetNodeRegistryAtHeight(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
-		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith
+		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
@@ -57,17 +56,6 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 
 func (nrq *NodeRegistrationQuery) getTableName() string {
 	return nrq.TableName
-}
-
-func (nrq *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
-	// the OR IGNORE clause is added as a failsafe in case two InsertNodeRegistraiton happens at the same block height
-	// Since there is no way to know which one should take precedence, after the first one is executed, the other ones are ignored
-	return fmt.Sprintf(
-		"INSERT OR IGNORE INTO %s (%s) VALUES(%s)",
-		nrq.getTableName(),
-		strings.Join(nrq.Fields, ","),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nrq.Fields)-1)),
-	), nrq.ExtractModel(nodeRegistration)
 }
 
 // UpdateNodeRegistration returns a slice of two queries.
@@ -172,7 +160,6 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string 
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
 func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []interface{} {
-
 	return []interface{}{
 		tx.NodeID,
 		tx.NodePublicKey,
@@ -198,7 +185,10 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 		dumpString              string
 	)
 
-	columns, _ := rows.Columns()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < len(columns)-len(nrq.Fields); i++ {
 		ignoredAggregateColumns = append(ignoredAggregateColumns, &dumpString)
 	}
@@ -222,29 +212,36 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 			&nr.Height,
 		)
 		basicFieldsReceiver = append(basicFieldsReceiver, ignoredAggregateColumns...)
-		_ = rows.Scan(basicFieldsReceiver...)
-
+		err := rows.Scan(basicFieldsReceiver...)
+		if err != nil {
+			return nil, err
+		}
 		nr.NodeAddress = nrq.BuildNodeAddress(fullNodeAddress)
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations, nil
 }
 
-func (*NodeRegistrationQuery) BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) []*model.Blocksmith {
+func (*NodeRegistrationQuery) BuildBlocksmith(
+	blocksmiths []*model.Blocksmith, rows *sql.Rows,
+) ([]*model.Blocksmith, error) {
 	for rows.Next() {
 		var (
 			blocksmith  model.Blocksmith
 			scoreString string
 		)
-		_ = rows.Scan(
+		err := rows.Scan(
 			&blocksmith.NodeID,
 			&blocksmith.NodePublicKey,
 			&scoreString,
 		)
+		if err != nil {
+			return nil, err
+		}
 		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
 		blocksmiths = append(blocksmiths, &blocksmith)
 	}
-	return blocksmiths
+	return blocksmiths, nil
 }
 
 // Rollback delete records `WHERE block_height > `height`
