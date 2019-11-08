@@ -12,14 +12,12 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
-
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -325,7 +323,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 			return err
 		}
 
-		// if cumulative difficulty of the referece block is > of the one of the (new) block, new block is invalid
+		// if cumulative difficulty of the reference block is > of the one of the (new) block, new block is invalid
 		if refCumulativeDifficulty.Cmp(blockCumulativeDifficulty) > 0 {
 			return blocker.NewBlocker(blocker.BlockErr, "InvalidCumulativeDifficulty")
 		}
@@ -512,6 +510,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+	bs.Logger.Debugf("Block Pushed ID: %d", block.GetID())
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
@@ -826,6 +825,8 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
+
 	return bs.TransactionQuery.BuildModel(transactions, rows)
 }
 
@@ -1133,18 +1134,7 @@ func (bs *BlockService) ReceiveBlock(
 			"previous block hash does not match with last block hash",
 		)
 	}
-	// check if the block broadcaster is the valid blocksmith
-	index := -1 // use index to determine if is in list, and who to punish
-	for i, bs := range *bs.SortedBlocksmiths {
-		if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr, "invalid blocksmith")
-	}
+
 	// base on index we can calculate punishment and reward
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
