@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -32,9 +33,10 @@ type (
 // ProcessFork processes the forked blocks
 func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error {
 	var (
-		err                                                 error
-		myPoppedOffBlocks, peerPoppedOffBlocks              []*model.Block
 		lastBlockBeforeProcess, lastBlock, currentLastBlock *model.Block
+		myPoppedOffBlocks, peerPoppedOffBlocks              []*model.Block
+		pushedForkBlocks                                    int
+		err                                                 error
 	)
 
 	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock()
@@ -46,8 +48,6 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	if err != nil {
 		return err
 	}
-
-	pushedForkBlocks := 0
 
 	lastBlock, err = fp.BlockService.GetLastBlock()
 	if err != nil {
@@ -197,4 +197,80 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 
 func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
 	// TODO: analyze if this mechanism is necessary
+}
+
+// restoreMempoolsBackup will restore transaction from badgerDB and try to re-ApplyUnconfirmed
+func (fp *ForkingProcessor) restoreMempoolsBackup() error {
+
+	var (
+		mempoolsBackupBytes []byte
+		nextLength          uint32
+		err                 error
+	)
+
+	mempoolsBackupBytes, err = fp.BlockPopper.KVDB.Get(constant.KVDBMempoolsBackup)
+	if err != nil {
+		return err
+	}
+
+	for {
+		var (
+			mempoolTX        *model.MempoolTransaction
+			txType           transaction.TypeAction
+			tx               *model.Transaction
+			transactionSize  uint32
+			transactionBytes []byte
+		)
+
+		transactionSize = commonUtil.ConvertBytesToUint32(mempoolsBackupBytes[:4])
+		nextLength += transactionSize + 4
+		transactionBytes = mempoolsBackupBytes[:nextLength]
+
+		tx, err = transaction.ParseTransactionBytes(transactionBytes, true)
+		if err != nil {
+			return err
+		}
+		mempoolTX = &model.MempoolTransaction{
+			FeePerByte:              commonUtil.FeePerByteTransaction(tx.GetFee(), transactionBytes),
+			ID:                      tx.ID,
+			TransactionBytes:        transactionBytes,
+			ArrivalTimestamp:        time.Now().Unix(),
+			SenderAccountAddress:    tx.SenderAccountAddress,
+			RecipientAccountAddress: tx.RecipientAccountAddress,
+		}
+		err = fp.MempoolService.ValidateMempoolTransaction(mempoolTX)
+		if err != nil {
+			return err
+		}
+
+		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return err
+		}
+		// Apply Unconfirmed
+		err = fp.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		err = txType.ApplyUnconfirmed()
+		if err != nil {
+			errRollback := fp.QueryExecutor.RollbackTx()
+			if errRollback != nil {
+				return errRollback
+			}
+			return err
+		}
+		err = fp.MempoolService.AddMempoolTransaction(mempoolTX)
+		if err != nil {
+			errRollback := fp.QueryExecutor.RollbackTx()
+			if errRollback != nil {
+				return err
+			}
+			return err
+		}
+		err = fp.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+	}
 }

@@ -132,7 +132,7 @@ func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransa
 	return nil, blocker.NewBlocker(blocker.DBRowNotFound, "MempoolTransactionNotFound")
 }
 
-// AddMempoolTransaction validates and insert a transaction into the mempool
+// AddMempoolTransaction validates and insert a transaction into the mempool and also set the BlockHeight as well
 func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
 
 	// check maximum mempool
