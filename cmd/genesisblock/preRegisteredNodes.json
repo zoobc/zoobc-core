@@ -5,27 +5,30 @@
     "NodeSeed": "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
     "NodePublicKeyB64": "mToyyAc9bOXMMMeRFWN9SzEtdmHbUPL0ZIaQ9iWQ1Yc=",
     "LockedBalance": 0,
-    "NodeAddress": "li1627-168.members.linode.com",
+    "NodeAddress": "li1627-168.members.linode.com:4041",
     "ParticipationScore": 0,
     "Smithing": true
   },
   {
-    "AccountAddress": "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+    "AccountAddress": "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
     "NodeSeed": "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
     "NodePublicKeyB64": "AA4G2qo2PDICQoJ34ut+ywUMmMKqkis/4GV/8T6Yu/8=",
+    "NodeAddress": "li1627-168.members.linode.com:5051",
     "Smithing": true
   },
   {
     "AccountAddress": "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
     "NodeSeed": "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
     "NodePublicKeyB64": "jHMjM58W6sAmaGAYUEZW03tINN1heTuXnlqnEW79ep4=",
+    "NodeAddress": "li1627-168.members.linode.com:6061",
     "Smithing": true
   },
   {
     "AccountBalance": 100000000000,
-    "AccountAddress": "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+    "AccountAddress": "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
     "NodeSeed": "spree uplifted stapling quotable disfigure lair deduct untying timothy maggot cryptic unrigged",
     "NodePublicKeyB64": "Keu41kYXmVloKfr4MwdFWeq1ZKMtRZhGNMmTRgbyNNw=",
+    "NodeAddress": "li1627-168.members.linode.com:7071",
     "Smithing": true
   },
   {
@@ -33,6 +36,7 @@
     "AccountAddress": "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
     "NodeSeed": "merge plug donor drop cancel inherit extra toss cabbage awkward destroy rail",
     "NodePublicKeyB64": "WyTkRmVeuva6BE6OraK7rcpR81yNeJTcKaDQXq6mPs8=",
+    "NodeAddress": "li1382-87.members.linode.com:4040",
     "Smithing": true
   }
 ]
