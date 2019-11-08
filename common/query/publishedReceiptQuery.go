@@ -137,3 +137,13 @@ func (prq *PublishedReceiptQuery) BuildModel(
 	}
 	return prs, nil
 }
+
+// Rollback delete records `WHERE block_height > "height"`
+func (prq *PublishedReceiptQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", prq.getTableName()),
+			height,
+		},
+	}
+}
