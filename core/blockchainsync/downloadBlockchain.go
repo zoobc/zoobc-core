@@ -100,7 +100,8 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	lastBlockID := lastBlock.ID
 
 	if peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
-		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's", peer.GetInfo().Address, peer.GetInfo().Port)
+		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's",
+			peer.GetInfo().Address, peer.GetInfo().Port)
 	}
 
 	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
