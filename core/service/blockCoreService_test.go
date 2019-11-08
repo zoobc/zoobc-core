@@ -41,11 +41,12 @@ var (
 		SmithScale:           1,
 		PayloadLength:        1,
 		PayloadHash:          []byte{},
-		BlocksmithPublicKey:  []byte{},
-		TotalAmount:          1000,
-		TotalFee:             0,
-		TotalCoinBase:        1,
-		Version:              0,
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		TotalAmount:   1000,
+		TotalFee:      0,
+		TotalCoinBase: 1,
+		Version:       0,
 	}
 )
 
@@ -2298,7 +2299,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			BlockSignature:       nil,
 			CumulativeDifficulty: "200",
 			SmithScale:           1,
-			BlocksmithPublicKey:  []byte{1, 3, 4, 5, 6},
+			BlocksmithPublicKey:  (*mockBlocksmiths)[0].NodePublicKey,
 		}
 	)
 	mockBlockData.BlockHash = mockGoodLastBlockHash
@@ -2313,6 +2314,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
@@ -2457,7 +2459,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-
 				Chaintype:               nil,
 				KVExecutor:              &mockKVExecutorFailOtherError{},
 				QueryExecutor:           &mockQueryExecutorSuccess{},
@@ -2478,25 +2479,9 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		{
 			name: "ReceiveBlock:pushBlockFail",
 			args: args{
-				senderPublicKey: []byte{1, 3, 4, 5, 6},
-				lastBlock: &model.Block{
-					BlockHash: []byte{
-						133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
-						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255,
-					},
-					BlockSignature:       []byte{},
-					CumulativeDifficulty: "123",
-					SmithScale:           123,
-				},
-				block: &model.Block{
-					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
-					PreviousBlockHash: []byte{
-						133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
-						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255,
-					},
-					BlockSignature: nil,
-					SmithScale:     1,
-				},
+				senderPublicKey:  []byte{1, 3, 4, 5, 6},
+				lastBlock:        &mockBlockData,
+				block:            mockGoodIncomingBlock,
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
@@ -2511,9 +2496,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery: nil,
 				Observer:            observer.NewObserver(),
 				SortedBlocksmiths: &[]model.Blocksmith{
-					{
-						NodePublicKey: []byte{1, 3, 4, 5, 6},
-					},
+					(*mockBlocksmiths)[1],
 				},
 				NodeRegistrationService: nil,
 			},
@@ -2538,24 +2521,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Signature:               &mockSignature{},
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				Observer:                observer.NewObserver(),
-				SortedBlocksmiths: &[]model.Blocksmith{
-					{
-						NodePublicKey: []byte{1, 3, 4, 5, 7},
-						NodeID:        1,
-						NodeOrder:     big.NewInt(1),
-					},
-					{
-						NodePublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-							45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-						NodeID:    2,
-						NodeOrder: big.NewInt(2),
-					},
-				},
+				SortedBlocksmiths:       mockBlocksmiths,
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
 			},
 			wantErr: false,
@@ -2586,6 +2558,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
 				Signature:               tt.fields.Signature,
 				MempoolService:          tt.fields.MempoolService,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
@@ -3124,7 +3097,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    4033219626026167736,
+			want:    4070746053101615238,
 		},
 	}
 	for _, tt := range tests {
