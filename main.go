@@ -71,6 +71,7 @@ func init() {
 	var (
 		configPostfix     string
 		configDir         string
+		seed              string
 		envOverrideConfig bool
 		err               error
 	)
@@ -117,8 +118,13 @@ func init() {
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
 	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 	if err != nil {
-		// generate a node private key if there aren't already configured
-		seed := util.GetSecureRandomSeed()
+		strValue, exists := os.LookupEnv("NODE_SEED")
+		if exists {
+			seed = strValue
+		} else {
+			// generate a node private key if there aren't already configured
+			seed = util.GetSecureRandomSeed()
+		}
 		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
 			loggerCoreService.Fatal(err)
 		}
