@@ -31,6 +31,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(ConvertUint32ToBytes(block.GetVersion()))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
+	// FIXME: be very careful about this. if block object doesn't have transactions populated, block hash validation will fail later on
 	buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalFee())))
@@ -39,10 +40,6 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(block.PayloadHash)
 
 	buffer.Write(block.BlocksmithPublicKey)
-	// FIXME: remove this comment after making sure the one below is a repetition and can be deleted
-	// buffer.Write(ConvertUint32ToBytes(uint32(len([]byte(block.BlocksmithPublicKey)))))
-	// buffer.Write([]byte(block.GetBlocksmithAddress()))
-
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
 	if signed {

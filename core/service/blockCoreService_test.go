@@ -94,6 +94,10 @@ type (
 	mockNodeRegistrationServiceSuccess struct {
 		NodeRegistrationService
 	}
+
+	mockNodeRegistrationServiceFail struct {
+		NodeRegistrationService
+	}
 )
 
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
@@ -122,6 +126,22 @@ func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
 
 func (*mockNodeRegistrationServiceSuccess) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) BuildScrambledNodes(block *model.Block) error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return lastBlockHeight
+}
+
+func (*mockNodeRegistrationServiceFail) BuildScrambledNodes(block *model.Block) error {
+	return errors.New("mock Error")
+}
+
+func (*mockNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return lastBlockHeight
 }
 
 func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
@@ -1033,6 +1053,56 @@ func TestBlockService_PushBlock(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "PushBlock_FAIL:BuildScrambledNodes_Fails",
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				QueryExecutor:           &mockQueryExecutorSuccess{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationService: &mockNodeRegistrationServiceFail{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
+				Observer:                observer.NewObserver(),
+				SortedBlocksmiths:       mockBlocksmiths,
+			},
+			args: args{
+				previousBlock: &model.Block{
+					ID:                   0,
+					SmithScale:           10,
+					Timestamp:            10000,
+					CumulativeDifficulty: "10000",
+					Version:              1,
+					PreviousBlockHash:    []byte{},
+					BlockSeed:            []byte{},
+					BlocksmithPublicKey:  bcsNodePubKey1,
+					TotalAmount:          0,
+					TotalFee:             0,
+					TotalCoinBase:        0,
+					Transactions:         []*model.Transaction{},
+					PayloadHash:          []byte{},
+					BlockSignature:       []byte{},
+				},
+				block: &model.Block{
+					ID:                  1,
+					Timestamp:           12000,
+					Version:             1,
+					PreviousBlockHash:   []byte{},
+					BlockSeed:           []byte{},
+					BlocksmithPublicKey: bcsNodePubKey1,
+					TotalAmount:         0,
+					TotalFee:            0,
+					TotalCoinBase:       0,
+					Transactions:        []*model.Transaction{},
+					PayloadHash:         []byte{},
+					BlockSignature:      []byte{},
+				},
+				broadcast: false,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1862,31 +1932,38 @@ type (
 )
 
 func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
+	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mock.ExpectQuery(qStr).WillReturnRows(sqlmock.NewRows(
-		query.NewBlockQuery(&chaintype.MainChain{}).Fields,
-	).AddRow(
-		mockBlockData.GetID(),
-		mockBlockData.GetBlockHash(),
-		mockBlockData.GetPreviousBlockHash(),
-		mockBlockData.GetHeight(),
-		mockBlockData.GetTimestamp(),
-		mockBlockData.GetBlockSeed(),
-		mockBlockData.GetBlockSignature(),
-		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
-		mockBlockData.GetPayloadLength(),
-		mockBlockData.GetPayloadHash(),
-		mockBlockData.GetBlocksmithPublicKey(),
-		mockBlockData.GetTotalAmount(),
-		mockBlockData.GetTotalFee(),
-		mockBlockData.GetTotalCoinBase(),
-		mockBlockData.GetVersion(),
-	))
+
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block WHERE height = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
+			mockBlockData.GetID(),
+			mockBlockData.GetBlockHash(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetHeight(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetSmithScale(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+		))
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
+		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, " +
+		"signature, version, transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+			query.NewTransactionQuery(&chaintype.MainChain{}).Fields))
+	}
 	return db.Query(qStr)
 }
 
@@ -1920,9 +1997,10 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		{
 			name: "GetBlockByHeight:Success", // All is good
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorGetBlockByHeightSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorGetBlockByHeightSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			want:    &mockBlockData,
 			wantErr: false,
@@ -1930,9 +2008,10 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		{
 			name: "GetBlockByHeight:FailNoEntryFound", // All is good
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorGetBlockByHeightFail{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorGetBlockByHeightFail{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			want:    nil,
 			wantErr: true,
@@ -1974,31 +2053,38 @@ type (
 )
 
 func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
+	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mock.ExpectQuery(qStr).WillReturnRows(sqlmock.NewRows(
-		query.NewBlockQuery(&chaintype.MainChain{}).Fields,
-	).AddRow(
-		mockBlockData.GetID(),
-		mockBlockData.GetBlockHash(),
-		mockBlockData.GetPreviousBlockHash(),
-		mockBlockData.GetHeight(),
-		mockBlockData.GetTimestamp(),
-		mockBlockData.GetBlockSeed(),
-		mockBlockData.GetBlockSignature(),
-		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
-		mockBlockData.GetPayloadLength(),
-		mockBlockData.GetPayloadHash(),
-		mockBlockData.GetBlocksmithPublicKey(),
-		mockBlockData.GetTotalAmount(),
-		mockBlockData.GetTotalFee(),
-		mockBlockData.GetTotalCoinBase(),
-		mockBlockData.GetVersion(),
-	))
+
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
+		"version FROM main_block WHERE id = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
+			mockBlockData.GetID(),
+			mockBlockData.GetBlockHash(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetHeight(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetSmithScale(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+		))
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
+		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, " +
+		"signature, version, transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+			query.NewTransactionQuery(&chaintype.MainChain{}).Fields))
+	}
 	return db.Query(qStr)
 }
 
@@ -2032,9 +2118,10 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		{
 			name: "GetBlockByID:Success", // All is good
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecutorGetBlockByIDSuccess{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    &mockQueryExecutorGetBlockByIDSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			args: args{
 				ID: int64(1),
