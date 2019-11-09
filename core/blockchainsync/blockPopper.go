@@ -41,7 +41,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	minRollbackHeight := getMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
-		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork pocess
+		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
 		log.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
 		return []*model.Block{}, nil
 	}
@@ -73,7 +73,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	if err != nil {
 		return nil, err
 	}
-
+	log.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
 	derivedQueries := query.GetDerivedQuery(bp.ChainType)
 	err = bp.QueryExecutor.BeginTx()
 	if err != nil {
@@ -119,7 +119,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		}
 		/*
 			mempoolsBackupBytes format is
-			[...{4}byteSize,[bytesSize]transactionBytes]
+			[...{4}byteSize,{bytesSize}transactionBytes]
 		*/
 		// TODO: Need to restore the backups from badger while getting mempool transactions before PushBlock process
 		sizeMempool := uint32(len(mempool.GetTransactionBytes()))

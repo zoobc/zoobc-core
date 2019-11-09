@@ -27,11 +27,13 @@ type (
 		QueryExecutor      query.ExecutorInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
+		Logger             *log.Logger
 	}
 )
 
 // ProcessFork processes the forked blocks
 func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error {
+
 	var (
 		lastBlockBeforeProcess, lastBlock, currentLastBlock *model.Block
 		myPoppedOffBlocks, peerPoppedOffBlocks              []*model.Block
@@ -70,13 +72,13 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if err != nil {
 					// TODO: analyze the mechanism of blacklisting peer here
 					// bd.P2pService.Blacklist(peer)
-					log.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false, false)
 				if err != nil {
 					// TODO: blacklist the wrong peer
 					// fp.P2pService.Blacklist(feederPeer)
-					log.Warnf("\n\nPushBlock err %v\n\n", err)
+					fp.Logger.Warnf("\n\nPushBlock err %v\n\n", err)
 					break
 				}
 				pushedForkBlocks++
@@ -107,7 +109,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	// if no fork blocks successfully applied, go back to our fork
 	// other wise, just take the transactions of our popped blocks to be processed later
 	if pushedForkBlocks == 0 {
-		log.Println("Did not accept any blocks from peer, pushing back my blocks")
+		fp.Logger.Println("Did not accept any blocks from peer, pushing back my blocks")
 		for _, block := range myPoppedOffBlocks {
 			lastBlock, err = fp.BlockService.GetLastBlock()
 			if err != nil {
@@ -117,7 +119,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
-				log.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
+				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
 			err = fp.BlockService.PushBlock(lastBlock, block, false, false)
@@ -131,6 +133,11 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	}
 
+	// start restoring mempool from badgerDB
+	err = fp.restoreMempoolsBackup()
+	if err != nil {
+		fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
+	}
 	return nil
 }
 
@@ -204,7 +211,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 
 	var (
 		mempoolsBackupBytes []byte
-		nextLength          uint32
+		prev                uint32
 		err                 error
 	)
 
@@ -213,18 +220,19 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		return err
 	}
 
-	for {
+	for int(prev) < len(mempoolsBackupBytes) {
 		var (
+			transactionBytes []byte
 			mempoolTX        *model.MempoolTransaction
 			txType           transaction.TypeAction
 			tx               *model.Transaction
-			transactionSize  uint32
-			transactionBytes []byte
+			size             uint32
 		)
 
-		transactionSize = commonUtil.ConvertBytesToUint32(mempoolsBackupBytes[:4])
-		nextLength += transactionSize + 4
-		transactionBytes = mempoolsBackupBytes[:nextLength]
+		prev += 4 // initiate length of size
+		size = commonUtil.ConvertBytesToUint32(mempoolsBackupBytes[:prev])
+		transactionBytes = mempoolsBackupBytes[prev:][:size]
+		prev += size
 
 		tx, err = transaction.ParseTransactionBytes(transactionBytes, true)
 		if err != nil {
@@ -273,4 +281,5 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			return err
 		}
 	}
+	return nil
 }

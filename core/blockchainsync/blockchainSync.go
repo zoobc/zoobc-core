@@ -57,6 +57,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 			QueryExecutor:      queryExecutor,
 			ActionTypeSwitcher: txActionSwitcher,
 			MempoolService:     mempoolService,
+			Logger:             logger,
 			BlockPopper: &BlockPopper{
 				ChainType:          blockService.GetChainType(),
 				BlockService:       blockService,
