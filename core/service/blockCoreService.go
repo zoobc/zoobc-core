@@ -45,7 +45,7 @@ type (
 			timestamp int64,
 		) (*model.Block, error)
 		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
-		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
+		PushBlock(previousBlock, block *model.Block, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
@@ -79,7 +79,7 @@ type (
 	}
 
 	BlockService struct {
-		sync.WaitGroup
+		sync.RWMutex
 		Chaintype               chaintype.ChainType
 		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
@@ -200,12 +200,12 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock() {
-	bs.Add(1)
+	bs.Lock()
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock() {
-	bs.Done()
+	bs.Unlock()
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -333,14 +333,10 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast bool) error {
 	var (
 		err error
 	)
-	// needLock indicates the push block needs to be protected
-	if needLock {
-		bs.Wait()
-	}
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -1051,7 +1047,7 @@ func (bs *BlockService) AddGenesis() error {
 	if err != nil {
 		return err
 	}
-	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
+	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false)
 	if err != nil {
 		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
@@ -1126,14 +1122,23 @@ func (bs *BlockService) ReceiveBlock(
 			"previous block hash does not match with last block hash",
 		)
 	}
-
-	// base on index we can calculate punishment and reward
+	// Securing receive block process
+	bs.ChainWriteLock()
+	defer bs.ChainWriteUnlock()
+	// making sure get last block after paused process
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			"fail to get last block",
+		)
+	}
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
 	if err != nil {
 		return nil, err
 	}
-	err = bs.PushBlock(lastBlock, block, true, true)
+	err = bs.PushBlock(lastBlock, block, true)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
