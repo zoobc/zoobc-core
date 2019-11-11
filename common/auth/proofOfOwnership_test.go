@@ -61,7 +61,8 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"version",
 		}).AddRow(
 			0,
-			[]byte{},
+			[]byte{204, 49, 74, 114, 213, 94, 136, 109, 130, 252, 182, 25, 31, 49, 83, 238,
+				65, 207, 202, 144, 95, 176, 46, 69, 165, 6, 135, 93, 217, 0, 101, 18},
 			[]byte{},
 			1,
 			1562806389280,
@@ -101,7 +102,8 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"version",
 		}).AddRow(
 			0,
-			[]byte{},
+			[]byte{204, 49, 74, 114, 213, 94, 136, 109, 130, 252, 182, 25, 31, 49, 83, 238,
+				65, 207, 202, 144, 95, 176, 46, 69, 165, 6, 135, 93, 217, 0, 101, 18},
 			[]byte{},
 			1,
 			1562806389280,
