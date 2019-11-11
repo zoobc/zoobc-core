@@ -38,8 +38,8 @@ import (
 )
 
 var (
-	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, configPath,
-	nodeKeyFile, ownerAccountAddress, myAddress, nodeKeyFilePath string
+	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
+	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath string
 	dbInstance                              *database.SqliteDB
 	badgerDbInstance                        *database.BadgerDB
 	db                                      *sql.DB
@@ -58,7 +58,7 @@ var (
 	p2pHost                                 *model.Host
 	peerExplorer                            strategy.PeerExplorerStrategyInterface
 	wellknownPeers                          []string
-	smithing, isDebugMode                   bool
+	smithing, isNodePreSeed, isDebugMode    bool
 	nodeRegistrationService                 service.NodeRegistrationServiceInterface
 	sortedBlocksmiths                       []model.Blocksmith
 	mainchainProcessor                      smith.BlockchainProcessorInterface
@@ -69,21 +69,19 @@ var (
 
 func init() {
 	var (
-		configPostfix     string
-		configDir         string
-		seed              string
-		envOverrideConfig bool
-		err               error
+		configPostfix string
+		configPath    string
+		seed          string
+		err           error
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configDir, "config-path", "./resource", "Usage")
+	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
-	flag.BoolVar(&envOverrideConfig, "env-override", false,
-		"boolean flag to enable overriding node configuration with system environment variables.")
 	flag.Parse()
 
-	loadNodeConfig(configDir, "config"+configPostfix, envOverrideConfig)
+	loadNodeConfig(configPath, "config"+configPostfix, "toml")
+
 	initLogInstance()
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -114,13 +112,12 @@ func init() {
 		queryExecutor,
 	)
 	// get the node private key
-	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
+	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
 	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 	if err != nil {
-		strValue, exists := os.LookupEnv("NODE_SEED")
-		if exists {
-			seed = strValue
+		if isNodePreSeed {
+			seed = nodePreSeed
 		} else {
 			// generate a node private key if there aren't already configured
 			seed = util.GetSecureRandomSeed()
@@ -149,19 +146,9 @@ func init() {
 	initP2pInstance()
 }
 
-func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
-	if err := util.LoadConfig(configDir, configFileName, "toml"); err != nil {
+func loadNodeConfig(configPath, configFileName, configExtension string) {
+	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
 		panic(err)
-	}
-
-	if envOverrideConfig {
-		util.OverrideConfigKey("OWNER_ACCOUNT_ADDRESS", "ownerAccountAddress")
-		util.OverrideConfigKey("NODE_ADDRESS", "myAddress")
-		util.OverrideConfigKey("SMITHING", "smithing")
-		util.OverrideConfigKey("PEER_PORT", "peerPort")
-		util.OverrideConfigKey("MONITORING_PORT", "monitoringPort")
-		util.OverrideConfigKey("API_RPC_PORT", "apiRPCPort")
-		util.OverrideConfigKey("API_HTTP_PORT", "apiHTTPPort")
 	}
 
 	myAddress = viper.GetString("myAddress")
@@ -185,8 +172,10 @@ func loadNodeConfig(configDir, configFileName string, envOverrideConfig bool) {
 	dbName = viper.GetString("dbName")
 	badgerDbPath = viper.GetString("badgerDbPath")
 	badgerDbName = viper.GetString("badgerDbName")
-	configPath = viper.GetString("configPath")
+	nodeKeyPath = viper.GetString("configPath")
 	nodeKeyFile = viper.GetString("nodeKeyFile")
+	isNodePreSeed = viper.IsSet("nodeSeed")
+	nodePreSeed = viper.GetString("nodeSeed")
 	// useful for easily reading if node config params have been overridden by env variables,
 	// especially in a multi node-dockerized test network
 	log.Printf("peerPort: %d", peerPort)
