@@ -148,7 +148,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
-	// Securing Process smithing,
+	// Securing smithing process
 	// will pause another process that used block service lock until this process done
 	bp.BlockService.ChainWriteLock()
 	defer bp.BlockService.ChainWriteUnlock()
