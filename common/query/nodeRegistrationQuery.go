@@ -254,8 +254,8 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 		},
 		{
 			fmt.Sprintf(`
-			UPDATE %s SET latest = 1
-			WHERE latest = 0 AND (height || '_' || id) IN (
+			UPDATE %s SET latest = ?
+			WHERE latest = ? AND (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM %s
 				GROUP BY id
@@ -263,6 +263,7 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 				nrq.TableName,
 				nrq.TableName,
 			),
+			1, 0,
 		},
 	}
 }

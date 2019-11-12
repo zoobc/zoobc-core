@@ -271,8 +271,8 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 		},
 		{
 			fmt.Sprintf(`
-				UPDATE %s SET latest = 1
-				WHERE latest = 0 AND (%s) IN (
+				UPDATE %s SET latest = ?
+				WHERE latest = ? AND (%s) IN (
 					SELECT (%s) as con
 					FROM %s
 					GROUP BY %s
@@ -283,6 +283,7 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 				adq.TableName,
 				strings.Join(adq.PrimaryFields[:3], ", "),
 			),
+			1, 0,
 		},
 	}
 }
