@@ -179,8 +179,8 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 		},
 		{
 			fmt.Sprintf(`
-			UPDATE %s SET latest = ?
-			WHERE (height || '_' || node_id) IN (
+			UPDATE %s SET latest = 1
+			WHERE latest = 0 AND (height || '_' || node_id) IN (
 				SELECT (MAX(height) || '_' || node_id) as con
 				FROM %s
 				GROUP BY node_id
@@ -188,7 +188,6 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 				ps.TableName,
 				ps.TableName,
 			),
-			1,
 		},
 	}
 }
