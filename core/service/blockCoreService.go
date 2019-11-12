@@ -12,14 +12,12 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger"
-
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -47,7 +45,7 @@ type (
 			timestamp int64,
 		) (*model.Block, error)
 		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
-		PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error
+		PushBlock(previousBlock, block *model.Block, broadcast bool) error
 		GetBlockByID(int64) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
@@ -81,7 +79,7 @@ type (
 	}
 
 	BlockService struct {
-		sync.WaitGroup
+		sync.RWMutex
 		Chaintype               chaintype.ChainType
 		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
@@ -202,12 +200,12 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock() {
-	bs.Add(1)
+	bs.Lock()
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock() {
-	bs.Done()
+	bs.Unlock()
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -325,7 +323,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 			return err
 		}
 
-		// if cumulative difficulty of the referece block is > of the one of the (new) block, new block is invalid
+		// if cumulative difficulty of the reference block is > of the one of the (new) block, new block is invalid
 		if refCumulativeDifficulty.Cmp(blockCumulativeDifficulty) > 0 {
 			return blocker.NewBlocker(blocker.BlockErr, "InvalidCumulativeDifficulty")
 		}
@@ -335,14 +333,10 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, broadcast bool) error {
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast bool) error {
 	var (
 		err error
 	)
-	// needLock indicates the push block needs to be protected
-	if needLock {
-		bs.Wait()
-	}
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -496,10 +490,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, needLock, b
 		}
 	}
 
+	// building scrambled node registry
+	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
+		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
+		if err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+	bs.Logger.Debugf("Block Pushed ID: %d", block.GetID())
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
@@ -760,6 +767,11 @@ func (bs *BlockService) GetBlockByID(id int64) (*model.Block, error) {
 	}
 
 	if len(blocks) > 0 {
+		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		blocks[0].Transactions = transactions
 		return blocks[0], nil
 	}
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
@@ -782,26 +794,17 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetLastBlock(), false)
+	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-	var blocks []*model.Block
-	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
 
-	if len(blocks) > 0 {
-		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		blocks[0].Transactions = transactions
-		return blocks[0], nil
+	transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "last block is not found")
+	lastBlock.Transactions = transactions
+	return lastBlock, nil
 }
 
 // GetTransactionsByBlockID get transactions of the block
@@ -814,6 +817,8 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
+
 	return bs.TransactionQuery.BuildModel(transactions, rows)
 }
 
@@ -836,22 +841,18 @@ func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByHeight(height), false)
+	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-	var blocks []*model.Block
-	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
+
+	transactions, err := bs.GetTransactionsByBlockID(block.ID)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	block.Transactions = transactions
 
-	if len(blocks) > 0 {
-		return blocks[0], nil
-	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block with height %v is not found", height))
-
+	return block, nil
 }
 
 // GetGenesis return the last pushed block
@@ -1046,7 +1047,7 @@ func (bs *BlockService) AddGenesis() error {
 	if err != nil {
 		return err
 	}
-	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, true, false)
+	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false)
 	if err != nil {
 		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
@@ -1121,25 +1122,23 @@ func (bs *BlockService) ReceiveBlock(
 			"previous block hash does not match with last block hash",
 		)
 	}
-	// check if the block broadcaster is the valid blocksmith
-	index := -1 // use index to determine if is in list, and who to punish
-	for i, bs := range *bs.SortedBlocksmiths {
-		if reflect.DeepEqual(bs.NodePublicKey, block.BlocksmithPublicKey) {
-			index = i
-			break
-		}
-	}
-	if index < 0 {
+	// Securing receive block process
+	bs.ChainWriteLock()
+	defer bs.ChainWriteUnlock()
+	// making sure get last block after paused process
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
 		return nil, blocker.NewBlocker(
-			blocker.BlockErr, "invalid blocksmith")
+			blocker.BlockErr,
+			"fail to get last block",
+		)
 	}
-	// base on index we can calculate punishment and reward
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
 	if err != nil {
 		return nil, err
 	}
-	err = bs.PushBlock(lastBlock, block, true, true)
+	err = bs.PushBlock(lastBlock, block, true)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}

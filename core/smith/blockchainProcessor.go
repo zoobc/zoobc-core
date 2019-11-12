@@ -6,13 +6,10 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -141,7 +138,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			return err
 		}
 		// if validated push
-		err = bp.BlockService.PushBlock(previousBlock, block, true, false)
+		err = bp.BlockService.PushBlock(previousBlock, block, false)
 		if err != nil {
 			return err
 		}
@@ -151,6 +148,11 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
+	// Securing smithing process
+	// will pause another process that used block service lock until this process done
+	bp.BlockService.ChainWriteLock()
+	defer bp.BlockService.ChainWriteUnlock()
+
 	var blocksmithIndex = -1
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
@@ -212,7 +214,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// if validated push
-	err = bp.BlockService.PushBlock(previousBlock, block, true, true)
+	err = bp.BlockService.PushBlock(previousBlock, block, true)
 	if err != nil {
 		return err
 	}
