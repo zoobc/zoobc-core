@@ -64,7 +64,7 @@ func rollbackBlockChain(defaultDB *sql.DB) RunCommand {
 
 	// checking DB path and DB name flag, making sure both must use or both of them must default
 	if (dBPath == "" && dBName != "") || (dBPath != "" && dBName == "") {
-		panic(errors.New("Please set both db-path and db-name"))
+		panic(errors.New("please set both db-path and db-name"))
 	}
 
 	if dBPath != "" && dBName != "" {
@@ -120,7 +120,7 @@ func rollbackBlockChain(defaultDB *sql.DB) RunCommand {
 			fmt.Println("Failed to run CommitTx DB, err : ", err.Error())
 			return
 		}
-		fmt.Printf("Rollback blockchain sucessfully! \nNow blockchain state in HEIGHT %d\n\n", wantedBlockHeight)
+		fmt.Printf("Rollback blockchain successfully! \nNow blockchain state in HEIGHT %d\n\n", wantedBlockHeight)
 	}
 }
 
