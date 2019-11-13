@@ -519,11 +519,6 @@ func (*mockMerkleTreeQueryFailBuildTree) BuildTree(rows *sql.Rows) (map[string][
 	return nil, errors.New("mockError")
 }
 
-var (
-	mockScrambledNodesSuccess struct {
-	}
-)
-
 type (
 	mockNodeRegistrationSelectReceiptSuccess struct {
 		NodeRegistrationService
