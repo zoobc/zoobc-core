@@ -17,7 +17,7 @@ apiReqTimeoutSec=2
 
 ownerAccountAddress = "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH"
 
-# smithing=true
+smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic

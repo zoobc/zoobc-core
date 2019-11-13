@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -63,6 +64,14 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	lastBlock, err := nas.BlockService.GetLastBlock()
 	if err != nil {
 		return nil, err
+	}
+	// get the blockhash of a block that most likely have been already downloaded by all nodes
+	// so that, every node will be able to validate it
+	if lastBlock.Height > constant.BlockHeightOffset {
+		lastBlock, err = nas.BlockService.GetBlockByHeight(lastBlock.Height - constant.BlockHeightOffset)
+		if err != nil {
+			return nil, err
+		}
 	}
 	lastBlockHash, err := commonUtils.GetBlockHash(lastBlock)
 	if err != nil {

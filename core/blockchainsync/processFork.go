@@ -7,13 +7,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/query"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
-	commonUtil "github.com/zoobc/zoobc-core/common/util"
-
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
@@ -74,7 +72,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					// bd.P2pService.Blacklist(peer)
 					log.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				}
-				err = fp.BlockService.PushBlock(lastBlock, block, false, false)
+				err = fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
 					// TODO: blacklist the wrong peer
 					// fp.P2pService.Blacklist(feederPeer)
@@ -122,7 +120,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				log.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
-			err = fp.BlockService.PushBlock(lastBlock, block, false, false)
+			err = fp.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}

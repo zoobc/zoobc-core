@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -37,14 +38,10 @@ func GenerateTxRegisterNode(
 	if err != nil {
 		panic(err)
 	}
-	nodeBlockHash, err := util.GetBlockHash(lastBlock)
-	if err != nil {
-		panic(err)
-	}
 	poowMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      nodeBlockHash,
-		BlockHeight:    lastBlock.GetHeight(),
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
 	}
 
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
@@ -86,14 +83,10 @@ func GenerateTxUpdateNode(
 	if err != nil {
 		panic(err)
 	}
-	nodeBlockHash, err := util.GetBlockHash(lastBlock)
-	if err != nil {
-		panic(err)
-	}
 	poowMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      nodeBlockHash,
-		BlockHeight:    lastBlock.GetHeight(),
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
 	}
 
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
@@ -154,14 +147,10 @@ func GenerateTxClaimNode(
 	if err != nil {
 		panic(err)
 	}
-	nodeBlockHash, err := util.GetBlockHash(lastBlock)
-	if err != nil {
-		panic(err)
-	}
 	poowMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      nodeBlockHash,
-		BlockHeight:    lastBlock.GetHeight(),
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
 	}
 
 	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
@@ -246,6 +235,9 @@ func GenerateBasicTransaction(senderSeed string,
 	recipientAccountAddress string,
 ) *model.Transaction {
 	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+	if timestamp <= 0 {
+		timestamp = time.Now().Unix()
+	}
 	return &model.Transaction{
 		Version:                 version,
 		Timestamp:               timestamp,

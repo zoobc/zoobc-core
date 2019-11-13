@@ -6,24 +6,20 @@ import (
 	"net"
 	"net/http"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/kvdb"
-
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/zoobc/zoobc-core/common/interceptor"
-	"github.com/zoobc/zoobc-core/observer"
-
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	coreService "github.com/zoobc/zoobc-core/core/service"
-	"github.com/zoobc/zoobc-core/p2p"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/transaction"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/interceptor"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	coreService "github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
+	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc"
 )
 
@@ -32,9 +28,14 @@ func startGrpcServer(
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+	blockServices map[int32]coreService.BlockServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 ) {
+
+	chainType := chaintype.GetChainType(0)
+
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(logger, ownerAccountAddress)),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
@@ -43,15 +44,15 @@ func startGrpcServer(
 		Executor: queryExecutor,
 	}
 	mempoolService := coreService.NewMempoolService(
-		&chaintype.MainChain{},
-		kvExecutor,
+		chainType, kvExecutor,
 		queryExecutor,
-		query.NewMempoolQuery(&chaintype.MainChain{}),
+		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
 		actionTypeSwitcher,
 		query.NewAccountBalanceQuery(),
+		query.NewBlockQuery(chainType),
+		query.NewTransactionQuery(chainType),
 		crypto.NewSignature(),
-		query.NewTransactionQuery(&chaintype.MainChain{}),
 		observer.NewObserver(),
 		logger,
 	)
@@ -71,8 +72,7 @@ func startGrpcServer(
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
 		Service: service.NewTransactionService(
-			queryExecutor,
-			crypto.NewSignature(),
+			queryExecutor, crypto.NewSignature(),
 			actionTypeSwitcher,
 			mempoolService,
 			observer.NewObserver(),
@@ -80,7 +80,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -124,11 +124,13 @@ func Start(
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
-	blockServices map[int32]coreService.BlockServiceInterface, ownerAccountAddress, nodefilePath string,
+	blockServices map[int32]coreService.BlockServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, ownerAccountAddress, nodefilePath, logger,
+		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService, ownerAccountAddress, nodefilePath, logger,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

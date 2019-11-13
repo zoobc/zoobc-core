@@ -49,9 +49,12 @@ func main() {
 	)
 
 	sqliteDbInstance = database.NewSqliteDB()
+	if err := sqliteDbInstance.InitializeDB(dbPath, dbName); err != nil {
+		log.Fatalln("InitializeDB err: ", err.Error())
+	}
 	sqliteDB, err := sqliteDbInstance.OpenDB(dbPath, dbName, 10, 20)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln("OpenDB err: ", err.Error())
 	}
 
 	rootCmd = &cobra.Command{

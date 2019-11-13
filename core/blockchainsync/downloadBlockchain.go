@@ -9,14 +9,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/p2p/client"
-	"github.com/zoobc/zoobc-core/p2p/strategy"
-
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
+	"github.com/zoobc/zoobc-core/p2p/client"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
 
 type (
@@ -56,7 +55,7 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
 	afterDownloadLastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
-		bd.Logger.Info("failed to get the last block state after block download")
+		bd.Logger.Warnf("failed to get the last block state after block download: %v\n", err)
 		return false
 	}
 	heightAfterDownload := afterDownloadLastBlock.Height
@@ -100,7 +99,8 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	lastBlockID := lastBlock.ID
 
 	if peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
-		return nil, errors.New("peer's cumulative difficulty is lower/same with the current node's")
+		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's",
+			peer.GetInfo().Address, peer.GetInfo().Port)
 	}
 
 	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
@@ -177,8 +177,8 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 
 	otherPeerCumulativeDifficulty, _ := new(big.Int).SetString(otherPeerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	if otherPeerCumulativeDifficulty.Cmp(currentLastBlockCumulativeDifficulty) <= 0 {
-		return []int64{}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("peer's cumulative difficulty %s is lower than ours",
-			peerToCheck.GetInfo().Address))
+		return []int64{}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("peer's cumulative difficulty %s:%v is lower than ours",
+			peerToCheck.GetInfo().Address, peerToCheck.GetInfo().Port))
 	}
 
 	return otherPeerChainBlockIds, nil
@@ -207,7 +207,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	peerUsed := feederPeer
 	blocksSegments := [][]*model.Block{}
 
-	for start := uint32(0); start < stop; start += segSize {
+	for start := uint32(0); start < stop; {
 		if start != uint32(0) {
 			peerUsed = peersSlice[nextPeerIdx]
 			nextPeerIdx++
@@ -221,22 +221,23 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		nextBlocks, err := bd.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
 			start, commonUtil.MinUint32(start+segSize, stop))
 		if err != nil {
-			return nil, err
+			continue
 		}
 		elapsedTime := time.Since(startTime)
 		if elapsedTime > constant.MaxResponseTime {
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
 		}
 
-		if len(nextBlocks) < 1 {
+		if len(nextBlocks) < 1 || uint32(len(nextBlocks)) > segSize {
 			bd.Logger.Warnf("disconnecting with peer %v for not responding correctly in getting the next blocks\n", peerUsed.Info.Address)
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
 			continue
 		}
 		blocksSegments = append(blocksSegments, nextBlocks)
+		start += uint32(len(nextBlocks))
 	}
 
-	blocksToBeProcessed := []*model.Block{}
+	var blocksToBeProcessed []*model.Block
 	for _, blockSegment := range blocksSegments {
 		for i := 0; i < len(blockSegment); i++ {
 			if coreUtil.IsBlockIDExist(chainBlockIds, blockSegment[i].ID) {
@@ -269,7 +270,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				break
 			}
-			err = bd.BlockService.PushBlock(lastBlock, block, false, false)
+			err = bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
 				// bd.P2pService.Blacklist(peer)
