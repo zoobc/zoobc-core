@@ -11,6 +11,7 @@ import (
 var (
 	mockMerkleTreeQuery = NewMerkleTreeQuery()
 	mockRoot            = make([]byte, 32)
+	mockBlockHeight     = uint32(0)
 	mockTree            = make([]byte, 14*32)
 )
 
@@ -41,9 +42,9 @@ func TestMerkleTreeQuery_SelectMerkleTree(t *testing.T) {
 				upperHeight: 10,
 				limit:       20,
 			},
-			want: "SELECT id, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
-				"published_receipt AS pr WHERE mt.id = pr.rmr_linked AND block_height BETWEEN 0 AND 10 " +
-				"ORDER BY block_height ASC) LIMIT 20",
+			want: "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
+				"published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND " +
+				"block_height BETWEEN 0 AND 10 ORDER BY block_height ASC LIMIT 20",
 		},
 	}
 	for _, tt := range tests {
@@ -84,9 +85,10 @@ func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		root      []byte
-		tree      []byte
-		timestamp int64
+		root        []byte
+		blockHeight uint32
+		tree        []byte
+		timestamp   int64
 	}
 	tests := []struct {
 		name     string
@@ -102,13 +104,15 @@ func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 				TableName: mockMerkleTreeQuery.TableName,
 			},
 			args: args{
-				root:      mockRoot,
-				tree:      mockTree,
-				timestamp: 0,
+				root:        mockRoot,
+				tree:        mockTree,
+				timestamp:   0,
+				blockHeight: 0,
 			},
-			wantQStr: "INSERT INTO merkle_tree (id, tree, timestamp) VALUES(?,? ,? )",
+			wantQStr: "INSERT INTO merkle_tree (id, block_height, tree, timestamp) VALUES(?,? ,? ,? )",
 			wantArgs: []interface{}{
 				mockRoot,
+				uint32(0),
 				mockTree,
 				int64(0),
 			},
@@ -120,7 +124,7 @@ func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQStr, gotArgs := mrQ.InsertMerkleTree(tt.args.root, tt.args.tree, tt.args.timestamp)
+			gotQStr, gotArgs := mrQ.InsertMerkleTree(tt.args.root, tt.args.tree, tt.args.timestamp, tt.args.blockHeight)
 			if gotQStr != tt.wantQStr {
 				t.Errorf("InsertMerkleTree() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
 			}
@@ -155,7 +159,7 @@ func TestMerkleTreeQuery_GetMerkleTreeByRoot(t *testing.T) {
 			args: args{
 				root: mockRoot,
 			},
-			wantQStr: "SELECT id, tree, timestamp FROM merkle_tree WHERE id = ?",
+			wantQStr: "SELECT id, block_height, tree, timestamp FROM merkle_tree WHERE id = ?",
 			wantArgs: []interface{}{mockRoot},
 		},
 	}
@@ -192,7 +196,7 @@ func TestMerkleTreeQuery_GetLastMerkleRoot(t *testing.T) {
 				Fields:    mockMerkleTreeQuery.Fields,
 				TableName: mockMerkleTreeQuery.TableName,
 			},
-			wantQStr: "SELECT id, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1",
+			wantQStr: "SELECT id, block_height, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
@@ -213,6 +217,7 @@ func TestMerkleTreeQuery_ScanTree(t *testing.T) {
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockMerkleTreeQuery.Fields).AddRow(
 		mockRoot,
+		mockBlockHeight,
 		mockTree,
 		int64(0),
 	))
@@ -283,6 +288,7 @@ func TestMerkleTreeQuery_ScanRoot(t *testing.T) {
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockMerkleTreeQuery.Fields).AddRow(
 		mockRoot,
+		mockBlockHeight,
 		mockTree,
 		int64(0),
 	))
@@ -353,6 +359,7 @@ func TestMerkleTreeQuery_BuildTree(t *testing.T) {
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockMerkleTreeQuery.Fields).AddRow(
 		mockRoot,
+		mockBlockHeight,
 		mockTree,
 		int64(0),
 	))
