@@ -105,13 +105,6 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	receiptService = service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
-		query.NewBatchReceiptQuery(),
-		query.NewMerkleTreeQuery(),
-		kvExecutor,
-		queryExecutor,
-	)
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(configPath, nodeKeyFile)
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
@@ -134,7 +127,19 @@ func init() {
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
 		loggerCoreService,
+	)
+	receiptService = service.NewReceiptService(
+		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		kvExecutor,
+		queryExecutor,
+		nodeRegistrationService,
+		crypto.NewSignature(),
 	)
 
 	// initialize Observer
