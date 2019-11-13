@@ -9,6 +9,7 @@ const (
 	ReceiptNodeMaximum              = uint32(8)
 	ReceiptNumberToPick             = 20
 	ReceiptNumberOfBlockToPick      = 1000
+	ReceiptBatchPickMultiplier      = uint32(5)
 	ReceiptHashSize                 = 32 // sha256
 	ReceiptGenerateMarkleRootPeriod = 20 * time.Second
 )

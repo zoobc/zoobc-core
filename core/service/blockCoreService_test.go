@@ -30,7 +30,7 @@ import (
 var (
 	mockBlockData = model.Block{
 		ID:        constant.MainchainGenesisBlockID,
-		BlockHash: []byte{},
+		BlockHash: make([]byte, 32),
 		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
 			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
 		Height:    11,
@@ -305,9 +305,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface
 			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance", "RegistrationStatus",
 			"Latest", "Height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
-	case "SELECT id, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
+	case "SELECT id, block_height, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "Tree", "Timestamp",
+			"ID", "BlockHeight", "Tree", "Timestamp",
 		}))
 	}
 	row := db.QueryRow(qStr)
@@ -2308,6 +2308,15 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
+	successBlockHash := []byte{
+		197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217, 209, 67, 185, 183, 116, 101, 64, 47, 196,
+		207, 27, 173, 3, 141, 12, 163, 245, 254,
+	}
+	mockBlockSuccess := &model.Block{
+		BlockSignature:    []byte{},
+		BlockHash:         successBlockHash,
+		PreviousBlockHash: make([]byte, 32),
+	}
 	type fields struct {
 		Chaintype               chaintype.ChainType
 		KVExecutor              kvdb.KVExecutorInterface
@@ -2401,17 +2410,9 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		{
 			name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor KeyNotFound - generate batch receipt success}",
 			args: args{
-				senderPublicKey: []byte{1, 3, 4, 5, 6},
-				lastBlock: &model.Block{
-					BlockSignature: []byte{},
-				},
-				block: &model.Block{
-					PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
-						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255, 0},
-					BlockSignature:      nil,
-					SmithScale:          1,
-					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
-				},
+				senderPublicKey:  []byte{1, 3, 4, 5, 6},
+				lastBlock:        mockBlockSuccess,
+				block:            mockBlockSuccess,
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
@@ -2437,12 +2438,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 					88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
 					223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
 				},
+				DatumHash:            successBlockHash,
 				DatumType:            constant.ReceiptDatumTypeBlock,
 				ReferenceBlockHeight: 0,
-				ReferenceBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
-					169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255},
-				RMRLinked:          nil,
-				RecipientSignature: []byte{},
+				ReferenceBlockHash:   successBlockHash,
+				RMRLinked:            nil,
+				RecipientSignature:   []byte{},
 			},
 		},
 		{
@@ -2592,7 +2593,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 		},
 	}
-	// test
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
