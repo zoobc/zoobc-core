@@ -335,7 +335,6 @@ func (rs *ReceiptService) ValidateReceipt(
 			"InvalidReceiptSignature",
 		)
 	}
-	// todo: validate the block hash : avoid receipts from fork
 	blockAtHeightQ := rs.BlockQuery.GetBlockByHeight(receipt.ReferenceBlockHeight)
 	blockAtHeightRow := rs.QueryExecutor.ExecuteSelectRow(blockAtHeightQ)
 	err = rs.BlockQuery.Scan(&blockAtHeight, blockAtHeightRow)
