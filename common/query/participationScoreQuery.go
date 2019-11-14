@@ -10,7 +10,6 @@ import (
 
 type (
 	ParticipationScoreQueryInterface interface {
-		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
 		AddParticipationScore(score int64, causedFields map[string]interface{}) [][]interface{}
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
@@ -39,15 +38,6 @@ func NewParticipationScoreQuery() *ParticipationScoreQuery {
 
 func (ps *ParticipationScoreQuery) getTableName() string {
 	return ps.TableName
-}
-
-func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{}) {
-	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
-		ps.getTableName(),
-		strings.Join(ps.Fields, ","),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(ps.Fields)-1)),
-	), ps.ExtractModel(participationScore)
 }
 
 func (ps *ParticipationScoreQuery) AddParticipationScore(score int64, causedFields map[string]interface{}) [][]interface{} {

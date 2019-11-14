@@ -19,24 +19,6 @@ var (
 	}
 )
 
-func TestParticipationScoreQuery_InsertParticipationScore(t *testing.T) {
-	t.Run("InsertParticipationScore:success", func(t *testing.T) {
-
-		q, args := mockParticipationScoreQuery.InsertParticipationScore(mockParticipationScore)
-		wantQ := "INSERT INTO participation_score (node_id,score,latest,height) VALUES(? , ?, ?, ?)"
-		wantArg := []interface{}{
-			mockParticipationScore.NodeID, mockParticipationScore.Score,
-			mockParticipationScore.Latest, mockParticipationScore.Height,
-		}
-		if q != wantQ {
-			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
-		}
-		if !reflect.DeepEqual(args, wantArg) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
-		}
-	})
-}
-
 func TestParticipationScoreQuery_GetParticipationScoreByNodeID(t *testing.T) {
 	t.Run("GetParticipationScoreByNodeID", func(t *testing.T) {
 		res, arg := mockParticipationScoreQuery.GetParticipationScoreByNodeID(1)
