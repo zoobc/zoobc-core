@@ -58,16 +58,9 @@ func TestParticipationScoreQuery_AddParticipationScore(t *testing.T) {
 		var want [][]interface{}
 		want = append(want, []interface{}{
 			"INSERT INTO participation_score AS ps (node_id, score, latest, height) " +
-				"SELECT ?, 0, 1, ? WHERE NOT EXISTS (SELECT ps1.node_id FROM participation_score AS ps1 " +
-				"WHERE ps1.node_id = ?)",
+				"VALUES(?, 100000000, 1, ?) ON CONFLICT(ps.node_id, ps.height) DO UPDATE SET (score, height, latest) = " +
+				"(SELECT ps1.score + 100000000, ps1.height, 1 FROM participation_score AS ps1 WHERE ps1.node_id = ? AND ps1.latest = 1)",
 			causedFields["node_id"], causedFields["height"], causedFields["node_id"],
-		}, []interface{}{
-			"INSERT INTO participation_score AS ps (node_id, score, latest, height) " +
-				"SELECT ps1.node_id, ps1.score + 100000000, 1, ? FROM participation_score AS ps1 " +
-				"WHERE ps1.node_id = ? AND ps1.latest = 1 ON CONFLICT(ps.node_id, ps.height) " +
-				"DO UPDATE SET (score, height, latest) = (SELECT ps2.score + 100000000, ps2.height, 1 " +
-				"FROM participation_score AS ps2 WHERE ps2.node_id = ? AND ps2.latest = 1)",
-			causedFields["height"], causedFields["node_id"], causedFields["node_id"],
 		}, []interface{}{
 			"UPDATE participation_score SET latest = false WHERE node_id = ? AND height != ? AND latest = true",
 			causedFields["node_id"], causedFields["height"],
