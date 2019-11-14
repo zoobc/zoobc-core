@@ -5,18 +5,10 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
 	mockParticipationScoreQuery = NewParticipationScoreQuery()
-	mockParticipationScore      = &model.ParticipationScore{
-		NodeID: 1,
-		Score:  100000000,
-		Latest: true,
-		Height: 0,
-	}
 )
 
 func TestParticipationScoreQuery_GetParticipationScoreByNodeID(t *testing.T) {
