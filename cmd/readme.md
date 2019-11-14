@@ -61,7 +61,7 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
 ### Block Generating Fake Blocks
 
 ```
-go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecretPhrase='sprinkled sneak species porkoutpost thrift unwind cheesy vexingly dizzy neurology neatness' --out='../resource/zoobc.db'
+go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecretPhrase='sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness' --out='../resource/zoobc.db'
 ```
 
 ### Account Generating Randomly
