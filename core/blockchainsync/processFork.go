@@ -229,7 +229,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			size             uint32
 		)
 
-		prev += 4 // initiate length of size
+		prev += constant.TransactionBodyLength // initiate length of size
 		size = commonUtil.ConvertBytesToUint32(mempoolsBackupBytes[:prev])
 		transactionBytes = mempoolsBackupBytes[prev:][:size]
 		prev += size
@@ -262,19 +262,18 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}
 		err = txType.ApplyUnconfirmed()
 		if err != nil {
-			errRollback := fp.QueryExecutor.RollbackTx()
-			if errRollback != nil {
-				return errRollback
+			err = fp.QueryExecutor.RollbackTx()
+			if err != nil {
+				return err
 			}
 			return err
 		}
 		err = fp.MempoolService.AddMempoolTransaction(mempoolTX)
 		if err != nil {
-			errRollback := fp.QueryExecutor.RollbackTx()
-			if errRollback != nil {
+			err = fp.QueryExecutor.RollbackTx()
+			if err != nil {
 				return err
 			}
-			return err
 		}
 		err = fp.QueryExecutor.CommitTx()
 		if err != nil {
