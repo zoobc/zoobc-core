@@ -45,23 +45,15 @@ func (ps *ParticipationScoreQuery) AddParticipationScore(score int64, causedFiel
 		queries            [][]interface{}
 		updateVersionQuery string
 	)
-	// insert score if node_id is not in table yet
-	insertScoreQuery := fmt.Sprintf("INSERT INTO %s AS ps (node_id, score, latest, height) "+
-		"SELECT ?, 0, 1, ? WHERE NOT EXISTS (SELECT ps1.node_id FROM %s AS ps1 WHERE ps1.node_id = ?)", ps.getTableName(), ps.getTableName())
-
 	// update or insert new participation_score row
 	updateScoreQuery := fmt.Sprintf("INSERT INTO %s AS ps (node_id, score, latest, height) "+
-		"SELECT ps1.node_id, ps1.score + %d, 1, ? FROM %s AS ps1 WHERE "+
-		"ps1.node_id = ? AND ps1.latest = 1 ON CONFLICT(ps.node_id, ps.height) "+
+		"VALUES(?, %d, 1, ?) ON CONFLICT(ps.node_id, ps.height) "+
 		"DO UPDATE SET (score, height, latest) = (SELECT "+
-		"ps2.score + %d, ps2.height, 1 FROM %s AS ps2 WHERE ps2.node_id = ? AND ps2.latest = 1)",
-		ps.getTableName(), score, ps.getTableName(), score, ps.getTableName())
+		"ps1.score + %d, ps1.height, 1 FROM %s AS ps1 WHERE ps1.node_id = ? AND ps1.latest = 1)",
+		ps.getTableName(), score, score, ps.getTableName())
 	queries = append(queries,
 		[]interface{}{
-			insertScoreQuery, causedFields["node_id"], causedFields["height"], causedFields["node_id"],
-		},
-		[]interface{}{
-			updateScoreQuery, causedFields["height"], causedFields["node_id"], causedFields["node_id"],
+			updateScoreQuery, causedFields["node_id"], causedFields["height"], causedFields["node_id"],
 		},
 	)
 
