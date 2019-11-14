@@ -967,14 +967,13 @@ func (bs *BlockService) GenerateBlock(
 		return nil, err
 	}
 
-	currentTimestamp := time.Now().UTC().Unix()
 	block, err := bs.NewBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
 		blockSmithPublicKey,
 		newBlockHeight,
-		currentTimestamp,
+		time.Now().Unix(),
 		totalAmount,
 		totalFee,
 		totalCoinbase,
