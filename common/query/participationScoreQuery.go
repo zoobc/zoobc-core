@@ -11,10 +11,7 @@ import (
 type (
 	ParticipationScoreQueryInterface interface {
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
-		AddParticipationScore(
-			nodeID, score int64,
-			blockHeight uint32,
-		) [][]interface{}
+		AddParticipationScore(score int64, causedFields map[string]interface{}) [][]interface{}
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
@@ -53,34 +50,38 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 	), ps.ExtractModel(participationScore)
 }
 
-func (ps *ParticipationScoreQuery) AddParticipationScore(
-	nodeID, score int64,
-	blockHeight uint32,
-) [][]interface{} {
+func (ps *ParticipationScoreQuery) AddParticipationScore(score int64, causedFields map[string]interface{}) [][]interface{} {
 	var (
 		queries            [][]interface{}
 		updateVersionQuery string
 	)
+	// insert score if node_id is not in table yet
+	insertScoreQuery := fmt.Sprintf("INSERT INTO %s AS ps (node_id, score, latest, height) "+
+		"SELECT ?, 0, 1, ? WHERE NOT EXISTS (SELECT ps1.node_id FROM %s AS ps1 WHERE ps1.node_id = ?)", ps.getTableName(), ps.getTableName())
+
 	// update or insert new participation_score row
-	updateScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
-		"SELECT node_id, score + %d, %d, latest FROM %s WHERE "+
-		"node_id = %d AND latest = 1 ON CONFLICT(node_id, height) "+
-		"DO UPDATE SET (score) = (SELECT "+
-		"score + %d FROM %s WHERE node_id = %d AND latest = 1)",
-		ps.getTableName(), score, blockHeight, ps.getTableName(), nodeID, score, ps.getTableName(), nodeID,
-	)
+	updateScoreQuery := fmt.Sprintf("INSERT INTO %s AS ps (node_id, score, latest, height) "+
+		"SELECT ps1.node_id, ps1.score + %d, 1, ? FROM %s AS ps1 WHERE "+
+		"ps1.node_id = ? AND ps1.latest = 1 ON CONFLICT(ps.node_id, ps.height) "+
+		"DO UPDATE SET (score, height, latest) = (SELECT "+
+		"ps2.score + %d, ps2.height, 1 FROM %s AS ps2 WHERE ps2.node_id = ? AND ps2.latest = 1)",
+		ps.getTableName(), score, ps.getTableName(), score, ps.getTableName())
 	queries = append(queries,
 		[]interface{}{
-			updateScoreQuery,
+			insertScoreQuery, causedFields["node_id"], causedFields["height"], causedFields["node_id"],
+		},
+		[]interface{}{
+			updateScoreQuery, causedFields["height"], causedFields["node_id"], causedFields["node_id"],
 		},
 	)
-	if blockHeight != 0 {
+
+	if causedFields["height"].(uint32) != 0 {
 		// set previous version record to latest = false
-		updateVersionQuery = fmt.Sprintf("UPDATE %s SET latest = false WHERE node_id = %d AND height != %d AND latest = true",
-			ps.getTableName(), nodeID, blockHeight)
+		updateVersionQuery = fmt.Sprintf("UPDATE %s SET latest = false WHERE node_id = ? AND height != ? AND latest = true",
+			ps.getTableName())
 		queries = append(queries,
 			[]interface{}{
-				updateVersionQuery,
+				updateVersionQuery, causedFields["node_id"], causedFields["height"],
 			},
 		)
 	}

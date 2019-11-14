@@ -76,18 +76,29 @@ func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing
 
 func TestParticipationScoreQuery_AddParticipationScore(t *testing.T) {
 	t.Run("AddParticipationScore:success", func(t *testing.T) {
-		res := mockParticipationScoreQuery.AddParticipationScore(12, 1*constant.OneZBC, 1)
-		want := [][]interface{}{
-			{
-				"INSERT INTO participation_score (node_id, score, height, latest) SELECT node_id, score + " +
-					"100000000, 1, latest FROM participation_score WHERE node_id = 12 AND latest = 1 ON " +
-					"CONFLICT(node_id, height) DO UPDATE SET (score) = (SELECT score + 100000000 FROM participation_score " +
-					"WHERE node_id = 12 AND latest = 1)",
-			},
-			{
-				"UPDATE participation_score SET latest = false WHERE node_id = 12 AND height != 1 AND latest = true",
-			},
+		causedFields = map[string]interface{}{
+			"node_id": int64(12),
+			"height":  uint32(1),
 		}
+		res := mockParticipationScoreQuery.AddParticipationScore(1*constant.OneZBC, causedFields)
+		var want [][]interface{}
+		want = append(want, []interface{}{
+			"INSERT INTO participation_score AS ps (node_id, score, latest, height) " +
+				"SELECT ?, 0, 1, ? WHERE NOT EXISTS (SELECT ps1.node_id FROM participation_score AS ps1 " +
+				"WHERE ps1.node_id = ?)",
+			causedFields["node_id"], causedFields["height"], causedFields["node_id"],
+		}, []interface{}{
+			"INSERT INTO participation_score AS ps (node_id, score, latest, height) " +
+				"SELECT ps1.node_id, ps1.score + 100000000, 1, ? FROM participation_score AS ps1 " +
+				"WHERE ps1.node_id = ? AND ps1.latest = 1 ON CONFLICT(ps.node_id, ps.height) " +
+				"DO UPDATE SET (score, height, latest) = (SELECT ps2.score + 100000000, ps2.height, 1 " +
+				"FROM participation_score AS ps2 WHERE ps2.node_id = ? AND ps2.latest = 1)",
+			causedFields["height"], causedFields["node_id"], causedFields["node_id"],
+		}, []interface{}{
+			"UPDATE participation_score SET latest = false WHERE node_id = ? AND height != ? AND latest = true",
+			causedFields["node_id"], causedFields["height"],
+		},
+		)
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
