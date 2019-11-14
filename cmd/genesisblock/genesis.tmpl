@@ -34,7 +34,7 @@ var (
 			NodePublicKey:  {{$value.FormatPubKeyByteString}},
 			NodeAddress:    {{if $value.HasNodeAddress}}"{{$value.NodeAddress}}"{{else}}"127.0.0.1"{{end}},
 			LockedBalance:  {{$value.LockedBalance}},
-			ParticipationScore: {{if $value.HasParticipationScore}}{{$value.ParticipationScore}}{{else}} DefaultParticipationScore{{end}},{{end}}
+			ParticipationScore: {{if $value.HasParticipationScore}}{{$value.ParticipationScore}}{{else}} GenesisParticipationScore{{end}},{{end}}
 		},
 {{end}}
 	}

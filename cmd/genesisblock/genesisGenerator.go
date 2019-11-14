@@ -34,11 +34,11 @@ type (
 		Smithing           bool
 	}
 	clusterConfigEntry struct {
-		NodePublicKey       string `json:"NODE_PUBLIC_KEY"`
-		NodeSeed            string `json:"NODE_SEED"`
-		OwnerAccountAddress string `json:"OWNER_ACCOUNT_ADDRESS"`
-		NodeAddress         string `json:"NODE_ADDRESS,omitempty"`
-		Smithing            bool   `json:"SMITHING,omitempty"`
+		NodePublicKey       string `json:"nodePublicKey"`
+		NodeSeed            string `json:"nodeSeed"`
+		OwnerAccountAddress string `json:"ownerAccountAddress"`
+		NodeAddress         string `json:"myAddress,omitempty"`
+		Smithing            bool   `json:"smithing,omitempty"`
 	}
 )
 
@@ -143,7 +143,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 
 	// generate extra nodes to be deployed using cluster_config.json
 	for i := 0; i < extraNodesCount; i++ {
-		bcState = append(bcState, generateRandomGenesisEntry())
+		bcState = append(bcState, generateRandomGenesisEntry(i))
 	}
 	// append to preRegistered nodes/accounts previous entries from a blockchain db file
 	generateGenesisFile(bcState, "./genesis.go.new")
@@ -157,7 +157,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 //       and we are not storing the relaitve seed, needed to sign transactions, these nodes can smith but their owners
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
-func generateRandomGenesisEntry() genesisEntry {
+func generateRandomGenesisEntry(nodeIdx int) genesisEntry {
 	seed := util.GetSecureRandomSeed()
 	privateKey, _ := util.GetPrivateKeyFromSeed(seed)
 	publicKey := privateKey[32:]
@@ -172,9 +172,10 @@ func generateRandomGenesisEntry() genesisEntry {
 		NodePublicKey:      nodePublicKey,
 		NodePublicKeyB64:   base64.StdEncoding.EncodeToString(nodePublicKey),
 		NodeSeed:           nodeSeed,
-		ParticipationScore: constant.DefaultParticipationScore,
+		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
-		LockedBalance:      10000 * constant.OneZBC,
+		LockedBalance:      0,
+		NodeAddress:        fmt.Sprintf("n%d.alpha.proofofparticipation.network", nodeIdx),
 	}
 }
 
