@@ -80,7 +80,6 @@ test_expression >= low_expression AND test_expression <= high_expression
 func (mrQ *MerkleTreeQuery) SelectMerkleTree(
 	lowerHeight, upperHeight, limit uint32,
 ) string {
-	// todo: add block height to merkle tree
 	query := fmt.Sprintf("SELECT %s FROM %s AS mt WHERE EXISTS "+
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND "+
 		"block_height BETWEEN %d AND %d ORDER BY block_height ASC LIMIT %d",
