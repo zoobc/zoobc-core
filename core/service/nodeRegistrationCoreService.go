@@ -37,16 +37,16 @@ type (
 
 	// NodeRegistrationService mockable service methods
 	NodeRegistrationService struct {
-		QueryExecutor           query.ExecutorInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		BlockQuery              query.BlockQueryInterface
-		NodeAdmittanceCycle     uint32
-		Logger                  *log.Logger
-		ScrambledNodes          map[uint32]*model.ScrambledNodes
-		ScrambledNodesLock      sync.RWMutex
-		MemoizedScrambledNodes  *model.ScrambledNodes
+		QueryExecutor                query.ExecutorInterface
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		BlockQuery                   query.BlockQueryInterface
+		NodeAdmittanceCycle          uint32
+		Logger                       *log.Logger
+		ScrambledNodes               map[uint32]*model.ScrambledNodes
+		ScrambledNodesLock           sync.RWMutex
+		MemoizedLatestScrambledNodes *model.ScrambledNodes
 	}
 )
 
@@ -324,7 +324,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 }
 
 func (nrs *NodeRegistrationService) ResetMemoizedScrambledNodes() {
-	nrs.MemoizedScrambledNodes = nil
+	nrs.MemoizedLatestScrambledNodes = nil
 }
 
 func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNodes {
@@ -350,9 +350,9 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 	nrs.ScrambledNodesLock.Lock()
 	defer nrs.ScrambledNodesLock.Unlock()
 
-	if nrs.MemoizedScrambledNodes != nil {
-		if nrs.MemoizedScrambledNodes.BlockHeight == nrs.ScrambledNodes[nearestBlockHeight].BlockHeight {
-			return nrs.MemoizedScrambledNodes
+	if nrs.MemoizedLatestScrambledNodes != nil {
+		if nrs.MemoizedLatestScrambledNodes.BlockHeight == nrs.ScrambledNodes[nearestBlockHeight].BlockHeight {
+			return nrs.MemoizedLatestScrambledNodes
 		}
 	}
 
@@ -363,13 +363,13 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 		newIndexNodes[key] = &tempVal
 	}
 
-	nrs.MemoizedScrambledNodes = &model.ScrambledNodes{
+	nrs.MemoizedLatestScrambledNodes = &model.ScrambledNodes{
 		AddressNodes: newAddressNodes,
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  nrs.ScrambledNodes[nearestBlockHeight].BlockHeight,
 	}
 
-	return nrs.MemoizedScrambledNodes
+	return nrs.MemoizedLatestScrambledNodes
 }
 
 func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(

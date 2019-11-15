@@ -788,12 +788,12 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 
 func TestNodeRegistrationService_ResetMemoizedScrambledNodes(t *testing.T) {
 	mockNodeRegistrationService := &NodeRegistrationService{
-		MemoizedScrambledNodes: &model.ScrambledNodes{},
+		MemoizedLatestScrambledNodes: &model.ScrambledNodes{},
 	}
 
 	mockNodeRegistrationService.ResetMemoizedScrambledNodes()
-	if mockNodeRegistrationService.MemoizedScrambledNodes != nil {
-		t.Error("NodeRegistrationService.ResetMemoizedScrambledNodes() should reset MemoizedScrambledNodes")
+	if mockNodeRegistrationService.MemoizedLatestScrambledNodes != nil {
+		t.Error("NodeRegistrationService.ResetMemoizedScrambledNodes() should reset MemoizedLatestScrambledNodes")
 	}
 }
 
@@ -840,7 +840,7 @@ func TestNodeRegistrationService_GetScrambledNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				MemoizedScrambledNodes: tt.fields.MemoizedScrambledNodes,
+				MemoizedLatestScrambledNodes: tt.fields.MemoizedScrambledNodes,
 			}
 			got := nrs.GetLatestScrambledNodes()
 			if (tt.want != nil && got != tt.want && got == tt.wantNot) || (tt.wantNot != nil && got != tt.wantNot && got == tt.want) {
