@@ -82,7 +82,6 @@ type (
 	BlockService struct {
 		sync.RWMutex
 		Chaintype               chaintype.ChainType
-		Generator               *model.Blocksmith
 		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
@@ -102,7 +101,6 @@ type (
 		Observer                *observer.Observer
 		SortedBlocksmiths       *[]model.Blocksmith
 		Logger                  *log.Logger
-		LastBlockID             int64
 	}
 )
 
