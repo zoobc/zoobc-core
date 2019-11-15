@@ -7,6 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -104,4 +108,44 @@ func ServerListener(port int) net.Listener {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	return serv
+}
+
+// GetStartIndexPriorityPeer, get first index of priority peers in scramble node
+func GetStartIndexPriorityPeer(
+	nodeIndex int,
+	scrambledNodes *model.ScrambledNodes,
+) int {
+	return (nodeIndex * constant.PriorityStrategyMaxPriorityPeers) % (len(scrambledNodes.IndexNodes))
+}
+
+// GetPriorityPeersByNodeFullAddress, get a list peer should connect in scramble node by providing the node
+// full address
+func GetPriorityPeersByNodeFullAddress(
+	senderFullAddress string,
+	scrambledNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	var (
+		priorityPeers = make(map[string]*model.Peer)
+	)
+	hostIndex := scrambledNodes.IndexNodes[senderFullAddress]
+	if hostIndex == nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
+	}
+	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
+	addedPosition := 1
+	for addedPosition <= constant.PriorityStrategyMaxPriorityPeers {
+		var (
+			peersPosition = (startPeers + addedPosition) % (len(scrambledNodes.IndexNodes))
+			peer          = scrambledNodes.AddressNodes[peersPosition]
+			addressPeer   = GetFullAddressPeer(peer)
+		)
+		if priorityPeers[addressPeer] != nil {
+			break
+		}
+		if addressPeer != senderFullAddress {
+			priorityPeers[addressPeer] = peer
+		}
+		addedPosition++
+	}
+	return priorityPeers, nil
 }

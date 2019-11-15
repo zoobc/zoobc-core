@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/golang/mock/gomock"
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -124,6 +125,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 		ChainType          chaintype.ChainType
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		KVDB               kvdb.KVExecutorInterface
+		Logger             *logrus.Logger
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -173,6 +175,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 				BlockService:  &mockServiceBlockFailGetBlockByID{},
 				ChainType:     &mockServiceChainType{},
 				QueryExecutor: &mockServiceQueryExecutor{},
+				Logger:        logrus.New(),
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -204,6 +207,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 					nil,
 					nil,
 				),
+				Logger: logrus.New(),
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -234,6 +238,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 					nil,
 					nil,
 				),
+				Logger: logrus.New(),
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -266,6 +271,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 				),
 				ActionTypeSwitcher: &transaction.TypeSwitcher{Executor: &mockPopOffToBlockReturnCommonBlock{}},
 				KVDB:               kvdb.NewMockKVExecutorInterface(gomock.NewController(t)),
+				Logger:             logrus.New(),
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -286,6 +292,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 				MempoolService:     tt.fields.MempoolService,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				KVDB:               tt.fields.KVDB,
+				Logger:             tt.fields.Logger,
 			}
 			got, err := bp.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
