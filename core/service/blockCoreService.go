@@ -1096,7 +1096,7 @@ func (bs *BlockService) ReceiveBlock(
 				if err != nil {
 					return nil, err
 				}
-				if !reflect.DeepEqual(blockHash, lastBlock.GetBlockHash()) {
+				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
 					return nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 				}
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(

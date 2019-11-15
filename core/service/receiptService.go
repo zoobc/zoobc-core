@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 
@@ -342,7 +341,7 @@ func (rs *ReceiptService) ValidateReceipt(
 		return err
 	}
 	// check block hash
-	if !reflect.DeepEqual(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
+	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
 	}
 	err = rs.validateReceiptSenderRecipient(receipt)
