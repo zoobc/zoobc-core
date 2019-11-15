@@ -437,8 +437,8 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 			want: append(want,
 				[]interface{}{fmt.Sprintf("DELETE FROM %s WHERE height > ?", mockDatasetQuery.TableName), height},
 				[]interface{}{fmt.Sprintf(`
-				UPDATE %s SET latest = 1
-				WHERE (%s) IN (
+				UPDATE %s SET latest = ?
+				WHERE latest = ? AND (%s) IN (
 					SELECT (%s) as con
 					FROM %s
 					GROUP BY %s
@@ -448,7 +448,9 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 					fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], " || '_' || ")),
 					mockDatasetQuery.TableName,
 					strings.Join(mockDatasetQuery.PrimaryFields[:3], ", "),
-				)},
+				),
+					1, 0,
+				},
 			),
 		},
 	}
