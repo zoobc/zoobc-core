@@ -203,6 +203,10 @@ func (m *Migration) Init() error {
 			ALTER TABLE "mempool"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
 			`,
+			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "block_height" INTEGER AFTER "id"
+			`,
 		}
 		return nil
 	}

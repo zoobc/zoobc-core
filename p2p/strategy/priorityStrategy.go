@@ -21,18 +21,20 @@ import (
 )
 
 // PriorityStrategy represent data service node as server
-type PriorityStrategy struct {
-	Host                    *model.Host
-	PeerServiceClient       client.PeerServiceClientInterface
-	NodeRegistrationService coreService.NodeRegistrationServiceInterface
-	QueryExecutor           query.ExecutorInterface
-	ResolvedPeersLock       sync.RWMutex
-	UnresolvedPeersLock     sync.RWMutex
-	BlacklistedPeersLock    sync.RWMutex
-	MaxUnresolvedPeers      int32
-	MaxResolvedPeers        int32
-	Logger                  *log.Logger
-}
+type (
+	PriorityStrategy struct {
+		Host                    *model.Host
+		PeerServiceClient       client.PeerServiceClientInterface
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		ResolvedPeersLock       sync.RWMutex
+		UnresolvedPeersLock     sync.RWMutex
+		BlacklistedPeersLock    sync.RWMutex
+		MaxUnresolvedPeers      int32
+		MaxResolvedPeers        int32
+		Logger                  *log.Logger
+	}
+)
 
 func NewPriorityStrategy(
 	host *model.Host,
@@ -139,10 +141,10 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	)
 
 	if ps.ValidateScrambleNode(ps.Host.GetInfo()) {
-		scrambledNodes := ps.NodeRegistrationService.GetScrambledNodes()
+		scrambledNodes := ps.NodeRegistrationService.GetLatestScrambledNodes()
 		var (
 			hostIndex     = scrambledNodes.IndexNodes[hostFullAddress]
-			startPeers    = ps.GetStartIndexPriorityPeer(*hostIndex)
+			startPeers    = p2pUtil.GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
 			addedPosition = 0
 		)
 		for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
@@ -164,15 +166,9 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	return priorityPeers
 }
 
-// GetStartIndexPriorityPeer, get firt index of priority peers in scramble node
-func (ps *PriorityStrategy) GetStartIndexPriorityPeer(nodeIndex int) int {
-	scrambledNodes := ps.NodeRegistrationService.GetScrambledNodes()
-	return (nodeIndex * constant.PriorityStrategyMaxPriorityPeers) % (len(scrambledNodes.IndexNodes))
-}
-
 // ValidateScrambleNode, check node in scramble or not
 func (ps *PriorityStrategy) ValidateScrambleNode(node *model.Node) bool {
-	scrambledNodes := ps.NodeRegistrationService.GetScrambledNodes()
+	scrambledNodes := ps.NodeRegistrationService.GetLatestScrambledNodes()
 	address := p2pUtil.GetFullAddress(node)
 	return scrambledNodes.IndexNodes[address] != nil
 }
@@ -180,11 +176,11 @@ func (ps *PriorityStrategy) ValidateScrambleNode(node *model.Node) bool {
 // ValidatePriorityPeer, check peer is in priority list peer of host node
 func (ps *PriorityStrategy) ValidatePriorityPeer(host, peer *model.Node) bool {
 	if ps.ValidateScrambleNode(host) && ps.ValidateScrambleNode(peer) {
-		scrambledNodes := ps.NodeRegistrationService.GetScrambledNodes()
+		scrambledNodes := ps.NodeRegistrationService.GetLatestScrambledNodes()
 		var (
 			hostIndex          = *scrambledNodes.IndexNodes[p2pUtil.GetFullAddress(host)]
 			peerIndex          = *scrambledNodes.IndexNodes[p2pUtil.GetFullAddress(peer)]
-			hostStartPeerIndex = ps.GetStartIndexPriorityPeer(hostIndex)
+			hostStartPeerIndex = p2pUtil.GetStartIndexPriorityPeer(hostIndex, scrambledNodes)
 			hostEndPeerIndex   = (hostStartPeerIndex + constant.PriorityStrategyMaxPriorityPeers - 1) % (len(scrambledNodes.AddressNodes))
 		)
 		return ps.ValidateRangePriorityPeers(peerIndex, hostStartPeerIndex, hostEndPeerIndex)
