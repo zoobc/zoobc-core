@@ -930,14 +930,14 @@ func TestBlockService_VerifySeed(t *testing.T) {
 
 var mockBlocksmiths = &[]model.Blocksmith{
 	{
-		NodePublicKey: bcsNodePubKey1,
-		NodeID:        2,
-		NodeOrder:     new(big.Int).SetInt64(1000),
-	},
-	{
 		NodePublicKey: bcsNodePubKey2,
 		NodeID:        3,
 		NodeOrder:     new(big.Int).SetInt64(2000),
+	},
+	{
+		NodePublicKey: bcsNodePubKey1,
+		NodeID:        2,
+		NodeOrder:     new(big.Int).SetInt64(1000),
 	},
 }
 
