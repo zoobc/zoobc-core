@@ -16,7 +16,10 @@ func GenerateBatchReceipt(
 	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
-	refBlockHash, _ := GetBlockHash(referenceBlock)
+	refBlockHash, err := GetBlockHash(referenceBlock)
+	if err != nil {
+		return nil, err
+	}
 	return &model.BatchReceipt{
 		SenderPublicKey:      senderPublicKey,
 		RecipientPublicKey:   recipientPublicKey,

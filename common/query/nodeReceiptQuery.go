@@ -15,7 +15,8 @@ type (
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
 		GetReceiptByRoot(root []byte) (str string, args []interface{})
-		GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string
+		GetReceiptsWithUniqueRecipient(
+			limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error)
@@ -80,24 +81,19 @@ func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
 	return query
 }
 
-// GetReceiptsWithUniqueRecipient get receipt with unique recipient_public_key, rmr_linked is passed as an option to
-// get receipt with rmr_linked or not
-func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(limit uint32, offset uint64, rmrLinked bool) string {
+// GetReceiptsWithUniqueRecipient get receipt with unique recipient_public_key
+// lowerBlockHeight and upperBlockHeight is passed as window limit of receipt reference_block_height to pick
+func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(
+	limit, lowerBlockHeight, upperBlockHeight uint32) string {
 	var query string
 	if limit == 0 {
 		limit = 10
 	}
-	if rmrLinked {
-		query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rmr_linked IS NOT NULL AND "+
-			"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
-			"GROUP BY recipient_public_key LIMIT %d, %d",
-			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
-	} else {
-		query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE "+
-			"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
-			"GROUP BY recipient_public_key LIMIT %d, %d",
-			strings.Join(rq.Fields, ", "), rq.getTableName(), offset, limit)
-	}
+	query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE "+
+		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
+		"AND reference_block_height BETWEEN %d AND %d "+
+		"GROUP BY recipient_public_key ORDER BY reference_block_height ASC LIMIT %d",
+		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerBlockHeight, upperBlockHeight, limit)
 	return query
 }
 

@@ -85,7 +85,7 @@ var (
 		},
 	}
 
-	mockGoodScrambledNodes = &coreService.ScrambledNodes{
+	mockGoodScrambledNodes = &model.ScrambledNodes{
 		AddressNodes: []*model.Peer{
 			0: {
 				Info: &model.Node{
@@ -846,7 +846,7 @@ type (
 	}
 )
 
-func (*mockNodeRegistrationService) GetScrambledNodes() *coreService.ScrambledNodes {
+func (*mockNodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNodes {
 	return mockGoodScrambledNodes
 }
 
