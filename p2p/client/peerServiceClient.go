@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 
+	coreService "github.com/zoobc/zoobc-core/core/service"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
@@ -45,6 +47,7 @@ type (
 		NodeReceiptQuery  query.NodeReceiptQueryInterface
 		BatchReceiptQuery query.BatchReceiptQueryInterface
 		MerkleTreeQuery   query.MerkleTreeQueryInterface
+		ReceiptService    coreService.ReceiptServiceInterface
 		NodePublicKey     []byte
 		Host              *model.Host
 	}
@@ -65,6 +68,7 @@ func NewPeerServiceClient(
 	nodePublicKey []byte,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
+	receiptService coreService.ReceiptServiceInterface,
 	host *model.Host,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
@@ -85,6 +89,7 @@ func NewPeerServiceClient(
 		NodeReceiptQuery:  nodeReceiptQuery,
 		BatchReceiptQuery: batchReceiptQuery,
 		MerkleTreeQuery:   merkleTreeQuery,
+		ReceiptService:    receiptService,
 		NodePublicKey:     nodePublicKey,
 		Logger:            logger,
 		Host:              host,
@@ -179,6 +184,11 @@ func (psc *PeerServiceClient) SendBlock(
 	if response.BatchReceipt == nil {
 		return err
 	}
+	// validate receipt before storing
+	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
+	if err != nil {
+		return err
+	}
 	err = psc.storeReceipt(response.BatchReceipt)
 	return err
 }
@@ -204,6 +214,10 @@ func (psc *PeerServiceClient) SendTransaction(
 		TransactionBytes: transactionBytes,
 		ChainType:        chainType.GetTypeInt(),
 	})
+	if err != nil {
+		return err
+	}
+	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
 		return err
 	}

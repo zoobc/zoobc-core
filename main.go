@@ -104,13 +104,6 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	receiptService = service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
-		query.NewBatchReceiptQuery(),
-		query.NewMerkleTreeQuery(),
-		kvExecutor,
-		queryExecutor,
-	)
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
@@ -137,7 +130,19 @@ func init() {
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
 		loggerCoreService,
+	)
+	receiptService = service.NewReceiptService(
+		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		kvExecutor,
+		queryExecutor,
+		nodeRegistrationService,
+		crypto.NewSignature(),
 	)
 
 	// initialize Observer
@@ -222,6 +227,7 @@ func initP2pInstance() {
 		nodePublicKey,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
+		receiptService,
 		p2pHost,
 		loggerP2PService,
 	)
@@ -371,11 +377,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService.Fatal(err)
 	}
 
-	// Check computer/node local time. Comparing with last block timestamp
-	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
-	if time.Now().Unix() < lastBlockAtStart.GetTimestamp() {
-		loggerCoreService.Fatal("Your computer clock is behind from the correct time")
-	}
+	// TODO: Check computer/node local time. Comparing with last block timestamp
 
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())

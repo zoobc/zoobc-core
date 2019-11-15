@@ -98,15 +98,12 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 
 	// insert default participation score for nodes that are registered at genesis height
 	if tx.Height == 0 {
-		ps := &model.ParticipationScore{
-			NodeID: tx.ID,
-			Score:  tx.getDefaultParticipationScore(),
-			Latest: true,
-			Height: 0,
+		causedFields := map[string]interface{}{
+			"node_id": tx.ID,
+			"height":  uint32(0),
 		}
-		insertParticipationScoreQ, insertParticipationScoreArg := tx.ParticipationScoreQuery.InsertParticipationScore(ps)
-		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
-		queries = append(queries, newQ)
+		insertParticipationScoreQ := tx.ParticipationScoreQuery.AddParticipationScore(tx.getDefaultParticipationScore(), causedFields)
+		queries = append(queries, insertParticipationScoreQ...)
 	}
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)

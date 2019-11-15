@@ -15,10 +15,6 @@ type mockServiceBlockSuccess struct {
 	service.BlockServiceInterface
 }
 
-type mockServiceForkingProcessSuccess struct {
-	ForkingProcessorInterface
-}
-
 type mockServiceChainType struct {
 	chaintype.ChainType
 }
@@ -40,25 +36,8 @@ type mockServiceBlockFailGetBlockByID struct {
 	service.BlockServiceInterface
 }
 
-// FORKING SERVICE FAILS
-type mockServiceForkingProcessFail struct {
-	ForkingProcessorInterface
-}
-
-// SERVICE QUERY EXECUTOR FAILS
-type mockServiceQueryExecutorBeginTXFail struct {
-	query.ExecutorInterface
-}
-type mockServiceQueryExecutorExecuteTransFail struct {
-	query.ExecutorInterface
-}
 type mockServiceQueryExecutorCommitTXFail struct {
 	query.ExecutorInterface
-}
-
-// Function mock for Forking interface
-func (*mockServiceForkingProcessSuccess) getMinRollbackHeight() (uint32, error) {
-	return 20, nil
 }
 
 // Mock function for Block interface
@@ -207,55 +186,6 @@ func (*mockServiceBlockFailGetBlockByID) GetTransactionsByBlockID(blockID int64)
 		},
 	}
 	return transaction, nil
-}
-
-// FORKING PPROCESS SERVICE FAIL
-func (*mockServiceForkingProcessFail) getMinRollbackHeight() (uint32, error) {
-	return 0, blocker.NewBlocker(
-		blocker.AuthErr,
-		"ERROR WHEN GETTING MINIMAL HEIGHT FOR ROLLBACK",
-	)
-}
-
-// QUERY EXECUTOR SERVICE FAILS
-// BEGIN TX FUNC FAIL
-func (*mockServiceQueryExecutorBeginTXFail) BeginTx() error {
-	return blocker.NewBlocker(
-		blocker.AuthErr,
-		"failed to begin TX",
-	)
-}
-
-func (*mockServiceQueryExecutorBeginTXFail) ExecuteTransaction(qStr string, args ...interface{}) error {
-	return nil
-}
-
-func (*mockServiceQueryExecutorBeginTXFail) CommitTx() error {
-	return nil
-}
-
-func (*mockServiceQueryExecutorBeginTXFail) RollbackTx() error {
-	return nil
-}
-
-// EXECUTE TRANSACTION FAIL
-func (*mockServiceQueryExecutorExecuteTransFail) BeginTx() error {
-	return nil
-}
-
-func (*mockServiceQueryExecutorExecuteTransFail) ExecuteTransactions(queries [][]interface{}) error {
-	return blocker.NewBlocker(
-		blocker.AuthErr,
-		"failed to execute Transactions",
-	)
-}
-
-func (*mockServiceQueryExecutorExecuteTransFail) CommitTx() error {
-	return nil
-}
-
-func (*mockServiceQueryExecutorExecuteTransFail) RollbackTx() error {
-	return nil
 }
 
 // COMMITX FAIL
