@@ -603,23 +603,15 @@ func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error
 			return err
 		}
 		// punish score
-		causedFields := map[string]interface{}{
-			"node_id": bsm.NodeID,
-			"height":  block.Height,
-		}
 		addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-			constant.ParticipationScorePunishAmount,
-			causedFields)
+			bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
 		if err != nil {
 			return err
 		}
 	}
-	causedFields := map[string]interface{}{
-		"node_id": blocksmithNode.NodeID,
-		"height":  block.Height,
-	}
-	addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(popScore, causedFields)
+	addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
+		blocksmithNode.NodeID, popScore, block.Height)
 	err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
 	if err != nil {
 		return err
