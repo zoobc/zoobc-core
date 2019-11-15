@@ -355,7 +355,7 @@ func TestCalculateSmithOrder(t *testing.T) {
 				blockSeed: new(big.Int).SetInt64(1000),
 				nodeID:    int64(1000),
 			},
-			want: "7357219233906154824000",
+			want: "7357219233906154824",
 		},
 		{
 			name: "CalculateSmithOrder:success2",
@@ -364,7 +364,7 @@ func TestCalculateSmithOrder(t *testing.T) {
 				blockSeed: new(big.Int).SetInt64(3000),
 				nodeID:    int64(10),
 			},
-			want: "9845301605531286876000",
+			want: "4922650802765643438",
 		},
 	}
 	for _, tt := range tests {

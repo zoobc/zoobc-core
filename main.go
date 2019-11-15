@@ -376,11 +376,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService.Fatal(err)
 	}
 
-	// Check computer/node local time. Comparing with last block timestamp
-	// NEXT: maybe can check timestamp from last block of blockchain network or network time protocol
-	if time.Now().Unix() < lastBlockAtStart.GetTimestamp() {
-		loggerCoreService.Fatal("Your computer clock is behind from the correct time")
-	}
+	// TODO: Check computer/node local time. Comparing with last block timestamp
 
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
