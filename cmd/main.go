@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/account"
 	"github.com/zoobc/zoobc-core/cmd/block"
 	"github.com/zoobc/zoobc-core/cmd/genesisblock"
+	"github.com/zoobc/zoobc-core/cmd/rollback"
 	"github.com/zoobc/zoobc-core/cmd/transaction"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -64,6 +65,7 @@ func main() {
 	}
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(genesisblock.Commands())
+	rootCmd.AddCommand(rollback.Commands(sqliteDB))
 	generateCmd.AddCommand(account.Commands())
 	generateCmd.AddCommand(transaction.Commands(sqliteDB))
 	generateCmd.AddCommand(block.Commands())

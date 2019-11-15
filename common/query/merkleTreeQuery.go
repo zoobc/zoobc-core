@@ -9,7 +9,8 @@ import (
 type (
 	// MerkleTreeQueryInterface contain builder func for MerkleTree
 	MerkleTreeQueryInterface interface {
-		InsertMerkleTree(root, tree []byte, timestamp int64) (qStr string, args []interface{})
+		InsertMerkleTree(
+			root, tree []byte, timestamp int64, blockHeight uint32) (qStr string, args []interface{})
 		GetMerkleTreeByRoot(root []byte) (qStr string, args []interface{})
 		SelectMerkleTree(
 			lowerHeight, upperHeight, limit uint32,
@@ -31,6 +32,7 @@ func NewMerkleTreeQuery() *MerkleTreeQuery {
 	return &MerkleTreeQuery{
 		Fields: []string{
 			"id",
+			"block_height",
 			"tree",
 			"timestamp",
 		},
@@ -44,14 +46,16 @@ func (mrQ *MerkleTreeQuery) getTableName() string {
 }
 
 // InsertMerkleTree func build insert Query for MerkleTree
-func (mrQ *MerkleTreeQuery) InsertMerkleTree(root, tree []byte, timestamp int64) (qStr string, args []interface{}) {
+func (mrQ *MerkleTreeQuery) InsertMerkleTree(
+	root, tree []byte, timestamp int64, blockHeight uint32,
+) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES(%s)",
 			mrQ.getTableName(),
 			strings.Join(mrQ.Fields, ", "),
 			fmt.Sprintf("?%s", strings.Repeat(",? ", len(mrQ.Fields)-1)),
 		),
-		[]interface{}{root, tree, timestamp}
+		[]interface{}{root, blockHeight, tree, timestamp}
 }
 
 // GetMerkleTreeByRoot is used to retrieve merkle table record, to check if the merkle root specified exist
@@ -77,19 +81,21 @@ func (mrQ *MerkleTreeQuery) SelectMerkleTree(
 	lowerHeight, upperHeight, limit uint32,
 ) string {
 	query := fmt.Sprintf("SELECT %s FROM %s AS mt WHERE EXISTS "+
-		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked AND "+
-		"block_height BETWEEN %d AND %d ORDER BY block_height ASC) LIMIT %d",
+		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND "+
+		"block_height BETWEEN %d AND %d ORDER BY block_height ASC LIMIT %d",
 		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(), lowerHeight, upperHeight, limit)
 	return query
 }
 
 func (mrQ *MerkleTreeQuery) ScanTree(row *sql.Row) ([]byte, error) {
 	var (
-		root, tree []byte
-		timestamp  int64
+		root, tree  []byte
+		timestamp   int64
+		blockHeight uint32
 	)
 	err := row.Scan(
 		&root,
+		&blockHeight,
 		&tree,
 		&timestamp,
 	)
@@ -101,11 +107,13 @@ func (mrQ *MerkleTreeQuery) ScanTree(row *sql.Row) ([]byte, error) {
 
 func (mrQ *MerkleTreeQuery) ScanRoot(row *sql.Row) ([]byte, error) {
 	var (
-		root, tree []byte
-		timestamp  int64
+		root, tree  []byte
+		timestamp   int64
+		blockHeight uint32
 	)
 	err := row.Scan(
 		&root,
+		&blockHeight,
 		&tree,
 		&timestamp,
 	)
@@ -119,11 +127,13 @@ func (mrQ *MerkleTreeQuery) BuildTree(rows *sql.Rows) (map[string][]byte, error)
 	var listTree = make(map[string][]byte)
 	for rows.Next() {
 		var (
-			root, tree []byte
-			timestamp  int64
+			root, tree  []byte
+			timestamp   int64
+			blockHeight uint32
 		)
 		err := rows.Scan(
 			&root,
+			&blockHeight,
 			&tree,
 			&timestamp,
 		)

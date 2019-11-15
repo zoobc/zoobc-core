@@ -47,7 +47,7 @@ func (*nodeAdminCoreServiceMocked) GenerateNodeKey(seed string) ([]byte, error) 
 }
 
 func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
-	if err := util.LoadConfig("../resource", "config", "toml"); err != nil {
+	if err := util.LoadConfig("../../resource", "config", "toml"); err != nil {
 		logrus.Fatal(err)
 	}
 	type fields struct {
@@ -89,7 +89,7 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 }
 
 func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
-	if err := util.LoadConfig("../resource", "config", "toml"); err != nil {
+	if err := util.LoadConfig("../../resource", "config", "toml"); err != nil {
 		logrus.Fatal(err)
 	}
 	type fields struct {

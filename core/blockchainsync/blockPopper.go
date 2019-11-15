@@ -23,6 +23,7 @@ type BlockPopper struct {
 	ChainType          chaintype.ChainType
 	ActionTypeSwitcher transaction.TypeActionSwitcher
 	KVDB               kvdb.KVExecutorInterface
+	Logger             *log.Logger
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
@@ -41,8 +42,8 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	minRollbackHeight := getMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
-		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork pocess
-		log.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
+		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
+		bp.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
 		return []*model.Block{}, nil
 	}
 
@@ -73,7 +74,7 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	if err != nil {
 		return nil, err
 	}
-
+	bp.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
 	derivedQueries := query.GetDerivedQuery(bp.ChainType)
 	err = bp.QueryExecutor.BeginTx()
 	if err != nil {
@@ -117,11 +118,11 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		if err != nil {
 			return nil, err
 		}
+
 		/*
 			mempoolsBackupBytes format is
-			[...{4}byteSize,[bytesSize]transactionBytes]
+			[...{4}byteSize,{bytesSize}transactionBytes]
 		*/
-		// TODO: Need to restore the backups from badger while getting mempool transactions before PushBlock process
 		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
 		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
 		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())

@@ -239,12 +239,12 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 				},
 				{`
 			UPDATE account_balance SET latest = ?
-			WHERE (height || '_' || id) IN (
+			WHERE latest = ? AND (height || '_' || id) IN (
 				SELECT (MAX(height) || '_' || id) as con
 				FROM account_balance
 				GROUP BY id
 			)`,
-					1,
+					1, 0,
 				},
 			},
 		},

@@ -621,21 +621,16 @@ func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error
 }
 
 func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error) {
-	var linkedCount int
+	var (
+		linkedCount int
+		err         error
+	)
 	if len(block.GetPublishedReceipts()) > 0 {
 		for index, rc := range block.GetPublishedReceipts() {
-			// validate the receipts
-			unsignedBytes := util.GetUnsignedBatchReceiptBytes(rc.BatchReceipt)
-			if !bs.Signature.VerifyNodeSignature(
-				unsignedBytes,
-				rc.BatchReceipt.RecipientSignature,
-				rc.BatchReceipt.RecipientPublicKey,
-			) {
-				// rollback
-				return 0, blocker.NewBlocker(
-					blocker.ValidationErr,
-					"InvalidReceiptSignature",
-				)
+			// validate sender and recipient of receipt
+			err = bs.ReceiptService.ValidateReceipt(rc.BatchReceipt)
+			if err != nil {
+				return 0, err
 			}
 			// check if linked
 			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
@@ -943,6 +938,7 @@ func (bs *BlockService) GenerateBlock(
 		if err != nil {
 			return nil, err
 		}
+		// filter only good receipt
 		for _, br := range publishedReceipts {
 			_, err = digest.Write(util.GetSignedBatchReceiptBytes(br.BatchReceipt))
 			if err != nil {
@@ -1098,6 +1094,13 @@ func (bs *BlockService) ReceiveBlock(
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
+				blockHash, err := commonUtils.GetBlockHash(block)
+				if err != nil {
+					return nil, err
+				}
+				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
+					return nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+				}
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 					block.GetBlockHash(),
 					lastBlock,
