@@ -41,6 +41,10 @@ type (
 		NodeAddress         string `json:"myAddress,omitempty"`
 		Smithing            bool   `json:"smithing,omitempty"`
 	}
+	accountNodeEntry struct {
+		NodeAddress    string
+		AccountAddress string
+	}
 )
 
 var (
@@ -96,6 +100,7 @@ func Commands() *cobra.Command {
 func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount int) {
 	var (
 		bcState, preRegisteredNodes, preRegisteredAccountAddresses []genesisEntry
+		accountNodes                                               []accountNodeEntry
 		err                                                        error
 	)
 
@@ -166,6 +171,16 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	// append to preRegistered nodes/accounts previous entries from a blockchain db file
 	generateGenesisFile(bcState, "./genesis.go.new")
 	generateClusterConfigFile(bcState, "./cluster_config.json.new")
+	// also generate a file to be shared with node owners, so thei know from the wallet what node to configure as their own node
+
+	for _, entry := range bcState {
+		newEntry := accountNodeEntry{
+			NodeAddress:    entry.NodeAddress,
+			AccountAddress: entry.AccountAddress,
+		}
+		accountNodes = append(accountNodes, newEntry)
+	}
+	generateAccountNodesFile(accountNodes, "./accountNodes.json")
 	fmt.Println("Command executed successfully\ngenesis.go.new has been generated in cmd directory")
 
 }
@@ -379,6 +394,28 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 	err = ioutil.WriteFile(newClusterConfigFilePath, file, 0644)
 	if err != nil {
 		log.Fatalf("create %s file: %s\n", newClusterConfigFilePath, err)
+	}
+}
+
+func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePath string) {
+	var (
+		accountNodes []accountNodeEntry
+	)
+
+	for _, entry := range accountNodeEntris {
+		entry := accountNodeEntry{
+			NodeAddress:    entry.NodeAddress,
+			AccountAddress: entry.AccountAddress,
+		}
+		accountNodes = append(accountNodes, entry)
+	}
+	file, err := json.MarshalIndent(accountNodes, "", "  ")
+	if err != nil {
+		log.Fatalf("error marshaling json file %s: %s\n", configFilePath, err)
+	}
+	err = ioutil.WriteFile(configFilePath, file, 0644)
+	if err != nil {
+		log.Fatalf("create %s file: %s\n", configFilePath, err)
 	}
 }
 
