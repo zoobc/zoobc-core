@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -1503002442577662902
+	MainchainGenesisBlockID int64 = 3374512308226026963
 )
 
 type (
@@ -33,16 +33,16 @@ var (
 			AccountBalance: 0,
 			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
 				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			NodeAddress:        "0.0.0.0",
-			LockedBalance:      10000000000000,
+			NodeAddress:        "li1627-168.members.linode.com:4041",
+			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
 		{
-			AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
 			AccountBalance: 0,
 			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
 				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-			NodeAddress:        "0.0.0.0",
+			NodeAddress:        "li1627-168.members.linode.com:5051",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
@@ -51,16 +51,16 @@ var (
 			AccountBalance: 0,
 			NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211, 123, 72, 52,
 				221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
-			NodeAddress:        "0.0.0.0",
+			NodeAddress:        "li1627-168.members.linode.com:6061",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
 		{
-			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+			AccountAddress: "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
 			AccountBalance: 100000000000,
 			NodePublicKey: []byte{41, 235, 184, 214, 70, 23, 153, 89, 104, 41, 250, 248, 51, 7, 69, 89, 234, 181, 100,
 				163, 45, 69, 152, 70, 52, 201, 147, 70, 6, 242, 52, 220},
-			NodeAddress:        "0.0.0.0",
+			NodeAddress:        "li1627-168.members.linode.com:7071",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
@@ -69,7 +69,7 @@ var (
 			AccountBalance: 100000000000,
 			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
-			NodeAddress:        "0.0.0.0",
+			NodeAddress:        "li1382-87.members.linode.com:4040",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
