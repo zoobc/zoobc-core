@@ -5,11 +5,37 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/constant"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
 	mockParticipationScoreQuery = NewParticipationScoreQuery()
+	mockParticipationScore      = &model.ParticipationScore{
+		NodeID: 1,
+		Score:  100000000,
+		Latest: true,
+		Height: 0,
+	}
 )
+
+func TestParticipationScoreQuery_InsertParticipationScore(t *testing.T) {
+	t.Run("InsertParticipationScore:success", func(t *testing.T) {
+
+		q, args := mockParticipationScoreQuery.InsertParticipationScore(mockParticipationScore)
+		wantQ := "INSERT INTO participation_score (node_id,score,latest,height) VALUES(? , ?, ?, ?)"
+		wantArg := []interface{}{
+			mockParticipationScore.NodeID, mockParticipationScore.Score,
+			mockParticipationScore.Latest, mockParticipationScore.Height,
+		}
+		if q != wantQ {
+			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
+		}
+		if !reflect.DeepEqual(args, wantArg) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
+		}
+	})
+}
 
 func TestParticipationScoreQuery_GetParticipationScoreByNodeID(t *testing.T) {
 	t.Run("GetParticipationScoreByNodeID", func(t *testing.T) {
@@ -50,22 +76,18 @@ func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing
 
 func TestParticipationScoreQuery_AddParticipationScore(t *testing.T) {
 	t.Run("AddParticipationScore:success", func(t *testing.T) {
-		causedFields = map[string]interface{}{
-			"node_id": int64(12),
-			"height":  uint32(1),
+		res := mockParticipationScoreQuery.AddParticipationScore(12, 1*constant.OneZBC, 1)
+		want := [][]interface{}{
+			{
+				"INSERT INTO participation_score (node_id, score, height, latest) SELECT node_id, score + " +
+					"100000000, 1, latest FROM participation_score WHERE node_id = 12 AND latest = 1 ON " +
+					"CONFLICT(node_id, height) DO UPDATE SET (score) = (SELECT score + 100000000 FROM participation_score " +
+					"WHERE node_id = 12 AND latest = 1)",
+			},
+			{
+				"UPDATE participation_score SET latest = false WHERE node_id = 12 AND height != 1 AND latest = true",
+			},
 		}
-		res := mockParticipationScoreQuery.AddParticipationScore(1*constant.OneZBC, causedFields)
-		var want [][]interface{}
-		want = append(want, []interface{}{
-			"INSERT INTO participation_score AS ps (node_id, score, latest, height) " +
-				"VALUES(?, 100000000, 1, ?) ON CONFLICT(ps.node_id, ps.height) DO UPDATE SET (score, height, latest) = " +
-				"(SELECT ps1.score + 100000000, ps1.height, 1 FROM participation_score AS ps1 WHERE ps1.node_id = ? AND ps1.latest = 1)",
-			causedFields["node_id"], causedFields["height"], causedFields["node_id"],
-		}, []interface{}{
-			"UPDATE participation_score SET latest = false WHERE node_id = ? AND height != ? AND latest = true",
-			causedFields["node_id"], causedFields["height"],
-		},
-		)
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}

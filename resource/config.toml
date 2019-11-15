@@ -16,7 +16,7 @@ apiHTTPPort=3031
 monitoringPort=9090
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+ownerAccountAddress = "5Zup5YFOgVUZHRtoz4E9-8Ki2fN0U8DTHCM6WxbvgGg_"
 
 smithing=true
 proofOfOwnershipReqTimeoutSec = 2
