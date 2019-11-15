@@ -232,6 +232,7 @@ func initP2pInstance() {
 		nodePublicKey,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
+		receiptService,
 		p2pHost,
 		loggerP2PService,
 	)
