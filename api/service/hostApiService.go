@@ -52,7 +52,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		})
 	}
 
-	scrambledNodes := hs.NodeRegistrationService.GetScrambledNodes()
+	scrambledNodes := hs.NodeRegistrationService.GetLatestScrambledNodes()
 
 	return &model.HostInfo{
 		Host:                 hs.P2pService.GetHostInfo(),

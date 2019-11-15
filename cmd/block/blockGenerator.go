@@ -118,14 +118,19 @@ func initialize(
 		query.NewNodeReceiptQuery(),
 		nil,
 		query.NewMerkleTreeQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
 		nil,
 		queryExecutor,
+		nodeRegistrationService,
+		crypto.NewSignature(),
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
+		query.NewBlockQuery(chainType),
 		log.New(),
 	)
 	blockService = service.NewBlockService(

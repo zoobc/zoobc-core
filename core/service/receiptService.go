@@ -2,6 +2,13 @@ package service
 
 import (
 	"bytes"
+	"fmt"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -20,14 +27,21 @@ type (
 			lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
 		GenerateReceiptsMerkleRoot() error
+		ValidateReceipt(
+			receipt *model.BatchReceipt,
+		) error
 	}
 
 	ReceiptService struct {
-		NodeReceiptQuery  query.NodeReceiptQueryInterface
-		BatchReceiptQuery query.BatchReceiptQueryInterface
-		MerkleTreeQuery   query.MerkleTreeQueryInterface
-		KVExecutor        kvdb.KVExecutorInterface
-		QueryExecutor     query.ExecutorInterface
+		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		BatchReceiptQuery       query.BatchReceiptQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		Signature               crypto.SignatureInterface
 	}
 )
 
@@ -35,15 +49,23 @@ func NewReceiptService(
 	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	blockQuery query.BlockQueryInterface,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
+	nodeRegistrationService NodeRegistrationServiceInterface,
+	signature crypto.SignatureInterface,
 ) *ReceiptService {
 	return &ReceiptService{
-		NodeReceiptQuery:  nodeReceiptQuery,
-		BatchReceiptQuery: batchReceiptQuery,
-		MerkleTreeQuery:   merkleTreeQuery,
-		KVExecutor:        kvExecutor,
-		QueryExecutor:     queryExecutor,
+		NodeReceiptQuery:        nodeReceiptQuery,
+		BatchReceiptQuery:       batchReceiptQuery,
+		MerkleTreeQuery:         merkleTreeQuery,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
+		BlockQuery:              blockQuery,
+		KVExecutor:              kvExecutor,
+		QueryExecutor:           queryExecutor,
+		NodeRegistrationService: nodeRegistrationService,
+		Signature:               signature,
 	}
 }
 
@@ -68,7 +90,10 @@ func (rs *ReceiptService) SelectReceipts(
 	if lastBlockHeight > constant.ReceiptNumberOfBlockToPick {
 		lowerBlockHeight = lastBlockHeight - constant.ReceiptNumberOfBlockToPick
 	}
-	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(lowerBlockHeight, lastBlockHeight, uint32(numberOfReceipt))
+	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
+		lowerBlockHeight,
+		lastBlockHeight,
+		uint32(numberOfReceipt)*constant.ReceiptBatchPickMultiplier)
 	linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
 	if err != nil {
 		return nil, err
@@ -115,6 +140,11 @@ func (rs *ReceiptService) SelectReceipts(
 			if len(results) >= numberOfReceipt {
 				break
 			}
+			err = rs.ValidateReceipt(rc.BatchReceipt)
+			if err != nil {
+				// skip invalid receipt
+				continue
+			}
 			var intermediateHashes [][]byte
 			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 			rcHash := sha3.Sum256(rcByte)
@@ -136,22 +166,16 @@ func (rs *ReceiptService) SelectReceipts(
 			)
 		}
 	}
-	// prioritize those receipts with rmr_linked != nil
+	// select non-linked receipt
 	if len(results) < numberOfReceipt {
-		rmrLinkedReceipts, err := rs.pickReceipts(numberOfReceipt, results, pickedRecipients, true)
+		rmrLinkedReceipts, err := rs.pickReceipts(
+			numberOfReceipt, results, pickedRecipients, lowerBlockHeight, lastBlockHeight)
 		if err != nil {
 			return nil, err
 		}
 		results = rmrLinkedReceipts
 	}
-	// fill in unlinked receipts if the limit has not been reached
-	if len(results) < numberOfReceipt { // get unlinked receipts randomly, in future additional filter may be added
-		rmrLinkedReceipts, err := rs.pickReceipts(numberOfReceipt, results, pickedRecipients, false)
-		if err != nil {
-			return nil, err
-		}
-		results = rmrLinkedReceipts
-	}
+
 	return results, nil
 }
 
@@ -159,10 +183,11 @@ func (rs *ReceiptService) pickReceipts(
 	numberOfReceipt int,
 	pickedReceipts []*model.PublishedReceipt,
 	pickedRecipients map[string]bool,
-	rmrLinked bool,
+	lowerBlockHeight, upperBlockHeight uint32,
 ) ([]*model.PublishedReceipt, error) {
 	var receipts []*model.Receipt
-	receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(uint32(numberOfReceipt-len(pickedReceipts)), 0, rmrLinked)
+	receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(
+		uint32(numberOfReceipt)*constant.ReceiptBatchPickMultiplier, lowerBlockHeight, upperBlockHeight)
 	rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
 	if err != nil {
 		return nil, err
@@ -173,6 +198,11 @@ func (rs *ReceiptService) pickReceipts(
 		return nil, err
 	}
 	for _, rc := range receipts {
+		errValid := rs.ValidateReceipt(rc.BatchReceipt)
+		if errValid != nil {
+			// skipped invalid receipt
+			continue
+		}
 		if !pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] {
 			pickedReceipts = append(pickedReceipts, &model.PublishedReceipt{
 				BatchReceipt:       rc.BatchReceipt,
@@ -197,6 +227,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		hashedReceipts    []*bytes.Buffer
 		merkleRoot        util.MerkleRoot
 		getBatchReceiptsQ string
+		lastBlock         model.Block
 	)
 
 	getBatchReceiptsQ = rs.BatchReceiptQuery.GetBatchReceipts(model.Pagination{
@@ -255,8 +286,14 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			removeBatchReceiptQ, removeBatchReceiptArgs := rs.BatchReceiptQuery.RemoveBatchReceipt(br.DatumType, br.DatumHash)
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
-
-		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(rootMerkle, treeMerkle, time.Now().Unix())
+		lastBlockQ := rs.BlockQuery.GetLastBlock()
+		lastBlockRow := rs.QueryExecutor.ExecuteSelectRow(lastBlockQ, false)
+		err = rs.BlockQuery.Scan(&lastBlock, lastBlockRow)
+		if err != nil {
+			return err
+		}
+		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
+			rootMerkle, treeMerkle, time.Now().Unix(), lastBlock.Height)
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
 		err = rs.QueryExecutor.BeginTx()
@@ -276,4 +313,94 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		return nil
 	}
 	return nil
+}
+
+func (rs *ReceiptService) ValidateReceipt(
+	receipt *model.BatchReceipt,
+) error {
+	var (
+		blockAtHeight model.Block
+		err           error
+	)
+	unsignedBytes := util.GetUnsignedBatchReceiptBytes(receipt)
+	if !rs.Signature.VerifyNodeSignature(
+		unsignedBytes,
+		receipt.RecipientSignature,
+		receipt.RecipientPublicKey,
+	) {
+		// rollback
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"InvalidReceiptSignature",
+		)
+	}
+	blockAtHeightQ := rs.BlockQuery.GetBlockByHeight(receipt.ReferenceBlockHeight)
+	blockAtHeightRow := rs.QueryExecutor.ExecuteSelectRow(blockAtHeightQ)
+	err = rs.BlockQuery.Scan(&blockAtHeight, blockAtHeightRow)
+	if err != nil {
+		return err
+	}
+	// check block hash
+	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
+	}
+	err = rs.validateReceiptSenderRecipient(receipt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (rs *ReceiptService) validateReceiptSenderRecipient(
+	receipt *model.BatchReceipt,
+) error {
+	var (
+		senderNodeRegistration    model.NodeRegistration
+		recipientNodeRegistration model.NodeRegistration
+		err                       error
+	)
+	// get sender address at height
+	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
+		receipt.SenderPublicKey,
+		receipt.ReferenceBlockHeight,
+	)
+	senderNodeRow := rs.QueryExecutor.ExecuteSelectRow(senderNodeQ, senderNodeArgs...)
+	err = rs.NodeRegistrationQuery.Scan(&senderNodeRegistration, senderNodeRow)
+	if err != nil {
+		return err
+	}
+
+	// get recipient address at height
+	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
+		receipt.RecipientPublicKey,
+		receipt.ReferenceBlockHeight,
+	)
+	recipientNodeRow := rs.QueryExecutor.ExecuteSelectRow(recipientNodeQ, recipientNodeArgs...)
+	err = rs.NodeRegistrationQuery.Scan(&recipientNodeRegistration, recipientNodeRow)
+	if err != nil {
+		return err
+	}
+	recipientFullAddress := fmt.Sprintf(
+		"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
+	// get or build scrambled nodes at height
+	scrambledNodes, err := rs.NodeRegistrationService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
+	if err != nil {
+		return err
+	}
+	// get priority peer of sender from scrambledNodes
+	peers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(
+		fmt.Sprintf("%s:%d", senderNodeRegistration.NodeAddress.Address, senderNodeRegistration.NodeAddress.Port),
+		scrambledNodes,
+	)
+	if err != nil {
+		return err
+	}
+	// check if recipient is in sender.Peers list
+	for _, peer := range peers {
+		if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
+			// valid recipient and sender
+			return nil
+		}
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
 }
