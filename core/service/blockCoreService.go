@@ -1277,7 +1277,7 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 }
 
 func (*BlockService) GetCoinbase() int64 {
-	return 50 * constant.OneZBC
+	return constant.CoinbaseConstant
 }
 
 // todo: move this to blocksmith service
