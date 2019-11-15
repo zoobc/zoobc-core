@@ -188,12 +188,12 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 				},
 				{`
 			UPDATE account_balance SET latest = ?
-			WHERE (block_height || '_' || account_address) IN (
+			WHERE latest = ? AND (block_height || '_' || account_address) IN (
 				SELECT (MAX(block_height) || '_' || account_address) as con
 				FROM account_balance
 				GROUP BY account_address
 			)`,
-					1,
+					1, 0,
 				},
 			},
 		},
