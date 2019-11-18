@@ -5,6 +5,9 @@ import (
 	"sort"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -303,7 +306,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	)
 	receivedTx, err = transaction.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mempoolTx = &model.MempoolTransaction{
 		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
@@ -318,10 +321,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		receivedTxHash[:], senderPublicKey,
 	)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.AppErr,
-			err.Error(),
-		)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
@@ -343,29 +343,23 @@ func (mps *MempoolService) ReceivedTransaction(
 						mps.KVExecutor,
 					)
 					if err != nil {
-						return nil, blocker.NewBlocker(
-							blocker.DBErr,
-							err.Error(),
-						)
+						return nil, status.Error(codes.Internal, err.Error())
 					}
 					return batchReceipt, nil
 				}
-				return nil, blocker.NewBlocker(
-					blocker.DBErr,
-					err.Error(),
-				)
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if err := mps.QueryExecutor.BeginTx(); err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed transaction
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	err = txType.ApplyUnconfirmed()
 	if err != nil {
@@ -373,7 +367,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
 		}
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// Store to Mempool Transaction
@@ -382,12 +376,12 @@ func (mps *MempoolService) ReceivedTransaction(
 		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
 		}
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if err = mps.QueryExecutor.CommitTx(); err != nil {
 		mps.Logger.Warnf("error committing db transaction: %v", err)
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// broadcast transaction
 	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
@@ -403,7 +397,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		mps.KVExecutor,
 	)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return batchReceipt, nil
 }

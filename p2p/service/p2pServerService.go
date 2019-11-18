@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -82,7 +84,7 @@ func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		return ps.PeerExplorer.GetHostInfo(), nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // GetMorePeers contains info other peers
@@ -95,7 +97,7 @@ func (ps *P2PServerService) GetMorePeers(ctx context.Context, req *model.Empty) 
 		}
 		return nodes, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // SendPeers receives set of peers info from other node and put them into the unresolved peers
@@ -107,11 +109,11 @@ func (ps *P2PServerService) SendPeers(
 		// TODO: only accept nodes that are already registered in the node registration
 		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		return &model.Empty{}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // GetCumulativeDifficulty responds to the request of the cumulative difficulty status of a node
@@ -123,14 +125,14 @@ func (ps *P2PServerService) GetCumulativeDifficulty(
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		return &model.GetCumulativeDifficultyResponse{
 			CumulativeDifficulty: lastBlock.CumulativeDifficulty,
 			Height:               lastBlock.Height,
 		}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 func (ps P2PServerService) GetCommonMilestoneBlockIDs(
@@ -212,7 +214,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 
 		return &model.GetCommonMilestoneBlockIdsResponse{BlockIds: blockIds}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 func (ps *P2PServerService) GetNextBlockIDs(
@@ -254,7 +256,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 
 		return blockIds, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 func (ps *P2PServerService) GetNextBlocks(
@@ -270,11 +272,11 @@ func (ps *P2PServerService) GetNextBlocks(
 
 		block, err := blockService.GetBlockByID(blockID)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)))
 		if err != nil {
-			return nil, fmt.Errorf("failed to get the blocks: %v", err)
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		for idx, block := range blocks {
 			if block.ID != blockIDList[idx] {
@@ -283,11 +285,11 @@ func (ps *P2PServerService) GetNextBlocks(
 
 			txs, err := ps.BlockServices[chainType.GetTypeInt()].GetTransactionsByBlockID(block.ID)
 			if err != nil {
-				return nil, err
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			prs, err := ps.BlockServices[chainType.GetTypeInt()].GetPublishedReceiptsByBlockHeight(block.Height)
 			if err != nil {
-				return nil, err
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			block.Transactions = txs
 			block.PublishedReceipts = prs
@@ -295,7 +297,7 @@ func (ps *P2PServerService) GetNextBlocks(
 		}
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // SendBlock receive block from other node
@@ -326,7 +328,7 @@ func (ps *P2PServerService) SendBlock(
 			BatchReceipt: batchReceipt,
 		}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // SendTransaction receive transaction from other node and calling TransactionReceived Event
@@ -358,5 +360,5 @@ func (ps *P2PServerService) SendTransaction(
 			BatchReceipt: batchReceipt,
 		}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.ValidationErr, "Rejected request")
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

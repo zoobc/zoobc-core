@@ -183,7 +183,7 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-	if response.BatchReceipt == nil {
+	if response == nil || response.BatchReceipt == nil {
 		return err
 	}
 	// validate receipt before storing
@@ -218,6 +218,9 @@ func (psc *PeerServiceClient) SendTransaction(
 	})
 	if err != nil {
 		return err
+	}
+	if response == nil || response.BatchReceipt == nil {
+		return nil
 	}
 	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
