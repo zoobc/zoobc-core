@@ -501,7 +501,7 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 	if err != nil {
 		return nil, err
 	}
-
+	defer rows.Close()
 	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
 	if err != nil {
 		return nil, err
