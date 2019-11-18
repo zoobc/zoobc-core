@@ -104,8 +104,11 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 		}
 
 		defer func() {
+			var (
+				err = recover()
+			)
+
 			fields["latency"] = fmt.Sprintf("%d ns", time.Since(start).Nanoseconds())
-			err := recover()
 			if err != nil {
 				// get stack after panic called and perhaps its first error
 				_, file, line, _ := runtime.Caller(4)
@@ -117,8 +120,7 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errInvoker != nil:
-					statusCode, isKnownErr := status.FromError(errInvoker)
-					if !isKnownErr || (ignoredErrors[statusCode.Code()] == "") {
+					if _, ok := ignoredErrors[status.Code(errInvoker)]; ok {
 						logger.WithFields(fields).Error(fmt.Sprint(errInvoker))
 					}
 				default:
