@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -1097,7 +1100,8 @@ func (bs *BlockService) ReceiveBlock(
 					return nil, err
 				}
 				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-					return nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+					// invalid block hash don't send receipt to client
+					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
 				}
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 					block.GetBlockHash(),
@@ -1111,18 +1115,14 @@ func (bs *BlockService) ReceiveBlock(
 					bs.KVExecutor,
 				)
 				if err != nil {
-					return nil, err
+					return nil, status.Error(codes.Internal, err.Error())
 				}
 				return batchReceipt, nil
 			}
-			return nil, blocker.NewBlocker(
-				blocker.DBErr,
-				err.Error(),
-			)
+			return nil, status.Error(codes.Internal, err.Error())
 		}
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			"previous block hash does not match with last block hash",
+		return nil, status.Error(codes.InvalidArgument,
+			"previousBlockHashDoesNotMatchWithLastBlockHash",
 		)
 	}
 	// Securing receive block process
@@ -1131,19 +1131,18 @@ func (bs *BlockService) ReceiveBlock(
 	// making sure get last block after paused process
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
+		return nil, status.Error(codes.Internal,
 			"fail to get last block",
 		)
 	}
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 	err = bs.PushBlock(lastBlock, block, true)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
@@ -1158,7 +1157,7 @@ func (bs *BlockService) ReceiveBlock(
 		bs.KVExecutor,
 	)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return batchReceipt, nil
 }

@@ -51,14 +51,16 @@ type (
 		NodePublicKey     []byte
 		Host              *model.Host
 	}
+	// PeerService represent peer service
+	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 )
-
-// PeerService represent peer service
-type Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 
 // list of client service error that will be ignore to record into log file
 var ignoredErrors = map[codes.Code]string{
-	codes.Unavailable: "Unavailable, indicates the destination service is currently unavailable",
+	codes.Unavailable:     "indicates the destination service is currently unavailable",
+	codes.Unknown:         "indicates the error code is unknown or invalid error codes",
+	codes.InvalidArgument: "indicates the argument request is invalid",
+	codes.Unauthenticated: "indicates the request is unauthenticated",
 }
 
 // ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
@@ -181,7 +183,7 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-	if response.BatchReceipt == nil {
+	if response == nil || response.BatchReceipt == nil {
 		return err
 	}
 	// validate receipt before storing
@@ -216,6 +218,9 @@ func (psc *PeerServiceClient) SendTransaction(
 	})
 	if err != nil {
 		return err
+	}
+	if response == nil || response.BatchReceipt == nil {
+		return nil
 	}
 	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
