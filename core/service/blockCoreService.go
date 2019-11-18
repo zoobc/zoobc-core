@@ -1207,6 +1207,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer skippedBlocksmithsRows.Close()
 	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
 	if err != nil {
 		return nil, err
@@ -1216,6 +1217,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer publishedReceiptRows.Close()
 	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
 	if err != nil {
 		return nil, err
@@ -1233,6 +1235,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer nodeRegistryAtHeightRows.Close()
 	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
 	if err != nil {
 		return nil, err
