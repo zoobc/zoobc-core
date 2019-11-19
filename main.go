@@ -409,6 +409,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
+		nodeRegistrationService,
 	)
 
 	go func() {
