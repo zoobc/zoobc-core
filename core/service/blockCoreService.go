@@ -1129,7 +1129,7 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	// Securing receive block process
-	bs.ChainWriteLock(constant.BlockchainStatus_ReceivingBlock)
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 	defer bs.ChainWriteUnlock()
 	// making sure get last block after paused process
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
