@@ -17,13 +17,14 @@ import (
 )
 
 type BlockPopper struct {
-	BlockService       service.BlockServiceInterface
-	MempoolService     service.MempoolServiceInterface
-	QueryExecutor      query.ExecutorInterface
-	ChainType          chaintype.ChainType
-	ActionTypeSwitcher transaction.TypeActionSwitcher
-	KVDB               kvdb.KVExecutorInterface
-	Logger             *log.Logger
+	BlockService            service.BlockServiceInterface
+	MempoolService          service.MempoolServiceInterface
+	NodeRegistrationService service.NodeRegistrationServiceInterface
+	QueryExecutor           query.ExecutorInterface
+	ChainType               chaintype.ChainType
+	ActionTypeSwitcher      transaction.TypeActionSwitcher
+	KVDB                    kvdb.KVExecutorInterface
+	Logger                  *log.Logger
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
@@ -138,5 +139,8 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 			return nil, err
 		}
 	}
+	// remove peer memoization
+	bp.NodeRegistrationService.ResetScrambledNodes()
+	bp.NodeRegistrationService.ResetMemoizedScrambledNodes()
 	return poppedBlocks, nil
 }
