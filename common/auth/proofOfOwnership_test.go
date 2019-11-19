@@ -16,6 +16,30 @@ type (
 	}
 )
 
+func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockRow.AddRow(
+		block1.GetID(),
+		block1.GetBlockHash(),
+		block1.GetPreviousBlockHash(),
+		block1.GetHeight(),
+		block1.GetTimestamp(),
+		block1.GetBlockSeed(),
+		block1.GetBlockSignature(),
+		block1.GetCumulativeDifficulty(),
+		block1.GetSmithScale(),
+		block1.GetPayloadLength(),
+		block1.GetPayloadHash(),
+		block1.GetBlocksmithPublicKey(),
+		block1.GetTotalAmount(),
+		block1.GetTotalFee(),
+		block1.GetTotalCoinBase(),
+		block1.GetVersion(),
+	)
+	mock.ExpectQuery(qStr).WillReturnRows(mockRow)
+	return db.QueryRow(qStr)
+}
 func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
