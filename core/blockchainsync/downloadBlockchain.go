@@ -203,7 +203,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		return nil, errors.New("the host does not have resolved peers")
 	}
 
-	nextPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
+	initialNextPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
+	nextPeerIdx := initialNextPeerIdx
 	peerUsed := feederPeer
 	blocksSegments := [][]*model.Block{}
 
@@ -221,6 +222,9 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		nextBlocks, err := bd.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
 			start, commonUtil.MinUint32(start+segSize, stop))
 		if err != nil {
+			if nextPeerIdx == initialNextPeerIdx || len(nextBlocks) == 0 {
+				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid blockchain downloaded")
+			}
 			continue
 		}
 		elapsedTime := time.Since(startTime)
