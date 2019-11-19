@@ -19,6 +19,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -61,7 +62,7 @@ type (
 		AddGenesis() error
 		CheckGenesis() bool
 		GetChainType() chaintype.ChainType
-		ChainWriteLock()
+		ChainWriteLock(int)
 		ChainWriteUnlock()
 		GetCoinbase() int64
 		CoinbaseLotteryWinners() ([]string, error)
@@ -201,12 +202,14 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 }
 
 // ChainWriteLock locks the chain
-func (bs *BlockService) ChainWriteLock() {
+func (bs *BlockService) ChainWriteLock(actionType int) {
+	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
 	bs.Lock()
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock() {
+	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
 	bs.Unlock()
 }
 
@@ -514,6 +517,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
 	return nil
 }
 
@@ -1125,7 +1129,7 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	// Securing receive block process
-	bs.ChainWriteLock()
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 	defer bs.ChainWriteUnlock()
 	// making sure get last block after paused process
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
