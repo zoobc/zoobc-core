@@ -74,6 +74,9 @@ run:
 
 issues:
   exclude-rules:
+    - text: "rangeValCopy: each iteration copies"
+      linters:
+        - gocritic
     - text: "cuddle"
       linters:
         - wsl
