@@ -1171,6 +1171,7 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 	if err != nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	participationScores, err = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
 	// if there aren't participation scores for this address/node, return 0
 	if (err != nil) || len(participationScores) == 0 {
@@ -1205,6 +1206,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer skippedBlocksmithsRows.Close()
 	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
 	if err != nil {
 		return nil, err
@@ -1214,6 +1216,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer publishedReceiptRows.Close()
 	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
 	if err != nil {
 		return nil, err
@@ -1231,6 +1234,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer nodeRegistryAtHeightRows.Close()
 	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
 	if err != nil {
 		return nil, err
