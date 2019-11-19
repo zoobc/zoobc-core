@@ -24,6 +24,7 @@ import (
 type (
 	genesisEntry struct {
 		AccountAddress     string
+		AccountSeed        string
 		AccountBalance     int64
 		NodeSeed           string
 		NodePublicKeyB64   string
@@ -39,6 +40,10 @@ type (
 		OwnerAccountAddress string `json:"ownerAccountAddress"`
 		NodeAddress         string `json:"myAddress,omitempty"`
 		Smithing            bool   `json:"smithing,omitempty"`
+	}
+	accountNodeEntry struct {
+		NodeAddress    string
+		AccountAddress string
 	}
 )
 
@@ -94,8 +99,9 @@ func Commands() *cobra.Command {
 //  (account balances and registered nodes/participation scores)
 func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount int) {
 	var (
-		bcState, preRegisteredNodes []genesisEntry
-		err                         error
+		bcState, preRegisteredNodes, preRegisteredAccountAddresses []genesisEntry
+		accountNodes                                               []accountNodeEntry
+		err                                                        error
 	)
 
 	if withDbLastState {
@@ -106,48 +112,75 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	}
 
 	file, err := ioutil.ReadFile("./genesisblock/preRegisteredNodes.json")
-	if err != nil {
-		log.Fatalf("Error reading preRegisteredNodes.json file: %s", err)
-	}
-	err = json.Unmarshal(file, &preRegisteredNodes)
-	if err != nil {
-		log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
+	if err == nil {
+		err = json.Unmarshal(file, &preRegisteredNodes)
+		if err != nil {
+			log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
+		}
+
+		// merge duplicates: if preRegisteredNodes contains entries that are in db too, add the parameters that are't available in db,
+		// which is are NodeSeed and Smithing
+		for _, prNode := range preRegisteredNodes {
+			found := false
+			for i, e := range bcState {
+				if prNode.AccountAddress != e.AccountAddress {
+					continue
+				}
+				bcState[i].NodeSeed = prNode.NodeSeed
+				bcState[i].Smithing = prNode.Smithing
+				pubKey, err := base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
+				if err != nil {
+					log.Fatal(err)
+				}
+				bcState[i].NodePublicKey = pubKey
+				found = true
+				break
+			}
+			if !found {
+				prNode.NodePublicKey, err = base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
+				if err != nil {
+					log.Fatal(err)
+				}
+				bcState = append(bcState, prNode)
+			}
+		}
 	}
 
-	// merge duplicates: if preRegisteredNodes contains entries that are in db too, add the parameters that are't available in db,
-	// which is are NodeSeed and Smithing
-	for _, prNode := range preRegisteredNodes {
-		found := false
-		for i, e := range bcState {
-			if prNode.AccountAddress != e.AccountAddress {
-				continue
-			}
-			bcState[i].NodeSeed = prNode.NodeSeed
-			bcState[i].Smithing = prNode.Smithing
-			pubKey, err := base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bcState[i].NodePublicKey = pubKey
-			found = true
-			break
+	var idx int
+	for idx = 0; idx < extraNodesCount; idx++ {
+		bcState = append(bcState, generateRandomGenesisEntry(idx, ""))
+	}
+
+	// generate extra nodes from a json file containing only account addresses
+	file, err = ioutil.ReadFile("./genesisblock/genesisAccountAddresses.json")
+	if err == nil {
+		// read custom addresses from file
+		err = json.Unmarshal(file, &preRegisteredAccountAddresses)
+		if err != nil {
+			log.Fatalf("preRegisteredAccountAddresses.json parsing error: %s", err)
 		}
-		if !found {
-			prNode.NodePublicKey, err = base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
-			if err != nil {
-				log.Fatal(err)
-			}
-			bcState = append(bcState, prNode)
+		if idx == 0 {
+			idx--
+		}
+		for _, preRegisteredAccountAddress := range preRegisteredAccountAddresses {
+			idx++
+			bcState = append(bcState, generateRandomGenesisEntry(idx, preRegisteredAccountAddress.AccountAddress))
 		}
 	}
 
-	// generate extra nodes to be deployed using cluster_config.json
-	for i := 0; i < extraNodesCount; i++ {
-		bcState = append(bcState, generateRandomGenesisEntry(i))
-	}
 	// append to preRegistered nodes/accounts previous entries from a blockchain db file
 	generateGenesisFile(bcState, "./genesis.go.new")
 	generateClusterConfigFile(bcState, "./cluster_config.json.new")
+	// also generate a file to be shared with node owners, so thei know from the wallet what node to configure as their own node
+
+	for _, entry := range bcState {
+		newEntry := accountNodeEntry{
+			NodeAddress:    entry.NodeAddress,
+			AccountAddress: entry.AccountAddress,
+		}
+		accountNodes = append(accountNodes, newEntry)
+	}
+	generateAccountNodesFile(accountNodes, "./accountNodes.json")
 	fmt.Println("Command executed successfully\ngenesis.go.new has been generated in cmd directory")
 
 }
@@ -157,18 +190,20 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 //       and we are not storing the relaitve seed, needed to sign transactions, these nodes can smith but their owners
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
-func generateRandomGenesisEntry(nodeIdx int) genesisEntry {
-	seed := util.GetSecureRandomSeed()
-	privateKey, _ := util.GetPrivateKeyFromSeed(seed)
-	publicKey := privateKey[32:]
-	address, _ := util.GetAddressFromPublicKey(publicKey)
+func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry {
+	if accountAddress == "" {
+		seed := util.GetSecureRandomSeed()
+		privateKey, _ := util.GetPrivateKeyFromSeed(seed)
+		publicKey := privateKey[32:]
+		accountAddress, _ = util.GetAddressFromPublicKey(publicKey)
+	}
 
 	nodeSeed := util.GetSecureRandomSeed()
 	nodePrivateKey, _ := util.GetPrivateKeyFromSeed(nodeSeed)
 	nodePublicKey := nodePrivateKey[32:]
 
 	return genesisEntry{
-		AccountAddress:     address,
+		AccountAddress:     accountAddress,
 		NodePublicKey:      nodePublicKey,
 		NodePublicKeyB64:   base64.StdEncoding.EncodeToString(nodePublicKey),
 		NodeSeed:           nodeSeed,
@@ -359,6 +394,28 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 	err = ioutil.WriteFile(newClusterConfigFilePath, file, 0644)
 	if err != nil {
 		log.Fatalf("create %s file: %s\n", newClusterConfigFilePath, err)
+	}
+}
+
+func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePath string) {
+	var (
+		accountNodes []accountNodeEntry
+	)
+
+	for _, entry := range accountNodeEntris {
+		entry := accountNodeEntry{
+			NodeAddress:    entry.NodeAddress,
+			AccountAddress: entry.AccountAddress,
+		}
+		accountNodes = append(accountNodes, entry)
+	}
+	file, err := json.MarshalIndent(accountNodes, "", "  ")
+	if err != nil {
+		log.Fatalf("error marshaling json file %s: %s\n", configFilePath, err)
+	}
+	err = ioutil.WriteFile(configFilePath, file, 0644)
+	if err != nil {
+		log.Fatalf("create %s file: %s\n", configFilePath, err)
 	}
 }
 
