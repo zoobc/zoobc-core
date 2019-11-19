@@ -13,4 +13,5 @@ var (
 	AverageSmithingBlockHeight = uint32(10)
 	MaxNumBlocksmithRewards    = int(5)
 	GenerateBlockTimeoutSec    = int64(15)
+	CoinbaseConstant           = int64(100) * OneZBC
 )

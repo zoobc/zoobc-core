@@ -2725,7 +2725,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
 				TotalReceipts:            1,
 				ReceiptValue:             50000000,
-				PopChange:                1000000000,
+				PopChange:                10000000000000000,
 				SkippedBlocksmiths: []*model.SkippedBlocksmith{
 					{
 						BlocksmithPublicKey: (*mockBlocksmiths)[0].NodePublicKey,
@@ -2768,7 +2768,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				BlocksmithAccountAddress: bcsAddress1,
 				TotalReceipts:            int64(len(mockPublishedReceipt)),
 				ReceiptValue:             50000000,
-				PopChange:                1000000000,
+				PopChange:                10000000000000000,
 				SkippedBlocksmiths: []*model.SkippedBlocksmith{
 					{
 						BlocksmithPublicKey: (*mockBlocksmiths)[0].NodePublicKey,

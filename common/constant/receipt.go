@@ -5,7 +5,7 @@ import "time"
 const (
 	ReceiptDatumTypeBlock       = uint32(1)
 	ReceiptDatumTypeTransaction = uint32(2)
-	ReceiptBatchMaximum         = uint32(8) // 256 in production
+	ReceiptBatchMaximum         = uint32(256)
 	ReceiptNodeMaximum          = uint32(8)
 	ReceiptNumberToPick         = 20
 	ReceiptNumberOfBlockToPick  = 1000
