@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -61,24 +62,28 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 }
 
 // GetLastBlock TODO: this should be used by services instead of blockService.GetLastBlock
-func GetLastBlock(queryExecutor query.ExecutorInterface, blockQuery query.BlockQueryInterface) (*model.Block, error) {
-	qry := blockQuery.GetLastBlock()
-	rows, err := queryExecutor.ExecuteSelect(qry, false)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
+func GetLastBlock(
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) (*model.Block, error) {
+
 	var (
-		blocks []*model.Block
+		qry   = blockQuery.GetLastBlock()
+		block model.Block
+		row   *sql.Row
+		err   error
 	)
-	blocks, err = blockQuery.BuildModel(blocks, rows)
+
+	row = queryExecutor.ExecuteSelectRow(qry)
+	err = blockQuery.Scan(&block, row)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
-	}
-	if len(blocks) == 0 {
+		if err != sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
 		return nil, blocker.NewBlocker(blocker.DBErr, "LastBlockNotFound")
 	}
-	return blocks[0], nil
+
+	return &block, nil
 }
 
 // GetBlockByHeight TODO: this should be used by services instead of blockService.GetLastBlock
