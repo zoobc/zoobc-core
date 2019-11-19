@@ -209,7 +209,7 @@ func (bs *BlockService) ChainWriteLock(actionType int) {
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock() {
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatus_Idle)
+	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
 	bs.Unlock()
 }
 

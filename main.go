@@ -308,7 +308,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		err                                         error
 	)
 	mainchain := &chaintype.MainChain{}
-	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatus_Idle)
+	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
 	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
 		mainchain,
