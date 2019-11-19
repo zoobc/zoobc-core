@@ -2,7 +2,6 @@ package util
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -15,7 +14,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 const DefaultConnectionMetadata = "requster"
@@ -62,10 +60,6 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	for _, peerData := range peers {
 		peerInfo := strings.Split(peerData, ":")
 		peerAddress := peerInfo[0]
-		if !util.ValidateIP4(peerAddress) {
-			fmt.Println("invalid ip address " + peerAddress)
-		}
-
 		peerPort, err := strconv.Atoi(peerInfo[1])
 		if err != nil {
 			return nil, errors.New("invalid port number in the passed knownPeers list")

@@ -279,6 +279,13 @@ func (*mockQueryExecutorFail) RollbackTx() error { return nil }
 func (*mockQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:deleteMempoolFail")
 }
+func (*mockQueryExecutorFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mockRows := mock.NewRows([]string{"fake"})
+	mockRows.AddRow("1")
+	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
+	return db.QueryRow(qStr)
+}
 func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:commitFail") }
 
 // mockQueryExecutorSuccess
@@ -309,6 +316,27 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}))
+	default:
+		mockRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+		mockRows.AddRow(
+			mockBlockData.GetID(),
+			mockBlockData.GetBlockHash(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetHeight(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetSmithScale(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
 	}
 	row := db.QueryRow(qStr)
 	return row
@@ -1184,16 +1212,6 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 			fields: fields{
 				Chaintype:     &chaintype.MainChain{},
 				QueryExecutor: &mockQueryExecutorFail{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "GetLastBlock:SelectGotNil",
-			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				QueryExecutor: &mockQueryExecuteNotNil{},
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			want:    nil,

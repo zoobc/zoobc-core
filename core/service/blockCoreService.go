@@ -26,6 +26,8 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -1097,7 +1099,8 @@ func (bs *BlockService) ReceiveBlock(
 					return nil, err
 				}
 				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-					return nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+					// invalid block hash don't send receipt to client
+					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
 				}
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 					block.GetBlockHash(),
@@ -1111,18 +1114,14 @@ func (bs *BlockService) ReceiveBlock(
 					bs.KVExecutor,
 				)
 				if err != nil {
-					return nil, err
+					return nil, status.Error(codes.Internal, err.Error())
 				}
 				return batchReceipt, nil
 			}
-			return nil, blocker.NewBlocker(
-				blocker.DBErr,
-				err.Error(),
-			)
+			return nil, status.Error(codes.Internal, err.Error())
 		}
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			"previous block hash does not match with last block hash",
+		return nil, status.Error(codes.InvalidArgument,
+			"previousBlockHashDoesNotMatchWithLastBlockHash",
 		)
 	}
 	// Securing receive block process
@@ -1131,19 +1130,18 @@ func (bs *BlockService) ReceiveBlock(
 	// making sure get last block after paused process
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
+		return nil, status.Error(codes.Internal,
 			"fail to get last block",
 		)
 	}
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 	err = bs.PushBlock(lastBlock, block, true)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
@@ -1158,7 +1156,7 @@ func (bs *BlockService) ReceiveBlock(
 		bs.KVExecutor,
 	)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return batchReceipt, nil
 }
@@ -1173,6 +1171,7 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 	if err != nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 	participationScores, err = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
 	// if there aren't participation scores for this address/node, return 0
 	if (err != nil) || len(participationScores) == 0 {
@@ -1207,6 +1206,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer skippedBlocksmithsRows.Close()
 	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
 	if err != nil {
 		return nil, err
@@ -1216,6 +1216,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer publishedReceiptRows.Close()
 	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
 	if err != nil {
 		return nil, err
@@ -1233,6 +1234,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+	defer nodeRegistryAtHeightRows.Close()
 	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
 	if err != nil {
 		return nil, err
