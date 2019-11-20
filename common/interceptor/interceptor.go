@@ -23,7 +23,11 @@ NewServerInterceptor function can use to inject middlewares like:
 	- validate `authentication` if needed
 With `recover()` function can handle re-run the app while got panic or error
 */
-func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.UnaryServerInterceptor {
+func NewServerInterceptor(
+	logger *logrus.Logger,
+	ownerAddress string,
+	ignoredErrCodes map[codes.Code]string,
+) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
 		req interface{},
@@ -31,20 +35,24 @@ func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.Unary
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
 		var (
-			errHandler error
-			resp       interface{}
+			authorizedErr, errHandler error
+			resp                      interface{}
+			start                     = time.Now()
+			fields                    logrus.Fields
 		)
-		start := time.Now()
-		fields := logrus.Fields{
+
+		fields = logrus.Fields{
 			"method": info.FullMethod,
 			"time":   start.String(),
 			"source": "serverHandler",
 		}
 
 		defer func() {
+			var (
+				err = recover()
+			)
 
 			fields["latency"] = fmt.Sprintf("%d ns", time.Since(start).Nanoseconds())
-			err := recover()
 			if err != nil {
 				// get stack after panic called and perhaps its first error
 				_, file, line, _ := runtime.Caller(4)
@@ -58,7 +66,9 @@ func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.Unary
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errHandler != nil:
-					logger.WithFields(fields).Error(errHandler)
+					if _, ok := ignoredErrCodes[status.Code(errHandler)]; ok {
+						logger.WithFields(fields).Error(fmt.Sprint(errHandler))
+					}
 				default:
 					logger.WithFields(fields).Info("success")
 				}
@@ -66,9 +76,9 @@ func NewServerInterceptor(logger *logrus.Logger, ownerAddress string) grpc.Unary
 		}()
 
 		// authorize request
-		err := authRequest(ctx, info.FullMethod, ownerAddress)
-		if err != nil {
-			return nil, err
+		authorizedErr = authRequest(ctx, info.FullMethod, ownerAddress)
+		if authorizedErr != nil {
+			return nil, authorizedErr
 		}
 
 		resp, errHandler = handler(ctx, req)
@@ -95,13 +105,13 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 	) error {
 		var (
 			errInvoker error
+			start      = time.Now()
+			fields     = logrus.Fields{
+				"method": method,
+				"time":   start.String(),
+				"source": "clientHandler",
+			}
 		)
-		start := time.Now()
-		fields := logrus.Fields{
-			"method": method,
-			"time":   start.String(),
-			"source": "clientHandler",
-		}
 
 		defer func() {
 			var (
@@ -135,8 +145,7 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 }
 
 /*
-NewStreamInterceptor
-validate request against the destination service and the signature with the node owner
+NewStreamInterceptor validate request against the destination service and the signature with the node owner
 */
 func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
 	return func(
