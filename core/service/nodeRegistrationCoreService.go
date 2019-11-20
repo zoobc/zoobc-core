@@ -28,6 +28,7 @@ type (
 		GetNodeAdmittanceCycle() uint32
 		BuildScrambledNodes(block *model.Block) error
 		ResetMemoizedScrambledNodes()
+		ResetScrambledNodes()
 		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
 		GetLatestScrambledNodes() *model.ScrambledNodes
 		GetScrambleNodesByHeight(
@@ -327,6 +328,12 @@ func (nrs *NodeRegistrationService) ResetMemoizedScrambledNodes() {
 	nrs.MemoizedLatestScrambledNodes = nil
 }
 
+func (nrs *NodeRegistrationService) ResetScrambledNodes() {
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
+	nrs.ScrambledNodes = map[uint32]*model.ScrambledNodes{}
+}
+
 func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNodes {
 	if len(nrs.ScrambledNodes) < 1 {
 		return &model.ScrambledNodes{
@@ -349,6 +356,12 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 	nearestBlockHeight := nrs.GetBlockHeightToBuildScrambleNodes(lastBlock.Height)
 	nrs.ScrambledNodesLock.Lock()
 	defer nrs.ScrambledNodesLock.Unlock()
+	if nrs.ScrambledNodes[nearestBlockHeight] == nil {
+		err = nrs.BuildScrambledNodesAtHeight(nearestBlockHeight)
+		if err != nil {
+			return nil
+		}
+	}
 
 	if nrs.MemoizedLatestScrambledNodes != nil {
 		if nrs.MemoizedLatestScrambledNodes.BlockHeight == nrs.ScrambledNodes[nearestBlockHeight].BlockHeight {

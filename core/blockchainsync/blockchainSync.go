@@ -38,6 +38,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
 	kvdb kvdb.KVExecutorInterface,
+	nodeRegistrationService service.NodeRegistrationServiceInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -59,13 +60,14 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 			MempoolService:     mempoolService,
 			Logger:             logger,
 			BlockPopper: &BlockPopper{
-				ChainType:          blockService.GetChainType(),
-				BlockService:       blockService,
-				MempoolService:     mempoolService,
-				QueryExecutor:      queryExecutor,
-				ActionTypeSwitcher: txActionSwitcher,
-				KVDB:               kvdb,
-				Logger:             logger,
+				ChainType:               blockService.GetChainType(),
+				BlockService:            blockService,
+				MempoolService:          mempoolService,
+				NodeRegistrationService: nodeRegistrationService,
+				QueryExecutor:           queryExecutor,
+				ActionTypeSwitcher:      txActionSwitcher,
+				KVDB:                    kvdb,
+				Logger:                  logger,
 			},
 		},
 		Logger: logger,
@@ -104,7 +106,7 @@ func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
 
 func (bss *Service) getMoreBlocks(runNext chan bool) {
 	// Pausing another process when they are using blockService.ChainWriteLock()
-	bss.BlockService.ChainWriteLock()
+	bss.BlockService.ChainWriteLock(constant.BlockchainStatusSyncingBlock)
 	defer bss.BlockService.ChainWriteUnlock()
 	bss.Logger.Info("Get more blocks...")
 
