@@ -62,7 +62,7 @@ func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*
 	}
 
 	// Get block extended info
-	blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0])
+	blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0], false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "fail to get block extended information")
 	}
@@ -95,7 +95,7 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 	if len(bl) == 0 {
 		return nil, status.Error(codes.NotFound, "block not found")
 	}
-	return bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0])
+	return bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0], true)
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system
@@ -120,7 +120,7 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 
 	blocksExt := make([]*model.BlockExtendedInfo, 0)
 	for _, block := range blocks {
-		blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(block)
+		blExt, err := bs.BlockCoreServices[0].GetBlockExtendedInfo(block, false)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

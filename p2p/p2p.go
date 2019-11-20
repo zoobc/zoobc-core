@@ -32,6 +32,7 @@ type (
 		GetHostInfo() *model.Host
 		GetResolvedPeers() map[string]*model.Peer
 		GetUnresolvedPeers() map[string]*model.Peer
+		GetPriorityPeers() map[string]*model.Peer
 
 		// event listener that relate to p2p communication
 		SendBlockListener() observer.Listener
@@ -105,6 +106,11 @@ func (s *Peer2PeerService) GetResolvedPeers() map[string]*model.Peer {
 // GetUnresolvedPeers exposed current node unresolved peer list.
 func (s *Peer2PeerService) GetUnresolvedPeers() map[string]*model.Peer {
 	return s.PeerExplorer.GetUnresolvedPeers()
+}
+
+// GetPriorityPeers exposed current node priority peer list.
+func (s *Peer2PeerService) GetPriorityPeers() map[string]*model.Peer {
+	return s.PeerExplorer.GetPriorityPeers()
 }
 
 // SendBlockListener setup listener for send block to the list peer

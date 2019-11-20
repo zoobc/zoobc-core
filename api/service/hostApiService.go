@@ -59,6 +59,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		ChainStatuses:        chainStatuses,
 		ScrambledNodes:       scrambledNodes.AddressNodes,
 		ScrambledNodesHeight: scrambledNodes.BlockHeight,
+		PriorityPeers:        hs.P2pService.GetPriorityPeers(),
 	}, nil
 }
 

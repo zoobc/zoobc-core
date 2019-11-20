@@ -75,7 +75,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
-		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
+		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		SortBlocksmiths(block *model.Block)
 		GetSortedBlocksmiths() *[]model.Blocksmith
@@ -1185,7 +1185,7 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 }
 
 // GetParticipationScore handle received block from another node
-func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
 	var (
 		blExt                         = &model.BlockExtendedInfo{}
 		skippedBlocksmiths            []*model.SkippedBlocksmith
@@ -1252,6 +1252,11 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+
+	if includeReceipts {
+		blExt.Block.PublishedReceipts = publishedReceipts
+	}
+
 	return blExt, nil
 }
 
