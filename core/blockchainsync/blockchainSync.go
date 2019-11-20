@@ -2,9 +2,6 @@ package blockchainsync
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -90,21 +87,13 @@ func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
 		bss.Logger.Info("getMoreBlocksThread stopped")
 	}()
 
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
-		select {
-		case download := <-runNext:
-			if download {
-				go bss.getMoreBlocks(runNext)
-			}
-		case <-sigs:
-			return
-		}
+		bss.getMoreBlocks()
+		time.Sleep(constant.GetMoreBlocksDelay * time.Second)
 	}
 }
 
-func (bss *Service) getMoreBlocks(runNext chan bool) {
+func (bss *Service) getMoreBlocks() {
 	// Pausing another process when they are using blockService.ChainWriteLock()
 	bss.BlockService.ChainWriteLock(constant.BlockchainStatusSyncingBlock)
 	defer bss.BlockService.ChainWriteUnlock()
@@ -128,6 +117,7 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 
 	// Blockchain download
 	for {
+		// break
 		needDownloadBlock := true
 		peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
 		if err != nil {
@@ -199,8 +189,4 @@ func (bss *Service) getMoreBlocks(runNext chan bool) {
 
 		lastBlock = newLastBlock
 	}
-
-	// TODO: Handle interruption and other exceptions
-	time.Sleep(constant.GetMoreBlocksDelay * time.Second)
-	runNext <- true
 }
