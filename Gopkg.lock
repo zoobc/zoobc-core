@@ -242,14 +242,6 @@
   version = "v0.8.1"
 
 [[projects]]
-  digest = "1:447ab23604df9681aabfc6e48dbded59cb933b6eb4224e64d9d037318534b1bd"
-  name = "github.com/pkg/profile"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "f6fe06335df110bcf1ed6d4e852b760bfc15beee"
-  version = "v1.3.0"
-
-[[projects]]
   digest = "1:eb04f69c8991e52eff33c428bd729e04208bf03235be88e4df0d88497c6861b9"
   name = "github.com/prometheus/client_golang"
   packages = [
@@ -546,7 +538,6 @@
     "github.com/grpc-ecosystem/grpc-gateway/runtime",
     "github.com/grpc-ecosystem/grpc-gateway/utilities",
     "github.com/mattn/go-sqlite3",
-    "github.com/pkg/profile",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/shirou/gopsutil/cpu",

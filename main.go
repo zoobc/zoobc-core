@@ -13,8 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/profile"
-
 	"github.com/dgraph-io/badger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
@@ -445,8 +443,6 @@ func startScheduler() {
 }
 
 func main() {
-	cpuProfile := profile.Start(profile.CPUProfile, profile.ProfilePath(
-		fmt.Sprintf("%d/", apiRPCPort)), profile.NoShutdownHook)
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		loggerCoreService.Fatal(err)
@@ -466,7 +462,6 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
-	cpuProfile.Stop()
 	loggerCoreService.Info("ZOOBC Shutdown")
 	os.Exit(0)
 }
