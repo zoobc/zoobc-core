@@ -221,7 +221,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		startTime := time.Now()
 		nextBlocks, err := bd.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
 			start, commonUtil.MinUint32(start+segSize, stop))
-		if err != nil {
+		if err != nil || len(nextBlocks) == 0 {
 			if nextPeerIdx == initialNextPeerIdx {
 				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid blockchain downloaded")
 			}
