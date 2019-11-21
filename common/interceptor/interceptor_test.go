@@ -93,6 +93,7 @@ func TestNewServerInterceptor(t *testing.T) {
 	type args struct {
 		logger              *logrus.Logger
 		ownerAccountAddress string
+		ignoredErrCodes     map[codes.Code]string
 	}
 	tests := []struct {
 		name        string
@@ -121,19 +122,34 @@ func TestNewServerInterceptor(t *testing.T) {
 			},
 			wantRecover: false,
 		},
+		{
+			name: "wantNotRecover:IgnoredLog",
+			args: args{
+				logger: logrus.New(),
+				ignoredErrCodes: map[codes.Code]string{
+					codes.InvalidArgument: "invalid args",
+				},
+			},
+			want: func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid args")
+			},
+			wantRecover: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewServerInterceptor(tt.args.logger, tt.args.ownerAccountAddress)
+			got := NewServerInterceptor(tt.args.logger, tt.args.ownerAccountAddress, tt.args.ignoredErrCodes)
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewInterceptor() = %v, want %v", got, tt.want)
 			}
-			testServerInterceptor(got, tt.wantRecover)
+			for k := range tt.args.ignoredErrCodes {
+				testServerInterceptor(got, tt.wantRecover, k)
+			}
 		})
 	}
 }
 
-func testServerInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool) {
+func testServerInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool, errCode codes.Code) {
 	var (
 		handler grpc.UnaryHandler
 	)
@@ -143,7 +159,7 @@ func testServerInterceptor(fn grpc.UnaryServerInterceptor, wantRecover bool) {
 		}
 	} else {
 		handler = func(ctx context.Context, req interface{}) (resp interface{}, err error) {
-			return nil, status.Errorf(codes.Internal, "there's something wrong")
+			return nil, status.Errorf(errCode, "there's something wrong")
 		}
 	}
 	_, _ = fn(context.Background(), nil, &grpc.UnaryServerInfo{}, handler)
@@ -161,10 +177,29 @@ func TestNewClientInterceptor(t *testing.T) {
 		wantRecover bool
 	}{
 		{
-			name: "wantRecover",
+			name: "wantNotRecover",
 			args: args{
 				logger:        logrus.New(),
 				ignoredErrors: nil,
+			},
+			want: func(
+				ctx context.Context,
+				method string,
+				req, reply interface{},
+				cc *grpc.ClientConn,
+				invoker grpc.UnaryInvoker,
+				opts ...grpc.CallOption) error {
+				return status.Errorf(codes.Internal, "there's something wrong")
+			},
+			wantRecover: false,
+		},
+		{
+			name: "wantNotRecover:ignoredLog",
+			args: args{
+				logger: logrus.New(),
+				ignoredErrors: map[codes.Code]string{
+					codes.InvalidArgument: "i want to ignored log for this err code",
+				},
 			},
 			want: func(
 				ctx context.Context,
@@ -200,12 +235,15 @@ func TestNewClientInterceptor(t *testing.T) {
 			if cmp.Equal(got, tt.want) {
 				t.Errorf("NewClientInterceptor() = %v, want %v", got, tt.want)
 			}
-			testClientInterceptor(got, tt.wantRecover)
+
+			for k := range tt.args.ignoredErrors {
+				testClientInterceptor(got, tt.wantRecover, k)
+			}
 		})
 	}
 }
 
-func testClientInterceptor(fn grpc.UnaryClientInterceptor, wantRecover bool) {
+func testClientInterceptor(fn grpc.UnaryClientInterceptor, wantRecover bool, ignoredCode codes.Code) {
 	var (
 		invoker grpc.UnaryInvoker
 	)
@@ -215,7 +253,7 @@ func testClientInterceptor(fn grpc.UnaryClientInterceptor, wantRecover bool) {
 		}
 	} else {
 		invoker = func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
-			return status.Errorf(codes.Internal, "there's something wrong")
+			return status.Errorf(ignoredCode, "there's something wrong")
 		}
 	}
 
