@@ -146,8 +146,10 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		} else if rows.Next() {
-			_ = rows.Scan(
+		}
+		defer rows.Close()
+		if rows.Next() {
+			err = rows.Scan(
 				&accountBalance.AccountAddress,
 				&accountBalance.BlockHeight,
 				&accountBalance.SpendableBalance,
@@ -155,8 +157,10 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 				&accountBalance.PopRevenue,
 				&accountBalance.Latest,
 			)
+			if err != nil {
+				return err
+			}
 		}
-		defer rows.Close()
 
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
 			return blocker.NewBlocker(

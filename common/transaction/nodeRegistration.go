@@ -68,7 +68,8 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		},
 	)
 
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false, tx.Body.NodePublicKey)
 	if err != nil {
 		return err
 	}
@@ -78,27 +79,33 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	if err != nil {
 		return err
 	}
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
-		return errors.New("NodePublicKeyAlreadyInRegistry")
-	}
-
-	// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
-	// check for account address duplication (accounts can register one node at the time)
-	qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
-	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, false, args...)
-	if err != nil {
-		return err
-	}
-	defer nodeRow2.Close()
-	nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
-	if err != nil {
-		return err
-	}
-	// in case a node with same account address has been previosly deleted, set its latest status to false
-	// to avoid having duplicates (multiple node registrations with same account address)
-	if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
-		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations2[0])
+	if len(nodeRegistrations) > 0 {
+		if nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+			// there can't be two nodes registered with the same pub key
+			return errors.New("NodePublicKeyAlreadyInRegistry")
+		}
+		// if there is a previously deleted node registration, set its latest status to false, to avoid duplicates
+		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations[0])
 		queries = append(queries, clearDeletedNodeRegistrationQ...)
+	} else {
+		// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
+		// check for account address duplication (accounts can register one node at the time)
+		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
+		nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, false, args...)
+		if err != nil {
+			return err
+		}
+		defer nodeRow2.Close()
+		nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
+		if err != nil {
+			return err
+		}
+		// in case a node with same account address has been previosly deleted, set its latest status to false
+		// to avoid having duplicates (multiple node registrations with same account address)
+		if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+			clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations2[0])
+			queries = append(queries, clearDeletedNodeRegistrationQ...)
+		}
 	}
 
 	// if a node with this public key has been previously deleted, update its owner to the new registerer
@@ -211,9 +218,11 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 	if err != nil {
-		return err
-	} else if rows.Next() {
-		_ = rows.Scan(
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+	if rows.Next() {
+		err = rows.Scan(
 			&accountBalance.AccountAddress,
 			&accountBalance.BlockHeight,
 			&accountBalance.SpendableBalance,
@@ -221,8 +230,10 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 			&accountBalance.PopRevenue,
 			&accountBalance.Latest,
 		)
+		if err != nil {
+			return err
+		}
 	}
-	defer rows.Close()
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
 		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")

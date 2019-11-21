@@ -67,7 +67,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetNodeRegistrationByNodePublicKey()
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1"
+			"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -78,7 +78,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByAccountAddress(t *testing.T)
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1"
+			"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -400,7 +400,7 @@ func TestNodeRegistrationQuery_ClearDeletedNodeRegistration(t *testing.T) {
 			NodeID: 1,
 		}
 		res := mockNodeRegistrationQuery.ClearDeletedNodeRegistration(nr)
-		want := "UPDATE node_registry SET latest = 0 WHERE ID = ?"
+		want := "UPDATE node_registry SET latest = 0 WHERE ID = ? AND registration_status = 2"
 		qry := res[0][0]
 		args := res[0][1]
 		if qry != want {
