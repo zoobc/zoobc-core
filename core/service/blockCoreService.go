@@ -203,9 +203,9 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
 	monitoring.IncrementStatusLockCounter(actionType)
 	bs.Lock()
+	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
 }
 
 // ChainWriteUnlock unlocks the chain
