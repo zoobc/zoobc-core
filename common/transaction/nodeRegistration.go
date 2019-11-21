@@ -79,7 +79,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	if err != nil {
 		return err
 	}
-	prevDeletedNodeAlredyCleared := false
 	if len(nodeRegistrations) > 0 {
 		if nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
 			// there can't be two nodes registered with the same pub key
@@ -88,10 +87,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		// if there is a previously deleted node registration, set its latest status to false, to avoid duplicates
 		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations[0])
 		queries = append(queries, clearDeletedNodeRegistrationQ...)
-		prevDeletedNodeAlredyCleared = true
-	}
-
-	if !prevDeletedNodeAlredyCleared {
+	} else {
 		// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
 		// check for account address duplication (accounts can register one node at the time)
 		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
