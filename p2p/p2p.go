@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 type (
@@ -45,7 +46,7 @@ type (
 	}
 )
 
-// InitService to initialize peer to peer service wrapper
+// NewP2PService to initialize peer to peer service wrapper
 func NewP2PService(
 	host *model.Host,
 	peerServiceClient client.PeerServiceClientInterface,
@@ -80,7 +81,16 @@ func (s *Peer2PeerService) StartP2P(
 	go func() { // register handlers and listening to incoming p2p request
 		ownerAddress := util.GetAddressFromSeed(nodeSecretPhrase)
 		grpcServer := grpc.NewServer(
-			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(s.Logger, ownerAddress)),
+			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
+				s.Logger,
+				ownerAddress,
+				map[codes.Code]string{
+					codes.Unavailable:     "indicates the destination service is currently unavailable",
+					codes.Unknown:         "indicates the error code is unknown or invalid error codes",
+					codes.InvalidArgument: "indicates the argument request is invalid",
+					codes.Unauthenticated: "indicates the request is unauthenticated",
+				},
+			)),
 		)
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,

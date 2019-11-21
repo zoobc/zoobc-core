@@ -14,6 +14,7 @@ import (
 type (
 	NodeRegistrationQueryInterface interface {
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
+		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
@@ -81,6 +82,21 @@ func (nrq *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model
 	return queries
 }
 
+// ClearDeletedNodeRegistration used when registering a new node from and account that has previously deleted another one
+// to avoid having multiple node registrations with same account id and latest = true
+func (nrq *NodeRegistrationQuery) ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{} {
+	var (
+		queries [][]interface{}
+	)
+	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ? AND registration_status = 2", nrq.getTableName())
+
+	queries = append(queries,
+		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
+	)
+
+	return queries
+}
+
 // GetNodeRegistrations returns query string to get multiple node registrations
 func (nrq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND latest=1 LIMIT %d",
@@ -103,7 +119,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string,
 
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1 ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName())
 }
 
@@ -117,7 +133,7 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{accountAddress}
 }
 
