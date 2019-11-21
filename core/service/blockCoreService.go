@@ -63,7 +63,7 @@ type (
 		CheckGenesis() bool
 		GetChainType() chaintype.ChainType
 		ChainWriteLock(int)
-		ChainWriteUnlock()
+		ChainWriteUnlock(actionType int)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners() ([]string, error)
 		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
@@ -204,12 +204,14 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock(actionType int) {
 	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
+	monitoring.IncrementStatusLockCounter(actionType)
 	bs.Lock()
 }
 
 // ChainWriteUnlock unlocks the chain
-func (bs *BlockService) ChainWriteUnlock() {
+func (bs *BlockService) ChainWriteUnlock(actionType int) {
 	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.DecrementStatusLockCounter(actionType)
 	bs.Unlock()
 }
 
@@ -1130,7 +1132,7 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	// Securing receive block process
 	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock()
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 	// making sure get last block after paused process
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {

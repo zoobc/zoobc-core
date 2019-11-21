@@ -96,7 +96,7 @@ func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
 func (bss *Service) getMoreBlocks() {
 	// Pausing another process when they are using blockService.ChainWriteLock()
 	bss.BlockService.ChainWriteLock(constant.BlockchainStatusSyncingBlock)
-	defer bss.BlockService.ChainWriteUnlock()
+	defer bss.BlockService.ChainWriteUnlock(constant.BlockchainStatusSyncingBlock)
 	bss.Logger.Info("Get more blocks...")
 
 	var (
