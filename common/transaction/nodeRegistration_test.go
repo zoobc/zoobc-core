@@ -755,40 +755,40 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		// {
-		// 	name:    "ApplyConfirmed:fail-{executeTransactionsFail}",
-		// 	wantErr: true,
-		// 	fields: fields{
-		// 		Height:                  0,
-		// 		SenderAddress:           senderAddress1,
-		// 		QueryExecutor:           &mockApplyConfirmedExecuteTransactionsFail{},
-		// 		NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-		// 		BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-		// 		Fee:                     1,
-		// 		Body: &model.NodeRegistrationTransactionBody{
-		// 			LockedBalance: 10000,
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name:    "ApplyConfirmed:success",
-		// 	wantErr: false,
-		// 	fields: fields{
-		// 		Height:                  0,
-		// 		SenderAddress:           senderAddress1,
-		// 		QueryExecutor:           &mockApplyConfirmedSuccess{},
-		// 		NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-		// 		BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-		// 		Fee:                     1,
-		// 		Body: &model.NodeRegistrationTransactionBody{
-		// 			LockedBalance: 10000,
-		// 		},
-		// 	},
-		// },
+		{
+			name:    "ApplyConfirmed:fail-{executeTransactionsFail}",
+			wantErr: true,
+			fields: fields{
+				Height:                  0,
+				SenderAddress:           senderAddress1,
+				QueryExecutor:           &mockApplyConfirmedExecuteTransactionsFail{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Fee:                     1,
+				Body: &model.NodeRegistrationTransactionBody{
+					LockedBalance: 10000,
+				},
+			},
+		},
+		{
+			name:    "ApplyConfirmed:success",
+			wantErr: false,
+			fields: fields{
+				Height:                  0,
+				SenderAddress:           senderAddress1,
+				QueryExecutor:           &mockApplyConfirmedSuccess{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Fee:                     1,
+				Body: &model.NodeRegistrationTransactionBody{
+					LockedBalance: 10000,
+				},
+			},
+		},
 		{
 			name:    "ApplyConfirmed:success-{withExDeletedNode}",
 			wantErr: false,
@@ -806,23 +806,23 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name:    "ApplyConfirmed:fail-{NodeAreadyInRegistry}",
-		// 	wantErr: true,
-		// 	fields: fields{
-		// 		Height:                  0,
-		// 		SenderAddress:           senderAddress1,
-		// 		QueryExecutor:           &mockApplyConfirmedFailNodeAlreadyInRegistry{},
-		// 		NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-		// 		AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-		// 		BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-		// 		Fee:                     1,
-		// 		Body: &model.NodeRegistrationTransactionBody{
-		// 			LockedBalance: 10000,
-		// 		},
-		// 	},
-		// },
+		{
+			name:    "ApplyConfirmed:fail-{NodeAreadyInRegistry}",
+			wantErr: true,
+			fields: fields{
+				Height:                  0,
+				SenderAddress:           senderAddress1,
+				QueryExecutor:           &mockApplyConfirmedFailNodeAlreadyInRegistry{},
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Fee:                     1,
+				Body: &model.NodeRegistrationTransactionBody{
+					LockedBalance: 10000,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

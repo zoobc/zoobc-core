@@ -88,7 +88,7 @@ func (nrq *NodeRegistrationQuery) ClearDeletedNodeRegistration(nodeRegistration 
 	var (
 		queries [][]interface{}
 	)
-	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nrq.getTableName())
+	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ? ORDER BY height DESC", nrq.getTableName())
 
 	queries = append(queries,
 		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
