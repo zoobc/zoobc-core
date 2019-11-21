@@ -66,7 +66,7 @@ func NewServerInterceptor(
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errHandler != nil:
-					if _, ok := ignoredErrCodes[status.Code(errHandler)]; ok {
+					if _, ok := ignoredErrCodes[status.Code(errHandler)]; !ok {
 						logger.WithFields(fields).Error(fmt.Sprint(errHandler))
 					}
 				default:
@@ -130,7 +130,7 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 				case err != nil:
 					logger.WithFields(fields).Error(fmt.Sprint(err))
 				case errInvoker != nil:
-					if _, ok := ignoredErrors[status.Code(errInvoker)]; ok {
+					if _, ok := ignoredErrors[status.Code(errInvoker)]; !ok {
 						logger.WithFields(fields).Error(fmt.Sprint(errInvoker))
 					}
 				default:
