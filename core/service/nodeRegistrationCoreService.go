@@ -354,8 +354,6 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 		}
 	}
 	nearestBlockHeight := nrs.GetBlockHeightToBuildScrambleNodes(lastBlock.Height)
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
 	if nrs.ScrambledNodes[nearestBlockHeight] == nil {
 		err = nrs.BuildScrambledNodesAtHeight(nearestBlockHeight)
 		if err != nil {
@@ -363,6 +361,8 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 		}
 	}
 
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
 	if nrs.MemoizedLatestScrambledNodes != nil {
 		if nrs.MemoizedLatestScrambledNodes.BlockHeight == nrs.ScrambledNodes[nearestBlockHeight].BlockHeight {
 			return nrs.MemoizedLatestScrambledNodes
@@ -400,6 +400,8 @@ func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(
 			return nil, err
 		}
 	}
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
 	scrambledNodes := nrs.ScrambledNodes[nearestHeight]
 	newAddressNodes = append(newAddressNodes, scrambledNodes.AddressNodes...)
 	// in the window, deep copy the nodes
