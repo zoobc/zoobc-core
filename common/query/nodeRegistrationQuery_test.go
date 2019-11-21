@@ -400,7 +400,7 @@ func TestNodeRegistrationQuery_ClearDeletedNodeRegistration(t *testing.T) {
 			NodeID: 1,
 		}
 		res := mockNodeRegistrationQuery.ClearDeletedNodeRegistration(nr)
-		want := "UPDATE node_registry SET latest = 0 WHERE ID = ? ORDER BY height DESC"
+		want := "UPDATE node_registry SET latest = 0 WHERE ID = ?"
 		qry := res[0][0]
 		args := res[0][1]
 		if qry != want {

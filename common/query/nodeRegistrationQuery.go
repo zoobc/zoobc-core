@@ -88,7 +88,7 @@ func (nrq *NodeRegistrationQuery) ClearDeletedNodeRegistration(nodeRegistration 
 	var (
 		queries [][]interface{}
 	)
-	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ? ORDER BY height DESC", nrq.getTableName())
+	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nrq.getTableName())
 
 	queries = append(queries,
 		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
@@ -133,7 +133,7 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{accountAddress}
 }
 
