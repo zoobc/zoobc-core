@@ -74,7 +74,6 @@ func DecrementStatusLockCounter(typeStatusLock int) {
 			Help: fmt.Sprintf("Status lock %d counter", typeStatusLock),
 		})
 		prometheus.MustRegister(statusLockCounter[typeStatusLock])
-		// statusLockCounter[typeStatusLock].Set(float64(-1))
 	} else {
 		statusLockCounter[typeStatusLock].Dec()
 	}
