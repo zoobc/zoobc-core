@@ -151,7 +151,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	// Securing smithing process
 	// will pause another process that used block service lock until this process done
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
-	defer bp.BlockService.ChainWriteUnlock()
+	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
 	var blocksmithIndex = -1
 	lastBlock, err := bp.BlockService.GetLastBlock()

@@ -306,7 +306,7 @@ func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 	}
 }
 
-func startMainchain(mainchainSyncChannel chan bool) {
+func startMainchain() {
 	var (
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
 		err                                         error
@@ -417,7 +417,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	)
 
 	go func() {
-		mainchainSynchronizer.Start(mainchainSyncChannel)
+		mainchainSynchronizer.Start()
 
 	}()
 }
@@ -454,7 +454,7 @@ func main() {
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	startMainchain(mainchainSyncChannel)
+	startMainchain()
 	startServices()
 	initObserverListeners()
 	startScheduler()

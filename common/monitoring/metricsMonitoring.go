@@ -17,6 +17,7 @@ type lastblockMetrics struct {
 var (
 	isMonitoringActive bool
 	blockerCounter     = make(map[string]prometheus.Counter)
+	statusLockCounter  = make(map[int]prometheus.Gauge)
 	blockchainStatus   = make(map[int32]prometheus.Gauge)
 	blockchainHeight   = make(map[int32]*lastblockMetrics)
 )
@@ -38,6 +39,44 @@ func IncrementBlockerMetrics(typeBlocker string) {
 		prometheus.MustRegister(blockerCounter[typeBlocker])
 	}
 	blockerCounter[typeBlocker].Inc()
+}
+
+func IncrementStatusLockCounter(typeStatusLock int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	if statusLockCounter[typeStatusLock] == nil {
+		statusLockCounter[typeStatusLock] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_status_lock_%d", typeStatusLock),
+			Help: fmt.Sprintf("Status lock %d counter", typeStatusLock),
+		})
+		prometheus.MustRegister(statusLockCounter[typeStatusLock])
+		statusLockCounter[typeStatusLock].Set(float64(1))
+	} else {
+		statusLockCounter[typeStatusLock].Inc()
+	}
+
+}
+
+func DecrementStatusLockCounter(typeStatusLock int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	if !isMonitoringActive {
+		return
+	}
+
+	if statusLockCounter[typeStatusLock] == nil {
+		statusLockCounter[typeStatusLock] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_status_lock_%d", typeStatusLock),
+			Help: fmt.Sprintf("Status lock %d counter", typeStatusLock),
+		})
+		prometheus.MustRegister(statusLockCounter[typeStatusLock])
+	} else {
+		statusLockCounter[typeStatusLock].Dec()
+	}
 }
 
 func SetBlockchainStatus(chainType int32, newStatus int) {
