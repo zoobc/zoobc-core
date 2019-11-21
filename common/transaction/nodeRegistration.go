@@ -46,10 +46,10 @@ func (tx *NodeRegistration) SkipMempoolTransaction(selectedTransactions []*model
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
-		queries            [][]interface{}
-		registrationStatus uint32
-		nodeRegistrations  []*model.NodeRegistration
-		nodeAccountAddress string
+		queries                               [][]interface{}
+		registrationStatus                    uint32
+		nodeRegistrations, nodeRegistrations2 []*model.NodeRegistration
+		nodeAccountAddress                    string
 	)
 	if tx.Height > 0 {
 		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)
@@ -78,6 +78,29 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	if err != nil {
 		return err
 	}
+	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+		return errors.New("NodePublicKeyAlreadyInRegistry")
+	}
+
+	// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
+	// check for account address duplication (accounts can register one node at the time)
+	qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
+	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, false, args...)
+	if err != nil {
+		return err
+	}
+	defer nodeRow2.Close()
+	nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
+	if err != nil {
+		return err
+	}
+	// in case a node with same account address has been previosly deleted, set its latest status to false
+	// to avoid having duplicates (multiple node registrations with same account address)
+	if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations2[0])
+		queries = append(queries, clearDeletedNodeRegistrationQ...)
+	}
+
 	// if a node with this public key has been previously deleted, update its owner to the new registerer
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             tx.ID,
@@ -90,11 +113,9 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		RegistrationStatus: registrationStatus,
 		AccountAddress:     nodeAccountAddress,
 	}
-	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
-		return errors.New("NodeAlreadyInRegistry")
-	}
-	queries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries = append(queries, accountBalanceSenderQ...)
+
+	updateNodeRegistrationQ := tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
+	queries = append(queries, updateNodeRegistrationQ...)
 
 	// insert default participation score for nodes that are registered at genesis height
 	if tx.Height == 0 {
@@ -108,6 +129,8 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
 		queries = append(queries, newQ)
 	}
+
+	queries = append(queries, accountBalanceSenderQ...)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func startGrpcServer(
@@ -37,7 +38,16 @@ func startGrpcServer(
 	chainType := chaintype.GetChainType(0)
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(logger, ownerAccountAddress)),
+		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
+			logger,
+			ownerAccountAddress,
+			map[codes.Code]string{
+				codes.Unavailable:     "indicates the destination service is currently unavailable",
+				codes.Unknown:         "indicates the error code is unknown or invalid error codes",
+				codes.InvalidArgument: "indicates the argument request is invalid",
+				codes.Unauthenticated: "indicates the request is unauthenticated",
+			},
+		)),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{

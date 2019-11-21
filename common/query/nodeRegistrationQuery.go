@@ -14,6 +14,7 @@ import (
 type (
 	NodeRegistrationQueryInterface interface {
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
+		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetActiveNodeRegistrations() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
@@ -76,6 +77,21 @@ func (nrq *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model
 	queries = append(queries,
 		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
 		append([]interface{}{qryInsert}, nrq.ExtractModel(nodeRegistration)...),
+	)
+
+	return queries
+}
+
+// ClearDeletedNodeRegistration used when registering a new node from and account that has previously deleted another one
+// to avoid having multiple node registrations with same account id and latest = true
+func (nrq *NodeRegistrationQuery) ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{} {
+	var (
+		queries [][]interface{}
+	)
+	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nrq.getTableName())
+
+	queries = append(queries,
+		append([]interface{}{qryUpdate}, nodeRegistration.NodeID),
 	)
 
 	return queries

@@ -393,3 +393,21 @@ func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
 		}
 	})
 }
+
+func TestNodeRegistrationQuery_ClearDeletedNodeRegistration(t *testing.T) {
+	t.Run("ClearDeletedNodeRegistration", func(t *testing.T) {
+		nr := &model.NodeRegistration{
+			NodeID: 1,
+		}
+		res := mockNodeRegistrationQuery.ClearDeletedNodeRegistration(nr)
+		want := "UPDATE node_registry SET latest = 0 WHERE ID = ?"
+		qry := res[0][0]
+		args := res[0][1]
+		if qry != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+		if args.(int64) != 1 {
+			t.Errorf("args don't match:\nget: %d\nwant: %d", args, 1)
+		}
+	})
+}
