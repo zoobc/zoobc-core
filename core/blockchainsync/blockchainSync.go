@@ -71,17 +71,17 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 	}
 }
 
-func (bss *Service) Start(runNext chan bool) {
+func (bss *Service) Start() {
 	if bss.ChainType == nil {
 		bss.Logger.Fatal("no chaintype")
 	}
 	if bss.PeerServiceClient == nil || bss.PeerExplorer == nil {
 		bss.Logger.Fatal("no p2p service defined")
 	}
-	bss.GetMoreBlocksThread(runNext)
+	bss.GetMoreBlocksThread()
 }
 
-func (bss *Service) GetMoreBlocksThread(runNext chan bool) {
+func (bss *Service) GetMoreBlocksThread() {
 
 	defer func() {
 		bss.Logger.Info("getMoreBlocksThread stopped")
