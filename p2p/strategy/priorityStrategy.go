@@ -303,13 +303,13 @@ func (ps *PriorityStrategy) ResolvePeers() {
 	// resolving other peers that are not priority if resolvedPeers is not full yet
 	for _, peer := range ps.GetUnresolvedPeers() {
 		// add one space in resolved peers
-		// will use to cycle unpriority resolved peer
+		// will use to cycle non priority resolved peer
 		if i >= maxAddedPeers+1 {
 			break
 		}
 
 		if priorityUnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil {
-			// unpriority & unresolved peer when faild connet will remove permanently
+			// unresolved peer that non priority when failed connet will remove permanently
 			go ps.resolvePeer(peer, false)
 			i++
 		}
