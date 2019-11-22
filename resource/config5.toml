@@ -1,19 +1,19 @@
 dbPath = "./resource/"
-dbName = "zoobc.db"
+dbName = "zoobc_5.db"
 badgerDbPath="./resource"
 badgerDbName="zoobc_5_kv/"
 configPath = "./resource/"
 nodeKeyFile = "node_keys_5.json"
 
 # Peer
-peerPort=8001
+peerPort=8005
 myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8002"]
 
-apiRPCPort=7000
+apiRPCPort=3005
 # comment out or set to 0 to disable http proxy, only enable in dev mode
-apiHTTPPort=3031
-monitoringPort=9090
+apiHTTPPort=3035
+monitoringPort=9095
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"
