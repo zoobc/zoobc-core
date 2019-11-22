@@ -21,4 +21,6 @@ const (
 	PriorityStrategyBuildScrambleNodesGap uint32 = 10
 	// PriorityStrategyMaxPriorityPeers, max priority peers will have
 	PriorityStrategyMaxPriorityPeers = 5
+	// DefaultP2PPort
+	DefaultP2PPort = 8001
 )

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -297,6 +299,10 @@ func (*NodeRegistrationQuery) BuildNodeAddress(fullNodeAddress string) *model.No
 	}
 
 	uintPort, _ := strconv.ParseUint(port, 0, 32)
+	// todo: refactor this to have single function handle all node address transformation
+	if uintPort == 0 {
+		uintPort = constant.DefaultP2PPort
+	}
 	return &model.NodeAddress{
 		Address: host,
 		Port:    uint32(uintPort),
@@ -314,7 +320,8 @@ func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress)
 		return fmt.Sprintf("%s:%d", nodeAddress.GetAddress(), nodeAddress.GetPort())
 	}
 
-	return nodeAddress.GetAddress()
+	// todo: refactor this to have single function handle all node address transformation
+	return fmt.Sprintf("%s:%d", nodeAddress.GetAddress(), constant.DefaultP2PPort)
 }
 
 // Scan represents `sql.Scan`
