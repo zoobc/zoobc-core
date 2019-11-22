@@ -278,9 +278,9 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *tes
 func TestNodeRegistrationQuery_GetNodeRegistrationsWithZeroScore(t *testing.T) {
 	t.Run("GetNodeRegistrationsWithZeroScore", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
-		want := "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, " +
-			"A.locked_balance, A.registration_status, A.latest, A.height FROM node_registry as A " +
-			"INNER JOIN participation_score as B ON A.id = B.node_id WHERE B.score = 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1"
+		want := "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, A.locked_balance, " +
+			"A.registration_status, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
+			"WHERE B.score <= 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
