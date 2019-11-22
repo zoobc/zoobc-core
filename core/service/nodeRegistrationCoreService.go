@@ -163,6 +163,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
 		nodeRegistration.LockedBalance = 0
+		nodeRegistration.Height = height
 		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		// return lockedbalance to the node's owner account
 		updateAccountBalanceQ := nrs.AccountBalanceQuery.AddAccountBalance(
