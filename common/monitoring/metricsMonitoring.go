@@ -15,15 +15,54 @@ type lastblockMetrics struct {
 }
 
 var (
-	isMonitoringActive bool
-	blockerCounter     = make(map[string]prometheus.Counter)
-	statusLockCounter  = make(map[int]prometheus.Gauge)
-	blockchainStatus   = make(map[int32]prometheus.Gauge)
-	blockchainHeight   = make(map[int32]*lastblockMetrics)
+	isMonitoringActive     bool
+	receiptCounter         prometheus.Counter
+	unresolvedPeersCounter prometheus.Gauge
+	resolvedPeersCounter   prometheus.Gauge
+	blockerCounter         = make(map[string]prometheus.Counter)
+	statusLockCounter      = make(map[int]prometheus.Gauge)
+	blockchainStatus       = make(map[int32]prometheus.Gauge)
+	blockchainHeight       = make(map[int32]*lastblockMetrics)
 )
 
 func SetMonitoringActive(isActive bool) {
 	isMonitoringActive = isActive
+}
+
+func IncrementReceiptCounter() {
+	if receiptCounter == nil {
+		receiptCounter = prometheus.NewCounter(prometheus.CounterOpts{
+			Name: fmt.Sprintf("zoobc_receipts"),
+			Help: fmt.Sprintf("receipts counter"),
+		})
+		prometheus.MustRegister(receiptCounter)
+	}
+
+	receiptCounter.Inc()
+}
+
+func SetUnresolvedPeersCount(count int) {
+	if unresolvedPeersCounter == nil {
+		unresolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_unresolved_peers"),
+			Help: fmt.Sprintf("unresolvedPeers counter"),
+		})
+		prometheus.MustRegister(unresolvedPeersCounter)
+	}
+
+	unresolvedPeersCounter.Set(float64(count))
+}
+
+func SetResolvedPeersCount(count int) {
+	if resolvedPeersCounter == nil {
+		resolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_resolved_peers"),
+			Help: fmt.Sprintf("resolvedPeers counter"),
+		})
+		prometheus.MustRegister(resolvedPeersCounter)
+	}
+
+	resolvedPeersCounter.Set(float64(count))
 }
 
 func IncrementBlockerMetrics(typeBlocker string) {
