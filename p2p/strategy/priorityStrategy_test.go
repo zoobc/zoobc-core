@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -655,6 +656,8 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 					Address:       "127.0.0.1",
 					Port:          3001,
 				},
+				BlacklistingCause: "error",
+				BlacklistingTime:  uint64(time.Now().Unix()),
 			},
 			wantErr: false,
 		},
