@@ -86,25 +86,28 @@ func TestGetSmithTime(t *testing.T) {
 			args: args{
 				balance: big.NewInt(0),
 				seed:    big.NewInt(0),
+				block: &model.Block{
+					SmithScale: 1,
+					Timestamp:  0,
+				},
 			},
 			want: 0,
 		},
 		{
 			name: "GetSmithTime:!0",
 			args: args{
-				balance: big.NewInt(10000),
-				seed:    big.NewInt(120000000),
+				seed: big.NewInt(120000000),
 				block: &model.Block{
 					SmithScale: 100,
 					Timestamp:  120000,
 				},
 			},
-			want: 120120,
+			want: 1320000,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetSmithTime(tt.args.balance, tt.args.seed, tt.args.block); got != tt.want {
+			if got := GetSmithTime(tt.args.seed, tt.args.block); got != tt.want {
 				t.Errorf("GetSmithTime() = %v, want %v", got, tt.want)
 			}
 		})
