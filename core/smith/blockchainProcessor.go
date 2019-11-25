@@ -59,10 +59,10 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	// the default ps is 100000, smithing could be slower than when using account balances
 	// since default balance was 1000 times higher than default ps
 	ps, err := bp.BlockService.GetParticipationScore(generator.NodePublicKey)
-	if ps == 0 {
-		bp.Logger.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
+	if ps <= 0 {
+		bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
 	}
-	if err != nil {
+	if err != nil || ps <= 0 {
 		bp.Logger.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
