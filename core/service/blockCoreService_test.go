@@ -881,7 +881,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 				},
 				timestamp: 2,
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name: "VerifySeed:true-{elapsedTime>300 && seed < target ",
