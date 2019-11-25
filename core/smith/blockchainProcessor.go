@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
@@ -182,6 +183,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		// }
 		// caching: only calculate smith time once per new block
 		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
+		monitoring.SetBlockchainSmithTime(bp.Chaintype.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
 	}
 	if !bp.canSmith {
 		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")

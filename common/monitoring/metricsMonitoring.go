@@ -23,6 +23,7 @@ var (
 	blockerCounter             = make(map[string]prometheus.Counter)
 	statusLockCounter          = make(map[int]prometheus.Gauge)
 	blockchainStatus           = make(map[int32]prometheus.Gauge)
+	blockchainSmithTime        = make(map[int32]prometheus.Gauge)
 	blockchainHeight           = make(map[int32]*lastblockMetrics)
 )
 
@@ -143,6 +144,20 @@ func SetBlockchainStatus(chainType int32, newStatus int) {
 		prometheus.MustRegister(blockchainStatus[chainType])
 	}
 	blockchainStatus[chainType].Set(float64(newStatus))
+}
+
+func SetBlockchainSmithTime(chainType int32, newTime int64) {
+	if !isMonitoringActive {
+		return
+	}
+	if blockchainSmithTime[chainType] == nil {
+		blockchainSmithTime[chainType] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_blockchain_%d_smith_time", chainType),
+			Help: fmt.Sprintf("Smith time of each nodes to smith for blockchain %d", chainType),
+		})
+		prometheus.MustRegister(blockchainSmithTime[chainType])
+	}
+	blockchainSmithTime[chainType].Set(float64(newTime))
 }
 
 func SetLastBlock(chainType int32, block *model.Block) {
