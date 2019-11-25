@@ -102,7 +102,7 @@ func TestGetSmithTime(t *testing.T) {
 					Timestamp:  120000,
 				},
 			},
-			want: 1320000,
+			want: 120000,
 		},
 	}
 	for _, tt := range tests {
