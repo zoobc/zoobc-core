@@ -1309,6 +1309,7 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	if err != nil {
 		return nil, err
 	}
+	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
 	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {
