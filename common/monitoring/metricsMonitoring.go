@@ -15,14 +15,15 @@ type lastblockMetrics struct {
 }
 
 var (
-	isMonitoringActive     bool
-	receiptCounter         prometheus.Counter
-	unresolvedPeersCounter prometheus.Gauge
-	resolvedPeersCounter   prometheus.Gauge
-	blockerCounter         = make(map[string]prometheus.Counter)
-	statusLockCounter      = make(map[int]prometheus.Gauge)
-	blockchainStatus       = make(map[int32]prometheus.Gauge)
-	blockchainHeight       = make(map[int32]*lastblockMetrics)
+	isMonitoringActive         bool
+	receiptCounter             prometheus.Counter
+	unresolvedPeersCounter     prometheus.Gauge
+	resolvedPeersCounter       prometheus.Gauge
+	activeRegisteredNodesGauge prometheus.Gauge
+	blockerCounter             = make(map[string]prometheus.Counter)
+	statusLockCounter          = make(map[int]prometheus.Gauge)
+	blockchainStatus           = make(map[int32]prometheus.Gauge)
+	blockchainHeight           = make(map[int32]*lastblockMetrics)
 )
 
 func SetMonitoringActive(isActive bool) {
@@ -63,6 +64,18 @@ func SetResolvedPeersCount(count int) {
 	}
 
 	resolvedPeersCounter.Set(float64(count))
+}
+
+func SetActiveRegisteredNodesCount(count int) {
+	if activeRegisteredNodesGauge == nil {
+		activeRegisteredNodesGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_active_registered_nodes"),
+			Help: fmt.Sprintf("active registered nodes counter"),
+		})
+		prometheus.MustRegister(activeRegisteredNodesGauge)
+	}
+
+	activeRegisteredNodesGauge.Set(float64(count))
 }
 
 func IncrementBlockerMetrics(typeBlocker string) {
