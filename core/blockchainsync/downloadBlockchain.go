@@ -35,6 +35,7 @@ type (
 		PeerServiceClient client.PeerServiceClientInterface
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		Logger            *log.Logger
+		P2pService        strategy.PriorityStrategyInterface
 	}
 
 	PeerBlockchainInfo struct {
@@ -270,14 +271,20 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
-				// bd.P2pService.Blacklist(peer)
+				err := bd.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+				if err != nil {
+					bd.Logger.Infof("Failed to add blacklist: %v\n", err)
+				}
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				break
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
-				// bd.P2pService.Blacklist(peer)
+				err := bd.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+				if err != nil {
+					bd.Logger.Infof("Failed to add blacklist: %v\n", err)
+				}
 				bd.Logger.Info("failed to push block from peer:", err)
 				break
 			}

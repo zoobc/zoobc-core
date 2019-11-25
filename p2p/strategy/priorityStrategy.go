@@ -22,6 +22,11 @@ import (
 
 // PriorityStrategy represent data service node as server
 type (
+	PriorityStrategyInterface interface {
+		GetBlacklistedPeers() map[string]*model.Peer
+		AddToBlacklistedPeer(peer *model.Peer, reason string) error
+		RemoveBlacklistedPeer(peer *model.Peer) error
+	}
 	PriorityStrategy struct {
 		Host                    *model.Host
 		PeerServiceClient       client.PeerServiceClientInterface
@@ -594,10 +599,14 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 }
 
 // AddToBlacklistedPeer to add a peer into resolved peer
-func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer) error {
+func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, reason string) error {
 	if peer == nil {
 		return errors.New("AddToBlacklistedPeer Err, peer is nil")
 	}
+
+	peer.BlacklistingTime = uint64(time.Now().Unix())
+	peer.BlacklistingCause = reason
+
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
 
@@ -650,7 +659,7 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
 	peer.BlacklistingCause = cause
-	if err := ps.AddToBlacklistedPeer(peer); err != nil {
+	if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
 		ps.Logger.Error(err.Error())
 	}
 	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
