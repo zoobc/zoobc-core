@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -469,7 +470,10 @@ func (ps *PriorityStrategy) AddToResolvedPeer(peer *model.Peer) error {
 		return errors.New("peer is nil")
 	}
 	ps.ResolvedPeersLock.Lock()
-	defer ps.ResolvedPeersLock.Unlock()
+	defer func() {
+		ps.ResolvedPeersLock.Unlock()
+		monitoring.SetResolvedPeersCount(len(ps.Host.ResolvedPeers))
+	}()
 
 	ps.Host.ResolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	return nil
@@ -481,7 +485,10 @@ func (ps *PriorityStrategy) RemoveResolvedPeer(peer *model.Peer) error {
 		return errors.New("peer is nil")
 	}
 	ps.ResolvedPeersLock.Lock()
-	defer ps.ResolvedPeersLock.Unlock()
+	defer func() {
+		ps.ResolvedPeersLock.Unlock()
+		monitoring.SetResolvedPeersCount(len(ps.Host.ResolvedPeers))
+	}()
 	delete(ps.Host.ResolvedPeers, p2pUtil.GetFullAddressPeer(peer))
 	return nil
 }
@@ -526,7 +533,10 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 		return errors.New("AddToUnresolvedPeer Err, peer is nil")
 	}
 	ps.UnresolvedPeersLock.Lock()
-	defer ps.UnresolvedPeersLock.Unlock()
+	defer func() {
+		ps.UnresolvedPeersLock.Unlock()
+		monitoring.SetUnresolvedPeersCount(len(ps.Host.UnresolvedPeers))
+	}()
 	ps.Host.UnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	return nil
 }
@@ -576,7 +586,10 @@ func (ps *PriorityStrategy) RemoveUnresolvedPeer(peer *model.Peer) error {
 		return errors.New("RemoveUnresolvedPeer Err, peer is nil")
 	}
 	ps.UnresolvedPeersLock.Lock()
-	defer ps.UnresolvedPeersLock.Unlock()
+	defer func() {
+		ps.UnresolvedPeersLock.Unlock()
+		monitoring.SetUnresolvedPeersCount(len(ps.Host.UnresolvedPeers))
+	}()
 	delete(ps.Host.UnresolvedPeers, p2pUtil.GetFullAddressPeer(peer))
 	return nil
 }

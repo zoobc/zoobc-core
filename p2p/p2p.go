@@ -86,7 +86,6 @@ func (s *Peer2PeerService) StartP2P(
 				ownerAddress,
 				map[codes.Code]string{
 					codes.Unavailable:     "indicates the destination service is currently unavailable",
-					codes.Unknown:         "indicates the error code is unknown or invalid error codes",
 					codes.InvalidArgument: "indicates the argument request is invalid",
 					codes.Unauthenticated: "indicates the request is unauthenticated",
 				},

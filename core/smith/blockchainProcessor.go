@@ -74,7 +74,7 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	}
 
 	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock, generator.SecretPhrase)
-	generator.SmithTime = coreUtil.GetSmithTime(generator.Score, generator.BlockSeed, lastBlock)
+	generator.SmithTime = coreUtil.GetSmithTime(generator.BlockSeed, lastBlock)
 	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
 }

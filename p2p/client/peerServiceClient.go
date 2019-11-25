@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -75,7 +76,6 @@ func NewPeerServiceClient(
 					logger,
 					map[codes.Code]string{
 						codes.Unavailable:     "indicates the destination service is currently unavailable",
-						codes.Unknown:         "indicates the error code is unknown or invalid error codes",
 						codes.InvalidArgument: "indicates the argument request is invalid",
 						codes.Unauthenticated: "indicates the request is unauthenticated",
 					},
@@ -363,5 +363,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 	if err != nil {
 		return err
 	}
+
+	monitoring.IncrementReceiptCounter()
 	return nil
 }
