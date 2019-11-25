@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -362,5 +363,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 	if err != nil {
 		return err
 	}
+
+	monitoring.IncrementReceiptCounter()
 	return nil
 }

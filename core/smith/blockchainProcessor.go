@@ -59,10 +59,10 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	// the default ps is 100000, smithing could be slower than when using account balances
 	// since default balance was 1000 times higher than default ps
 	ps, err := bp.BlockService.GetParticipationScore(generator.NodePublicKey)
-	if ps == 0 {
-		bp.Logger.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
+	if ps <= 0 {
+		bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
 	}
-	if err != nil {
+	if err != nil || ps <= 0 {
 		bp.Logger.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
@@ -74,7 +74,7 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	}
 
 	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock, generator.SecretPhrase)
-	generator.SmithTime = coreUtil.GetSmithTime(generator.Score, generator.BlockSeed, lastBlock)
+	generator.SmithTime = coreUtil.GetSmithTime(generator.BlockSeed, lastBlock)
 	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
 }
