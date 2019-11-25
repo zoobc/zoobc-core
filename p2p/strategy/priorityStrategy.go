@@ -3,6 +3,7 @@ package strategy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -573,6 +574,11 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 
 	// do not force a peer to go to unresolved list if the list is full
 	if exceedMaxUnresolvedPeers >= 1 {
+		var rejectedPeers = "rejected peers when unresolved full: "
+		for _, node := range newNodes {
+			rejectedPeers = fmt.Sprintf("%s %s,", rejectedPeers, p2pUtil.GetFullAddress(node))
+		}
+		ps.Logger.Warn(rejectedPeers)
 		return errors.New("unresolvedPeers are full")
 	}
 	var (
