@@ -948,16 +948,36 @@ func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx() error {
 func (*mockExecutorPruningNodeReceiptsSuccess) CommitTx() error {
 	return nil
 }
-func (*mockExecutorPruningNodeReceiptsSuccess) Execute(qStr string) (result sql.Result, err error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectExec(regexp.QuoteMeta(qStr)).WillReturnResult(sqlmock.NewResult(1, 1))
-	return db.Exec(qStr)
+func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
 }
 func (*mockExecutorPruningNodeReceiptsSuccess) RollbackTx() error {
 	return nil
 }
-
+func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockRow.AddRow(
+		mockBlockDataSelectReceipt.GetID(),
+		mockBlockDataSelectReceipt.GetBlockHash(),
+		mockBlockDataSelectReceipt.GetPreviousBlockHash(),
+		mockBlockDataSelectReceipt.GetHeight(),
+		mockBlockDataSelectReceipt.GetTimestamp(),
+		mockBlockDataSelectReceipt.GetBlockSeed(),
+		mockBlockDataSelectReceipt.GetBlockSignature(),
+		mockBlockDataSelectReceipt.GetCumulativeDifficulty(),
+		mockBlockDataSelectReceipt.GetSmithScale(),
+		mockBlockDataSelectReceipt.GetPayloadLength(),
+		mockBlockDataSelectReceipt.GetPayloadHash(),
+		mockBlockDataSelectReceipt.GetBlocksmithPublicKey(),
+		mockBlockDataSelectReceipt.GetTotalAmount(),
+		mockBlockDataSelectReceipt.GetTotalFee(),
+		mockBlockDataSelectReceipt.GetTotalCoinBase(),
+		mockBlockDataSelectReceipt.GetVersion(),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
+	return db.QueryRow(qStr)
+}
 func TestReceiptService_PruningNodeReceipts(t *testing.T) {
 	type fields struct {
 		NodeReceiptQuery        query.NodeReceiptQueryInterface
@@ -980,6 +1000,7 @@ func TestReceiptService_PruningNodeReceipts(t *testing.T) {
 			fields: fields{
 				NodeReceiptQuery: query.NewNodeReceiptQuery(),
 				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				BlockQuery:       query.NewBlockQuery(chaintype.GetChainType(0)),
 				QueryExecutor:    &mockExecutorPruningNodeReceiptsSuccess{},
 			},
 			wantErr: false,

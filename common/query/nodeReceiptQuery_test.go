@@ -316,8 +316,8 @@ func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		lowestHeight uint32
-		limit        uint32
+		blockHeight uint32
+		limit       uint32
 	}
 	tests := []struct {
 		name   string
@@ -329,10 +329,12 @@ func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
 			name:   "WantSuccess",
 			fields: fields(*mockReceiptQuery),
 			args: args{
-				lowestHeight: 1001,
-				limit:        500,
+				blockHeight: 2000,
+				limit:       500,
 			},
-			want: "DELETE FROM node_receipt WHERE reference_block_height < 1001 ORDER BY reference_block_height ASC LIMIT 500",
+			want: "DELETE FROM node_receipt WHERE reference_block_height IN(" +
+				"SELECT reference_block_height FROM node_receipt " +
+				"WHERE reference_block_height <2000 ORDER BY reference_block_height ASC LIMIT 500)",
 		},
 	}
 	for _, tt := range tests {
@@ -341,7 +343,7 @@ func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := rq.RemoveReceipts(tt.args.lowestHeight, tt.args.limit); got != tt.want {
+			if got := rq.RemoveReceipts(tt.args.blockHeight, tt.args.limit); got != tt.want {
 				t.Errorf("RemoveReceipts() = \n%v, want \n%v", got, tt.want)
 			}
 		})

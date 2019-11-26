@@ -2,8 +2,11 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -412,31 +415,42 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	var (
 		removeReceiptQ, removeMerkleQ string
 		err, rollbackErr              error
+		lastBlock                     model.Block
+		row                           *sql.Row
 	)
+
+	row = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock())
+	err = rs.BlockQuery.Scan(&lastBlock, row)
+	if err != nil {
+		return err
+	}
 
 	removeReceiptQ = rs.NodeReceiptQuery.RemoveReceipts(
-		constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
-		constant.MinNodeReceiptPruning,
+		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		constant.MinRollbackBlocks,
 	)
+	logrus.Warn(removeReceiptQ)
 	removeMerkleQ = rs.MerkleTreeQuery.RemoveMerkleTrees(
-		constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
-		constant.MinNodeReceiptPruning,
+		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		constant.MinRollbackBlocks,
 	)
-
+	logrus.Warn(removeMerkleQ)
 	err = rs.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
-	_, err = rs.QueryExecutor.Execute(removeReceiptQ)
+	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ)
 	if err != nil {
+		logrus.Errorf("Remove Receipt: %s", err.Error())
 		rollbackErr = rs.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {
 			return rollbackErr
 		}
 		return err
 	}
-	_, err = rs.QueryExecutor.Execute(removeMerkleQ)
+	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ)
 	if err != nil {
+		logrus.Errorf("Remove Merkle: %s", err.Error())
 		rollbackErr = rs.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {
 			return rollbackErr

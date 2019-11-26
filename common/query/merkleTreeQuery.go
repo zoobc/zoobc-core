@@ -16,7 +16,7 @@ type (
 			lowerHeight, upperHeight, limit uint32,
 		) string
 		GetLastMerkleRoot() (qStr string)
-		RemoveMerkleTrees(lowestHeight, limit uint32) string
+		RemoveMerkleTrees(blockHeight, limit uint32) string
 		ScanTree(row *sql.Row) ([]byte, error)
 		ScanRoot(row *sql.Row) ([]byte, error)
 		BuildTree(row *sql.Rows) (map[string][]byte, error)
@@ -88,12 +88,15 @@ func (mrQ *MerkleTreeQuery) SelectMerkleTree(
 	return query
 }
 
-// RemoveMerkleTrees represents query remove in range block_height
-func (mrQ *MerkleTreeQuery) RemoveMerkleTrees(lowestHeight, limit uint32) string {
+// RemoveMerkleTrees represents query remove in range block_height with limit
+func (mrQ *MerkleTreeQuery) RemoveMerkleTrees(blockHeight, limit uint32) string {
 	return fmt.Sprintf(
-		"DELETE FROM %s WHERE block_height < %d ORDER BY block_height ASC LIMIT %d",
+		"DELETE FROM %s WHERE block_height IN("+
+			"SELECT block_height FROM %s WHERE block_height <%d "+
+			"ORDER BY block_height ASC LIMIT %d)",
 		mrQ.getTableName(),
-		lowestHeight,
+		mrQ.getTableName(),
+		blockHeight,
 		limit,
 	)
 }

@@ -437,8 +437,8 @@ func TestMerkleTreeQuery_RemoveMerkleTrees(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		lowestHeight uint32
-		limit        uint32
+		blockHeight uint32
+		limit       uint32
 	}
 	tests := []struct {
 		name   string
@@ -449,8 +449,10 @@ func TestMerkleTreeQuery_RemoveMerkleTrees(t *testing.T) {
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockMerkleTreeQuery),
-			args:   args{limit: 500, lowestHeight: 1000},
-			want:   "DELETE FROM merkle_tree WHERE block_height < 1000 ORDER BY block_height ASC LIMIT 500",
+			args:   args{blockHeight: 2000, limit: 500},
+			want: "DELETE FROM merkle_tree WHERE block_height IN(" +
+				"SELECT block_height FROM merkle_tree WHERE block_height <2000 " +
+				"ORDER BY block_height ASC LIMIT 500)",
 		},
 	}
 	for _, tt := range tests {
@@ -459,8 +461,8 @@ func TestMerkleTreeQuery_RemoveMerkleTrees(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := mrQ.RemoveMerkleTrees(tt.args.lowestHeight, tt.args.limit); got != tt.want {
-				t.Errorf("RemoveMerkleTrees() = %v, want %v", got, tt.want)
+			if got := mrQ.RemoveMerkleTrees(tt.args.blockHeight, tt.args.limit); got != tt.want {
+				t.Errorf("RemoveMerkleTrees() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

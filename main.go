@@ -455,7 +455,6 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
-	fmt.Println("alsdkhasdjalsdsd")
 }
 
 func main() {
