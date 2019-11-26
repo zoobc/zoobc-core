@@ -403,14 +403,22 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
 }
 
-// PruningNodeReceipts will pruning the node receipts that was expired by block_height + mininum rollback block +1
+/*
+PruningNodeReceipts will pruning the receipts that was expired by block_height + minimum rollback block, affected:
+	1. NodeReceipt
+	2. MerkleTree
+*/
 func (rs *ReceiptService) PruningNodeReceipts() error {
 	var (
-		removeQ string
-		err     error
+		removeReceiptQ, removeMerkleQ string
+		err, rollbackErr              error
 	)
 
-	removeQ = rs.NodeReceiptQuery.RemoveReceipts(
+	removeReceiptQ = rs.NodeReceiptQuery.RemoveReceipts(
+		constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		constant.MinNodeReceiptPruning,
+	)
+	removeMerkleQ = rs.MerkleTreeQuery.RemoveMerkleTrees(
 		constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
 		constant.MinNodeReceiptPruning,
 	)
@@ -419,9 +427,17 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	if err != nil {
 		return err
 	}
-	_, err = rs.QueryExecutor.Execute(removeQ)
+	_, err = rs.QueryExecutor.Execute(removeReceiptQ)
 	if err != nil {
-		rollbackErr := rs.QueryExecutor.RollbackTx()
+		rollbackErr = rs.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+	_, err = rs.QueryExecutor.Execute(removeMerkleQ)
+	if err != nil {
+		rollbackErr = rs.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {
 			return rollbackErr
 		}

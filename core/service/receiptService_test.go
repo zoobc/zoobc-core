@@ -979,6 +979,7 @@ func TestReceiptService_PruningNodeReceipts(t *testing.T) {
 			name: "WantSuccess",
 			fields: fields{
 				NodeReceiptQuery: query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
 				QueryExecutor:    &mockExecutorPruningNodeReceiptsSuccess{},
 			},
 			wantErr: false,
