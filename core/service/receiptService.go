@@ -3,19 +3,16 @@ package service
 import (
 	"bytes"
 	"fmt"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -30,6 +27,7 @@ type (
 		ValidateReceipt(
 			receipt *model.BatchReceipt,
 		) error
+		PruningNodeReceipts() error
 	}
 
 	ReceiptService struct {
@@ -87,8 +85,8 @@ func (rs *ReceiptService) SelectReceipts(
 		return []*model.PublishedReceipt{}, nil
 	}
 	// get the last merkle tree we have build so far
-	if lastBlockHeight > constant.ReceiptNumberOfBlockToPick {
-		lowerBlockHeight = lastBlockHeight - constant.ReceiptNumberOfBlockToPick
+	if lastBlockHeight > constant.NodeReceiptExpiryBlockHeight {
+		lowerBlockHeight = lastBlockHeight - constant.NodeReceiptExpiryBlockHeight
 	}
 	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
 		lowerBlockHeight,
@@ -403,4 +401,35 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		}
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
+}
+
+// PruningNodeReceipts will pruning the node receipts that was expired by block_height + mininum rollback block +1
+func (rs *ReceiptService) PruningNodeReceipts() error {
+	var (
+		removeQ string
+		err     error
+	)
+
+	removeQ = rs.NodeReceiptQuery.RemoveReceipts(
+		constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		constant.MinNodeReceiptPruning,
+	)
+
+	err = rs.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+	_, err = rs.QueryExecutor.Execute(removeQ)
+	if err != nil {
+		rollbackErr := rs.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+	err = rs.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }

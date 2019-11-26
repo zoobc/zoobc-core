@@ -15,9 +15,9 @@ type (
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
 		GetReceiptByRoot(root []byte) (str string, args []interface{})
-		GetReceiptsWithUniqueRecipient(
-			limit, lowerBlockHeight, upperBlockHeight uint32) string
+		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
+		RemoveReceipts(lowestHeight, limit uint32) string
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error)
 		Scan(receipt *model.Receipt, row *sql.Row) error
@@ -155,6 +155,16 @@ func (rq *NodeReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr stri
 		values = append(values, rq.ExtractModel(receipt)...)
 	}
 	return query, values
+}
+
+// RemoveReceipts handle query for remove by reference_block_height
+func (rq *NodeReceiptQuery) RemoveReceipts(lowestHeight, limit uint32) string {
+	return fmt.Sprintf(
+		"DELETE FROM %s WHERE reference_block_height < %d ORDER BY reference_block_height ASC LIMIT %d",
+		rq.getTableName(),
+		lowestHeight,
+		limit,
+	)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeReceiptQuery.Fields
