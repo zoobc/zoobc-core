@@ -451,10 +451,11 @@ func startScheduler() {
 	}
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
-		receiptService.PruningNodeReceipts(),
+		receiptService.PruningNodeReceipts,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
+	fmt.Println("alsdkhasdjalsdsd")
 }
 
 func main() {
