@@ -159,7 +159,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registration
 
 	return fmt.Sprintf("SELECT %s FROM "+nrTable+" as "+nrTableAlias+" "+
 		"INNER JOIN "+psTable+" as "+psTableAlias+" ON "+nrTableAlias+".id = "+psTableAlias+".node_id "+
-		"WHERE "+psTableAlias+".score = 0 "+
+		"WHERE "+psTableAlias+".score <= 0 "+
 		"AND "+nrTableAlias+".latest=1 "+
 		"AND "+nrTableAlias+".registration_status=%d "+
 		"AND "+psTableAlias+".latest=1",

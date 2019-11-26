@@ -15,15 +15,68 @@ type lastblockMetrics struct {
 }
 
 var (
-	isMonitoringActive bool
-	blockerCounter     = make(map[string]prometheus.Counter)
-	statusLockCounter  = make(map[int]prometheus.Gauge)
-	blockchainStatus   = make(map[int32]prometheus.Gauge)
-	blockchainHeight   = make(map[int32]*lastblockMetrics)
+	isMonitoringActive         bool
+	receiptCounter             prometheus.Counter
+	unresolvedPeersCounter     prometheus.Gauge
+	resolvedPeersCounter       prometheus.Gauge
+	activeRegisteredNodesGauge prometheus.Gauge
+	blockerCounter             = make(map[string]prometheus.Counter)
+	statusLockCounter          = make(map[int]prometheus.Gauge)
+	blockchainStatus           = make(map[int32]prometheus.Gauge)
+	blockchainSmithTime        = make(map[int32]prometheus.Gauge)
+	blockchainHeight           = make(map[int32]*lastblockMetrics)
 )
 
 func SetMonitoringActive(isActive bool) {
 	isMonitoringActive = isActive
+}
+
+func IncrementReceiptCounter() {
+	if receiptCounter == nil {
+		receiptCounter = prometheus.NewCounter(prometheus.CounterOpts{
+			Name: fmt.Sprintf("zoobc_receipts"),
+			Help: fmt.Sprintf("receipts counter"),
+		})
+		prometheus.MustRegister(receiptCounter)
+	}
+
+	receiptCounter.Inc()
+}
+
+func SetUnresolvedPeersCount(count int) {
+	if unresolvedPeersCounter == nil {
+		unresolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_unresolved_peers"),
+			Help: fmt.Sprintf("unresolvedPeers counter"),
+		})
+		prometheus.MustRegister(unresolvedPeersCounter)
+	}
+
+	unresolvedPeersCounter.Set(float64(count))
+}
+
+func SetResolvedPeersCount(count int) {
+	if resolvedPeersCounter == nil {
+		resolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_resolved_peers"),
+			Help: fmt.Sprintf("resolvedPeers counter"),
+		})
+		prometheus.MustRegister(resolvedPeersCounter)
+	}
+
+	resolvedPeersCounter.Set(float64(count))
+}
+
+func SetActiveRegisteredNodesCount(count int) {
+	if activeRegisteredNodesGauge == nil {
+		activeRegisteredNodesGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_active_registered_nodes"),
+			Help: fmt.Sprintf("active registered nodes counter"),
+		})
+		prometheus.MustRegister(activeRegisteredNodesGauge)
+	}
+
+	activeRegisteredNodesGauge.Set(float64(count))
 }
 
 func IncrementBlockerMetrics(typeBlocker string) {
@@ -91,6 +144,20 @@ func SetBlockchainStatus(chainType int32, newStatus int) {
 		prometheus.MustRegister(blockchainStatus[chainType])
 	}
 	blockchainStatus[chainType].Set(float64(newStatus))
+}
+
+func SetBlockchainSmithTime(chainType int32, newTime int64) {
+	if !isMonitoringActive {
+		return
+	}
+	if blockchainSmithTime[chainType] == nil {
+		blockchainSmithTime[chainType] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_blockchain_%d_smith_time", chainType),
+			Help: fmt.Sprintf("Smith time of each nodes to smith for blockchain %d", chainType),
+		})
+		prometheus.MustRegister(blockchainSmithTime[chainType])
+	}
+	blockchainSmithTime[chainType].Set(float64(newTime))
 }
 
 func SetLastBlock(chainType int32, block *model.Block) {

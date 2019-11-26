@@ -262,9 +262,10 @@ func (*BlockService) VerifySeed(
 	if elapsedTime <= 0 {
 		return false
 	}
-	effectiveSmithScale := new(big.Int).Mul(score, big.NewInt(previousBlock.GetSmithScale()))
-	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
-	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
+	normalizedSmithScale := new(big.Int).Mul(big.NewInt(previousBlock.GetSmithScale()),
+		big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
+	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), normalizedSmithScale)
+	target := new(big.Int).Add(normalizedSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
 }
 
@@ -487,9 +488,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 	}
 
-	// admit/expel nodes from registry at genesis and regular intervals
+	// admit nodes from registry at genesis and regular intervals
+	// expel nodes from node registry as soon as they reach zero participation score
+	if err := bs.expelNodes(block); err != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
 	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
-		if err := bs.updateNodeRegistry(block); err != nil {
+		if err := bs.admitNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -551,8 +559,8 @@ func (bs *BlockService) SortBlocksmiths(block *model.Block) {
 	bs.SortedBlocksmiths = &blocksmiths
 }
 
-// updateNodeRegistry seelct and admit/expel nodes from node registry
-func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
+// adminNodes seelct and admit nodes from node registry
+func (bs *BlockService) admitNodes(block *model.Block) error {
 	// select n (= MaxNodeAdmittancePerCycle) queued nodes with the highest locked balance from node registry
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
 	if err != nil {
@@ -564,8 +572,13 @@ func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 			return err
 		}
 	}
-	// expel nodes with zero score from node registry
-	nodeRegistrations, err = bs.NodeRegistrationService.SelectNodesToBeExpelled()
+
+	return nil
+}
+
+// expelNodes seelct and expel nodes from node registry
+func (bs *BlockService) expelNodes(block *model.Block) error {
+	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {
 		return err
 	}
@@ -575,6 +588,7 @@ func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -1286,6 +1300,7 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	var (
 		activeBlocksmiths, blocksmiths []*model.Blocksmith
 	)
+	// get all registered nodes with participation score > 0
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
 	if err != nil {
 		return nil, err
@@ -1295,6 +1310,7 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	if err != nil {
 		return nil, err
 	}
+	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
 	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {
