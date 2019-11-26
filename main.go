@@ -367,14 +367,6 @@ func startMainchain() {
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
-	mainchainProcessor = smith.NewBlockchainProcessor(
-		mainchain,
-		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
-		mainchainBlockService,
-		nodeRegistrationService,
-		loggerCoreService,
-	)
-
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
@@ -385,7 +377,6 @@ func startMainchain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-
 	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
@@ -411,6 +402,18 @@ func startMainchain() {
 	}
 
 	if len(nodeSecretPhrase) > 0 && smithing {
+		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
+		if err != nil {
+			loggerCoreService.Fatal("node not in node registry, cannot smith")
+		}
+		mainchainProcessor = smith.NewBlockchainProcessor(
+			mainchain,
+			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
+			mainchainBlockService,
+			nodeRegistrationService,
+			loggerCoreService,
+		)
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
