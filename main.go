@@ -400,7 +400,9 @@ func startMainchain() {
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 		if err != nil {
 			// no nodes registered with current node public key
-			loggerCoreService.Error("Current node is not in node registry and won't be able to smith until registered!")
+			loggerCoreService.Fatal(
+				"Current node is not in node registry and won't be able to smith until registered!",
+			)
 		}
 		mainchainProcessor = smith.NewBlockchainProcessor(
 			mainchain,
