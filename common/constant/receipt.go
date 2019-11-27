@@ -9,7 +9,7 @@ const (
 	ReceiptNodeMaximum           = uint32(8)
 	ReceiptNumberToPick          = 20
 	NodeReceiptExpiryBlockHeight = 1000
-	MinNodeReceiptPruning        = 500
+	PruningChunkedSize           = 500
 	PruningNodeReceiptPeriod     = 1 * time.Second
 	// this multiplier is used to expand the receipt selection windows, this avoid multiple database read
 	ReceiptBatchPickMultiplier      = uint32(5)
