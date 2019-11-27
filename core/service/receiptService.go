@@ -411,10 +411,11 @@ PruningNodeReceipts will pruning the receipts that was expired by block_height +
 */
 func (rs *ReceiptService) PruningNodeReceipts() error {
 	var (
-		removeReceiptQ, removeMerkleQ string
-		err, rollbackErr              error
-		lastBlock                     model.Block
-		row                           *sql.Row
+		removeReceiptArgs, removeMerkleArgs []interface{}
+		removeReceiptQ, removeMerkleQ       string
+		err, rollbackErr                    error
+		lastBlock                           model.Block
+		row                                 *sql.Row
 	)
 
 	row = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock())
@@ -423,11 +424,11 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 		return err
 	}
 
-	removeReceiptQ = rs.NodeReceiptQuery.RemoveReceipts(
+	removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
 		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
 		constant.MinRollbackBlocks,
 	)
-	removeMerkleQ = rs.MerkleTreeQuery.RemoveMerkleTrees(
+	removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
 		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
 		constant.MinRollbackBlocks,
 	)
@@ -435,7 +436,7 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	if err != nil {
 		return err
 	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ)
+	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
 	if err != nil {
 		rollbackErr = rs.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {
@@ -443,7 +444,7 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 		}
 		return err
 	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ)
+	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
 	if err != nil {
 		rollbackErr = rs.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {

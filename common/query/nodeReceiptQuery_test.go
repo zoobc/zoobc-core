@@ -334,7 +334,7 @@ func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
 			},
 			want: "DELETE FROM node_receipt WHERE reference_block_height IN(" +
 				"SELECT reference_block_height FROM node_receipt " +
-				"WHERE reference_block_height <2000 ORDER BY reference_block_height ASC LIMIT 500)",
+				"WHERE reference_block_height <? ORDER BY reference_block_height ASC LIMIT ?)",
 		},
 	}
 	for _, tt := range tests {
@@ -343,8 +343,13 @@ func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := rq.RemoveReceipts(tt.args.blockHeight, tt.args.limit); got != tt.want {
+			got, args := rq.RemoveReceipts(tt.args.blockHeight, tt.args.limit)
+			if got != tt.want {
 				t.Errorf("RemoveReceipts() = \n%v, want \n%v", got, tt.want)
+				return
+			}
+			if !reflect.DeepEqual(args, []interface{}{tt.args.blockHeight, tt.args.limit}) {
+				t.Errorf("RemoveReceipts() = \n%v, want \n%v", args, []interface{}{tt.args.blockHeight, tt.args.limit})
 			}
 		})
 	}
