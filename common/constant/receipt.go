@@ -10,7 +10,7 @@ const (
 	ReceiptNumberToPick          = 20
 	NodeReceiptExpiryBlockHeight = 1000
 	PruningChunkedSize           = 500
-	PruningNodeReceiptPeriod     = 1 * time.Second
+	PruningNodeReceiptPeriod     = 5 * time.Second
 	// this multiplier is used to expand the receipt selection windows, this avoid multiple database read
 	ReceiptBatchPickMultiplier      = uint32(5)
 	ReceiptHashSize                 = 32 // sha256
