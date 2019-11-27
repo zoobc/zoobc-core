@@ -447,6 +447,12 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	if err := schedulerInstance.AddJob(
+		constant.PruningNodeReceiptPeriod,
+		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
 }
 
 func main() {
