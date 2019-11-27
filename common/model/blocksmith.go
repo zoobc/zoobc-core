@@ -20,11 +20,12 @@ type Blocksmith struct {
 }
 
 // InitGenerator initiate generator
-func NewBlocksmith(nodeSecretPhrase string, nodePublicKey []byte) *Blocksmith {
+func NewBlocksmith(nodeSecretPhrase string, nodePublicKey []byte, nodeID int64) *Blocksmith {
 	blocksmith := &Blocksmith{
 		Score:         big.NewInt(constant.DefaultParticipationScore),
 		SecretPhrase:  nodeSecretPhrase,
 		NodePublicKey: nodePublicKey,
+		NodeID:        nodeID,
 	}
 	return blocksmith
 }
