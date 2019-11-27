@@ -262,9 +262,10 @@ func (*BlockService) VerifySeed(
 	if elapsedTime <= 0 {
 		return false
 	}
-	effectiveSmithScale := new(big.Int).Mul(score, big.NewInt(previousBlock.GetSmithScale()))
-	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
-	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
+	normalizedSmithScale := new(big.Int).Mul(big.NewInt(previousBlock.GetSmithScale()),
+		big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
+	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), normalizedSmithScale)
+	target := new(big.Int).Add(normalizedSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
 }
 
@@ -1309,6 +1310,7 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	if err != nil {
 		return nil, err
 	}
+	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
 	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {

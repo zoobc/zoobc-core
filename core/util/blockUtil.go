@@ -35,12 +35,9 @@ func GetBlockSeed(publicKey []byte, block *model.Block, secretPhrase string) (*b
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(score, seed *big.Int, block *model.Block) int64 {
-	if score.Cmp(big.NewInt(0)) == 0 {
-		return 0
-	}
-	staticTarget := new(big.Int).Mul(big.NewInt(block.SmithScale), score)
-	elapsedFromLastBlock := new(big.Int).Div(seed, staticTarget).Int64()
+func GetSmithTime(seed *big.Int, block *model.Block) int64 {
+	smithScaleMul := new(big.Int).Mul(big.NewInt(block.SmithScale), big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
+	elapsedFromLastBlock := new(big.Int).Div(seed, smithScaleMul).Int64()
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
