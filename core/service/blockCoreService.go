@@ -63,7 +63,7 @@ type (
 		CheckGenesis() bool
 		GetChainType() chaintype.ChainType
 		ChainWriteLock(int)
-		ChainWriteUnlock()
+		ChainWriteUnlock(actionType int)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners() ([]string, error)
 		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
@@ -203,13 +203,15 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
+	monitoring.IncrementStatusLockCounter(actionType)
 	bs.Lock()
+	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
 }
 
 // ChainWriteUnlock unlocks the chain
-func (bs *BlockService) ChainWriteUnlock() {
+func (bs *BlockService) ChainWriteUnlock(actionType int) {
 	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.DecrementStatusLockCounter(actionType)
 	bs.Unlock()
 }
 
@@ -260,9 +262,9 @@ func (*BlockService) VerifySeed(
 	if elapsedTime <= 0 {
 		return false
 	}
-	effectiveSmithScale := new(big.Int).Mul(score, big.NewInt(previousBlock.GetSmithScale()))
-	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
-	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
+	normalizedSmithScale := coreUtil.GetNormalizedSmithScale(previousBlock.SmithScale)
+	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), normalizedSmithScale)
+	target := new(big.Int).Add(normalizedSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
 }
 
@@ -485,9 +487,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 	}
 
-	// admit/expel nodes from registry at genesis and regular intervals
+	// admit nodes from registry at genesis and regular intervals
+	// expel nodes from node registry as soon as they reach zero participation score
+	if err := bs.expelNodes(block); err != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
 	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
-		if err := bs.updateNodeRegistry(block); err != nil {
+		if err := bs.admitNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -536,12 +545,9 @@ func (bs *BlockService) SortBlocksmiths(block *model.Block) {
 	// sort blocksmiths by SmithOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
 		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.SmithOrder.Cmp(bj.SmithOrder)
+		res := bi.SmithTime - bj.SmithTime
 		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
+			res = bi.NodeID - bj.NodeID
 		}
 		// ascending sort
 		return res < 0
@@ -549,8 +555,8 @@ func (bs *BlockService) SortBlocksmiths(block *model.Block) {
 	bs.SortedBlocksmiths = &blocksmiths
 }
 
-// updateNodeRegistry seelct and admit/expel nodes from node registry
-func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
+// adminNodes seelct and admit nodes from node registry
+func (bs *BlockService) admitNodes(block *model.Block) error {
 	// select n (= MaxNodeAdmittancePerCycle) queued nodes with the highest locked balance from node registry
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
 	if err != nil {
@@ -562,8 +568,13 @@ func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 			return err
 		}
 	}
-	// expel nodes with zero score from node registry
-	nodeRegistrations, err = bs.NodeRegistrationService.SelectNodesToBeExpelled()
+
+	return nil
+}
+
+// expelNodes seelct and expel nodes from node registry
+func (bs *BlockService) expelNodes(block *model.Block) error {
+	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {
 		return err
 	}
@@ -573,6 +584,7 @@ func (bs *BlockService) updateNodeRegistry(block *model.Block) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -1130,7 +1142,7 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	// Securing receive block process
 	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock()
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 	// making sure get last block after paused process
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
@@ -1289,6 +1301,7 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	var (
 		activeBlocksmiths, blocksmiths []*model.Blocksmith
 	)
+	// get all registered nodes with participation score > 0
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
 	if err != nil {
 		return nil, err
@@ -1298,12 +1311,15 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	if err != nil {
 		return nil, err
 	}
+	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
-	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {
-		blocksmith.SmithOrder = coreUtil.CalculateSmithOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
-		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
-		blocksmith.BlockSeed = blockSeed
+		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(blocksmith.NodeID, block)
+		if err != nil {
+			return nil, err
+		}
+		blocksmith.SmithTime = coreUtil.GetSmithTime(blocksmith.BlockSeed, block)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, blocksmith.NodeID)
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
 	return blocksmiths, nil

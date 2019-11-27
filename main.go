@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -71,7 +73,6 @@ func init() {
 	var (
 		configPostfix string
 		configPath    string
-		seed          string
 		err           error
 	)
 
@@ -104,26 +105,6 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	// get the node private key
-	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
-	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
-	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
-	if err != nil {
-		if isNodePreSeed {
-			seed = nodePreSeed
-		} else {
-			// generate a node private key if there aren't already configured
-			seed = util.GetSecureRandomSeed()
-		}
-		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
-			loggerCoreService.Fatal(err)
-		}
-	}
-	nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
-	if nodeKey != nil {
-		nodeSecretPhrase = nodeKey.Seed
-	}
-
 	// initialize nodeRegistration service
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
@@ -152,6 +133,11 @@ func init() {
 }
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
+	var (
+		seed    string
+		nodeKey *model.NodeKey
+	)
+
 	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
 		panic(err)
 	}
@@ -181,13 +167,40 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	nodeKeyFile = viper.GetString("nodeKeyFile")
 	isNodePreSeed = viper.IsSet("nodeSeed")
 	nodePreSeed = viper.GetString("nodeSeed")
-	// useful for easily reading if node config params have been overridden by env variables,
-	// especially in a multi node-dockerized test network
+
+	// get the node private key
+	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
+	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
+	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+	if err != nil {
+		if isNodePreSeed {
+			seed = nodePreSeed
+		} else {
+			// generate a node private key if there aren't already configured
+			seed = util.GetSecureRandomSeed()
+		}
+		nodePublicKey, err := nodeAdminKeysService.GenerateNodeKey(seed)
+		if err != nil {
+			loggerCoreService.Fatal(err)
+		}
+		nodeKey = &model.NodeKey{
+			PublicKey: nodePublicKey,
+			Seed:      seed,
+		}
+	} else {
+		nodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+	}
+	if nodeKey == nil {
+		loggerCoreService.Fatal(errors.New("NodeKeyIsNil"))
+	}
+	nodeSecretPhrase = nodeKey.Seed
+	// log the b64 encoded node public key
 	log.Printf("peerPort: %d", peerPort)
 	log.Printf("monitoringPort: %d", monitoringPort)
 	log.Printf("apiRPCPort: %d", apiRPCPort)
 	log.Printf("apiHTTPPort: %d", apiHTTPPort)
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
+	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
 	log.Printf("myAddress: %s", myAddress)
@@ -302,7 +315,7 @@ func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 	}
 }
 
-func startMainchain(mainchainSyncChannel chan bool) {
+func startMainchain() {
 	var (
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
 		err                                         error
@@ -354,14 +367,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
-	mainchainProcessor = smith.NewBlockchainProcessor(
-		mainchain,
-		model.NewBlocksmith(nodeSecretPhrase, util.GetPublicKeyFromSeed(nodeSecretPhrase)),
-		mainchainBlockService,
-		nodeRegistrationService,
-		loggerCoreService,
-	)
-
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
@@ -372,7 +377,6 @@ func startMainchain(mainchainSyncChannel chan bool) {
 			loggerCoreService.Fatal(err)
 		}
 	}
-
 	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
@@ -391,13 +395,20 @@ func startMainchain(mainchainSyncChannel chan bool) {
 		loggerCoreService.Fatal(err)
 	}
 
-	// no nodes registered with current node public key
-	_, err = nodeRegistrationService.GetNodeRegistrationByNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
-	if err != nil {
-		loggerCoreService.Error("Current node is not in node registry and won't be able to smith until registered!")
-	}
-
 	if len(nodeSecretPhrase) > 0 && smithing {
+		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
+		if err != nil {
+			// no nodes registered with current node public key
+			loggerCoreService.Error("Current node is not in node registry and won't be able to smith until registered!")
+		}
+		mainchainProcessor = smith.NewBlockchainProcessor(
+			mainchain,
+			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
+			mainchainBlockService,
+			nodeRegistrationService,
+			loggerCoreService,
+		)
 		go startSmith(sleepPeriod, mainchainProcessor)
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
@@ -413,7 +424,7 @@ func startMainchain(mainchainSyncChannel chan bool) {
 	)
 
 	go func() {
-		mainchainSynchronizer.Start(mainchainSyncChannel)
+		mainchainSynchronizer.Start()
 
 	}()
 }
@@ -436,6 +447,12 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	if err := schedulerInstance.AddJob(
+		constant.PruningNodeReceiptPeriod,
+		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
 }
 
 func main() {
@@ -450,7 +467,7 @@ func main() {
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	startMainchain(mainchainSyncChannel)
+	startMainchain()
 	startServices()
 	initObserverListeners()
 	startScheduler()

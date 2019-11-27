@@ -163,6 +163,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
 		nodeRegistration.LockedBalance = 0
+		nodeRegistration.Height = height
 		nodeQueries := nrs.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 		// return lockedbalance to the node's owner account
 		updateAccountBalanceQ := nrs.AccountBalanceQuery.AddAccountBalance(
@@ -354,8 +355,6 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 		}
 	}
 	nearestBlockHeight := nrs.GetBlockHeightToBuildScrambleNodes(lastBlock.Height)
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
 	if nrs.ScrambledNodes[nearestBlockHeight] == nil {
 		err = nrs.BuildScrambledNodesAtHeight(nearestBlockHeight)
 		if err != nil {
@@ -363,6 +362,8 @@ func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNo
 		}
 	}
 
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
 	if nrs.MemoizedLatestScrambledNodes != nil {
 		if nrs.MemoizedLatestScrambledNodes.BlockHeight == nrs.ScrambledNodes[nearestBlockHeight].BlockHeight {
 			return nrs.MemoizedLatestScrambledNodes
@@ -400,6 +401,8 @@ func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(
 			return nil, err
 		}
 	}
+	nrs.ScrambledNodesLock.Lock()
+	defer nrs.ScrambledNodesLock.Unlock()
 	scrambledNodes := nrs.ScrambledNodes[nearestHeight]
 	newAddressNodes = append(newAddressNodes, scrambledNodes.AddressNodes...)
 	// in the window, deep copy the nodes

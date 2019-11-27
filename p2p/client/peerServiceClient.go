@@ -3,14 +3,14 @@ package client
 import (
 	"context"
 
-	coreService "github.com/zoobc/zoobc-core/core/service"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
+	coreService "github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -18,7 +18,7 @@ import (
 )
 
 type (
-	//  PeerServiceClientInterface acts as interface for PeerServiceClient
+	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
@@ -39,7 +39,7 @@ type (
 		GetNextBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, blockID int64, limit uint32) (*model.BlockIdsResponse, error)
 		GetNextBlocks(destPeer *model.Peer, chaintype chaintype.ChainType, blockIds []int64, blockID int64) (*model.BlocksData, error)
 	}
-	// PeerService represent peer service
+	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
 		Dialer            Dialer
 		Logger            *log.Logger
@@ -51,19 +51,11 @@ type (
 		NodePublicKey     []byte
 		Host              *model.Host
 	}
-	// PeerService represent peer service
+	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
 )
 
-// list of client service error that will be ignore to record into log file
-var ignoredErrors = map[codes.Code]string{
-	codes.Unavailable:     "indicates the destination service is currently unavailable",
-	codes.Unknown:         "indicates the error code is unknown or invalid error codes",
-	codes.InvalidArgument: "indicates the argument request is invalid",
-	codes.Unauthenticated: "indicates the request is unauthenticated",
-}
-
-// ClientPeerService to get instance of singleton peer service, this should only be instantiated from main.go
+// NewPeerServiceClient to get instance of singleton peer service, this should only be instantiated from main.go
 func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
 	nodeReceiptQuery query.NodeReceiptQueryInterface,
@@ -80,7 +72,14 @@ func NewPeerServiceClient(
 			conn, err := grpc.Dial(
 				p2pUtil.GetFullAddressPeer(destinationPeer),
 				grpc.WithInsecure(),
-				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(logger, ignoredErrors)),
+				grpc.WithUnaryInterceptor(interceptor.NewClientInterceptor(
+					logger,
+					map[codes.Code]string{
+						codes.Unavailable:     "indicates the destination service is currently unavailable",
+						codes.InvalidArgument: "indicates the argument request is invalid",
+						codes.Unauthenticated: "indicates the request is unauthenticated",
+					},
+				)),
 			)
 			if err != nil {
 				return nil, err
@@ -364,5 +363,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 	if err != nil {
 		return err
 	}
+
+	monitoring.IncrementReceiptCounter()
 	return nil
 }

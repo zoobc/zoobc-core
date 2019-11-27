@@ -2,20 +2,18 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -30,6 +28,7 @@ type (
 		ValidateReceipt(
 			receipt *model.BatchReceipt,
 		) error
+		PruningNodeReceipts() error
 	}
 
 	ReceiptService struct {
@@ -87,8 +86,8 @@ func (rs *ReceiptService) SelectReceipts(
 		return []*model.PublishedReceipt{}, nil
 	}
 	// get the last merkle tree we have build so far
-	if lastBlockHeight > constant.ReceiptNumberOfBlockToPick {
-		lowerBlockHeight = lastBlockHeight - constant.ReceiptNumberOfBlockToPick
+	if lastBlockHeight > constant.NodeReceiptExpiryBlockHeight {
+		lowerBlockHeight = lastBlockHeight - constant.NodeReceiptExpiryBlockHeight
 	}
 	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
 		lowerBlockHeight,
@@ -403,4 +402,59 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		}
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
+}
+
+/*
+PruningNodeReceipts will pruning the receipts that was expired by block_height + minimum rollback block, affected:
+	1. NodeReceipt
+	2. MerkleTree
+*/
+func (rs *ReceiptService) PruningNodeReceipts() error {
+	var (
+		removeReceiptArgs, removeMerkleArgs []interface{}
+		removeReceiptQ, removeMerkleQ       string
+		err, rollbackErr                    error
+		lastBlock                           model.Block
+		row                                 *sql.Row
+	)
+
+	row = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock())
+	err = rs.BlockQuery.Scan(&lastBlock, row)
+	if err != nil {
+		return err
+	}
+
+	removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
+		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		constant.PruningChunkedSize,
+	)
+	removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
+		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		constant.PruningChunkedSize,
+	)
+	err = rs.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
+	if err != nil {
+		rollbackErr = rs.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
+	if err != nil {
+		rollbackErr = rs.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			return rollbackErr
+		}
+		return err
+	}
+	err = rs.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }

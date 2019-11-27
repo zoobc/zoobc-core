@@ -3,10 +3,12 @@ package database
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/options"
 )
 
 var (
@@ -54,7 +56,14 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 }
 
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
-	badgerConn, err := badger.Open(badger.DefaultOptions(fmt.Sprintf("%s/%s", dbPath, dbName)))
+	opts := badger.DefaultOptions(filepath.Join(dbPath, dbName))
+	// avoid memory-mapping log files
+	opts.TableLoadingMode, opts.ValueLogLoadingMode = options.FileIO, options.FileIO
+	// limit the in-memory log filesize
+	opts.ValueLogFileSize = 1<<28 - 1
+	// limit in-memory db entries
+	opts.ValueLogMaxEntries = 250000
+	badgerConn, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
 	}

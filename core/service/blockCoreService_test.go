@@ -120,6 +120,16 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 	}, nil
 }
 
+func (*mockNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
+	return []*model.NodeRegistration{
+		{
+			AccountAddress: "TESTEXPELLED",
+		},
+	}, nil
+}
+func (*mockNodeRegistrationServiceFail) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
+	return nil
+}
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
 	return 1
 }
@@ -871,7 +881,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 				},
 				timestamp: 2,
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name: "VerifySeed:true-{elapsedTime>300 && seed < target ",
@@ -958,14 +968,14 @@ func TestBlockService_VerifySeed(t *testing.T) {
 
 var mockBlocksmiths = &[]model.Blocksmith{
 	{
-		NodePublicKey: bcsNodePubKey2,
-		NodeID:        3,
-		NodeOrder:     new(big.Int).SetInt64(2000),
-	},
-	{
 		NodePublicKey: bcsNodePubKey1,
 		NodeID:        2,
 		NodeOrder:     new(big.Int).SetInt64(1000),
+	},
+	{
+		NodePublicKey: bcsNodePubKey2,
+		NodeID:        3,
+		NodeOrder:     new(big.Int).SetInt64(2000),
 	},
 }
 
@@ -2957,6 +2967,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 }
 
 func TestBlockService_GetBlocksmiths(t *testing.T) {
+	mockBlockSeed, _ := coreUtil.GetBlockSeed(1, nrsBlock2)
 	type fields struct {
 		Chaintype               chaintype.ChainType
 		QueryExecutor           query.ExecutorInterface
@@ -2995,10 +3006,11 @@ func TestBlockService_GetBlocksmiths(t *testing.T) {
 				{
 					NodeID:        1,
 					NodePublicKey: nrsNodePubKey1,
-					SmithOrder:    coreUtil.CalculateSmithOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
-					NodeOrder:     coreUtil.CalculateNodeOrder(new(big.Int).SetInt64(8000), new(big.Int).SetBytes(nrsBlock2.BlockSeed), 1),
-					BlockSeed:     new(big.Int).SetBytes(nrsBlock2.BlockSeed),
-					Score:         new(big.Int).SetInt64(8000),
+					SmithTime:     coreUtil.GetSmithTime(mockBlockSeed, nrsBlock2),
+					BlockSeed:     mockBlockSeed,
+					NodeOrder: coreUtil.CalculateNodeOrder(
+						new(big.Int).SetInt64(8000), mockBlockSeed, 1),
+					Score: new(big.Int).SetInt64(8000),
 				},
 			},
 			wantErr: false,
@@ -3361,104 +3373,107 @@ var (
 )
 
 func getMockBlocksmiths() *[]model.Blocksmith {
+	blocksmithSeed1, _ := coreUtil.GetBlockSeed(nodeID1, nrsBlock2)
+	blocksmithSeed2, _ := coreUtil.GetBlockSeed(nodeID2, nrsBlock2)
+	blocksmithSeed3, _ := coreUtil.GetBlockSeed(nodeID3, nrsBlock2)
+	blocksmithSeed4, _ := coreUtil.GetBlockSeed(nodeID4, nrsBlock2)
+	blocksmithSeed5, _ := coreUtil.GetBlockSeed(nodeID5, nrsBlock2)
+	blocksmithSeed6, _ := coreUtil.GetBlockSeed(nodeID6, nrsBlock2)
+	blocksmithSeed7, _ := coreUtil.GetBlockSeed(nodeID7, nrsBlock2)
+	blocksmithSeed8, _ := coreUtil.GetBlockSeed(nodeID8, nrsBlock2)
+	blocksmithSeed9, _ := coreUtil.GetBlockSeed(nodeID9, nrsBlock2)
 	mockBlocksmiths := []model.Blocksmith{
 		{
 			NodeID:        nodeID1,
 			NodePublicKey: []byte{1},
 			Score:         score1,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score1, blockSeed, nodeID1),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed1, nrsBlock2),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score1, blockSeed, nodeID1),
 		},
 		{
 			NodeID:        nodeID2,
 			NodePublicKey: []byte{2},
 			Score:         score2,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score2, blockSeed, nodeID2),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed2, nrsBlock2),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score2, blockSeed, nodeID2),
 		},
 		{
 			NodeID:        nodeID3,
 			NodePublicKey: []byte{3},
 			Score:         score3,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score3, blockSeed, nodeID3),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed3, nrsBlock2),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score3, blockSeed, nodeID3),
 		},
 		{
 			NodeID:        nodeID4,
 			NodePublicKey: []byte{4},
 			Score:         score4,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score4, blockSeed, nodeID4),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed4, nrsBlock2),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score4, blockSeed, nodeID4),
 		},
 		{
 			NodeID:        nodeID5,
 			NodePublicKey: []byte{5},
 			Score:         score5,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score5, blockSeed, nodeID5),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed5, nrsBlock2),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score5, blockSeed, nodeID5),
 		},
 		{
 			NodeID:        nodeID6,
 			NodePublicKey: []byte{6},
 			Score:         score6,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score6, blockSeed, nodeID6),
-			NodeOrder:     coreUtil.CalculateNodeOrder(score6, blockSeed, nodeID6),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed6, nrsBlock2),
+
+			NodeOrder: coreUtil.CalculateNodeOrder(score6, blockSeed, nodeID6),
 		},
 		{
 			NodeID:        nodeID7,
 			NodePublicKey: []byte{7},
 			Score:         score7,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score7, blockSeed, nodeID7),
-			NodeOrder:     coreUtil.CalculateNodeOrder(score7, blockSeed, nodeID7),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed7, nrsBlock2),
+
+			NodeOrder: coreUtil.CalculateNodeOrder(score7, blockSeed, nodeID7),
 		},
 		{
 			NodeID:        nodeID8,
 			NodePublicKey: []byte{8},
 			Score:         score8,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score8, blockSeed, nodeID8),
-			NodeOrder:     coreUtil.CalculateNodeOrder(score8, blockSeed, nodeID8),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed8, nrsBlock2),
+
+			NodeOrder: coreUtil.CalculateNodeOrder(score8, blockSeed, nodeID8),
 		},
 		{
 			NodeID:        nodeID9,
 			NodePublicKey: []byte{9},
 			Score:         score9,
-			SmithTime:     0,
 			BlockSeed:     blockSeed,
 			SecretPhrase:  "",
 			Deadline:      0,
-			SmithOrder:    coreUtil.CalculateSmithOrder(score9, blockSeed, nodeID9),
+			SmithTime:     coreUtil.GetSmithTime(blocksmithSeed9, nrsBlock2),
 			NodeOrder:     coreUtil.CalculateNodeOrder(score9, blockSeed, nodeID9),
 		},
 	}
@@ -3516,7 +3531,7 @@ func TestBlockService_SortBlocksmiths(t *testing.T) {
 					BlockSeed:            nil,
 					BlockSignature:       nil,
 					CumulativeDifficulty: "",
-					SmithScale:           0,
+					SmithScale:           1000,
 					BlocksmithPublicKey:  nil,
 					TotalAmount:          0,
 					TotalFee:             0,
