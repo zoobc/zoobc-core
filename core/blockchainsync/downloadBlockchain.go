@@ -265,7 +265,6 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			continue
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
-		fmt.Printf("BLACKLIST : %v\n", bd.PeerExplorer.GetHostInfo)
 		if lastBlock.ID == previousBlockID {
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
