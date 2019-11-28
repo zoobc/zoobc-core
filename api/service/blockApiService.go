@@ -25,17 +25,19 @@ type (
 	BlockService struct {
 		Query             query.ExecutorInterface
 		BlockCoreServices map[int32]coreService.BlockServiceInterface
+		isDebugMode       bool
 	}
 )
 
 var blockServiceInstance *BlockService
 
 // NewBlockService create a singleton instance of BlockService
-func NewBlockService(queryExecutor query.ExecutorInterface, blockCoreServices map[int32]coreService.BlockServiceInterface) *BlockService {
+func NewBlockService(queryExecutor query.ExecutorInterface, blockCoreServices map[int32]coreService.BlockServiceInterface, isDebugMode bool) *BlockService {
 	if blockServiceInstance == nil {
 		blockServiceInstance = &BlockService{Query: queryExecutor}
 	}
 	blockServiceInstance.BlockCoreServices = blockCoreServices
+	blockServiceInstance.isDebugMode = isDebugMode
 	return blockServiceInstance
 }
 
@@ -95,7 +97,7 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 	if len(bl) == 0 {
 		return nil, status.Error(codes.NotFound, "block not found")
 	}
-	return bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0], true)
+	return bs.BlockCoreServices[0].GetBlockExtendedInfo(bl[0], bs.isDebugMode)
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system

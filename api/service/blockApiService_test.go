@@ -63,7 +63,7 @@ type (
 	}
 )
 
-func (*mockBlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+func (*mockBlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
 	return &model.BlockExtendedInfo{}, nil
 }
 
