@@ -141,7 +141,7 @@ func Start(
 	isDebugMode bool,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService, 
+		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
 		ownerAccountAddress, nodefilePath, logger, isDebugMode,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
