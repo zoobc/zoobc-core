@@ -430,3 +430,45 @@ func TestMerkleTreeQuery_BuildTree(t *testing.T) {
 		})
 	}
 }
+
+func TestMerkleTreeQuery_RemoveMerkleTrees(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		blockHeight uint32
+		limit       uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockMerkleTreeQuery),
+			args:   args{blockHeight: 2000, limit: 500},
+			want: "DELETE FROM merkle_tree WHERE block_height IN(" +
+				"SELECT block_height FROM merkle_tree WHERE block_height < ? " +
+				"ORDER BY block_height ASC LIMIT ?)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mrQ := &MerkleTreeQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			got, args := mrQ.RemoveMerkleTrees(tt.args.blockHeight, tt.args.limit)
+			if got != tt.want {
+				t.Errorf("RemoveMerkleTrees() = \n%v, want \n%v", got, tt.want)
+				return
+			}
+			if !reflect.DeepEqual(args, []interface{}{tt.args.blockHeight, tt.args.limit}) {
+				t.Errorf("RemoveMerkleTrees() = \n%v, want \n%v", args, []interface{}{tt.args.blockHeight, tt.args.limit})
+			}
+		})
+	}
+}

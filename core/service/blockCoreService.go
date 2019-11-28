@@ -262,8 +262,7 @@ func (*BlockService) VerifySeed(
 	if elapsedTime <= 0 {
 		return false
 	}
-	normalizedSmithScale := new(big.Int).Mul(big.NewInt(previousBlock.GetSmithScale()),
-		big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
+	normalizedSmithScale := coreUtil.GetNormalizedSmithScale(previousBlock.SmithScale)
 	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), normalizedSmithScale)
 	target := new(big.Int).Add(normalizedSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
@@ -546,12 +545,9 @@ func (bs *BlockService) SortBlocksmiths(block *model.Block) {
 	// sort blocksmiths by SmithOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
 		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.SmithOrder.Cmp(bj.SmithOrder)
+		res := bi.SmithTime - bj.SmithTime
 		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
+			res = bi.NodeID - bj.NodeID
 		}
 		// ascending sort
 		return res < 0
@@ -955,7 +951,15 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height)
+		if len(*bs.SortedBlocksmiths) < constant.PriorityStrategyMaxPriorityPeers {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height,
+			)
+		} else {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, constant.PriorityStrategyMaxPriorityPeers, previousBlock.Height,
+			)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1312,11 +1316,13 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	}
 	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
-	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {
-		blocksmith.SmithOrder = coreUtil.CalculateSmithOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
-		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
-		blocksmith.BlockSeed = blockSeed
+		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(blocksmith.NodeID, block)
+		if err != nil {
+			return nil, err
+		}
+		blocksmith.SmithTime = coreUtil.GetSmithTime(blocksmith.BlockSeed, block)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, blocksmith.NodeID)
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
 	return blocksmiths, nil

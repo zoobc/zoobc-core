@@ -6,39 +6,39 @@ import (
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/query"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	commonUtils "github.com/zoobc/zoobc-core/common/util"
-
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
 
-// GetBlockSeed calculate seed value, the first 8 byte of the digest(previousBlockSeed, publicKey)
-func GetBlockSeed(publicKey []byte, block *model.Block, secretPhrase string) (*big.Int, error) {
+// GetBlockSeed calculate seed value, the first 8 byte of the digest(previousBlockSeed, nodeID)
+func GetBlockSeed(nodeID int64, block *model.Block) (*big.Int, error) {
 	digest := sha3.New256()
 	_, err := digest.Write(block.GetBlockSeed())
 	if err != nil {
 		return nil, err
 	}
-
 	previousSeedHash := digest.Sum([]byte{})
 	payload := bytes.NewBuffer([]byte{})
-	payload.Write(publicKey)
+	payload.Write(commonUtils.ConvertUint64ToBytes(uint64(nodeID)))
 	payload.Write(previousSeedHash)
-	signature := (&crypto.Signature{}).SignByNode(payload.Bytes(), secretPhrase)
-	seed := sha3.Sum256(signature)
+	seed := sha3.Sum256(payload.Bytes())
 	return new(big.Int).SetBytes(seed[:8]), nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith
 func GetSmithTime(seed *big.Int, block *model.Block) int64 {
-	smithScaleMul := new(big.Int).Mul(big.NewInt(block.SmithScale), big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
-	elapsedFromLastBlock := new(big.Int).Div(seed, smithScaleMul).Int64()
+	normalizedSmithScale := GetNormalizedSmithScale(block.SmithScale)
+	elapsedFromLastBlock := new(big.Int).Div(seed, normalizedSmithScale).Int64()
 	return block.GetTimestamp() + elapsedFromLastBlock
+}
+
+func GetNormalizedSmithScale(smithScale int64) *big.Int {
+	value := new(big.Int).Mul(big.NewInt(smithScale), big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
+	return value
 }
 
 // CalculateSmithScale base target of block and return modified block
@@ -151,11 +151,14 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 }
 
 // CalculateSmithOrder calculate the blocksmith order parameter, used to sort/select the next blocksmith
-func CalculateSmithOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
-	prn := crypto.PseudoRandomGenerator(uint64(nodeID), blockSeed.Uint64(), crypto.PseudoRandomSha3256)
+func CalculateSmithOrder(nodeID int64, block *model.Block) (*big.Int, error) {
+	blockSeed, err := GetBlockSeed(nodeID, block)
+	if err != nil {
+		return nil, err
+	}
+	smithTime := GetSmithTime(blockSeed, block)
 	// Currently score did'nt use ,
-	// But when use score in calculating Smith Order, prn should  multiply by score
-	return new(big.Int).SetUint64(prn)
+	return new(big.Int).SetInt64(smithTime), nil
 }
 
 // CalculateNodeOrder calculate the Node order parameter, used to sort/select the group of blocksmith rewarded for a given block

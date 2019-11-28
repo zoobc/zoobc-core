@@ -65,7 +65,7 @@ var (
 		Height:               blockAdmittanceHeight1,
 		Version:              1,
 		CumulativeDifficulty: "",
-		SmithScale:           0,
+		SmithScale:           100000,
 		PreviousBlockHash:    []byte{},
 		BlockSeed:            []byte{1, 1, 1, 1, 1, 1, 1, 1},
 		BlocksmithPublicKey:  nrsNodePubKey1,
