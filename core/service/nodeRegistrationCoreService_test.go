@@ -850,3 +850,184 @@ func TestNodeRegistrationService_GetScrambledNodes(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockQueryExecutorAddParticipationScorePsNotFound struct {
+		query.Executor
+	}
+	mockQueryExecutorAddParticipationScoreSuccess struct {
+		query.Executor
+		prevScore int64
+	}
+)
+
+func (*mockQueryExecutorAddParticipationScorePsNotFound) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	return nil
+}
+
+func (mk *mockQueryExecutorAddParticipationScoreSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+	db, mock, _ := sqlmock.New()
+	psQ := query.NewParticipationScoreQuery()
+	mock.MatchExpectationsInOrder(false)
+	mock.ExpectQuery("").WillReturnRows(
+		sqlmock.NewRows(psQ.Fields).AddRow(
+			int64(1111),
+			mk.prevScore,
+			true,
+			uint32(0),
+		),
+	)
+	return db.QueryRow("")
+}
+
+func (*mockQueryExecutorAddParticipationScoreSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
+	type fields struct {
+		QueryExecutor           query.ExecutorInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		Logger                  *log.Logger
+	}
+	type args struct {
+		nodeID     int64
+		scoreDelta int64
+		height     uint32
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		args         args
+		wantNewScore int64
+		wantErr      bool
+	}{
+		{
+			name: "fail-{ParticipationScoreNotFound}",
+			fields: fields{
+				QueryExecutor:           &mockQueryExecutorAddParticipationScorePsNotFound{},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     -1,
+				scoreDelta: 10,
+				height:     1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess-{AlreadyMaxScore}",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore,
+				},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     1111,
+				scoreDelta: 10,
+				height:     1,
+			},
+			wantNewScore: constant.MaxParticipationScore,
+		},
+		{
+			name: "wantSuccess-{AlreadyZeroScore}",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
+					prevScore: 0,
+				},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     1111,
+				scoreDelta: -10,
+				height:     1,
+			},
+			wantNewScore: 0,
+		},
+		{
+			name: "wantSuccess-{ToMaxScore}",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore - 5,
+				},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     1111,
+				scoreDelta: 10,
+				height:     1,
+			},
+			wantNewScore: constant.MaxParticipationScore,
+		},
+		{
+			name: "wantSuccess-{ToMinScore}",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
+					prevScore: 5,
+				},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     1111,
+				scoreDelta: -10,
+				height:     1,
+			},
+			wantNewScore: 0,
+		},
+		{
+			name: "wantSuccess-{IncreaseScore}",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore - 11,
+				},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     1111,
+				scoreDelta: 10,
+				height:     1,
+			},
+			wantNewScore: constant.MaxParticipationScore - 1,
+		},
+		{
+			name: "wantSuccess-{DecreaseScore}",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
+					prevScore: 11,
+				},
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeID:     1111,
+				scoreDelta: -10,
+				height:     1,
+			},
+			wantNewScore: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:           tt.fields.QueryExecutor,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				Logger:                  tt.fields.Logger,
+			}
+			gotNewScore, err := nrs.AddParticipationScore(tt.args.nodeID, tt.args.scoreDelta, tt.args.height)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.AddParticipationScore() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotNewScore != tt.wantNewScore {
+				t.Errorf("NodeRegistrationService.AddParticipationScore() = %v, want %v", gotNewScore, tt.wantNewScore)
+			}
+		})
+	}
+}

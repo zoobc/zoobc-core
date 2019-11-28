@@ -34,6 +34,7 @@ type (
 		GetScrambleNodesByHeight(
 			blockHeight uint32,
 		) (*model.ScrambledNodes, error)
+		AddParticipationScore(nodeID, scoreDelta int64, height uint32) (newScore int64, err error)
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -69,6 +70,50 @@ func NewNodeRegistrationService(
 		Logger:                  logger,
 		ScrambledNodes:          map[uint32]*model.ScrambledNodes{},
 	}
+}
+
+// AddParticipationScore updates a node's participation score by increment/deincrement a previous score by a given number
+func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int64, height uint32) (newScore int64, err error) {
+	var (
+		ps model.ParticipationScore
+	)
+	qry, args := nrs.ParticipationScoreQuery.GetParticipationScoreByNodeID(nodeID)
+	row := nrs.QueryExecutor.ExecuteSelectRow(qry, args)
+	if row == nil {
+		return 0, blocker.NewBlocker(blocker.DBErr, "ParticipationScoreNotFound")
+	}
+	err = nrs.ParticipationScoreQuery.Scan(&ps, row)
+	if err != nil {
+		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	// don't update the score if already max allowed
+	if ps.Score >= constant.MaxParticipationScore && scoreDelta > 0 {
+		nrs.Logger.Debugf("Node id %d: score is already the maximum allowed and won't be increased", nodeID)
+		return constant.MaxParticipationScore, nil
+	}
+	if ps.Score <= 0 && scoreDelta < 0 {
+		nrs.Logger.Debugf("Node id %d: score is already 0. new score won't be decreased", nodeID)
+		return 0, nil
+	}
+	// check if updating the score will overflow the max score and if so, set the new score to max allowed
+	// note: we use big integers to make sure we manage the very unlikely case where the addition overflows max int64
+	scoreDeltaBig := big.NewInt(scoreDelta)
+	prevScoreBig := big.NewInt(ps.Score)
+	maxScoreBig := big.NewInt(constant.MaxParticipationScore)
+	newScoreBig := new(big.Int).Add(prevScoreBig, scoreDeltaBig)
+	if maxScoreBig.Cmp(newScoreBig) < 0 {
+		newScore = constant.MaxParticipationScore
+	} else if big.NewInt(0).Cmp(newScoreBig) > 0 {
+		newScore = 0
+	} else {
+		newScore = ps.Score + scoreDelta
+	}
+
+	// finally update the participation score
+	addParticipationScoreQueries := nrs.ParticipationScoreQuery.UpdateParticipationScore(nodeID, newScore, height)
+	err = nrs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+	return newScore, err
 }
 
 // SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
