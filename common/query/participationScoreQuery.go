@@ -66,8 +66,8 @@ func (ps *ParticipationScoreQuery) UpdateParticipationScore(
 	// note: the participation score passed to this functions must already be = last recorded part score + increment (or decrement)
 	updateScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
 		"VALUES(%d, %d, %d, 1) "+
-		"ON CONFLICT(node_id, height) REPLACE",
-		ps.getTableName(), nodeID, score, blockHeight,
+		"ON CONFLICT(node_id, height) DO UPDATE SET (score) = %d",
+		ps.getTableName(), nodeID, score, blockHeight, score,
 	)
 	queries = append(queries,
 		[]interface{}{

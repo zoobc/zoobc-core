@@ -76,7 +76,7 @@ func TestParticipationScoreQuery_UpdateParticipationScore(t *testing.T) {
 	t.Run("UpdateParticipationScore", func(t *testing.T) {
 		res := mockParticipationScoreQuery.UpdateParticipationScore(int64(1111), int64(10), uint32(1))
 		want0 := "INSERT INTO participation_score (node_id, score, height, latest) VALUES(1111, 10, 1, 1) " +
-			"ON CONFLICT(node_id, height) REPLACE"
+			"ON CONFLICT(node_id, height) DO UPDATE SET (score) = 10"
 		want1 := "UPDATE participation_score SET latest = false WHERE node_id = 1111 AND height != 1 AND latest = true"
 		if res[0][0] != want0 {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res[0][0], want0)
