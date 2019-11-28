@@ -22,11 +22,6 @@ import (
 
 // PriorityStrategy represent data service node as server
 type (
-	PriorityStrategyInterface interface {
-		GetBlacklistedPeers() map[string]*model.Peer
-		AddToBlacklistedPeer(peer *model.Peer, reason string) error
-		RemoveBlacklistedPeer(peer *model.Peer) error
-	}
 	PriorityStrategy struct {
 		Host                    *model.Host
 		PeerServiceClient       client.PeerServiceClientInterface
@@ -600,6 +595,7 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 
 // AddToBlacklistedPeer to add a peer into resolved peer
 func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, reason string) error {
+
 	if peer == nil {
 		return errors.New("AddToBlacklistedPeer Err, peer is nil")
 	}
@@ -609,9 +605,9 @@ func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, reason string
 
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
-
 	ps.Host.BlacklistedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	return nil
+
 }
 
 // RemoveBlacklistedPeer removes peer from Blacklisted peer list

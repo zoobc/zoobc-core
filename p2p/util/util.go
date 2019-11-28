@@ -28,6 +28,7 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 		newPeer := *peer
 		unresolvedPeersMap[GetFullAddressPeer(peer)] = &newPeer
 	}
+
 	return &model.Host{
 		Info: &model.Node{
 			Address: address,
@@ -36,7 +37,7 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 		ResolvedPeers:    make(map[string]*model.Peer),
 		UnresolvedPeers:  unresolvedPeersMap,
 		KnownPeers:       knownPeersMap,
-		BlacklistedPeers: nil,
+		BlacklistedPeers: make(map[string]*model.Peer),
 		Stopped:          false,
 	}
 }

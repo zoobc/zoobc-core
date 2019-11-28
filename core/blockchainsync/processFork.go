@@ -30,7 +30,7 @@ type (
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
 		Logger             *log.Logger
-		P2pService         strategy.PriorityStrategyInterface
+		PeerExplorer       strategy.PeerExplorerStrategyInterface
 	}
 )
 
@@ -74,7 +74,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 				if err != nil {
 					// TODO: analyze the mechanism of blacklisting peer here
-					err := fp.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+					err := fp.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 					if err != nil {
 						fp.Logger.Infof("Failed to add blacklist: %v\n", err)
 					}
@@ -83,7 +83,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				err = fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
 					// TODO: blacklist the wrong peer
-					err := fp.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+					err := fp.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 					if err != nil {
 						fp.Logger.Infof("Failed to add blacklist: %v\n", err)
 					}
@@ -128,7 +128,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			err = fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
-				err := fp.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+				err := fp.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 				if err != nil {
 					fp.Logger.Infof("Failed to add blacklist: %v\n", err)
 				}

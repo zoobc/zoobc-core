@@ -27,15 +27,13 @@ type (
 		ConfirmWithPeer(peerToCheck *model.Peer, commonMilestoneBlockID int64) ([]int64, error)
 	}
 	BlockchainDownloader struct {
-		IsDownloading bool // only for status
-		PeerHasMore   bool
-		ChainType     chaintype.ChainType
-
+		IsDownloading     bool // only for status
+		PeerHasMore       bool
+		ChainType         chaintype.ChainType
 		BlockService      service.BlockServiceInterface
 		PeerServiceClient client.PeerServiceClientInterface
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		Logger            *log.Logger
-		P2pService        strategy.PriorityStrategyInterface
 	}
 
 	PeerBlockchainInfo struct {
@@ -267,21 +265,23 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			continue
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
+		fmt.Printf("BLACKLIST : %v\n", bd.PeerExplorer.GetHostInfo)
 		if lastBlock.ID == previousBlockID {
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
-				err := bd.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+				err := bd.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 				if err != nil {
 					bd.Logger.Infof("Failed to add blacklist: %v\n", err)
 				}
-				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+
 				break
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
 				// TODO: analyze the mechanism of blacklisting peer here
-				err := bd.P2pService.AddToBlacklistedPeer(feederPeer, err.Error())
+				err := bd.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 				if err != nil {
 					bd.Logger.Infof("Failed to add blacklist: %v\n", err)
 				}
