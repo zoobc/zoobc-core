@@ -32,7 +32,8 @@ type (
 var blockServiceInstance *BlockService
 
 // NewBlockService create a singleton instance of BlockService
-func NewBlockService(queryExecutor query.ExecutorInterface, blockCoreServices map[int32]coreService.BlockServiceInterface, isDebugMode bool) *BlockService {
+func NewBlockService(queryExecutor query.ExecutorInterface, blockCoreServices map[int32]coreService.BlockServiceInterface,
+	isDebugMode bool) *BlockService {
 	if blockServiceInstance == nil {
 		blockServiceInstance = &BlockService{Query: queryExecutor}
 	}
