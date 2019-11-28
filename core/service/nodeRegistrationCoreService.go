@@ -455,9 +455,9 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	prevScoreBig := big.NewInt(ps.Score)
 	maxScoreBig := big.NewInt(constant.MaxParticipationScore)
 	newScoreBig := new(big.Int).Add(prevScoreBig, scoreDeltaBig)
-	if maxScoreBig.Cmp(newScoreBig) < 0 {
+	if newScoreBig.Cmp(maxScoreBig) > 0 {
 		newScore = constant.MaxParticipationScore
-	} else if big.NewInt(0).Cmp(newScoreBig) > 0 {
+	} else if newScoreBig.Cmp(big.NewInt(0)) < 0 {
 		newScore = 0
 	} else {
 		newScore = ps.Score + scoreDelta
