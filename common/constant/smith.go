@@ -16,4 +16,8 @@ var (
 	AverageSmithingBlockHeight = uint32(math.MaxInt32)
 	MaxNumBlocksmithRewards    = int(5)
 	GenerateBlockTimeoutSec    = int64(15)
+	// StatusSmithing smithing statuses below
+	StatusSmithing     = "StatusSmithing"
+	StatusStopSmithing = "StatusStopSmithing"
+	StatusNotSmithing  = "StatusNotSmithing"
 )

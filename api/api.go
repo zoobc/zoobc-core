@@ -33,6 +33,7 @@ func startGrpcServer(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
+	smithingStatus *string,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -137,9 +138,11 @@ func Start(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
+	smithingStatus *string,
 ) {
 	startGrpcServer(
 		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService, ownerAccountAddress, nodefilePath, logger,
+		smithingStatus,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

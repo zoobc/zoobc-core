@@ -67,6 +67,8 @@ var (
 	loggerAPIService                        *log.Logger
 	loggerCoreService                       *log.Logger
 	loggerP2PService                        *log.Logger
+	// api variables
+	smithingStatus = constant.StatusNotSmithing
 )
 
 func init() {
@@ -288,6 +290,7 @@ func startServices() {
 		ownerAccountAddress,
 		nodeKeyFilePath,
 		loggerAPIService,
+		&smithingStatus,
 	)
 
 	if isDebugMode {
@@ -306,10 +309,12 @@ func startNodeMonitoring() {
 }
 
 func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
+	smithingStatus = constant.StatusSmithing
 	for {
 		err := processor.StartSmithing()
 		if err != nil {
 			loggerCoreService.Warn("Smith error: ", err.Error())
+			smithingStatus = constant.StatusStopSmithing
 		}
 		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
 	}
