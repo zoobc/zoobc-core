@@ -201,17 +201,17 @@ type (
 	}
 )
 
-func (*mockQueryExecutorGetMempoolTXFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
-	return nil
+func (*mockQueryExecutorGetMempoolTXFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, nil
 }
 
-func (*mockQueryExecutorGetMempoolTXScanFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryExecutorGetMempoolTXScanFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows([]string{"foo", "bar"}).AddRow(1, 2))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
-func (*mockQueryExecutorGetMempoolTXSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryExecutorGetMempoolTXSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows(query.NewMempoolQuery(&chaintype.MainChain{}).Fields).AddRow(
@@ -223,7 +223,7 @@ func (*mockQueryExecutorGetMempoolTXSuccess) ExecuteSelectRow(qStr string, args 
 			"accountA",
 			"accountB",
 		))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 func TestMempoolTransactionService_GetMempoolTransaction(t *testing.T) {
 	type fields struct {

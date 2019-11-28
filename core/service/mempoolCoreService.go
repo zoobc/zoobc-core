@@ -142,7 +142,12 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	if constant.MaxMempoolTransactions > 0 {
 		var count int
 		sqlStr := mps.MempoolQuery.GetMempoolTransactions()
-		err := mps.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr)).Scan(&count)
+		// note: this select is always insid a db transaction because AddMempoolTransaction is always called within a db tx
+		row, err := mps.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr), true)
+		if err != nil {
+			return err
+		}
+		err = row.Scan(&count)
 		if err != nil {
 			return err
 		}
@@ -162,7 +167,11 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
 	}
 
-	row := mps.QueryExecutor.ExecuteSelectRow(mps.BlockQuery.GetLastBlock())
+	// note: this select is always insid a db transaction because AddMempoolTransaction is always called within a db tx
+	row, err := mps.QueryExecutor.ExecuteSelectRow(mps.BlockQuery.GetLastBlock(), true)
+	if err != nil {
+		return err
+	}
 	var lastBlock model.Block
 	err = mps.BlockQuery.Scan(&lastBlock, row)
 	if err != nil {
@@ -187,7 +196,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 	)
 	// check for duplication in transaction table
 	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.ID)
-	row := mps.QueryExecutor.ExecuteSelectRow(transactionQ)
+	row, _ := mps.QueryExecutor.ExecuteSelectRow(transactionQ, false)
 	err = mps.TransactionQuery.Scan(&tx, row)
 	if err != nil && err != sql.ErrNoRows {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -199,7 +208,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 
 	// check for duplication in mempool table
 	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
-	row = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, mpTx.ID)
+	row, _ = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
 	err = mps.MempoolQuery.Scan(&mempoolTx, row)
 
 	if err != nil {

@@ -300,8 +300,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 }
 
 func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
-	qe string, args ...interface{},
-) *sql.Row {
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -369,12 +369,12 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 			))
 	}
 	row := db.QueryRow(qe)
-	return row
+	return row, nil
 }
 
 func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
-	qe string, args ...interface{},
-) *sql.Row {
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -442,7 +442,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 			))
 	}
 	row := db.QueryRow(qe)
-	return row
+	return row, nil
 }
 
 func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
@@ -766,8 +766,8 @@ type (
 )
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
-	qStr string, args ...interface{},
-) *sql.Row {
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
@@ -799,7 +799,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(constant.ReceiptBatchMaximum))
 	}
 
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelect(
@@ -839,19 +839,19 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteTransactions(
 }
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail) ExecuteSelectRow(
-	qStr string, args ...interface{},
-) *sql.Row {
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, _, _ := sqlmock.New()
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelectRow(
-	qStr string, args ...interface{},
-) *sql.Row {
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(constant.ReceiptBatchMaximum))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelect(
 	qe string, tx bool, args ...interface{},
@@ -954,7 +954,7 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteTransaction(qStr string, a
 func (*mockExecutorPruningNodeReceiptsSuccess) RollbackTx() error {
 	return nil
 }
-func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockRow.AddRow(
@@ -976,7 +976,7 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, arg
 		mockBlockDataSelectReceipt.GetVersion(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 func TestReceiptService_PruningNodeReceipts(t *testing.T) {
 	type fields struct {

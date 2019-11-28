@@ -861,11 +861,11 @@ type (
 	}
 )
 
-func (*mockQueryExecutorAddParticipationScorePsNotFound) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
-	return nil
+func (*mockQueryExecutorAddParticipationScorePsNotFound) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, nil
 }
 
-func (mk *mockQueryExecutorAddParticipationScoreSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (mk *mockQueryExecutorAddParticipationScoreSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	psQ := query.NewParticipationScoreQuery()
 	mock.MatchExpectationsInOrder(false)
@@ -877,7 +877,7 @@ func (mk *mockQueryExecutorAddParticipationScoreSuccess) ExecuteSelectRow(qStr s
 			uint32(0),
 		),
 	)
-	return db.QueryRow("")
+	return db.QueryRow(""), nil
 }
 
 func (*mockQueryExecutorAddParticipationScoreSuccess) ExecuteTransactions(queries [][]interface{}) error {
@@ -894,6 +894,7 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		nodeID     int64
 		scoreDelta int64
 		height     uint32
+		dbTx       bool
 	}
 	tests := []struct {
 		name         string
@@ -1020,7 +1021,7 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				Logger:                  tt.fields.Logger,
 			}
-			gotNewScore, err := nrs.AddParticipationScore(tt.args.nodeID, tt.args.scoreDelta, tt.args.height)
+			gotNewScore, err := nrs.AddParticipationScore(tt.args.nodeID, tt.args.scoreDelta, tt.args.height, tt.args.dbTx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.AddParticipationScore() error = %v, wantErr %v", err, tt.wantErr)
 				return
