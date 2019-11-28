@@ -951,7 +951,15 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height)
+		if len(*bs.SortedBlocksmiths) < constant.PriorityStrategyMaxPriorityPeers {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height,
+			)
+		} else {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, constant.PriorityStrategyMaxPriorityPeers, previousBlock.Height,
+			)
+		}
 		if err != nil {
 			return nil, err
 		}
