@@ -100,6 +100,10 @@ type (
 	}
 )
 
+func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(nodeID, scoreDelta int64, height uint32) (newScore int64, err error) {
+	return 100000, nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
@@ -118,6 +122,10 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 			AccountAddress: "TESTEXPELLED",
 		},
 	}, nil
+}
+
+func (*mockNodeRegistrationServiceFail) AddParticipationScore(nodeID, scoreDelta int64, height uint32) (newScore int64, err error) {
+	return 100000, nil
 }
 
 func (*mockNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {

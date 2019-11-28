@@ -621,16 +621,12 @@ func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error
 			return err
 		}
 		// punish score
-		addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-			bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height)
-		err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height)
 		if err != nil {
 			return err
 		}
 	}
-	addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-		blocksmithNode.NodeID, popScore, block.Height)
-	err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksmithNode.NodeID, popScore, block.Height)
 	if err != nil {
 		return err
 	}
