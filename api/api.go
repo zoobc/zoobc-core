@@ -6,6 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/zoobc/zoobc-core/common/model"
+
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
@@ -33,7 +35,7 @@ func startGrpcServer(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
-	smithingStatus *string,
+	smithingStatus *model.SmithingStatuses,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -119,6 +121,9 @@ func startGrpcServer(
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
 		Service: service.NewNodeRegistryService(queryExecutor),
 	})
+	rpcService.RegisterSmithingServiceServer(grpcServer, &handler.SmithingHandler{
+		SmithingStatus: smithingStatus,
+	})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -138,7 +143,7 @@ func Start(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
-	smithingStatus *string,
+	smithingStatus *model.SmithingStatuses,
 ) {
 	startGrpcServer(
 		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService, ownerAccountAddress, nodefilePath, logger,
