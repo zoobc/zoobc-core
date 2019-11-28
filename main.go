@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -133,7 +134,8 @@ func init() {
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
 	var (
-		seed string
+		seed    string
+		nodeKey *model.NodeKey
 	)
 
 	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
@@ -177,14 +179,21 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 			// generate a node private key if there aren't already configured
 			seed = util.GetSecureRandomSeed()
 		}
-		if _, err := nodeAdminKeysService.GenerateNodeKey(seed); err != nil {
+		nodePublicKey, err := nodeAdminKeysService.GenerateNodeKey(seed)
+		if err != nil {
 			loggerCoreService.Fatal(err)
 		}
+		nodeKey = &model.NodeKey{
+			PublicKey: nodePublicKey,
+			Seed:      seed,
+		}
+	} else {
+		nodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 	}
-	nodeKey := nodeAdminKeysService.GetLastNodeKey(nodeKeys)
-	if nodeKey != nil {
-		nodeSecretPhrase = nodeKey.Seed
+	if nodeKey == nil {
+		loggerCoreService.Fatal(errors.New("NodeKeyIsNil"))
 	}
+	nodeSecretPhrase = nodeKey.Seed
 	// log the b64 encoded node public key
 	log.Printf("peerPort: %d", peerPort)
 	log.Printf("monitoringPort: %d", monitoringPort)
