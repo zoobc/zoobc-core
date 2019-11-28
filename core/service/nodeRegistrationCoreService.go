@@ -78,7 +78,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 		ps model.ParticipationScore
 	)
 	qry, args := nrs.ParticipationScoreQuery.GetParticipationScoreByNodeID(nodeID)
-	row := nrs.QueryExecutor.ExecuteSelectRow(qry, args)
+	row := nrs.QueryExecutor.ExecuteSelectRow(qry, args...)
 	if row == nil {
 		return 0, blocker.NewBlocker(blocker.DBErr, "ParticipationScoreNotFound")
 	}
