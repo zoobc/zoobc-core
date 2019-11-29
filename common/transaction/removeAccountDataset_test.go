@@ -101,7 +101,7 @@ func (*executorRemoveAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr st
 	return errors.New("MockedError")
 }
 
-func (*executorRemoveAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*executorRemoveAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	switch strings.Contains(qStr, "account_balance") {
 	case true:
@@ -130,20 +130,20 @@ func (*executorRemoveAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string
 		)
 	}
 
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*executorRemoveAccountDatasetValidateFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
-func (*executorRemoveAccountDatasetValidateFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*executorRemoveAccountDatasetValidateFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 		sqlmock.NewRows(query.NewAccountDatasetsQuery().GetFields()),
 	)
 
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {

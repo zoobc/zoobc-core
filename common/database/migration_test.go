@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func (*mockExecutorInitFailRows) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+func (*mockExecutorInitFailRows) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -23,7 +23,7 @@ func (*mockExecutorInitFailRows) ExecuteSelectRow(qe string, args ...interface{}
 	mock.ExpectQuery(qe).WillReturnRows(
 		sqlmock.NewRows([]string{"count"}),
 	)
-	return db.QueryRow(qe)
+	return db.QueryRow(qe), nil
 }
 
 func (*mockExecutorInitFailRows) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {

@@ -74,7 +74,8 @@ func GetLastBlock(
 		err   error
 	)
 
-	row = queryExecutor.ExecuteSelectRow(qry)
+	// note: no need to check for the error here, since dbTx is false
+	row, _ = queryExecutor.ExecuteSelectRow(qry, false)
 	err = blockQuery.Scan(&block, row)
 	if err != nil {
 		if err != sql.ErrNoRows {

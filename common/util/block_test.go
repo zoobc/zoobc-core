@@ -144,22 +144,22 @@ type (
 	}
 )
 
-func (*mockExecutorGetLastBlockFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorGetLastBlockFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mockRows := mock.NewRows([]string{"fake"})
 	mockRows.AddRow("1")
 	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
-func (*mockExecutorGetLastBlockNoRow) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorGetLastBlockNoRow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mockRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
-func (*mockExecutorGetLastBlockSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorGetLastBlockSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mockRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockRows.AddRow(
@@ -181,7 +181,7 @@ func (*mockExecutorGetLastBlockSuccess) ExecuteSelectRow(qStr string, args ...in
 		mockBlockData.GetVersion(),
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRows)
-	return db.QueryRow("")
+	return db.QueryRow(""), nil
 }
 
 func TestGetLastBlock(t *testing.T) {
