@@ -18,21 +18,27 @@ type (
 		P2pService              p2p.Peer2PeerServiceInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		SmithingStatus          *model.SmithingStatuses
 	}
 )
 
 var hostServiceInstance *HostService
 
 // NewHostService create a singleton instance of PeerExplorer
-func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2PeerServiceInterface,
+func NewHostService(
+	queryExecutor query.ExecutorInterface,
+	p2pService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
-	nodeRegistrationService coreService.NodeRegistrationServiceInterface) HostServiceInterface {
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	smithingStatus *model.SmithingStatuses,
+) HostServiceInterface {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{
 			Query:                   queryExecutor,
 			P2pService:              p2pService,
 			BlockServices:           blockServices,
 			NodeRegistrationService: nodeRegistrationService,
+			SmithingStatus:          smithingStatus,
 		}
 	}
 	return hostServiceInstance
@@ -59,6 +65,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		ChainStatuses:        chainStatuses,
 		ScrambledNodes:       scrambledNodes.AddressNodes,
 		ScrambledNodesHeight: scrambledNodes.BlockHeight,
+		SmithingStatus:       *hs.SmithingStatus,
 	}, nil
 }
 

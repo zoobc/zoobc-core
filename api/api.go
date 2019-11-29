@@ -92,7 +92,9 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
+		Service: service.NewHostService(
+			queryExecutor, p2pHostService, blockServices, nodeRegistrationService, smithingStatus,
+		),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -120,9 +122,6 @@ func startGrpcServer(
 	// Set GRPC handler for node registry request
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
 		Service: service.NewNodeRegistryService(queryExecutor),
-	})
-	rpcService.RegisterSmithingServiceServer(grpcServer, &handler.SmithingHandler{
-		SmithingStatus: smithingStatus,
 	})
 	// run grpc-gateway handler
 	go func() {
