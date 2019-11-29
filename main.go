@@ -407,6 +407,7 @@ func startMainchain() {
 			loggerCoreService.Error(
 				"Current node is not in node registry and won't be able to smith until registered!",
 			)
+			smithingStatus = model.SmithingStatuses_StopSmithing
 		}
 		if node != nil {
 			mainchainProcessor = smith.NewBlockchainProcessor(
@@ -417,6 +418,8 @@ func startMainchain() {
 				loggerCoreService,
 			)
 			go startSmith(sleepPeriod, mainchainProcessor)
+		} else {
+			smithingStatus = model.SmithingStatuses_StopSmithing
 		}
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
