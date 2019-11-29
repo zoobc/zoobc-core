@@ -129,7 +129,7 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	caseQuery.Limit(1)
 	selectQuery, args := caseQuery.Build()
 
-	row = ns.Query.ExecuteSelectRow(selectQuery, args...)
+	row, _ = ns.Query.ExecuteSelectRow(selectQuery, false, args...)
 	err = nodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
 		if err == sql.ErrNoRows {

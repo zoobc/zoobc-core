@@ -262,9 +262,9 @@ func (*BlockService) VerifySeed(
 	if elapsedTime <= 0 {
 		return false
 	}
-	effectiveSmithScale := new(big.Int).Mul(score, big.NewInt(previousBlock.GetSmithScale()))
-	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), effectiveSmithScale)
-	target := new(big.Int).Add(effectiveSmithScale, prevTarget)
+	normalizedSmithScale := coreUtil.GetNormalizedSmithScale(previousBlock.SmithScale)
+	prevTarget := new(big.Int).Mul(big.NewInt(elapsedTime-1), normalizedSmithScale)
+	target := new(big.Int).Add(normalizedSmithScale, prevTarget)
 	return seed.Cmp(target) < 0 && (seed.Cmp(prevTarget) >= 0 || elapsedTime > 3600)
 }
 
@@ -545,12 +545,9 @@ func (bs *BlockService) SortBlocksmiths(block *model.Block) {
 	// sort blocksmiths by SmithOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
 		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.SmithOrder.Cmp(bj.SmithOrder)
+		res := bi.SmithTime - bj.SmithTime
 		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
+			res = bi.NodeID - bj.NodeID
 		}
 		// ascending sort
 		return res < 0
@@ -624,16 +621,12 @@ func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error
 			return err
 		}
 		// punish score
-		addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-			bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height)
-		err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height, true)
 		if err != nil {
 			return err
 		}
 	}
-	addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-		blocksmithNode.NodeID, popScore, block.Height)
-	err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksmithNode.NodeID, popScore, block.Height, true)
 	if err != nil {
 		return err
 	}
@@ -673,7 +666,7 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 				}
 				// look up root in published_receipt table
 				rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
-				row := bs.QueryExecutor.ExecuteSelectRow(rcQ, rcArgs...)
+				row, _ := bs.QueryExecutor.ExecuteSelectRow(rcQ, false, rcArgs...)
 				err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
 				if err != nil {
 					return 0, err
@@ -875,7 +868,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	var (
 		lastBlock model.Block
-		row       = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock())
+		row, _    = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock(), false)
 	)
 	if row == nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
@@ -954,7 +947,15 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height)
+		if len(*bs.SortedBlocksmiths) < constant.PriorityStrategyMaxPriorityPeers {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height,
+			)
+		} else {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, constant.PriorityStrategyMaxPriorityPeers, previousBlock.Height,
+			)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1311,11 +1312,13 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	}
 	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
-	blockSeed := new(big.Int).SetBytes(block.BlockSeed)
 	for _, blocksmith := range activeBlocksmiths {
-		blocksmith.SmithOrder = coreUtil.CalculateSmithOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
-		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blockSeed, blocksmith.NodeID)
-		blocksmith.BlockSeed = blockSeed
+		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(blocksmith.NodeID, block)
+		if err != nil {
+			return nil, err
+		}
+		blocksmith.SmithTime = coreUtil.GetSmithTime(blocksmith.BlockSeed, block)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, blocksmith.NodeID)
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
 	return blocksmiths, nil

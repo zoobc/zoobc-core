@@ -10,12 +10,10 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -302,8 +300,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 }
 
 func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
-	qe string, args ...interface{},
-) *sql.Row {
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -371,12 +369,12 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 			))
 	}
 	row := db.QueryRow(qe)
-	return row
+	return row, nil
 }
 
 func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
-	qe string, args ...interface{},
-) *sql.Row {
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -444,7 +442,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 			))
 	}
 	row := db.QueryRow(qe)
-	return row
+	return row, nil
 }
 
 func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
@@ -768,8 +766,8 @@ type (
 )
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
-	qStr string, args ...interface{},
-) *sql.Row {
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
@@ -801,7 +799,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(constant.ReceiptBatchMaximum))
 	}
 
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelect(
@@ -841,19 +839,19 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteTransactions(
 }
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail) ExecuteSelectRow(
-	qStr string, args ...interface{},
-) *sql.Row {
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, _, _ := sqlmock.New()
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelectRow(
-	qStr string, args ...interface{},
-) *sql.Row {
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(constant.ReceiptBatchMaximum))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelect(
 	qe string, tx bool, args ...interface{},
@@ -933,6 +931,96 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 			}
 			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
 				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockExecutorPruningNodeReceiptsSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx() error {
+	return nil
+}
+func (*mockExecutorPruningNodeReceiptsSuccess) CommitTx() error {
+	return nil
+}
+func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+func (*mockExecutorPruningNodeReceiptsSuccess) RollbackTx() error {
+	return nil
+}
+func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockRow.AddRow(
+		mockBlockDataSelectReceipt.GetID(),
+		mockBlockDataSelectReceipt.GetBlockHash(),
+		mockBlockDataSelectReceipt.GetPreviousBlockHash(),
+		mockBlockDataSelectReceipt.GetHeight(),
+		mockBlockDataSelectReceipt.GetTimestamp(),
+		mockBlockDataSelectReceipt.GetBlockSeed(),
+		mockBlockDataSelectReceipt.GetBlockSignature(),
+		mockBlockDataSelectReceipt.GetCumulativeDifficulty(),
+		mockBlockDataSelectReceipt.GetSmithScale(),
+		mockBlockDataSelectReceipt.GetPayloadLength(),
+		mockBlockDataSelectReceipt.GetPayloadHash(),
+		mockBlockDataSelectReceipt.GetBlocksmithPublicKey(),
+		mockBlockDataSelectReceipt.GetTotalAmount(),
+		mockBlockDataSelectReceipt.GetTotalFee(),
+		mockBlockDataSelectReceipt.GetTotalCoinBase(),
+		mockBlockDataSelectReceipt.GetVersion(),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
+	return db.QueryRow(qStr), nil
+}
+func TestReceiptService_PruningNodeReceipts(t *testing.T) {
+	type fields struct {
+		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		BatchReceiptQuery       query.BatchReceiptQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		Signature               crypto.SignatureInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				NodeReceiptQuery: query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				BlockQuery:       query.NewBlockQuery(chaintype.GetChainType(0)),
+				QueryExecutor:    &mockExecutorPruningNodeReceiptsSuccess{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := &ReceiptService{
+				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				KVExecutor:              tt.fields.KVExecutor,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Signature:               tt.fields.Signature,
+			}
+			if err := rs.PruningNodeReceipts(); (err != nil) != tt.wantErr {
+				t.Errorf("PruningNodeReceipts() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

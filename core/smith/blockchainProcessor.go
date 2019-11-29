@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
@@ -59,10 +60,10 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 	// the default ps is 100000, smithing could be slower than when using account balances
 	// since default balance was 1000 times higher than default ps
 	ps, err := bp.BlockService.GetParticipationScore(generator.NodePublicKey)
-	if ps == 0 {
-		bp.Logger.Info("Node has participation score = 0. Either is not registered or has been expelled from node registry")
+	if ps <= 0 {
+		bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
 	}
-	if err != nil {
+	if err != nil || ps <= 0 {
 		bp.Logger.Errorf("Participation score calculation: %s", err)
 		generator.Score = big.NewInt(0)
 	} else {
@@ -73,7 +74,7 @@ func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator 
 		generator.BlockSeed = big.NewInt(0)
 	}
 
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodePublicKey, lastBlock, generator.SecretPhrase)
+	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodeID, lastBlock)
 	generator.SmithTime = coreUtil.GetSmithTime(generator.BlockSeed, lastBlock)
 	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
 	return generator
@@ -182,6 +183,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		// }
 		// caching: only calculate smith time once per new block
 		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
+		monitoring.SetBlockchainSmithTime(bp.Chaintype.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
 	}
 	if !bp.canSmith {
 		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")

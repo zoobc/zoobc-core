@@ -74,6 +74,9 @@ run:
 
 issues:
   exclude-rules:
+    - text: "ifElseChain: rewrite if-else to switch statement"
+      linters:
+        - gocritic
     - text: "rangeValCopy: each iteration copies"
       linters:
         - gocritic
