@@ -59,11 +59,19 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 	accountType := signature[:4]
 	switch util.ConvertBytesToUint32(accountType) {
 	case 0: // zoobc
-		accountPublicKey, _ := util.GetPublicKeyFromAddress(accountAddress)
+		accountPublicKey, err := util.GetPublicKeyFromAddress(accountAddress)
+		if err != nil {
+			// TODO: need catch err into log
+			return false
+		}
 		result := ed25519.Verify(accountPublicKey, payload, signature[4:])
 		return result
 	default:
-		accountPublicKey, _ := util.GetPublicKeyFromAddress(accountAddress)
+		accountPublicKey, err := util.GetPublicKeyFromAddress(accountAddress)
+		if err != nil {
+			// TODO: need catch err into log
+			return false
+		}
 		result := ed25519.Verify(accountPublicKey, payload, signature[4:])
 		return result
 	}
