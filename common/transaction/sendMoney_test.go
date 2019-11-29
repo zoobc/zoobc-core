@@ -46,14 +46,14 @@ type (
 	}
 )
 
-func (*executorValidateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*executorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
 		"total_record",
 	}).AddRow(2))
 
-	return db.QueryRow(qStr, 1, 2)
+	return db.QueryRow(qStr, 1, 2), nil
 }
 func (*executorValidateSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
@@ -76,14 +76,14 @@ func (*executorAccountCreateSuccess) ExecuteTransactions([][]interface{}) error 
 	return nil
 }
 
-func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
 		"total_record",
 	}).AddRow(2))
 
-	return db.QueryRow(qStr, 1, 2)
+	return db.QueryRow(qStr, 1, 2), nil
 }
 
 func (*executorAccountCountFail) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -110,13 +110,13 @@ func (*executorSuccessUpdateAccount) ExecuteTransaction(qStr string, args ...int
 	return nil
 }
 
-func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*executorAccountCountSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
 		"total_record",
 	}).AddRow(2))
 
-	return db.QueryRow(qStr, 1, 2)
+	return db.QueryRow(qStr, 1, 2), nil
 }
 func (*executorAccountCountSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()

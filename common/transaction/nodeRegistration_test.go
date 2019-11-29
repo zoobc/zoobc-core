@@ -407,7 +407,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(q
 	return db.Query("B")
 }
 
-func (*mockExecutorValidateSuccess) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+func (*mockExecutorValidateSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
@@ -427,9 +427,9 @@ func (*mockExecutorValidateSuccess) ExecuteSelectRow(qe string, args ...interfac
 			0,
 			true,
 		))
-		db.QueryRow(qe)
+		return db.QueryRow(qe), nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {

@@ -14,7 +14,7 @@ type (
 		BeginTx() error
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
-		ExecuteSelectRow(query string, args ...interface{}) *sql.Row
+		ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error)
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
 		ExecuteTransactions(queries [][]interface{}) error
@@ -127,8 +127,23 @@ ExecuteSelectRow execute with select method that if you want to get `sql.Row` (s
 This function is necessary if you want to processing the row,
 otherwise you can use `Execute` or `ExecuteTransactions`
 */
-func (qe *Executor) ExecuteSelectRow(query string, args ...interface{}) *sql.Row {
-	return qe.Db.QueryRow(query, args...)
+func (qe *Executor) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	var (
+		row *sql.Row
+	)
+	if tx {
+		if qe.Tx != nil {
+			row = qe.Tx.QueryRow(query, args...)
+		} else {
+			return nil, blocker.NewBlocker(
+				blocker.DBErr,
+				"transaction need to be begun before read the transaction state",
+			)
+		}
+	} else {
+		row = qe.Db.QueryRow(query, args...)
+	}
+	return row, nil
 }
 
 // ExecuteTransaction execute a single transaction without committing it to database

@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -74,22 +72,17 @@ func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing
 	})
 }
 
-func TestParticipationScoreQuery_AddParticipationScore(t *testing.T) {
-	t.Run("AddParticipationScore:success", func(t *testing.T) {
-		res := mockParticipationScoreQuery.AddParticipationScore(12, 1*constant.OneZBC, 1)
-		want := [][]interface{}{
-			{
-				"INSERT INTO participation_score (node_id, score, height, latest) SELECT node_id, score + " +
-					"100000000, 1, latest FROM participation_score WHERE node_id = 12 AND latest = 1 ON " +
-					"CONFLICT(node_id, height) DO UPDATE SET (score) = (SELECT score + 100000000 FROM participation_score " +
-					"WHERE node_id = 12 AND latest = 1)",
-			},
-			{
-				"UPDATE participation_score SET latest = false WHERE node_id = 12 AND height != 1 AND latest = true",
-			},
+func TestParticipationScoreQuery_UpdateParticipationScore(t *testing.T) {
+	t.Run("UpdateParticipationScore", func(t *testing.T) {
+		res := mockParticipationScoreQuery.UpdateParticipationScore(int64(1111), int64(10), uint32(1))
+		want0 := "INSERT INTO participation_score (node_id, score, height, latest) VALUES(1111, 10, 1, 1) " +
+			"ON CONFLICT(node_id, height) DO UPDATE SET (score) = 10"
+		want1 := "UPDATE participation_score SET latest = false WHERE node_id = 1111 AND height != 1 AND latest = true"
+		if res[0][0] != want0 {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res[0][0], want0)
 		}
-		if !reflect.DeepEqual(res, want) {
-			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		if res[1][0] != want1 {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res[1][0], want1)
 		}
 	})
 }

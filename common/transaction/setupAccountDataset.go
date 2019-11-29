@@ -132,8 +132,12 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
 	}
 	// check account balance sender
-	row := tx.QueryExecutor.ExecuteSelectRow(tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress))
-	err := tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err := tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

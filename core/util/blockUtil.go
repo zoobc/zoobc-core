@@ -72,7 +72,7 @@ func CalculateSmithScale(
 	case block.Height%2 == 0:
 		var prev2Block model.Block
 		prev2BlockQ := blockQuery.GetBlockByHeight(previousBlock.Height - 2)
-		row := executor.ExecuteSelectRow(prev2BlockQ)
+		row, _ := executor.ExecuteSelectRow(prev2BlockQ, false)
 		err := blockQuery.Scan(&prev2Block, row)
 		if err != nil {
 			return nil, err
