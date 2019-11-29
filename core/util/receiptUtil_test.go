@@ -35,14 +35,17 @@ func (*mockGenerateBatchReceiptWithReminderKVExecutorFailOtherError) Insert(key 
 	return badger.ErrInvalidKey
 }
 
-func (*mockGenerateBatchReceiptWithReminderQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockGenerateBatchReceiptWithReminderQueryExecutorSuccess) ExecuteSelectRow(
+	qStr string,
+	tx bool, args ...interface{},
+) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
 		"ID", "Tree", "Timestamp",
 	}))
 	row := db.QueryRow(qStr)
-	return row
+	return row, nil
 }
 
 func TestGenerateBatchReceiptWithReminder(t *testing.T) {

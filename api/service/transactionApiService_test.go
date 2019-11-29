@@ -131,13 +131,13 @@ func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.Mempool
 func (*mockGetTransactionExecutorTxsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockError:getTxsFail")
 }
-func (*mockGetTransactionExecutorTxsFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockGetTransactionExecutorTxsFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(
 		query.NewTransactionQuery(chaintype.GetChainType(0)).Fields,
 	))
-	return db.QueryRow("")
+	return db.QueryRow(""), nil
 }
 
 func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -149,13 +149,13 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args
 		"Version"}))
 	return db.Query(qe)
 }
-func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(
 		query.NewTransactionQuery(chaintype.GetChainType(0)).Fields,
 	))
-	return db.QueryRow("")
+	return db.QueryRow(""), nil
 }
 
 func (*mockTransactionExecutorFailBeginTx) BeginTx() error {
@@ -682,7 +682,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(
 	)
 	return db.Query("")
 }
-func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, args ...interface{}) *sql.Row {
+func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(
@@ -702,7 +702,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, args ...int
 				[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
 			),
 	)
-	return db.QueryRow("")
+	return db.QueryRow(""), nil
 }
 func TestTransactionService_GetTransaction(t *testing.T) {
 	type fields struct {
