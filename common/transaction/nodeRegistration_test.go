@@ -640,7 +640,7 @@ func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteSelect(qe stri
 	return db.Query("")
 }
 
-func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -664,7 +664,7 @@ func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteSelectRow(qStr
 			true,
 			uint32(1),
 		))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockExecutorUndoUnconfirmedSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -698,7 +698,7 @@ func (*mockExecutorUndoUnconfirmedSuccess) ExecuteSelect(qe string, tx bool, arg
 	return db.Query(qe)
 }
 
-func (*mockExecutorUndoUnconfirmedSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorUndoUnconfirmedSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -722,7 +722,7 @@ func (*mockExecutorUndoUnconfirmedSuccess) ExecuteSelectRow(qStr string, args ..
 			true,
 			uint32(1),
 		))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockExecutorApplyUnconfirmedExecuteTransactionFail) ExecuteTransaction(qStr string, args ...interface{}) error {

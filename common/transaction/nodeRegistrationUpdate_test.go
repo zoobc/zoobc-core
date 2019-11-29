@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -216,6 +217,27 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 	return nil, errors.New("mocked select failed, query  not found")
 }
 
+func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"account_address",
+			"block_height",
+			"spendable_balance",
+			"balance",
+			"pop_revenue",
+			"latest",
+		}).AddRow(
+			senderAddress1,
+			uint32(1),
+			int64(1000000000),
+			int64(1000000000),
+			int64(100000000),
+			true,
+		))
+	return db.QueryRow(qStr), nil
+}
+
 func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -279,6 +301,27 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...
 		return db.Query("")
 	}
 	return nil, errors.New("mocked select failed, query  not found")
+}
+
+func (*mockExecutorValidateSuccessRU) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"account_address",
+			"block_height",
+			"spendable_balance",
+			"balance",
+			"pop_revenue",
+			"latest",
+		}).AddRow(
+			senderAddress1,
+			uint32(1),
+			int64(1000000000000),
+			int64(1000000000000),
+			int64(100000000),
+			true,
+		))
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockExecutorValidateSuccessRU) ExecuteTransaction(qStr string, args ...interface{}) error {
