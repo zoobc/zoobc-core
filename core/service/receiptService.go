@@ -427,11 +427,11 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	}
 
 	removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		lastBlock.GetHeight()-(constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks),
 		constant.PruningChunkedSize,
 	)
 	removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
+		lastBlock.GetHeight()-(constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks),
 		constant.PruningChunkedSize,
 	)
 	err = rs.QueryExecutor.BeginTx()
