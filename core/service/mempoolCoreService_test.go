@@ -65,14 +65,14 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 	return errors.New("MockedError")
 }
 
-func (*mockMempoolQueryExecutorFail) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+func (*mockMempoolQueryExecutorFail) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	// While getting last block
 	db, mock, _ := sqlmock.New()
 	// "SELECT count() as total_record FROM mempool ORDER BY fee_per_byte DESC"
 	mockedRows := sqlmock.NewRows([]string{"total_record"})
 	mockedRows.AddRow(51)
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	return db.QueryRow(qe)
+	return db.QueryRow(qe), nil
 }
 
 func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
@@ -318,7 +318,7 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteStatement(qe string, args ...inte
 func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...interface{}) error {
 	return nil
 }
-func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, args ...interface{}) *sql.Row {
+func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	// While getting last block
 	db, mock, _ := sqlmock.New()
 	switch qe {
@@ -326,7 +326,7 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, args ...inte
 		mockedRows := sqlmock.NewRows([]string{"total_record"})
 		mockedRows.AddRow(51)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-		return db.QueryRow(qe)
+		return db.QueryRow(qe), nil
 	default:
 		mockedRow := sqlmock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 		mockedRow.AddRow(
@@ -348,7 +348,7 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, args ...inte
 			mockBlockData.GetVersion(),
 		)
 		mock.ExpectQuery("").WillReturnRows(mockedRow)
-		return db.QueryRow("")
+		return db.QueryRow(""), nil
 	}
 }
 
@@ -596,7 +596,7 @@ type (
 	}
 )
 
-func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).AddRow(
@@ -616,15 +616,15 @@ func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr stri
 			make([]byte, 64),
 		),
 	)
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
-func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields),
 	)
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -645,10 +645,10 @@ func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelect(qStr st
 	return db.Query(qStr)
 }
 
-func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnError(errors.New("mocked err"))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {

@@ -137,7 +137,10 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 		tx.Body.GetRecipientAccountAddress(),
 		tx.Body.GetProperty(),
 	)
-	row := tx.QueryExecutor.ExecuteSelectRow(datasetQ, datasetArg...)
+	row, err := tx.QueryExecutor.ExecuteSelectRow(datasetQ, dbTx, datasetArg...)
+	if err != nil {
+		return err
+	}
 	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -147,7 +150,11 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 	}
 
 	// check account balance sender
-	row = tx.QueryExecutor.ExecuteSelectRow(tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress))
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return err
+	}
 	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())

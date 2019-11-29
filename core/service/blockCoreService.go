@@ -621,16 +621,12 @@ func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error
 			return err
 		}
 		// punish score
-		addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-			bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height)
-		err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height, true)
 		if err != nil {
 			return err
 		}
 	}
-	addParticipationScoreQueries := bs.ParticipationScoreQuery.AddParticipationScore(
-		blocksmithNode.NodeID, popScore, block.Height)
-	err = bs.QueryExecutor.ExecuteTransactions(addParticipationScoreQueries)
+	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksmithNode.NodeID, popScore, block.Height, true)
 	if err != nil {
 		return err
 	}
@@ -670,7 +666,7 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 				}
 				// look up root in published_receipt table
 				rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
-				row := bs.QueryExecutor.ExecuteSelectRow(rcQ, rcArgs...)
+				row, _ := bs.QueryExecutor.ExecuteSelectRow(rcQ, false, rcArgs...)
 				err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
 				if err != nil {
 					return 0, err
@@ -872,7 +868,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	var (
 		lastBlock model.Block
-		row       = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock())
+		row, _    = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock(), false)
 	)
 	if row == nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
@@ -951,7 +947,15 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		publishedReceipts, err = bs.ReceiptService.SelectReceipts(timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height)
+		if len(*bs.SortedBlocksmiths) < constant.PriorityStrategyMaxPriorityPeers {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height,
+			)
+		} else {
+			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+				timestamp, constant.PriorityStrategyMaxPriorityPeers, previousBlock.Height,
+			)
+		}
 		if err != nil {
 			return nil, err
 		}

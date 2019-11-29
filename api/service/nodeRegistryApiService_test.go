@@ -168,12 +168,12 @@ type (
 	}
 )
 
-func (*mockQueryGetNodeRegistrationFail) ExecuteSelectRow(query string, args ...interface{}) *sql.Row {
+func (*mockQueryGetNodeRegistrationFail) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, _, _ := sqlmock.New()
-	return db.QueryRow(query)
+	return db.QueryRow(query), nil
 }
 
-func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows(
@@ -189,7 +189,7 @@ func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, args .
 			true,
 			1,
 		))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {

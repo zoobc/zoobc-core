@@ -28,7 +28,7 @@ func GenerateBatchReceiptWithReminder(
 		merkleQuery   = query.NewMerkleTreeQuery()
 		nodePublicKey = util.GetPublicKeyFromSeed(nodeSecretPhrase)
 		lastRmrQ      = merkleQuery.GetLastMerkleRoot()
-		row           = queryExecutor.ExecuteSelectRow(lastRmrQ)
+		row, _        = queryExecutor.ExecuteSelectRow(lastRmrQ, false)
 	)
 
 	rmrLinked, err = merkleQuery.ScanRoot(row)
