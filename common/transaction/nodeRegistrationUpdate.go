@@ -166,27 +166,23 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 
 func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 	var (
-		prevNodeRegistration   *model.NodeRegistration
+		err                    error
 		effectiveBalanceToLock int64
+		prevNodeRegistration   model.NodeRegistration
 	)
-	if tx.Body.LockedBalance > 0 {
-		// get the latest noderegistration by owner (sender account)
-		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if (err != nil) || len(nr) == 0 {
-			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
-		}
-		prevNodeRegistration = nr[0]
-
-		// delta amount to be locked
-		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+	// get the latest noderegistration by owner (sender account)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	row := tx.QueryExecutor.ExecuteSelectRow(qry, args...)
+	if row == nil {
+		return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
+	}
+	err = tx.NodeRegistrationQuery.Scan(&prevNodeRegistration, row)
+	if err != nil {
+		return blocker.NewBlocker(blocker.AppErr, err.Error())
 	}
 
+	// delta amount to be locked
+	effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
 	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		effectiveBalanceToLock+tx.Fee,
@@ -194,7 +190,7 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 			"account_address": tx.SenderAddress,
 		},
 	)
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
 		return err
 	}
@@ -254,40 +250,35 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		}
 	}
 
-	if tx.Body.LockedBalance > 0 {
-		// delta amount to be locked
-		effectiveBalanceToLock := tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
-		if effectiveBalanceToLock < 0 {
-			// cannot lock less than what previously locked
-			return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
-		}
+	// delta amount to be locked
+	var effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+	if effectiveBalanceToLock < 0 {
+		// cannot lock less than what previously locked
+		return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
+	}
 
-		// check balance
-		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows3, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+	// check balance
+	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	rows3, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows3.Close()
+	if rows3.Next() {
+		err = rows3.Scan(
+			&accountBalance.AccountAddress,
+			&accountBalance.BlockHeight,
+			&accountBalance.SpendableBalance,
+			&accountBalance.Balance,
+			&accountBalance.PopRevenue,
+			&accountBalance.Latest,
+		)
 		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
+			return err
 		}
-		defer rows3.Close()
-		if rows3.Next() {
-			err = rows3.Scan(
-				&accountBalance.AccountAddress,
-				&accountBalance.BlockHeight,
-				&accountBalance.SpendableBalance,
-				&accountBalance.Balance,
-				&accountBalance.PopRevenue,
-				&accountBalance.Latest,
-			)
-			if err != nil {
-				return err
-			}
-		}
+	}
 
-		if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
-			return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
-		}
-		// TODO: check minimum amount to be locked (at current height the min amount is = 0, but in future may change)
-	} else if accountBalance.SpendableBalance < tx.Fee {
+	if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
 		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 	}
 

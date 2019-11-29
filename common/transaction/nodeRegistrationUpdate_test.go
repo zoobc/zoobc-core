@@ -194,7 +194,26 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 		}))
 		return db.Query("")
 	}
-	return nil, nil
+	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM"+
+		" account_balance WHERE account_address = ? AND latest = 1" {
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
+			"account_address",
+			"block_height",
+			"spendable_balance",
+			"balance",
+			"pop_revenue",
+			"latest",
+		}).AddRow(
+			senderAddress1,
+			uint32(1),
+			int64(1000000000),
+			int64(1000000000),
+			int64(100000000),
+			true,
+		))
+		return db.Query("")
+	}
+	return nil, errors.New("mocked select failed, query  not found")
 }
 
 func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -252,14 +271,14 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...
 		}).AddRow(
 			senderAddress1,
 			uint32(1),
-			int64(1000000000),
-			int64(1000000000),
+			int64(1000000000000),
+			int64(1000000000000),
 			int64(100000000),
 			true,
 		))
 		return db.Query("")
 	}
-	return nil, nil
+	return nil, errors.New("mocked select failed, query  not found")
 }
 
 func (*mockExecutorValidateSuccessRU) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -294,6 +313,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 			Address: "127.0.0.1",
 			Port:    8080,
 		},
+		LockedBalance: int64(1000000),
 	}
 	txBodyWithInvalidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -320,6 +340,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		NodeAddress: &model.NodeAddress{
 			Address: "http://google.com",
 		},
+		LockedBalance: int64(10000000000),
 	}
 
 	txBodyWithValidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
@@ -327,12 +348,14 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		NodeAddress: &model.NodeAddress{
 			Address: "10.10.10.10",
 		},
+		LockedBalance: int64(10000000000),
 	}
 	txBodyWithValidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
 		Poown: poown,
 		NodeAddress: &model.NodeAddress{
 			Address: "https://google.com",
 		},
+		LockedBalance: int64(10000000000),
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
