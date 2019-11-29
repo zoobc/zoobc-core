@@ -77,11 +77,11 @@ func rollbackBlockChain(defaultDB *sql.DB) RunCommand {
 
 	return func(ccmd *cobra.Command, args []string) {
 		var (
-			queryExecutor  = query.NewQueryExecutor(dB)
-			derivedQueries = query.GetDerivedQuery(chaintypeRollback)
-			blockQuery     = query.NewBlockQuery(chaintypeRollback)
-			rowLastBlock   = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock())
-			lastBlock      model.Block
+			queryExecutor   = query.NewQueryExecutor(dB)
+			derivedQueries  = query.GetDerivedQuery(chaintypeRollback)
+			blockQuery      = query.NewBlockQuery(chaintypeRollback)
+			rowLastBlock, _ = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
+			lastBlock       model.Block
 		)
 
 		err = blockQuery.Scan(&lastBlock, rowLastBlock)
