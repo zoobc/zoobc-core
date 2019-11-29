@@ -11,13 +11,14 @@ import (
 type (
 	ParticipationScoreQueryInterface interface {
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
-		AddParticipationScore(
+		UpdateParticipationScore(
 			nodeID, score int64,
 			blockHeight uint32,
 		) [][]interface{}
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		Scan(participationScore *model.ParticipationScore, row *sql.Row) error
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
 	}
@@ -53,7 +54,7 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 	), ps.ExtractModel(participationScore)
 }
 
-func (ps *ParticipationScoreQuery) AddParticipationScore(
+func (ps *ParticipationScoreQuery) UpdateParticipationScore(
 	nodeID, score int64,
 	blockHeight uint32,
 ) [][]interface{} {
@@ -62,12 +63,11 @@ func (ps *ParticipationScoreQuery) AddParticipationScore(
 		updateVersionQuery string
 	)
 	// update or insert new participation_score row
+	// note: the participation score passed to this functions must already be = last recorded part score + increment (or decrement)
 	updateScoreQuery := fmt.Sprintf("INSERT INTO %s (node_id, score, height, latest) "+
-		"SELECT node_id, score + %d, %d, latest FROM %s WHERE "+
-		"node_id = %d AND latest = 1 ON CONFLICT(node_id, height) "+
-		"DO UPDATE SET (score) = (SELECT "+
-		"score + %d FROM %s WHERE node_id = %d AND latest = 1)",
-		ps.getTableName(), score, blockHeight, ps.getTableName(), nodeID, score, ps.getTableName(), nodeID,
+		"VALUES(%d, %d, %d, 1) "+
+		"ON CONFLICT(node_id, height) DO UPDATE SET (score) = %d",
+		ps.getTableName(), nodeID, score, blockHeight, score,
 	)
 	queries = append(queries,
 		[]interface{}{
@@ -191,4 +191,14 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 			1, 0,
 		},
 	}
+}
+
+func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row) error {
+	err := row.Scan(
+		&ps.NodeID,
+		&ps.Score,
+		&ps.Latest,
+		&ps.Height,
+	)
+	return err
 }

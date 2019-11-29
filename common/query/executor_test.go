@@ -216,7 +216,7 @@ func TestExecutor_ExecuteSelectRow(t *testing.T) {
 			qe := &Executor{
 				Db: tt.fields.Db,
 			}
-			_ = qe.ExecuteSelectRow(tt.args.query, tt.args.args...)
+			_, _ = qe.ExecuteSelectRow(tt.args.query, false, tt.args.args...)
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Executor.ExecuteSelectRow() = %v", err)
 			}
