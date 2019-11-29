@@ -314,7 +314,6 @@ func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
 		err := processor.StartSmithing()
 		if err != nil {
 			loggerCoreService.Warn("Smith error: ", err.Error())
-			smithingStatus = model.SmithingStatuses_StopSmithing
 		}
 		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
 	}
