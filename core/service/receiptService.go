@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -431,15 +429,13 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	limiter := int(lastBlock.GetHeight()) - (constant.NodeReceiptExpiryBlockHeight + int(constant.MinRollbackBlocks))
 	if limiter > 0 {
 		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-			lastBlock.GetHeight()-(constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks),
+			uint32(limiter),
 			constant.PruningChunkedSize,
 		)
 		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-			lastBlock.GetHeight()-(constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks),
+			uint32(limiter),
 			constant.PruningChunkedSize,
 		)
-		logrus.Info(removeReceiptQ, removeReceiptArgs)
-		logrus.Info(removeMerkleQ, removeMerkleArgs)
 		err = rs.QueryExecutor.BeginTx()
 		if err != nil {
 			return err
