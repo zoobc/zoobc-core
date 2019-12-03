@@ -426,37 +426,40 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 		return err
 	}
 
-	removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-		lastBlock.GetHeight()-(constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks),
-		constant.PruningChunkedSize,
-	)
-	removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-		lastBlock.GetHeight()-(constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks),
-		constant.PruningChunkedSize,
-	)
-	err = rs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
-	if err != nil {
-		rollbackErr = rs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			return rollbackErr
+	limiter := int(lastBlock.GetHeight()) - (constant.NodeReceiptExpiryBlockHeight + int(constant.MinRollbackBlocks))
+	if limiter > 0 {
+		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
+			uint32(limiter),
+			constant.PruningChunkedSize,
+		)
+		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
+			uint32(limiter),
+			constant.PruningChunkedSize,
+		)
+		err = rs.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
 		}
-		return err
-	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
-	if err != nil {
-		rollbackErr = rs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			return rollbackErr
+		err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
+		if err != nil {
+			rollbackErr = rs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
 		}
-		return err
-	}
-	err = rs.QueryExecutor.CommitTx()
-	if err != nil {
-		return err
+		err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
+		if err != nil {
+			rollbackErr = rs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+		err = rs.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
