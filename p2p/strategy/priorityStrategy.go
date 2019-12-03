@@ -228,8 +228,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				// Or unrelosovedPeers still have available space
 				return ps.ValidatePriorityPeer(nodeRequester, ps.Host.GetInfo()) ||
 					ps.ValidatePriorityPeer(ps.Host.GetInfo(), nodeRequester) ||
-					(resolvedPeers[fullAddress] != nil) ||
-					(blacklistedPeers[fullAddress] == nil && exceedUnresolvedPeers < 1)
+					(resolvedPeers[fullAddress] != nil)
 
 			}
 			return true
@@ -304,9 +303,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 
 	// resolving other peers that are not priority if resolvedPeers is not full yet
 	for _, peer := range ps.GetUnresolvedPeers() {
-		// add one space in resolved peers
-		// will use to cycle non priority resolved peer
-		if i >= maxAddedPeers+1 {
+		if i >= maxAddedPeers {
 			break
 		}
 
