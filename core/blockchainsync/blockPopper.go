@@ -141,6 +141,5 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	}
 	// remove peer memoization
 	bp.NodeRegistrationService.ResetScrambledNodes()
-	bp.NodeRegistrationService.ResetMemoizedScrambledNodes()
 	return poppedBlocks, nil
 }
