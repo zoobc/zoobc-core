@@ -2,8 +2,13 @@ package strategy
 
 import (
 	"context"
+	"database/sql"
 	"reflect"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
@@ -106,7 +111,62 @@ var (
 			"127.0.0.1:3001": &indexScramble[1],
 		},
 	}
+
+	mockGoodBlock = &model.Block{
+		ID:                   0,
+		BlockHash:            nil,
+		PreviousBlockHash:    nil,
+		Height:               0,
+		Timestamp:            0,
+		BlockSeed:            nil,
+		BlockSignature:       nil,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		BlocksmithPublicKey:  nil,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Version:              0,
+		PayloadLength:        0,
+		PayloadHash:          nil,
+		Transactions:         nil,
+		PublishedReceipts:    nil,
+	}
 )
+
+type (
+	mockQueryExecutorSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+
+	mock.ExpectQuery(qe).WillReturnRows(
+		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetSmithScale(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+		),
+	)
+	return db.QueryRow(qe), nil
+}
 
 func TestNewPriorityStrategy(t *testing.T) {
 	type args struct {
@@ -843,8 +903,10 @@ type (
 	}
 )
 
-func (*mockNodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNodes {
-	return mockGoodScrambledNodes
+func (*mockNodeRegistrationService) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return mockGoodScrambledNodes, nil
 }
 
 func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
@@ -874,6 +936,8 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 			ps := &PriorityStrategy{
 				Host:                    tt.fields.Host,
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
 			if got := ps.GetPriorityPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetPriorityPeers() = %v, want %v", got, tt.want)
@@ -946,6 +1010,8 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
 			if got := ps.ValidatePriorityPeer(tt.args.host, tt.args.peer); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidatePriorityPeer() = %v, want %v", got, tt.want)
@@ -1102,6 +1168,8 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 			ps := &PriorityStrategy{
 				Host:                    tt.fields.Host,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
 			if got := ps.ValidateRequest(tt.args.ctx); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidateRequest() = %v, want %v", got, tt.want)
@@ -1142,6 +1210,8 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 				MaxUnresolvedPeers:      tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:        tt.fields.MaxResolvedPeers,
 				Logger:                  tt.fields.Logger,
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
 			ps.ConnectPriorityPeersGradually()
 		})
