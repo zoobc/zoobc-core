@@ -92,8 +92,8 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
 		// check for account address duplication (accounts can register one node at the time)
 		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
-		nodeRow2, err := tx.QueryExecutor.ExecuteSelectRow(qryNodeByAccount, false, args...)
-		err = tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByAccount, nodeRow2)
+		nodeRow2, _ := tx.QueryExecutor.ExecuteSelectRow(qryNodeByAccount, false, args...)
+		err := tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByAccount, nodeRow2)
 		prevNodeFound := true
 		if err != nil {
 			if err != sql.ErrNoRows {
