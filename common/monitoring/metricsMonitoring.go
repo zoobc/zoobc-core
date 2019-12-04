@@ -24,6 +24,7 @@ var (
 	statusLockCounter          = make(map[int]prometheus.Gauge)
 	blockchainStatus           = make(map[int32]prometheus.Gauge)
 	blockchainSmithTime        = make(map[int32]prometheus.Gauge)
+	nodeScores                 = make(map[int64]prometheus.Gauge)
 	blockchainHeight           = make(map[int32]*lastblockMetrics)
 )
 
@@ -158,6 +159,31 @@ func SetBlockchainSmithTime(chainType int32, newTime int64) {
 		prometheus.MustRegister(blockchainSmithTime[chainType])
 	}
 	blockchainSmithTime[chainType].Set(float64(newTime))
+}
+
+func SetNodeScores(scores []*model.Blocksmith) {
+	if !isMonitoringActive {
+		return
+	}
+	for _, score := range scores {
+		if nodeScores[score.NodeID] == nil {
+			var (
+				signString = ""
+				absScore   = score.NodeID
+			)
+			if absScore < 0 {
+				signString = "i"
+				absScore *= -1
+			}
+			nodeScores[score.NodeID] = prometheus.NewGauge(prometheus.GaugeOpts{
+				Name: fmt.Sprintf("zoobc_node_score_%s%d", signString, absScore),
+				Help: fmt.Sprintf("The score of the node %d (divided by 100 to fit the max float64)", score.NodeID),
+			})
+			prometheus.MustRegister(nodeScores[score.NodeID])
+		}
+		scoreInt64 := score.Score.Int64()
+		nodeScores[score.NodeID].Set(float64(scoreInt64))
+	}
 }
 
 func SetLastBlock(chainType int32, block *model.Block) {
