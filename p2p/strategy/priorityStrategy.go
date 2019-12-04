@@ -99,7 +99,6 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	exceedMaxUnresolvedPeers := ps.GetExceedMaxUnresolvedPeers()
 
 	priorityPeers := ps.GetPriorityPeers()
-
 	for _, peer := range priorityPeers {
 		if i >= constant.NumberOfPriorityPeersToBeAdded {
 			break
@@ -207,13 +206,11 @@ func (ps *PriorityStrategy) ValidatePriorityPeer(host, peer *model.Node) bool {
 			ps.Logger.Error("FailGetScrambleNodesByHeight")
 			return false
 		}
-		var (
-			hostIndex          = *scrambledNodes.IndexNodes[p2pUtil.GetFullAddress(host)]
-			peerIndex          = *scrambledNodes.IndexNodes[p2pUtil.GetFullAddress(peer)]
-			hostStartPeerIndex = p2pUtil.GetStartIndexPriorityPeer(hostIndex, scrambledNodes)
-			hostEndPeerIndex   = (hostStartPeerIndex + constant.PriorityStrategyMaxPriorityPeers - 1) % (len(scrambledNodes.AddressNodes))
-		)
-		return ps.ValidateRangePriorityPeers(peerIndex, hostStartPeerIndex, hostEndPeerIndex)
+		priorityPeers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(p2pUtil.GetFullAddress(host), scrambledNodes)
+		if err != nil {
+			return false
+		}
+		return priorityPeers[p2pUtil.GetFullAddress(peer)] != nil
 	}
 	return false
 }
@@ -377,6 +374,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
 	}
+
 	if err = ps.AddToResolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
 	}
