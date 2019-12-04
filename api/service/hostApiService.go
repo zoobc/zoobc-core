@@ -39,9 +39,13 @@ func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2P
 }
 
 func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
-	var chainStatuses []*model.ChainStatus
+	var (
+		chainStatuses []*model.ChainStatus
+		lastBlock     *model.Block
+		err           error
+	)
 	for chainType, blockService := range hs.BlockServices {
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlock, err = blockService.GetLastBlock()
 		if lastBlock == nil || err != nil {
 			continue
 		}
@@ -52,7 +56,10 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		})
 	}
 
-	scrambledNodes := hs.NodeRegistrationService.GetLatestScrambledNodes()
+	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+	if err != nil {
+		return nil, err
+	}
 
 	return &model.HostInfo{
 		Host:                 hs.P2pService.GetHostInfo(),

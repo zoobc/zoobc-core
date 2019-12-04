@@ -235,9 +235,11 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		OrderBy:    model.OrderBy_ASC,
 	})
 
-	err = rs.QueryExecutor.ExecuteSelectRow(
+	row, _ := rs.QueryExecutor.ExecuteSelectRow(
 		query.GetTotalRecordOfSelect(getBatchReceiptsQ),
-	).Scan(&count)
+		false,
+	)
+	err = row.Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -286,7 +288,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
 		lastBlockQ := rs.BlockQuery.GetLastBlock()
-		lastBlockRow := rs.QueryExecutor.ExecuteSelectRow(lastBlockQ, false)
+		lastBlockRow, _ := rs.QueryExecutor.ExecuteSelectRow(lastBlockQ, false)
 		err = rs.BlockQuery.Scan(&lastBlock, lastBlockRow)
 		if err != nil {
 			return err
@@ -334,7 +336,7 @@ func (rs *ReceiptService) ValidateReceipt(
 		)
 	}
 	blockAtHeightQ := rs.BlockQuery.GetBlockByHeight(receipt.ReferenceBlockHeight)
-	blockAtHeightRow := rs.QueryExecutor.ExecuteSelectRow(blockAtHeightQ)
+	blockAtHeightRow, _ := rs.QueryExecutor.ExecuteSelectRow(blockAtHeightQ, false)
 	err = rs.BlockQuery.Scan(&blockAtHeight, blockAtHeightRow)
 	if err != nil {
 		return err
@@ -363,7 +365,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		receipt.SenderPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
-	senderNodeRow := rs.QueryExecutor.ExecuteSelectRow(senderNodeQ, senderNodeArgs...)
+	senderNodeRow, _ := rs.QueryExecutor.ExecuteSelectRow(senderNodeQ, false, senderNodeArgs...)
 	err = rs.NodeRegistrationQuery.Scan(&senderNodeRegistration, senderNodeRow)
 	if err != nil {
 		return err
@@ -374,7 +376,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		receipt.RecipientPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
-	recipientNodeRow := rs.QueryExecutor.ExecuteSelectRow(recipientNodeQ, recipientNodeArgs...)
+	recipientNodeRow, _ := rs.QueryExecutor.ExecuteSelectRow(recipientNodeQ, false, recipientNodeArgs...)
 	err = rs.NodeRegistrationQuery.Scan(&recipientNodeRegistration, recipientNodeRow)
 	if err != nil {
 		return err
@@ -418,43 +420,46 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 		row                                 *sql.Row
 	)
 
-	row = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock())
+	row, _ = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock(), false)
 	err = rs.BlockQuery.Scan(&lastBlock, row)
 	if err != nil {
 		return err
 	}
 
-	removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
-		constant.PruningChunkedSize,
-	)
-	removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-		lastBlock.GetHeight()+constant.NodeReceiptExpiryBlockHeight+constant.MinRollbackBlocks,
-		constant.PruningChunkedSize,
-	)
-	err = rs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
-	if err != nil {
-		rollbackErr = rs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			return rollbackErr
+	limiter := int(lastBlock.GetHeight()) - (constant.NodeReceiptExpiryBlockHeight + int(constant.MinRollbackBlocks))
+	if limiter > 0 {
+		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
+			uint32(limiter),
+			constant.PruningChunkedSize,
+		)
+		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
+			uint32(limiter),
+			constant.PruningChunkedSize,
+		)
+		err = rs.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
 		}
-		return err
-	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
-	if err != nil {
-		rollbackErr = rs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			return rollbackErr
+		err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
+		if err != nil {
+			rollbackErr = rs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
 		}
-		return err
-	}
-	err = rs.QueryExecutor.CommitTx()
-	if err != nil {
-		return err
+		err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
+		if err != nil {
+			rollbackErr = rs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+		err = rs.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

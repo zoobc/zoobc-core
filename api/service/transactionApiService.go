@@ -69,7 +69,7 @@ func (ts *TransactionService) GetTransaction(
 	)
 
 	txQuery := query.NewTransactionQuery(chainType)
-	row = ts.Query.ExecuteSelectRow(txQuery.GetTransaction(params.GetID()))
+	row, _ = ts.Query.ExecuteSelectRow(txQuery.GetTransaction(params.GetID()), false)
 	err = txQuery.Scan(&tx, row)
 	if err != nil {
 		if err != sql.ErrNoRows {

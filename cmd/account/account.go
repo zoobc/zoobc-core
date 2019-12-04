@@ -1,6 +1,7 @@
 package account
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 
@@ -57,13 +58,16 @@ func generateRandomAccount() {
 }
 
 func generateAccountFromSeed(seed string) {
-	privateKey, _ := util.GetPrivateKeyFromSeed(seed)
-	publicKey := privateKey[32:]
-	address, _ := util.GetAddressFromPublicKey(publicKey)
+	var (
+		privateKey, _ = util.GetPrivateKeyFromSeed(seed)
+		publicKey     = privateKey[32:]
+		address, _    = util.GetAddressFromPublicKey(publicKey)
+	)
 	fmt.Printf("seed: %s\n", seed)
 	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
 	fmt.Printf("public key bytes: %v\n", publicKey)
+	fmt.Printf("public key string : %v\n", base64.StdEncoding.EncodeToString(publicKey))
 	fmt.Printf("private key bytes: %v\n", privateKey)
 	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey))
-	fmt.Printf("address: %s", address)
+	fmt.Printf("address: %s\n", address)
 }
