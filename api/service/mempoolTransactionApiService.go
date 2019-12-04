@@ -46,7 +46,7 @@ func (ut *MempoolTransactionService) GetMempoolTransaction(
 	)
 
 	txQuery := query.NewMempoolQuery(chainType)
-	row = ut.Query.ExecuteSelectRow(txQuery.GetMempoolTransaction(), params.GetID())
+	row, _ = ut.Query.ExecuteSelectRow(txQuery.GetMempoolTransaction(), false, params.GetID())
 	if row == nil {
 		return nil, status.Error(codes.NotFound, "transaction not found in mempool")
 	}

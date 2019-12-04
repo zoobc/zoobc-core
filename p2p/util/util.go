@@ -126,10 +126,10 @@ func GetPriorityPeersByNodeFullAddress(
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
 	}
 	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
-	addedPosition := 1
-	for addedPosition <= constant.PriorityStrategyMaxPriorityPeers {
+	addedPosition := 0
+	for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
 		var (
-			peersPosition = (startPeers + addedPosition) % (len(scrambledNodes.IndexNodes))
+			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
 			peer          = scrambledNodes.AddressNodes[peersPosition]
 			addressPeer   = GetFullAddressPeer(peer)
 		)

@@ -100,6 +100,14 @@ type (
 	}
 )
 
+func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
+	nodeID, scoreDelta int64,
+	height uint32,
+	tx bool,
+) (newScore int64, err error) {
+	return 100000, nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
@@ -118,6 +126,14 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 			AccountAddress: "TESTEXPELLED",
 		},
 	}, nil
+}
+
+func (*mockNodeRegistrationServiceFail) AddParticipationScore(
+	nodeID, scoreDelta int64,
+	height uint32,
+	tx bool,
+) (newScore int64, err error) {
+	return 100000, nil
 }
 
 func (*mockNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
@@ -289,12 +305,12 @@ func (*mockQueryExecutorFail) RollbackTx() error { return nil }
 func (*mockQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:deleteMempoolFail")
 }
-func (*mockQueryExecutorFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryExecutorFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mockRows := mock.NewRows([]string{"fake"})
 	mockRows.AddRow("1")
 	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:commitFail") }
 
@@ -311,7 +327,7 @@ func (*mockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) er
 }
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
 
-func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -349,7 +365,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, args ...interface
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
 	}
 	row := db.QueryRow(qStr)
-	return row
+	return row, nil
 }
 
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -1261,7 +1277,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows(
@@ -1284,11 +1300,11 @@ func (*mockQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr string, ar
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
 		))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
-func (*mockQueryExecutorGetGenesisBlockFail) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
-	return nil
+func (*mockQueryExecutorGetGenesisBlockFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, nil
 }
 
 func TestBlockService_GetGenesisBlock(t *testing.T) {
@@ -1834,8 +1850,8 @@ func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(query string, tx bool, 
 	return db.Query("")
 }
 
-func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
-	return nil
+func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, nil
 }
 
 func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -1867,7 +1883,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qStr string, tx bool, ar
 	return db.Query("")
 }
 
-func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows(
@@ -1890,7 +1906,7 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, args ...
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
 		))
-	return db.QueryRow(qStr)
+	return db.QueryRow(qStr), nil
 }
 
 func TestBlockService_CheckGenesis(t *testing.T) {

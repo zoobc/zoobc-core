@@ -251,6 +251,7 @@ func initP2pInstance() {
 		peerServiceClient,
 		nodeRegistrationService,
 		queryExecutor,
+		query.NewBlockQuery(&chaintype.MainChain{}),
 		loggerP2PService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
