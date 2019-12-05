@@ -311,6 +311,8 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 	lastBlockID := lastBlock.ID
 	for {
 		if trialCounter >= constant.MaxCommonMilestoneRequestTrial {
+			// TODO: Blacklist peer here
+			// bd.P2pService.PeerBlacklist(peer, "different blockchain fork")
 			return 0, err
 		}
 		trialCounter++
