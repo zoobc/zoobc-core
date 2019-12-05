@@ -347,7 +347,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 
 		// if block is not found and it's indicated as genesis
 		if len(commonMilestoneTemp) == 1 {
-			for blockID, _ := range commonMilestoneTemp {
+			for blockID := range commonMilestoneTemp {
 				if blockID == lastMilestoneBlockID {
 					return 0, err
 				}
