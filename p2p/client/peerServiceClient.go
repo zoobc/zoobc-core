@@ -126,7 +126,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10)
+		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
 	)
 	defer func() {
 		cancelReq()
@@ -280,7 +280,7 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
 	)
 	defer func() {
 		cancelReq()
@@ -309,7 +309,7 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
 	)
 	defer func() {
 		cancelReq()
@@ -341,7 +341,7 @@ func (psc PeerServiceClient) GetNextBlockIDs(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
 	)
 	defer func() {
 		cancelReq()
@@ -374,7 +374,7 @@ func (psc PeerServiceClient) GetNextBlocks(
 
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
 	)
 	defer func() {
 		cancelReq()
