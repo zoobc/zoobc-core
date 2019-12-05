@@ -196,6 +196,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 			jump = 10
 		}
 
+	LoopBlocks:
 		for ; limit > 0; limit-- {
 			block, err := blockService.GetBlockByHeight(height)
 			if err != nil {
@@ -204,7 +205,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 			blockIds = append(blockIds, block.ID)
 			switch {
 			case height == 0:
-				break
+				break LoopBlocks
 			case height < jump:
 				height = 0
 			default:
