@@ -15,21 +15,27 @@ type lastblockMetrics struct {
 }
 
 var (
-	isMonitoringActive         bool
-	receiptCounter             prometheus.Counter
-	unresolvedPeersCounter     prometheus.Gauge
-	resolvedPeersCounter       prometheus.Gauge
-	activeRegisteredNodesGauge prometheus.Gauge
-	blockerCounter             = make(map[string]prometheus.Counter)
-	statusLockCounter          = make(map[int]prometheus.Gauge)
-	blockchainStatus           = make(map[int32]prometheus.Gauge)
-	blockchainSmithTime        = make(map[int32]prometheus.Gauge)
-	nodeScores                 = make(map[int64]prometheus.Gauge)
-	blockchainHeight           = make(map[int32]*lastblockMetrics)
+	isMonitoringActive             bool
+	receiptCounter                 prometheus.Counter
+	unresolvedPeersCounter         prometheus.Gauge
+	resolvedPeersCounter           prometheus.Gauge
+	unresolvedPriorityPeersCounter prometheus.Gauge
+	resolvedPriorityPeersCounter   prometheus.Gauge
+	activeRegisteredNodesGauge     prometheus.Gauge
+	blockerCounter                 = make(map[string]prometheus.Counter)
+	statusLockCounter              = make(map[int]prometheus.Gauge)
+	blockchainStatus               = make(map[int32]prometheus.Gauge)
+	blockchainSmithTime            = make(map[int32]prometheus.Gauge)
+	nodeScores                     = make(map[int64]prometheus.Gauge)
+	blockchainHeight               = make(map[int32]*lastblockMetrics)
 )
 
 func SetMonitoringActive(isActive bool) {
 	isMonitoringActive = isActive
+}
+
+func IsMonitoringActive() bool {
+	return isMonitoringActive
 }
 
 func IncrementReceiptCounter() {
@@ -66,6 +72,30 @@ func SetResolvedPeersCount(count int) {
 	}
 
 	resolvedPeersCounter.Set(float64(count))
+}
+
+func SetResolvedPriorityPeersCount(count int) {
+	if resolvedPriorityPeersCounter == nil {
+		resolvedPriorityPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_resolved_priority_peers"),
+			Help: fmt.Sprintf("priority resolvedPeers counter"),
+		})
+		prometheus.MustRegister(resolvedPriorityPeersCounter)
+	}
+
+	resolvedPriorityPeersCounter.Set(float64(count))
+}
+
+func SetUnresolvedPriorityPeersCount(count int) {
+	if unresolvedPriorityPeersCounter == nil {
+		unresolvedPriorityPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_unresolved_priority_peers"),
+			Help: fmt.Sprintf("priority resolvedPeers counter"),
+		})
+		prometheus.MustRegister(unresolvedPriorityPeersCounter)
+	}
+
+	unresolvedPriorityPeersCounter.Set(float64(count))
 }
 
 func SetActiveRegisteredNodesCount(count int) {
