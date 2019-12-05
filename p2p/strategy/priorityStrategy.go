@@ -85,7 +85,9 @@ func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
 
 func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	var (
-		i int
+		i                            int
+		unresolvedPriorityPeersCount int
+		resolvedPriorityPeersCount   int
 	)
 	hostAddress := &model.Peer{
 		Info: ps.Host.Info,
@@ -104,10 +106,12 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			break
 		}
 
-		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
-			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
-			blacklistedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
-			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
+		priorityPeerAddress := p2pUtil.GetFullAddressPeer(peer)
+
+		if unresolvedPeers[priorityPeerAddress] == nil &&
+			resolvedPeers[priorityPeerAddress] == nil &&
+			blacklistedPeers[priorityPeerAddress] == nil &&
+			p2pUtil.GetFullAddressPeer(hostAddress) != priorityPeerAddress {
 
 			var j int32
 			// removing unpriority peer if the UnresolvedPeers has reached max
@@ -133,6 +137,21 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			}
 		}
 	}
+
+	// metrics monitoring
+	if monitoring.IsMonitoringActive() {
+		for _, peer := range priorityPeers {
+			priorityPeerAddress := p2pUtil.GetFullAddressPeer(peer)
+			if unresolvedPeers[priorityPeerAddress] != nil {
+				unresolvedPriorityPeersCount++
+			}
+			if resolvedPeers[priorityPeerAddress] != nil {
+				resolvedPriorityPeersCount++
+			}
+		}
+	}
+	monitoring.SetResolvedPriorityPeersCount(resolvedPriorityPeersCount)
+	monitoring.SetUnresolvedPriorityPeersCount(unresolvedPriorityPeersCount)
 }
 
 // GetPriorityPeers, to get a list peer should connect if host in scramble node
