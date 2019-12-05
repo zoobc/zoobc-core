@@ -2823,7 +2823,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
 			}
-			got, err := bs.GetBlockExtendedInfo(tt.args.block)
+			got, err := bs.GetBlockExtendedInfo(tt.args.block, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlockExtendedInfo() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return

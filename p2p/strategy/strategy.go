@@ -19,6 +19,7 @@ type (
 		GetMorePeersHandler() (*model.Peer, error)
 		GetUnresolvedPeers() map[string]*model.Peer
 		GetResolvedPeers() map[string]*model.Peer
+		GetPriorityPeers() map[string]*model.Peer
 		AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error
 		GetBlacklistedPeers() map[string]*model.Peer
 		DisconnectPeer(peer *model.Peer)

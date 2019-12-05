@@ -210,6 +210,11 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
 	}()
 }
 
+// GetResolvedPeers returns resolved peers in thread-safe manner
+func (ns *NativeStrategy) GetPriorityPeers() map[string]*model.Peer {
+	return make(map[string]*model.Peer)
+}
+
 /* 	========================================
  *	Resolved Peers Operations
  *	========================================
