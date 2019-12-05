@@ -300,7 +300,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 		lastMilestoneBlockID int64
 		trialCounter         uint32
 		// to avoid processing duplicated block IDs
-		commonMilestoneTemp map[int64]bool
+		commonMilestoneTemp = make(map[int64]bool)
 	)
 	lastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
