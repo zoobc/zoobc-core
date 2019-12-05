@@ -12,4 +12,5 @@ const (
 	CommonMilestoneBlockIdsLimit     int32         = 10
 	SafeBlockGap                     uint32        = 1440
 	MinRollbackBlocks                uint32        = 720
+	MaxCommonMilestoneRequestTrial   uint32        = MinRollbackBlocks/uint32(CommonMilestoneBlockIdsLimit) + 1
 )
