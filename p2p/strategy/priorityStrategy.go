@@ -391,7 +391,7 @@ func (ps *PriorityStrategy) GetMorePeersHandler() (*model.Peer, error) {
 		}
 		err = ps.AddToUnresolvedPeers(newPeers.GetPeers(), false)
 		if err != nil {
-			ps.Logger.Errorf("getMorePeers error: %v\n", err)
+			ps.Logger.Warnf("getMorePeers error: %v\n", err)
 			return nil, err
 		}
 		return peer, nil
@@ -749,7 +749,7 @@ func (ps *PriorityStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 		ps.Logger.Error(err.Error())
 	}
 	if err := ps.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
 	}
 
 	return peer
