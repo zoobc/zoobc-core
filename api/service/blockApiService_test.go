@@ -63,7 +63,7 @@ type (
 	}
 )
 
-func (*mockBlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+func (*mockBlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
 	return &model.BlockExtendedInfo{}, nil
 }
 
@@ -497,7 +497,7 @@ func TestNewBlockService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockService(tt.args.queryExecutor, tt.args.blockCoreServices); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlockService(tt.args.queryExecutor, tt.args.blockCoreServices, false); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})

@@ -98,7 +98,8 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	lastBlockHeight := lastBlock.Height
 	lastBlockID := lastBlock.ID
 
-	if peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
+	if peerCumulativeDifficulty == nil || lastBlockCumulativeDifficulty == nil ||
+		peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
 		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's",
 			peer.GetInfo().Address, peer.GetInfo().Port)
 	}

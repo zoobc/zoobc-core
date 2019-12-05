@@ -289,6 +289,7 @@ func startServices() {
 		ownerAccountAddress,
 		nodeKeyFilePath,
 		loggerAPIService,
+		isDebugMode,
 	)
 
 	if isDebugMode {
