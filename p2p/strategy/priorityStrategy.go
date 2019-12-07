@@ -568,23 +568,44 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 	ps.UnresolvedPeersLock.Lock()
 	defer ps.UnresolvedPeersLock.Unlock()
 
-	var newUnresolvedPeers = make(map[string]*model.Peer)
-	for key, UnresolvedPeer := range ps.Host.UnresolvedPeers {
-		newUnresolvedPeers[key] = UnresolvedPeer
-	}
-	// Add known peers into unresolved peer list if the list is empty
-	if len(newUnresolvedPeers) == 0 {
-		for key, peer := range ps.Host.GetKnownPeers() {
-			var (
-				newPeer           = *peer
-				newUnresvoledPeer = *peer
-			)
-			newUnresolvedPeers[key] = &newPeer
-			ps.Host.UnresolvedPeers[key] = &newUnresvoledPeer
+	// Add known peers into unresolved peer list if the unresolved peers is empty
+	if len(ps.Host.UnresolvedPeers) == 0 {
+		// putting this initialization in a condition to prevent unneeded lock of resolvedPeers and blacklistedPeers
+		var (
+			resolvedPeers    = ps.GetResolvedPeers()
+			blacklistedPeers = ps.GetBlacklistedPeers()
+			hostAddressPeer  = &model.Peer{
+				Info: ps.Host.Info,
+			}
+			hostAddress = p2pUtil.GetFullAddressPeer(hostAddressPeer)
+			counter     int32
+		)
+
+		var newUnresolvedPeers = make(map[string]*model.Peer)
+		for key, UnresolvedPeer := range ps.Host.UnresolvedPeers {
+			newUnresolvedPeers[key] = UnresolvedPeer
 		}
 
+		for key, peer := range ps.Host.GetKnownPeers() {
+			if counter >= constant.MaxUnresolvedPeers {
+				break
+			}
+			peerAddress := p2pUtil.GetFullAddressPeer(peer)
+			if resolvedPeers[peerAddress] == nil &&
+				blacklistedPeers[peerAddress] == nil &&
+				peerAddress != hostAddress {
+				var (
+					newPeer           = *peer
+					newUnresvoledPeer = *peer
+				)
+				newUnresolvedPeers[key] = &newPeer
+				ps.Host.UnresolvedPeers[key] = &newUnresvoledPeer
+			}
+			counter++
+		}
+		return newUnresolvedPeers
 	}
-	return newUnresolvedPeers
+	return ps.Host.UnresolvedPeers
 }
 
 // GetAnyUnresolvedPeer Get any unresolved peer
