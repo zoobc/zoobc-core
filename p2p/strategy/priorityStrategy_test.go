@@ -439,7 +439,7 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 			},
 		},
 		{
-			name: "wantUnresolvedPeersPopulatedWithKnownPeersExceptHimself",
+			name: "wantUnresolvedPeersPopulatedWithKnownPeersWithoutDuplication",
 			fields: fields{
 				Host: &model.Host{
 					Info: &model.Node{
@@ -462,8 +462,40 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 								Port:          8000,
 							},
 						},
+						"127.0.0.1:8001": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8001,
+							},
+						},
+						"127.0.0.1:8002": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8002,
+							},
+						},
 					},
 					UnresolvedPeers: make(map[string]*model.Peer),
+					ResolvedPeers: map[string]*model.Peer{
+						"127.0.0.1:8001": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8001,
+							},
+						},
+					},
+					BlacklistedPeers: map[string]*model.Peer{
+						"127.0.0.1:8002": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8002,
+							},
+						},
+					},
 				},
 			},
 			want: map[string]*model.Peer{
