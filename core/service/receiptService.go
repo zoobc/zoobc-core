@@ -481,6 +481,7 @@ func (rs *ReceiptService) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*m
 	if err != nil {
 		return publishedReceipts, err
 	}
+	defer rows.Close()
 
 	publishedReceipts, err = rs.PublishedReceiptQuery.BuildModel(publishedReceipts, rows)
 	if err != nil {
