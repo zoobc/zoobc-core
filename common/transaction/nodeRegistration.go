@@ -68,6 +68,7 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 			"block_height":    tx.Height,
 		},
 	)
+	queries = append(queries, accountBalanceSenderQ...)
 
 	nodeRow, _ := tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
 		false, tx.Body.NodePublicKey)
@@ -138,8 +139,6 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
 		queries = append(queries, newQ)
 	}
-
-	queries = append(queries, accountBalanceSenderQ...)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
