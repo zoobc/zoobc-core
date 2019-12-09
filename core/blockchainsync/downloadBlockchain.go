@@ -268,7 +268,6 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		if lastBlock.ID == previousBlockID {
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
-				// TODO: analyze the mechanism of blacklisting peer here
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				err := bd.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 				if err != nil {
@@ -279,7 +278,6 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
-				// TODO: analyze the mechanism of blacklisting peer here
 				err := bd.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
 				if err != nil {
 					bd.Logger.Infof("Failed to add blacklist: %v\n", err)

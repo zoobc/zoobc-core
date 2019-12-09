@@ -657,7 +657,7 @@ func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, reason string
 		return errors.New("AddToBlacklistedPeer Err, peer is nil")
 	}
 
-	peer.BlacklistingTime = uint64(time.Now().Unix())
+	peer.BlacklistingTime = uint64(time.Now().UTC().Unix())
 	peer.BlacklistingCause = reason
 
 	ps.BlacklistedPeersLock.Lock()
