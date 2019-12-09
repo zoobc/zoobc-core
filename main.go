@@ -124,6 +124,7 @@ func init() {
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
+		query.NewPublishedReceiptQuery(),
 	)
 
 	// initialize Observer
@@ -428,6 +429,7 @@ func startMainchain() {
 		loggerCoreService,
 		kvExecutor,
 		nodeRegistrationService,
+		receiptService,
 	)
 
 	go func() {

@@ -17,6 +17,27 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
+var (
+	mockPublishedReceipt = []*model.PublishedReceipt{
+		{
+			BatchReceipt: &model.BatchReceipt{
+				SenderPublicKey:      make([]byte, 32),
+				RecipientPublicKey:   make([]byte, 32),
+				DatumType:            0,
+				DatumHash:            make([]byte, 32),
+				ReferenceBlockHeight: 0,
+				ReferenceBlockHash:   make([]byte, 32),
+				RMRLinked:            nil,
+				RecipientSignature:   make([]byte, 64),
+			},
+			IntermediateHashes: nil,
+			BlockHeight:        1,
+			ReceiptIndex:       0,
+			PublishedIndex:     0,
+		},
+	}
+)
+
 type (
 	mockPopOffToBlockReturnCommonBlock struct {
 		query.Executor
@@ -116,6 +137,15 @@ func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx() error 
 	return nil
 }
 
+type (
+	mockReceiptServicePopOffToBlockSuccess struct {
+		service.ReceiptServiceInterface
+	}
+)
+
+func (mockReceiptServicePopOffToBlockSuccess) GetPublishedReceiptsByHeight(_ uint32) ([]*model.PublishedReceipt, error) {
+	return mockPublishedReceipt, nil
+}
 func TestService_PopOffToBlock(t *testing.T) {
 
 	type fields struct {
@@ -126,6 +156,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		KVDB               kvdb.KVExecutorInterface
 		Logger             *logrus.Logger
+		ReceiptService     service.ReceiptServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -140,9 +171,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on getting LastBlock",
 			fields: fields{
-				BlockService:  &mockServiceBlockFailGetLastBlock{},
-				ChainType:     &mockServiceChainType{},
-				QueryExecutor: &mockServiceQueryExecutor{},
+				BlockService:   &mockServiceBlockFailGetLastBlock{},
+				ChainType:      &mockServiceChainType{},
+				QueryExecutor:  &mockServiceQueryExecutor{},
+				ReceiptService: mockReceiptServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -156,9 +188,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on getting BlockByHeight",
 			fields: fields{
-				BlockService:  &mockServiceBlockFailGetBlockByHeight{},
-				ChainType:     &mockServiceChainType{},
-				QueryExecutor: &mockServiceQueryExecutor{},
+				BlockService:   &mockServiceBlockFailGetBlockByHeight{},
+				ChainType:      &mockServiceChainType{},
+				QueryExecutor:  &mockServiceQueryExecutor{},
+				ReceiptService: mockReceiptServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -172,10 +205,11 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on getting BlockByID",
 			fields: fields{
-				BlockService:  &mockServiceBlockFailGetBlockByID{},
-				ChainType:     &mockServiceChainType{},
-				QueryExecutor: &mockServiceQueryExecutor{},
-				Logger:        logrus.New(),
+				BlockService:   &mockServiceBlockFailGetBlockByID{},
+				ChainType:      &mockServiceChainType{},
+				QueryExecutor:  &mockServiceQueryExecutor{},
+				Logger:         logrus.New(),
+				ReceiptService: mockReceiptServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -190,9 +224,10 @@ func TestService_PopOffToBlock(t *testing.T) {
 		{
 			name: "want:TestService_PopOffToBlock error on BeginTx function",
 			fields: fields{
-				BlockService:  &mockServiceBlockSuccess{},
-				ChainType:     &mockServiceChainType{},
-				QueryExecutor: &mockPopOffToBlockReturnBeginTxFunc{},
+				BlockService:   &mockServiceBlockSuccess{},
+				ChainType:      &mockServiceChainType{},
+				QueryExecutor:  &mockPopOffToBlockReturnBeginTxFunc{},
+				ReceiptService: mockReceiptServicePopOffToBlockSuccess{},
 				MempoolService: service.NewMempoolService(
 					chaintype.GetChainType(0),
 					kvdb.NewMockKVExecutorInterface(gomock.NewController(t)),
@@ -238,7 +273,8 @@ func TestService_PopOffToBlock(t *testing.T) {
 					nil,
 					nil,
 				),
-				Logger: logrus.New(),
+				Logger:         logrus.New(),
+				ReceiptService: mockReceiptServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -272,6 +308,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{Executor: &mockPopOffToBlockReturnCommonBlock{}},
 				KVDB:               kvdb.NewMockKVExecutorInterface(gomock.NewController(t)),
 				Logger:             logrus.New(),
+				ReceiptService:     mockReceiptServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: &model.Block{
@@ -293,6 +330,7 @@ func TestService_PopOffToBlock(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				KVDB:               tt.fields.KVDB,
 				Logger:             tt.fields.Logger,
+				ReceiptService:     tt.fields.ReceiptService,
 			}
 			got, err := bp.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

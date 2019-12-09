@@ -1025,3 +1025,93 @@ func TestReceiptService_PruningNodeReceipts(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockQueryExecutorGetPublishedReceiptsByHeight struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockRows := mock.NewRows(query.NewPublishedReceiptQuery().Fields)
+	mockRows.AddRow(
+		mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
+		mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
+		mockPublishedReceipt[0].BatchReceipt.DatumType,
+		mockPublishedReceipt[0].BatchReceipt.DatumHash,
+		mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
+		mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
+		mockPublishedReceipt[0].BatchReceipt.RMRLinked,
+		mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+		mockPublishedReceipt[0].IntermediateHashes,
+		mockPublishedReceipt[0].BlockHeight,
+		mockPublishedReceipt[0].ReceiptIndex,
+		mockPublishedReceipt[0].PublishedIndex,
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
+	return db.Query(qStr)
+}
+func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
+	type fields struct {
+		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		BatchReceiptQuery       query.BatchReceiptQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		Signature               crypto.SignatureInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+	}
+	type args struct {
+		blockHeight uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.PublishedReceipt
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				QueryExecutor:         &mockQueryExecutorGetPublishedReceiptsByHeight{},
+			},
+			args: args{
+				blockHeight: 212,
+			},
+			want:    mockPublishedReceipt,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := &ReceiptService{
+				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				KVExecutor:              tt.fields.KVExecutor,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Signature:               tt.fields.Signature,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+			}
+			got, err := rs.GetPublishedReceiptsByHeight(tt.args.blockHeight)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPublishedReceiptsByHeight() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetPublishedReceiptsByHeight() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

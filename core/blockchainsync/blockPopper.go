@@ -25,6 +25,7 @@ type BlockPopper struct {
 	ActionTypeSwitcher      transaction.TypeActionSwitcher
 	KVDB                    kvdb.KVExecutorInterface
 	Logger                  *log.Logger
+	ReceiptService          service.ReceiptServiceInterface
 }
 
 // PopOffToBlock will remove the block in current Chain until commonBlock is reached
@@ -55,8 +56,18 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 
 	var poppedBlocks []*model.Block
 	block := lastBlock
+
 	txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 	block.Transactions = txs
+
+	// TODO:
+	// Need to refactor this codes with better solution in the future
+	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
+	publishedReceipts, err := bp.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.PublishedReceipts = publishedReceipts
 
 	genesisBlockID := bp.ChainType.GetGenesisBlockID()
 	for block.ID != commonBlock.ID && block.ID != genesisBlockID {
@@ -68,6 +79,13 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 		}
 		txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 		block.Transactions = txs
+
+		publishedReceipts, err := bp.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		block.PublishedReceipts = publishedReceipts
+
 	}
 
 	// Backup existing transactions from mempool before rollback
