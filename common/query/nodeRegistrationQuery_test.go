@@ -67,7 +67,7 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetNodeRegistrationByNodePublicKey()
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC"
+			"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -75,10 +75,10 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 }
 
 func TestNodeRegistrationQuery_GetNodeRegistrationByAccountAddress(t *testing.T) {
-	t.Run("GetNodeRegistrationByNodePublicKey:success", func(t *testing.T) {
+	t.Run("GetNodeRegistrationByAccountAddress:success", func(t *testing.T) {
 		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC"
+			"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
