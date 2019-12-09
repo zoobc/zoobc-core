@@ -651,8 +651,116 @@ func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteTransaction(qS
 	return errors.New("mockError:undoFail")
 }
 
+func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
+		"id",
+		"node_public_key",
+		"account_address",
+		"registration_height",
+		"node_address",
+		"locked_balance",
+		"registration_status",
+		"latest",
+		"height",
+	}).AddRow(
+		int64(10000),
+		nodePubKey1,
+		senderAddress1,
+		uint32(1),
+		"10.10.10.10",
+		int64(1000),
+		model.NodeRegistrationState_NodeRegistered,
+		true,
+		uint32(1),
+	))
+	return db.Query("")
+}
+
+func (*mockExecutorUndoUnconfirmedExecuteTransactionsFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}).AddRow(
+			int64(10000),
+			nodePubKey1,
+			senderAddress1,
+			uint32(1),
+			"10.10.10.10",
+			int64(1000),
+			model.NodeRegistrationState_NodeRegistered,
+			true,
+			uint32(1),
+		))
+	return db.QueryRow(qStr), nil
+}
+
 func (*mockExecutorUndoUnconfirmedSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
+}
+
+func (*mockExecutorUndoUnconfirmedSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"id",
+		"node_public_key",
+		"account_address",
+		"registration_height",
+		"node_address",
+		"locked_balance",
+		"registration_status",
+		"latest",
+		"height",
+	}).AddRow(
+		int64(10000),
+		nodePubKey1,
+		senderAddress1,
+		uint32(1),
+		"10.10.10.10",
+		int64(1000),
+		model.NodeRegistrationState_NodeRegistered,
+		true,
+		uint32(1),
+	))
+	return db.Query(qe)
+}
+
+func (*mockExecutorUndoUnconfirmedSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		}).AddRow(
+			int64(10000),
+			nodePubKey1,
+			senderAddress1,
+			uint32(1),
+			"10.10.10.10",
+			int64(1000),
+			model.NodeRegistrationState_NodeRegistered,
+			true,
+			uint32(1),
+		))
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockExecutorApplyUnconfirmedExecuteTransactionFail) ExecuteTransaction(qStr string, args ...interface{}) error {
