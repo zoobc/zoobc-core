@@ -119,7 +119,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string,
 
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1 ORDER BY height DESC",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName())
 }
 
@@ -133,7 +133,7 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 
 // GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{accountAddress}
 }
 

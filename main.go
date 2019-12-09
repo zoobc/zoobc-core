@@ -301,6 +301,7 @@ func startServices() {
 func startNodeMonitoring() {
 	log.Infof("starting node monitoring at port:%d...", monitoringPort)
 	monitoring.SetMonitoringActive(true)
+	monitoring.SetNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	http.Handle("/metrics", promhttp.Handler())
 	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
 	if err != nil {
