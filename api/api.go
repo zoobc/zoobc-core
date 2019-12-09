@@ -33,6 +33,7 @@ func startGrpcServer(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
+	isDebugMode bool,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -76,7 +77,7 @@ func startGrpcServer(
 
 	// Set GRPC handler for Block requests
 	rpcService.RegisterBlockServiceServer(grpcServer, &handler.BlockHandler{
-		Service: service.NewBlockService(queryExecutor, blockServices),
+		Service: service.NewBlockService(queryExecutor, blockServices, isDebugMode),
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
@@ -137,9 +138,11 @@ func Start(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
+	isDebugMode bool,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService, ownerAccountAddress, nodefilePath, logger,
+		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
+		ownerAccountAddress, nodefilePath, logger, isDebugMode,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

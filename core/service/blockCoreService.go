@@ -75,7 +75,7 @@ type (
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
-		GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error)
+		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		SortBlocksmiths(block *model.Block)
 		GetSortedBlocksmiths() *[]model.Blocksmith
@@ -1144,24 +1144,31 @@ func (bs *BlockService) ReceiveBlock(
 			"previousBlockHashDoesNotMatchWithLastBlockHash",
 		)
 	}
-	// Securing receive block process
-	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-	// making sure get last block after paused process
-	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	err = func() error {
+		// pushBlock closure to release lock as soon as block pushed
+		// Securing receive block process
+		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+		// making sure get last block after paused process
+		lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+		if err != nil {
+			return status.Error(codes.Internal,
+				"fail to get last block",
+			)
+		}
+		// Validate incoming block
+		err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+		if err != nil {
+			return status.Error(codes.InvalidArgument, "InvalidBlock")
+		}
+		err = bs.PushBlock(lastBlock, block, true)
+		if err != nil {
+			return status.Error(codes.InvalidArgument, err.Error())
+		}
+		return nil
+	}()
 	if err != nil {
-		return nil, status.Error(codes.Internal,
-			"fail to get last block",
-		)
-	}
-	// Validate incoming block
-	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
-	}
-	err = bs.PushBlock(lastBlock, block, true)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
@@ -1201,7 +1208,7 @@ func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, erro
 }
 
 // GetParticipationScore handle received block from another node
-func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockExtendedInfo, error) {
+func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
 	var (
 		blExt                         = &model.BlockExtendedInfo{}
 		skippedBlocksmiths            []*model.SkippedBlocksmith
@@ -1268,6 +1275,11 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block) (*model.BlockEx
 	if err != nil {
 		return nil, err
 	}
+
+	if includeReceipts {
+		blExt.Block.PublishedReceipts = publishedReceipts
+	}
+
 	return blExt, nil
 }
 
@@ -1310,6 +1322,7 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 	if err != nil {
 		return nil, err
 	}
+	monitoring.SetNodeScore(activeBlocksmiths)
 	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
 	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
 	for _, blocksmith := range activeBlocksmiths {

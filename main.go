@@ -251,6 +251,7 @@ func initP2pInstance() {
 		peerServiceClient,
 		nodeRegistrationService,
 		queryExecutor,
+		query.NewBlockQuery(&chaintype.MainChain{}),
 		loggerP2PService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
@@ -288,6 +289,7 @@ func startServices() {
 		ownerAccountAddress,
 		nodeKeyFilePath,
 		loggerAPIService,
+		isDebugMode,
 	)
 
 	if isDebugMode {
@@ -298,6 +300,7 @@ func startServices() {
 func startNodeMonitoring() {
 	log.Infof("starting node monitoring at port:%d...", monitoringPort)
 	monitoring.SetMonitoringActive(true)
+	monitoring.SetNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	http.Handle("/metrics", promhttp.Handler())
 	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
 	if err != nil {

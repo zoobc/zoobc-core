@@ -97,7 +97,8 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	lastBlockHeight := lastBlock.Height
 	lastBlockID := lastBlock.ID
 
-	if peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
+	if peerCumulativeDifficulty == nil || lastBlockCumulativeDifficulty == nil ||
+		peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
 		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's",
 			peer.GetInfo().Address, peer.GetInfo().Port)
 	}
@@ -299,14 +300,26 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 }
 
 func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, error) {
-	lastMilestoneBlockID := int64(0)
+	var (
+		lastMilestoneBlockID int64
+		trialCounter         uint32
+		// to avoid processing duplicated block IDs
+		commonMilestoneTemp = make(map[int64]bool)
+	)
 	lastBlock, err := bd.BlockService.GetLastBlock()
 	if err != nil {
 		bd.Logger.Infof("failed to get blockchain last block: %v\n", err)
 		return 0, err
 	}
+
 	lastBlockID := lastBlock.ID
 	for {
+		if trialCounter >= constant.MaxCommonMilestoneRequestTrial {
+			// TODO: Blacklist peer here
+			// bd.P2pService.PeerBlacklist(peer, "different blockchain fork")
+			return 0, err
+		}
+		trialCounter++
 		commonMilestoneBlockIDResponse, err := bd.PeerServiceClient.GetCommonMilestoneBlockIDs(
 			peer, bd.ChainType, lastBlockID, lastMilestoneBlockID,
 		)
@@ -321,6 +334,9 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 		}
 
 		for _, blockID := range commonMilestoneBlockIDResponse.BlockIds {
+			if commonMilestoneTemp[blockID] {
+				continue
+			}
 			_, err := bd.BlockService.GetBlockByID(blockID)
 			if err == nil {
 				return blockID, nil
@@ -330,6 +346,16 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 				return 0, err
 			}
 			lastMilestoneBlockID = blockID
+			commonMilestoneTemp[blockID] = true
+		}
+
+		// if block is not found and it's indicated as genesis
+		if len(commonMilestoneTemp) == 1 {
+			for blockID := range commonMilestoneTemp {
+				if blockID == lastMilestoneBlockID {
+					return 0, err
+				}
+			}
 		}
 	}
 }

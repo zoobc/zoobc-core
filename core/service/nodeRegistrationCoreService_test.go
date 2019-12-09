@@ -163,7 +163,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC":
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -781,71 +781,6 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Error(err)
-			}
-		})
-	}
-}
-
-func TestNodeRegistrationService_ResetMemoizedScrambledNodes(t *testing.T) {
-	mockNodeRegistrationService := &NodeRegistrationService{
-		MemoizedLatestScrambledNodes: &model.ScrambledNodes{},
-	}
-
-	mockNodeRegistrationService.ResetMemoizedScrambledNodes()
-	if mockNodeRegistrationService.MemoizedLatestScrambledNodes != nil {
-		t.Error("NodeRegistrationService.ResetMemoizedScrambledNodes() should reset MemoizedLatestScrambledNodes")
-	}
-}
-
-func TestNodeRegistrationService_GetScrambledNodes(t *testing.T) {
-	mockScrambledNodes := &model.ScrambledNodes{
-		BlockHeight: 120,
-	}
-	mockMemoizedScrambledNodes := &model.ScrambledNodes{
-		BlockHeight: 60,
-	}
-
-	type fields struct {
-		MemoizedScrambledNodes *model.ScrambledNodes
-		ScrambledNodes         *model.ScrambledNodes
-	}
-	// test the building logic and result as well
-	tests := []struct {
-		name    string
-		fields  fields
-		want    *model.ScrambledNodes
-		wantNot *model.ScrambledNodes
-	}{
-		{
-			name: "GetMemoizedData",
-			fields: fields{
-				MemoizedScrambledNodes: mockMemoizedScrambledNodes,
-			},
-			want: mockMemoizedScrambledNodes,
-		},
-		{
-			name:    "NoMemoizedData",
-			wantNot: mockMemoizedScrambledNodes,
-		},
-		{
-			name: "MemoizedDataDifferentWithScrambledNodes",
-			fields: fields{
-				ScrambledNodes:         mockScrambledNodes,
-				MemoizedScrambledNodes: mockMemoizedScrambledNodes,
-			},
-			wantNot: mockMemoizedScrambledNodes,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrs := &NodeRegistrationService{
-				MemoizedLatestScrambledNodes: tt.fields.MemoizedScrambledNodes,
-			}
-			got := nrs.GetLatestScrambledNodes()
-			if (tt.want != nil && got != tt.want && got == tt.wantNot) || (tt.wantNot != nil && got != tt.wantNot && got == tt.want) {
-				t.Errorf("NodeRegistrationService.GetLatestScrambledNodes() got = %v, want = %v, wanNot = %v", got, tt.want, tt.wantNot)
-				return
 			}
 		})
 	}
