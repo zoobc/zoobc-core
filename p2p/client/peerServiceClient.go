@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"math"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -40,18 +41,23 @@ type (
 			astMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
 		GetNextBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, blockID int64, limit uint32) (*model.BlockIdsResponse, error)
 		GetNextBlocks(destPeer *model.Peer, chaintype chaintype.ChainType, blockIds []int64, blockID int64) (*model.BlocksData, error)
+		// connection managements
+		DeleteConnection(destPeer *model.Peer) error
+		GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error)
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
-		Dialer            Dialer
-		Logger            *log.Logger
-		QueryExecutor     query.ExecutorInterface
-		NodeReceiptQuery  query.NodeReceiptQueryInterface
-		BatchReceiptQuery query.BatchReceiptQueryInterface
-		MerkleTreeQuery   query.MerkleTreeQueryInterface
-		ReceiptService    coreService.ReceiptServiceInterface
-		NodePublicKey     []byte
-		Host              *model.Host
+		Dialer              Dialer
+		Logger              *log.Logger
+		QueryExecutor       query.ExecutorInterface
+		NodeReceiptQuery    query.NodeReceiptQueryInterface
+		BatchReceiptQuery   query.BatchReceiptQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
+		ReceiptService      coreService.ReceiptServiceInterface
+		NodePublicKey       []byte
+		Host                *model.Host
+		PeerConnections     map[string]*grpc.ClientConn
+		PeerConnectionsLock sync.RWMutex
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -96,7 +102,47 @@ func NewPeerServiceClient(
 		NodePublicKey:     nodePublicKey,
 		Logger:            logger,
 		Host:              host,
+		PeerConnections:   make(map[string]*grpc.ClientConn),
 	}
+}
+
+// saveNewConnection cache the connection to peer to keep an open connection, this avoid the overhead of open/close
+// connection on every request
+func (psc *PeerServiceClient) saveNewConnection(destPeer *model.Peer) error {
+	psc.PeerConnectionsLock.Lock()
+	defer psc.PeerConnectionsLock.Unlock()
+	connection, err := psc.Dialer(destPeer)
+	if err != nil {
+		return err
+	}
+	psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)] = connection
+	return nil
+}
+
+// DeleteConnection delete the cached connection in psc.PeerConnections
+func (psc *PeerServiceClient) DeleteConnection(destPeer *model.Peer) error {
+	psc.PeerConnectionsLock.Lock()
+	defer psc.PeerConnectionsLock.Unlock()
+	connection := psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
+	err := connection.Close()
+	if err != nil {
+		return err
+	}
+	delete(psc.PeerConnections, p2pUtil.GetFullAddressPeer(destPeer))
+	return nil
+}
+
+func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error) {
+	if psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)] == nil {
+		err := psc.saveNewConnection(destPeer)
+		if err != nil {
+			return nil, err
+		}
+	}
+	psc.PeerConnectionsLock.Lock()
+	defer psc.PeerConnectionsLock.Unlock()
+	// add a copy to avoid pointer delete
+	return psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)], nil
 }
 
 // setDefaultMetadata use to set default metadata.
@@ -120,7 +166,8 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 
 // GetPeerInfo to get Peer info
 func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
-	var connection, err = psc.Dialer(destPeer)
+	// add a copy to avoid pointer delete
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +177,6 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	// context still not use ctx := cs.buildContext()
@@ -138,7 +184,8 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 		ctx,
 		&model.GetPeerInfoRequest{
 			Version: "v1,.0.1",
-		})
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +194,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 
 // GetMorePeers to collect more peers available
 func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +204,6 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	// context still not use ctx := cs.buildContext()
@@ -170,7 +216,7 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 
 // SendPeers sends set of peers to other node (to populate the network)
 func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +226,6 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 	res, err := p2pClient.SendPeers(ctx, &model.SendPeersRequest{
 		Peers: peersInfo,
@@ -197,7 +242,7 @@ func (psc *PeerServiceClient) SendBlock(
 	block *model.Block,
 	chainType chaintype.ChainType,
 ) error {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return err
 	}
@@ -208,7 +253,6 @@ func (psc *PeerServiceClient) SendBlock(
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 	response, err = p2pClient.SendBlock(ctx, &model.SendBlockRequest{
 		SenderPublicKey: psc.NodePublicKey,
@@ -236,7 +280,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	transactionBytes []byte,
 	chainType chaintype.ChainType,
 ) error {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return err
 	}
@@ -247,7 +291,6 @@ func (psc *PeerServiceClient) SendTransaction(
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	response, err = p2pClient.SendTransaction(ctx, &model.SendTransactionRequest{
@@ -270,11 +313,11 @@ func (psc *PeerServiceClient) SendTransaction(
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
-func (psc PeerServiceClient) GetCumulativeDifficulty(
+func (psc *PeerServiceClient) GetCumulativeDifficulty(
 	destPeer *model.Peer,
 	chaintype chaintype.ChainType,
 ) (*model.GetCumulativeDifficultyResponse, error) {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +327,6 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	res, err := p2pClient.GetCumulativeDifficulty(ctx, &model.GetCumulativeDifficultyRequest{
@@ -298,12 +340,12 @@ func (psc PeerServiceClient) GetCumulativeDifficulty(
 }
 
 // GetCommonMilestoneBlockIDs request the blockIds that may act as milestone block
-func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
+func (psc *PeerServiceClient) GetCommonMilestoneBlockIDs(
 	destPeer *model.Peer,
 	chaintype chaintype.ChainType,
 	lastBlockID, lastMilestoneBlockID int64,
 ) (*model.GetCommonMilestoneBlockIdsResponse, error) {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +355,6 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	res, err := p2pClient.GetCommonMilestoneBlockIDs(ctx, &model.GetCommonMilestoneBlockIdsRequest{
@@ -329,13 +370,13 @@ func (psc PeerServiceClient) GetCommonMilestoneBlockIDs(
 }
 
 // GetNextBlockIDs request the blockIds of the next blocks requested
-func (psc PeerServiceClient) GetNextBlockIDs(
+func (psc *PeerServiceClient) GetNextBlockIDs(
 	destPeer *model.Peer,
 	chaintype chaintype.ChainType,
 	blockID int64,
 	limit uint32,
 ) (*model.BlockIdsResponse, error) {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +386,6 @@ func (psc PeerServiceClient) GetNextBlockIDs(
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	res, err := p2pClient.GetNextBlockIDs(ctx, &model.GetNextBlockIdsRequest{
@@ -361,13 +401,13 @@ func (psc PeerServiceClient) GetNextBlockIDs(
 }
 
 // GetNextBlocks request the next blocks matching the array of blockIds
-func (psc PeerServiceClient) GetNextBlocks(
+func (psc *PeerServiceClient) GetNextBlocks(
 	destPeer *model.Peer,
 	chaintype chaintype.ChainType,
 	blockIds []int64,
 	blockID int64,
 ) (*model.BlocksData, error) {
-	var connection, err = psc.Dialer(destPeer)
+	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +418,6 @@ func (psc PeerServiceClient) GetNextBlocks(
 	)
 	defer func() {
 		cancelReq()
-		connection.Close()
 	}()
 
 	res, err := p2pClient.GetNextBlocks(
