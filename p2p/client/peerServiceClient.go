@@ -249,7 +249,7 @@ func (psc *PeerServiceClient) SendBlock(
 	var (
 		response       *model.SendBlockResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(25 * time.Second)
 	)
 	defer func() {
 		cancelReq()

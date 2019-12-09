@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -125,13 +126,13 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNod
 func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 
 	var (
-		err                  error
-		prevNodeRegistration *model.NodeRegistration
+		err                    error
+		prevNodeRegistration   *model.NodeRegistration
+		effectiveBalanceToLock int64
 	)
 
 	// update sender balance by reducing his spendable balance of the tx fee + new balance to be lock
 	// (delta between old locked balance and updatee locked balance)
-	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// get the latest noderegistration by owner (sender account)
 		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
@@ -165,14 +166,35 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 }
 
 func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
+	var (
+		err                    error
+		effectiveBalanceToLock int64
+		prevNodeRegistration   model.NodeRegistration
+	)
+	// get the latest noderegistration by owner (sender account)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	row, err := tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.NodeRegistrationQuery.Scan(&prevNodeRegistration, row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
+		}
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	// delta amount to be locked
+	effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
 	// update sender balance by reducing his spendable balance of the tx fee
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Body.LockedBalance+tx.Fee,
+		effectiveBalanceToLock+tx.Fee,
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
 		},
 	)
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
 	if err != nil {
 		return err
 	}
@@ -232,40 +254,28 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		}
 	}
 
-	if tx.Body.LockedBalance > 0 {
-		// delta amount to be locked
-		effectiveBalanceToLock := tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
-		if effectiveBalanceToLock < 0 {
-			// cannot lock less than what previously locked
-			return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
-		}
+	// delta amount to be locked
+	var effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+	if effectiveBalanceToLock < 0 {
+		// cannot lock less than what previously locked
+		return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
+	}
 
-		// check balance
-		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows3, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
-		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
+	// check balance
+	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row3, err := tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row3)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.AppErr, "SenderAccountAddressNotFound")
 		}
-		defer rows3.Close()
-		if rows3.Next() {
-			err = rows3.Scan(
-				&accountBalance.AccountAddress,
-				&accountBalance.BlockHeight,
-				&accountBalance.SpendableBalance,
-				&accountBalance.Balance,
-				&accountBalance.PopRevenue,
-				&accountBalance.Latest,
-			)
-			if err != nil {
-				return err
-			}
-		}
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 
-		if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
-			return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
-		}
-		// TODO: check minimum amount to be locked (at current height the min amount is = 0, but in future may change)
-	} else if accountBalance.SpendableBalance < tx.Fee {
+	if accountBalance.SpendableBalance < tx.Fee+effectiveBalanceToLock {
 		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 	}
 
