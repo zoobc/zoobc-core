@@ -832,13 +832,8 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-<<<<<<< HEAD
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil)
-			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
-=======
 			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
-			err := ps.AddToBlacklistedPeer(tt.args.newPeer)
->>>>>>> 568ff9f3cbec29440532fe8ab92aab3d467064f0
+			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
