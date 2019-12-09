@@ -60,6 +60,9 @@ func (bp *BlockPopper) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, 
 	txs, _ := bp.BlockService.GetTransactionsByBlockID(block.ID)
 	block.Transactions = txs
 
+	// TODO:
+	// Need to refactor this codes with better solution in the future
+	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
 	publishedReceipts, err := bp.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
