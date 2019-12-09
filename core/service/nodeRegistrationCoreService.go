@@ -5,8 +5,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/zoobc/zoobc-core/common/util"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -27,10 +25,8 @@ type (
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		GetNodeAdmittanceCycle() uint32
 		BuildScrambledNodes(block *model.Block) error
-		ResetMemoizedScrambledNodes()
 		ResetScrambledNodes()
 		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
-		GetLatestScrambledNodes() *model.ScrambledNodes
 		GetScrambleNodesByHeight(
 			blockHeight uint32,
 		) (*model.ScrambledNodes, error)
@@ -322,69 +318,13 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  block.Height,
 	}
-	nrs.ResetMemoizedScrambledNodes()
 	return nil
-}
-
-func (nrs *NodeRegistrationService) ResetMemoizedScrambledNodes() {
-	nrs.MemoizedLatestScrambledNodes = nil
 }
 
 func (nrs *NodeRegistrationService) ResetScrambledNodes() {
 	nrs.ScrambledNodesLock.Lock()
 	defer nrs.ScrambledNodesLock.Unlock()
 	nrs.ScrambledNodes = map[uint32]*model.ScrambledNodes{}
-}
-
-func (nrs *NodeRegistrationService) GetLatestScrambledNodes() *model.ScrambledNodes {
-	if len(nrs.ScrambledNodes) < 1 {
-		return &model.ScrambledNodes{
-			AddressNodes: []*model.Peer{},
-		}
-	}
-	var (
-		newIndexNodes   = make(map[string]*int)
-		newAddressNodes []*model.Peer
-		lastBlock       *model.Block
-		err             error
-	)
-	lastBlock, err = util.GetLastBlock(nrs.QueryExecutor, nrs.BlockQuery)
-	if err != nil {
-		nrs.Logger.Error(err)
-		return &model.ScrambledNodes{
-			AddressNodes: []*model.Peer{},
-		}
-	}
-	nearestBlockHeight := nrs.GetBlockHeightToBuildScrambleNodes(lastBlock.Height)
-	if nrs.ScrambledNodes[nearestBlockHeight] == nil {
-		err = nrs.BuildScrambledNodesAtHeight(nearestBlockHeight)
-		if err != nil {
-			return nil
-		}
-	}
-
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
-	if nrs.MemoizedLatestScrambledNodes != nil {
-		if nrs.MemoizedLatestScrambledNodes.BlockHeight == nrs.ScrambledNodes[nearestBlockHeight].BlockHeight {
-			return nrs.MemoizedLatestScrambledNodes
-		}
-	}
-
-	newAddressNodes = append(newAddressNodes, nrs.ScrambledNodes[nearestBlockHeight].AddressNodes...)
-
-	for key, indexNode := range nrs.ScrambledNodes[nearestBlockHeight].IndexNodes {
-		tempVal := *indexNode
-		newIndexNodes[key] = &tempVal
-	}
-
-	nrs.MemoizedLatestScrambledNodes = &model.ScrambledNodes{
-		AddressNodes: newAddressNodes,
-		IndexNodes:   newIndexNodes,
-		BlockHeight:  nrs.ScrambledNodes[nearestBlockHeight].BlockHeight,
-	}
-
-	return nrs.MemoizedLatestScrambledNodes
 }
 
 func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(
