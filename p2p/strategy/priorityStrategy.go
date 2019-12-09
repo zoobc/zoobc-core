@@ -568,6 +568,8 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 	ps.UnresolvedPeersLock.Lock()
 	defer ps.UnresolvedPeersLock.Unlock()
 
+	var newUnresolvedPeers = make(map[string]*model.Peer)
+
 	// Add known peers into unresolved peer list if the unresolved peers is empty
 	if len(ps.Host.UnresolvedPeers) == 0 {
 		// putting this initialization in a condition to prevent unneeded lock of resolvedPeers and blacklistedPeers
@@ -581,11 +583,6 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 			counter     int32
 		)
 
-		var newUnresolvedPeers = make(map[string]*model.Peer)
-		for key, UnresolvedPeer := range ps.Host.UnresolvedPeers {
-			newUnresolvedPeers[key] = UnresolvedPeer
-		}
-
 		for key, peer := range ps.Host.GetKnownPeers() {
 			if counter >= constant.MaxUnresolvedPeers {
 				break
@@ -594,18 +591,18 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 			if resolvedPeers[peerAddress] == nil &&
 				blacklistedPeers[peerAddress] == nil &&
 				peerAddress != hostAddress {
-				var (
-					newPeer           = *peer
-					newUnresvoledPeer = *peer
-				)
-				newUnresolvedPeers[key] = &newPeer
-				ps.Host.UnresolvedPeers[key] = &newUnresvoledPeer
+				newPeer := *peer
+				ps.Host.UnresolvedPeers[key] = &newPeer
 			}
 			counter++
 		}
-		return newUnresolvedPeers
 	}
-	return ps.Host.UnresolvedPeers
+
+	for key, UnresolvedPeer := range ps.Host.UnresolvedPeers {
+		newUnresolvedPeers[key] = UnresolvedPeer
+	}
+
+	return newUnresolvedPeers
 }
 
 // GetAnyUnresolvedPeer Get any unresolved peer
