@@ -261,7 +261,8 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				// Or unrelosovedPeers still have available space
 				return ps.ValidatePriorityPeer(scrambledNodes, nodeRequester, ps.Host.GetInfo()) ||
 					ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), nodeRequester) ||
-					(resolvedPeers[fullAddress] != nil)
+					(resolvedPeers[fullAddress] != nil) ||
+					(exceedUnresolvedPeers < 1 && blacklistedPeers[fullAddress] == nil)
 
 			}
 			return true
