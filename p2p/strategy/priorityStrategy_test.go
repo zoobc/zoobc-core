@@ -3,6 +3,7 @@ package strategy
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -139,8 +140,22 @@ type (
 	mockQueryExecutorSuccess struct {
 		query.Executor
 	}
+	mockPeerServiceClientSuccess struct {
+		client.PeerServiceClient
+	}
+
+	mockPeerServiceClientFail struct {
+		client.PeerServiceClient
+	}
 )
 
+func (*mockPeerServiceClientSuccess) DeleteConnection(destPeer *model.Peer) error {
+	return nil
+}
+
+func (*mockPeerServiceClientFail) DeleteConnection(destPeer *model.Peer) error {
+	return errors.New("mockedError")
+}
 func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -362,12 +377,24 @@ func TestPriorityStrategy_RemoveResolvedPeer(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Host: priorityStrategyGoodHostInstance,
+				Host:              priorityStrategyGoodHostInstance,
+				PeerServiceClient: &mockPeerServiceClientSuccess{},
 			},
 			args: args{
 				peer: priorityStrategyGoodHostInstance.GetResolvedPeers()["127.0.0.1:3000"],
 			},
 			wantErr: false,
+		},
+		{
+			name: "wantFail",
+			fields: fields{
+				Host:              priorityStrategyGoodHostInstance,
+				PeerServiceClient: &mockPeerServiceClientFail{},
+			},
+			args: args{
+				peer: priorityStrategyGoodHostInstance.GetResolvedPeers()["127.0.0.1:3000"],
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

@@ -27,7 +27,8 @@ type Service struct {
 	Logger               *log.Logger
 }
 
-func NewBlockchainSyncService(blockService service.BlockServiceInterface,
+func NewBlockchainSyncService(
+	blockService service.BlockServiceInterface,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	queryExecutor query.ExecutorInterface,
@@ -36,6 +37,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 	logger *log.Logger,
 	kvdb kvdb.KVExecutorInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
+	receiptService service.ReceiptServiceInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -65,6 +67,7 @@ func NewBlockchainSyncService(blockService service.BlockServiceInterface,
 				ActionTypeSwitcher:      txActionSwitcher,
 				KVDB:                    kvdb,
 				Logger:                  logger,
+				ReceiptService:          receiptService,
 			},
 		},
 		Logger: logger,

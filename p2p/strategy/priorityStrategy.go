@@ -551,6 +551,10 @@ func (ps *PriorityStrategy) RemoveResolvedPeer(peer *model.Peer) error {
 		ps.ResolvedPeersLock.Unlock()
 		monitoring.SetResolvedPeersCount(len(ps.Host.ResolvedPeers))
 	}()
+	err := ps.PeerServiceClient.DeleteConnection(peer)
+	if err != nil {
+		return err
+	}
 	delete(ps.Host.ResolvedPeers, p2pUtil.GetFullAddressPeer(peer))
 	return nil
 }
