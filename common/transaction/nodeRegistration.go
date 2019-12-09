@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -46,10 +47,10 @@ func (tx *NodeRegistration) SkipMempoolTransaction(selectedTransactions []*model
 
 func (tx *NodeRegistration) ApplyConfirmed() error {
 	var (
-		queries                               [][]interface{}
-		registrationStatus                    uint32
-		nodeRegistrations, nodeRegistrations2 []*model.NodeRegistration
-		nodeAccountAddress                    string
+		queries                                                     [][]interface{}
+		registrationStatus                                          uint32
+		prevNodeRegistrationByPubKey, prevNodeRegistrationByAccount model.NodeRegistration
+		nodeAccountAddress                                          string
 	)
 	if tx.Height > 0 {
 		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)
@@ -68,42 +69,43 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		},
 	)
 
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+	nodeRow, _ := tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
 		false, tx.Body.NodePublicKey)
+	err := tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByPubKey, nodeRow)
+	prevNodeFound := true
 	if err != nil {
-		return err
+		if err != sql.ErrNoRows {
+			return err
+		}
+		prevNodeFound = false
 	}
-	defer nodeRow.Close()
 
-	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	if err != nil {
-		return err
-	}
-	if len(nodeRegistrations) > 0 {
-		if nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+	if prevNodeFound {
+		if prevNodeRegistrationByPubKey.RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
 			// there can't be two nodes registered with the same pub key
 			return errors.New("NodePublicKeyAlreadyInRegistry")
 		}
 		// if there is a previously deleted node registration, set its latest status to false, to avoid duplicates
-		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations[0])
+		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(&prevNodeRegistrationByPubKey)
 		queries = append(queries, clearDeletedNodeRegistrationQ...)
 	} else {
 		// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
 		// check for account address duplication (accounts can register one node at the time)
 		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
-		nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, false, args...)
+		nodeRow2, _ := tx.QueryExecutor.ExecuteSelectRow(qryNodeByAccount, false, args...)
+		err := tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByAccount, nodeRow2)
+		prevNodeFound := true
 		if err != nil {
-			return err
-		}
-		defer nodeRow2.Close()
-		nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
-		if err != nil {
-			return err
+			if err != sql.ErrNoRows {
+				return err
+			}
+			prevNodeFound = false
 		}
 		// in case a node with same account address has been previosly deleted, set its latest status to false
 		// to avoid having duplicates (multiple node registrations with same account address)
-		if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
-			clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(nodeRegistrations2[0])
+		if prevNodeFound && prevNodeRegistrationByAccount.RegistrationStatus ==
+			uint32(model.NodeRegistrationState_NodeDeleted) {
+			clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(&prevNodeRegistrationByAccount)
 			queries = append(queries, clearDeletedNodeRegistrationQ...)
 		}
 	}
