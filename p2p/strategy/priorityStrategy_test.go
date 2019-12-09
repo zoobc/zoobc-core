@@ -3,6 +3,7 @@ package strategy
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -30,6 +31,15 @@ func changeMaxResolvedPeers(hostServiceInstance *PriorityStrategy, newValue int3
 }
 
 var (
+	goodResolvedPeers = map[string]*model.Peer{
+		"127.0.0.1:3000": {
+			Info: &model.Node{
+				SharedAddress: "127.0.0.1",
+				Address:       "127.0.0.1",
+				Port:          3000,
+			},
+		},
+	}
 	priorityStrategyGoodHostInstance = &model.Host{
 		Info: &model.Node{
 			SharedAddress: "127.0.0.1",
@@ -54,15 +64,7 @@ var (
 				},
 			},
 		},
-		UnresolvedPeers: map[string]*model.Peer{
-			"127.0.0.1:3000": {
-				Info: &model.Node{
-					SharedAddress: "127.0.0.1",
-					Address:       "127.0.0.1",
-					Port:          3000,
-				},
-			},
-		},
+		UnresolvedPeers: goodResolvedPeers,
 		BlacklistedPeers: map[string]*model.Peer{
 			"127.0.0.1:3000": {
 				Info: &model.Node{
@@ -138,8 +140,22 @@ type (
 	mockQueryExecutorSuccess struct {
 		query.Executor
 	}
+	mockPeerServiceClientSuccess struct {
+		client.PeerServiceClient
+	}
+
+	mockPeerServiceClientFail struct {
+		client.PeerServiceClient
+	}
 )
 
+func (*mockPeerServiceClientSuccess) DeleteConnection(destPeer *model.Peer) error {
+	return nil
+}
+
+func (*mockPeerServiceClientFail) DeleteConnection(destPeer *model.Peer) error {
+	return errors.New("mockedError")
+}
 func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -361,12 +377,24 @@ func TestPriorityStrategy_RemoveResolvedPeer(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Host: priorityStrategyGoodHostInstance,
+				Host:              priorityStrategyGoodHostInstance,
+				PeerServiceClient: &mockPeerServiceClientSuccess{},
 			},
 			args: args{
 				peer: priorityStrategyGoodHostInstance.GetResolvedPeers()["127.0.0.1:3000"],
 			},
 			wantErr: false,
+		},
+		{
+			name: "wantFail",
+			fields: fields{
+				Host:              priorityStrategyGoodHostInstance,
+				PeerServiceClient: &mockPeerServiceClientFail{},
+			},
+			args: args{
+				peer: priorityStrategyGoodHostInstance.GetResolvedPeers()["127.0.0.1:3000"],
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -404,7 +432,108 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 			fields: fields{
 				Host: priorityStrategyGoodHostInstance,
 			},
-			want: priorityStrategyGoodHostInstance.GetUnresolvedPeers(),
+			want: goodResolvedPeers,
+		},
+		{
+			name: "wantUnresolvedPeersPopulatedWithKnownPeers",
+			fields: fields{
+				Host: &model.Host{
+					Info: &model.Node{
+						SharedAddress: "127.0.0.1",
+						Address:       "127.0.0.1",
+						Port:          8000,
+					},
+					KnownPeers: map[string]*model.Peer{
+						"127.0.0.1:3000": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          3000,
+							},
+						},
+					},
+					UnresolvedPeers: make(map[string]*model.Peer),
+				},
+			},
+			want: map[string]*model.Peer{
+				"127.0.0.1:3000": {
+					Info: &model.Node{
+						SharedAddress: "127.0.0.1",
+						Address:       "127.0.0.1",
+						Port:          3000,
+					},
+				},
+			},
+		},
+		{
+			name: "wantUnresolvedPeersPopulatedWithKnownPeersWithoutDuplication",
+			fields: fields{
+				Host: &model.Host{
+					Info: &model.Node{
+						SharedAddress: "127.0.0.1",
+						Address:       "127.0.0.1",
+						Port:          8000,
+					},
+					KnownPeers: map[string]*model.Peer{
+						"127.0.0.1:3000": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          3000,
+							},
+						},
+						"127.0.0.1:8000": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8000,
+							},
+						},
+						"127.0.0.1:8001": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8001,
+							},
+						},
+						"127.0.0.1:8002": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8002,
+							},
+						},
+					},
+					UnresolvedPeers: make(map[string]*model.Peer),
+					ResolvedPeers: map[string]*model.Peer{
+						"127.0.0.1:8001": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8001,
+							},
+						},
+					},
+					BlacklistedPeers: map[string]*model.Peer{
+						"127.0.0.1:8002": {
+							Info: &model.Node{
+								SharedAddress: "127.0.0.1",
+								Address:       "127.0.0.1",
+								Port:          8002,
+							},
+						},
+					},
+				},
+			},
+			want: map[string]*model.Peer{
+				"127.0.0.1:3000": {
+					Info: &model.Node{
+						SharedAddress: "127.0.0.1",
+						Address:       "127.0.0.1",
+						Port:          3000,
+					},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -989,8 +1118,9 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 	var mockNodeRegistrationServiceInstance = &mockNodeRegistrationService{}
 	type args struct {
-		host *model.Node
-		peer *model.Node
+		host           *model.Node
+		peer           *model.Node
+		scrambledNodes *model.ScrambledNodes
 	}
 	tests := []struct {
 		name string
@@ -1000,8 +1130,9 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				host: mockGoodScrambledNodes.AddressNodes[0].GetInfo(),
-				peer: mockGoodScrambledNodes.AddressNodes[1].GetInfo(),
+				host:           mockGoodScrambledNodes.AddressNodes[0].GetInfo(),
+				peer:           mockGoodScrambledNodes.AddressNodes[1].GetInfo(),
+				scrambledNodes: mockGoodScrambledNodes,
 			},
 			want: true,
 		},
@@ -1013,7 +1144,7 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
-			if got := ps.ValidatePriorityPeer(tt.args.host, tt.args.peer); got != tt.want {
+			if got := ps.ValidatePriorityPeer(tt.args.scrambledNodes, tt.args.host, tt.args.peer); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidatePriorityPeer() = %v, want %v", got, tt.want)
 			}
 		})
