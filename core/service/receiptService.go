@@ -29,6 +29,7 @@ type (
 			receipt *model.BatchReceipt,
 		) error
 		PruningNodeReceipts() error
+		GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 	}
 
 	ReceiptService struct {
@@ -41,6 +42,7 @@ type (
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
 	}
 )
 
@@ -54,6 +56,7 @@ func NewReceiptService(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
+	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:        nodeReceiptQuery,
@@ -65,6 +68,7 @@ func NewReceiptService(
 		QueryExecutor:           queryExecutor,
 		NodeRegistrationService: nodeRegistrationService,
 		Signature:               signature,
+		PublishedReceiptQuery:   publishedReceiptQuery,
 	}
 }
 
@@ -462,4 +466,25 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 		}
 	}
 	return nil
+}
+
+// GetPublishedReceiptsByHeight that handling database connection to get published receipts by height
+func (rs *ReceiptService) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	var (
+		publishedReceipts []*model.PublishedReceipt
+		rows              *sql.Rows
+		err               error
+	)
+
+	qStr, qArgs := rs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(blockHeight)
+	rows, err = rs.QueryExecutor.ExecuteSelect(qStr, false, qArgs...)
+	if err != nil {
+		return publishedReceipts, err
+	}
+
+	publishedReceipts, err = rs.PublishedReceiptQuery.BuildModel(publishedReceipts, rows)
+	if err != nil {
+		return publishedReceipts, err
+	}
+	return publishedReceipts, nil
 }
