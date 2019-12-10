@@ -130,6 +130,10 @@ issues:
       text: "sync.noCopy"
       linters:
         - govet
+    - path: "(.+)_test.go"
+      text: "copylocks: range var tt copies lock:"
+      linters:
+        - govet
     - text: "File is not `goimports`-ed"
       linters:
         - goimports
