@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -3680,4 +3681,469 @@ func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) ExecuteTransactions
 }
 func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx() error {
 	return nil
+}
+
+var (
+	mockGoodBlock = &model.Block{
+		ID:                   0,
+		BlockHash:            nil,
+		PreviousBlockHash:    nil,
+		Height:               1000,
+		Timestamp:            0,
+		BlockSeed:            nil,
+		BlockSignature:       nil,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		BlocksmithPublicKey:  nil,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Version:              0,
+		PayloadLength:        0,
+		PayloadHash:          nil,
+		Transactions:         nil,
+		PublishedReceipts:    nil,
+	}
+	mockGoodCommonBlock = &model.Block{
+		ID:                   0,
+		BlockHash:            nil,
+		PreviousBlockHash:    nil,
+		Height:               900,
+		Timestamp:            0,
+		BlockSeed:            nil,
+		BlockSignature:       nil,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		BlocksmithPublicKey:  nil,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Version:              0,
+		PayloadLength:        0,
+		PayloadHash:          nil,
+		Transactions:         nil,
+		PublishedReceipts:    nil,
+	}
+	mockBadCommonBlockHardFork = &model.Block{
+		ID:                   0,
+		BlockHash:            nil,
+		PreviousBlockHash:    nil,
+		Height:               100,
+		Timestamp:            0,
+		BlockSeed:            nil,
+		BlockSignature:       nil,
+		CumulativeDifficulty: "",
+		SmithScale:           0,
+		BlocksmithPublicKey:  nil,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Version:              0,
+		PayloadLength:        0,
+		PayloadHash:          nil,
+		Transactions:         nil,
+		PublishedReceipts:    nil,
+	}
+)
+
+type (
+	mockExecutorBlockPopGetLastBlockFail struct {
+		query.Executor
+	}
+	mockExecutorBlockPopSuccess struct {
+		query.Executor
+	}
+	mockExecutorBlockPopFailCommonNotFound struct {
+		mockExecutorBlockPopSuccess
+	}
+	mockReceiptSuccess struct {
+		ReceiptService
+	}
+	mockReceiptFail struct {
+		ReceiptService
+	}
+	mockMempoolServiceBlockPopSuccess struct {
+		MempoolService
+	}
+	mockNodeRegistrationServiceBlockPopSuccess struct {
+		NodeRegistrationService
+	}
+)
+
+func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelect(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	transactionQ := query.NewTransactionQuery(&chaintype.MainChain{})
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields))
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
+		"timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
+		"transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(transactionQ.Fields))
+	}
+
+	return db.Query(qStr)
+}
+
+func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetSmithScale(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+		),
+	)
+	return db.QueryRow(qStr), nil
+}
+
+func (*mockNodeRegistrationServiceBlockPopSuccess) ResetScrambledNodes() {
+
+}
+
+func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
+	height uint32,
+) ([]*model.MempoolTransaction, error) {
+	return make([]*model.MempoolTransaction, 0), nil
+}
+
+func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return make([]*model.PublishedReceipt, 0), nil
+}
+
+func (*mockReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, errors.New("mockError")
+}
+
+func (*mockExecutorBlockPopSuccess) BeginTx() error {
+	return nil
+}
+
+func (*mockExecutorBlockPopSuccess) CommitTx() error {
+	return nil
+}
+
+func (*mockExecutorBlockPopSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+func (*mockExecutorBlockPopSuccess) RollbackTx() error {
+	return nil
+}
+func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	transactionQ := query.NewTransactionQuery(&chaintype.MainChain{})
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields).AddRow(
+				mockGoodCommonBlock.GetID(),
+				mockGoodCommonBlock.GetBlockHash(),
+				mockGoodCommonBlock.GetPreviousBlockHash(),
+				mockGoodCommonBlock.GetHeight(),
+				mockGoodCommonBlock.GetTimestamp(),
+				mockGoodCommonBlock.GetBlockSeed(),
+				mockGoodCommonBlock.GetBlockSignature(),
+				mockGoodCommonBlock.GetCumulativeDifficulty(),
+				mockGoodCommonBlock.GetSmithScale(),
+				mockGoodCommonBlock.GetPayloadLength(),
+				mockGoodCommonBlock.GetPayloadHash(),
+				mockGoodCommonBlock.GetBlocksmithPublicKey(),
+				mockGoodCommonBlock.GetTotalAmount(),
+				mockGoodCommonBlock.GetTotalFee(),
+				mockGoodCommonBlock.GetTotalCoinBase(),
+				mockGoodCommonBlock.GetVersion(),
+			),
+		)
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
+		"timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
+		"transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(transactionQ.Fields))
+	}
+
+	return db.Query(qStr)
+}
+
+func (*mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetSmithScale(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+		),
+	)
+	return db.QueryRow(qStr), nil
+}
+
+func TestBlockService_PopOffToBlock(t *testing.T) {
+	type fields struct {
+		RWMutex                 sync.RWMutex
+		Chaintype               chaintype.ChainType
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		Observer                *observer.Observer
+		SortedBlocksmiths       *[]model.Blocksmith
+		Logger                  *log.Logger
+	}
+	type args struct {
+		commonBlock *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.Block
+		wantErr bool
+	}{
+		{
+			name: "Fail - GetLastBlock",
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockExecutorBlockPopGetLastBlockFail{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				commonBlock: mockGoodCommonBlock,
+			},
+			want:    make([]*model.Block, 0),
+			wantErr: true,
+		},
+		{
+			name: "Fail - HardFork",
+			fields: fields{
+				RWMutex:                 sync.RWMutex{},
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockExecutorBlockPopSuccess{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				commonBlock: mockBadCommonBlockHardFork,
+			},
+			want:    make([]*model.Block, 0),
+			wantErr: false,
+		},
+		{
+			name: "Fail - CommonBlockNotFound",
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockExecutorBlockPopFailCommonNotFound{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				commonBlock: mockGoodCommonBlock,
+			},
+			want:    make([]*model.Block, 0),
+			wantErr: true,
+		},
+		{
+			name: "Fail - GetPublishedReceiptError",
+			fields: fields{
+				RWMutex:                 sync.RWMutex{},
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockExecutorBlockPopSuccess{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				commonBlock: mockGoodCommonBlock,
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "Success",
+			fields: fields{
+				RWMutex:                 sync.RWMutex{},
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockExecutorBlockPopSuccess{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptFail{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				commonBlock: mockGoodCommonBlock,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:               tt.fields.Chaintype,
+				KVExecutor:              tt.fields.KVExecutor,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ReceiptService:          tt.fields.ReceiptService,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Observer:                tt.fields.Observer,
+				SortedBlocksmiths:       tt.fields.SortedBlocksmiths,
+				Logger:                  tt.fields.Logger,
+			}
+			got, err := bs.PopOffToBlock(tt.args.commonBlock)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PopOffToBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PopOffToBlock() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
