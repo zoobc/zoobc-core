@@ -825,6 +825,7 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	// get transaction of the block
 	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
 	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1409,9 +1410,6 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	var poppedBlocks []*model.Block
 	block := lastBlock
 
-	txs, _ := bs.GetTransactionsByBlockID(block.ID)
-	block.Transactions = txs
-
 	// TODO:
 	// Need to refactor this codes with better solution in the future
 	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
@@ -1421,17 +1419,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 	block.PublishedReceipts = publishedReceipts
 
-	genesisBlockID := bs.Chaintype.GetGenesisBlockID()
-	for block.ID != commonBlock.ID && block.ID != genesisBlockID {
+	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
-
 		block, err = bs.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			return nil, err
 		}
-		txs, _ := bs.GetTransactionsByBlockID(block.ID)
-		block.Transactions = txs
-
 		publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
