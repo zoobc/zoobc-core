@@ -16,9 +16,9 @@ const (
 	// BlacklistingPeriod, how long a peer in blaclisting status
 	BlacklistingPeriod uint64 = 3600
 	// ConnectPriorityPeersGapScale, the gap scale of conneting priority schedule
-	ConnectPriorityPeersGapScale = 10
+	ConnectPriorityPeersGapScale uint32 = 1
 	// ConnectPriorityPeersGap, interval of peer thread trying connect to priority peer (in second)
-	ConnectPriorityPeersGap uint = ConnectPriorityPeersGapScale * PriorityStrategyMaxPriorityPeers
+	ConnectPriorityPeersGap uint32 = PriorityStrategyBuildScrambleNodesGap / ConnectPriorityPeersGapScale
 	// NumberOfPriorityPeersToBeAdded how many priority peers we want to add at once
 	NumberOfPriorityPeersToBeAdded int = PriorityStrategyMaxPriorityPeers / 2
 	// PriorityStrategyBuildScrambleNodesGap, interval of scramble thread to build scramble node (in block height)
