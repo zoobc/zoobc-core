@@ -91,47 +91,52 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		unresolvedPeers              = ps.GetUnresolvedPeers()
 		resolvedPeers                = ps.GetResolvedPeers()
 		blacklistedPeers             = ps.GetBlacklistedPeers()
-		exceedMaxUnresolvedPeers     = ps.GetExceedMaxUnresolvedPeers()
+		exceedMaxUnresolvedPeers     = ps.GetExceedMaxUnresolvedPeers() - 1
 		priorityPeers                = ps.GetPriorityPeers()
-		hostAddress                  = &model.Peer{
+		hostModelPeer                = &model.Peer{
 			Info: ps.Host.Info,
 		}
+		hostAddress = p2pUtil.GetFullAddressPeer(hostModelPeer)
 	)
-	ps.Logger.Info("Connecting to priority lists...")
+	ps.Logger.Infoln("Connecting to priority lists...")
+
 	for _, peer := range priorityPeers {
 		if i >= constant.NumberOfPriorityPeersToBeAdded {
 			break
 		}
-
 		priorityPeerAddress := p2pUtil.GetFullAddressPeer(peer)
 
 		if unresolvedPeers[priorityPeerAddress] == nil &&
 			resolvedPeers[priorityPeerAddress] == nil &&
 			blacklistedPeers[priorityPeerAddress] == nil &&
-			p2pUtil.GetFullAddressPeer(hostAddress) != priorityPeerAddress {
+			hostAddress != priorityPeerAddress {
 
-			var j int32
-			// removing unpriority peer if the UnresolvedPeers has reached max
-			for _, unresolvedPeer := range unresolvedPeers {
-				if j < exceedMaxUnresolvedPeers {
-					break
-				}
-				if priorityPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] == nil {
-					err := ps.RemoveUnresolvedPeer(unresolvedPeer)
-					if err != nil {
-						ps.Logger.Error(err.Error())
+			newPeer := *peer
+
+			// removing non priority peers and replacing if no space
+			if exceedMaxUnresolvedPeers >= 0 {
+				for _, unresolvedPeer := range unresolvedPeers {
+					unresolvedPeerAddress := p2pUtil.GetFullAddressPeer(unresolvedPeer)
+					if priorityPeers[unresolvedPeerAddress] == nil {
+						err := ps.RemoveUnresolvedPeer(unresolvedPeer)
+						if err != nil {
+							ps.Logger.Error(err.Error())
+							continue
+						}
+						delete(unresolvedPeers, unresolvedPeerAddress)
+						break
 					}
-					j++
 				}
 			}
 
-			if exceedMaxUnresolvedPeers < 1 || (exceedMaxUnresolvedPeers > 0 && j == exceedMaxUnresolvedPeers) {
-				err := ps.AddToUnresolvedPeer(peer)
-				if err != nil {
-					ps.Logger.Error(err)
-				}
-				i++
+			// add the priority peers to unresolvedPeers
+			err := ps.AddToUnresolvedPeer(&newPeer)
+			if err != nil {
+				ps.Logger.Error(err)
 			}
+			unresolvedPeers[priorityPeerAddress] = &newPeer
+			exceedMaxUnresolvedPeers++
+			i++
 		}
 	}
 
