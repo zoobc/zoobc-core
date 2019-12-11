@@ -108,15 +108,15 @@ func NewPeerServiceClient(
 
 // saveNewConnection cache the connection to peer to keep an open connection, this avoid the overhead of open/close
 // connection on every request
-func (psc *PeerServiceClient) saveNewConnection(destPeer *model.Peer) error {
+func (psc *PeerServiceClient) saveNewConnection(destPeer *model.Peer) (*grpc.ClientConn, error) {
 	psc.PeerConnectionsLock.Lock()
 	defer psc.PeerConnectionsLock.Unlock()
 	connection, err := psc.Dialer(destPeer)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)] = connection
-	return nil
+	return connection, nil
 }
 
 // DeleteConnection delete the cached connection in psc.PeerConnections
@@ -136,12 +136,15 @@ func (psc *PeerServiceClient) DeleteConnection(destPeer *model.Peer) error {
 }
 
 func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error) {
-	var exist *grpc.ClientConn
+	var (
+		exist *grpc.ClientConn
+		err   error
+	)
 	psc.PeerConnectionsLock.RLock()
 	exist = psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
 	psc.PeerConnectionsLock.RUnlock()
 	if exist == nil {
-		err := psc.saveNewConnection(destPeer)
+		exist, err = psc.saveNewConnection(destPeer)
 		if err != nil {
 			return nil, err
 		}
