@@ -22,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 )
 
 func startGrpcServer(
@@ -34,11 +35,18 @@ func startGrpcServer(
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
+	certFile, keyFile string,
 ) {
 
 	chainType := chaintype.GetChainType(0)
 
+	// load/enaple TLS over grpc
+	creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+	if err != nil {
+		logger.Infof("Failed to generate credentials %v. TLC encryption won't be enabled for grpc api", err)
+	}
 	grpcServer := grpc.NewServer(
+		grpc.Creds(creds),
 		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
 			logger,
 			ownerAccountAddress,
@@ -139,10 +147,11 @@ func Start(
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
+	certFile, keyFile string,
 ) {
 	startGrpcServer(
 		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode,
+		ownerAccountAddress, nodefilePath, logger, isDebugMode, certFile, keyFile,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
