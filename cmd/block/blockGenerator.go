@@ -121,6 +121,7 @@ func initialize(
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
+		nil,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,

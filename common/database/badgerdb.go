@@ -58,7 +58,7 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
 	opts := badger.DefaultOptions(filepath.Join(dbPath, dbName))
 	// avoid memory-mapping log files
-	opts.TableLoadingMode, opts.ValueLogLoadingMode = options.FileIO, options.FileIO
+	opts.TableLoadingMode = options.FileIO
 	// limit the in-memory log filesize
 	opts.ValueLogFileSize = 1<<28 - 1
 	// limit in-memory db entries
