@@ -1452,16 +1452,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			return []*model.Block{}, err
 		}
 	}
-	err = bs.QueryExecutor.CommitTx()
-	if err != nil {
-		return []*model.Block{}, err
-	}
 
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-	err = bs.QueryExecutor.BeginTx()
-	if err != nil {
-		return []*model.Block{}, err
-	}
 
 	for _, mempool := range mempoolsBackup {
 		var (
