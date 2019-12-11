@@ -64,6 +64,7 @@ func GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uint32 {
 		return uint32(numberOfSortedBlocksmiths) // avoid overflow
 	}
 	if (numberOfSortedBlocksmiths - 1) < constant.PriorityStrategyMaxPriorityPeers {
+		// return all blocksmiths excepth the node itself
 		return uint32(numberOfSortedBlocksmiths - 1)
 	}
 	return constant.PriorityStrategyMaxPriorityPeers
