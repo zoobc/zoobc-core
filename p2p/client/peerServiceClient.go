@@ -136,16 +136,18 @@ func (psc *PeerServiceClient) DeleteConnection(destPeer *model.Peer) error {
 }
 
 func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error) {
-	if psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)] == nil {
+	var exist *grpc.ClientConn
+	psc.PeerConnectionsLock.RLock()
+	exist = psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
+	psc.PeerConnectionsLock.RUnlock()
+	if exist == nil {
 		err := psc.saveNewConnection(destPeer)
 		if err != nil {
 			return nil, err
 		}
 	}
-	psc.PeerConnectionsLock.Lock()
-	defer psc.PeerConnectionsLock.Unlock()
 	// add a copy to avoid pointer delete
-	return psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)], nil
+	return exist, nil
 }
 
 // setDefaultMetadata use to set default metadata.
