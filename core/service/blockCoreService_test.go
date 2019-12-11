@@ -3765,6 +3765,9 @@ type (
 	mockMempoolServiceBlockPopSuccess struct {
 		MempoolService
 	}
+	mockMempoolServiceBlockPopFail struct {
+		MempoolService
+	}
 	mockNodeRegistrationServiceBlockPopSuccess struct {
 		NodeRegistrationService
 	}
@@ -3830,6 +3833,12 @@ func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
 	height uint32,
 ) ([]*model.MempoolTransaction, error) {
 	return make([]*model.MempoolTransaction, 0), nil
+}
+
+func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
+	height uint32,
+) ([]*model.MempoolTransaction, error) {
+	return nil, errors.New("mockedError")
 }
 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
@@ -4080,7 +4089,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Success",
+			name: "Fail - GetMempoolToBackupFail",
 			fields: fields{
 				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.MainChain{},
@@ -4093,8 +4102,8 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
-				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockReceiptFail{},
+				MempoolService:          &mockMempoolServiceBlockPopFail{},
+				ReceiptService:          &mockReceiptSuccess{},
 				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
@@ -4109,6 +4118,37 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: true,
+		},
+		{
+			name: "Success",
+			fields: fields{
+				RWMutex:                 sync.RWMutex{},
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockExecutorBlockPopSuccess{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				SortedBlocksmiths:       nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				commonBlock: mockGoodCommonBlock,
+			},
+			want:    nil,
+			wantErr: false,
 		},
 	}
 
