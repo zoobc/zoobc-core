@@ -59,9 +59,12 @@ func GenerateBatchReceiptWithReminder(
 	return batchReceipt, nil
 }
 
-func GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) int {
+func GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uint32 {
 	if numberOfSortedBlocksmiths < constant.PriorityStrategyMaxPriorityPeers {
-		return numberOfSortedBlocksmiths - 1
+		if numberOfSortedBlocksmiths == 0 {
+			return uint32(numberOfSortedBlocksmiths) // avoid overflow
+		}
+		return uint32(numberOfSortedBlocksmiths - 1)
 	}
 	return constant.PriorityStrategyMaxPriorityPeers
 }
