@@ -160,3 +160,32 @@ func TestGenerateBatchReceiptWithReminder(t *testing.T) {
 		})
 	}
 }
+
+func TestGetNumberOfMaxReceipts(t *testing.T) {
+	type args struct {
+		numberOfSortedBlocksmiths int
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			name: "TotalBlocksmiths < PriorityConstant",
+			args: args{numberOfSortedBlocksmiths: constant.PriorityStrategyMaxPriorityPeers - 1},
+			want: constant.PriorityStrategyMaxPriorityPeers - 2,
+		},
+		{
+			name: "TotalBlocksmiths > PriorityConstant",
+			args: args{numberOfSortedBlocksmiths: constant.PriorityStrategyMaxPriorityPeers + 2},
+			want: constant.PriorityStrategyMaxPriorityPeers,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetNumberOfMaxReceipts(tt.args.numberOfSortedBlocksmiths); got != tt.want {
+				t.Errorf("GetNumberOfMaxReceipts() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
