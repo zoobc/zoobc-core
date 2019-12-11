@@ -454,7 +454,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			uint32(coreUtil.GetNumberOfMaxReceipts(len(*bs.SortedBlocksmiths)-1)),
+			coreUtil.GetNumberOfMaxReceipts(len(*bs.SortedBlocksmiths)-1),
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -1265,7 +1265,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
-		uint32(coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight))),
+		coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
 	)
 	if err != nil {
 		return nil, err

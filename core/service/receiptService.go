@@ -21,7 +21,7 @@ type (
 	ReceiptServiceInterface interface {
 		SelectReceipts(
 			blockTimestamp int64,
-			numberOfReceipt int,
+			numberOfReceipt uint32,
 			lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
 		GenerateReceiptsMerkleRoot() error
@@ -76,7 +76,7 @@ func NewReceiptService(
 // increase the participation score of the node
 func (rs *ReceiptService) SelectReceipts(
 	blockTimestamp int64,
-	numberOfReceipt int,
+	numberOfReceipt uint32,
 	lastBlockHeight uint32,
 ) ([]*model.PublishedReceipt, error) {
 	var (
@@ -140,7 +140,7 @@ func (rs *ReceiptService) SelectReceipts(
 		merkle := util.MerkleRoot{}
 		merkle.HashTree = merkle.FromBytes(linkedReceiptTree[rcRoot], []byte(rcRoot))
 		for _, rc := range rcReceipt {
-			if len(results) >= numberOfReceipt {
+			if len(results) >= int(numberOfReceipt) {
 				break
 			}
 			err = rs.ValidateReceipt(rc.BatchReceipt)
@@ -170,7 +170,7 @@ func (rs *ReceiptService) SelectReceipts(
 		}
 	}
 	// select non-linked receipt
-	if len(results) < numberOfReceipt {
+	if len(results) < int(numberOfReceipt) {
 		rmrLinkedReceipts, err := rs.pickReceipts(
 			numberOfReceipt, results, pickedRecipients, lowerBlockHeight, lastBlockHeight)
 		if err != nil {
@@ -183,7 +183,7 @@ func (rs *ReceiptService) SelectReceipts(
 }
 
 func (rs *ReceiptService) pickReceipts(
-	numberOfReceipt int,
+	numberOfReceipt uint32,
 	pickedReceipts []*model.PublishedReceipt,
 	pickedRecipients map[string]bool,
 	lowerBlockHeight, upperBlockHeight uint32,
