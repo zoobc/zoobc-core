@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 
 	log "github.com/sirupsen/logrus"
@@ -25,10 +26,10 @@ type (
 	ForkingProcessor struct {
 		ChainType          chaintype.ChainType
 		BlockService       service.BlockServiceInterface
-		BlockPopper        *BlockPopper
 		QueryExecutor      query.ExecutorInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
+		KVExecutor         kvdb.KVExecutorInterface
 		Logger             *log.Logger
 		PeerExplorer       strategy.PeerExplorerStrategyInterface
 	}
@@ -49,7 +50,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		return err
 	}
 	beforeApplyCumulativeDifficulty := lastBlockBeforeProcess.CumulativeDifficulty
-	myPoppedOffBlocks, err = fp.BlockPopper.PopOffToBlock(commonBlock)
+	myPoppedOffBlocks, err = fp.BlockService.PopOffToBlock(commonBlock)
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	// if after applying the fork blocks the cumulative difficulty is still less than current one
 	// only take the transactions to be processed, but later will get back to our own fork
 	if pushedForkBlocks > 0 && currentCumulativeDifficulty.Cmp(cumulativeDifficultyOriginalBefore) < 0 {
-		peerPoppedOffBlocks, err = fp.BlockPopper.PopOffToBlock(commonBlock)
+		peerPoppedOffBlocks, err = fp.BlockService.PopOffToBlock(commonBlock)
 		if err != nil {
 			return err
 		}
@@ -228,7 +229,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		err                 error
 	)
 
-	mempoolsBackupBytes, err = fp.BlockPopper.KVDB.Get(constant.KVDBMempoolsBackup)
+	mempoolsBackupBytes, err = fp.KVExecutor.Get(constant.KVDBMempoolsBackup)
 	if err != nil {
 		return err
 	}

@@ -626,7 +626,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 	}
 	type args struct {
 		blockTimestamp  int64
-		numberOfReceipt int
+		numberOfReceipt uint32
 	}
 	tests := []struct {
 		name    string

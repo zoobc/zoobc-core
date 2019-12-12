@@ -47,6 +47,7 @@ var (
 	db                                      *sql.DB
 	badgerDb                                *badger.DB
 	apiRPCPort, apiHTTPPort, monitoringPort int
+	apiCertFile, apiKeyFile                       string
 	peerPort                                uint32
 	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
 	queryExecutor                           *query.Executor
@@ -168,6 +169,8 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	nodeKeyFile = viper.GetString("nodeKeyFile")
 	isNodePreSeed = viper.IsSet("nodeSeed")
 	nodePreSeed = viper.GetString("nodeSeed")
+	apiCertFile = viper.GetString("apiapiCertFile")
+	apiKeyFile = viper.GetString("apiKeyFile")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
@@ -291,6 +294,8 @@ func startServices() {
 		nodeKeyFilePath,
 		loggerAPIService,
 		isDebugMode,
+		apiCertFile,
+		apiKeyFile,
 	)
 
 	if isDebugMode {
@@ -428,8 +433,6 @@ func startMainchain() {
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
-		nodeRegistrationService,
-		receiptService,
 	)
 
 	go func() {

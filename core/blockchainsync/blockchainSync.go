@@ -36,8 +36,6 @@ func NewBlockchainSyncService(
 	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
 	kvdb kvdb.KVExecutorInterface,
-	nodeRegistrationService service.NodeRegistrationServiceInterface,
-	receiptService service.ReceiptServiceInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -57,18 +55,8 @@ func NewBlockchainSyncService(
 			QueryExecutor:      queryExecutor,
 			ActionTypeSwitcher: txActionSwitcher,
 			MempoolService:     mempoolService,
+			KVExecutor:         kvdb,
 			Logger:             logger,
-			BlockPopper: &BlockPopper{
-				ChainType:               blockService.GetChainType(),
-				BlockService:            blockService,
-				MempoolService:          mempoolService,
-				NodeRegistrationService: nodeRegistrationService,
-				QueryExecutor:           queryExecutor,
-				ActionTypeSwitcher:      txActionSwitcher,
-				KVDB:                    kvdb,
-				Logger:                  logger,
-				ReceiptService:          receiptService,
-			},
 		},
 		Logger: logger,
 	}
