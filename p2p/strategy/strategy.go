@@ -22,8 +22,7 @@ type (
 		GetPriorityPeers() map[string]*model.Peer
 		AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error
 		GetBlacklistedPeers() map[string]*model.Peer
-		AddToBlacklistPeer(peer *model.Peer) error
-		RemoveBlacklistedPeer(peer *model.Peer) error
+		PeerBlacklist(peer *model.Peer, cause string) error
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
 		ValidateRequest(ctx context.Context) bool

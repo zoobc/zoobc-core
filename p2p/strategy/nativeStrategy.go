@@ -451,17 +451,18 @@ func (ns *NativeStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ns.GetResolvedPeers())) - ns.MaxResolvedPeers + 1
 }
 
-func (ns *NativeStrategy) PeerBlacklist(peer *model.Peer, cause string) {
+func (ns *NativeStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
 	if err := ns.AddToBlacklistPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+		return err
 	}
 	if err := ns.RemoveUnresolvedPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+		return err
 	}
 	if err := ns.RemoveResolvedPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+		return err
 	}
+	return nil
 }
 
 // PeerUnblacklist to update Peer state of peer

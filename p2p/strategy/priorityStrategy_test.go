@@ -811,7 +811,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 }
 
-func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
+func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	type args struct {
 		hostInstance *model.Host
 		newPeer      *model.Peer
@@ -819,11 +819,12 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        args
+		reason      string
 		wantContain *model.Peer
 		wantErr     bool
 	}{
 		{
-			name: "Host:AddToBlacklistPeer success",
+			name: "Host:AddToBlacklistedPeer success",
 			args: args{
 				hostInstance: priorityStrategyGoodHostInstance,
 				newPeer: &model.Peer{
@@ -832,9 +833,9 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 						Address:       "127.0.0.1",
 						Port:          3001,
 					},
-					BlacklistingCause: "error",
 				},
 			},
+			reason: "error",
 			wantContain: &model.Peer{
 				Info: &model.Node{
 					SharedAddress: "127.0.0.1",
@@ -847,7 +848,7 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Host:AddToBlacklistPeer fails",
+			name: "Host:AddToBlacklistedPeer fails",
 			args: args{
 				hostInstance: nil,
 				newPeer:      nil,
@@ -859,9 +860,9 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
-			err := ps.AddToBlacklistPeer(tt.args.newPeer)
+			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddToBlacklistPeer error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddToBlacklistedPeer error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
@@ -871,7 +872,7 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 						return
 					}
 				}
-				t.Errorf("AddToBlacklistPeer() = %v, want %v", peers, tt.wantContain)
+				t.Errorf("AddToBlacklistedPeer() = %v, want %v", peers, tt.wantContain)
 			}
 		})
 	}

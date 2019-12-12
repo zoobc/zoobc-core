@@ -716,14 +716,15 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 	return newBlacklistedPeers
 }
 
-// AddToBlacklistPeer to add a peer into resolved peer
-func (ps *PriorityStrategy) AddToBlacklistPeer(peer *model.Peer) error {
+// AddToBlacklistedPeer to add a peer into resolved peer
+func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, cause string) error {
 
 	if peer == nil {
-		return errors.New("AddToBlacklist Peer Err, peer is nil")
+		return errors.New("AddToBlacklisted Peer Err, peer is nil")
 	}
 
 	peer.BlacklistingTime = uint64(time.Now().UTC().Unix())
+	peer.BlacklistingCause = cause
 
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
@@ -774,18 +775,19 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ps.GetResolvedPeers())) - ps.MaxResolvedPeers + 1
 }
 
-// PeerBlackList returns blacklist
-func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) {
-	peer.BlacklistingCause = cause
-	if err := ps.AddToBlacklistPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+// PeerBlacklist returns blacklist
+func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
+	if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
+		return err
 	}
 	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+		return err
 	}
 	if err := ps.RemoveResolvedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+		return err
 	}
+
+	return nil
 }
 
 // PeerUnblacklist to update Peer state of peer
