@@ -35,15 +35,17 @@ func startGrpcServer(
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
-	certFile, keyFile string,
+	apiCertFile, apiKeyFile string,
 ) {
 
 	chainType := chaintype.GetChainType(0)
 
 	// load/enaple TLS over grpc
-	creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+	creds, err := credentials.NewServerTLSFromFile(apiCertFile, apiKeyFile)
 	if err != nil {
-		logger.Infof("Failed to generate credentials %v. TLC encryption won't be enabled for grpc api", err)
+		logger.Infof("Failed to generate credentials %v. TLS encryption won't be enabled for grpc api", err)
+	} else {
+		logger.Info("TLS certificate loaded. rpc api will use encryption at transport level")
 	}
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds),
@@ -147,11 +149,11 @@ func Start(
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
-	certFile, keyFile string,
+	apiCertFile, apiKeyFile string,
 ) {
 	startGrpcServer(
 		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode, certFile, keyFile,
+		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
