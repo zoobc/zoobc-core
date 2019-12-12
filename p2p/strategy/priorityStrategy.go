@@ -716,7 +716,7 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 	return newBlacklistedPeers
 }
 
-// AddToBlacklistedPeer to add a peer into resolved peer
+// AddToBlacklistedPeer to add a peer into blacklisted peer
 func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, cause string) error {
 
 	if peer == nil {
@@ -775,15 +775,18 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ps.GetResolvedPeers())) - ps.MaxResolvedPeers + 1
 }
 
-// PeerBlacklist returns blacklist
+// PeerBlacklist returns adding peer into blacklist
 func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
 	if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
+		ps.Logger.Warn(err.Error())
 		return err
 	}
 	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
+		ps.Logger.Warn(err.Error())
 		return err
 	}
 	if err := ps.RemoveResolvedPeer(peer); err != nil {
+		ps.Logger.Warn(err.Error())
 		return err
 	}
 
