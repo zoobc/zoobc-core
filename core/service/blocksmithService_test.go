@@ -1,15 +1,94 @@
 package service
 
 import (
+	"database/sql"
+	"errors"
+	"math/big"
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+var (
+	mockBlock = &model.Block{
+		BlockSeed: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+	}
+)
+
+type (
+	mockQueryExecutorGetBlocksmithsSuccessNoBlocksmith struct {
+		query.Executor
+	}
+	mockQueryExecutorGetBlocksmithsSuccessWithBlocksmith struct {
+		query.Executor
+	}
+
+	mockQueryExecutorSortBlocksmithSuccessWithBlocksmiths struct {
+		query.Executor
+	}
+	mockQueryExecutorGetBlocksmithsFail struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorGetBlocksmithsFail) ExecuteSelect(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	return nil, errors.New("mockError")
+}
+
+func (*mockQueryExecutorGetBlocksmithsSuccessNoBlocksmith) ExecuteSelect(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mockNodeRegistrationQuery := query.NewNodeRegistrationQuery()
+	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(mockNodeRegistrationQuery.Fields))
+	rows, _ := db.Query("foo")
+	return rows, nil
+}
+
+func (*mockQueryExecutorSortBlocksmithSuccessWithBlocksmiths) ExecuteSelect(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(
+		[]string{"NodeID", "PublicKey", "Score"},
+	).AddRow(
+		mockBlocksmiths[0].NodeID,
+		mockBlocksmiths[0].NodePublicKey,
+		mockBlocksmiths[0].Score.String(),
+	).AddRow(
+		mockBlocksmiths[1].NodeID,
+		mockBlocksmiths[1].NodePublicKey,
+		mockBlocksmiths[1].Score.String(),
+	))
+	rows, _ := db.Query("foo")
+	return rows, nil
+}
+
+func (*mockQueryExecutorGetBlocksmithsSuccessWithBlocksmith) ExecuteSelect(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(
+		[]string{"NodeID", "PublicKey", "Score"},
+	).AddRow(
+		mockBlocksmiths[0].NodeID,
+		mockBlocksmiths[0].NodePublicKey,
+		mockBlocksmiths[0].Score.String(),
+	))
+	rows, _ := db.Query("foo")
+	return rows, nil
+}
 func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
 	type fields struct {
 		QueryExecutor            query.ExecutorInterface
@@ -29,7 +108,47 @@ func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
 		want    []*model.Blocksmith
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "fail - ExecuteSelect Fail",
+			fields: fields{
+				QueryExecutor:         &mockQueryExecutorGetBlocksmithsFail{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                log.New(),
+			},
+			args:    args{&model.Block{}},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "success - no blocksmiths",
+			fields: fields{
+				QueryExecutor:         &mockQueryExecutorGetBlocksmithsSuccessNoBlocksmith{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                log.New(),
+			},
+			args:    args{&model.Block{}},
+			wantErr: false,
+			want:    nil,
+		},
+		{
+			name: "success - with blocksmiths",
+			fields: fields{
+				QueryExecutor:         &mockQueryExecutorGetBlocksmithsSuccessWithBlocksmith{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                log.New(),
+			},
+			args:    args{mockBlock},
+			wantErr: false,
+			want: []*model.Blocksmith{
+				{
+					NodeID:        mockBlocksmiths[0].NodeID,
+					BlockSeed:     -7765827254621503546,
+					NodeOrder:     new(big.Int).SetInt64(13195850646937615),
+					Score:         mockBlocksmiths[0].Score,
+					NodePublicKey: mockBlocksmiths[0].NodePublicKey,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -67,7 +186,18 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 		fields fields
 		want   []*model.Blocksmith
 	}{
-		// TODO: Add test cases.
+		{
+			name: "success",
+			fields: fields{
+				QueryExecutor:            nil,
+				NodeRegistrationQuery:    nil,
+				Logger:                   nil,
+				SortedBlocksmiths:        mockBlocksmiths,
+				SortedBlocksmithsMap:     nil,
+				SortedBlocksmithsMapLock: sync.RWMutex{},
+			},
+			want: mockBlocksmiths,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,6 +217,11 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 }
 
 func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
+	var mockBlocksmithMap = make(map[string]*int64)
+	for index, mockBlocksmith := range mockBlocksmiths {
+		mockIndex := int64(index)
+		mockBlocksmithMap[string(mockBlocksmith.NodePublicKey)] = &mockIndex
+	}
 	type fields struct {
 		QueryExecutor            query.ExecutorInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
@@ -100,7 +235,18 @@ func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
 		fields fields
 		want   map[string]*int64
 	}{
-		// TODO: Add test cases.
+		{
+			name: "success",
+			fields: fields{
+				QueryExecutor:            nil,
+				NodeRegistrationQuery:    nil,
+				Logger:                   nil,
+				SortedBlocksmiths:        mockBlocksmiths,
+				SortedBlocksmithsMap:     mockBlocksmithMap,
+				SortedBlocksmithsMapLock: sync.RWMutex{},
+			},
+			want: mockBlocksmithMap,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -136,7 +282,21 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 		fields fields
 		args   args
 	}{
-		// TODO: Add test cases.
+
+		{
+			name: "Success",
+			fields: fields{
+				QueryExecutor:            &mockQueryExecutorSortBlocksmithSuccessWithBlocksmiths{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				Logger:                   log.New(),
+				SortedBlocksmiths:        nil,
+				SortedBlocksmithsMap:     make(map[string]*int64),
+				SortedBlocksmithsMapLock: sync.RWMutex{},
+			},
+			args: args{
+				block: mockBlock,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -149,11 +309,20 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
 			}
 			bss.SortBlocksmiths(tt.args.block)
+			if bss.SortedBlocksmiths[0].NodeID != mockBlocksmiths[1].NodeID &&
+				bss.SortedBlocksmiths[1].NodeID != mockBlocksmiths[0].NodeID {
+				t.Errorf("sorting fail")
+			}
 		})
 	}
 }
 
 func TestBlocksmithService_copyBlocksmithsToMap(t *testing.T) {
+	var mockBlocksmithMap = make(map[string]*int64)
+	for index, mockBlocksmith := range mockBlocksmiths {
+		mockIndex := int64(index)
+		mockBlocksmithMap[string(mockBlocksmith.NodePublicKey)] = &mockIndex
+	}
 	type fields struct {
 		QueryExecutor            query.ExecutorInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
@@ -170,7 +339,18 @@ func TestBlocksmithService_copyBlocksmithsToMap(t *testing.T) {
 		fields fields
 		args   args
 	}{
-		// TODO: Add test cases.
+		{
+			name: "success",
+			fields: fields{
+				QueryExecutor:            nil,
+				NodeRegistrationQuery:    nil,
+				Logger:                   nil,
+				SortedBlocksmiths:        mockBlocksmiths,
+				SortedBlocksmithsMap:     make(map[string]*int64),
+				SortedBlocksmithsMapLock: sync.RWMutex{},
+			},
+			args: args{blocksmiths: mockBlocksmiths},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -183,6 +363,9 @@ func TestBlocksmithService_copyBlocksmithsToMap(t *testing.T) {
 				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
 			}
 			bss.copyBlocksmithsToMap(tt.args.blocksmiths)
+			if !reflect.DeepEqual(bss.SortedBlocksmithsMap, mockBlocksmithMap) {
+				t.Errorf("copy fail")
+			}
 		})
 	}
 }
@@ -198,7 +381,13 @@ func TestNewBlocksmithService(t *testing.T) {
 		args args
 		want *BlocksmithService
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Success",
+			args: args{
+				logger: nil,
+			},
+			want: NewBlocksmithService(nil, nil, nil),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

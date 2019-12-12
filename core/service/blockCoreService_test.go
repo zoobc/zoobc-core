@@ -849,11 +849,13 @@ var (
 			NodePublicKey: bcsNodePubKey1,
 			NodeID:        2,
 			NodeOrder:     new(big.Int).SetInt64(1000),
+			Score:         new(big.Int).SetInt64(1000),
 		},
 		{
 			NodePublicKey: bcsNodePubKey2,
 			NodeID:        3,
 			NodeOrder:     new(big.Int).SetInt64(2000),
+			Score:         new(big.Int).SetInt64(2000),
 		},
 	}
 )

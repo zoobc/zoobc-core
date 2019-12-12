@@ -42,7 +42,6 @@ func NewBlocksmithService(
 	}
 }
 
-// todo: move this to blocksmith service
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
 func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
