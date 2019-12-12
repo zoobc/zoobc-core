@@ -200,6 +200,9 @@ func (rs *ReceiptService) pickReceipts(
 		return nil, err
 	}
 	for _, rc := range receipts {
+		if len(pickedReceipts) >= int(numberOfReceipt) {
+			break
+		}
 		errValid := rs.ValidateReceipt(rc.BatchReceipt)
 		if errValid != nil {
 			// skipped invalid receipt
