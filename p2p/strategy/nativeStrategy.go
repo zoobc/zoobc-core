@@ -451,7 +451,7 @@ func (ns *NativeStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ns.GetResolvedPeers())) - ns.MaxResolvedPeers + 1
 }
 
-// PeerBlacklist to add blacklisted peer
+// PeerBlacklist process to add blacklisted peer
 func (ns *NativeStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
 	if err := ns.AddToBlacklistPeer(peer); err != nil {

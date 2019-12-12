@@ -775,7 +775,7 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ps.GetResolvedPeers())) - ps.MaxResolvedPeers + 1
 }
 
-// PeerBlacklist returns adding peer into blacklist
+// PeerBlacklist process adding peer into blacklist
 func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
 	if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
 		ps.Logger.Warn(err.Error())
