@@ -456,7 +456,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			uint32(len(*bs.SortedBlocksmiths)-1),
+			coreUtil.GetNumberOfMaxReceipts(len(*bs.SortedBlocksmiths)),
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -950,15 +950,10 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 			payloadLength += txType.GetSize()
 		}
-		if len(*bs.SortedBlocksmiths) < constant.PriorityStrategyMaxPriorityPeers {
-			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-				timestamp, len(*bs.SortedBlocksmiths)-1, previousBlock.Height,
-			)
-		} else {
-			publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-				timestamp, constant.PriorityStrategyMaxPriorityPeers, previousBlock.Height,
-			)
-		}
+		publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+			timestamp, coreUtil.GetNumberOfMaxReceipts(len(*bs.SortedBlocksmiths)), previousBlock.Height,
+		)
+
 		if err != nil {
 			return nil, err
 		}
@@ -1321,7 +1316,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
-		uint32(len(nodeRegistryAtHeight)),
+		coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
 	)
 	if err != nil {
 		return nil, err
