@@ -433,8 +433,6 @@ func startMainchain() {
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
-		nodeRegistrationService,
-		receiptService,
 	)
 
 	go func() {

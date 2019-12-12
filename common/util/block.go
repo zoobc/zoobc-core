@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -109,4 +111,11 @@ func GetBlockByHeight(
 		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
 	}
 	return blocks[0], nil
+}
+
+func GetMinRollbackHeight(currentHeight uint32) uint32 {
+	if currentHeight < constant.MinRollbackBlocks {
+		return 0
+	}
+	return currentHeight - constant.MinRollbackBlocks
 }
