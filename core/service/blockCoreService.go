@@ -1136,13 +1136,22 @@ func (bs *BlockService) ReceiveBlock(
 				}
 				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
 				if err != nil {
-					_ = bs.PushBlock(previousBlock, lastBlocks[0], false)
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					if errPushBlock != nil {
+						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						return status.Error(codes.InvalidArgument, "InvalidBlock")
+					}
+
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
 				err = bs.PushBlock(lastBlock, block, true)
 				if err != nil {
-					_ = bs.PushBlock(previousBlock, lastBlocks[0], false)
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					if errPushBlock != nil {
+						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						return status.Error(codes.InvalidArgument, "InvalidBlock")
+					}
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
