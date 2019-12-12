@@ -270,7 +270,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
-				err := bd.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
+				feederPeer.BlacklistingCause = err.Error()
+				err := bd.PeerExplorer.AddToBlacklistPeer(feederPeer)
 				if err != nil {
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
 				}
@@ -279,7 +280,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
-				err := bd.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
+				feederPeer.BlacklistingCause = err.Error()
+				err := bd.PeerExplorer.AddToBlacklistPeer(feederPeer)
 				if err != nil {
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
 				}
@@ -315,7 +317,8 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 	lastBlockID := lastBlock.ID
 	for {
 		if trialCounter >= constant.MaxCommonMilestoneRequestTrial {
-			err := bd.PeerExplorer.AddToBlacklistedPeer(peer, "different blockchain fork")
+			peer.BlacklistingCause = "different blockchain fork"
+			err := bd.PeerExplorer.AddToBlacklistPeer(peer)
 			if err != nil {
 				bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
 			}

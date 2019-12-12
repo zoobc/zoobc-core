@@ -811,7 +811,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 }
 
-func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
+func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 	type args struct {
 		hostInstance *model.Host
 		newPeer      *model.Peer
@@ -824,7 +824,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 		wantErr     bool
 	}{
 		{
-			name: "Host:AddToBlacklistedPeer success",
+			name: "Host:AddToBlacklistPeer success",
 			args: args{
 				hostInstance: priorityStrategyGoodHostInstance,
 				newPeer: &model.Peer{
@@ -848,7 +848,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Host:AddToBlacklistedPeer fails",
+			name: "Host:AddToBlacklistPeer fails",
 			args: args{
 				hostInstance: nil,
 				newPeer:      nil,
@@ -860,9 +860,9 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
-			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
+			err := ps.AddToBlacklistPeer(tt.args.newPeer)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddToBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddToBlacklistPeer error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {
@@ -872,7 +872,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 						return
 					}
 				}
-				t.Errorf("AddToBlacklistedPeer() = %v, want %v", peers, tt.wantContain)
+				t.Errorf("AddToBlacklistPeer() = %v, want %v", peers, tt.wantContain)
 			}
 		})
 	}

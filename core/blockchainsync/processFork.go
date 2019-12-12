@@ -73,7 +73,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 				if err != nil {
-					err := fp.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
+					feederPeer.BlacklistingCause = err.Error()
+					err := fp.PeerExplorer.AddToBlacklistPeer(feederPeer)
 					if err != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
 					}
@@ -81,7 +82,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
-					err := fp.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
+					feederPeer.BlacklistingCause = err.Error()
+					err := fp.PeerExplorer.AddToBlacklistPeer(feederPeer)
 					if err != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
 					}
@@ -125,7 +127,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			}
 			err = fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
-				err := fp.PeerExplorer.AddToBlacklistedPeer(feederPeer, err.Error())
+				feederPeer.BlacklistingCause = err.Error()
+				err := fp.PeerExplorer.AddToBlacklistPeer(feederPeer)
 				if err != nil {
 					fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
 				}
