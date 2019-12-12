@@ -390,6 +390,11 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
 						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
 					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, "10.10.10.3", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
+				case "4":
+					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
+						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, mockGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, "10.10.10.3", 100000000,
+						uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				}
 			}
 		}
@@ -857,6 +862,12 @@ var (
 			NodeOrder:     new(big.Int).SetInt64(2000),
 			Score:         new(big.Int).SetInt64(2000),
 		},
+		{
+			NodePublicKey: mockBlockData.BlocksmithPublicKey,
+			NodeID:        4,
+			NodeOrder:     new(big.Int).SetInt64(3000),
+			Score:         new(big.Int).SetInt64(3000),
+		},
 	}
 )
 
@@ -868,6 +879,14 @@ type (
 
 func (*mockBlocksmithServicePushBlock) GetSortedBlocksmiths() []*model.Blocksmith {
 	return mockBlocksmiths
+}
+func (*mockBlocksmithServicePushBlock) GetSortedBlocksmithsMap() map[string]*int64 {
+	var result = make(map[string]*int64)
+	for index, mock := range mockBlocksmiths {
+		mockIndex := int64(index)
+		result[string(mock.NodePublicKey)] = &mockIndex
+	}
+	return result
 }
 func (*mockBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block) {
 }
@@ -2235,6 +2254,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			BlockSignature:       nil,
 			CumulativeDifficulty: "200",
 			SmithScale:           1,
+			Timestamp:            10000,
 			BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
 		}
 		successBlockHash = []byte{
@@ -2303,7 +2323,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithService:       nil,
+				BlocksmithService:       &mockBlocksmithService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2334,7 +2354,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
-				BlocksmithService:       nil,
+				BlocksmithService:       &mockBlocksmithService{},
 				NodeRegistrationService: nil,
 			},
 			wantErr: true,
@@ -2362,7 +2382,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithService:       nil,
+				BlocksmithService:       &mockBlocksmithService{},
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2408,7 +2428,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithService:       nil,
+				BlocksmithService:       &mockBlocksmithService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2433,7 +2453,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: nil,
-				BlocksmithService:       nil,
+				BlocksmithService:       &mockBlocksmithService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2780,8 +2800,9 @@ type (
 func (*mockBlocksmithService) GetSortedBlocksmiths() []*model.Blocksmith {
 	return []*model.Blocksmith{
 		{
-			NodeID:    1,
-			NodeOrder: new(big.Int).SetInt64(8000),
+			NodeID:        1,
+			NodeOrder:     new(big.Int).SetInt64(8000),
+			NodePublicKey: []byte{1, 3, 4, 5, 6},
 		},
 		{
 			NodeID:    2,
@@ -3013,6 +3034,58 @@ func (*mockQueryExecutorValidateBlockSuccess) ExecuteSelect(qStr string, tx bool
 	return rows, nil
 }
 
+var (
+	mockValidateBadBlockInvalidBlockHash = &model.Block{
+		Timestamp:           1572246820,
+		BlockSignature:      []byte{},
+		BlocksmithPublicKey: []byte{1, 2, 3, 4},
+		PreviousBlockHash:   []byte{},
+	}
+
+	mockValidateBadBlockInvalidCumulativeDifficulty = &model.Block{
+		Timestamp:            1572246820,
+		BlockSignature:       []byte{},
+		BlocksmithPublicKey:  []byte{1, 2, 3, 4},
+		CumulativeDifficulty: "10",
+	}
+	mockValidateBlockSuccess = &model.Block{
+		Timestamp: 1572246820,
+		ID:        constant.MainchainGenesisBlockID,
+		BlockHash: make([]byte, 32),
+		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
+			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+		Height: 1,
+		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+		CumulativeDifficulty: "1000",
+		SmithScale:           1,
+		PayloadLength:        1,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		TotalAmount:   1000,
+		TotalFee:      0,
+		TotalCoinBase: 1,
+		Version:       0,
+	}
+)
+
+type (
+	mockBlocksmithServiceValidateBlockSuccess struct {
+		BlocksmithService
+	}
+)
+
+func (*mockBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap() map[string]*int64 {
+	firstIndex := int64(0)
+	secondIndex := int64(1)
+	return map[string]*int64{
+		string(mockValidateBadBlockInvalidBlockHash.BlocksmithPublicKey): &firstIndex,
+		string(mockBlockData.BlocksmithPublicKey):                        &secondIndex,
+	}
+}
+
 func TestBlockService_ValidateBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -3030,6 +3103,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlocksmithService       BlocksmithServiceInterface
 		Observer                *observer.Observer
 		Logger                  *log.Logger
 	}
@@ -3056,7 +3130,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "ValidateBlock:fail-{InvalidSignature}",
+			name: "ValidateBlock:fail-{notInBlocksmithList}",
 			args: args{
 				block: &model.Block{
 					Timestamp:           1572246820,
@@ -3066,23 +3140,33 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime: 1572246820,
 			},
 			fields: fields{
-				Signature: &mockSignatureFail{},
+				Signature:         &mockSignatureFail{},
+				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateBlock:fail-{InvalidSignature}",
+			args: args{
+				block:   mockValidateBadBlockInvalidBlockHash,
+				curTime: 1572246820,
+			},
+			fields: fields{
+				Signature:         &mockSignatureFail{},
+				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "ValidateBlock:fail-{InvalidBlockHash}",
 			args: args{
-				block: &model.Block{
-					Timestamp:           1572246820,
-					BlockSignature:      []byte{},
-					BlocksmithPublicKey: []byte{},
-				},
+				block:             mockValidateBadBlockInvalidBlockHash,
 				previousLastBlock: &model.Block{},
 				curTime:           1572246820,
 			},
 			fields: fields{
-				Signature: &mockSignature{},
+				Signature:         &mockSignature{},
+				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
@@ -3101,23 +3185,25 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime:           1572246820,
 			},
 			fields: fields{
-				Signature:     &mockSignature{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockQueryExecutorValidateBlockSuccess{},
+				Signature:         &mockSignature{},
+				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:     &mockQueryExecutorValidateBlockSuccess{},
+				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "ValidateBlock:success",
 			args: args{
-				block:             &mockBlockData,
+				block:             mockValidateBlockSuccess,
 				previousLastBlock: &model.Block{},
-				curTime:           mockBlockData.GetTimestamp(),
+				curTime:           mockValidateBlockSuccess.Timestamp,
 			},
 			fields: fields{
-				Signature:     &mockSignature{},
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockQueryExecutorValidateBlockSuccess{},
+				Signature:         &mockSignature{},
+				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:     &mockQueryExecutorValidateBlockSuccess{},
+				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 		},
 	}
@@ -3139,6 +3225,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlocksmithService:       tt.fields.BlocksmithService,
 				Observer:                tt.fields.Observer,
 				Logger:                  tt.fields.Logger,
 			}

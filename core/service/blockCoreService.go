@@ -253,6 +253,16 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
+	// check if blocksmith can smith at the time
+	blocksmithsMap := bs.BlocksmithService.GetSortedBlocksmithsMap()
+	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
+	if blocksmithIndex == nil {
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
+	}
+	blocksmithTime := coreUtil.GetSmithTime(*blocksmithIndex, previousLastBlock)
+	if blocksmithTime > block.GetTimestamp() {
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
+	}
 	if coreUtil.GetBlockID(block) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
 	}
@@ -503,7 +513,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	bs.Logger.Debugf("Block Pushed ID: %d", block.GetID())
 	// broadcast block
 	if broadcast {
-		fmt.Printf("broadcast loh\n\n")
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
@@ -1047,7 +1056,6 @@ func (bs *BlockService) ReceiveBlock(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
-	fmt.Printf("receive loh\n\n\n")
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
 			blocker.BlockErr,

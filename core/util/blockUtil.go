@@ -3,7 +3,6 @@ package util
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -33,7 +32,6 @@ func GetBlockSeed(nodeID int64, block *model.Block) (int64, error) {
 // GetSmithTime calculate smith time of a blocksmith
 func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
 	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTime
-	fmt.Printf("index; %v\ntime: %v\n\n", blocksmithIndex, elapsedFromLastBlock)
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
