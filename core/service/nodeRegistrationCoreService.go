@@ -336,7 +336,10 @@ func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(
 		err             error
 	)
 	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(blockHeight)
-	if nrs.ScrambledNodes[nearestHeight] == nil {
+	nrs.ScrambledNodesLock.RLock()
+	scrambleNodeExist := nrs.ScrambledNodes[nearestHeight]
+	nrs.ScrambledNodesLock.RUnlock()
+	if scrambleNodeExist == nil {
 		err = nrs.BuildScrambledNodesAtHeight(nearestHeight)
 		if err != nil {
 			return nil, err
