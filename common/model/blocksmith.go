@@ -11,10 +11,10 @@ type Blocksmith struct {
 	NodeID        int64
 	NodePublicKey []byte
 	NodeOrder     *big.Int
-	SmithOrder    *big.Int
+	SmithOrder    uint32
 	Score         *big.Int
 	SmithTime     int64
-	BlockSeed     *big.Int
+	BlockSeed     int64
 	SecretPhrase  string
 	Deadline      uint32
 }

@@ -25,6 +25,7 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
+	blocksmithService       service.BlocksmithServiceInterface
 	sortedBlocksmiths       []model.Blocksmith
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
@@ -131,6 +132,9 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		log.New(),
 	)
+	blocksmithService = service.NewBlocksmithService(
+		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
+	)
 	blockService = service.NewBlockService(
 		chainType,
 		nil,
@@ -150,7 +154,7 @@ func initialize(
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		&sortedBlocksmiths,
+		blocksmithService,
 		log.New(),
 	)
 
@@ -165,6 +169,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		chainType,
 		blocksmith,
 		blockService,
+		blocksmithService,
 		nodeRegistrationService,
 		log.New(),
 	)

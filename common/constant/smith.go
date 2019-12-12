@@ -16,4 +16,8 @@ var (
 	AverageSmithingBlockHeight = uint32(math.MaxInt32)
 	MaxNumBlocksmithRewards    = int(5)
 	GenerateBlockTimeoutSec    = int64(15)
+	// SmithingStartTime smithing initial delay from last block
+	SmithingStartTime         = int64(15) // second
+	SmithingBlockCreationTime = int64(30)
+	SmithingNetworkTolerance  = int64(15)
 )

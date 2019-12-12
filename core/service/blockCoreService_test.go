@@ -869,7 +869,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 		want   bool
 	}{
 		{
-			name: "VerifySeed:true-{prevTarget<seed<target && elapsed < 300}",
+			name: "VerifySmithingTime:true-{prevTarget<seed<target && elapsed < 300}",
 			fields: fields{
 				Chaintype: &chaintype.MainChain{},
 			},
@@ -885,7 +885,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "VerifySeed:true-{elapsedTime>300 && seed < target ",
+			name: "VerifySmithingTime:true-{elapsedTime>300 && seed < target ",
 			fields: fields{
 				Chaintype: &chaintype.MainChain{},
 			},
@@ -901,7 +901,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "VerifySeed:true-{elapsedTime>300 && previousTarget > seed < target}",
+			name: "VerifySmithingTime:true-{elapsedTime>300 && previousTarget > seed < target}",
 			fields: fields{
 				Chaintype: &chaintype.MainChain{},
 			},
@@ -917,7 +917,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "VerifySeed:false-{seed > target}",
+			name: "VerifySmithingTime:false-{seed > target}",
 			fields: fields{
 				Chaintype: &chaintype.MainChain{},
 			},
@@ -933,7 +933,7 @@ func TestBlockService_VerifySeed(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "VerifySeed:false-{seed < prevtarget}",
+			name: "VerifySmithingTime:false-{seed < prevtarget}",
 			fields: fields{
 				Chaintype: &chaintype.MainChain{},
 			},
@@ -960,8 +960,8 @@ func TestBlockService_VerifySeed(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			if got := b.VerifySeed(tt.args.seed, tt.args.balance, tt.args.previousBlock, tt.args.timestamp); got != tt.want {
-				t.Errorf("BlockService.VerifySeed() = %v, want %v", got, tt.want)
+			if got := b.VerifySmithingTime(tt.args.seed, tt.args.previousBlock, tt.args.timestamp); got != tt.want {
+				t.Errorf("BlockService.VerifySmithingTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}

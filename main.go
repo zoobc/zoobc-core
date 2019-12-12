@@ -47,7 +47,7 @@ var (
 	db                                      *sql.DB
 	badgerDb                                *badger.DB
 	apiRPCPort, apiHTTPPort, monitoringPort int
-	apiCertFile, apiKeyFile                       string
+	apiCertFile, apiKeyFile                 string
 	peerPort                                uint32
 	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
 	queryExecutor                           *query.Executor
@@ -57,13 +57,13 @@ var (
 	blockServices                           = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
 	receiptService                          service.ReceiptServiceInterface
+	blocksmithService                       service.BlocksmithServiceInterface
 	peerServiceClient                       client.PeerServiceClientInterface
 	p2pHost                                 *model.Host
 	peerExplorer                            strategy.PeerExplorerStrategyInterface
 	wellknownPeers                          []string
 	smithing, isNodePreSeed, isDebugMode    bool
 	nodeRegistrationService                 service.NodeRegistrationServiceInterface
-	sortedBlocksmiths                       []model.Blocksmith
 	mainchainProcessor                      smith.BlockchainProcessorInterface
 	loggerAPIService                        *log.Logger
 	loggerCoreService                       *log.Logger
@@ -351,7 +351,11 @@ func startMainchain() {
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-
+	blocksmithService = service.NewBlocksmithService(
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		loggerCoreService,
+	)
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
 		kvExecutor,
@@ -371,7 +375,7 @@ func startMainchain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		&sortedBlocksmiths,
+		blocksmithService,
 		loggerCoreService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -418,6 +422,7 @@ func startMainchain() {
 				mainchain,
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
+				blocksmithService,
 				nodeRegistrationService,
 				loggerCoreService,
 			)

@@ -3,6 +3,7 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -15,30 +16,25 @@ import (
 )
 
 // GetBlockSeed calculate seed value, the first 8 byte of the digest(previousBlockSeed, nodeID)
-func GetBlockSeed(nodeID int64, block *model.Block) (*big.Int, error) {
+func GetBlockSeed(nodeID int64, block *model.Block) (int64, error) {
 	digest := sha3.New256()
 	_, err := digest.Write(block.GetBlockSeed())
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	previousSeedHash := digest.Sum([]byte{})
 	payload := bytes.NewBuffer([]byte{})
 	payload.Write(commonUtils.ConvertUint64ToBytes(uint64(nodeID)))
 	payload.Write(previousSeedHash)
 	seed := sha3.Sum256(payload.Bytes())
-	return new(big.Int).SetBytes(seed[:8]), nil
+	return new(big.Int).SetBytes(seed[:8]).Int64(), nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(seed *big.Int, block *model.Block) int64 {
-	normalizedSmithScale := GetNormalizedSmithScale(block.SmithScale)
-	elapsedFromLastBlock := new(big.Int).Div(seed, normalizedSmithScale).Int64()
+func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTime
+	fmt.Printf("index; %v\ntime: %v\n\n", blocksmithIndex, elapsedFromLastBlock)
 	return block.GetTimestamp() + elapsedFromLastBlock
-}
-
-func GetNormalizedSmithScale(smithScale int64) *big.Int {
-	value := new(big.Int).Mul(big.NewInt(smithScale), big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
-	return value
 }
 
 // CalculateSmithScale base target of block and return modified block
@@ -151,19 +147,18 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 }
 
 // CalculateSmithOrder calculate the blocksmith order parameter, used to sort/select the next blocksmith
-func CalculateSmithOrder(nodeID int64, block *model.Block) (*big.Int, error) {
+func CalculateSmithOrder(nodeID int64, block *model.Block) (int64, error) {
 	blockSeed, err := GetBlockSeed(nodeID, block)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	smithTime := GetSmithTime(blockSeed, block)
 	// Currently score did'nt use ,
-	return new(big.Int).SetInt64(smithTime), nil
+	return blockSeed, nil
 }
 
 // CalculateNodeOrder calculate the Node order parameter, used to sort/select the group of blocksmith rewarded for a given block
-func CalculateNodeOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
-	prn := crypto.PseudoRandomGenerator(uint64(nodeID), blockSeed.Uint64(), crypto.PseudoRandomSha3256)
+func CalculateNodeOrder(score *big.Int, blockSeed int64, nodeID int64) *big.Int {
+	prn := crypto.PseudoRandomGenerator(uint64(nodeID), uint64(blockSeed), crypto.PseudoRandomSha3256)
 	return new(big.Int).Div(new(big.Int).SetUint64(prn), score)
 }
 

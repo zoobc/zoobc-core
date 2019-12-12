@@ -1,9 +1,7 @@
 package smith
 
 import (
-	"math"
 	"math/big"
-	"reflect"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -19,7 +17,7 @@ import (
 type (
 	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
 	BlockchainProcessorInterface interface {
-		CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith
+		CalculateSmith(lastBlock *model.Block, blocksmithIndex int64)
 		StartSmithing() error
 		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
 	}
@@ -29,6 +27,7 @@ type (
 		Chaintype               chaintype.ChainType
 		Generator               *model.Blocksmith
 		BlockService            service.BlockServiceInterface
+		BlocksmithService       service.BlocksmithServiceInterface
 		NodeRegistrationService service.NodeRegistrationServiceInterface
 		LastBlockID             int64
 		canSmith                bool
@@ -41,6 +40,7 @@ func NewBlockchainProcessor(
 	ct chaintype.ChainType,
 	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
+	blocksmithService service.BlocksmithServiceInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
 	logger *log.Logger,
 ) *BlockchainProcessor {
@@ -48,36 +48,36 @@ func NewBlockchainProcessor(
 		Chaintype:               ct,
 		Generator:               blocksmith,
 		BlockService:            blockService,
+		BlocksmithService:       blocksmithService,
 		NodeRegistrationService: nodeRegistrationService,
 		Logger:                  logger,
 	}
 }
 
 // CalculateSmith calculate seed, smithTime, and Deadline
-func (bp *BlockchainProcessor) CalculateSmith(lastBlock *model.Block, generator *model.Blocksmith) *model.Blocksmith {
+func (bp *BlockchainProcessor) CalculateSmith(
+	lastBlock *model.Block,
+	blocksmithIndex int64,
+) {
 	// try to get the node's participation score (ps) from node public key
 	// if node is not registered, ps will be 0 and this node won't be able to smith
 	// the default ps is 100000, smithing could be slower than when using account balances
 	// since default balance was 1000 times higher than default ps
-	ps, err := bp.BlockService.GetParticipationScore(generator.NodePublicKey)
+	ps, err := bp.BlockService.GetParticipationScore(bp.Generator.NodePublicKey)
 	if ps <= 0 {
 		bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
 	}
 	if err != nil || ps <= 0 {
 		bp.Logger.Errorf("Participation score calculation: %s", err)
-		generator.Score = big.NewInt(0)
+		bp.Generator.Score = big.NewInt(0)
 	} else {
-		generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
+		bp.Generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
 	}
-	if generator.Score.Sign() == 0 {
-		generator.SmithTime = 0
-		generator.BlockSeed = big.NewInt(0)
+	if bp.Generator.Score.Sign() == 0 {
+		bp.Generator.SmithTime = 0
+		bp.Generator.BlockSeed = 0
 	}
-
-	generator.BlockSeed, _ = coreUtil.GetBlockSeed(generator.NodeID, lastBlock)
-	generator.SmithTime = coreUtil.GetSmithTime(generator.BlockSeed, lastBlock)
-	generator.Deadline = uint32(math.Max(0, float64(generator.SmithTime-lastBlock.GetTimestamp())))
-	return generator
+	bp.Generator.SmithTime = coreUtil.GetSmithTime(blocksmithIndex, lastBlock)
 }
 
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
@@ -104,19 +104,16 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 				blocker.SmithingErr, "genesis block has not been applied")
 		}
 		// simulating real condition, calculating the smith time of current last block
-		smithMax := timeNow - bp.Chaintype.GetChainSmithingDelayTime()
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
+			bp.CalculateSmith(lastBlock, 0)
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
-		for bp.Generator.SmithTime > smithMax {
+		for bp.Generator.SmithTime > timeNow {
 			timeNow++ // speed up bro
-			smithMax = timeNow - bp.Chaintype.GetChainSmithingDelayTime()
 		}
-		// smith time reached
-		timestamp := bp.Generator.GetTimestamp(smithMax)
-		if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
+		// todo: replace to smithing time >= timestamp
+		if bp.Generator.SmithTime > timeNow {
 			return blocker.NewBlocker(
 				blocker.SmithingErr, "verify seed return false",
 			)
@@ -128,13 +125,13 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		block, err := bp.BlockService.GenerateBlock(
 			previousBlock,
 			bp.Generator.SecretPhrase,
-			timestamp,
+			timeNow,
 		)
 		if err != nil {
 			return err
 		}
 		// validate
-		err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp) // err / !err
+		err = bp.BlockService.ValidateBlock(block, previousBlock, timeNow) // err / !err
 		if err != nil {
 			return err
 		}
@@ -154,56 +151,35 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
 	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
-	var blocksmithIndex = -1
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
-	smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
+	// smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	if lastBlock.GetID() != bp.LastBlockID {
 		bp.LastBlockID = lastBlock.GetID()
-		bp.BlockService.SortBlocksmiths(lastBlock)
+		bp.BlocksmithService.SortBlocksmiths(lastBlock)
 		// check if eligible to create block in this round
-		for i, bs := range *(bp.BlockService.GetSortedBlocksmiths()) {
-			if reflect.DeepEqual(bs.NodePublicKey, bp.Generator.NodePublicKey) {
-				blocksmithIndex = i
-				break
-			}
-		}
-		if blocksmithIndex < 0 {
+		blocksmithsMap := bp.BlocksmithService.GetSortedBlocksmithsMap()
+		if blocksmithsMap[string(bp.Generator.NodePublicKey)] == nil {
 			bp.canSmith = false
 			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		bp.canSmith = true
-		// if lastBlock.Timestamp > time.Now().Unix()-bp.Chaintype.GetChainSmithingDelayTime()*10 {
-		// TODO: andy-shi88
-		// pop off last block if has been absent for 10*delay
-		// put processed transaction to process later
-		// }
 		// caching: only calculate smith time once per new block
-		bp.Generator = bp.CalculateSmith(lastBlock, bp.Generator)
+		bp.CalculateSmith(lastBlock, *(blocksmithsMap[string(bp.Generator.NodePublicKey)]))
 		monitoring.SetBlockchainSmithTime(bp.Chaintype.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
 	}
 	if !bp.canSmith {
 		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 	}
-	if bp.Generator.SmithTime > smithMax {
+	timestamp := time.Now().Unix()
+	if bp.Generator.SmithTime > timestamp {
 		return nil
 	}
-	timestamp := bp.Generator.GetTimestamp(smithMax)
-	if !bp.BlockService.VerifySeed(bp.Generator.BlockSeed, bp.Generator.Score, lastBlock, timestamp) {
-		return blocker.NewBlocker(
-			blocker.SmithingErr, "verify seed return false",
-		)
-	}
-	previousBlock, err := bp.BlockService.GetLastBlock()
-	if err != nil {
-		return err
-	}
-
 	block, err := bp.BlockService.GenerateBlock(
-		previousBlock,
+		lastBlock,
 		bp.Generator.SecretPhrase,
 		timestamp,
 	)
@@ -211,12 +187,12 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// validate
-	err = bp.BlockService.ValidateBlock(block, previousBlock, timestamp)
+	err = bp.BlockService.ValidateBlock(block, lastBlock, timestamp)
 	if err != nil {
 		return err
 	}
 	// if validated push
-	err = bp.BlockService.PushBlock(previousBlock, block, true)
+	err = bp.BlockService.PushBlock(lastBlock, block, true)
 	if err != nil {
 		return err
 	}
