@@ -474,11 +474,11 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		}).AddRow(
 			mockBlocksmiths[0].NodeID,
 			mockBlocksmiths[0].NodePublicKey,
-			score1.String(),
+			"1000",
 		).AddRow(
 			mockBlocksmiths[1].NodeID,
 			mockBlocksmiths[1].NodePublicKey,
-			score2.String(),
+			"1000",
 		))
 	case "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith WHERE block_height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -3146,28 +3146,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 		})
 	}
 }
-
-var (
-	blockSeed = new(big.Int).SetUint64(10000000)
-	score1    = new(big.Int).SetInt64(8000)
-	nodeID1   = int64(12536845)
-	score2    = new(big.Int).SetInt64(1000)
-	nodeID2   = int64(12536845)
-	score3    = new(big.Int).SetInt64(5000)
-	nodeID3   = int64(12536845)
-	score4    = new(big.Int).SetInt64(10000)
-	nodeID4   = int64(12536845)
-	score5    = new(big.Int).SetInt64(9000)
-	nodeID5   = int64(12536845)
-	score6    = new(big.Int).SetInt64(100000)
-	nodeID6   = int64(12536845)
-	score7    = new(big.Int).SetInt64(90000)
-	nodeID7   = int64(12536845)
-	score8    = new(big.Int).SetInt64(65000)
-	nodeID8   = int64(12536845)
-	score9    = new(big.Int).SetInt64(999)
-	nodeID9   = int64(12536845)
-)
 
 type (
 	mockPopOffToBlockReturnCommonBlock struct {
