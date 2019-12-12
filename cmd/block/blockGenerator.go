@@ -26,7 +26,6 @@ var (
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
 	blocksmithService       service.BlocksmithServiceInterface
-	sortedBlocksmiths       []model.Blocksmith
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
 

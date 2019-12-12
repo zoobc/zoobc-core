@@ -156,7 +156,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
-	// smithMax := time.Now().Unix() - bp.Chaintype.GetChainSmithingDelayTime()
 	if lastBlock.GetID() != bp.LastBlockID {
 		bp.LastBlockID = lastBlock.GetID()
 		bp.BlocksmithService.SortBlocksmiths(lastBlock)
