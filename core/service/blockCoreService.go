@@ -79,6 +79,7 @@ type (
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		SortBlocksmiths(block *model.Block)
 		GetSortedBlocksmiths() *[]model.Blocksmith
+		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 	}
 
 	BlockService struct {
@@ -270,6 +271,7 @@ func (*BlockService) VerifySeed(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	// todo: validate previous time
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
@@ -823,6 +825,7 @@ func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transa
 	// get transaction of the block
 	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
 	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1105,6 +1108,54 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
+		// check if incoming block is of higher quality
+		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+			block.Timestamp < lastBlock.Timestamp {
+			err := func() error {
+				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+				if err != nil {
+					return status.Error(codes.Internal,
+						"fail to get last block",
+					)
+				}
+				if !bytes.Equal(previousBlock.GetBlockHash(), block.PreviousBlockHash) {
+					return status.Error(codes.InvalidArgument,
+						"blockchain changed, ignore the incoming block",
+					)
+				}
+				lastBlocks, err := bs.PopOffToBlock(previousBlock)
+				if err != nil {
+					return err
+				}
+				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+				if err != nil {
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					if errPushBlock != nil {
+						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						return status.Error(codes.InvalidArgument, "InvalidBlock")
+					}
+
+					bs.Logger.Info("pushing back popped off block")
+					return status.Error(codes.InvalidArgument, "InvalidBlock")
+				}
+				err = bs.PushBlock(lastBlock, block, true)
+				if err != nil {
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					if errPushBlock != nil {
+						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						return status.Error(codes.InvalidArgument, "InvalidBlock")
+					}
+					bs.Logger.Info("pushing back popped off block")
+					return status.Error(codes.InvalidArgument, "InvalidBlock")
+				}
+				return nil
+			}()
+			if err != nil {
+				return nil, err
+			}
+		}
 		// check if already broadcast receipt to this node
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
@@ -1334,4 +1385,119 @@ func (bs *BlockService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith,
 
 func (bs *BlockService) GetSortedBlocksmiths() *[]model.Blocksmith {
 	return bs.SortedBlocksmiths
+}
+
+func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
+	var (
+		mempoolsBackupBytes *bytes.Buffer
+		mempoolsBackup      []*model.MempoolTransaction
+		err                 error
+	)
+	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+	minRollbackHeight := util.GetMinRollbackHeight(lastBlock.Height)
+
+	if commonBlock.Height < minRollbackHeight {
+		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
+		bs.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
+		return []*model.Block{}, nil
+	}
+
+	_, err = bs.GetBlockByID(commonBlock.ID)
+	if err != nil {
+		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
+	}
+
+	var poppedBlocks []*model.Block
+	block := lastBlock
+
+	// TODO:
+	// Need to refactor this codes with better solution in the future
+	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
+	publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.PublishedReceipts = publishedReceipts
+
+	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
+		poppedBlocks = append(poppedBlocks, block)
+		block, err = bs.GetBlockByHeight(block.Height - 1)
+		if err != nil {
+			return nil, err
+		}
+		publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		block.PublishedReceipts = publishedReceipts
+	}
+
+	// Backup existing transactions from mempool before rollback
+	mempoolsBackup, err = bs.MempoolService.GetMempoolTransactionsWantToBackup(commonBlock.Height)
+	if err != nil {
+		return nil, err
+	}
+	bs.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
+	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
+	err = bs.QueryExecutor.BeginTx()
+	if err != nil {
+		return []*model.Block{}, err
+	}
+
+	for _, dQuery := range derivedQueries {
+		queries := dQuery.Rollback(commonBlock.Height)
+		err = bs.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			_ = bs.QueryExecutor.RollbackTx()
+			return []*model.Block{}, err
+		}
+	}
+
+	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
+
+	for _, mempool := range mempoolsBackup {
+		var (
+			tx     *model.Transaction
+			txType transaction.TypeAction
+		)
+		tx, err := transaction.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
+		if err != nil {
+			return nil, err
+		}
+		txType, err = bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		err = txType.UndoApplyUnconfirmed()
+		if err != nil {
+			return nil, err
+		}
+
+		/*
+			mempoolsBackupBytes format is
+			[...{4}byteSize,{bytesSize}transactionBytes]
+		*/
+		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
+		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
+		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
+	}
+	err = bs.QueryExecutor.CommitTx()
+	if err != nil {
+		return nil, err
+	}
+
+	if mempoolsBackupBytes.Len() > 0 {
+		err = bs.KVExecutor.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+		if err != nil {
+			return nil, err
+		}
+	}
+	// remove peer memoization
+	bs.NodeRegistrationService.ResetScrambledNodes()
+	return poppedBlocks, nil
 }
