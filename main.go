@@ -47,7 +47,7 @@ var (
 	db                                      *sql.DB
 	badgerDb                                *badger.DB
 	apiRPCPort, apiHTTPPort, monitoringPort int
-	apiCertFile, apiKeyFile                       string
+	apiCertFile, apiKeyFile                 string
 	peerPort                                uint32
 	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
 	queryExecutor                           *query.Executor
