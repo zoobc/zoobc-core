@@ -819,7 +819,6 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        args
-		reason      string
 		wantContain *model.Peer
 		wantErr     bool
 	}{
@@ -833,9 +832,9 @@ func TestPriorityStrategy_AddToBlacklistPeer(t *testing.T) {
 						Address:       "127.0.0.1",
 						Port:          3001,
 					},
+					BlacklistingCause: "error",
 				},
 			},
-			reason: "error",
 			wantContain: &model.Peer{
 				Info: &model.Node{
 					SharedAddress: "127.0.0.1",
