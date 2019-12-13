@@ -9,7 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -35,76 +34,21 @@ func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
-// CalculateSmithScale base target of block and return modified block
-func CalculateSmithScale(
+// CalculateCumulativeDifficulty get the cumulative difficulty of the incoming block
+func CalculateCumulativeDifficulty(
 	previousBlock, block *model.Block,
-	smithingPeriod int64,
-	blockQuery query.BlockQueryInterface,
-	executor query.ExecutorInterface,
-) (*model.Block, error) {
-	switch {
-	case block.Height < constant.AverageSmithingBlockHeight:
-		prevSmithScale := previousBlock.GetSmithScale()
-		smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
-		block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingPeriod)).Int64()
-		if block.GetSmithScale() < 0 || block.GetSmithScale() > constant.MaxSmithScale {
-			block.SmithScale = constant.MaxSmithScale
-		}
-		if block.GetSmithScale() < prevSmithScale/2 {
-			block.SmithScale = prevSmithScale / 2
-		}
-		if block.GetSmithScale() == 0 {
-			block.SmithScale = 1
-		}
-		twoFoldCurSmithScale := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(2))
-		if twoFoldCurSmithScale.Cmp(big.NewInt(0)) < 0 {
-			twoFoldCurSmithScale = big.NewInt(constant.MaxSmithScale)
-		}
-		if big.NewInt(block.GetSmithScale()).Cmp(twoFoldCurSmithScale) > 0 {
-			block.SmithScale = twoFoldCurSmithScale.Int64()
-		}
-	case block.Height%2 == 0:
-		var prev2Block model.Block
-		prev2BlockQ := blockQuery.GetBlockByHeight(previousBlock.Height - 2)
-		row, _ := executor.ExecuteSelectRow(prev2BlockQ, false)
-		err := blockQuery.Scan(&prev2Block, row)
-		if err != nil {
-			return nil, err
-		}
-		blockTimeAverage := (block.Timestamp - prev2Block.Timestamp) / 3
-		if blockTimeAverage > smithingPeriod {
-			if blockTimeAverage < constant.MaximumBlocktimeLimit {
-				block.SmithScale = (previousBlock.SmithScale * blockTimeAverage) / smithingPeriod
-			} else {
-				block.SmithScale = (previousBlock.SmithScale * constant.MaximumBlocktimeLimit) / smithingPeriod
-			}
-		} else {
-			if blockTimeAverage > constant.MinimumBlocktimeLimit {
-				block.SmithScale = previousBlock.SmithScale - previousBlock.SmithScale*constant.SmithscaleGamma*
-					(smithingPeriod-blockTimeAverage)/(100*smithingPeriod)
-			} else {
-				block.SmithScale = previousBlock.SmithScale - previousBlock.SmithScale*constant.SmithscaleGamma*
-					(smithingPeriod-constant.MinimumBlocktimeLimit)/(100*smithingPeriod)
-			}
-		}
-		if block.SmithScale < 0 || block.SmithScale > constant.MaxSmithScale2 {
-			block.SmithScale = constant.MaxSmithScale2
-		}
-		if block.SmithScale < constant.MinSmithScale {
-			block.SmithScale = constant.MinSmithScale
-		}
-	default:
-		block.SmithScale = previousBlock.GetSmithScale()
+	blocksmithIndex int64,
+) (string, error) {
+	previousCumulativeDifficulty, ok := new(big.Int).SetString(previousBlock.CumulativeDifficulty, 10)
+	if !ok {
+		return "", blocker.NewBlocker(blocker.AppErr, "FailToCalculateCummulativeDifficulty")
 	}
-	two64, _ := new(big.Int).SetString(constant.Two64, 0)
-	previousBlockCumulativeDifficulty, isParsed := new(big.Int).SetString(previousBlock.GetCumulativeDifficulty(), 10)
-	if !isParsed {
-		return nil, blocker.NewBlocker(blocker.ParserErr, "Faild parse cumulativeDifficulty block")
-	}
-	block.CumulativeDifficulty = new(big.Int).Add(
-		previousBlockCumulativeDifficulty,
-		new(big.Int).Div(two64, big.NewInt(block.GetSmithScale()))).String()
-	return block, nil
+	currentCumulativeDifficulty := constant.CumulativeDifficultyDivisor / (blocksmithIndex + 1)
+
+	newCumulativeDifficulty := new(big.Int).Add(
+		previousCumulativeDifficulty, new(big.Int).SetInt64(currentCumulativeDifficulty),
+	)
+	return newCumulativeDifficulty.String(), nil
 }
 
 // GetBlockID generate block ID value if haven't

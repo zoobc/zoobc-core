@@ -334,15 +334,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	var (
 		err error
 	)
+	// re-sort blocksmiths for current block
+	bs.BlocksmithService.SortBlocksmiths(previousBlock)
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		block, err = coreUtil.CalculateSmithScale(
-			previousBlock, block, bs.Chaintype.GetSmithingPeriod(), bs.BlockQuery, bs.QueryExecutor,
+		sortedBlocksmithMap := bs.BlocksmithService.GetSortedBlocksmithsMap()
+		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
+		if blocksmithIndex == nil {
+			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
+		}
+		blockCumulativeDifficulty, err := coreUtil.CalculateCumulativeDifficulty(
+			previousBlock, block, *blocksmithIndex,
 		)
 		if err != nil {
 			return err
 		}
+		block.CumulativeDifficulty = blockCumulativeDifficulty
 	}
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()
@@ -440,7 +448,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
-		bs.BlocksmithService.SortBlocksmiths(previousBlock)
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
@@ -511,6 +518,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		return err
 	}
 	bs.Logger.Debugf("Block Pushed ID: %d", block.GetID())
+	// sort blocksmiths for next block
+	bs.BlocksmithService.SortBlocksmiths(block)
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)

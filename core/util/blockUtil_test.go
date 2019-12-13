@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 )
 
 func TestGetBlockSeed(t *testing.T) {
@@ -105,81 +104,6 @@ func TestGetSmithTime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetSmithTime(tt.args.blocksmithIndex, tt.args.block); got != tt.want {
 				t.Errorf("GetSmithTime() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCalculateSmithScale(t *testing.T) {
-	type args struct {
-		previousBlock     *model.Block
-		block             *model.Block
-		smithingDelayTime int64
-		blockQuery        query.BlockQueryInterface
-		executor          query.ExecutorInterface
-	}
-	tests := []struct {
-		name string
-		args args
-		want *model.Block
-	}{
-		{
-			name: "CalculateSmithScale",
-			args: args{
-				previousBlock: &model.Block{
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithPublicKey:  []byte{},
-					Timestamp:            15875392,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					CumulativeDifficulty: "100000",
-					SmithScale:           108080,
-				},
-				block: &model.Block{
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: []byte{},
-					Timestamp:           15875392,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-				},
-				smithingDelayTime: 10,
-			},
-			want: &model.Block{
-				Version:              1,
-				PreviousBlockHash:    []byte{},
-				BlockSeed:            []byte{},
-				BlocksmithPublicKey:  []byte{},
-				Timestamp:            15875392,
-				TotalAmount:          0,
-				TotalFee:             0,
-				TotalCoinBase:        0,
-				Transactions:         []*model.Transaction{},
-				PayloadHash:          []byte{},
-				CumulativeDifficulty: "341353517378119",
-				SmithScale:           54040,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got, _ := CalculateSmithScale(
-				tt.args.previousBlock,
-				tt.args.block,
-				tt.args.smithingDelayTime,
-				tt.args.blockQuery,
-				tt.args.executor,
-			); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CalculateSmithScale() = %v, want %v", got, tt.want)
 			}
 		})
 	}
