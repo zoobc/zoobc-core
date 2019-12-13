@@ -3042,12 +3042,6 @@ var (
 		PreviousBlockHash:   []byte{},
 	}
 
-	mockValidateBadBlockInvalidCumulativeDifficulty = &model.Block{
-		Timestamp:            1572246820,
-		BlockSignature:       []byte{},
-		BlocksmithPublicKey:  []byte{1, 2, 3, 4},
-		CumulativeDifficulty: "10",
-	}
 	mockValidateBlockSuccess = &model.Block{
 		Timestamp: 1572246820,
 		ID:        constant.MainchainGenesisBlockID,
