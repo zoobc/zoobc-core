@@ -39,7 +39,7 @@ type (
 			secretPhrase string) (*model.Block, error)
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, payloadHash []byte, payloadLength uint32, smithScale int64,
+			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, payloadHash []byte, payloadLength uint32,
 			cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block
 		GenerateBlock(
 			previousBlock *model.Block,
@@ -222,7 +222,6 @@ func (bs *BlockService) NewGenesisBlock(
 	publishedReceipts []*model.PublishedReceipt,
 	payloadHash []byte,
 	payloadLength uint32,
-	smithScale int64,
 	cumulativeDifficulty *big.Int,
 	genesisSignature []byte,
 ) *model.Block {
@@ -240,7 +239,6 @@ func (bs *BlockService) NewGenesisBlock(
 		PublishedReceipts:    publishedReceipts,
 		PayloadLength:        payloadLength,
 		PayloadHash:          payloadHash,
-		SmithScale:           smithScale,
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
 	}
@@ -1019,7 +1017,6 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		[]*model.PublishedReceipt{},
 		payloadHash,
 		payloadLength,
-		constant.InitialSmithScale,
 		big.NewInt(0),
 		constant.MainchainGenesisBlockSignature,
 	)

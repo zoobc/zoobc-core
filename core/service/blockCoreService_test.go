@@ -38,7 +38,6 @@ var (
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
 		CumulativeDifficulty: "1000",
-		SmithScale:           1,
 		PayloadLength:        1,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -255,7 +254,7 @@ func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, tx bool, args ...inte
 	defer db.Close()
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows([]string{
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase"}))
+		"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase"}))
 	rows, _ := db.Query(qe)
 	return rows, nil
 }
@@ -270,7 +269,7 @@ func (*mockQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ...inte
 		"ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		))
 	default:
@@ -353,7 +352,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
 			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
 			mockBlockData.GetPayloadLength(),
 			mockBlockData.GetPayloadHash(),
 			mockBlockData.GetBlocksmithPublicKey(),
@@ -404,13 +402,13 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
 			"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
-		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 1, 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
+		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
 	case "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
 		"ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.registration_status=0 AND A.latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -420,7 +418,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"height",
 		},
 		).AddRow(-1, 100000, true, 0))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, smith_scale, " +
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
 		"height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).
@@ -435,7 +433,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 				mockBlockData.GetBlockSeed(),
 				mockBlockData.GetBlockSignature(),
 				mockBlockData.GetCumulativeDifficulty(),
-				mockBlockData.GetSmithScale(),
 				mockBlockData.GetPayloadLength(),
 				mockBlockData.GetPayloadHash(),
 				mockBlockData.GetBlocksmithPublicKey(),
@@ -760,7 +757,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		publishedReceipts    []*model.PublishedReceipt
 		payloadHash          []byte
 		payloadLength        uint32
-		smithScale           int64
 		cumulativeDifficulty *big.Int
 		genesisSignature     []byte
 	}
@@ -790,7 +786,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				publishedReceipts:    []*model.PublishedReceipt{},
 				payloadHash:          []byte{},
 				payloadLength:        8,
-				smithScale:           0,
 				cumulativeDifficulty: big.NewInt(1),
 				genesisSignature:     []byte{},
 			},
@@ -807,7 +802,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				PublishedReceipts:    []*model.PublishedReceipt{},
 				PayloadHash:          []byte{},
 				PayloadLength:        8,
-				SmithScale:           0,
 				CumulativeDifficulty: "1",
 				BlockSignature:       []byte{},
 			},
@@ -838,7 +832,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.publishedReceipts,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
-				tt.args.smithScale,
 				tt.args.cumulativeDifficulty,
 				tt.args.genesisSignature,
 			); !reflect.DeepEqual(got, tt.want) {
@@ -936,7 +929,6 @@ func TestBlockService_PushBlock(t *testing.T) {
 			args: args{
 				previousBlock: &model.Block{
 					ID:                   0,
-					SmithScale:           10,
 					Timestamp:            10000,
 					CumulativeDifficulty: "10000",
 					Version:              1,
@@ -986,7 +978,6 @@ func TestBlockService_PushBlock(t *testing.T) {
 			args: args{
 				previousBlock: &model.Block{
 					ID:                   0,
-					SmithScale:           10,
 					Timestamp:            10000,
 					CumulativeDifficulty: "10000",
 					Version:              1,
@@ -1036,7 +1027,6 @@ func TestBlockService_PushBlock(t *testing.T) {
 			args: args{
 				previousBlock: &model.Block{
 					ID:                   0,
-					SmithScale:           10,
 					Timestamp:            10000,
 					CumulativeDifficulty: "10000",
 					Version:              1,
@@ -1186,7 +1176,6 @@ func (*mockQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr string, tx
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
 			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
 			mockBlockData.GetPayloadLength(),
 			mockBlockData.GetPayloadHash(),
 			mockBlockData.GetBlocksmithPublicKey(),
@@ -1289,7 +1278,6 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, ar
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),
 		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
 		mockBlockData.GetPayloadLength(),
 		mockBlockData.GetPayloadHash(),
 		mockBlockData.GetBlocksmithPublicKey(),
@@ -1658,6 +1646,16 @@ func (*mockAddGenesisExecutor) ExecuteSelect(qStr string, tx bool, args ...inter
 	return db.Query(qStr)
 }
 
+type (
+	mockBlocksmithServiceAddGenesisSuccess struct {
+		BlocksmithService
+	}
+)
+
+func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block) {
+
+}
+
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1671,6 +1669,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
+		BlocksmithService       BlocksmithServiceInterface
 		Logger                  *logrus.Logger
 	}
 	tests := []struct {
@@ -1692,6 +1691,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				BlocksmithService:       &mockBlocksmithServiceAddGenesisSuccess{},
 				Logger:                  log.New(),
 			},
 			wantErr: false,
@@ -1711,6 +1711,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				BlocksmithService:       tt.fields.BlocksmithService,
 				Logger:                  tt.fields.Logger,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
@@ -1737,7 +1738,7 @@ func (*mockQueryExecutorCheckGenesisFalse) ExecuteSelect(query string, tx bool, 
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 		"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-		"SmithScale", "PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
+		"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 		"Version",
 	}))
 	return db.Query("")
@@ -1764,7 +1765,6 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qStr string, tx bool, ar
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),
 		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
 		mockBlockData.GetPayloadLength(),
 		mockBlockData.GetPayloadHash(),
 		mockBlockData.GetBlocksmithPublicKey(),
@@ -1790,7 +1790,6 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, tx bool,
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
 			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
 			mockBlockData.GetPayloadLength(),
 			mockBlockData.GetPayloadHash(),
 			mockBlockData.GetBlocksmithPublicKey(),
@@ -1875,7 +1874,7 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
@@ -1887,7 +1886,6 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
 			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
 			mockBlockData.GetPayloadLength(),
 			mockBlockData.GetPayloadHash(),
 			mockBlockData.GetBlocksmithPublicKey(),
@@ -1996,7 +1994,7 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool,
 
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-		"smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
 		"version FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
@@ -2008,7 +2006,6 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool,
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
 			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
 			mockBlockData.GetPayloadLength(),
 			mockBlockData.GetPayloadHash(),
 			mockBlockData.GetBlocksmithPublicKey(),
@@ -2131,7 +2128,6 @@ func (*mockQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr string, t
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),
 		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
 		mockBlockData.GetPayloadLength(),
 		mockBlockData.GetPayloadHash(),
 		mockBlockData.GetBlocksmithPublicKey(),
@@ -2148,7 +2144,6 @@ func (*mockQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr string, t
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),
 		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
 		mockBlockData.GetPayloadLength(),
 		mockBlockData.GetPayloadHash(),
 		mockBlockData.GetBlocksmithPublicKey(),
@@ -2253,7 +2248,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			PreviousBlockHash:    mockGoodLastBlockHash,
 			BlockSignature:       nil,
 			CumulativeDifficulty: "200",
-			SmithScale:           1,
 			Timestamp:            10000,
 			BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
 		}
@@ -2410,7 +2404,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 					PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
 						169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255, 0},
 					BlockSignature:      nil,
-					SmithScale:          1,
 					BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
 				},
 				nodeSecretPhrase: "",
@@ -2544,7 +2537,6 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
 		CumulativeDifficulty: string(100000000),
-		SmithScale:           1,
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  bcsNodePubKey1,
@@ -2561,7 +2553,6 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
 		CumulativeDifficulty: string(100000000),
-		SmithScale:           1,
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  bcsNodePubKey1,
@@ -2631,7 +2622,6 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					BlockSeed:            []byte{},
 					BlockSignature:       []byte{},
 					CumulativeDifficulty: string(100000000),
-					SmithScale:           1,
 					PayloadLength:        0,
 					PayloadHash:          []byte{},
 					BlocksmithPublicKey:  bcsNodePubKey1,
@@ -2674,7 +2664,6 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 					BlockSeed:            []byte{},
 					BlockSignature:       []byte{},
 					CumulativeDifficulty: string(100000000),
-					SmithScale:           1,
 					PayloadLength:        0,
 					PayloadHash:          []byte{},
 					BlocksmithPublicKey:  bcsNodePubKey1,
@@ -3021,7 +3010,6 @@ func (*mockQueryExecutorValidateBlockSuccess) ExecuteSelect(qStr string, tx bool
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
 			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
 			mockBlockData.GetPayloadLength(),
 			mockBlockData.GetPayloadHash(),
 			mockBlockData.GetBlocksmithPublicKey(),
@@ -3053,7 +3041,6 @@ var (
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
 		CumulativeDifficulty: "1000",
-		SmithScale:           1,
 		PayloadLength:        1,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -3339,7 +3326,6 @@ var (
 		BlockSeed:            nil,
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
-		SmithScale:           0,
 		BlocksmithPublicKey:  nil,
 		TotalAmount:          0,
 		TotalFee:             0,
@@ -3359,7 +3345,6 @@ var (
 		BlockSeed:            nil,
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
-		SmithScale:           0,
 		BlocksmithPublicKey:  nil,
 		TotalAmount:          0,
 		TotalFee:             0,
@@ -3379,7 +3364,6 @@ var (
 		BlockSeed:            nil,
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
-		SmithScale:           0,
 		BlocksmithPublicKey:  nil,
 		TotalAmount:          0,
 		TotalFee:             0,
@@ -3429,7 +3413,7 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelect(
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
@@ -3459,7 +3443,6 @@ func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bo
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
 			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetSmithScale(),
 			mockGoodBlock.GetPayloadLength(),
 			mockGoodBlock.GetPayloadHash(),
 			mockGoodBlock.GetBlocksmithPublicKey(),
@@ -3517,7 +3500,7 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
@@ -3529,7 +3512,6 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 				mockGoodCommonBlock.GetBlockSeed(),
 				mockGoodCommonBlock.GetBlockSignature(),
 				mockGoodCommonBlock.GetCumulativeDifficulty(),
-				mockGoodCommonBlock.GetSmithScale(),
 				mockGoodCommonBlock.GetPayloadLength(),
 				mockGoodCommonBlock.GetPayloadHash(),
 				mockGoodCommonBlock.GetBlocksmithPublicKey(),
@@ -3565,7 +3547,6 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
 			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetSmithScale(),
 			mockGoodBlock.GetPayloadLength(),
 			mockGoodBlock.GetPayloadHash(),
 			mockGoodBlock.GetBlocksmithPublicKey(),

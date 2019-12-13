@@ -95,5 +95,5 @@ func CalculateNodeOrder(score *big.Int, blockSeed, nodeID int64) *big.Int {
 }
 
 func IsGenesis(previousBlockID int64, block *model.Block) bool {
-	return previousBlockID == -1 && block.CumulativeDifficulty != "" && block.SmithScale != 0
+	return previousBlockID == -1 && block.CumulativeDifficulty != ""
 }

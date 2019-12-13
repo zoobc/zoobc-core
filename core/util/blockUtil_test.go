@@ -82,8 +82,7 @@ func TestGetSmithTime(t *testing.T) {
 			args: args{
 				blocksmithIndex: 0,
 				block: &model.Block{
-					SmithScale: 1,
-					Timestamp:  0,
+					Timestamp: 0,
 				},
 			},
 			want: 15,
@@ -93,8 +92,7 @@ func TestGetSmithTime(t *testing.T) {
 			args: args{
 				blocksmithIndex: 1,
 				block: &model.Block{
-					SmithScale: 100,
-					Timestamp:  120000,
+					Timestamp: 120000,
 				},
 			},
 			want: 120000 + 30,
@@ -134,7 +132,6 @@ func TestGetBlockID(t *testing.T) {
 					PayloadHash:          []byte{},
 					CumulativeDifficulty: "341353517378119",
 					BlockSignature:       []byte{},
-					SmithScale:           54040,
 				},
 			},
 			want: 4891391764897612667,
@@ -155,7 +152,6 @@ func TestGetBlockID(t *testing.T) {
 					PayloadHash:          []byte{},
 					CumulativeDifficulty: "355353517378119",
 					BlockSignature:       []byte{},
-					SmithScale:           48985,
 				},
 			},
 			want: 5677934310196121651,
@@ -228,7 +224,6 @@ func TestIsGenesis(t *testing.T) {
 					BlockSeed:            nil,
 					BlockSignature:       nil,
 					CumulativeDifficulty: "",
-					SmithScale:           0,
 				},
 			},
 			want: false,
@@ -245,7 +240,6 @@ func TestIsGenesis(t *testing.T) {
 					BlockSeed:            nil,
 					BlockSignature:       nil,
 					CumulativeDifficulty: "11111",
-					SmithScale:           11110,
 				},
 			},
 			want: true,
