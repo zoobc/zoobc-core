@@ -61,15 +61,17 @@ func (*mockQueryExecutorSortBlocksmithSuccessWithBlocksmiths) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(
-		[]string{"NodeID", "PublicKey", "Score"},
+		[]string{"NodeID", "PublicKey", "Score", "maxHeight"},
 	).AddRow(
 		mockBlocksmiths[0].NodeID,
 		mockBlocksmiths[0].NodePublicKey,
 		mockBlocksmiths[0].Score.String(),
+		uint32(1),
 	).AddRow(
 		mockBlocksmiths[1].NodeID,
 		mockBlocksmiths[1].NodePublicKey,
 		mockBlocksmiths[1].Score.String(),
+		uint32(1),
 	))
 	rows, _ := db.Query("foo")
 	return rows, nil
@@ -81,11 +83,12 @@ func (*mockQueryExecutorGetBlocksmithsSuccessWithBlocksmith) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(
-		[]string{"NodeID", "PublicKey", "Score"},
+		[]string{"NodeID", "PublicKey", "Score", "maxHeight"},
 	).AddRow(
 		mockBlocksmiths[0].NodeID,
 		mockBlocksmiths[0].NodePublicKey,
 		mockBlocksmiths[0].Score.String(),
+		uint32(1),
 	))
 	rows, _ := db.Query("foo")
 	return rows, nil
