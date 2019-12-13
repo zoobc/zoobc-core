@@ -73,10 +73,6 @@ func (bp *BlockchainProcessor) CalculateSmith(
 	} else {
 		bp.Generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
 	}
-	if bp.Generator.Score.Sign() == 0 {
-		bp.Generator.SmithTime = 0
-		bp.Generator.BlockSeed = 0
-	}
 	bp.Generator.SmithTime = coreUtil.GetSmithTime(blocksmithIndex, lastBlock)
 }
 
@@ -160,7 +156,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		bp.LastBlockID = lastBlock.GetID()
 		bp.BlocksmithService.SortBlocksmiths(lastBlock)
 		// check if eligible to create block in this round
-		blocksmithsMap := bp.BlocksmithService.GetSortedBlocksmithsMap()
+		blocksmithsMap := bp.BlocksmithService.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(bp.Generator.NodePublicKey)] == nil {
 			bp.canSmith = false
 			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")

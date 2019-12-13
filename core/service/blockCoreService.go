@@ -64,7 +64,7 @@ type (
 		ChainWriteLock(int)
 		ChainWriteUnlock(actionType int)
 		GetCoinbase() int64
-		CoinbaseLotteryWinners() ([]string, error)
+		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
 		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		ReceiveBlock(
@@ -252,7 +252,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
 	// check if blocksmith can smith at the time
-	blocksmithsMap := bs.BlocksmithService.GetSortedBlocksmithsMap()
+	blocksmithsMap := bs.BlocksmithService.GetSortedBlocksmithsMap(previousLastBlock)
 	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
@@ -337,7 +337,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		sortedBlocksmithMap := bs.BlocksmithService.GetSortedBlocksmithsMap()
+		sortedBlocksmithMap := bs.BlocksmithService.GetSortedBlocksmithsMap(previousBlock)
 		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
 		if blocksmithIndex == nil {
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
@@ -449,7 +449,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithService.GetSortedBlocksmiths())),
+			coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))),
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -457,7 +457,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 			return err
 		}
-		err = bs.updatePopScore(popScore, block)
+		err = bs.updatePopScore(popScore, previousBlock, block)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
@@ -467,7 +467,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
-		lotteryAccounts, err := bs.CoinbaseLotteryWinners()
+		lotteryAccounts, err := bs.CoinbaseLotteryWinners(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
@@ -560,13 +560,13 @@ func (bs *BlockService) expelNodes(block *model.Block) error {
 	return nil
 }
 
-func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error {
+func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *model.Block) error {
 	var (
 		blocksmithNode  *model.Blocksmith
 		blocksmithIndex = -1
 		err             error
 	)
-	for i, bsm := range bs.BlocksmithService.GetSortedBlocksmiths() {
+	for i, bsm := range bs.BlocksmithService.GetSortedBlocksmiths(previousBlock) {
 		if reflect.DeepEqual(block.BlocksmithPublicKey, bsm.NodePublicKey) {
 			blocksmithIndex = i
 			blocksmithNode = bsm
@@ -577,7 +577,7 @@ func (bs *BlockService) updatePopScore(popScore int64, block *model.Block) error
 		return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInBlocksmithList")
 	}
 	// punish the skipped (index earlier than current blocksmith) blocksmith
-	for i, bsm := range (bs.BlocksmithService.GetSortedBlocksmiths())[:blocksmithIndex] {
+	for i, bsm := range (bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))[:blocksmithIndex] {
 		skippedBlocksmith := &model.SkippedBlocksmith{
 			BlocksmithPublicKey: bsm.NodePublicKey,
 			POPChange:           constant.ParticipationScorePunishAmount,
@@ -665,13 +665,11 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 // CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (bs *BlockService) CoinbaseLotteryWinners() ([]string, error) {
+func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
 	var (
 		selectedAccounts []string
 	)
 	// copy the pointer array to not change original order
-	blocksmiths := make([]*model.Blocksmith, len(bs.BlocksmithService.GetSortedBlocksmiths()))
-	copy(blocksmiths, bs.BlocksmithService.GetSortedBlocksmiths())
 
 	// sort blocksmiths by NodeOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
@@ -922,7 +920,7 @@ func (bs *BlockService) GenerateBlock(
 		}
 		publishedReceipts, err = bs.ReceiptService.SelectReceipts(
 			timestamp, coreUtil.GetNumberOfMaxReceipts(
-				len(bs.BlocksmithService.GetSortedBlocksmiths())),
+				len(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))),
 			previousBlock.Height,
 		)
 

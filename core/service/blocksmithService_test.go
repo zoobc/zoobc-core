@@ -18,6 +18,7 @@ import (
 var (
 	mockBlock = &model.Block{
 		BlockSeed: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+		Height:    1,
 	}
 )
 
@@ -209,7 +210,7 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
 				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
 			}
-			if got := bss.GetSortedBlocksmiths(); !reflect.DeepEqual(got, tt.want) {
+			if got := bss.GetSortedBlocksmiths(&model.Block{Height: 0}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmiths() = %v, want %v", got, tt.want)
 			}
 		})
@@ -258,7 +259,7 @@ func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
 				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
 				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
 			}
-			if got := bss.GetSortedBlocksmithsMap(); !reflect.DeepEqual(got, tt.want) {
+			if got := bss.GetSortedBlocksmithsMap(&model.Block{Height: 0}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmithsMap() = %v, want %v", got, tt.want)
 			}
 		})

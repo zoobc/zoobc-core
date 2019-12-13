@@ -870,10 +870,10 @@ type (
 	}
 )
 
-func (*mockBlocksmithServicePushBlock) GetSortedBlocksmiths() []*model.Blocksmith {
+func (*mockBlocksmithServicePushBlock) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
 	return mockBlocksmiths
 }
-func (*mockBlocksmithServicePushBlock) GetSortedBlocksmithsMap() map[string]*int64 {
+func (*mockBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block) map[string]*int64 {
 	var result = make(map[string]*int64)
 	for index, mock := range mockBlocksmiths {
 		mockIndex := int64(index)
@@ -2786,7 +2786,7 @@ type (
 	}
 )
 
-func (*mockBlocksmithService) GetSortedBlocksmiths() []*model.Blocksmith {
+func (*mockBlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
 	return []*model.Blocksmith{
 		{
 			NodeID:        1,
@@ -2820,10 +2820,14 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Observer                *observer.Observer
 	}
+	type args struct {
+		blocksmiths []*model.Blocksmith
+	}
 	tests := []struct {
 		name    string
 		fields  fields
 		want    []string
+		args    args
 		wantErr bool
 	}{
 		{
@@ -2831,9 +2835,23 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			fields: fields{
 				QueryExecutor:         &mockQueryExecutorSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlocksmithService:     &mockBlocksmithService{},
 			},
 			wantErr: false,
+			args: args{blocksmiths: []*model.Blocksmith{
+				{
+					NodeID:        1,
+					NodeOrder:     new(big.Int).SetInt64(8000),
+					NodePublicKey: []byte{1, 3, 4, 5, 6},
+				},
+				{
+					NodeID:    2,
+					NodeOrder: new(big.Int).SetInt64(1000),
+				},
+				{
+					NodeID:    3,
+					NodeOrder: new(big.Int).SetInt64(5000),
+				},
+			}},
 			want: []string{
 				bcsAddress2,
 				bcsAddress3,
@@ -2858,7 +2876,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
 			}
-			got, err := bs.CoinbaseLotteryWinners()
+			got, err := bs.CoinbaseLotteryWinners(tt.args.blocksmiths)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.CoinbaseLotteryWinners() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -3058,7 +3076,7 @@ type (
 	}
 )
 
-func (*mockBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap() map[string]*int64 {
+func (*mockBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*model.Block) map[string]*int64 {
 	firstIndex := int64(0)
 	secondIndex := int64(1)
 	return map[string]*int64{

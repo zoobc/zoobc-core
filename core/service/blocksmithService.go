@@ -16,16 +16,17 @@ type (
 	BlocksmithServiceInterface interface {
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		SortBlocksmiths(block *model.Block)
-		GetSortedBlocksmiths() []*model.Blocksmith
-		GetSortedBlocksmithsMap() map[string]*int64
+		GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith
+		GetSortedBlocksmithsMap(block *model.Block) map[string]*int64
 	}
 	BlocksmithService struct {
 		QueryExecutor            query.ExecutorInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		Logger                   *log.Logger
 		SortedBlocksmiths        []*model.Blocksmith
-		SortedBlocksmithsMap     map[string]*int64
+		LastSortedBlockHeight    uint32
 		SortedBlocksmithsMapLock sync.RWMutex
+		SortedBlocksmithsMap     map[string]*int64
 	}
 )
 
@@ -48,7 +49,8 @@ func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Block
 		activeBlocksmiths, blocksmiths []*model.Blocksmith
 	)
 	// get all registered nodes with participation score > 0
-	rows, err := bss.QueryExecutor.ExecuteSelect(bss.NodeRegistrationQuery.GetActiveNodeRegistrations(), false)
+	rows, err := bss.QueryExecutor.ExecuteSelect(bss.NodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(
+		block.Height), false)
 	if err != nil {
 		return nil, err
 	}
@@ -71,17 +73,26 @@ func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Block
 	return blocksmiths, nil
 }
 
-func (bss *BlocksmithService) GetSortedBlocksmiths() []*model.Blocksmith {
+func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
+	if block.Height != bss.LastSortedBlockHeight && block.Height != 0 {
+		bss.SortBlocksmiths(block)
+	}
 	return bss.SortedBlocksmiths
 }
 
-func (bss *BlocksmithService) GetSortedBlocksmithsMap() map[string]*int64 {
+func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+	if block.Height != bss.LastSortedBlockHeight && block.Height != 0 {
+		bss.SortBlocksmiths(block)
+	}
 	bss.SortedBlocksmithsMapLock.RLock()
 	defer bss.SortedBlocksmithsMapLock.RUnlock()
 	return bss.SortedBlocksmithsMap
 }
 
 func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
+	if block.Height == bss.LastSortedBlockHeight && block.Height != 0 {
+		return
+	}
 	// fetch valid blocksmiths
 	var blocksmiths []*model.Blocksmith
 	nextBlocksmiths, err := bss.GetBlocksmiths(block)
