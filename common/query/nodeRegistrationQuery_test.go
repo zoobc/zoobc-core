@@ -381,18 +381,6 @@ func TestNodeRegistrationQuery_Scan(t *testing.T) {
 		})
 	}
 }
-func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
-	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetActiveNodeRegistrations()
-		want := "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
-			"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
-			"WHERE nr.registration_status = 0 AND nr.latest = 1 " +
-			"AND ps.score > 0 AND ps.latest = 1"
-		if res != want {
-			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
-		}
-	})
-}
 
 func TestNodeRegistrationQuery_ClearDeletedNodeRegistration(t *testing.T) {
 	t.Run("ClearDeletedNodeRegistration", func(t *testing.T) {
