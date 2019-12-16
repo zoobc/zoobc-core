@@ -191,7 +191,7 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 		want   []*model.Blocksmith
 	}{
 		{
-			name: "success",
+			name: "success : last sorted = incoming block height",
 			fields: fields{
 				QueryExecutor:            nil,
 				NodeRegistrationQuery:    nil,
@@ -210,10 +210,11 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
 				Logger:                   tt.fields.Logger,
 				SortedBlocksmiths:        tt.fields.SortedBlocksmiths,
+				LastSortedBlockHeight:    1,
 				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
 				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
 			}
-			if got := bss.GetSortedBlocksmiths(&model.Block{Height: 0}); !reflect.DeepEqual(got, tt.want) {
+			if got := bss.GetSortedBlocksmiths(&model.Block{Height: 1}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmiths() = %v, want %v", got, tt.want)
 			}
 		})
