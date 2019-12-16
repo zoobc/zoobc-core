@@ -321,7 +321,6 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, arg
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),
 		mockBlockData.GetCumulativeDifficulty(),
-		mockBlockData.GetSmithScale(),
 		mockBlockData.GetPayloadLength(),
 		mockBlockData.GetPayloadHash(),
 		mockBlockData.GetBlocksmithPublicKey(),

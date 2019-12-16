@@ -23,7 +23,6 @@ var (
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
 		CumulativeDifficulty: string(100000000),
-		SmithScale:           1,
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  nodePubKey1,
