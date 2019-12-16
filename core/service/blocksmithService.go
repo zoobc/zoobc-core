@@ -20,13 +20,13 @@ type (
 		GetSortedBlocksmithsMap(block *model.Block) map[string]*int64
 	}
 	BlocksmithService struct {
-		QueryExecutor            query.ExecutorInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		Logger                   *log.Logger
-		SortedBlocksmiths        []*model.Blocksmith
-		LastSortedBlockHeight    uint32
-		SortedBlocksmithsMapLock sync.RWMutex
-		SortedBlocksmithsMap     map[string]*int64
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		Logger                *log.Logger
+		SortedBlocksmiths     []*model.Blocksmith
+		LastSortedBlockHeight uint32
+		SortedBlocksmithsLock sync.RWMutex
+		SortedBlocksmithsMap  map[string]*int64
 	}
 )
 
@@ -77,16 +77,27 @@ func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.
 	if block.Height != bss.LastSortedBlockHeight || block.Height == 0 {
 		bss.SortBlocksmiths(block)
 	}
-	return bss.SortedBlocksmiths
+	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
+	bss.SortedBlocksmithsLock.RLock()
+	copy(result, bss.SortedBlocksmiths)
+	bss.SortedBlocksmithsLock.RUnlock()
+	return result
 }
 
+// GetSortedBlocksmithsMap get the sorted blocksmiths in map
 func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+	var (
+		result = make(map[string]*int64)
+	)
 	if block.Height != bss.LastSortedBlockHeight || block.Height == 0 {
 		bss.SortBlocksmiths(block)
 	}
-	bss.SortedBlocksmithsMapLock.RLock()
-	defer bss.SortedBlocksmithsMapLock.RUnlock()
-	return bss.SortedBlocksmithsMap
+	bss.SortedBlocksmithsLock.RLock()
+	for k, v := range bss.SortedBlocksmithsMap {
+		result[k] = v
+	}
+	bss.SortedBlocksmithsLock.RUnlock()
+	return result
 }
 
 func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
@@ -97,7 +108,7 @@ func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
 	var blocksmiths []*model.Blocksmith
 	nextBlocksmiths, err := bss.GetBlocksmiths(block)
 	if err != nil {
-		bss.Logger.Errorf("SortBlocksmith: %s", err)
+		bss.Logger.Errorf("SortBlocksmith:GetBlocksmiths fail: %s", err)
 		return
 	}
 	// copy the nextBlocksmiths pointers array into an array of blocksmiths
@@ -112,15 +123,12 @@ func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
 		// ascending sort
 		return res < 0
 	})
-	bss.copyBlocksmithsToMap(blocksmiths)
-	bss.SortedBlocksmiths = blocksmiths
-}
-
-func (bss *BlocksmithService) copyBlocksmithsToMap(blocksmiths []*model.Blocksmith) {
-	bss.SortedBlocksmithsMapLock.Lock()
-	defer bss.SortedBlocksmithsMapLock.Unlock()
+	bss.SortedBlocksmithsLock.Lock()
+	defer bss.SortedBlocksmithsLock.Unlock()
+	// copying the sorted list to map[string(publicKey)]index
 	for index, blocksmith := range blocksmiths {
 		blocksmithIndex := int64(index)
 		bss.SortedBlocksmithsMap[string(blocksmith.NodePublicKey)] = &blocksmithIndex
 	}
+	bss.SortedBlocksmiths = blocksmiths
 }

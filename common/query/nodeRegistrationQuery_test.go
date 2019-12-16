@@ -399,3 +399,16 @@ func TestNodeRegistrationQuery_ClearDeletedNodeRegistration(t *testing.T) {
 		}
 	})
 }
+
+func TestNodeRegistrationQuery_GetActiveNodeRegistrationsByHeight(t *testing.T) {
+	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
+		res := mockNodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(1)
+		want := "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score, " +
+			"max(nr.height) AS max_height FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = " +
+			"ps.node_id WHERE nr.height <= 1 AND nr.registration_status = 0 AND nr.latest = 1 AND ps.score > 0 AND " +
+			"ps.latest = 1 GROUP BY nr.id"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

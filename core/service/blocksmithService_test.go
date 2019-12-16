@@ -157,12 +157,12 @@ func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithService{
-				QueryExecutor:            tt.fields.QueryExecutor,
-				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
-				Logger:                   tt.fields.Logger,
-				SortedBlocksmiths:        tt.fields.SortedBlocksmiths,
-				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
 			}
 			got, err := bss.GetBlocksmiths(tt.args.block)
 			if (err != nil) != tt.wantErr {
@@ -206,13 +206,13 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithService{
-				QueryExecutor:            tt.fields.QueryExecutor,
-				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
-				Logger:                   tt.fields.Logger,
-				SortedBlocksmiths:        tt.fields.SortedBlocksmiths,
-				LastSortedBlockHeight:    1,
-				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				LastSortedBlockHeight: 1,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
 			}
 			if got := bss.GetSortedBlocksmiths(&model.Block{Height: 1}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmiths() = %v, want %v", got, tt.want)
@@ -256,13 +256,13 @@ func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithService{
-				QueryExecutor:            tt.fields.QueryExecutor,
-				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
-				Logger:                   tt.fields.Logger,
-				SortedBlocksmiths:        tt.fields.SortedBlocksmiths,
-				LastSortedBlockHeight:    1,
-				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				LastSortedBlockHeight: 1,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
 			}
 			if got := bss.GetSortedBlocksmithsMap(&model.Block{Height: 1}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmithsMap() = %v, want %v", got, tt.want)
@@ -307,70 +307,17 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithService{
-				QueryExecutor:            tt.fields.QueryExecutor,
-				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
-				Logger:                   tt.fields.Logger,
-				SortedBlocksmiths:        tt.fields.SortedBlocksmiths,
-				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
 			}
 			bss.SortBlocksmiths(tt.args.block)
 			if bss.SortedBlocksmiths[0].NodeID != mockBlocksmiths[1].NodeID &&
 				bss.SortedBlocksmiths[1].NodeID != mockBlocksmiths[0].NodeID {
 				t.Errorf("sorting fail")
-			}
-		})
-	}
-}
-
-func TestBlocksmithService_copyBlocksmithsToMap(t *testing.T) {
-	var mockBlocksmithMap = make(map[string]*int64)
-	for index, mockBlocksmith := range mockBlocksmiths {
-		mockIndex := int64(index)
-		mockBlocksmithMap[string(mockBlocksmith.NodePublicKey)] = &mockIndex
-	}
-	type fields struct {
-		QueryExecutor            query.ExecutorInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		Logger                   *log.Logger
-		SortedBlocksmiths        []*model.Blocksmith
-		SortedBlocksmithsMap     map[string]*int64
-		SortedBlocksmithsMapLock sync.RWMutex
-	}
-	type args struct {
-		blocksmiths []*model.Blocksmith
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "success",
-			fields: fields{
-				QueryExecutor:            nil,
-				NodeRegistrationQuery:    nil,
-				Logger:                   nil,
-				SortedBlocksmiths:        mockBlocksmiths,
-				SortedBlocksmithsMap:     make(map[string]*int64),
-				SortedBlocksmithsMapLock: sync.RWMutex{},
-			},
-			args: args{blocksmiths: mockBlocksmiths},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithService{
-				QueryExecutor:            tt.fields.QueryExecutor,
-				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
-				Logger:                   tt.fields.Logger,
-				SortedBlocksmiths:        tt.fields.SortedBlocksmiths,
-				SortedBlocksmithsMap:     tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsMapLock: tt.fields.SortedBlocksmithsMapLock,
-			}
-			bss.copyBlocksmithsToMap(tt.args.blocksmiths)
-			if !reflect.DeepEqual(bss.SortedBlocksmithsMap, mockBlocksmithMap) {
-				t.Errorf("copy fail")
 			}
 		})
 	}
