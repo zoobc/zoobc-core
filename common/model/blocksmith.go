@@ -19,7 +19,7 @@ type Blocksmith struct {
 	Deadline      uint32
 }
 
-// InitGenerator initiate generator
+// NewBlocksmith initiate generator
 func NewBlocksmith(nodeSecretPhrase string, nodePublicKey []byte, nodeID int64) *Blocksmith {
 	blocksmith := &Blocksmith{
 		Score:         big.NewInt(constant.DefaultParticipationScore),
@@ -28,13 +28,4 @@ func NewBlocksmith(nodeSecretPhrase string, nodePublicKey []byte, nodeID int64) 
 		NodeID:        nodeID,
 	}
 	return blocksmith
-}
-
-// GetTimestamp max timestamp allowed block to be smithed
-func (blocksmith *Blocksmith) GetTimestamp(smithMax int64) int64 {
-	elapsed := smithMax - blocksmith.SmithTime
-	if elapsed > 3600 {
-		return smithMax
-	}
-	return blocksmith.SmithTime + 1
 }
