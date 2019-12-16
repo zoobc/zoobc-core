@@ -343,7 +343,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
 		}
 		blockCumulativeDifficulty, err := coreUtil.CalculateCumulativeDifficulty(
-			previousBlock, block, *blocksmithIndex,
+			previousBlock, *blocksmithIndex,
 		)
 		if err != nil {
 			return err
@@ -605,6 +605,8 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 	return nil
 }
 
+// processPublishedReceipts process the receipt received in a block
+// todo: this should be moved to PublishedReceiptService
 func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error) {
 	var (
 		linkedCount int

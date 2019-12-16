@@ -74,14 +74,14 @@ func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Block
 }
 
 func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	if block.Height != bss.LastSortedBlockHeight && block.Height != 0 {
+	if block.Height != bss.LastSortedBlockHeight || block.Height == 0 {
 		bss.SortBlocksmiths(block)
 	}
 	return bss.SortedBlocksmiths
 }
 
 func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
-	if block.Height != bss.LastSortedBlockHeight && block.Height != 0 {
+	if block.Height != bss.LastSortedBlockHeight || block.Height == 0 {
 		bss.SortBlocksmiths(block)
 	}
 	bss.SortedBlocksmithsMapLock.RLock()
