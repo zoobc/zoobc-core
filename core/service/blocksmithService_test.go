@@ -191,7 +191,7 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 		want   []*model.Blocksmith
 	}{
 		{
-			name: "success : last sorted = incoming block height",
+			name: "success : last sorted block id = incoming block id",
 			fields: fields{
 				QueryExecutor:            nil,
 				NodeRegistrationQuery:    nil,
@@ -210,11 +210,11 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
 				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockHeight: 1,
+				LastSortedBlockID:     1,
 				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
 				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
 			}
-			if got := bss.GetSortedBlocksmiths(&model.Block{Height: 1}); !reflect.DeepEqual(got, tt.want) {
+			if got := bss.GetSortedBlocksmiths(&model.Block{ID: 1}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmiths() = %v, want %v", got, tt.want)
 			}
 		})
@@ -260,11 +260,11 @@ func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
 				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockHeight: 1,
+				LastSortedBlockID:     1,
 				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
 				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
 			}
-			if got := bss.GetSortedBlocksmithsMap(&model.Block{Height: 1}); !reflect.DeepEqual(got, tt.want) {
+			if got := bss.GetSortedBlocksmithsMap(&model.Block{ID: 1}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetSortedBlocksmithsMap() = %v, want %v", got, tt.want)
 			}
 		})
@@ -279,6 +279,7 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 		SortedBlocksmiths        []*model.Blocksmith
 		SortedBlocksmithsMap     map[string]*int64
 		SortedBlocksmithsMapLock sync.RWMutex
+		LastSortedBlockID        int64
 	}
 	type args struct {
 		block *model.Block
@@ -298,6 +299,7 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmiths:        nil,
 				SortedBlocksmithsMap:     make(map[string]*int64),
 				SortedBlocksmithsMapLock: sync.RWMutex{},
+				LastSortedBlockID:        1,
 			},
 			args: args{
 				block: mockBlock,
@@ -313,6 +315,7 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
 				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
 				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
+				LastSortedBlockID:     tt.fields.LastSortedBlockID,
 			}
 			bss.SortBlocksmiths(tt.args.block)
 			if bss.SortedBlocksmiths[0].NodeID != mockBlocksmiths[1].NodeID &&

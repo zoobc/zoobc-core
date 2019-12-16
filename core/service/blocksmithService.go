@@ -4,6 +4,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -24,7 +26,7 @@ type (
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		Logger                *log.Logger
 		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockHeight uint32
+		LastSortedBlockID     int64
 		SortedBlocksmithsLock sync.RWMutex
 		SortedBlocksmithsMap  map[string]*int64
 	}
@@ -74,7 +76,7 @@ func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Block
 }
 
 func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	if block.Height != bss.LastSortedBlockHeight || block.Height == 0 {
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block)
 	}
 	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
@@ -89,7 +91,7 @@ func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[st
 	var (
 		result = make(map[string]*int64)
 	)
-	if block.Height != bss.LastSortedBlockHeight || block.Height == 0 {
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block)
 	}
 	bss.SortedBlocksmithsLock.RLock()
@@ -101,7 +103,7 @@ func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[st
 }
 
 func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
-	if block.Height == bss.LastSortedBlockHeight && block.Height != 0 {
+	if block.ID == bss.LastSortedBlockID && block.ID != constant.MainchainGenesisBlockID {
 		return
 	}
 	// fetch valid blocksmiths
@@ -130,5 +132,7 @@ func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
 		blocksmithIndex := int64(index)
 		bss.SortedBlocksmithsMap[string(blocksmith.NodePublicKey)] = &blocksmithIndex
 	}
+	// set last sorted block id
+	bss.LastSortedBlockID = block.ID
 	bss.SortedBlocksmiths = blocksmiths
 }
