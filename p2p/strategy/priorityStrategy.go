@@ -235,12 +235,12 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 			// get scramble node
 			lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
 			if err != nil {
-				ps.Logger.Error("FailGetLastBlock")
+				ps.Logger.Errorf("FailGetLastBlock: %v", err)
 				return false
 			}
 			scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
 			if err != nil {
-				ps.Logger.Error("FailGetScrambleNodesByHeight")
+				ps.Logger.Errorf("FailGetScrambleNodesByHeight: %v", err)
 				return false
 			}
 
