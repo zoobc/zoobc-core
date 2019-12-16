@@ -332,9 +332,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	var (
 		err error
 	)
-	// re-sort blocksmiths for current block
-	bs.BlocksmithService.SortBlocksmiths(previousBlock)
-
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 		sortedBlocksmithMap := bs.BlocksmithService.GetSortedBlocksmithsMap(previousBlock)
