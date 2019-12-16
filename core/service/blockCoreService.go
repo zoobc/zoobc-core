@@ -1140,7 +1140,7 @@ func (bs *BlockService) ReceiveBlock(
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
-				err = bs.PushBlock(lastBlock, block, true)
+				err = bs.PushBlock(previousBlock, block, true)
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
 					if errPushBlock != nil {
