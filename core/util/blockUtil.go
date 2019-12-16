@@ -34,9 +34,9 @@ func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
-// CalculateCumulativeDifficulty get the cumulative difficulty of the incoming block
+// CalculateCumulativeDifficulty get the cumulative difficulty of the incoming block based on its blocksmith index
 func CalculateCumulativeDifficulty(
-	previousBlock, block *model.Block,
+	previousBlock *model.Block,
 	blocksmithIndex int64,
 ) (string, error) {
 	previousCumulativeDifficulty, ok := new(big.Int).SetString(previousBlock.CumulativeDifficulty, 10)
