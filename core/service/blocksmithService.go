@@ -79,8 +79,8 @@ func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.
 	}
 	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	bss.SortedBlocksmithsLock.RLock()
+	defer bss.SortedBlocksmithsLock.RUnlock()
 	copy(result, bss.SortedBlocksmiths)
-	bss.SortedBlocksmithsLock.RUnlock()
 	return result
 }
 
@@ -93,10 +93,10 @@ func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[st
 		bss.SortBlocksmiths(block)
 	}
 	bss.SortedBlocksmithsLock.RLock()
+	defer bss.SortedBlocksmithsLock.RUnlock()
 	for k, v := range bss.SortedBlocksmithsMap {
 		result[k] = v
 	}
-	bss.SortedBlocksmithsLock.RUnlock()
 	return result
 }
 
