@@ -27,10 +27,9 @@ type (
 		ConfirmWithPeer(peerToCheck *model.Peer, commonMilestoneBlockID int64) ([]int64, error)
 	}
 	BlockchainDownloader struct {
-		IsDownloading bool // only for status
-		PeerHasMore   bool
-		ChainType     chaintype.ChainType
-
+		IsDownloading     bool // only for status
+		PeerHasMore       bool
+		ChainType         chaintype.ChainType
 		BlockService      service.BlockServiceInterface
 		PeerServiceClient client.PeerServiceClientInterface
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
@@ -270,15 +269,20 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		if lastBlock.ID == previousBlockID {
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
-				// TODO: analyze the mechanism of blacklisting peer here
-				// bd.P2pService.Blacklist(peer)
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+				err := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				if err != nil {
+					bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
+				}
+
 				break
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false)
 			if err != nil {
-				// TODO: analyze the mechanism of blacklisting peer here
-				// bd.P2pService.Blacklist(peer)
+				err := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				if err != nil {
+					bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
+				}
 				bd.Logger.Info("failed to push block from peer:", err)
 				break
 			}
@@ -311,8 +315,10 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 	lastBlockID := lastBlock.ID
 	for {
 		if trialCounter >= constant.MaxCommonMilestoneRequestTrial {
-			// TODO: Blacklist peer here
-			// bd.P2pService.PeerBlacklist(peer, "different blockchain fork")
+			err := bd.PeerExplorer.PeerBlacklist(peer, "different blockchain fork")
+			if err != nil {
+				bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
+			}
 			return 0, err
 		}
 		trialCounter++
