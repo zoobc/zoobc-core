@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/kvdb"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -30,6 +31,7 @@ type (
 		MempoolService     service.MempoolServiceInterface
 		KVExecutor         kvdb.KVExecutorInterface
 		Logger             *log.Logger
+		PeerExplorer       strategy.PeerExplorerStrategyInterface
 	}
 )
 
@@ -72,17 +74,23 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 				if err != nil {
-					// TODO: analyze the mechanism of blacklisting peer here
-					// bd.P2pService.Blacklist(peer)
+					err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+					if err != nil {
+						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
+					}
 					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
-					// TODO: blacklist the wrong peer
-					// fp.P2pService.Blacklist(feederPeer)
+
+					err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+					if err != nil {
+						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
+					}
 					fp.Logger.Warnf("\n\nPushBlock err %v\n\n", err)
 					break
 				}
+
 				pushedForkBlocks++
 			}
 		}
@@ -119,8 +127,10 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			}
 			err = fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
-				// TODO: analyze the mechanism of blacklisting peer here
-				// bd.P2pService.Blacklist(peer)
+				err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				if err != nil {
+					fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
+				}
 				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
