@@ -1317,7 +1317,7 @@ func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string,
 }
 
 func (*BlockService) GetCoinbase() int64 {
-	return constant.CoinbaseConstant
+	return 50 * constant.OneZBC
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {

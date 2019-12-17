@@ -25,7 +25,7 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 	unlinkedBlockScore := float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.ScalarReceiptScore
 	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
 
-	scoreChangeOfANode := (blockScore - halfMaxBlockScore) * (constant.MaxScoreChange / halfMaxBlockScore)
+	scoreChangeOfANode := ((blockScore - halfMaxBlockScore) * constant.MaxScoreChange) / halfMaxBlockScore
 	return scoreChangeOfANode, nil
 }
 

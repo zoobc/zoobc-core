@@ -12,6 +12,8 @@ const (
 	MaxScoreChange = 100000000 * int64(ScalarReceiptScore)
 	// punishment amount
 	ParticipationScorePunishAmount = -1 * MaxScoreChange / 2
+	// MaxReceipt the maximum receipt will publish in every block
+	MaxReceipt uint32 = 20
 	// MaxParticipationScore maximum achievable score, this will be important to maintain smithing process so it doesn't
 	// smith too fast
 	MaxParticipationScore int64 = 10000000000 * int64(ScalarReceiptScore)
