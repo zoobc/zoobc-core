@@ -54,7 +54,6 @@ var (
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
 		CumulativeDifficulty: "1000",
-		SmithScale:           1,
 		PayloadLength:        1,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -358,7 +357,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 				mockBlockDataSelectReceipt.GetBlockSeed(),
 				mockBlockDataSelectReceipt.GetBlockSignature(),
 				mockBlockDataSelectReceipt.GetCumulativeDifficulty(),
-				mockBlockDataSelectReceipt.GetSmithScale(),
 				mockBlockDataSelectReceipt.GetPayloadLength(),
 				mockBlockDataSelectReceipt.GetPayloadHash(),
 				mockBlockDataSelectReceipt.GetBlocksmithPublicKey(),
@@ -431,7 +429,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 				mockBlockDataSelectReceipt.GetBlockSeed(),
 				mockBlockDataSelectReceipt.GetBlockSignature(),
 				mockBlockDataSelectReceipt.GetCumulativeDifficulty(),
-				mockBlockDataSelectReceipt.GetSmithScale(),
 				mockBlockDataSelectReceipt.GetPayloadLength(),
 				mockBlockDataSelectReceipt.GetPayloadHash(),
 				mockBlockDataSelectReceipt.GetBlocksmithPublicKey(),
@@ -771,7 +768,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	switch qStr {
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-		"cumulative_difficulty, smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
@@ -785,7 +782,6 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 				mockBlockData.GetBlockSeed(),
 				mockBlockData.GetBlockSignature(),
 				mockBlockData.GetCumulativeDifficulty(),
-				mockBlockData.GetSmithScale(),
 				mockBlockData.GetPayloadLength(),
 				mockBlockData.GetPayloadHash(),
 				mockBlockData.GetBlocksmithPublicKey(),
@@ -966,7 +962,6 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx 
 		mockBlockDataSelectReceipt.GetBlockSeed(),
 		mockBlockDataSelectReceipt.GetBlockSignature(),
 		mockBlockDataSelectReceipt.GetCumulativeDifficulty(),
-		mockBlockDataSelectReceipt.GetSmithScale(),
 		mockBlockDataSelectReceipt.GetPayloadLength(),
 		mockBlockDataSelectReceipt.GetPayloadHash(),
 		mockBlockDataSelectReceipt.GetBlocksmithPublicKey(),

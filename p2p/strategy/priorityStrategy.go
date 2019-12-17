@@ -716,16 +716,21 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 	return newBlacklistedPeers
 }
 
-// AddToBlacklistedPeer to add a peer into resolved peer
-func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer) error {
+// AddToBlacklistedPeer to add a peer into blacklisted peer
+func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, cause string) error {
+
 	if peer == nil {
-		return errors.New("AddToBlacklistedPeer Err, peer is nil")
+		return errors.New("AddToBlacklisted Peer Err, peer is nil")
 	}
+
+	peer.BlacklistingTime = uint64(time.Now().UTC().Unix())
+	peer.BlacklistingCause = cause
+
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
-
 	ps.Host.BlacklistedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	return nil
+
 }
 
 // RemoveBlacklistedPeer removes peer from Blacklisted peer list
@@ -770,18 +775,22 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ps.GetResolvedPeers())) - ps.MaxResolvedPeers + 1
 }
 
-func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) {
-	peer.BlacklistingTime = uint64(time.Now().Unix())
-	peer.BlacklistingCause = cause
-	if err := ps.AddToBlacklistedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+// PeerBlacklist process adding peer into blacklist
+func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
+	if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
+		ps.Logger.Warn(err.Error())
+		return err
 	}
 	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
+		return err
 	}
 	if err := ps.RemoveResolvedPeer(peer); err != nil {
-		ps.Logger.Error(err.Error())
+		ps.Logger.Warn(err.Error())
+		return err
 	}
+
+	return nil
 }
 
 // PeerUnblacklist to update Peer state of peer

@@ -16,7 +16,7 @@ type (
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
-		GetActiveNodeRegistrations() string
+		GetActiveNodeRegistrationsByHeight(height uint32) string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
@@ -103,12 +103,12 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size 
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationHeight, size)
 }
 
-// GetActiveNodeRegistrations
-func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
-	return fmt.Sprintf("SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score FROM %s AS nr "+
-		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE "+
-		"nr.registration_status = %d AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1",
-		nrq.getTableName(), NewParticipationScoreQuery().TableName, uint32(model.NodeRegistrationState_NodeRegistered))
+func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsByHeight(height uint32) string {
+	return fmt.Sprintf("SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score,"+
+		" max(nr.height) AS max_height FROM %s AS nr "+
+		"INNER JOIN %s AS ps ON nr.id = ps.node_id WHERE nr.height <= %d AND "+
+		"nr.registration_status = %d AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1 GROUP BY nr.id",
+		nrq.getTableName(), NewParticipationScoreQuery().TableName, height, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
 // GetNodeRegistrationByID returns query string to get Node Registration by node public key
@@ -245,11 +245,13 @@ func (*NodeRegistrationQuery) BuildBlocksmith(
 		var (
 			blocksmith  model.Blocksmith
 			scoreString string
+			maxHeight   uint32
 		)
 		err := rows.Scan(
 			&blocksmith.NodeID,
 			&blocksmith.NodePublicKey,
 			&scoreString,
+			&maxHeight,
 		)
 		if err != nil {
 			return nil, err

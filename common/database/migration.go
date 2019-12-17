@@ -85,7 +85,6 @@ func (m *Migration) Init() error {
 				"block_seed" BLOB,
 				"block_signature" BLOB,
 				"cumulative_difficulty" TEXT,
-				"smith_scale" INTEGER,
 				"blocksmith_public_key" BLOB,
 				"total_amount" INTEGER,
 				"total_fee" INTEGER,

@@ -28,7 +28,6 @@ func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 		block1.GetBlockSeed(),
 		block1.GetBlockSignature(),
 		block1.GetCumulativeDifficulty(),
-		block1.GetSmithScale(),
 		block1.GetPayloadLength(),
 		block1.GetPayloadHash(),
 		block1.GetBlocksmithPublicKey(),
@@ -64,7 +63,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		return db.Query("A")
 	}
 	if qe == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
+		" payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -75,7 +74,6 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"block_seed",
 			"block_signature",
 			"cumulative_difficulty",
-			"smith_scale",
 			"payload_length",
 			"payload_hash",
 			"blocksmith_public_key",
@@ -93,7 +91,6 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			[]byte{},
 			[]byte{},
 			100000000,
-			1,
 			0,
 			[]byte{},
 			nodePubKey1,
@@ -105,7 +102,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 		return db.Query("A")
 	}
 	if qe == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" smith_scale, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
+		" payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
 		" FROM main_block WHERE height = 0" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
@@ -116,7 +113,6 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"block_seed",
 			"block_signature",
 			"cumulative_difficulty",
-			"smith_scale",
 			"payload_length",
 			"payload_hash",
 			"blocksmith_public_key",
@@ -134,7 +130,6 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			[]byte{},
 			[]byte{},
 			100000000,
-			1,
 			0,
 			[]byte{},
 			nodePubKey1,
@@ -195,7 +190,6 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
 		CumulativeDifficulty: string(100000000),
-		SmithScale:           1,
 		PayloadLength:        0,
 		PayloadHash:          []byte{0, 0, 0, 1},
 		BlocksmithPublicKey:  nodePubKey1,

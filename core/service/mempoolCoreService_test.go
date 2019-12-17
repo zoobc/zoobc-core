@@ -65,16 +65,6 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 	return errors.New("MockedError")
 }
 
-func (*mockMempoolQueryExecutorFail) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
-	// While getting last block
-	db, mock, _ := sqlmock.New()
-	// "SELECT count() as total_record FROM mempool ORDER BY fee_per_byte DESC"
-	mockedRows := sqlmock.NewRows([]string{"total_record"})
-	mockedRows.AddRow(51)
-	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	return db.QueryRow(qe), nil
-}
-
 func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
 	return &model.Transaction{
 		Version:                 1,
@@ -321,37 +311,27 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteTransaction(qe string, args ...in
 func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	// While getting last block
 	db, mock, _ := sqlmock.New()
-	switch qe {
-	case "SELECT count() as total_record FROM mempool ORDER BY fee_per_byte DESC":
-		mockedRows := sqlmock.NewRows([]string{"total_record"})
-		mockedRows.AddRow(51)
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-		return db.QueryRow(qe), nil
-	default:
-		mockedRow := sqlmock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
-		mockedRow.AddRow(
-			mockBlockData.GetID(),
-			mockBlockData.GetBlockHash(),
-			mockBlockData.GetPreviousBlockHash(),
-			mockBlockData.GetHeight(),
-			mockBlockData.GetTimestamp(),
-			mockBlockData.GetBlockSeed(),
-			mockBlockData.GetBlockSignature(),
-			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetSmithScale(),
-			mockBlockData.GetPayloadLength(),
-			mockBlockData.GetPayloadHash(),
-			mockBlockData.GetBlocksmithPublicKey(),
-			mockBlockData.GetTotalAmount(),
-			mockBlockData.GetTotalFee(),
-			mockBlockData.GetTotalCoinBase(),
-			mockBlockData.GetVersion(),
-		)
-		mock.ExpectQuery("").WillReturnRows(mockedRow)
-		return db.QueryRow(""), nil
-	}
+	mockedRow := sqlmock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockedRow.AddRow(
+		mockBlockData.GetID(),
+		mockBlockData.GetBlockHash(),
+		mockBlockData.GetPreviousBlockHash(),
+		mockBlockData.GetHeight(),
+		mockBlockData.GetTimestamp(),
+		mockBlockData.GetBlockSeed(),
+		mockBlockData.GetBlockSignature(),
+		mockBlockData.GetCumulativeDifficulty(),
+		mockBlockData.GetPayloadLength(),
+		mockBlockData.GetPayloadHash(),
+		mockBlockData.GetBlocksmithPublicKey(),
+		mockBlockData.GetTotalAmount(),
+		mockBlockData.GetTotalFee(),
+		mockBlockData.GetTotalCoinBase(),
+		mockBlockData.GetVersion(),
+	)
+	mock.ExpectQuery("").WillReturnRows(mockedRow)
+	return db.QueryRow(""), nil
 }
-
 func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
 	return nil
 }
