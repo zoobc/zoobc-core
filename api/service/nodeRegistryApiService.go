@@ -125,7 +125,7 @@ func (ns NodeRegistryService) GetNodeRegistration(
 		caseQuery.And(caseQuery.Equal("node_address", nodeRegistrationQuery.ExtractNodeAddress(params.GetNodeAddress())))
 	}
 	caseQuery.And(caseQuery.Equal("latest", 1))
-	caseQuery.OrderBy("registration_height", model.OrderBy_ASC)
+	caseQuery.OrderBy("height", model.OrderBy_DESC)
 	caseQuery.Limit(1)
 	selectQuery, args := caseQuery.Build()
 

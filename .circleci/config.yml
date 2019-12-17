@@ -87,7 +87,7 @@ jobs:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
             - ./dist
-  deploy-stage:
+  deploy-develop:
     working_directory: /go/src/github.com/zoobc/zoobc-core
     docker:
       - image: circleci/golang:1.12.0
@@ -104,19 +104,21 @@ jobs:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
             - ./dist
-      - run: ssh-keyscan $old_ip_server >> ~/.ssh/known_hosts
       - run:
-          name: Stop Service
+          name: Add Hosts
+          command: for host in $ln1 $ln2 $ln3 $ln4; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+      - run:
+          name: Stop Services
           command: |
-            ssh ubuntu@$old_ip_server 'sudo systemctl stop zoobc-service.service'
+            for host in $ln1 $ln2 $ln3 $ln4; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
       - run:
           name: Deploy
           command: |
-            rsync -vae ssh ./dist/ ubuntu@$old_ip_server:/home/ubuntu/zoobc --exclude='*.db'
+            for host in $ln1 $ln2 $ln3 $ln4; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
       - run:
-          name: Start Service
+          name: Start Services
           command: |
-            ssh ubuntu@$old_ip_server 'sudo systemctl start zoobc-service.service'
+            for host in $ln1 $ln2 $ln3 $ln4; do ssh root@$host 'sudo systemctl start zoobc.service'; done
 workflows:
   version: 2
   prepare-deploy:
@@ -128,7 +130,7 @@ workflows:
       - build:
           requires:
             - test
-      - deploy-stage:
+      - deploy-develop:
           requires:
             - build
           filters:
