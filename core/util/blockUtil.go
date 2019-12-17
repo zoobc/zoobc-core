@@ -9,108 +9,46 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
 
 // GetBlockSeed calculate seed value, the first 8 byte of the digest(previousBlockSeed, nodeID)
-func GetBlockSeed(nodeID int64, block *model.Block) (*big.Int, error) {
+func GetBlockSeed(nodeID int64, block *model.Block) (int64, error) {
 	digest := sha3.New256()
 	_, err := digest.Write(block.GetBlockSeed())
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	previousSeedHash := digest.Sum([]byte{})
 	payload := bytes.NewBuffer([]byte{})
 	payload.Write(commonUtils.ConvertUint64ToBytes(uint64(nodeID)))
 	payload.Write(previousSeedHash)
 	seed := sha3.Sum256(payload.Bytes())
-	return new(big.Int).SetBytes(seed[:8]), nil
+	return new(big.Int).SetBytes(seed[:8]).Int64(), nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(seed *big.Int, block *model.Block) int64 {
-	normalizedSmithScale := GetNormalizedSmithScale(block.SmithScale)
-	elapsedFromLastBlock := new(big.Int).Div(seed, normalizedSmithScale).Int64()
+func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTime
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
-func GetNormalizedSmithScale(smithScale int64) *big.Int {
-	value := new(big.Int).Mul(big.NewInt(smithScale), big.NewInt(constant.DefaultParticipationScore/constant.OneZBC))
-	return value
-}
+// CalculateCumulativeDifficulty get the cumulative difficulty of the incoming block based on its blocksmith index
+func CalculateCumulativeDifficulty(
+	previousBlock *model.Block,
+	blocksmithIndex int64,
+) (string, error) {
+	previousCumulativeDifficulty, ok := new(big.Int).SetString(previousBlock.CumulativeDifficulty, 10)
+	if !ok {
+		return "", blocker.NewBlocker(blocker.AppErr, "FailToCalculateCummulativeDifficulty")
+	}
+	currentCumulativeDifficulty := constant.CumulativeDifficultyDivisor / (blocksmithIndex + 1)
 
-// CalculateSmithScale base target of block and return modified block
-func CalculateSmithScale(
-	previousBlock, block *model.Block,
-	smithingPeriod int64,
-	blockQuery query.BlockQueryInterface,
-	executor query.ExecutorInterface,
-) (*model.Block, error) {
-	switch {
-	case block.Height < constant.AverageSmithingBlockHeight:
-		prevSmithScale := previousBlock.GetSmithScale()
-		smithScaleMul := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(block.GetTimestamp()-previousBlock.GetTimestamp()))
-		block.SmithScale = new(big.Int).Div(smithScaleMul, big.NewInt(smithingPeriod)).Int64()
-		if block.GetSmithScale() < 0 || block.GetSmithScale() > constant.MaxSmithScale {
-			block.SmithScale = constant.MaxSmithScale
-		}
-		if block.GetSmithScale() < prevSmithScale/2 {
-			block.SmithScale = prevSmithScale / 2
-		}
-		if block.GetSmithScale() == 0 {
-			block.SmithScale = 1
-		}
-		twoFoldCurSmithScale := new(big.Int).Mul(big.NewInt(prevSmithScale), big.NewInt(2))
-		if twoFoldCurSmithScale.Cmp(big.NewInt(0)) < 0 {
-			twoFoldCurSmithScale = big.NewInt(constant.MaxSmithScale)
-		}
-		if big.NewInt(block.GetSmithScale()).Cmp(twoFoldCurSmithScale) > 0 {
-			block.SmithScale = twoFoldCurSmithScale.Int64()
-		}
-	case block.Height%2 == 0:
-		var prev2Block model.Block
-		prev2BlockQ := blockQuery.GetBlockByHeight(previousBlock.Height - 2)
-		row, _ := executor.ExecuteSelectRow(prev2BlockQ, false)
-		err := blockQuery.Scan(&prev2Block, row)
-		if err != nil {
-			return nil, err
-		}
-		blockTimeAverage := (block.Timestamp - prev2Block.Timestamp) / 3
-		if blockTimeAverage > smithingPeriod {
-			if blockTimeAverage < constant.MaximumBlocktimeLimit {
-				block.SmithScale = (previousBlock.SmithScale * blockTimeAverage) / smithingPeriod
-			} else {
-				block.SmithScale = (previousBlock.SmithScale * constant.MaximumBlocktimeLimit) / smithingPeriod
-			}
-		} else {
-			if blockTimeAverage > constant.MinimumBlocktimeLimit {
-				block.SmithScale = previousBlock.SmithScale - previousBlock.SmithScale*constant.SmithscaleGamma*
-					(smithingPeriod-blockTimeAverage)/(100*smithingPeriod)
-			} else {
-				block.SmithScale = previousBlock.SmithScale - previousBlock.SmithScale*constant.SmithscaleGamma*
-					(smithingPeriod-constant.MinimumBlocktimeLimit)/(100*smithingPeriod)
-			}
-		}
-		if block.SmithScale < 0 || block.SmithScale > constant.MaxSmithScale2 {
-			block.SmithScale = constant.MaxSmithScale2
-		}
-		if block.SmithScale < constant.MinSmithScale {
-			block.SmithScale = constant.MinSmithScale
-		}
-	default:
-		block.SmithScale = previousBlock.GetSmithScale()
-	}
-	two64, _ := new(big.Int).SetString(constant.Two64, 0)
-	previousBlockCumulativeDifficulty, isParsed := new(big.Int).SetString(previousBlock.GetCumulativeDifficulty(), 10)
-	if !isParsed {
-		return nil, blocker.NewBlocker(blocker.ParserErr, "Faild parse cumulativeDifficulty block")
-	}
-	block.CumulativeDifficulty = new(big.Int).Add(
-		previousBlockCumulativeDifficulty,
-		new(big.Int).Div(two64, big.NewInt(block.GetSmithScale()))).String()
-	return block, nil
+	newCumulativeDifficulty := new(big.Int).Add(
+		previousCumulativeDifficulty, new(big.Int).SetInt64(currentCumulativeDifficulty),
+	)
+	return newCumulativeDifficulty.String(), nil
 }
 
 // GetBlockID generate block ID value if haven't
@@ -150,23 +88,12 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 	return false
 }
 
-// CalculateSmithOrder calculate the blocksmith order parameter, used to sort/select the next blocksmith
-func CalculateSmithOrder(nodeID int64, block *model.Block) (*big.Int, error) {
-	blockSeed, err := GetBlockSeed(nodeID, block)
-	if err != nil {
-		return nil, err
-	}
-	smithTime := GetSmithTime(blockSeed, block)
-	// Currently score did'nt use ,
-	return new(big.Int).SetInt64(smithTime), nil
-}
-
 // CalculateNodeOrder calculate the Node order parameter, used to sort/select the group of blocksmith rewarded for a given block
-func CalculateNodeOrder(score, blockSeed *big.Int, nodeID int64) *big.Int {
-	prn := crypto.PseudoRandomGenerator(uint64(nodeID), blockSeed.Uint64(), crypto.PseudoRandomSha3256)
+func CalculateNodeOrder(score *big.Int, blockSeed, nodeID int64) *big.Int {
+	prn := crypto.PseudoRandomGenerator(uint64(nodeID), uint64(blockSeed), crypto.PseudoRandomSha3256)
 	return new(big.Int).Div(new(big.Int).SetUint64(prn), score)
 }
 
 func IsGenesis(previousBlockID int64, block *model.Block) bool {
-	return previousBlockID == -1 && block.CumulativeDifficulty != "" && block.SmithScale != 0
+	return previousBlockID == -1 && block.CumulativeDifficulty != ""
 }

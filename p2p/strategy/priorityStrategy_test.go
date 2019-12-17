@@ -6,6 +6,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -123,7 +124,6 @@ var (
 		BlockSeed:            nil,
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
-		SmithScale:           0,
 		BlocksmithPublicKey:  nil,
 		TotalAmount:          0,
 		TotalFee:             0,
@@ -171,7 +171,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...in
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
 			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetSmithScale(),
 			mockGoodBlock.GetPayloadLength(),
 			mockGoodBlock.GetPayloadHash(),
 			mockGoodBlock.GetBlocksmithPublicKey(),
@@ -818,6 +817,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        args
+		reason      string
 		wantContain *model.Peer
 		wantErr     bool
 	}{
@@ -833,12 +833,15 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 					},
 				},
 			},
+			reason: "error",
 			wantContain: &model.Peer{
 				Info: &model.Node{
 					SharedAddress: "127.0.0.1",
 					Address:       "127.0.0.1",
 					Port:          3001,
 				},
+				BlacklistingCause: "error",
+				BlacklistingTime:  uint64(time.Now().Unix()),
 			},
 			wantErr: false,
 		},
@@ -855,9 +858,9 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
-			err := ps.AddToBlacklistedPeer(tt.args.newPeer)
+			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddToBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddToBlacklistedPeer error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr {

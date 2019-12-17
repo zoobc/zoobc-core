@@ -397,8 +397,8 @@ func (ns *NativeStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 	return newBlacklistedPeers
 }
 
-// AddToBlacklistedPeer to add a peer into resolved peer
-func (ns *NativeStrategy) AddToBlacklistedPeer(peer *model.Peer) error {
+// AddToBlacklistPeer to add a peer into resolved peer
+func (ns *NativeStrategy) AddToBlacklistPeer(peer *model.Peer) error {
 	if peer == nil {
 		return errors.New("peer is nil")
 	}
@@ -451,18 +451,22 @@ func (ns *NativeStrategy) GetExceedMaxResolvedPeers() int32 {
 	return int32(len(ns.GetResolvedPeers())) - ns.MaxResolvedPeers + 1
 }
 
-func (ns *NativeStrategy) PeerBlacklist(peer *model.Peer, cause string) {
+// PeerBlacklist process to add blacklisted peer
+func (ns *NativeStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
 	peer.BlacklistingTime = uint64(time.Now().Unix())
-	peer.BlacklistingCause = cause
-	if err := ns.AddToBlacklistedPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+	if err := ns.AddToBlacklistPeer(peer); err != nil {
+		ns.Logger.Warn(err.Error())
+		return err
 	}
 	if err := ns.RemoveUnresolvedPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
+		return err
 	}
 	if err := ns.RemoveResolvedPeer(peer); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
+		return err
 	}
+	return nil
 }
 
 // PeerUnblacklist to update Peer state of peer

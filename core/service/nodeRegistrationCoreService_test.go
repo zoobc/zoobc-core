@@ -59,25 +59,6 @@ var (
 		Latest:             true,
 		Height:             200,
 	}
-	blockAdmittanceHeight1 uint32 = 1440
-	nrsBlock2                     = &model.Block{
-		ID:                   1000,
-		Height:               blockAdmittanceHeight1,
-		Version:              1,
-		CumulativeDifficulty: "",
-		SmithScale:           100000,
-		PreviousBlockHash:    []byte{},
-		BlockSeed:            []byte{1, 1, 1, 1, 1, 1, 1, 1},
-		BlocksmithPublicKey:  nrsNodePubKey1,
-		Timestamp:            12345678,
-		TotalAmount:          0,
-		TotalFee:             0,
-		TotalCoinBase:        0,
-		Transactions:         []*model.Transaction{},
-		PayloadHash:          []byte{},
-		PayloadLength:        0,
-		BlockSignature:       []byte{},
-	}
 )
 
 func (*nrsMockQueryExecutorFailNodeRegistryListener) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {

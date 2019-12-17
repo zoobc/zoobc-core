@@ -17,6 +17,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		ct                      chaintype.ChainType
 		blocksmith              *model.Blocksmith
 		blockService            service.BlockServiceInterface
+		blocksmithService       service.BlocksmithServiceInterface
 		nodeRegistrationService service.NodeRegistrationServiceInterface
 		logger                  *log.Logger
 	}
@@ -31,11 +32,13 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				ct:                      &chaintype.MainChain{},
 				blocksmith:              &model.Blocksmith{},
 				blockService:            &service.BlockService{},
+				blocksmithService:       &service.BlocksmithService{},
 				nodeRegistrationService: &service.NodeRegistrationService{},
 			},
 			want: &BlockchainProcessor{
 				Chaintype:               &chaintype.MainChain{},
 				BlockService:            &service.BlockService{},
+				BlocksmithService:       &service.BlocksmithService{},
 				Generator:               &model.Blocksmith{},
 				NodeRegistrationService: &service.NodeRegistrationService{},
 			},
@@ -47,6 +50,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				tt.args.ct,
 				tt.args.blocksmith,
 				tt.args.blockService,
+				tt.args.blocksmithService,
 				tt.args.nodeRegistrationService,
 				tt.args.logger,
 			); !reflect.DeepEqual(got, tt.want) {

@@ -30,7 +30,6 @@ var (
 		BlockSeed:            nil,
 		BlockSignature:       nil,
 		CumulativeDifficulty: "",
-		SmithScale:           0,
 		BlocksmithPublicKey:  []byte{},
 		TotalAmount:          0,
 		TotalFee:             0,
