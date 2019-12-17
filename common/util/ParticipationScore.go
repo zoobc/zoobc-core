@@ -1,6 +1,8 @@
 package util
 
 import (
+	"math/big"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 )
@@ -25,8 +27,10 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 	unlinkedBlockScore := float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.ScalarReceiptScore
 	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
 
-	scoreChangeOfANode := ((blockScore - halfMaxBlockScore) * constant.MaxScoreChange) / halfMaxBlockScore
-	return scoreChangeOfANode, nil
+	scoreDiffBig := new(big.Int).SetInt64(blockScore - halfMaxBlockScore)
+	scoreDiffBigMul := new(big.Int).Mul(scoreDiffBig, new(big.Int).SetInt64(constant.MaxScoreChange))
+	scoreChangeOfANode := new(big.Int).Div(scoreDiffBigMul, new(big.Int).SetInt64(halfMaxBlockScore))
+	return scoreChangeOfANode.Int64(), nil
 }
 
 func GetReceiptValue(linkedReceipt, unlinkedReceipt uint32) int64 {
