@@ -106,19 +106,19 @@ jobs:
             - ./dist
       - run:
           name: Add Hosts
-          command: for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+          command: for host in $ln1 $ln2 $ln3 $ln4; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
       - run:
           name: Stop Services
           command: |
-            for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+            for host in $ln1 $ln2 $ln3 $ln4; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
       - run:
           name: Deploy
           command: |
-            for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
+            for host in $ln1 $ln2 $ln3 4ln4; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
       - run:
           name: Start Services
           command: |
-            for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+            for host in $ln1 $ln2 $ln3 $ln4; do ssh root@$host 'sudo systemctl start zoobc.service'; done
 workflows:
   version: 2
   prepare-deploy:
