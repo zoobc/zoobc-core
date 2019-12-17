@@ -114,7 +114,7 @@ jobs:
       - run:
           name: Deploy
           command: |
-            for host in $ln1 $ln2 $ln3 4ln4; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
+            for host in $ln1 $ln2 $ln3 $ln4; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
       - run:
           name: Start Services
           command: |
