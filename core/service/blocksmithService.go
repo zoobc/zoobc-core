@@ -118,12 +118,11 @@ func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
 	// sort blocksmiths by SmithOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
 		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.BlockSeed - bj.BlockSeed
-		if res == 0 {
-			res = bi.NodeID - bj.NodeID
+		if bi.BlockSeed == bj.BlockSeed {
+			return bi.NodeID < bj.NodeID
 		}
 		// ascending sort
-		return res < 0
+		return bi.BlockSeed < bj.BlockSeed
 	})
 	bss.SortedBlocksmithsLock.Lock()
 	defer bss.SortedBlocksmithsLock.Unlock()
