@@ -20,6 +20,7 @@ type RemoveAccountDataset struct {
 	AccountBalanceQuery query.AccountBalanceQueryInterface
 	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface
+	AccountLedgerQuery  query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -60,6 +61,16 @@ func (tx *RemoveAccountDataset) ApplyConfirmed() error {
 
 	datasetQuery := tx.AccountDatasetQuery.RemoveDataset(dataset)
 	queries := append(accountBalanceSenderQ, datasetQuery...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		AccountBalance: -tx.Fee,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventRemoveNodeRegistrationTransaction,
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

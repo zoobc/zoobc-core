@@ -376,7 +376,8 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithService,
-		loggerCoreService, query.NewAccountLegderQuery(),
+		loggerCoreService,
+		query.NewAccountLedgerQuery(),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 

@@ -19,6 +19,7 @@ type RemoveNodeRegistration struct {
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	QueryExecutor         query.ExecutorInterface
+	AccountLedgerQuery    query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -82,6 +83,16 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	)
 	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 	queries := append(accountBalanceSenderQ, nodeQueries...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		AccountBalance: prevNodeRegistration.GetLockedBalance() - tx.Fee,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventRemoveNodeRegistrationTransaction,
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

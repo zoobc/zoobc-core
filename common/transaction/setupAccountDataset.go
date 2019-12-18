@@ -19,6 +19,7 @@ type SetupAccountDataset struct {
 	AccountBalanceQuery query.AccountBalanceQueryInterface
 	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface
+	AccountLedgerQuery  query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -59,6 +60,15 @@ func (tx *SetupAccountDataset) ApplyConfirmed() error {
 
 	datasetQuery := tx.AccountDatasetQuery.AddDataset(dataset)
 	queries := append(accountBalanceSenderQ, datasetQuery...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		AccountBalance: -tx.Fee,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventSetupAccountDatasetTransaction,
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {

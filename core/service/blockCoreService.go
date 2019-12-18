@@ -722,8 +722,6 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	}
 	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
 	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
-
-		bs.Logger.Warn("Reward")
 		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
 			blocksmithReward,
 			map[string]interface{}{

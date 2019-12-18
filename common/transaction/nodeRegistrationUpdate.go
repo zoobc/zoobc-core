@@ -23,6 +23,7 @@ type UpdateNodeRegistration struct {
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.ProofOfOwnershipValidationInterface
+	AccountLedgerQuery    query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -111,6 +112,16 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 
 	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 	queries := append(accountBalanceSenderQ, nodeQueries...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		AccountBalance: -(effectiveBalanceToLock + tx.Fee),
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventUpdateNodeRegistrationTransaction,
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
