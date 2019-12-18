@@ -356,7 +356,28 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
 	)
-	mainchainBlockService := service.NewBlockService(mainchain, kvExecutor, queryExecutor, query.NewBlockQuery(mainchain), query.NewMempoolQuery(mainchain), query.NewTransactionQuery(mainchain), query.NewMerkleTreeQuery(), query.NewPublishedReceiptQuery(), query.NewSkippedBlocksmithQuery(), crypto.NewSignature(), mempoolService, receiptService, nodeRegistrationService, actionSwitcher, query.NewAccountBalanceQuery(), query.NewParticipationScoreQuery(), query.NewNodeRegistrationQuery(), observerInstance, blocksmithService, loggerCoreService, nil)
+	mainchainBlockService := service.NewBlockService(
+		mainchain,
+		kvExecutor,
+		queryExecutor,
+		query.NewBlockQuery(mainchain),
+		query.NewMempoolQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		query.NewMerkleTreeQuery(),
+		query.NewPublishedReceiptQuery(),
+		query.NewSkippedBlocksmithQuery(),
+		crypto.NewSignature(),
+		mempoolService,
+		receiptService,
+		nodeRegistrationService,
+		actionSwitcher,
+		query.NewAccountBalanceQuery(),
+		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
+		observerInstance,
+		blocksmithService,
+		loggerCoreService, query.NewAccountLegderQuery(),
+	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist

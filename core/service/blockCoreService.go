@@ -722,6 +722,8 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	}
 	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
 	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
+
+		bs.Logger.Warn("Reward")
 		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
 			blocksmithReward,
 			map[string]interface{}{
@@ -730,16 +732,16 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 			},
 		)
 		queries = append(queries, accountBalanceRecipientQ...)
+
 		accountLedgerQ, accountLedgerArgs := bs.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 			AccountAddress: blocksmithAccountAddress,
 			AccountBalance: blocksmithReward,
 			BlockHeight:    height,
 			EventType:      model.EventType_EventCoinbase,
 		})
-		queries = append(queries, []interface{}{
-			accountLedgerQ,
-			accountLedgerArgs,
-		})
+
+		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
+		queries = append(queries, accountLedgerArgs)
 	}
 	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 		return err
