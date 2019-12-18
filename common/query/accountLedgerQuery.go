@@ -8,6 +8,8 @@ import (
 )
 
 type (
+
+	// AccountLedgerQuery schema of AccountLedger
 	AccountLedgerQuery struct {
 		Fields    []string
 		TableName string
@@ -19,7 +21,8 @@ type (
 	}
 )
 
-func NewAccountLegderQuery() *AccountLedgerQuery {
+// NewAccountLedgerQuery func that return AccountLedger schema with value
+func NewAccountLedgerQuery() *AccountLedgerQuery {
 	return &AccountLedgerQuery{
 		Fields: []string{
 			"account_address",
@@ -55,5 +58,15 @@ func (*AccountLedgerQuery) ExtractModel(accountLedger *model.AccountLedger) []in
 		accountLedger.GetBlockHeight(),
 		accountLedger.GetTransactionID(),
 		accountLedger.GetEventType(),
+	}
+}
+
+// Rollback represents delete query in block_height n
+func (q *AccountLedgerQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", q.getTableName()),
+			height,
+		},
 	}
 }
