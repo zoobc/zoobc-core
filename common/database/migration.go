@@ -207,6 +207,15 @@ func (m *Migration) Init() error {
 			ALTER TABLE "merkle_tree"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "account_ledger" (
+				"account_address" VARCHAR(255) NULL,
+				"account_balance" INTEGER,
+				"block_height" INTEGER,
+				"transaction_id" INTEGER NULL,
+				"event_type" INTEGER
+			)
+			`,
 		}
 		return nil
 	}
@@ -229,13 +238,13 @@ func (m *Migration) Apply() error {
 		migrations = m.Versions[*m.CurrentVersion+1:]
 	}
 
-	for v, query := range migrations {
+	for v, qStr := range migrations {
 		version := v
 		err = m.Query.BeginTx()
 		if err != nil {
 			return err
 		}
-		err = m.Query.ExecuteTransaction(query)
+		err = m.Query.ExecuteTransaction(qStr)
 		if err != nil {
 			rollbackErr := m.Query.RollbackTx()
 			if rollbackErr != nil {
@@ -266,7 +275,7 @@ func (m *Migration) Apply() error {
 		}
 
 		m.CurrentVersion = &version
-		err := m.Query.CommitTx()
+		err = m.Query.CommitTx()
 		if err != nil {
 			return err
 		}

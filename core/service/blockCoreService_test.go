@@ -585,6 +585,7 @@ func TestNewBlockService(t *testing.T) {
 		blocksmithService       BlocksmithServiceInterface
 		obsr                    *observer.Observer
 		logger                  *log.Logger
+		accountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name string
@@ -605,12 +606,29 @@ func TestNewBlockService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
-				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
-				tt.args.skippedBlocksmithQuery, tt.args.signature, tt.args.mempoolService, tt.args.receiptService,
-				tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
-				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithService,
-				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlockService(
+				tt.args.ct,
+				tt.args.kvExecutor,
+				tt.args.queryExecutor,
+				tt.args.blockQuery,
+				tt.args.mempoolQuery,
+				tt.args.transactionQuery,
+				tt.args.merkleTreeQuery,
+				tt.args.publishedReceiptQuery,
+				tt.args.skippedBlocksmithQuery,
+				tt.args.signature,
+				tt.args.mempoolService,
+				tt.args.receiptService,
+				tt.args.nodeRegistrationService,
+				tt.args.txTypeSwitcher,
+				tt.args.accountBalanceQuery,
+				tt.args.participationScoreQuery,
+				tt.args.nodeRegistrationQuery,
+				tt.args.obsr,
+				tt.args.blocksmithService,
+				tt.args.logger,
+				tt.args.accountLedgerQuery,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})
