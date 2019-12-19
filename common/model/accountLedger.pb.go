@@ -88,7 +88,7 @@ func (m *AccountLedger) GetEventType() EventType {
 	if m != nil {
 		return m.EventType
 	}
-	return EventType_All
+	return EventType_EventSendMoneyTransaction
 }
 
 func init() {

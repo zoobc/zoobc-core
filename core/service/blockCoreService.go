@@ -735,7 +735,7 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 			AccountAddress: blocksmithAccountAddress,
 			AccountBalance: blocksmithReward,
 			BlockHeight:    height,
-			EventType:      model.EventType_EventCoinbase,
+			EventType:      model.EventType_EventReward,
 		})
 
 		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
