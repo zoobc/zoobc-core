@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -29,8 +30,18 @@ func GetBlockSeed(nodeID int64, block *model.Block) (int64, error) {
 }
 
 // GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTime
+func GetSmithTime(blocksmithIndex int64, block *model.Block, ct chaintype.ChainType) int64 {
+	var (
+		smithingStartTime int64
+	)
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		smithingStartTime = constant.SmithingStartTime
+	case *chaintype.SpineChain:
+		smithingStartTime = constant.SmithingStartTimeSpine
+	}
+
+	elapsedFromLastBlock := (blocksmithIndex + 1) * smithingStartTime
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
 

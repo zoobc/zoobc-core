@@ -65,6 +65,8 @@ func GetGenesisTransactions(
 		}
 
 		return genesisTxs, nil
+	case *chaintype.SpineChain:
+		return make([]*model.Transaction, 0), nil
 	default:
 		return nil, blocker.NewBlocker(
 			blocker.AppErr,

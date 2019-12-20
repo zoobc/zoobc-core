@@ -33,3 +33,19 @@ func (*MainChain) GetName() string {
 func (*MainChain) GetGenesisBlockID() int64 {
 	return constant.MainchainGenesisBlockID
 }
+
+func (*MainChain) GetGenesisBlockSeed() []byte {
+	return constant.MainchainGenesisBlockSeed
+}
+
+func (*MainChain) GetGenesisNodePublicKey() []byte {
+	return constant.MainchainGenesisNodePublicKey
+}
+
+func (*MainChain) GetGenesisBlockTimestamp() int64 {
+	return constant.MainchainGenesisBlockTimestamp
+}
+
+func (*MainChain) GetGenesisBlockSignature() []byte {
+	return constant.MainchainGenesisBlockSignature
+}

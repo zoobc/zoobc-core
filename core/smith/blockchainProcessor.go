@@ -73,7 +73,7 @@ func (bp *BlockchainProcessor) CalculateSmith(
 	} else {
 		bp.Generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
 	}
-	bp.Generator.SmithTime = coreUtil.GetSmithTime(blocksmithIndex, lastBlock)
+	bp.Generator.SmithTime = coreUtil.GetSmithTime(blocksmithIndex, lastBlock, bp.Chaintype)
 }
 
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause

@@ -574,6 +574,7 @@ func TestNewBlockService(t *testing.T) {
 		merkleTreeQuery         query.MerkleTreeQueryInterface
 		publishedReceiptQuery   query.PublishedReceiptQueryInterface
 		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		spinePublicKeyQuery     query.SpinePublicKeyQueryInterface
 		signature               crypto.SignatureInterface
 		mempoolService          MempoolServiceInterface
 		receiptService          ReceiptServiceInterface
@@ -607,8 +608,8 @@ func TestNewBlockService(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
 				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
-				tt.args.skippedBlocksmithQuery, tt.args.signature, tt.args.mempoolService, tt.args.receiptService,
-				tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
+				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
+				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithService,
 				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)

@@ -89,6 +89,7 @@ type (
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
 		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ReceiptService          ReceiptServiceInterface
@@ -113,6 +114,7 @@ func NewBlockService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
+	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
@@ -135,6 +137,7 @@ func NewBlockService(
 		MerkleTreeQuery:         merkleTreeQuery,
 		PublishedReceiptQuery:   publishedReceiptQuery,
 		SkippedBlocksmithQuery:  skippedBlocksmithQuery,
+		SpinePublicKeyQuery:     spinePublicKeyQuery,
 		Signature:               signature,
 		MempoolService:          mempoolService,
 		ReceiptService:          receiptService,
@@ -257,7 +260,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
-	blocksmithTime := coreUtil.GetSmithTime(*blocksmithIndex, previousLastBlock)
+	blocksmithTime := coreUtil.GetSmithTime(*blocksmithIndex, previousLastBlock, bs.Chaintype)
 	if blocksmithTime > block.GetTimestamp() {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
 	}
@@ -438,73 +441,91 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 		return err
 	}
-	if block.Height > 0 {
-		// this is to manage the edge case when the blocksmith array has not been initialized yet:
-		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
-		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
-		// sort blocksmiths for current block
-		popScore, err := commonUtils.CalculateParticipationScore(
-			uint32(linkedCount),
-			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))),
-		)
-		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-		err = bs.updatePopScore(popScore, previousBlock, block)
-		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
 
-		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
-		totalReward := block.TotalFee + block.TotalCoinBase
-		lotteryAccounts, err := bs.CoinbaseLotteryWinners(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))
-		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
+	// Mainchain specific:
+	// - Compute and update popscore
+	// - Block reward
+	// - Admit/Expel nodes to/from registry
+	// - Build scrambled node registry
+	switch bs.Chaintype.(type) {
+	case *chaintype.MainChain:
+		if block.Height > 0 {
+			// this is to manage the edge case when the blocksmith array has not been initialized yet:
+			// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
+			// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
+			// sort blocksmiths for current block
+			popScore, err := commonUtils.CalculateParticipationScore(
+				uint32(linkedCount),
+				uint32(len(block.GetPublishedReceipts())-linkedCount),
+				coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))),
+			)
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
 			}
-			return err
-		}
-		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
+			err = bs.updatePopScore(popScore, previousBlock, block)
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
 			}
-			return err
-		}
-	}
 
-	// admit nodes from registry at genesis and regular intervals
-	// expel nodes from node registry as soon as they reach zero participation score
-	if err := bs.expelNodes(block); err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
+			// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
+			totalReward := block.TotalFee + block.TotalCoinBase
+			lotteryAccounts, err := bs.CoinbaseLotteryWinners(bs.BlocksmithService.GetSortedBlocksmiths(previousBlock))
+			if err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+			if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
 		}
-		return err
-	}
-	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
-		if err := bs.admitNodes(block); err != nil {
+		// admit nodes from registry at genesis and regular intervals
+		// expel nodes from node registry as soon as they reach zero participation score
+		if err := bs.expelNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
-	}
-
-	// building scrambled node registry
-	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
-		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
-		if err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
+		if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
+			if err := bs.admitNodes(block); err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
 			}
-			return err
+		}
+		// building scrambled node registry
+		if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
+			err = bs.NodeRegistrationService.BuildScrambledNodes(block)
+			if err != nil {
+				bs.Logger.Error(err.Error())
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+		}
+	case *chaintype.SpineChain:
+		if block.Height == 0 {
+			// add spine public keys from mainchain genesis configuration to spinePublicKey table
+			if err := bs.insertGenesisSpinePublicKeys(); err != nil {
+				bs.Logger.Error(err.Error())
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
 		}
 	}
 
@@ -512,7 +533,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
-	bs.Logger.Debugf("Block Pushed ID: %d", block.GetID())
+	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithService.SortBlocksmiths(block)
 	// broadcast block
@@ -521,6 +542,24 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
+	return nil
+}
+
+func (bs *BlockService) insertGenesisSpinePublicKeys() error {
+	queries := make([][]interface{}, 0)
+	for _, mainchainGenesisEntry := range constant.MainChainGenesisConfig {
+		spk := &model.SpinePublicKey{
+			NodePublicKey:      mainchainGenesisEntry.NodePublicKey,
+			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
+			Height:             0,
+			Latest:             true,
+		}
+		insertSpkQry := bs.SpinePublicKeyQuery.InsertSpinePublicKey(spk)
+		queries = append(queries, insertSpkQry...)
+	}
+	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1003,10 +1042,10 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 	block := bs.NewGenesisBlock(
 		1,
 		nil,
-		constant.MainchainGenesisBlockSeed,
-		constant.MainchainGenesisNodePublicKey,
+		bs.Chaintype.GetGenesisBlockSeed(),
+		bs.Chaintype.GetGenesisNodePublicKey(),
 		0,
-		constant.MainchainGenesisBlockTimestamp,
+		bs.Chaintype.GetGenesisBlockTimestamp(),
 		totalAmount,
 		totalFee,
 		totalCoinBase,
@@ -1015,12 +1054,12 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		payloadHash,
 		payloadLength,
 		big.NewInt(0),
-		constant.MainchainGenesisBlockSignature,
+		bs.Chaintype.GetGenesisBlockSignature(),
 	)
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
 	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "Invalid Genesis Block ID")
+		return nil, blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("Invalid %s Genesis Block ID", bs.Chaintype.GetName()))
 	}
 	return block, nil
 }

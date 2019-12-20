@@ -65,6 +65,7 @@ var (
 	smithing, isNodePreSeed, isDebugMode    bool
 	nodeRegistrationService                 service.NodeRegistrationServiceInterface
 	mainchainProcessor                      smith.BlockchainProcessorInterface
+	spinechainProcessor                     smith.BlockchainProcessorInterface
 	loggerAPIService                        *log.Logger
 	loggerCoreService                       *log.Logger
 	loggerP2PService                        *log.Logger
@@ -366,6 +367,7 @@ func startMainchain() {
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
+		nil,
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -446,6 +448,86 @@ func startMainchain() {
 	}()
 }
 
+func startSpinechain() {
+	var (
+		nodeID int64
+	)
+	spinechain := &chaintype.SpineChain{}
+	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
+	sleepPeriod := 500
+
+	// TODO: not sure we even need this, since spine blocks are computed and created by every node
+	blocksmithService = service.NewBlocksmithService(
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		loggerCoreService,
+	)
+	spinechainBlockService := service.NewBlockService(
+		spinechain,
+		kvExecutor,
+		queryExecutor,
+		query.NewBlockQuery(spinechain),
+		query.NewMempoolQuery(spinechain),
+		query.NewTransactionQuery(spinechain),
+		query.NewMerkleTreeQuery(),
+		query.NewPublishedReceiptQuery(),
+		query.NewSkippedBlocksmithQuery(),
+		query.NewSpinePublicKeyQuery(),
+		crypto.NewSignature(),
+		nil, // no mempool for spine blocks
+		receiptService,
+		nodeRegistrationService,
+		nil, // no transaction types for spine blocks
+		query.NewAccountBalanceQuery(),
+		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
+		observerInstance,
+		blocksmithService, // TODO: not sure we even need this
+		loggerCoreService,
+	)
+	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
+
+	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
+		if err := spinechainBlockService.AddGenesis(); err != nil {
+			loggerCoreService.Fatal(err)
+		}
+	}
+
+	// Note: spine blocks smith even if smithing is false, because are created by every running node
+	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
+	if len(nodeSecretPhrase) > 0 {
+		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		node, _ := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
+		if node != nil {
+			nodeID = node.NodeID
+		}
+		spinechainProcessor = smith.NewBlockchainProcessor(
+			spinechain,
+			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
+			spinechainBlockService,
+			blocksmithService,
+			nodeRegistrationService,
+			loggerCoreService,
+		)
+		go startSmith(sleepPeriod, spinechainProcessor)
+	}
+	spinechainSynchronizer := blockchainsync.NewBlockchainSyncService(
+		spinechainBlockService,
+		peerServiceClient,
+		peerExplorer,
+		queryExecutor,
+		nil, // no mempool for spine blocks
+		nil, // no transaction types for spine blocks
+		loggerCoreService,
+		kvExecutor,
+	)
+
+	go func() {
+		spinechainSynchronizer.Start()
+
+	}()
+}
+
 // Scheduler Init
 func startScheduler() {
 	var (
@@ -485,6 +567,7 @@ func main() {
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain()
+	startSpinechain()
 	startServices()
 	initObserverListeners()
 	startScheduler()

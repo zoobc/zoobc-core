@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -71,6 +73,7 @@ func TestGetSmithTime(t *testing.T) {
 	type args struct {
 		blocksmithIndex int64
 		block           *model.Block
+		ct              chaintype.ChainType
 	}
 	tests := []struct {
 		name string
@@ -84,6 +87,7 @@ func TestGetSmithTime(t *testing.T) {
 				block: &model.Block{
 					Timestamp: 0,
 				},
+				ct: &chaintype.MainChain{},
 			},
 			want: 15,
 		},
@@ -94,13 +98,14 @@ func TestGetSmithTime(t *testing.T) {
 				block: &model.Block{
 					Timestamp: 120000,
 				},
+				ct: &chaintype.MainChain{},
 			},
 			want: 120000 + 30,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetSmithTime(tt.args.blocksmithIndex, tt.args.block); got != tt.want {
+			if got := GetSmithTime(tt.args.blocksmithIndex, tt.args.block, tt.args.ct); got != tt.want {
 				t.Errorf("GetSmithTime() = %v, want %v", got, tt.want)
 			}
 		})
