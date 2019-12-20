@@ -11,7 +11,7 @@ var (
 	mockAccountLedgerQuery = NewAccountLedgerQuery()
 	mockAccountLedger      = &model.AccountLedger{
 		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		AccountBalance: 10000,
+		BalanceChange:  10000,
 		BlockHeight:    1,
 		TransactionID:  -123123123123,
 		EventType:      model.EventType_EventNodeRegistrationTransaction,
@@ -39,11 +39,11 @@ func TestAccountLedgerQuery_InsertAccountLedger(t *testing.T) {
 			args: args{
 				accountLedger: mockAccountLedger,
 			},
-			wantQStr: "INSERT INTO account_ledger (account_address, account_balance, block_height, transaction_id, event_type) " +
+			wantQStr: "INSERT INTO account_ledger (account_address, balance_change, block_height, transaction_id, event_type) " +
 				"VALUES(? , ?, ?, ?, ?)",
 			wantArgs: []interface{}{
 				mockAccountLedger.GetAccountAddress(),
-				mockAccountLedger.GetAccountBalance(),
+				mockAccountLedger.GetBalanceChange(),
 				mockAccountLedger.GetBlockHeight(),
 				mockAccountLedger.GetTransactionID(),
 				mockAccountLedger.GetEventType(),

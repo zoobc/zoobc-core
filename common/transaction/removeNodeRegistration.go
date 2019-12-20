@@ -86,7 +86,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		AccountBalance: prevNodeRegistration.GetLockedBalance() - tx.Fee,
+		BalanceChange:  prevNodeRegistration.GetLockedBalance() - tx.Fee,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventRemoveNodeRegistrationTransaction,
 	})

@@ -26,7 +26,7 @@ func NewAccountLedgerQuery() *AccountLedgerQuery {
 	return &AccountLedgerQuery{
 		Fields: []string{
 			"account_address",
-			"account_balance",
+			"balance_change",
 			"block_height",
 			"transaction_id",
 			"event_type",
@@ -54,7 +54,7 @@ func (q *AccountLedgerQuery) InsertAccountLedger(accountLedger *model.AccountLed
 func (*AccountLedgerQuery) ExtractModel(accountLedger *model.AccountLedger) []interface{} {
 	return []interface{}{
 		accountLedger.GetAccountAddress(),
-		accountLedger.GetAccountBalance(),
+		accountLedger.GetBalanceChange(),
 		accountLedger.GetBlockHeight(),
 		accountLedger.GetTransactionID(),
 		accountLedger.GetEventType(),

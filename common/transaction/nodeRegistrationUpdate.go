@@ -115,7 +115,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		AccountBalance: -(effectiveBalanceToLock + tx.Fee),
+		BalanceChange:  -(effectiveBalanceToLock + tx.Fee),
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventUpdateNodeRegistrationTransaction,
 	})

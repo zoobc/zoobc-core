@@ -64,7 +64,7 @@ func (tx *SendMoney) ApplyConfirmed() error {
 	// Account Ledger Log
 	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.RecipientAddress,
-		AccountBalance: tx.GetAmount(),
+		BalanceChange:  tx.GetAmount(),
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
 	})
@@ -72,7 +72,7 @@ func (tx *SendMoney) ApplyConfirmed() error {
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		AccountBalance: -tx.GetAmount() + tx.Fee,
+		BalanceChange:  -tx.GetAmount() + tx.Fee,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
 	})

@@ -63,7 +63,7 @@ func (tx *SetupAccountDataset) ApplyConfirmed() error {
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		AccountBalance: -tx.Fee,
+		BalanceChange:  -tx.Fee,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSetupAccountDatasetTransaction,
 	})

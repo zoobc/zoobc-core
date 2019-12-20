@@ -733,7 +733,7 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 
 		accountLedgerQ, accountLedgerArgs := bs.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 			AccountAddress: blocksmithAccountAddress,
-			AccountBalance: blocksmithReward,
+			BalanceChange:  blocksmithReward,
 			BlockHeight:    height,
 			EventType:      model.EventType_EventReward,
 		})

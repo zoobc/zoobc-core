@@ -210,7 +210,7 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "account_ledger" (
 				"account_address" VARCHAR(255) NULL,
-				"account_balance" INTEGER,
+				"balance_change" INTEGER,
 				"block_height" INTEGER,
 				"transaction_id" INTEGER NULL,
 				"event_type" INTEGER
