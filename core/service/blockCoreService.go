@@ -553,9 +553,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 
 // getGenesisSpinePublicKeys returns spine block's genesis payload, as an array of model.SpinePublicKey and in bytes,
 // based on nodes registered at genesis
-func (bs *BlockService) getGenesisSpinePublicKeys() ([]*model.SpinePublicKey, []byte) {
-	spinePublicKeys := make([]*model.SpinePublicKey, 0)
-	spinePublicKeysBytes := make([]byte, 0)
+func (bs *BlockService) getGenesisSpinePublicKeys() (spinePublicKeys []*model.SpinePublicKey, spinePublicKeysBytes []byte) {
+	spinePublicKeys = make([]*model.SpinePublicKey, 0)
+	spinePublicKeysBytes = make([]byte, 0)
 	for _, mainchainGenesisEntry := range constant.MainChainGenesisConfig {
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,

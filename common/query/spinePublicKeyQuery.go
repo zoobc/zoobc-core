@@ -163,10 +163,7 @@ func (spkq *SpinePublicKeyQuery) Rollback(height uint32) (multiQueries [][]inter
 
 // Scan represents `sql.Scan`
 func (spkq *SpinePublicKeyQuery) Scan(spk *model.SpinePublicKey, row *sql.Row) error {
-	var (
-		err error
-	)
-	err = row.Scan(
+	err := row.Scan(
 		&spk.NodePublicKey,
 		&spk.PublicKeyAction,
 		&spk.Latest,

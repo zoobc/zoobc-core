@@ -394,7 +394,8 @@ func TestNewBlocksmithService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlocksmithStrategyMain(tt.args.queryExecutor, tt.args.nodeRegistrationQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlocksmithStrategyMain(tt.args.queryExecutor, tt.args.nodeRegistrationQuery,
+				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
 			}
 		})
