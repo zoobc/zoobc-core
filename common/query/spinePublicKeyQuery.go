@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -15,6 +16,7 @@ type (
 		GetSpinePublicKeyByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		ExtractModel(spk *model.SpinePublicKey) []interface{}
 		BuildModel(spinePublicKeys []*model.SpinePublicKey, rows *sql.Rows) ([]*model.SpinePublicKey, error)
+		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		Scan(spk *model.SpinePublicKey, row *sql.Row) error
 	}
 
@@ -108,6 +110,31 @@ func (spkq *SpinePublicKeyQuery) BuildModel(
 		spinePublicKeys = append(spinePublicKeys, &spk)
 	}
 	return spinePublicKeys, nil
+}
+
+func (spkq *SpinePublicKeyQuery) BuildBlocksmith(
+	blocksmiths []*model.Blocksmith, rows *sql.Rows,
+) ([]*model.Blocksmith, error) {
+	for rows.Next() {
+		var (
+			blocksmith model.Blocksmith
+			nodeStatus int64
+			height     uint32
+			latest     bool
+		)
+		err := rows.Scan(
+			&blocksmith.NodePublicKey,
+			&nodeStatus,
+			&latest,
+			&height,
+		)
+		if err != nil {
+			return nil, err
+		}
+		blocksmith.Chaintype = &chaintype.SpineChain{}
+		blocksmiths = append(blocksmiths, &blocksmith)
+	}
+	return blocksmiths, nil
 }
 
 // Rollback delete records `WHERE block_height > `height`

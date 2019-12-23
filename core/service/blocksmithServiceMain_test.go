@@ -11,6 +11,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -145,6 +146,7 @@ func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
 			wantErr: false,
 			want: []*model.Blocksmith{
 				{
+					Chaintype:     &chaintype.MainChain{},
 					NodeID:        mockBlocksmiths[0].NodeID,
 					BlockSeed:     -7765827254621503546,
 					NodeOrder:     new(big.Int).SetInt64(13195850646937615),
@@ -156,7 +158,7 @@ func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithService{
+			bss := &BlocksmithServiceMain{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
@@ -205,7 +207,7 @@ func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithService{
+			bss := &BlocksmithServiceMain{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
@@ -255,7 +257,7 @@ func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithService{
+			bss := &BlocksmithServiceMain{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
@@ -308,7 +310,7 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithService{
+			bss := &BlocksmithServiceMain{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
@@ -335,20 +337,20 @@ func TestNewBlocksmithService(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *BlocksmithService
+		want *BlocksmithServiceMain
 	}{
 		{
 			name: "Success",
 			args: args{
 				logger: nil,
 			},
-			want: NewBlocksmithService(nil, nil, nil),
+			want: NewBlocksmithServiceMain(nil, nil, nil),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlocksmithService(tt.args.queryExecutor, tt.args.nodeRegistrationQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBlocksmithService() = %v, want %v", got, tt.want)
+			if got := NewBlocksmithServiceMain(tt.args.queryExecutor, tt.args.nodeRegistrationQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBlocksmithServiceMain() = %v, want %v", got, tt.want)
 			}
 		})
 	}

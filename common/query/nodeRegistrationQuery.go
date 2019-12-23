@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -257,6 +258,7 @@ func (*NodeRegistrationQuery) BuildBlocksmith(
 			return nil, err
 		}
 		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
+		blocksmith.Chaintype = &chaintype.MainChain{}
 		blocksmiths = append(blocksmiths, &blocksmith)
 	}
 	return blocksmiths, nil

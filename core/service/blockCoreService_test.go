@@ -583,7 +583,7 @@ func TestNewBlockService(t *testing.T) {
 		accountBalanceQuery     query.AccountBalanceQueryInterface
 		participationScoreQuery query.ParticipationScoreQueryInterface
 		nodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		blocksmithService       BlocksmithServiceInterface
+		blocksmithServiceMain   BlocksmithServiceInterface
 		obsr                    *observer.Observer
 		logger                  *log.Logger
 	}
@@ -610,7 +610,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
 				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
-				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithService,
+				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithServiceMain,
 				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
@@ -867,7 +867,7 @@ var (
 
 type (
 	mockBlocksmithServicePushBlock struct {
-		BlocksmithService
+		BlocksmithServiceMain
 	}
 )
 
@@ -1649,7 +1649,7 @@ func (*mockAddGenesisExecutor) ExecuteSelect(qStr string, tx bool, args ...inter
 
 type (
 	mockBlocksmithServiceAddGenesisSuccess struct {
-		BlocksmithService
+		BlocksmithServiceMain
 	}
 )
 
@@ -2783,7 +2783,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 
 type (
 	mockBlocksmithService struct {
-		BlocksmithService
+		BlocksmithServiceMain
 	}
 )
 
@@ -3073,7 +3073,7 @@ var (
 
 type (
 	mockBlocksmithServiceValidateBlockSuccess struct {
-		BlocksmithService
+		BlocksmithServiceMain
 	}
 )
 

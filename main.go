@@ -57,7 +57,6 @@ var (
 	blockServices                           = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
 	receiptService                          service.ReceiptServiceInterface
-	blocksmithService                       service.BlocksmithServiceInterface
 	peerServiceClient                       client.PeerServiceClientInterface
 	p2pHost                                 *model.Host
 	peerExplorer                            strategy.PeerExplorerStrategyInterface
@@ -352,7 +351,7 @@ func startMainchain() {
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-	blocksmithService = service.NewBlocksmithService(
+	blocksmithServiceMain := service.NewBlocksmithServiceMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
@@ -377,7 +376,7 @@ func startMainchain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithService,
+		blocksmithServiceMain,
 		loggerCoreService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -422,9 +421,9 @@ func startMainchain() {
 		if node != nil {
 			mainchainProcessor = smith.NewBlockchainProcessor(
 				mainchain,
-				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
+				model.NewBlocksmith(mainchain, nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
-				blocksmithService,
+				blocksmithServiceMain,
 				nodeRegistrationService,
 				loggerCoreService,
 			)
@@ -457,9 +456,10 @@ func startSpinechain() {
 	sleepPeriod := 500
 
 	// TODO: not sure we even need this, since spine blocks are computed and created by every node
-	blocksmithService = service.NewBlocksmithService(
+	blocksmithServiceSpine := service.NewBlocksmithServiceSpine(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
+		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
 	spinechainBlockService := service.NewBlockService(
@@ -482,7 +482,7 @@ func startSpinechain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithService, // TODO: not sure we even need this
+		blocksmithServiceSpine, // TODO: not sure we even need this
 		loggerCoreService,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
@@ -503,9 +503,9 @@ func startSpinechain() {
 		}
 		spinechainProcessor = smith.NewBlockchainProcessor(
 			spinechain,
-			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
+			model.NewBlocksmith(spinechain, nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
-			blocksmithService,
+			blocksmithServiceSpine,
 			nodeRegistrationService,
 			loggerCoreService,
 		)
