@@ -10,6 +10,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 )
 
 func TestNewBlockchainProcessor(t *testing.T) {
@@ -17,7 +18,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		ct                      chaintype.ChainType
 		blocksmith              *model.Blocksmith
 		blockService            service.BlockServiceInterface
-		blocksmithService       service.BlocksmithServiceInterface
+		blocksmithService       strategy.BlocksmithStrategyInterface
 		nodeRegistrationService service.NodeRegistrationServiceInterface
 		logger                  *log.Logger
 	}
@@ -32,13 +33,13 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				ct:                      &chaintype.MainChain{},
 				blocksmith:              &model.Blocksmith{},
 				blockService:            &service.BlockService{},
-				blocksmithService:       &service.BlocksmithServiceMain{},
+				blocksmithService:       &strategy.BlocksmithStrategyMain{},
 				nodeRegistrationService: &service.NodeRegistrationService{},
 			},
 			want: &BlockchainProcessor{
 				Chaintype:               &chaintype.MainChain{},
 				BlockService:            &service.BlockService{},
-				BlocksmithService:       &service.BlocksmithServiceMain{},
+				BlocksmithService:       &strategy.BlocksmithStrategyMain{},
 				Generator:               &model.Blocksmith{},
 				NodeRegistrationService: &service.NodeRegistrationService{},
 			},

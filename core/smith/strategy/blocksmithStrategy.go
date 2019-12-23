@@ -1,11 +1,11 @@
-package service
+package strategy
 
 import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
-	BlocksmithServiceInterface interface {
+	BlocksmithStrategyInterface interface {
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		SortBlocksmiths(block *model.Block)
 		GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith

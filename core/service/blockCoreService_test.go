@@ -22,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 )
@@ -583,7 +584,7 @@ func TestNewBlockService(t *testing.T) {
 		accountBalanceQuery     query.AccountBalanceQueryInterface
 		participationScoreQuery query.ParticipationScoreQueryInterface
 		nodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		blocksmithServiceMain   BlocksmithServiceInterface
+		blocksmithStrategyMain  strategy.BlocksmithStrategyInterface
 		obsr                    *observer.Observer
 		logger                  *log.Logger
 	}
@@ -610,7 +611,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
 				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
-				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithServiceMain,
+				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
 				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
@@ -867,7 +868,7 @@ var (
 
 type (
 	mockBlocksmithServicePushBlock struct {
-		BlocksmithServiceMain
+		strategy.BlocksmithStrategyMain
 	}
 )
 
@@ -898,7 +899,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
-		BlocksmithService       BlocksmithServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	}
 	type args struct {
@@ -924,7 +925,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				BlocksmithService:       &mockBlocksmithServicePushBlock{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 			},
 			args: args{
@@ -974,7 +975,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Observer:                observer.NewObserver(),
-				BlocksmithService:       &mockBlocksmithServicePushBlock{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1023,7 +1024,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Observer:                observer.NewObserver(),
-				BlocksmithService:       &mockBlocksmithServicePushBlock{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1076,7 +1077,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                tt.fields.Observer,
 				Logger:                  logrus.New(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlocksmithService:       tt.fields.BlocksmithService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
@@ -1516,7 +1517,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		Signature          crypto.SignatureInterface
 		MempoolService     MempoolServiceInterface
 		ReceiptService     ReceiptServiceInterface
-		BlocksmithService  BlocksmithServiceInterface
+		BlocksmithStrategy strategy.BlocksmithStrategyInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 	}
 	type args struct {
@@ -1574,7 +1575,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockTypeActionSuccess{},
 					},
 				},
-				BlocksmithService:  &mockBlocksmithServicePushBlock{},
+				BlocksmithStrategy: &mockBlocksmithServicePushBlock{},
 				ReceiptService:     &mockReceiptServiceReturnEmpty{},
 				ActionTypeSwitcher: &mockTypeActionSuccess{},
 			},
@@ -1610,7 +1611,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				MempoolService:     tt.fields.MempoolService,
 				ReceiptService:     tt.fields.ReceiptService,
-				BlocksmithService:  tt.fields.BlocksmithService,
+				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			_, err := bs.GenerateBlock(
@@ -1649,7 +1650,7 @@ func (*mockAddGenesisExecutor) ExecuteSelect(qStr string, tx bool, args ...inter
 
 type (
 	mockBlocksmithServiceAddGenesisSuccess struct {
-		BlocksmithServiceMain
+		strategy.BlocksmithStrategyMain
 	}
 )
 
@@ -1670,7 +1671,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
-		BlocksmithService       BlocksmithServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Logger                  *logrus.Logger
 	}
 	tests := []struct {
@@ -1692,7 +1693,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				BlocksmithService:       &mockBlocksmithServiceAddGenesisSuccess{},
+				BlocksmithStrategy:      &mockBlocksmithServiceAddGenesisSuccess{},
 				Logger:                  log.New(),
 			},
 			wantErr: false,
@@ -1712,7 +1713,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlocksmithService:       tt.fields.BlocksmithService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				Logger:                  tt.fields.Logger,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
@@ -2279,7 +2280,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		MempoolService          MempoolServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		BlocksmithService       BlocksmithServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
 	}
@@ -2318,7 +2319,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithService:       &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2349,7 +2350,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
-				BlocksmithService:       &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithService{},
 				NodeRegistrationService: nil,
 			},
 			wantErr: true,
@@ -2377,7 +2378,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithService:       &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithService{},
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2422,7 +2423,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithService:       &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2447,7 +2448,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: nil,
-				BlocksmithService:       &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2476,7 +2477,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				Observer:                observer.NewObserver(),
-				BlocksmithService:       &mockBlocksmithServicePushBlock{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
 			},
 			wantErr: false,
@@ -2512,7 +2513,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				Observer:                tt.fields.Observer,
-				BlocksmithService:       tt.fields.BlocksmithService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				Logger:                  logrus.New(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 			}
@@ -2783,7 +2784,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 
 type (
 	mockBlocksmithService struct {
-		BlocksmithServiceMain
+		strategy.BlocksmithStrategyMain
 	}
 )
 
@@ -2814,7 +2815,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 		TransactionQuery        query.TransactionQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
-		BlocksmithService       BlocksmithServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -2873,7 +2874,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				BlocksmithService:       tt.fields.BlocksmithService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
 			}
@@ -3073,7 +3074,7 @@ var (
 
 type (
 	mockBlocksmithServiceValidateBlockSuccess struct {
-		BlocksmithServiceMain
+		strategy.BlocksmithStrategyMain
 	}
 )
 
@@ -3103,7 +3104,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithService       BlocksmithServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Observer                *observer.Observer
 		Logger                  *log.Logger
 	}
@@ -3140,8 +3141,8 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime: 1572246820,
 			},
 			fields: fields{
-				Signature:         &mockSignatureFail{},
-				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
+				Signature:          &mockSignatureFail{},
+				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
@@ -3152,8 +3153,8 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime: 1572246820,
 			},
 			fields: fields{
-				Signature:         &mockSignatureFail{},
-				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
+				Signature:          &mockSignatureFail{},
+				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
@@ -3165,8 +3166,8 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime:           1572246820,
 			},
 			fields: fields{
-				Signature:         &mockSignature{},
-				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
+				Signature:          &mockSignature{},
+				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
@@ -3185,10 +3186,10 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime:           1572246820,
 			},
 			fields: fields{
-				Signature:         &mockSignature{},
-				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:     &mockQueryExecutorValidateBlockSuccess{},
-				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
+				Signature:          &mockSignature{},
+				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:      &mockQueryExecutorValidateBlockSuccess{},
+				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 		},
@@ -3200,10 +3201,10 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				curTime:           mockValidateBlockSuccess.Timestamp,
 			},
 			fields: fields{
-				Signature:         &mockSignature{},
-				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:     &mockQueryExecutorValidateBlockSuccess{},
-				BlocksmithService: &mockBlocksmithServiceValidateBlockSuccess{},
+				Signature:          &mockSignature{},
+				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:      &mockQueryExecutorValidateBlockSuccess{},
+				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 		},
 	}
@@ -3225,7 +3226,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlocksmithService:       tt.fields.BlocksmithService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				Observer:                tt.fields.Observer,
 				Logger:                  tt.fields.Logger,
 			}

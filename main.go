@@ -32,10 +32,11 @@ import (
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
-	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
@@ -59,7 +60,7 @@ var (
 	receiptService                          service.ReceiptServiceInterface
 	peerServiceClient                       client.PeerServiceClientInterface
 	p2pHost                                 *model.Host
-	peerExplorer                            strategy.PeerExplorerStrategyInterface
+	peerExplorer                            p2pStrategy.PeerExplorerStrategyInterface
 	wellknownPeers                          []string
 	smithing, isNodePreSeed, isDebugMode    bool
 	nodeRegistrationService                 service.NodeRegistrationServiceInterface
@@ -250,7 +251,7 @@ func initP2pInstance() {
 	)
 
 	// peer discovery strategy
-	peerExplorer = strategy.NewPriorityStrategy(
+	peerExplorer = p2pStrategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
 		nodeRegistrationService,
@@ -351,7 +352,7 @@ func startMainchain() {
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-	blocksmithServiceMain := service.NewBlocksmithServiceMain(
+	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
@@ -376,7 +377,7 @@ func startMainchain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithServiceMain,
+		blocksmithStrategyMain,
 		loggerCoreService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -423,7 +424,7 @@ func startMainchain() {
 				mainchain,
 				model.NewBlocksmith(mainchain, nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
-				blocksmithServiceMain,
+				blocksmithStrategyMain,
 				nodeRegistrationService,
 				loggerCoreService,
 			)
@@ -456,7 +457,7 @@ func startSpinechain() {
 	sleepPeriod := 500
 
 	// TODO: not sure we even need this, since spine blocks are computed and created by every node
-	blocksmithServiceSpine := service.NewBlocksmithServiceSpine(
+	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		query.NewSpinePublicKeyQuery(),
@@ -482,7 +483,7 @@ func startSpinechain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithServiceSpine, // TODO: not sure we even need this
+		blocksmithStrategySpine, // TODO: not sure we even need this
 		loggerCoreService,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
@@ -505,7 +506,7 @@ func startSpinechain() {
 			spinechain,
 			model.NewBlocksmith(spinechain, nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
-			blocksmithServiceSpine,
+			blocksmithStrategySpine,
 			nodeRegistrationService,
 			loggerCoreService,
 		)

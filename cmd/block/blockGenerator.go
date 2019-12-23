@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -25,7 +26,7 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
-	blocksmithService       service.BlocksmithServiceInterface
+	blocksmithStrategy      strategy.BlocksmithStrategyInterface
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
 
@@ -131,7 +132,7 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		log.New(),
 	)
-	blocksmithService = service.NewBlocksmithServiceMain(
+	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
 	)
 	blockService = service.NewBlockService(
@@ -154,7 +155,7 @@ func initialize(
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithService,
+		blocksmithStrategy,
 		log.New(),
 	)
 
@@ -169,7 +170,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		chainType,
 		blocksmith,
 		blockService,
-		blocksmithService,
+		blocksmithStrategy,
 		nodeRegistrationService,
 		log.New(),
 	)

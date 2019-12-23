@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -27,7 +28,7 @@ type (
 		Chaintype               chaintype.ChainType
 		Generator               *model.Blocksmith
 		BlockService            service.BlockServiceInterface
-		BlocksmithService       service.BlocksmithServiceInterface
+		BlocksmithService       strategy.BlocksmithStrategyInterface
 		NodeRegistrationService service.NodeRegistrationServiceInterface
 		LastBlockID             int64
 		canSmith                bool
@@ -40,7 +41,7 @@ func NewBlockchainProcessor(
 	ct chaintype.ChainType,
 	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
-	blocksmithService service.BlocksmithServiceInterface,
+	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
 	logger *log.Logger,
 ) *BlockchainProcessor {
@@ -48,7 +49,7 @@ func NewBlockchainProcessor(
 		Chaintype:               ct,
 		Generator:               blocksmith,
 		BlockService:            blockService,
-		BlocksmithService:       blocksmithService,
+		BlocksmithService:       blocksmithStrategy,
 		NodeRegistrationService: nodeRegistrationService,
 		Logger:                  logger,
 	}

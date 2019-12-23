@@ -1,8 +1,6 @@
-package service
+package strategy
 
 import (
-	"encoding/binary"
-	"math/big"
 	"sort"
 	"sync"
 
@@ -11,15 +9,15 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
-	BlocksmithServiceSpine struct {
+	BlocksmithStrategyMain struct {
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
 		Logger                *log.Logger
 		SortedBlocksmiths     []*model.Blocksmith
 		LastSortedBlockID     int64
@@ -28,55 +26,51 @@ type (
 	}
 )
 
-func NewBlocksmithServiceSpine(
+func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
-	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	logger *log.Logger,
-) *BlocksmithServiceSpine {
-	return &BlocksmithServiceSpine{
+) *BlocksmithStrategyMain {
+	return &BlocksmithStrategyMain{
 		QueryExecutor:         queryExecutor,
 		NodeRegistrationQuery: nodeRegistrationQuery,
-		SpinePublicKeyQuery:   spinePublicKeyQuery,
 		Logger:                logger,
 		SortedBlocksmithsMap:  make(map[string]*int64),
 	}
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
-func (bss *BlocksmithServiceSpine) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
-		validBlocksmiths, blocksmiths []*model.Blocksmith
+		activeBlocksmiths, blocksmiths []*model.Blocksmith
 	)
 	// get all registered nodes with participation score > 0
-	rows, err := bss.QueryExecutor.ExecuteSelect(bss.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeight(block.Height), false)
+	rows, err := bss.QueryExecutor.ExecuteSelect(bss.NodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(
+		block.Height), false)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	validBlocksmiths, err = bss.SpinePublicKeyQuery.BuildBlocksmith(validBlocksmiths, rows)
+	activeBlocksmiths, err = bss.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: do we want to add monitoring param for spine blocksmiths count?
-	// monitoring.SetActiveRegisteredNodesCount(len(validBlocksmiths))
-	// add smithorder to be used to select blocksmith
-	for _, blocksmith := range validBlocksmiths {
-		pseudoNodeID := int64(binary.LittleEndian.Uint64(blocksmith.NodePublicKey))
-		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(pseudoNodeID, block)
+	monitoring.SetNodeScore(activeBlocksmiths)
+	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
+	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
+	for _, blocksmith := range activeBlocksmiths {
+		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(blocksmith.NodeID, block)
 		if err != nil {
 			return nil, err
 		}
-		pseudoBlockScore := big.NewInt(1)
-		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(pseudoBlockScore, blocksmith.BlockSeed, pseudoNodeID)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, blocksmith.NodeID)
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
-
 	return blocksmiths, nil
 }
 
-func (bss *BlocksmithServiceSpine) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
+func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block)
 	}
 	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
@@ -87,11 +81,11 @@ func (bss *BlocksmithServiceSpine) GetSortedBlocksmiths(block *model.Block) []*m
 }
 
 // GetSortedBlocksmithsMap get the sorted blocksmiths in map
-func (bss *BlocksmithServiceSpine) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
 	var (
 		result = make(map[string]*int64)
 	)
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block)
 	}
 	bss.SortedBlocksmithsLock.RLock()
@@ -102,15 +96,15 @@ func (bss *BlocksmithServiceSpine) GetSortedBlocksmithsMap(block *model.Block) m
 	return result
 }
 
-func (bss *BlocksmithServiceSpine) SortBlocksmiths(block *model.Block) {
-	if block.ID == bss.LastSortedBlockID && block.ID != constant.SpinechainGenesisBlockID {
+func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block) {
+	if block.ID == bss.LastSortedBlockID && block.ID != constant.MainchainGenesisBlockID {
 		return
 	}
 	// fetch valid blocksmiths
 	var blocksmiths []*model.Blocksmith
 	nextBlocksmiths, err := bss.GetBlocksmiths(block)
 	if err != nil {
-		bss.Logger.Errorf("SortBlocksmith (Spine):GetBlocksmiths fail: %s", err)
+		bss.Logger.Errorf("SortBlocksmith (Main):GetBlocksmiths fail: %s", err)
 		return
 	}
 	// copy the nextBlocksmiths pointers array into an array of blocksmiths
