@@ -40,8 +40,8 @@ type (
 			secretPhrase string) (*model.Block, error)
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, payloadHash []byte, payloadLength uint32,
-			cumulativeDifficulty *big.Int, genesisSignature []byte) *model.Block
+			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, spinePublicKeys []*model.SpinePublicKey,
+			payloadHash []byte, payloadLength uint32, cumulativeDifficulty *big.Int, genesisSignature []byte) (*model.Block, error)
 		GenerateBlock(
 			previousBlock *model.Block,
 			secretPhrase string,
@@ -224,11 +224,12 @@ func (bs *BlockService) NewGenesisBlock(
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
 	publishedReceipts []*model.PublishedReceipt,
+	spinePublicKeys []*model.SpinePublicKey,
 	payloadHash []byte,
 	payloadLength uint32,
 	cumulativeDifficulty *big.Int,
 	genesisSignature []byte,
-) *model.Block {
+) (*model.Block, error) {
 	block := &model.Block{
 		Version:              version,
 		PreviousBlockHash:    previousBlockHash,
@@ -240,13 +241,19 @@ func (bs *BlockService) NewGenesisBlock(
 		TotalFee:             totalFee,
 		TotalCoinBase:        totalCoinBase,
 		Transactions:         transactions,
+		SpinePublicKeys:      spinePublicKeys,
 		PublishedReceipts:    publishedReceipts,
 		PayloadLength:        payloadLength,
 		PayloadHash:          payloadHash,
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
 	}
-	return block
+	blockHash, err := util.GetBlockHash(block)
+	if err != nil {
+		return nil, err
+	}
+	block.BlockHash = blockHash
+	return block, nil
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
@@ -518,15 +525,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 		}
 	case *chaintype.SpineChain:
-		if block.Height == 0 {
-			// add spine public keys from mainchain genesis configuration to spinePublicKey table
-			if err := bs.insertGenesisSpinePublicKeys(); err != nil {
-				bs.Logger.Error(err.Error())
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
+		// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
+		if err := bs.insertSpinePublicKeys(block); err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
 			}
+			return err
 		}
 	}
 
@@ -546,16 +551,31 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	return nil
 }
 
-func (bs *BlockService) insertGenesisSpinePublicKeys() error {
-	queries := make([][]interface{}, 0)
+// getGenesisSpinePublicKeys returns spine block's genesis payload, as an array of model.SpinePublicKey and in bytes,
+// based on nodes registered at genesis
+func (bs *BlockService) getGenesisSpinePublicKeys() ([]*model.SpinePublicKey, []byte) {
+	spinePublicKeys := make([]*model.SpinePublicKey, 0)
+	spinePublicKeysBytes := make([]byte, 0)
 	for _, mainchainGenesisEntry := range constant.MainChainGenesisConfig {
-		spk := &model.SpinePublicKey{
-			NodePublicKey:      mainchainGenesisEntry.NodePublicKey,
-			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
-			Height:             0,
-			Latest:             true,
+		spinePublicKey := &model.SpinePublicKey{
+			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,
+			PublicKeyAction: model.SpinePublicKeyAction_AddKey,
+			Height:          0,
+			Latest:          true,
 		}
-		insertSpkQry := bs.SpinePublicKeyQuery.InsertSpinePublicKey(spk)
+		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
+		spinePublicKeysBytes = append(spinePublicKeysBytes, coreUtil.GetSpinePublicKeyBytes(spinePublicKey)...)
+
+	}
+	return spinePublicKeys, spinePublicKeysBytes
+}
+
+// insertSpinePublicKeys insert all spine block publicKeys into spinePublicKey table
+// Note: at this stage the spine pub keys have already been parsed into their model struct
+func (bs *BlockService) insertSpinePublicKeys(block *model.Block) error {
+	queries := make([][]interface{}, 0)
+	for _, spinePublicKey := range block.SpinePublicKeys {
+		insertSpkQry := bs.SpinePublicKeyQuery.InsertSpinePublicKey(spinePublicKey)
 		queries = append(queries, insertSpkQry...)
 	}
 	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
@@ -1015,32 +1035,49 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 	var (
 		totalAmount, totalFee, totalCoinBase int64
 		blockTransactions                    []*model.Transaction
+		spineChainPublicKeys                 []*model.SpinePublicKey
+		blockPayloadBytes                    []byte
 		payloadLength                        uint32
 		digest                               = sha3.New256()
 	)
-	genesisTransactions, err := GetGenesisTransactions(bs.Chaintype, genesisEntries)
-	if err != nil {
-		return nil, err
-	}
-	for index, tx := range genesisTransactions {
-		if _, err := digest.Write(tx.TransactionHash); err != nil {
-			return nil, err
-		}
-		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
-			totalAmount += tx.GetSendMoneyTransactionBody().Amount
-		}
-		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+
+	switch bs.Chaintype.(type) {
+	case *chaintype.MainChain:
+		genesisTransactions, err := GetGenesisTransactions(bs.Chaintype, genesisEntries)
 		if err != nil {
 			return nil, err
 		}
-		totalAmount += txType.GetAmount()
-		totalFee += tx.Fee
-		payloadLength += txType.GetSize()
-		tx.TransactionIndex = uint32(index) + 1
-		blockTransactions = append(blockTransactions, tx)
+		for index, tx := range genesisTransactions {
+			if _, err := digest.Write(tx.TransactionHash); err != nil {
+				return nil, err
+			}
+			if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+				totalAmount += tx.GetSendMoneyTransactionBody().Amount
+			}
+			txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				return nil, err
+			}
+			totalAmount += txType.GetAmount()
+			totalFee += tx.Fee
+			payloadLength += txType.GetSize()
+			tx.TransactionIndex = uint32(index) + 1
+			blockTransactions = append(blockTransactions, tx)
+		}
+	case *chaintype.SpineChain:
+		// add spine public keys from mainchain genesis configuration to spine genesis block
+		spineChainPublicKeys, blockPayloadBytes = bs.getGenesisSpinePublicKeys()
+		payloadLength = uint32(len(blockPayloadBytes))
+		if _, err := digest.Write(blockPayloadBytes); err != nil {
+			return nil, err
+		}
+
+	default:
+		return nil, blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("Invalid block type: %s", bs.Chaintype.GetName()))
 	}
+
 	payloadHash := digest.Sum([]byte{})
-	block := bs.NewGenesisBlock(
+	block, err := bs.NewGenesisBlock(
 		1,
 		nil,
 		bs.Chaintype.GetGenesisBlockSeed(),
@@ -1052,11 +1089,15 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.Mainchain
 		totalCoinBase,
 		blockTransactions,
 		[]*model.PublishedReceipt{},
+		spineChainPublicKeys,
 		payloadHash,
 		payloadLength,
 		big.NewInt(0),
 		bs.Chaintype.GetGenesisBlockSignature(),
 	)
+	if err != nil {
+		return nil, err
+	}
 	// assign genesis block id
 	block.ID = coreUtil.GetBlockID(block)
 	if block.ID == 0 {

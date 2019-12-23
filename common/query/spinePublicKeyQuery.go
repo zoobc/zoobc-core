@@ -30,7 +30,7 @@ func NewSpinePublicKeyQuery() *SpinePublicKeyQuery {
 	return &SpinePublicKeyQuery{
 		Fields: []string{
 			"node_public_key",
-			"registration_status",
+			"public_key_action",
 			"latest",
 			"height",
 		},
@@ -64,8 +64,8 @@ func (spkq *SpinePublicKeyQuery) InsertSpinePublicKey(spinePublicKey *model.Spin
 }
 
 func (spkq *SpinePublicKeyQuery) GetValidSpinePublicKeysByHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height <= %d AND registration_status=%d AND latest=1",
-		strings.Join(spkq.Fields, ", "), spkq.getTableName(), height, uint32(model.NodeRegistrationState_NodeRegistered))
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height <= %d AND public_key_action=%d AND latest=1",
+		strings.Join(spkq.Fields, ", "), spkq.getTableName(), height, uint32(model.SpinePublicKeyAction_AddKey))
 }
 
 // GetSpinePublicKeyByNodePublicKey returns query string to get Node Registration by node public key
@@ -81,7 +81,7 @@ func (spkq *SpinePublicKeyQuery) GetSpinePublicKeyByNodePublicKey(nodePublicKey 
 func (spkq *SpinePublicKeyQuery) ExtractModel(spk *model.SpinePublicKey) []interface{} {
 	return []interface{}{
 		spk.NodePublicKey,
-		spk.RegistrationStatus,
+		spk.PublicKeyAction,
 		spk.Latest,
 		spk.Height,
 	}
@@ -100,7 +100,7 @@ func (spkq *SpinePublicKeyQuery) BuildModel(
 		)
 		err = rows.Scan(
 			&spk.NodePublicKey,
-			&spk.RegistrationStatus,
+			&spk.PublicKeyAction,
 			&spk.Latest,
 			&spk.Height,
 		)
@@ -168,7 +168,7 @@ func (spkq *SpinePublicKeyQuery) Scan(spk *model.SpinePublicKey, row *sql.Row) e
 	)
 	err = row.Scan(
 		&spk.NodePublicKey,
-		&spk.RegistrationStatus,
+		&spk.PublicKeyAction,
 		&spk.Latest,
 		&spk.Height,
 	)

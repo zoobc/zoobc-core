@@ -757,6 +757,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		totalCoinBase        int64
 		transactions         []*model.Transaction
 		publishedReceipts    []*model.PublishedReceipt
+		spinePublicKeys      []*model.SpinePublicKey
 		payloadHash          []byte
 		payloadLength        uint32
 		cumulativeDifficulty *big.Int
@@ -786,6 +787,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				totalCoinBase:        0,
 				transactions:         []*model.Transaction{},
 				publishedReceipts:    []*model.PublishedReceipt{},
+				spinePublicKeys:      []*model.SpinePublicKey{},
 				payloadHash:          []byte{},
 				payloadLength:        8,
 				cumulativeDifficulty: big.NewInt(1),
@@ -802,6 +804,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				TotalCoinBase:        0,
 				Transactions:         []*model.Transaction{},
 				PublishedReceipts:    []*model.PublishedReceipt{},
+				SpinePublicKeys:      []*model.SpinePublicKey{},
 				PayloadHash:          []byte{},
 				PayloadLength:        8,
 				CumulativeDifficulty: "1",
@@ -820,7 +823,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			if got := bs.NewGenesisBlock(
+			if got, _ := bs.NewGenesisBlock(
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
@@ -832,6 +835,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.totalCoinBase,
 				tt.args.transactions,
 				tt.args.publishedReceipts,
+				tt.args.spinePublicKeys,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
 				tt.args.cumulativeDifficulty,

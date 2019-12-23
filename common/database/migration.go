@@ -229,7 +229,7 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "spine_public_key"(
 				"node_public_key" BLOB,
-				"registration_status" INTEGER,
+				"public_key_action" INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
 				PRIMARY KEY("node_public_key", "height")
