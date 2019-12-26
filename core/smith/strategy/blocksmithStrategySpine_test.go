@@ -121,13 +121,12 @@ func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelect(
 
 func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockID     int64
-		SortedBlocksmithsMap  map[string]*int64
+		QueryExecutor        query.ExecutorInterface
+		SpinePublicKeyQuery  query.SpinePublicKeyQueryInterface
+		Logger               *log.Logger
+		SortedBlocksmiths    []*model.Blocksmith
+		LastSortedBlockID    int64
+		SortedBlocksmithsMap map[string]*int64
 	}
 	type args struct {
 		blocksmithIndex int64
@@ -142,11 +141,10 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 		{
 			name: "GetSmithTime:0",
 			fields: fields{
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args: args{
 				blocksmithIndex: 0,
@@ -159,11 +157,10 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 		{
 			name: "GetSmithTime:1",
 			fields: fields{
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args: args{
 				blocksmithIndex: 1,
@@ -177,13 +174,12 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategySpine{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:     tt.fields.LastSortedBlockID,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:  tt.fields.SpinePublicKeyQuery,
+				Logger:               tt.fields.Logger,
+				SortedBlocksmiths:    tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:    tt.fields.LastSortedBlockID,
+				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
 			if got := bss.GetSmithTime(tt.args.blocksmithIndex, tt.args.block); got != tt.want {
 				t.Errorf("BlocksmithStrategySpine.GetSmithTime() = %v, want %v", got, tt.want)
@@ -194,13 +190,12 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 
 func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockID     int64
-		SortedBlocksmithsMap  map[string]*int64
+		QueryExecutor        query.ExecutorInterface
+		SpinePublicKeyQuery  query.SpinePublicKeyQueryInterface
+		Logger               *log.Logger
+		SortedBlocksmiths    []*model.Blocksmith
+		LastSortedBlockID    int64
+		SortedBlocksmithsMap map[string]*int64
 	}
 	type args struct {
 		block *model.Block
@@ -215,13 +210,12 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 		{
 			name: "GetBlocksmiths:success",
 			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsSpineSuccessWithBlocksmith{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineSuccessWithBlocksmith{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args:    args{mockBlock},
 			wantErr: false,
@@ -239,13 +233,12 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 		{
 			name: "GetBlocksmiths:fail-{sqlSelectErr}",
 			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsSpineFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineFail{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args:    args{mockBlock},
 			wantErr: true,
@@ -254,13 +247,12 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 		{
 			name: "GetBlocksmiths:fail-{noSpinePublicKeyFound}",
 			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args:    args{mockBlock},
 			wantErr: false,
@@ -270,13 +262,12 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategySpine{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:     tt.fields.LastSortedBlockID,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:  tt.fields.SpinePublicKeyQuery,
+				Logger:               tt.fields.Logger,
+				SortedBlocksmiths:    tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:    tt.fields.LastSortedBlockID,
+				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
 			got, err := bss.GetBlocksmiths(tt.args.block)
 			if (err != nil) != tt.wantErr {
@@ -292,13 +283,12 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 
 func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockID     int64
-		SortedBlocksmithsMap  map[string]*int64
+		QueryExecutor        query.ExecutorInterface
+		SpinePublicKeyQuery  query.SpinePublicKeyQueryInterface
+		Logger               *log.Logger
+		SortedBlocksmiths    []*model.Blocksmith
+		LastSortedBlockID    int64
+		SortedBlocksmithsMap map[string]*int64
 	}
 	type args struct {
 		block *model.Block
@@ -311,13 +301,12 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 		{
 			name: "Success",
 			fields: fields{
-				QueryExecutor:         &mockQuerySortBlocksmithSpineSuccessWithBlocksmiths{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				QueryExecutor:        &mockQuerySortBlocksmithSpineSuccessWithBlocksmiths{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args: args{
 				block: mockBlock,
@@ -326,13 +315,12 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 		{
 			name: "GetBlocksmiths:fail-{noSpinePublicKeyFound}",
 			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsSpineFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineFail{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
 			},
 			args: args{mockBlock},
 		},
@@ -340,13 +328,12 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategySpine{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:     tt.fields.LastSortedBlockID,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:  tt.fields.SpinePublicKeyQuery,
+				Logger:               tt.fields.Logger,
+				SortedBlocksmiths:    tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:    tt.fields.LastSortedBlockID,
+				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
 			bss.SortedBlocksmiths = make([]*model.Blocksmith, 0)
 			bss.SortBlocksmiths(tt.args.block)
@@ -367,7 +354,6 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 	}
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
 		Logger                *log.Logger
 		SortedBlocksmiths     []*model.Blocksmith
@@ -390,12 +376,11 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 				block: &model.Block{ID: 0},
 			},
 			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     bssMockBlocksmiths,
-				SortedBlocksmithsMap:  mockBlocksmithMap,
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    bssMockBlocksmiths,
+				SortedBlocksmithsMap: mockBlocksmithMap,
 			},
 			want: mockBlocksmithMap,
 		},
@@ -405,12 +390,11 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 				block: &model.Block{ID: 1},
 			},
 			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     bssMockBlocksmiths,
-				SortedBlocksmithsMap:  mockBlocksmithMap,
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    bssMockBlocksmiths,
+				SortedBlocksmithsMap: mockBlocksmithMap,
 			},
 			want: mockBlocksmithMap,
 		},
@@ -419,7 +403,6 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategySpine{
 				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
 				Logger:                tt.fields.Logger,
 				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
@@ -437,7 +420,6 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 func TestBlocksmithStrategySpine_GetSortedBlocksmiths(t *testing.T) {
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
 		Logger                *log.Logger
 		SortedBlocksmiths     []*model.Blocksmith
@@ -461,7 +443,6 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmiths(t *testing.T) {
 			},
 			fields: fields{
 				QueryExecutor:         nil,
-				NodeRegistrationQuery: nil,
 				SpinePublicKeyQuery:   nil,
 				Logger:                log.New(),
 				SortedBlocksmiths:     bssMockBlocksmiths,
@@ -475,7 +456,6 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmiths(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategySpine{
 				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
 				Logger:                tt.fields.Logger,
 				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
@@ -492,13 +472,12 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmiths(t *testing.T) {
 
 func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockID     int64
-		SortedBlocksmithsMap  map[string]*int64
+		QueryExecutor        query.ExecutorInterface
+		SpinePublicKeyQuery  query.SpinePublicKeyQueryInterface
+		Logger               *log.Logger
+		SortedBlocksmiths    []*model.Blocksmith
+		LastSortedBlockID    int64
+		SortedBlocksmithsMap map[string]*int64
 	}
 	type args struct {
 		lastBlock       *model.Block
@@ -518,30 +497,66 @@ func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
 			args: args{
 				lastBlock:       mockBlock,
 				blocksmithIndex: 0,
-				generator:       bssMockBlocksmiths[0],
-				score:           constant.DefaultParticipationScore,
+				generator: &model.Blocksmith{
+					NodePublicKey: bssNodePubKey1,
+					NodeID:        1,
+				},
+				score: constant.DefaultParticipationScore,
 			},
-			want: bssMockBlocksmiths[0],
+			want: &model.Blocksmith{
+				NodePublicKey: bssNodePubKey1,
+				NodeID:        1,
+				Score:         big.NewInt(1000000000),
+				SmithTime:     30,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategySpine{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:     tt.fields.LastSortedBlockID,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:  tt.fields.SpinePublicKeyQuery,
+				Logger:               tt.fields.Logger,
+				SortedBlocksmiths:    tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:    tt.fields.LastSortedBlockID,
+				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
-			got, err := bss.CalculateSmith(tt.args.lastBlock, tt.args.blocksmithIndex, tt.args.generator, tt.args.score)
+			err := bss.CalculateSmith(tt.args.lastBlock, tt.args.blocksmithIndex, tt.args.generator, tt.args.score)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlocksmithStrategySpine.CalculateSmith() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			got := tt.args.generator
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlocksmithStrategySpine.CalculateSmith() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewBlocksmithStrategySpine(t *testing.T) {
+	type args struct {
+		queryExecutor       query.ExecutorInterface
+		spinePublicKeyQuery query.SpinePublicKeyQueryInterface
+		logger              *log.Logger
+	}
+	tests := []struct {
+		name string
+		args args
+		want *BlocksmithStrategySpine
+	}{
+		{
+			name: "Success",
+			args: args{
+				logger: nil,
+			},
+			want: NewBlocksmithStrategySpine(nil, nil, nil),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewBlocksmithStrategySpine(tt.args.queryExecutor, tt.args.spinePublicKeyQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBlocksmithStrategySpine() = %v, want %v", got, tt.want)
 			}
 		})
 	}

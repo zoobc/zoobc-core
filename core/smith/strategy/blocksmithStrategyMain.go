@@ -138,10 +138,10 @@ func (bss *BlocksmithStrategyMain) CalculateSmith(
 	blocksmithIndex int64,
 	generator *model.Blocksmith,
 	score int64,
-) (*model.Blocksmith, error) {
+) error {
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
 	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)
-	return generator, nil
+	return nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith

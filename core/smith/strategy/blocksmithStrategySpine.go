@@ -18,7 +18,6 @@ import (
 type (
 	BlocksmithStrategySpine struct {
 		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
 		Logger                *log.Logger
 		SortedBlocksmiths     []*model.Blocksmith
@@ -30,16 +29,14 @@ type (
 
 func NewBlocksmithStrategySpine(
 	queryExecutor query.ExecutorInterface,
-	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	logger *log.Logger,
 ) *BlocksmithStrategySpine {
 	return &BlocksmithStrategySpine{
-		QueryExecutor:         queryExecutor,
-		NodeRegistrationQuery: nodeRegistrationQuery,
-		SpinePublicKeyQuery:   spinePublicKeyQuery,
-		Logger:                logger,
-		SortedBlocksmithsMap:  make(map[string]*int64),
+		QueryExecutor:        queryExecutor,
+		SpinePublicKeyQuery:  spinePublicKeyQuery,
+		Logger:               logger,
+		SortedBlocksmithsMap: make(map[string]*int64),
 	}
 }
 
@@ -147,10 +144,12 @@ func (bss *BlocksmithStrategySpine) CalculateSmith(
 	blocksmithIndex int64,
 	generator *model.Blocksmith,
 	score int64,
-) (*model.Blocksmith, error) {
+) error {
+	// FIXME: for @barton probably the way we compute spine blocksmith has to be reviewed, since we don't have ps and receipts,
+	//		  attached to spine blocks
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
 	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)
-	return generator, nil
+	return nil
 }
 
 // GetSmithTime calculate smith time of a blocksmith

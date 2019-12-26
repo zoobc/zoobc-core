@@ -78,7 +78,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			bp.Generator, err = bp.BlocksmithService.CalculateSmith(lastBlock, 0, bp.Generator, 1)
+			err = bp.BlocksmithService.CalculateSmith(lastBlock, 0, bp.Generator, 1)
 			if err != nil {
 				return err
 			}
@@ -161,7 +161,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				bp.Logger.Errorf("Participation score calculation: %s", err)
 			}
 		}
-		bp.Generator, err = bp.BlocksmithService.CalculateSmith(
+		err = bp.BlocksmithService.CalculateSmith(
 			lastBlock,
 			*(blocksmithsMap[string(bp.Generator.NodePublicKey)]),
 			bp.Generator,
