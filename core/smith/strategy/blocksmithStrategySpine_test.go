@@ -64,6 +64,8 @@ func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
 			uint32(1),
 		))
 		rows, _ = db.Query("A")
+	default:
+		return nil, errors.New("MockErr")
 	}
 	return rows, nil
 }
@@ -98,6 +100,8 @@ func (*mockQuerySortBlocksmithSpineSuccessWithBlocksmiths) ExecuteSelect(
 			uint32(1),
 		))
 		rows, _ = db.Query("A")
+	default:
+		return nil, errors.New("MockErr")
 	}
 	return rows, nil
 }
@@ -555,7 +559,8 @@ func TestNewBlocksmithStrategySpine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlocksmithStrategySpine(tt.args.queryExecutor, tt.args.spinePublicKeyQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlocksmithStrategySpine(tt.args.queryExecutor, tt.args.spinePublicKeyQuery,
+				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategySpine() = %v, want %v", got, tt.want)
 			}
 		})

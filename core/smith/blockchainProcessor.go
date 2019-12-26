@@ -1,6 +1,7 @@
 package smith
 
 import (
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -134,6 +135,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
+	// caching: only calculate smith time once per new block
 	if lastBlock.GetID() != bp.LastBlockID {
 		bp.LastBlockID = lastBlock.GetID()
 		bp.BlocksmithService.SortBlocksmiths(lastBlock)
@@ -144,7 +146,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		bp.canSmith = true
-		// caching: only calculate smith time once per new block
+		// calculate blocksmith score for the block type
 		switch bp.Chaintype.(type) {
 		case *chaintype.MainChain:
 			// try to get the node's participation score (ps) from node public key
@@ -160,6 +162,11 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				blocksmithScore = 0
 				bp.Logger.Errorf("Participation score calculation: %s", err)
 			}
+		case *chaintype.SpineChain:
+			// FIXME: for @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
+			blocksmithScore = constant.DefaultParticipationScore
+		default:
+			return blocker.NewBlocker(blocker.SmithingErr, fmt.Sprintf("undefined chaintype %s", bp.Chaintype.GetName()))
 		}
 		err = bp.BlocksmithService.CalculateSmith(
 			lastBlock,

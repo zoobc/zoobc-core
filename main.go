@@ -459,7 +459,6 @@ func startSpinechain() {
 	// TODO: not sure we even need this, since spine blocks are computed and created by every node
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
-		query.NewNodeRegistrationQuery(),
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
