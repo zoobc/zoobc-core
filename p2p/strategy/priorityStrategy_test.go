@@ -701,9 +701,12 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 			}
 			if !tt.wantErr {
 				peers := ps.GetUnresolvedPeers()
-				for _, peer := range peers {
-					if reflect.DeepEqual(peer, tt.wantContain) {
-						return
+				for fullAddressPeer, peer := range peers {
+					if p2pUtil.GetFullAddressPeer(tt.wantContain) == fullAddressPeer {
+						tt.wantContain.UnresolvingTime = peer.GetUnresolvingTime()
+						if reflect.DeepEqual(peer, tt.wantContain) {
+							return
+						}
 					}
 				}
 				t.Errorf("AddToUnresolvedPeers() = %v, want %v", peers, tt.wantContain)
