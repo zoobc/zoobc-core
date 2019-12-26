@@ -1,7 +1,6 @@
 package smith
 
 import (
-	"math/big"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -12,13 +11,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
 	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
 	BlockchainProcessorInterface interface {
-		CalculateSmith(lastBlock *model.Block, blocksmithIndex int64)
 		StartSmithing() error
 		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
 	}
@@ -55,28 +52,6 @@ func NewBlockchainProcessor(
 	}
 }
 
-// CalculateSmith calculate seed, smithTime, and Deadline
-func (bp *BlockchainProcessor) CalculateSmith(
-	lastBlock *model.Block,
-	blocksmithIndex int64,
-) {
-	// try to get the node's participation score (ps) from node public key
-	// if node is not registered, ps will be 0 and this node won't be able to smith
-	// the default ps is 100000, smithing could be slower than when using account balances
-	// since default balance was 1000 times higher than default ps
-	ps, err := bp.BlockService.GetParticipationScore(bp.Generator.NodePublicKey)
-	if ps <= 0 {
-		bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
-	}
-	if err != nil || ps <= 0 {
-		bp.Logger.Errorf("Participation score calculation: %s", err)
-		bp.Generator.Score = big.NewInt(0)
-	} else {
-		bp.Generator.Score = big.NewInt(ps / int64(constant.ScalarReceiptScore))
-	}
-	bp.Generator.SmithTime = coreUtil.GetSmithTime(blocksmithIndex, lastBlock, bp.Chaintype)
-}
-
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
 // errors
 func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool) error {
@@ -103,7 +78,10 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			bp.CalculateSmith(lastBlock, 0)
+			bp.Generator, err = bp.BlocksmithService.CalculateSmith(lastBlock, 0, bp.Generator, 1)
+			if err != nil {
+				return err
+			}
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
 		for bp.Generator.SmithTime > timeNow {
@@ -143,6 +121,9 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
+	var (
+		blocksmithScore int64
+	)
 	// Securing smithing process
 	// will pause another process that used block service lock until this process done
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
@@ -164,7 +145,31 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		}
 		bp.canSmith = true
 		// caching: only calculate smith time once per new block
-		bp.CalculateSmith(lastBlock, *(blocksmithsMap[string(bp.Generator.NodePublicKey)]))
+		switch bp.Chaintype.(type) {
+		case *chaintype.MainChain:
+			// try to get the node's participation score (ps) from node public key
+			// if node is not registered, ps will be 0 and this node won't be able to smith
+			// the default ps is 100000, smithing could be slower than when using account balances
+			// since default balance was 1000 times higher than default ps
+			blocksmithScore, err = bp.BlockService.GetParticipationScore(bp.Generator.NodePublicKey)
+			if blocksmithScore <= 0 {
+				bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
+			}
+			if err != nil || blocksmithScore < 0 {
+				// no negative scores allowed
+				blocksmithScore = 0
+				bp.Logger.Errorf("Participation score calculation: %s", err)
+			}
+		}
+		bp.Generator, err = bp.BlocksmithService.CalculateSmith(
+			lastBlock,
+			*(blocksmithsMap[string(bp.Generator.NodePublicKey)]),
+			bp.Generator,
+			blocksmithScore,
+		)
+		if err != nil {
+			return err
+		}
 		monitoring.SetBlockchainSmithTime(bp.Chaintype.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
 	}
 	if !bp.canSmith {

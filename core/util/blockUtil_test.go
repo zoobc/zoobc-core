@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -64,49 +62,6 @@ func TestGetBlockSeed(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlockSeed() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetSmithTime(t *testing.T) {
-	type args struct {
-		blocksmithIndex int64
-		block           *model.Block
-		ct              chaintype.ChainType
-	}
-	tests := []struct {
-		name string
-		args args
-		want int64
-	}{
-		{
-			name: "GetSmithTime:0",
-			args: args{
-				blocksmithIndex: 0,
-				block: &model.Block{
-					Timestamp: 0,
-				},
-				ct: &chaintype.MainChain{},
-			},
-			want: 15,
-		},
-		{
-			name: "GetSmithTime:1",
-			args: args{
-				blocksmithIndex: 1,
-				block: &model.Block{
-					Timestamp: 120000,
-				},
-				ct: &chaintype.MainChain{},
-			},
-			want: 120000 + 30,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetSmithTime(tt.args.blocksmithIndex, tt.args.block, tt.args.ct); got != tt.want {
-				t.Errorf("GetSmithTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -62,13 +62,17 @@ func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model
 	// monitoring.SetActiveRegisteredNodesCount(len(validBlocksmiths))
 	// add smithorder to be used to select blocksmith
 	for _, blocksmith := range validBlocksmiths {
+		// FIXME: for @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
 		pseudoNodeID := int64(binary.LittleEndian.Uint64(blocksmith.NodePublicKey))
 		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(pseudoNodeID, block)
 		if err != nil {
 			return nil, err
 		}
-		pseudoBlockScore := big.NewInt(1)
-		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(pseudoBlockScore, blocksmith.BlockSeed, pseudoNodeID)
+		// TODO: do we need it? Node order in mainchain is used to sort blocksmiths who are rewarded
+		// FIXME: for @barton how to compute or assign a score to spine blocksmiths, since we don't have any participation score?
+		//		  at the moment we always assign a default score to all blocksmiths
+		blocksmith.Score = big.NewInt(constant.DefaultParticipationScore)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, pseudoNodeID)
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
 
@@ -135,4 +139,22 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
 	// set last sorted block id
 	bss.LastSortedBlockID = block.ID
 	bss.SortedBlocksmiths = blocksmiths
+}
+
+// CalculateSmith calculate seed, smithTime, and Deadline
+func (bss *BlocksmithStrategySpine) CalculateSmith(
+	lastBlock *model.Block,
+	blocksmithIndex int64,
+	generator *model.Blocksmith,
+	score int64,
+) (*model.Blocksmith, error) {
+	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
+	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)
+	return generator, nil
+}
+
+// GetSmithTime calculate smith time of a blocksmith
+func (bss *BlocksmithStrategySpine) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTimeSpine
+	return block.GetTimestamp() + elapsedFromLastBlock
 }

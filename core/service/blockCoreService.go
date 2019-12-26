@@ -252,6 +252,7 @@ func (bs *BlockService) NewGenesisBlock(
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("%v", blockHash)
 	block.BlockHash = blockHash
 	return block, nil
 }
@@ -268,7 +269,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
-	blocksmithTime := coreUtil.GetSmithTime(*blocksmithIndex, previousLastBlock, bs.Chaintype)
+	blocksmithTime := bs.BlocksmithStrategy.GetSmithTime(*blocksmithIndex, previousLastBlock)
 	if blocksmithTime > block.GetTimestamp() {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
 	}

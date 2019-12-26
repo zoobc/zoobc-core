@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"math/big"
 	"sort"
 	"sync"
 
@@ -129,4 +130,22 @@ func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block) {
 	// set last sorted block id
 	bss.LastSortedBlockID = block.ID
 	bss.SortedBlocksmiths = blocksmiths
+}
+
+// CalculateSmith calculate seed, smithTime, and Deadline for mainchain
+func (bss *BlocksmithStrategyMain) CalculateSmith(
+	lastBlock *model.Block,
+	blocksmithIndex int64,
+	generator *model.Blocksmith,
+	score int64,
+) (*model.Blocksmith, error) {
+	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
+	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)
+	return generator, nil
+}
+
+// GetSmithTime calculate smith time of a blocksmith
+func (bss *BlocksmithStrategyMain) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTimeMain
+	return block.GetTimestamp() + elapsedFromLastBlock
 }

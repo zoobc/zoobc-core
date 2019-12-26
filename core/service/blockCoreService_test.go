@@ -809,6 +809,8 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				PayloadLength:        8,
 				CumulativeDifficulty: "1",
 				BlockSignature:       []byte{},
+				BlockHash: []byte{63, 27, 59, 75, 41, 129, 80, 143, 205, 223, 247, 196, 135, 45, 143, 255,
+					124, 196, 95, 34, 28, 147, 250, 90, 168, 247, 163, 53, 101, 53, 245, 163},
 			},
 		},
 	}
