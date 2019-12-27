@@ -46,7 +46,7 @@ func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model
 		validBlocksmiths, blocksmiths []*model.Blocksmith
 	)
 	// get all registered nodes with participation score > 0
-	rows, err := bss.QueryExecutor.ExecuteSelect(bss.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeight(block.Height), false)
+	rows, err := bss.QueryExecutor.ExecuteSelect(bss.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(0, block.Height), false)
 	if err != nil {
 		return nil, err
 	}
@@ -59,14 +59,14 @@ func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model
 	// monitoring.SetActiveRegisteredNodesCount(len(validBlocksmiths))
 	// add smithorder to be used to select blocksmith
 	for _, blocksmith := range validBlocksmiths {
-		// FIXME: for @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
+		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
 		pseudoNodeID := int64(binary.LittleEndian.Uint64(blocksmith.NodePublicKey))
 		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(pseudoNodeID, block)
 		if err != nil {
 			return nil, err
 		}
 		// TODO: do we need it? Node order in mainchain is used to sort blocksmiths who are rewarded
-		// FIXME: for @barton how to compute or assign a score to spine blocksmiths, since we don't have any participation score?
+		// FIXME: ask @barton how to compute or assign a score to spine blocksmiths, since we don't have any participation score?
 		//		  at the moment we always assign a default score to all blocksmiths
 		blocksmith.Score = big.NewInt(constant.DefaultParticipationScore)
 		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, pseudoNodeID)
@@ -145,7 +145,7 @@ func (bss *BlocksmithStrategySpine) CalculateSmith(
 	generator *model.Blocksmith,
 	score int64,
 ) error {
-	// FIXME: for @barton probably the way we compute spine blocksmith has to be reviewed, since we don't have ps and receipts,
+	// FIXME: ask @barton probably the way we compute spine blocksmith has to be reviewed, since we don't have ps and receipts,
 	//		  attached to spine blocks
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
 	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)

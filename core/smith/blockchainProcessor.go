@@ -163,7 +163,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 				bp.Logger.Errorf("Participation score calculation: %s", err)
 			}
 		case *chaintype.SpineChain:
-			// FIXME: for @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
+			// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
 			blocksmithScore = constant.DefaultParticipationScore
 		default:
 			return blocker.NewBlocker(blocker.SmithingErr, fmt.Sprintf("undefined chaintype %s", bp.Chaintype.GetName()))

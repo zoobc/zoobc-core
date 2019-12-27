@@ -12,7 +12,7 @@ import (
 type (
 	SpinePublicKeyQueryInterface interface {
 		InsertSpinePublicKey(spinePublicKey *model.SpinePublicKey) [][]interface{}
-		GetValidSpinePublicKeysByHeight(height uint32) string
+		GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth uint32) string
 		GetSpinePublicKeyByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		ExtractModel(spk *model.SpinePublicKey) []interface{}
 		BuildModel(spinePublicKeys []*model.SpinePublicKey, rows *sql.Rows) ([]*model.SpinePublicKey, error)
@@ -63,9 +63,9 @@ func (spkq *SpinePublicKeyQuery) InsertSpinePublicKey(spinePublicKey *model.Spin
 	return queries
 }
 
-func (spkq *SpinePublicKeyQuery) GetValidSpinePublicKeysByHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height <= %d AND public_key_action=%d AND latest=1",
-		strings.Join(spkq.Fields, ", "), spkq.getTableName(), height, uint32(model.SpinePublicKeyAction_AddKey))
+func (spkq *SpinePublicKeyQuery) GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND public_key_action=%d AND latest=1",
+		strings.Join(spkq.Fields, ", "), spkq.getTableName(), fromHeigth, toHeigth, uint32(model.SpinePublicKeyAction_AddKey))
 }
 
 // GetSpinePublicKeyByNodePublicKey returns query string to get Node Registration by node public key

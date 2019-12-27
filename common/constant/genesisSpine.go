@@ -5,10 +5,6 @@ const (
 	SpinechainGenesisBlockID int64 = -7694450256370959658
 )
 
-type (
-	SpinechainGenesisConfigEntry struct{}
-)
-
 var (
 	SpinechainGenesisBlocksmithID   = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	SpinechainGenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -19,5 +15,4 @@ var (
 	SpinechainGenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
 	SpinechainGenesisBlockSeed      = make([]byte, 64)
 	SpinechainGenesisNodePublicKey  = make([]byte, 32)
-	SpineChainGenesisConfig         = []SpinechainGenesisConfigEntry{}
 )
