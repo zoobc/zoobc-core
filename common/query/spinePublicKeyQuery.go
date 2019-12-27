@@ -64,7 +64,7 @@ func (spkq *SpinePublicKeyQuery) InsertSpinePublicKey(spinePublicKey *model.Spin
 }
 
 func (spkq *SpinePublicKeyQuery) GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND public_key_action=%d AND latest=1",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND public_key_action=%d AND latest=1 ORDER BY height",
 		strings.Join(spkq.Fields, ", "), spkq.getTableName(), fromHeigth, toHeigth, uint32(model.SpinePublicKeyAction_AddKey))
 }
 

@@ -41,7 +41,7 @@ func TestSpinePublicKeyQuery_GetValidSpinePublicKeysByHeightInterval(t *testing.
 	t.Run("GetValidSpinePublicKeysByHeightInterval", func(t *testing.T) {
 		res := mockSpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(0, 100)
 		wantQry := "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
-			"WHERE height >= 0 AND height <= 100 AND public_key_action=0 AND latest=1"
+			"WHERE height >= 0 AND height <= 100 AND public_key_action=0 AND latest=1 ORDER BY height"
 		if res != wantQry {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, wantQry)
 		}
