@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -279,23 +280,40 @@ func (ps *P2PServerService) GetNextBlocks(
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		for idx, block := range blocks {
-			if block.ID != blockIDList[idx] {
-				break
+
+		// block type specific logic
+		switch chainType.(type) {
+		case *chaintype.MainChain:
+			// get the concrete type for BlockService so we can use mainchain specific methods
+			blockMainService, ok := ps.BlockServices[chainType.GetTypeInt()].(*coreService.BlockService)
+			if !ok {
+				return nil, blocker.NewBlocker(blocker.AppErr, "InvalidChaintype")
 			}
 
-			txs, err := ps.BlockServices[chainType.GetTypeInt()].GetTransactionsByBlockID(block.ID)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+			for idx, block := range blocks {
+				if block.ID != blockIDList[idx] {
+					break
+				}
+				txs, err := blockMainService.GetTransactionsByBlockID(block.ID)
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				prs, err := blockMainService.GetPublishedReceiptsByBlockHeight(block.Height)
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				block.Transactions = txs
+				block.PublishedReceipts = prs
+
+				blocksMessage = append(blocksMessage, block)
 			}
-			prs, err := ps.BlockServices[chainType.GetTypeInt()].GetPublishedReceiptsByBlockHeight(block.Height)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			block.Transactions = txs
-			block.PublishedReceipts = prs
-			blocksMessage = append(blocksMessage, block)
+
+		case *chaintype.SpineChain:
+			// TODO: get block data related to spine blocks (eg. spinePublicKeys)
+		default:
+			return nil, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("undefined chaintype %s", chainType.GetName()))
 		}
+
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")

@@ -612,13 +612,10 @@ func TestBlockSpineService_NewBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
 			}
 			got, err := bs.NewBlock(
 				tt.args.version,
@@ -729,13 +726,10 @@ func TestBlockSpineService_NewGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
 			}
 			if got, _ := bs.NewGenesisBlock(
 				tt.args.version,
@@ -933,21 +927,13 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				Observer:                tt.fields.Observer,
-				Logger:                  logrus.New(),
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				Chaintype:          tt.fields.Chaintype,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				Signature:          tt.fields.Signature,
+				Observer:           tt.fields.Observer,
+				Logger:             logrus.New(),
+				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
@@ -1011,11 +997,8 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				Chaintype:           tt.fields.Chaintype,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
 				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
 				Signature:           tt.fields.Signature,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
 			}
 			got, err := bs.GetLastBlock()
 			if (err != nil) != tt.wantErr {
@@ -1108,13 +1091,10 @@ func TestBlockSpineService_GetGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
 			}
 			got, err := bs.GetGenesisBlock()
 			if (err != nil) != tt.wantErr {
@@ -1212,13 +1192,10 @@ func TestBlockSpineService_GetBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
 			}
 			got, err := bs.GetBlocks()
 			if (err != nil) != tt.wantErr {
@@ -1227,71 +1204,6 @@ func TestBlockSpineService_GetBlocks(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockSpineService.GetBlocks() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-func TestBlockSpineService_RemoveMempoolTransactions(t *testing.T) {
-	type fields struct {
-		Chaintype     chaintype.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		MempoolQuery  query.MempoolQueryInterface
-		Signature     crypto.SignatureInterface
-		Logger        *log.Logger
-	}
-	type args struct {
-		transactions []*model.Transaction
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "RemoveMempoolTransaction:Success",
-			fields: fields{
-				Chaintype:     &chaintype.SpineChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.SpineChain{}),
-				QueryExecutor: &mockSpineQueryExecutorSuccess{},
-				Logger:        log.New(),
-			},
-			args: args{
-				transactions: []*model.Transaction{
-					buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "RemoveMempoolTransaction:Fail",
-			fields: fields{
-				Chaintype:     &chaintype.SpineChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.SpineChain{}),
-				QueryExecutor: &mockSpineQueryExecutorFail{},
-				Logger:        log.New(),
-			},
-			args: args{
-				transactions: []*model.Transaction{
-					buildTransaction(1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
-				},
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockSpineService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
-				MempoolQuery:  tt.fields.MempoolQuery,
-				Signature:     tt.fields.Signature,
-				Logger:        tt.fields.Logger,
-			}
-			if err := bs.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
-				t.Errorf("BlockSpineService.RemoveMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -1451,13 +1363,8 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				Chaintype:          tt.fields.Chaintype,
 				QueryExecutor:      tt.fields.QueryExecutor,
 				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
 				Signature:          tt.fields.Signature,
-				MempoolService:     tt.fields.MempoolService,
-				ReceiptService:     tt.fields.ReceiptService,
 				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -1552,20 +1459,14 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				SpinePublicKeyQuery:     tt.fields.SpinePublicKeyQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				Observer:                tt.fields.Observer,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				Logger:                  tt.fields.Logger,
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
+				Signature:           tt.fields.Signature,
+				Observer:            tt.fields.Observer,
+				BlocksmithStrategy:  tt.fields.BlocksmithStrategy,
+				Logger:              tt.fields.Logger,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -1695,15 +1596,11 @@ func TestBlockSpineService_CheckGenesis(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				MempoolService:     tt.fields.MempoolService,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				Logger:             tt.fields.Logger,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
+				Logger:        tt.fields.Logger,
 			}
 			if got := bs.CheckGenesis(); got != tt.want {
 				t.Errorf("BlockSpineService.CheckGenesis() = %v, want %v", got, tt.want)
@@ -1818,13 +1715,8 @@ func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 				Chaintype:           tt.fields.Chaintype,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
 				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
 				Signature:           tt.fields.Signature,
-				MempoolService:      tt.fields.MempoolService,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				Observer:            tt.fields.Observer,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.height)
@@ -1889,7 +1781,6 @@ func (*mockSpineQueryExecutorGetBlockByIDFail) ExecuteSelect(query string, tx bo
 
 func TestBlockSpineService_GetBlockByID(t *testing.T) {
 	var mockData = mockSpineBlockData
-	mockData.Transactions = make([]*model.Transaction, 0)
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
@@ -1940,16 +1831,11 @@ func TestBlockSpineService_GetBlockByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Signature:           tt.fields.Signature,
-				MempoolService:      tt.fields.MempoolService,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Observer:            tt.fields.Observer,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
+				Observer:      tt.fields.Observer,
 			}
 			got, err := bs.GetBlockByID(tt.args.ID)
 			if (err != nil) != tt.wantErr {
@@ -2076,16 +1962,11 @@ func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Signature:           tt.fields.Signature,
-				MempoolService:      tt.fields.MempoolService,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Observer:            tt.fields.Observer,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
+				Observer:      tt.fields.Observer,
 			}
 			got, err := bs.GetBlocksFromHeight(tt.args.startHeight, tt.args.limit)
 			if (err != nil) != tt.wantErr {
@@ -2364,25 +2245,15 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				SpinePublicKeyQuery:     tt.fields.SpinePublicKeyQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				Observer:                tt.fields.Observer,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				Logger:                  logrus.New(),
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
+				Signature:           tt.fields.Signature,
+				Observer:            tt.fields.Observer,
+				BlocksmithStrategy:  tt.fields.BlocksmithStrategy,
+				Logger:              logrus.New(),
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -2409,9 +2280,6 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          100000000,
-		TotalFee:             10000000,
-		TotalCoinBase:        1,
 		Version:              0,
 	}
 	genesisBlock := &model.Block{
@@ -2425,9 +2293,6 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          100000000,
-		TotalFee:             10000000,
-		TotalCoinBase:        1,
 		Version:              0,
 	}
 	type fields struct {
@@ -2457,20 +2322,6 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetBlockExtendedInfo:fail - {VersionedNodeRegistrationNotFound}",
-			args: args{
-				block: block,
-			},
-			fields: fields{
-				QueryExecutor:          &mockSpineQueryExecutorNotFound{},
-				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
 			name: "GetBlockExtendedInfo:success-{genesisBlock}",
 			args: args{
 				block: genesisBlock,
@@ -2494,21 +2345,7 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 					PayloadLength:        0,
 					PayloadHash:          []byte{},
 					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          100000000,
-					TotalFee:             10000000,
-					TotalCoinBase:        1,
 					Version:              0,
-				},
-				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
-				TotalReceipts:            1,
-				ReceiptValue:             50000000,
-				PopChange:                1000000000,
-				SkippedBlocksmiths: []*model.SkippedBlocksmith{
-					{
-						BlocksmithPublicKey: mockSpineBlocksmiths[0].NodePublicKey,
-						POPChange:           5000,
-						BlockHeight:         1,
-					},
 				},
 			},
 		},
@@ -2536,21 +2373,7 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 					PayloadLength:        0,
 					PayloadHash:          []byte{},
 					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          100000000,
-					TotalFee:             10000000,
-					TotalCoinBase:        1,
 					Version:              0,
-				},
-				BlocksmithAccountAddress: bcsAddress1,
-				TotalReceipts:            int64(len(mockSpinePublishedReceipt)),
-				ReceiptValue:             50000000,
-				PopChange:                1000000000,
-				SkippedBlocksmiths: []*model.SkippedBlocksmith{
-					{
-						BlocksmithPublicKey: mockSpineBlocksmiths[0].NodePublicKey,
-						POPChange:           5000,
-						BlockHeight:         1,
-					},
 				},
 			},
 		},
@@ -2558,20 +2381,11 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				Observer:                tt.fields.Observer,
+				Chaintype:     tt.fields.Chaintype,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
+				Observer:      tt.fields.Observer,
 			}
 			got, err := bs.GetBlockExtendedInfo(tt.args.block, false)
 			if (err != nil) != tt.wantErr {
@@ -2580,70 +2394,6 @@ func TestBlockSpineService_GetBlockExtendedInfo(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockSpineService.GetBlockExtendedInfo() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBlockSpineService_RewardBlocksmithAccountAddresses(t *testing.T) {
-	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		Observer                *observer.Observer
-	}
-	type args struct {
-		blocksmithAccountAddresses []string
-		totalReward                int64
-		height                     uint32
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "RewardBlocksmithAccountAddress:success",
-			args: args{
-				blocksmithAccountAddresses: []string{bcsAddress1},
-				totalReward:                10000,
-				height:                     1,
-			},
-			fields: fields{
-				QueryExecutor:       &mockSpineQueryExecutorSuccess{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				Observer:                tt.fields.Observer,
-			}
-			if err := bs.RewardBlocksmithAccountAddresses(tt.args.blocksmithAccountAddresses, tt.args.totalReward,
-				tt.args.height); (err != nil) != tt.wantErr {
-				t.Errorf("BlockSpineService.RewardBlocksmithAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -2672,91 +2422,6 @@ func (*mockSpineBlocksmithService) GetSortedBlocksmiths(block *model.Block) []*m
 		},
 	}
 }
-func TestBlockSpineService_CoinbaseLotteryWinners(t *testing.T) {
-
-	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		Observer                *observer.Observer
-	}
-	type args struct {
-		blocksmiths []*model.Blocksmith
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    []string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "CoinbaseLotteryWinners:success",
-			fields: fields{
-				QueryExecutor:         &mockSpineQueryExecutorSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			wantErr: false,
-			args: args{blocksmiths: []*model.Blocksmith{
-				{
-					NodeID:        1,
-					NodeOrder:     new(big.Int).SetInt64(8000),
-					NodePublicKey: []byte{1, 3, 4, 5, 6},
-				},
-				{
-					NodeID:    2,
-					NodeOrder: new(big.Int).SetInt64(1000),
-				},
-				{
-					NodeID:    3,
-					NodeOrder: new(big.Int).SetInt64(5000),
-				},
-			}},
-			want: []string{
-				bcsAddress2,
-				bcsAddress3,
-				bcsAddress1,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				Observer:                tt.fields.Observer,
-			}
-			got, err := bs.CoinbaseLotteryWinners(tt.args.blocksmiths)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockSpineService.CoinbaseLotteryWinners() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockSpineService.CoinbaseLotteryWinners() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestBlockSpineService_GenerateGenesisBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -2813,21 +2478,13 @@ func TestBlockSpineService_GenerateGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				Observer:                tt.fields.Observer,
-				Logger:                  tt.fields.Logger,
+				Chaintype:     tt.fields.Chaintype,
+				KVExecutor:    tt.fields.KVExecutor,
+				QueryExecutor: tt.fields.QueryExecutor,
+				BlockQuery:    tt.fields.BlockQuery,
+				Signature:     tt.fields.Signature,
+				Observer:      tt.fields.Observer,
+				Logger:        tt.fields.Logger,
 			}
 			got, err := bs.GenerateGenesisBlock(tt.args.genesisEntries)
 			if (err != nil) != tt.wantErr {
@@ -3041,24 +2698,14 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ReceiptService:          tt.fields.ReceiptService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				Observer:                tt.fields.Observer,
-				Logger:                  tt.fields.Logger,
+				Chaintype:          tt.fields.Chaintype,
+				KVExecutor:         tt.fields.KVExecutor,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				BlockQuery:         tt.fields.BlockQuery,
+				Signature:          tt.fields.Signature,
+				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
+				Observer:           tt.fields.Observer,
+				Logger:             tt.fields.Logger,
 			}
 			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock, tt.args.curTime); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.ValidateBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -3540,68 +3187,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Fail - GetPublishedReceiptError",
-			fields: fields{
-				RWMutex:                 sync.RWMutex{},
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockSpineExecutorBlockPopSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
-				SpinePublicKeyQuery:     query.NewSpinePublicKeyQuery(),
-				MerkleTreeQuery:         nil,
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockSpineMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockSpineReceiptSuccess{},
-				NodeRegistrationService: &mockSpineNodeRegistrationServiceBlockPopSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				NodeRegistrationQuery:   nil,
-				Observer:                nil,
-				Logger:                  logrus.New(),
-			},
-			args: args{
-				commonBlock: mockSpineGoodCommonBlock,
-			},
-			want:    nil,
-			wantErr: false,
-		},
-		{
-			name: "Fail - GetMempoolToBackupFail",
-			fields: fields{
-				RWMutex:                 sync.RWMutex{},
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockSpineExecutorBlockPopSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
-				SpinePublicKeyQuery:     query.NewSpinePublicKeyQuery(),
-				MerkleTreeQuery:         nil,
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockSpineMempoolServiceBlockPopFail{},
-				ReceiptService:          &mockSpineReceiptSuccess{},
-				NodeRegistrationService: &mockSpineNodeRegistrationServiceBlockPopSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				NodeRegistrationQuery:   nil,
-				Observer:                nil,
-				Logger:                  logrus.New(),
-			},
-			args: args{
-				commonBlock: mockSpineGoodCommonBlock,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
 			name: "Success",
 			fields: fields{
 				RWMutex:                 sync.RWMutex{},
@@ -3637,26 +3222,14 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				SpinePublicKeyQuery:     tt.fields.SpinePublicKeyQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ReceiptService:          tt.fields.ReceiptService,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				Observer:                tt.fields.Observer,
-				Logger:                  tt.fields.Logger,
+				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
+				Signature:           tt.fields.Signature,
+				Observer:            tt.fields.Observer,
+				Logger:              tt.fields.Logger,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

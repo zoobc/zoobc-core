@@ -149,11 +149,16 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		// calculate blocksmith score for the block type
 		switch bp.Chaintype.(type) {
 		case *chaintype.MainChain:
+			// get the concrete type for BlockService so we can use mainchain specific methods
+			blockMainService, ok := bp.BlockService.(*service.BlockService)
+			if !ok {
+				return blocker.NewBlocker(blocker.AppErr, "InvalidChaintype")
+			}
 			// try to get the node's participation score (ps) from node public key
 			// if node is not registered, ps will be 0 and this node won't be able to smith
 			// the default ps is 100000, smithing could be slower than when using account balances
 			// since default balance was 1000 times higher than default ps
-			blocksmithScore, err = bp.BlockService.GetParticipationScore(bp.Generator.NodePublicKey)
+			blocksmithScore, err = blockMainService.GetParticipationScore(bp.Generator.NodePublicKey)
 			if blocksmithScore <= 0 {
 				bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
 			}

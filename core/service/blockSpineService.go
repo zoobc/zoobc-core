@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
-	"sort"
-	"strconv"
 	"sync"
 	"time"
 
@@ -19,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -31,29 +28,36 @@ import (
 )
 
 type (
+	BlockServiceSpineInterface interface {
+		GetSpinePublicKeysByHeightInterval(
+			fromHeigth,
+			toHeigth uint32,
+		) (spinePublicKeys []*model.SpinePublicKey, err error)
+	}
+
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ReceiptService          ReceiptServiceInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Observer                *observer.Observer
-		Logger                  *log.Logger
+		Chaintype     chaintype.ChainType
+		KVExecutor    kvdb.KVExecutorInterface
+		QueryExecutor query.ExecutorInterface
+		BlockQuery    query.BlockQueryInterface
+		// MempoolQuery           query.MempoolQueryInterface
+		// TransactionQuery       query.TransactionQueryInterface
+		// MerkleTreeQuery        query.MerkleTreeQueryInterface
+		// PublishedReceiptQuery  query.PublishedReceiptQueryInterface
+		// SkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery query.SpinePublicKeyQueryInterface
+		Signature           crypto.SignatureInterface
+		// MempoolService         MempoolServiceInterface
+		// ReceiptService         ReceiptServiceInterface
+		// NodeRegistrationService NodeRegistrationServiceInterface
+		// ActionTypeSwitcher      transaction.TypeActionSwitcher
+		// AccountBalanceQuery     query.AccountBalanceQueryInterface
+		// ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		// NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlocksmithStrategy strategy.BlocksmithStrategyInterface
+		Observer           *observer.Observer
+		Logger             *log.Logger
 	}
 )
 
@@ -301,76 +305,6 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	return nil
 }
 
-// CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
-// and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
-// are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (bs *BlockSpineService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
-	var (
-		selectedAccounts []string
-	)
-	// copy the pointer array to not change original order
-
-	// sort blocksmiths by NodeOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.NodeOrder.Cmp(bj.NodeOrder)
-		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
-		}
-		// ascending sort
-		return res < 0
-	})
-
-	for idx, sortedBlockSmith := range blocksmiths {
-		if idx > constant.MaxNumBlocksmithRewards-1 {
-			break
-		}
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, args := bs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
-		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		nr, err := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if (err != nil) || len(nr) == 0 {
-			rows.Close()
-			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
-		}
-		selectedAccounts = append(selectedAccounts, nr[0].AccountAddress)
-		rows.Close()
-	}
-	return selectedAccounts, nil
-}
-
-// RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
-func (bs *BlockSpineService) RewardBlocksmithAccountAddresses(
-	blocksmithAccountAddresses []string,
-	totalReward int64,
-	height uint32) error {
-	queries := make([][]interface{}, 0)
-	if len(blocksmithAccountAddresses) == 0 {
-		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
-	}
-	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
-	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
-		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
-			blocksmithReward,
-			map[string]interface{}{
-				"account_address": blocksmithAccountAddress,
-				"block_height":    height,
-			},
-		)
-		queries = append(queries, accountBalanceRecipientQ...)
-	}
-	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetBlockByID return the last pushed block
 func (bs *BlockSpineService) GetBlockByID(id int64) (*model.Block, error) {
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id), false)
@@ -385,11 +319,6 @@ func (bs *BlockSpineService) GetBlockByID(id int64) (*model.Block, error) {
 	}
 
 	if len(blocks) > 0 {
-		transactions, err := bs.GetTransactionsByBlockID(blocks[0].ID)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		blocks[0].Transactions = transactions
 		return blocks[0], nil
 	}
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
@@ -419,34 +348,12 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.getSpinePublicKeysByHeightInterval(0, lastBlock.Height)
+	spinePublicKeys, err := bs.GetSpinePublicKeysByHeightInterval(0, lastBlock.Height)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	lastBlock.SpinePublicKeys = spinePublicKeys
 	return lastBlock, nil
-}
-
-// GetTransactionsByBlockID in spine blocks this is a dummy method and returns an empty slice
-func (bs *BlockSpineService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
-	return make([]*model.Transaction, 0), nil
-}
-
-func (bs *BlockSpineService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
-	var publishedReceipts []*model.PublishedReceipt
-
-	// get published receipts of the block
-	publishedReceiptQ, publishedReceiptArg := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(blockHeight)
-	rows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArg...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, rows)
-	if err != nil {
-		return nil, err
-	}
-	return publishedReceipts, nil
 }
 
 // GetLastBlock return the last pushed block
@@ -456,7 +363,7 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.getSpinePublicKeysByHeightInterval(0, height)
+	spinePublicKeys, err := bs.GetSpinePublicKeysByHeightInterval(0, height)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -496,20 +403,6 @@ func (bs *BlockSpineService) GetBlocks() ([]*model.Block, error) {
 		return nil, err
 	}
 	return blocks, nil
-}
-
-// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
-func (bs *BlockSpineService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
-	var idsStr []string
-	for _, tx := range transactions {
-		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
-	}
-	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(idsStr))
-	if err != nil {
-		return err
-	}
-	bs.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
-	return nil
 }
 
 // GenerateBlock generate block from transactions in mempool
@@ -795,130 +688,19 @@ func (bs *BlockSpineService) ReceiveBlock(
 	return batchReceipt, nil
 }
 
-// GetParticipationScore handle received block from another node
-func (bs *BlockSpineService) GetParticipationScore(nodePublicKey []byte) (int64, error) {
-	var (
-		participationScores []*model.ParticipationScore
-	)
-	participationScoreQ, args := bs.ParticipationScoreQuery.GetParticipationScoreByNodePublicKey(nodePublicKey)
-	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ, false, args...)
-	if err != nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-	participationScores, err = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
-	// if there aren't participation scores for this address/node, return 0
-	if (err != nil) || len(participationScores) == 0 {
-		return 0, nil
-	}
-	return participationScores[0].Score, nil
-}
-
-// GetParticipationScore handle received block from another node
+// GetBlockExtendedInfo spine blocks have no extended info so far, so we just return the 'basic' block info (from model.Block)
 func (bs *BlockSpineService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
 	var (
-		blExt                         = &model.BlockExtendedInfo{}
-		skippedBlocksmiths            []*model.SkippedBlocksmith
-		publishedReceipts             []*model.PublishedReceipt
-		nodeRegistryAtHeight          []*model.NodeRegistration
-		linkedPublishedReceiptCount   uint32
-		unLinkedPublishedReceiptCount uint32
-		err                           error
+		blExt = &model.BlockExtendedInfo{}
 	)
 	blExt.Block = block
 	// block extra (computed) info
-	if block.Height > 0 {
-		blExt.BlocksmithAccountAddress, err = bs.GetBlocksmithAccountAddress(block)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
-	}
-	skippedBlocksmithsQuery := bs.SkippedBlocksmithQuery.GetSkippedBlocksmithsByBlockHeight(block.Height)
-	skippedBlocksmithsRows, err := bs.QueryExecutor.ExecuteSelect(skippedBlocksmithsQuery, false)
-	if err != nil {
-		return nil, err
-	}
-	defer skippedBlocksmithsRows.Close()
-	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
-	if err != nil {
-		return nil, err
-	}
-	publishedReceiptQ, publishedReceiptArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
-	publishedReceiptRows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArgs...)
-	if err != nil {
-		return nil, err
-	}
-	defer publishedReceiptRows.Close()
-	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
-	if err != nil {
-		return nil, err
-	}
-	blExt.TotalReceipts = int64(len(publishedReceipts))
-	for _, pr := range publishedReceipts {
-		if pr.IntermediateHashes != nil {
-			linkedPublishedReceiptCount++
-		} else {
-			unLinkedPublishedReceiptCount++
-		}
-	}
-	nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.Height)
-	nodeRegistryAtHeightRows, err := bs.QueryExecutor.ExecuteSelect(nodeRegistryAtHeightQ, false)
-	if err != nil {
-		return nil, err
-	}
-	defer nodeRegistryAtHeightRows.Close()
-	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
-	if err != nil {
-		return nil, err
-	}
-	blExt.ReceiptValue = commonUtils.GetReceiptValue(linkedPublishedReceiptCount, unLinkedPublishedReceiptCount)
-	blExt.PopChange, err = util.CalculateParticipationScore(
-		linkedPublishedReceiptCount,
-		unLinkedPublishedReceiptCount,
-		coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if includeReceipts {
-		blExt.Block.PublishedReceipts = publishedReceipts
-	}
-
 	return blExt, nil
-}
-
-func (bs *BlockSpineService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
-	var (
-		nr []*model.NodeRegistration
-	)
-	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
-	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-	if err != nil {
-		return "", blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	nr, err = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if (err != nil) || len(nr) == 0 {
-		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
-	}
-	return nr[0].AccountAddress, nil
-}
-
-// GetCoinbase since spine blocks have no coinbase reward, we return zero
-func (*BlockSpineService) GetCoinbase() int64 {
-	return 0
 }
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		mempoolsBackupBytes *bytes.Buffer
-		mempoolsBackup      []*model.MempoolTransaction
-		err                 error
+		err error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -941,34 +723,14 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	var poppedBlocks []*model.Block
 	block := lastBlock
 
-	// TODO:
-	// Need to refactor this codes with better solution in the future
-	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	block.PublishedReceipts = publishedReceipts
-
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
 		block, err = bs.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			return nil, err
 		}
-		publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		block.PublishedReceipts = publishedReceipts
 	}
 
-	// Backup existing transactions from mempool before rollback
-	mempoolsBackup, err = bs.MempoolService.GetMempoolTransactionsWantToBackup(commonBlock.Height)
-	if err != nil {
-		return nil, err
-	}
-	bs.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
 	err = bs.QueryExecutor.BeginTx()
 	if err != nil {
@@ -984,49 +746,24 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		}
 	}
 
-	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-
-	for _, mempool := range mempoolsBackup {
-		var (
-			tx     *model.Transaction
-			txType transaction.TypeAction
-		)
-		tx, err := transaction.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
-		if err != nil {
-			return nil, err
-		}
-		txType, err = bs.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			return nil, err
-		}
-
-		err = txType.UndoApplyUnconfirmed()
-		if err != nil {
-			return nil, err
-		}
-
-		/*
-			mempoolsBackupBytes format is
-			[...{4}byteSize,{bytesSize}transactionBytes]
-		*/
-		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
-		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
-		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
-	}
-	err = bs.QueryExecutor.CommitTx()
-	if err != nil {
-		return nil, err
-	}
-
-	if mempoolsBackupBytes.Len() > 0 {
-		err = bs.KVExecutor.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
-		if err != nil {
-			return nil, err
-		}
-	}
-	// remove peer memoization
-	bs.NodeRegistrationService.ResetScrambledNodes()
 	return poppedBlocks, nil
+}
+
+func (bs *BlockSpineService) GetSpinePublicKeysByHeightInterval(
+	fromHeigth,
+	toHeigth uint32,
+) (spinePublicKeys []*model.SpinePublicKey, err error) {
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth), false)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	spinePublicKeys, err = bs.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return spinePublicKeys, nil
 }
 
 // getGenesisSpinePublicKeys returns spine block's genesis payload, as an array of model.SpinePublicKey and in bytes,
@@ -1045,23 +782,6 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
 	return spinePublicKeys
-}
-
-func (bs *BlockSpineService) getSpinePublicKeysByHeightInterval(
-	fromHeigth,
-	toHeigth uint32,
-) (spinePublicKeys []*model.SpinePublicKey, err error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth), false)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	spinePublicKeys, err = bs.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	return spinePublicKeys, nil
 }
 
 func (bs *BlockSpineService) getSpinePayloadBytes() (spinePublicKeysBytes []byte) {
