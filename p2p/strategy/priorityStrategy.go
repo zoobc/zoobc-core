@@ -262,8 +262,15 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 						// and not priority peers
 						if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
 							!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
-							ps.RemoveUnresolvedPeer(peer)
-							ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester})
+							var err error
+							if err = ps.RemoveUnresolvedPeer(peer); err != nil {
+								ps.Logger.Error(err.Error())
+								continue
+							}
+							if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+								ps.Logger.Error(err.Error())
+								break
+							}
 							isAddedToUnresolved = true
 							break
 						}
