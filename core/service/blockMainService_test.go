@@ -1980,6 +1980,34 @@ func (*mockQueryExecutorGetBlockByIDFail) ExecuteSelect(query string, tx bool, a
 	return nil, errors.New("MockedError")
 }
 
+func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
+			mockBlockData.GetID(),
+			mockBlockData.GetBlockHash(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetHeight(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+		))
+	return db.QueryRow(qStr), nil
+}
+
+func (*mockQueryExecutorGetBlockByIDFail) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, errors.New("MockedError")
+}
+
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
@@ -1994,7 +2022,8 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		Observer            *observer.Observer
 	}
 	type args struct {
-		ID int64
+		ID               int64
+		withAttachedData bool
 	}
 	tests := []struct {
 		name    string
@@ -2012,7 +2041,8 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			args: args{
-				ID: int64(1),
+				ID:               int64(1),
+				withAttachedData: true,
 			},
 			want:    &mockBlockData,
 			wantErr: false,
@@ -2042,7 +2072,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				Observer:            tt.fields.Observer,
 			}
-			got, err := bs.GetBlockByID(tt.args.ID)
+			got, err := bs.GetBlockByID(tt.args.ID, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlockByID() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -3289,7 +3319,7 @@ func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx() error 
 
 var (
 	mockGoodBlock = &model.Block{
-		ID:                   0,
+		ID:                   1,
 		BlockHash:            nil,
 		PreviousBlockHash:    nil,
 		Height:               1000,
@@ -3308,7 +3338,7 @@ var (
 		PublishedReceipts:    nil,
 	}
 	mockGoodCommonBlock = &model.Block{
-		ID:                   0,
+		ID:                   1,
 		BlockHash:            nil,
 		PreviousBlockHash:    nil,
 		Height:               900,
@@ -3327,7 +3357,7 @@ var (
 		PublishedReceipts:    nil,
 	}
 	mockBadCommonBlockHardFork = &model.Block{
-		ID:                   0,
+		ID:                   1,
 		BlockHash:            nil,
 		PreviousBlockHash:    nil,
 		Height:               100,
@@ -3398,30 +3428,77 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelect(
 	return db.Query(qStr)
 }
 
+func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block ORDER BY height DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
+				mockGoodBlock.GetID(),
+				mockGoodBlock.GetBlockHash(),
+				mockGoodBlock.GetPreviousBlockHash(),
+				mockGoodBlock.GetHeight(),
+				mockGoodBlock.GetTimestamp(),
+				mockGoodBlock.GetBlockSeed(),
+				mockGoodBlock.GetBlockSignature(),
+				mockGoodBlock.GetCumulativeDifficulty(),
+				mockGoodBlock.GetPayloadLength(),
+				mockGoodBlock.GetPayloadHash(),
+				mockGoodBlock.GetBlocksmithPublicKey(),
+				mockGoodBlock.GetTotalAmount(),
+				mockGoodBlock.GetTotalFee(),
+				mockGoodBlock.GetTotalCoinBase(),
+			),
+		)
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block WHERE id = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields))
+	default:
+		return nil, fmt.Errorf("unmocked query: %s", qStr)
+	}
+	return db.QueryRow(qStr), nil
+}
+
 func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields))
+	default:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
+				mockGoodBlock.GetID(),
+				mockGoodBlock.GetBlockHash(),
+				mockGoodBlock.GetPreviousBlockHash(),
+				mockGoodBlock.GetHeight(),
+				mockGoodBlock.GetTimestamp(),
+				mockGoodBlock.GetBlockSeed(),
+				mockGoodBlock.GetBlockSignature(),
+				mockGoodBlock.GetCumulativeDifficulty(),
+				mockGoodBlock.GetPayloadLength(),
+				mockGoodBlock.GetPayloadHash(),
+				mockGoodBlock.GetBlocksmithPublicKey(),
+				mockGoodBlock.GetTotalAmount(),
+				mockGoodBlock.GetTotalFee(),
+				mockGoodBlock.GetTotalCoinBase(),
+			),
+		)
+	}
 
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
-		sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-		),
-	)
 	return db.QueryRow(qStr), nil
 }
 
@@ -3470,6 +3547,28 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 	transactionQ := query.NewTransactionQuery(&chaintype.MainChain{})
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
 	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
+		"total_fee, total_coinbase, version FROM main_block WHERE height = 999":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields).AddRow(
+				mockGoodCommonBlock.GetID(),
+				mockGoodCommonBlock.GetBlockHash(),
+				mockGoodCommonBlock.GetPreviousBlockHash(),
+				mockGoodCommonBlock.GetHeight(),
+				mockGoodCommonBlock.GetTimestamp(),
+				mockGoodCommonBlock.GetBlockSeed(),
+				mockGoodCommonBlock.GetBlockSignature(),
+				mockGoodCommonBlock.GetCumulativeDifficulty(),
+				mockGoodCommonBlock.GetPayloadLength(),
+				mockGoodCommonBlock.GetPayloadHash(),
+				mockGoodCommonBlock.GetBlocksmithPublicKey(),
+				mockGoodCommonBlock.GetTotalAmount(),
+				mockGoodCommonBlock.GetTotalFee(),
+				mockGoodCommonBlock.GetTotalCoinBase(),
+				mockGoodCommonBlock.GetVersion(),
+			),
+		)
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":

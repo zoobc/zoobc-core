@@ -2,8 +2,7 @@ package chaintype
 
 // ChainType interface define the different behavior of each chain
 type (
-	GenesisConfigEntries interface{}
-	ChainType            interface {
+	ChainType interface {
 		// GetTypeInt return the value of the chain type in int
 		GetTypeInt() int32
 		// GetTablePrefix return the value of current chain table prefix in the database

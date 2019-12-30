@@ -305,21 +305,29 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	return nil
 }
 
-// GetBlockByID return the last pushed block
-func (bs *BlockSpineService) GetBlockByID(id int64) (*model.Block, error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockByID(id), false)
+// GetBlockByID return a block by its ID
+// withAttachedData if true returns extra attached data for the block (transactions)
+func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
+	var (
+		block model.Block
+	)
+	row, err := bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-	var blocks []*model.Block
-	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
-	if err != nil {
+	if err = bs.BlockQuery.Scan(&block, row); err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
 	}
 
-	if len(blocks) > 0 {
-		return blocks[0], nil
+	if block.ID != 0 {
+		if withAttachedData {
+			spinePublicKeys, err := bs.GetSpinePublicKeysByHeightInterval(0, block.Height)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			}
+			block.SpinePublicKeys = spinePublicKeys
+		}
+		return &block, nil
 	}
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
 }
@@ -715,7 +723,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		return []*model.Block{}, nil
 	}
 
-	_, err = bs.GetBlockByID(commonBlock.ID)
+	_, err = bs.GetBlockByID(commonBlock.ID, false)
 	if err != nil {
 		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}

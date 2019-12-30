@@ -55,7 +55,7 @@ func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
 	defer db.Close()
 	switch qStr {
 	case "SELECT node_public_key, public_key_action, latest, height " +
-		"FROM spine_public_key WHERE height >= 0 AND height <= 1 AND public_key_action=0 AND latest=1":
+		"FROM spine_public_key WHERE height >= 0 AND height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			[]string{
 				"node_public_key",
@@ -86,7 +86,7 @@ func (*mockQuerySortBlocksmithSpineSuccessWithBlocksmiths) ExecuteSelect(
 	defer db.Close()
 	switch qStr {
 	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
-		"WHERE height <= 1 AND public_key_action=0 AND latest=1":
+		"WHERE height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows(
 			[]string{
 				"node_public_key",

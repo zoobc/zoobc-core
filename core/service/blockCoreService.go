@@ -32,7 +32,7 @@ type (
 		) (*model.Block, error)
 		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
 		PushBlock(previousBlock, block *model.Block, broadcast bool) error
-		GetBlockByID(int64) (*model.Block, error)
+		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)

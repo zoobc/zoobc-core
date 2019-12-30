@@ -171,7 +171,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
 
-		if _, err := blockService.GetBlockByID(lastBlockID); err == nil {
+		if _, err := blockService.GetBlockByID(lastBlockID, false); err == nil {
 			preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
 				BlockIds: []int64{lastBlockID},
 			}
@@ -184,7 +184,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		// if not, send (assumed) milestoneBlock of the host
 		limit := constant.CommonMilestoneBlockIdsLimit
 		if lastMilestoneBlockID != 0 {
-			lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID)
+			lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID, false)
 			// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 			if err != nil {
 				return nil, err
@@ -236,7 +236,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 			limit = reqLimit
 		}
 
-		foundBlock, err := blockService.GetBlockByID(reqBlockID)
+		foundBlock, err := blockService.GetBlockByID(reqBlockID, false)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
 		}
@@ -272,7 +272,7 @@ func (ps *P2PServerService) GetNextBlocks(
 		var blocksMessage []*model.Block
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 
-		block, err := blockService.GetBlockByID(blockID)
+		block, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -309,7 +309,7 @@ func (ps *P2PServerService) GetNextBlocks(
 			}
 
 		case *chaintype.SpineChain:
-			// TODO: get block data related to spine blocks (eg. spinePublicKeys)
+			// TODO: STEF get block data related to spine blocks (eg. spinePublicKeys)
 		default:
 			return nil, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("undefined chaintype %s", chainType.GetName()))
 		}
