@@ -92,6 +92,7 @@ func (bs *BlockSpineService) NewBlock(
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 	}
+	//TODO: @iltoga make GetBlockByte block-type specific (main has transaction and spine has public keys)
 	blockUnsignedByte, err := util.GetBlockByte(block, false)
 	if err != nil {
 		bs.Logger.Error(err.Error())

@@ -309,7 +309,23 @@ func (ps *P2PServerService) GetNextBlocks(
 			}
 
 		case *chaintype.SpineChain:
-			// TODO: STEF get block data related to spine blocks (eg. spinePublicKeys)
+			// get the concrete type for BlockSpineService so we can use spinechain specific methods
+			blockSpineService, ok := ps.BlockServices[chainType.GetTypeInt()].(*coreService.BlockSpineService)
+			if !ok {
+				return nil, blocker.NewBlocker(blocker.AppErr, "InvalidChaintype")
+			}
+
+			for idx, block := range blocks {
+				if block.ID != blockIDList[idx] {
+					break
+				}
+				spinePublicKeys, err := blockSpineService.GetSpinePublicKeysByHeightInterval(block.Height-1, block.Height)
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				block.SpinePublicKeys = spinePublicKeys
+				blocksMessage = append(blocksMessage, block)
+			}
 		default:
 			return nil, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("undefined chaintype %s", chainType.GetName()))
 		}

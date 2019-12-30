@@ -28,6 +28,7 @@ func GetBlockHash(block *model.Block) ([]byte, error) {
 	return digest.Sum([]byte{}), nil
 }
 
+//TODO: @iltoga make GetBlockByte block-type specific (main has transaction and spine has public keys)
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
 func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
@@ -36,6 +37,7 @@ func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
 	// FIXME: be very careful about this. if block object doesn't have transactions populated, block hash validation will fail later on
 	buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
+	//TODO: add spine public keys for spine blocks
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalFee())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
