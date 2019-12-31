@@ -464,6 +464,11 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockTransaction.Signature,
 			mockTransaction.Version,
 			mockTransaction.TransactionIndex))
+	case "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, recipient_account_address " +
+		"FROM mempool WHERE id = :id":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "FeePerByte", "ArrivalTimestamp", "TransactionBytes", "SenderAccountAddress", "RecipientAccountAddress",
+		}))
 	case "SELECT id, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, recipient_account_address " +
 		"FROM mempool WHERE id = :id":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -581,7 +586,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 			PayloadLength:       0,
 			BlockSignature:      []byte{},
 		}
-		mockBlockHash, _ = util.GetBlockHash(mockBlock)
+		mockBlockHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
 	)
 	mockBlock.BlockHash = mockBlockHash
 
@@ -653,7 +658,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			got, err := bs.NewBlock(
+			got, err := bs.NewMainBlock(
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
@@ -2224,15 +2229,41 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
-
 	var (
-		mockGoodLastBlockHash, _ = util.GetBlockHash(&mockBlockData)
+		mockLastBlockData = model.Block{
+			ID:        constant.MainchainGenesisBlockID,
+			BlockHash: make([]byte, 32),
+			PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
+				97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+			Height:    1,
+			Timestamp: 1,
+			BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+			CumulativeDifficulty: "1000",
+			PayloadLength:        1,
+			PayloadHash:          []byte{},
+			BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			TotalAmount:   1000,
+			TotalFee:      0,
+			TotalCoinBase: 1,
+			Version:       0,
+			Transactions: []*model.Transaction{
+				mockTransaction,
+			},
+		}
+
+		mockGoodLastBlockHash, _ = util.GetBlockHash(&mockLastBlockData, &chaintype.MainChain{})
 		mockGoodIncomingBlock    = &model.Block{
 			PreviousBlockHash:    mockGoodLastBlockHash,
 			BlockSignature:       nil,
 			CumulativeDifficulty: "200",
 			Timestamp:            10000,
 			BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
+			Transactions: []*model.Transaction{
+				mockTransaction,
+			},
 		}
 		successBlockHash = []byte{
 			197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217, 209, 67, 185, 183, 116, 101, 64, 47, 196,
@@ -2242,6 +2273,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			BlockSignature:    []byte{},
 			BlockHash:         successBlockHash,
 			PreviousBlockHash: make([]byte, 32),
+			Transactions:      make([]*model.Transaction, 0),
 		}
 	)
 	mockBlockData.BlockHash = mockGoodLastBlockHash
@@ -2289,7 +2321,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               nil,
+				Chaintype:               &chaintype.MainChain{},
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -2320,7 +2352,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               nil,
+				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              &mockKVExecutorSuccess{},
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
@@ -2346,7 +2378,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               nil,
+				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              &mockKVExecutorSuccessKeyNotFound{},
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              nil,
@@ -2392,7 +2424,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               nil,
+				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              &mockKVExecutorFailOtherError{},
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              nil,
@@ -2454,8 +2486,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Signature:               &mockSignature{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
+				MempoolService: &mockMempoolServiceSelectSuccess{
+					MempoolService{
+						QueryExecutor:      &mockQueryExecutorMempoolSuccess{},
+						ActionTypeSwitcher: &mockTypeActionSuccess{},
+					},
+				},
+				ActionTypeSwitcher:      &mockTypeActionSuccess{},
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				Observer:                observer.NewObserver(),
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},

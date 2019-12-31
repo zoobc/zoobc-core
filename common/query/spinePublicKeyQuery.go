@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -131,7 +130,6 @@ func (spkq *SpinePublicKeyQuery) BuildBlocksmith(
 		if err != nil {
 			return nil, err
 		}
-		blocksmith.Chaintype = &chaintype.SpineChain{}
 		blocksmiths = append(blocksmiths, &blocksmith)
 	}
 	return blocksmiths, nil

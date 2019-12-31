@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -48,9 +49,9 @@ func CalculateCumulativeDifficulty(
 
 // GetBlockID generate block ID value if haven't
 // return the assigned ID if assigned
-func GetBlockID(block *model.Block) int64 {
+func GetBlockID(block *model.Block, ct chaintype.ChainType) int64 {
 	if block.ID == 0 {
-		hash, err := commonUtils.GetBlockHash(block)
+		hash, err := commonUtils.GetBlockHash(block, ct)
 		if err != nil {
 			return 0
 		}

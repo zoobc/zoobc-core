@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -17,6 +16,7 @@ type (
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
+		GetNodeRegistrationsByHeightInterval(fromHeigth, toHeigth uint32) string
 		GetActiveNodeRegistrationsByHeight(height uint32) string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
@@ -102,6 +102,12 @@ func (nrq *NodeRegistrationQuery) ClearDeletedNodeRegistration(nodeRegistration 
 func (nrq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND latest=1 LIMIT %d",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationHeight, size)
+}
+
+// GetNodeRegistrationsByHeightInterval returns query string to get multiple node registrations
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHeightInterval(fromHeigth, toHeigth uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND registration_status != %d AND latest=1 ORDER BY height",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeigth, toHeigth, uint32(model.NodeRegistrationState_NodeQueued))
 }
 
 func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsByHeight(height uint32) string {
@@ -258,7 +264,6 @@ func (*NodeRegistrationQuery) BuildBlocksmith(
 			return nil, err
 		}
 		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
-		blocksmith.Chaintype = &chaintype.MainChain{}
 		blocksmiths = append(blocksmiths, &blocksmith)
 	}
 	return blocksmiths, nil

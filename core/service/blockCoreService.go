@@ -17,10 +17,6 @@ import (
 
 type (
 	BlockServiceInterface interface {
-		NewBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
-			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, payloadHash []byte, payloadLength uint32,
-			secretPhrase string) (*model.Block, error)
 		NewGenesisBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
 			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt, spinePublicKeys []*model.SpinePublicKey,
@@ -122,10 +118,10 @@ func NewBlockService(
 			// ActionTypeSwitcher:      txTypeSwitcher,
 			// AccountBalanceQuery:     accountBalanceQuery,
 			// ParticipationScoreQuery: participationScoreQuery,
-			// NodeRegistrationQuery:   nodeRegistrationQuery,
-			BlocksmithStrategy: blocksmithStrategy,
-			Observer:           obsr,
-			Logger:             logger,
+			NodeRegistrationQuery: nodeRegistrationQuery,
+			BlocksmithStrategy:    blocksmithStrategy,
+			Observer:              obsr,
+			Logger:                logger,
 		}
 	}
 	return nil

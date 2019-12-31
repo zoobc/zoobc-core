@@ -29,7 +29,14 @@ import (
 
 type (
 	BlockServiceSpineInterface interface {
+		NewSpineBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
+			previousBlockHeight uint32, timestamp int64, blockSpinePublicKeys []*model.SpinePublicKey,
+			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
 		GetSpinePublicKeysByHeightInterval(
+			fromHeigth,
+			toHeigth uint32,
+		) (spinePublicKeys []*model.SpinePublicKey, err error)
+		BuildSpinePublicKeysFromNodeRegistry(
 			fromHeigth,
 			toHeigth uint32,
 		) (spinePublicKeys []*model.SpinePublicKey, err error)
@@ -54,25 +61,21 @@ type (
 		// ActionTypeSwitcher      transaction.TypeActionSwitcher
 		// AccountBalanceQuery     query.AccountBalanceQueryInterface
 		// ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		// NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithStrategy strategy.BlocksmithStrategyInterface
-		Observer           *observer.Observer
-		Logger             *log.Logger
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
+		Observer              *observer.Observer
+		Logger                *log.Logger
 	}
 )
 
-// NewBlock generate new block
-func (bs *BlockSpineService) NewBlock(
+// NewSpineBlock generate new spinechain block
+func (bs *BlockSpineService) NewSpineBlock(
 	version uint32,
 	previousBlockHash,
 	blockSeed, blockSmithPublicKey []byte,
 	previousBlockHeight uint32,
-	timestamp,
-	totalAmount,
-	totalFee,
-	totalCoinBase int64,
-	transactions []*model.Transaction,
-	publishedReceipts []*model.PublishedReceipt,
+	timestamp int64,
+	spinePublicKeys []*model.SpinePublicKey,
 	payloadHash []byte,
 	payloadLength uint32,
 	secretPhrase string,
@@ -84,21 +87,16 @@ func (bs *BlockSpineService) NewBlock(
 		BlocksmithPublicKey: blockSmithPublicKey,
 		Height:              previousBlockHeight,
 		Timestamp:           timestamp,
-		TotalAmount:         totalAmount,
-		TotalFee:            totalFee,
-		TotalCoinBase:       totalCoinBase,
-		Transactions:        transactions,
-		PublishedReceipts:   publishedReceipts,
+		SpinePublicKeys:     spinePublicKeys,
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 	}
-	//TODO: @iltoga make GetBlockByte block-type specific (main has transaction and spine has public keys)
-	blockUnsignedByte, err := util.GetBlockByte(block, false)
+	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		bs.Logger.Error(err.Error())
 	}
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
-	blockHash, err := util.GetBlockHash(block)
+	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +155,7 @@ func (bs *BlockSpineService) NewGenesisBlock(
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
 	}
-	blockHash, err := util.GetBlockHash(block)
+	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -181,11 +179,11 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if blocksmithTime > block.GetTimestamp() {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
 	}
-	if coreUtil.GetBlockID(block) == 0 {
+	if coreUtil.GetBlockID(block, bs.Chaintype) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
 	}
 	// Verify Signature
-	blockByte, err := commonUtils.GetBlockByte(block, false)
+	blockByte, err := commonUtils.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		return err
 	}
@@ -198,7 +196,7 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
 	}
 	// Verify previous block hash
-	previousBlockHash, err := util.GetBlockHash(previousLastBlock)
+	previousBlockHash, err := util.GetBlockHash(previousLastBlock, bs.Chaintype)
 	if err != nil {
 		return err
 	}
@@ -421,19 +419,19 @@ func (bs *BlockSpineService) GenerateBlock(
 	timestamp int64,
 ) (*model.Block, error) {
 	var (
-		totalAmount, totalFee, totalCoinbase int64
-		payloadLength                        uint32
-		// only for mainchain
-		sortedTransactions  []*model.Transaction
-		publishedReceipts   []*model.PublishedReceipt
+		payloadLength       uint32
+		spinePublicKeys     []*model.SpinePublicKey
 		payloadHash         []byte
 		err                 error
 		digest              = sha3.New256()
 		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
 	)
 	newBlockHeight := previousBlock.Height + 1
-	//TODO: @iltoga add all spine public keys since previous spine block (all nodes added and removed
-	//		to the registry since previousBlock.height)
+	// compute spine pub keys from mainchain node registrations
+	spinePublicKeys, err = bs.BuildSpinePublicKeysFromNodeRegistry(previousBlock.Height, newBlockHeight)
+	if err != nil {
+		return nil, err
+	}
 	payloadHash = digest.Sum([]byte{})
 	// loop through transaction to build block hash
 	digest.Reset() // reset the digest
@@ -444,22 +442,19 @@ func (bs *BlockSpineService) GenerateBlock(
 	previousSeedHash := digest.Sum([]byte{})
 	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
-	previousBlockHash, err := util.GetBlockHash(previousBlock)
+	// compute the previous block hash
+	previousBlockHash, err := util.GetBlockHash(previousBlock, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
-	block, err := bs.NewBlock(
+	block, err := bs.NewSpineBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
 		blockSmithPublicKey,
 		newBlockHeight,
 		timestamp,
-		totalAmount,
-		totalFee,
-		totalCoinbase,
-		sortedTransactions,
-		publishedReceipts,
+		spinePublicKeys,
 		payloadHash,
 		payloadLength,
 		secretPhrase,
@@ -512,7 +507,7 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 		return nil, err
 	}
 	// assign genesis block id
-	block.ID = coreUtil.GetBlockID(block)
+	block.ID = coreUtil.GetBlockID(block, bs.Chaintype)
 	if block.ID == 0 {
 		return nil, blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("Invalid %s Genesis Block ID", bs.Chaintype.GetName()))
 	}
@@ -553,14 +548,14 @@ func (bs *BlockSpineService) ReceiveBlock(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
-	if block.GetPreviousBlockHash() == nil {
+	if block.PreviousBlockHash == nil {
 		return nil, blocker.NewBlocker(
 			blocker.BlockErr,
 			"last block hash does not exist",
 		)
 	}
 	receiptKey, err := commonUtils.GetReceiptKey(
-		block.GetBlockHash(), senderPublicKey,
+		block.BlockHash, senderPublicKey,
 	)
 	if err != nil {
 		return nil, blocker.NewBlocker(
@@ -569,9 +564,9 @@ func (bs *BlockSpineService) ReceiveBlock(
 		)
 	}
 	//  check equality last block hash with previous block hash from received block
-	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
+	if !bytes.Equal(lastBlock.BlockHash, block.PreviousBlockHash) {
 		// check if incoming block is of higher quality
-		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+		if bytes.Equal(lastBlock.PreviousBlockHash, block.PreviousBlockHash) &&
 			block.Timestamp < lastBlock.Timestamp {
 			err := func() error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
@@ -622,7 +617,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block)
+				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 				if err != nil {
 					return nil, err
 				}
@@ -631,7 +626,8 @@ func (bs *BlockSpineService) ReceiveBlock(
 					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
 				}
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-					block.GetBlockHash(),
+					bs.Chaintype,
+					blockHash,
 					lastBlock,
 					senderPublicKey,
 					nodeSecretPhrase,
@@ -658,7 +654,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 		// making sure get last block after paused process
-		lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+		lastBlock, err = bs.GetLastBlock()
 		if err != nil {
 			return status.Error(codes.Internal,
 				"fail to get last block",
@@ -681,6 +677,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 	// TODO: ask @ali @andy @barton if we need to add the chaintype to receipts
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		bs.Chaintype,
 		block.GetBlockHash(),
 		lastBlock,
 		senderPublicKey,
@@ -771,6 +768,42 @@ func (bs *BlockSpineService) GetSpinePublicKeysByHeightInterval(
 	spinePublicKeys, err = bs.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return spinePublicKeys, nil
+}
+
+// GetSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
+func (bs *BlockSpineService) BuildSpinePublicKeysFromNodeRegistry(
+	fromHeigth,
+	toHeigth uint32,
+) (spinePublicKeys []*model.SpinePublicKey, err error) {
+	var (
+		nodeRegistrations []*model.NodeRegistration
+	)
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetNodeRegistrationsByHeightInterval(fromHeigth, toHeigth), false)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	nodeRegistrations, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	spinePublicKeys = make([]*model.SpinePublicKey, 0)
+	for _, nr := range nodeRegistrations {
+		bspk := &model.SpinePublicKey{
+			NodePublicKey: nr.NodePublicKey,
+			Height:        nr.Height,
+			Latest:        true,
+		}
+		switch nr.RegistrationStatus {
+		case uint32(model.NodeRegistrationState_NodeDeleted):
+			bspk.PublicKeyAction = model.SpinePublicKeyAction_RemoveKey
+		case uint32(model.NodeRegistrationState_NodeRegistered):
+			bspk.PublicKeyAction = model.SpinePublicKeyAction_AddKey
+		}
+		spinePublicKeys = append(spinePublicKeys, bspk)
 	}
 	return spinePublicKeys, nil
 }

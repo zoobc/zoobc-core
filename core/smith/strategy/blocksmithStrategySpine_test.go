@@ -13,7 +13,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -231,7 +230,6 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 			wantErr: false,
 			want: []*model.Blocksmith{
 				{
-					Chaintype:     &chaintype.SpineChain{},
 					NodeID:        0,
 					BlockSeed:     -1965565459747201754,
 					NodeOrder:     new(big.Int).SetInt64(28),

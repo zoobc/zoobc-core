@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -42,7 +43,7 @@ var (
 )
 
 func TestGenerateReceipt(t *testing.T) {
-	mockReceipt.DatumHash, _ = GetBlockHash(mockBlock)
+	mockReceipt.DatumHash, _ = GetBlockHash(mockBlock, &chaintype.MainChain{})
 	type args struct {
 		referenceBlock     *model.Block
 		senderPublicKey    []byte
@@ -86,7 +87,7 @@ func TestGenerateReceipt(t *testing.T) {
 }
 
 func TestGetUnsignedReceiptBytes(t *testing.T) {
-	mockReceipt.DatumHash, _ = GetBlockHash(mockBlock)
+	mockReceipt.DatumHash, _ = GetBlockHash(mockBlock, &chaintype.MainChain{})
 	type args struct {
 		receipt *model.BatchReceipt
 	}

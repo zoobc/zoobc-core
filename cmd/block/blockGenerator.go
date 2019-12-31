@@ -84,7 +84,7 @@ func initialize(
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
 	observerInstance := observer.NewObserver()
-	blocksmith = model.NewBlocksmith(chainType, secretPhrase, util.GetPublicKeyFromSeed(secretPhrase), 0)
+	blocksmith = model.NewBlocksmith(secretPhrase, util.GetPublicKeyFromSeed(secretPhrase), 0)
 	// initialize/open db and queryExecutor
 	dbInstance := database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {

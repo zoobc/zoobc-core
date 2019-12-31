@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -70,6 +71,7 @@ func TestGetBlockSeed(t *testing.T) {
 func TestGetBlockID(t *testing.T) {
 	type args struct {
 		block *model.Block
+		ct    chaintype.ChainType
 	}
 	tests := []struct {
 		name string
@@ -93,6 +95,7 @@ func TestGetBlockID(t *testing.T) {
 					CumulativeDifficulty: "341353517378119",
 					BlockSignature:       []byte{},
 				},
+				ct: &chaintype.MainChain{},
 			},
 			want: 4891391764897612667,
 		},
@@ -113,13 +116,14 @@ func TestGetBlockID(t *testing.T) {
 					CumulativeDifficulty: "355353517378119",
 					BlockSignature:       []byte{},
 				},
+				ct: &chaintype.MainChain{},
 			},
 			want: 5677934310196121651,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetBlockID(tt.args.block); got != tt.want {
+			if got := GetBlockID(tt.args.block, tt.args.ct); got != tt.want {
 				t.Errorf("GetBlockID() = %v, want %v", got, tt.want)
 			}
 		})

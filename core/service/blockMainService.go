@@ -34,6 +34,10 @@ import (
 
 type (
 	BlockServiceMainInterface interface {
+		NewMainBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
+			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
+			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt,
+			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
 		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
@@ -71,8 +75,8 @@ type (
 	}
 )
 
-// NewBlock generate new block
-func (bs *BlockService) NewBlock(
+// NewMainBlock generate new mainchain block
+func (bs *BlockService) NewMainBlock(
 	version uint32,
 	previousBlockHash,
 	blockSeed, blockSmithPublicKey []byte,
@@ -102,13 +106,12 @@ func (bs *BlockService) NewBlock(
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 	}
-	//TODO: @iltoga make GetBlockByte block-type specific (main has transaction and spine has public keys)
-	blockUnsignedByte, err := util.GetBlockByte(block, false)
+	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		bs.Logger.Error(err.Error())
 	}
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
-	blockHash, err := util.GetBlockHash(block)
+	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +170,7 @@ func (bs *BlockService) NewGenesisBlock(
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
 	}
-	blockHash, err := util.GetBlockHash(block)
+	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -191,11 +194,11 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if blocksmithTime > block.GetTimestamp() {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
 	}
-	if coreUtil.GetBlockID(block) == 0 {
+	if coreUtil.GetBlockID(block, bs.Chaintype) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
 	}
 	// Verify Signature
-	blockByte, err := commonUtils.GetBlockByte(block, false)
+	blockByte, err := commonUtils.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		return err
 	}
@@ -208,7 +211,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
 	}
 	// Verify previous block hash
-	previousBlockHash, err := util.GetBlockHash(previousLastBlock)
+	previousBlockHash, err := util.GetBlockHash(previousLastBlock, bs.Chaintype)
 	if err != nil {
 		return err
 	}
@@ -885,11 +888,12 @@ func (bs *BlockService) GenerateBlock(
 	previousSeedHash := digest.Sum([]byte{})
 	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
-	previousBlockHash, err := util.GetBlockHash(previousBlock)
+	// compute the previous block hash
+	previousBlockHash, err := util.GetBlockHash(previousBlock, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
-	block, err := bs.NewBlock(
+	block, err := bs.NewMainBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
@@ -965,7 +969,7 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		return nil, err
 	}
 	// assign genesis block id
-	block.ID = coreUtil.GetBlockID(block)
+	block.ID = coreUtil.GetBlockID(block, bs.Chaintype)
 	if block.ID == 0 {
 		return nil, blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("Invalid %s Genesis Block ID", bs.Chaintype.GetName()))
 	}
@@ -1075,7 +1079,7 @@ func (bs *BlockService) ReceiveBlock(
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block)
+				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 				if err != nil {
 					return nil, err
 				}
@@ -1084,6 +1088,7 @@ func (bs *BlockService) ReceiveBlock(
 					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
 				}
 				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+					bs.Chaintype,
 					block.GetBlockHash(),
 					lastBlock,
 					senderPublicKey,
@@ -1111,7 +1116,7 @@ func (bs *BlockService) ReceiveBlock(
 		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 		// making sure get last block after paused process
-		lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+		lastBlock, err = bs.GetLastBlock()
 		if err != nil {
 			return status.Error(codes.Internal,
 				"fail to get last block",
@@ -1133,6 +1138,7 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		bs.Chaintype,
 		block.GetBlockHash(),
 		lastBlock,
 		senderPublicKey,

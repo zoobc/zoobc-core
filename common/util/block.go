@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -14,13 +15,13 @@ import (
 
 // GetBlockHash return the block's bytes hash.
 // note: the block must be signed, otherwise this function returns an error
-func GetBlockHash(block *model.Block) ([]byte, error) {
+func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 	var (
 		digest     = sha3.New256()
 		cloneBlock = *block
 	)
 	cloneBlock.BlockHash = nil
-	blockByte, _ := GetBlockByte(&cloneBlock, true)
+	blockByte, _ := GetBlockByte(&cloneBlock, true, ct)
 	_, err := digest.Write(blockByte)
 	if err != nil {
 		return nil, err
@@ -28,16 +29,27 @@ func GetBlockHash(block *model.Block) ([]byte, error) {
 	return digest.Sum([]byte{}), nil
 }
 
-//TODO: @iltoga make GetBlockByte block-type specific (main has transaction and spine has public keys)
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
-func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
+//TODO: Abstract this method is BlockCoreService or ChainType to decouple business logic from block type
+func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(ConvertUint32ToBytes(block.GetVersion()))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
-	// FIXME: be very careful about this. if block object doesn't have transactions populated, block hash validation will fail later on
-	buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
-	//TODO: add spine public keys for spine blocks
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		// FIXME: be very careful about this. if block object doesn't have transactions populated, block hash validation will fail later on
+		if block.GetTransactions() == nil {
+			return nil, blocker.NewBlocker(blocker.BlockErr, "main block transactions is nil")
+		}
+		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
+	case *chaintype.SpineChain:
+		// FIXME: be very careful about this. if block object doesn't have spine pub keys populated, block hash validation will fail later on
+		if block.GetSpinePublicKeys() == nil {
+			return nil, blocker.NewBlocker(blocker.BlockErr, "spine block public keys is nil")
+		}
+		buffer.Write(ConvertIntToBytes(len(block.GetSpinePublicKeys())))
+	}
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalFee())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))

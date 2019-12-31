@@ -422,7 +422,7 @@ func startMainchain() {
 		if node != nil {
 			mainchainProcessor = smith.NewBlockchainProcessor(
 				mainchain,
-				model.NewBlocksmith(mainchain, nodeSecretPhrase, nodePublicKey, node.NodeID),
+				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
 				blocksmithStrategyMain,
 				nodeRegistrationService,
@@ -503,7 +503,7 @@ func startSpinechain() {
 		}
 		spinechainProcessor = smith.NewBlockchainProcessor(
 			spinechain,
-			model.NewBlocksmith(spinechain, nodeSecretPhrase, nodePublicKey, nodeID),
+			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
 			blocksmithStrategySpine,
 			nodeRegistrationService,

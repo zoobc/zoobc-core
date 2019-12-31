@@ -11,7 +11,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -191,7 +190,6 @@ func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
 			wantErr: false,
 			want: []*model.Blocksmith{
 				{
-					Chaintype:     &chaintype.MainChain{},
 					NodeID:        bssMockBlocksmiths[0].NodeID,
 					BlockSeed:     -7765827254621503546,
 					NodeOrder:     new(big.Int).SetInt64(13195850646937615),
