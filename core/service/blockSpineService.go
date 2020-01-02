@@ -674,24 +674,9 @@ func (bs *BlockSpineService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-	// TODO: ask @ali @andy @barton if we need to add the chaintype to receipts
-	// generate receipt and return as response
-	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-		bs.Chaintype,
-		block.GetBlockHash(),
-		lastBlock,
-		senderPublicKey,
-		nodeSecretPhrase,
-		constant.KVdbTableBlockReminderKey+string(receiptKey),
-		constant.ReceiptDatumTypeBlock,
-		bs.Signature,
-		bs.QueryExecutor,
-		bs.KVExecutor,
-	)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return batchReceipt, nil
+	// spine blocks don't return any receipts
+	// TODO: @iltoga make sure to manage nil in calling function
+	return nil, nil
 }
 
 // GetBlockExtendedInfo spine blocks have no extended info so far, so we just return the 'basic' block info (from model.Block)

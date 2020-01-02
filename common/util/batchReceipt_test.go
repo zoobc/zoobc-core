@@ -45,6 +45,7 @@ var (
 func TestGenerateReceipt(t *testing.T) {
 	mockReceipt.DatumHash, _ = GetBlockHash(mockBlock, &chaintype.MainChain{})
 	type args struct {
+		ct                 chaintype.ChainType
 		referenceBlock     *model.Block
 		senderPublicKey    []byte
 		recipientPublicKey []byte
@@ -60,6 +61,7 @@ func TestGenerateReceipt(t *testing.T) {
 		{
 			name: "GenerateReceipt : success",
 			args: args{
+				ct:                 &chaintype.MainChain{},
 				referenceBlock:     mockBlock,
 				senderPublicKey:    mockReceipt.SenderPublicKey,
 				recipientPublicKey: mockReceipt.RecipientPublicKey,
@@ -73,7 +75,7 @@ func TestGenerateReceipt(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateBatchReceipt(
-				tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
+				tt.args.ct, tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
 				tt.args.datumHash, nil, tt.args.datumType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateReceipt() error = %v, wantErr %v", err, tt.wantErr)

@@ -2015,49 +2015,49 @@ func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
 
 func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 
-	var (
-		mockSpineLastBlockData = model.Block{
-			ID:        -1701929749060110283,
-			BlockHash: make([]byte, 32),
-			PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
-				97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
-			Height:    1,
-			Timestamp: 1,
-			BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
-			CumulativeDifficulty: "1000",
-			BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			TotalAmount:     0,
-			TotalFee:        0,
-			TotalCoinBase:   0,
-			Version:         0,
-			PayloadLength:   1,
-			PayloadHash:     []byte{},
-			SpinePublicKeys: []*model.SpinePublicKey{},
-		}
+	mockSpineLastBlockData := model.Block{
+		ID: -1701929749060110283,
+		BlockHash: []byte{61, 152, 48, 173, 247, 250, 182, 160, 171, 242, 132, 158, 175, 239, 178, 9,
+			78, 59, 255, 129, 230, 70, 103, 199, 226, 244, 224, 4, 222, 89, 231, 154},
+		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
+			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+		Height:    1,
+		Timestamp: 1,
+		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+		CumulativeDifficulty: "1000",
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		Version:       0,
+		PayloadLength: 1,
+		PayloadHash:   []byte{},
+		SpinePublicKeys: []*model.SpinePublicKey{
+			mockSpinePublicKey,
+		},
+	}
 
-		mockSpineGoodLastBlockHash, _ = util.GetBlockHash(&mockSpineLastBlockData, &chaintype.SpineChain{})
-		mockSpineGoodIncomingBlock    = &model.Block{
-			PreviousBlockHash:    mockSpineGoodLastBlockHash,
-			BlockSignature:       nil,
-			CumulativeDifficulty: "200",
-			Timestamp:            10000,
-			BlocksmithPublicKey:  mockSpineBlocksmiths[0].NodePublicKey,
-			SpinePublicKeys: []*model.SpinePublicKey{
-				mockSpinePublicKey,
-			},
-		}
-		successBlockHash = []byte{197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217,
-			209, 67, 185, 183, 116, 101, 64, 47, 196, 207, 27, 173, 3, 141, 12, 163, 245, 254}
-		mockSpineBlockSuccess = &model.Block{
-			BlockSignature:    []byte{},
-			BlockHash:         successBlockHash,
-			PreviousBlockHash: make([]byte, 32),
-			SpinePublicKeys:   []*model.SpinePublicKey{},
-		}
-	)
+	mockSpineGoodLastBlockHash, _ := util.GetBlockHash(&mockSpineLastBlockData, &chaintype.SpineChain{})
+	mockSpineGoodIncomingBlock := &model.Block{
+		PreviousBlockHash:    mockSpineGoodLastBlockHash,
+		BlockSignature:       nil,
+		CumulativeDifficulty: "200",
+		Timestamp:            10000,
+		BlocksmithPublicKey:  mockSpineBlocksmiths[0].NodePublicKey,
+		SpinePublicKeys: []*model.SpinePublicKey{
+			mockSpinePublicKey,
+		},
+	}
+	successBlockHash := []byte{197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217,
+		209, 67, 185, 183, 116, 101, 64, 47, 196, 207, 27, 173, 3, 141, 12, 163, 245, 254}
+	mockSpineBlockSuccess := &model.Block{
+		BlockSignature:    []byte{},
+		BlockHash:         successBlockHash,
+		PreviousBlockHash: make([]byte, 32),
+		SpinePublicKeys:   []*model.SpinePublicKey{},
+	}
+	fmt.Printf("%v", mockSpineGoodLastBlockHash)
+
 	mockSpineBlockData.BlockHash = mockSpineGoodLastBlockHash
 
 	type fields struct {
@@ -2282,18 +2282,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				NodeRegistrationService: &mockSpineNodeRegistrationServiceSuccess{},
 			},
 			wantErr: false,
-			want: &model.BatchReceipt{
-				SenderPublicKey: []byte{1, 3, 4, 5, 6},
-				RecipientPublicKey: []byte{
-					88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
-					223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
-				},
-				DatumType:            constant.ReceiptDatumTypeBlock,
-				ReferenceBlockHeight: mockSpineBlockData.GetHeight(),
-				ReferenceBlockHash:   mockSpineGoodLastBlockHash,
-				RMRLinked:            nil,
-				RecipientSignature:   []byte{},
-			},
+			want:    nil,
 		},
 	}
 	for _, tt := range tests {

@@ -38,13 +38,15 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
 	switch ct.(type) {
 	case *chaintype.MainChain:
-		// FIXME: be very careful about this. if block object doesn't have transactions populated, block hash validation will fail later on
+		// added nil check to make sure that transactions for this block have been populated, even if there are none (empty slice).
+		// if block object doesn't have transactions populated (GetTransactions() = nil), block hash validation will fail later on
 		if block.GetTransactions() == nil {
 			return nil, blocker.NewBlocker(blocker.BlockErr, "main block transactions is nil")
 		}
 		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
 	case *chaintype.SpineChain:
-		// FIXME: be very careful about this. if block object doesn't have spine pub keys populated, block hash validation will fail later on
+		// added nil check to make sure that spine public keys for this block have been populated, even if there are none (empty slice).
+		// if block object doesn't have spine pub keys populated (GetSpinePublicKeys() = nil), block hash validation will fail later on
 		if block.GetSpinePublicKeys() == nil {
 			return nil, blocker.NewBlocker(blocker.BlockErr, "spine block public keys is nil")
 		}
