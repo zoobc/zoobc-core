@@ -23,4 +23,6 @@ const (
 	NumberOfPriorityPeersToBeAdded int = PriorityStrategyMaxPriorityPeers / 2
 	// PriorityStrategyBuildScrambleNodesGap, interval of scramble thread to build scramble node (in block height)
 	PriorityStrategyBuildScrambleNodesGap uint32 = 10
+	// PriorityStrategyMaxStayedInUnresolvedPeers max time a peer can stay before being cycled out from unresolved peers
+	PriorityStrategyMaxStayedInUnresolvedPeers int64 = 120
 )
