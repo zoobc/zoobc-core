@@ -620,6 +620,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -635,6 +636,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -661,6 +663,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

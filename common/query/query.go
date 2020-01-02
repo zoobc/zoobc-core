@@ -22,5 +22,6 @@ func GetDerivedQuery(chainType chaintype.ChainType) []DerivedQuery {
 		NewSkippedBlocksmithQuery(),
 		NewParticipationScoreQuery(),
 		NewPublishedReceiptQuery(),
+		NewAccountLedgerQuery(),
 	}
 }
