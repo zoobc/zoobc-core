@@ -5,12 +5,10 @@ import (
 	"errors"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 // SendMoney is Transaction Type that implemented TypeAction
@@ -22,6 +20,7 @@ type SendMoney struct {
 	Height              uint32
 	AccountBalanceQuery query.AccountBalanceQueryInterface
 	QueryExecutor       query.ExecutorInterface
+	AccountLedgerQuery  query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -61,6 +60,25 @@ func (tx *SendMoney) ApplyConfirmed() error {
 		},
 	)
 	queries := append(accountBalanceRecipientQ, accountBalanceSenderQ...)
+
+	// Account Ledger Log
+	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.RecipientAddress,
+		BalanceChange:  tx.GetAmount(),
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventSendMoneyTransaction,
+	})
+	recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  -tx.GetAmount() + tx.Fee,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventSendMoneyTransaction,
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+
+	queries = append(queries, recipientAccountLedgerArgs, senderAccountLedgerArgs)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 
 	if err != nil {

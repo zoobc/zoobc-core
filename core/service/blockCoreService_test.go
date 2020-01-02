@@ -37,6 +37,7 @@ func TestNewBlockService(t *testing.T) {
 		blocksmithStrategyMain  strategy.BlocksmithStrategyInterface
 		obsr                    *observer.Observer
 		logger                  *log.Logger
+		accountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name string
@@ -62,7 +63,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
-				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+				tt.args.logger, tt.args.accountLedgerQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})

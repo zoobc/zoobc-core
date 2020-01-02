@@ -157,6 +157,7 @@ func initialize(
 		observerInstance,
 		blocksmithStrategy,
 		log.New(),
+		query.NewAccountLedgerQuery(),
 	)
 
 	migration = database.Migration{Query: queryExecutor}

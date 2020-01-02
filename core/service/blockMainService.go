@@ -72,6 +72,7 @@ type (
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Observer                *observer.Observer
 		Logger                  *log.Logger
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 )
 
@@ -646,7 +647,8 @@ func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) 
 func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	blocksmithAccountAddresses []string,
 	totalReward int64,
-	height uint32) error {
+	height uint32,
+) error {
 	queries := make([][]interface{}, 0)
 	if len(blocksmithAccountAddresses) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
@@ -661,6 +663,16 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 			},
 		)
 		queries = append(queries, accountBalanceRecipientQ...)
+
+		accountLedgerQ, accountLedgerArgs := bs.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: blocksmithAccountAddress,
+			BalanceChange:  blocksmithReward,
+			BlockHeight:    height,
+			EventType:      model.EventType_EventReward,
+		})
+
+		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
+		queries = append(queries, accountLedgerArgs)
 	}
 	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 		return err

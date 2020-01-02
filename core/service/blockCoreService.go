@@ -73,6 +73,7 @@ func NewBlockService(
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
+	accountLedgerQuery query.AccountLedgerQueryInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -98,6 +99,7 @@ func NewBlockService(
 			BlocksmithStrategy:      blocksmithStrategy,
 			Observer:                obsr,
 			Logger:                  logger,
+			AccountLedgerQuery:      accountLedgerQuery,
 		}
 	case *chaintype.SpineChain:
 		return &BlockSpineService{

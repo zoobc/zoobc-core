@@ -123,6 +123,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetsQueryInterface
 		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -142,6 +143,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 						Db: db,
 					},
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -159,6 +161,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 						Db: db,
 					},
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 			wantErr: true,
 		},
@@ -176,6 +179,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 						Db: db,
 					},
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 			wantErr: true,
 		},
@@ -190,6 +194,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

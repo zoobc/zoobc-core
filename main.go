@@ -379,6 +379,7 @@ func startMainchain() {
 		observerInstance,
 		blocksmithStrategyMain,
 		loggerCoreService,
+		query.NewAccountLedgerQuery(),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -482,8 +483,9 @@ func startSpinechain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithStrategySpine, // TODO: not sure we even need this
+		blocksmithStrategySpine,
 		loggerCoreService,
+		nil, // no account ledger for spine blocks
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

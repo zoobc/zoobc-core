@@ -55,6 +55,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:              tx.GetHeight(),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil
@@ -80,6 +81,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				AuthPoown:               &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:           ts.Executor,
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			}, nil
 		case 1:
 			nodeRegistrationBody, err := (&UpdateNodeRegistration{
@@ -98,6 +100,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			}, nil
 		case 2:
 			removeNodeRegistrationBody, err := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -112,6 +115,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			}, nil
 		case 3:
 			claimNodeRegistrationBody, err := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -128,6 +132,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil
@@ -147,6 +152,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			}, nil
 		case 1:
 			removeAccountDatasetTransactionBody, err := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -161,6 +167,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil
