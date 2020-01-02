@@ -849,6 +849,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		MempoolQuery            query.MempoolQueryInterface
 		TransactionQuery        query.TransactionQueryInterface
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Signature               crypto.SignatureInterface
 		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
@@ -877,6 +878,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Observer:                observer.NewObserver(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
@@ -927,6 +929,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
@@ -976,6 +979,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceFail{},
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
@@ -1027,6 +1031,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				TransactionQuery:        tt.fields.TransactionQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
 				Signature:               tt.fields.Signature,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
@@ -2293,6 +2298,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		MempoolService          MempoolServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
@@ -2330,6 +2336,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
+				AccountLedgerQuery:      nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
@@ -2362,6 +2369,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
+				AccountLedgerQuery:      nil,
 				Observer:                nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
 				NodeRegistrationService: nil,
@@ -2389,6 +2397,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
+				AccountLedgerQuery:      nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
@@ -2434,6 +2443,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
+				AccountLedgerQuery:      nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
@@ -2459,6 +2469,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolService:          nil,
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
+				AccountLedgerQuery:      nil,
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
@@ -2494,6 +2505,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				},
 				ActionTypeSwitcher:      &mockTypeActionSuccess{},
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Observer:                observer.NewObserver(),
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
@@ -2530,6 +2542,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolService:          tt.fields.MempoolService,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 				Observer:                tt.fields.Observer,
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				Logger:                  logrus.New(),
@@ -2743,6 +2756,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
 		TransactionQuery        query.TransactionQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
@@ -2772,6 +2786,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 			fields: fields{
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -2784,6 +2799,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 				BlockQuery:              tt.fields.BlockQuery,
 				MempoolQuery:            tt.fields.MempoolQuery,
 				TransactionQuery:        tt.fields.TransactionQuery,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 				Signature:               tt.fields.Signature,
 				MempoolService:          tt.fields.MempoolService,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
