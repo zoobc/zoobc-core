@@ -168,11 +168,8 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 	initialize(blocksmithSecretPhrase, outputPath)
 	fmt.Println("done initializing database")
 	blockProcessor = smith.NewBlockchainProcessor(
-		chainType,
 		blocksmith,
 		blockService,
-		blocksmithStrategy,
-		nodeRegistrationService,
 		log.New(),
 	)
 	startTime := time.Now().UnixNano() / 1e6

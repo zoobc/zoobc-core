@@ -11,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/core/service"
-	"github.com/zoobc/zoobc-core/core/smith/strategy"
 )
 
 type (
@@ -23,33 +22,24 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Chaintype               chaintype.ChainType
-		Generator               *model.Blocksmith
-		BlockService            service.BlockServiceInterface
-		BlocksmithService       strategy.BlocksmithStrategyInterface
-		NodeRegistrationService service.NodeRegistrationServiceInterface
-		LastBlockID             int64
-		canSmith                bool
-		Logger                  *log.Logger
+		Generator    *model.Blocksmith
+		BlockService service.BlockServiceInterface
+		LastBlockID  int64
+		canSmith     bool
+		Logger       *log.Logger
 	}
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
 func NewBlockchainProcessor(
-	ct chaintype.ChainType,
 	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
-	blocksmithStrategy strategy.BlocksmithStrategyInterface,
-	nodeRegistrationService service.NodeRegistrationServiceInterface,
 	logger *log.Logger,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Chaintype:               ct,
-		Generator:               blocksmith,
-		BlockService:            blockService,
-		BlocksmithService:       blocksmithStrategy,
-		NodeRegistrationService: nodeRegistrationService,
-		Logger:                  logger,
+		Generator:    blocksmith,
+		BlockService: blockService,
+		Logger:       logger,
 	}
 }
 
@@ -79,7 +69,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			err = bp.BlocksmithService.CalculateSmith(lastBlock, 0, bp.Generator, 1)
+			err = bp.BlockService.GetBlocksmithStrategy().CalculateSmith(lastBlock, 0, bp.Generator, 1)
 			if err != nil {
 				return err
 			}
@@ -138,16 +128,18 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	// caching: only calculate smith time once per new block
 	if lastBlock.GetID() != bp.LastBlockID {
 		bp.LastBlockID = lastBlock.GetID()
-		bp.BlocksmithService.SortBlocksmiths(lastBlock)
+		blockSmithStrategy := bp.BlockService.GetBlocksmithStrategy()
+		blockSmithStrategy.SortBlocksmiths(lastBlock)
 		// check if eligible to create block in this round
-		blocksmithsMap := bp.BlocksmithService.GetSortedBlocksmithsMap(lastBlock)
+		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(bp.Generator.NodePublicKey)] == nil {
 			bp.canSmith = false
 			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		bp.canSmith = true
+		ct := bp.BlockService.GetChainType()
 		// calculate blocksmith score for the block type
-		switch bp.Chaintype.(type) {
+		switch ct.(type) {
 		case *chaintype.MainChain:
 			// get the concrete type for BlockService so we can use mainchain specific methods
 			blockMainService, ok := bp.BlockService.(*service.BlockService)
@@ -171,9 +163,9 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
 			blocksmithScore = constant.DefaultParticipationScore
 		default:
-			return blocker.NewBlocker(blocker.SmithingErr, fmt.Sprintf("undefined chaintype %s", bp.Chaintype.GetName()))
+			return blocker.NewBlocker(blocker.SmithingErr, fmt.Sprintf("undefined chaintype %s", ct.GetName()))
 		}
-		err = bp.BlocksmithService.CalculateSmith(
+		err = blockSmithStrategy.CalculateSmith(
 			lastBlock,
 			*(blocksmithsMap[string(bp.Generator.NodePublicKey)]),
 			bp.Generator,
@@ -182,7 +174,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		if err != nil {
 			return err
 		}
-		monitoring.SetBlockchainSmithTime(bp.Chaintype.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithTime(ct.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
 	}
 	if !bp.canSmith {
 		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")

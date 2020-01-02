@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -422,11 +423,8 @@ func startMainchain() {
 		}
 		if node != nil {
 			mainchainProcessor = smith.NewBlockchainProcessor(
-				mainchain,
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
-				blocksmithStrategyMain,
-				nodeRegistrationService,
 				loggerCoreService,
 			)
 			go startSmith(sleepPeriod, mainchainProcessor)
@@ -499,16 +497,11 @@ func startSpinechain() {
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(nodeSecretPhrase) > 0 {
 		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
-		node, _ := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
-		if node != nil {
-			nodeID = node.NodeID
-		}
+		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
+		nodeID = int64(binary.LittleEndian.Uint64(nodePublicKey))
 		spinechainProcessor = smith.NewBlockchainProcessor(
-			spinechain,
 			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
-			blocksmithStrategySpine,
-			nodeRegistrationService,
 			loggerCoreService,
 		)
 		go startSmith(sleepPeriod, spinechainProcessor)

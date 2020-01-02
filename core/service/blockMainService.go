@@ -125,6 +125,10 @@ func (bs *BlockService) GetChainType() chaintype.ChainType {
 	return bs.Chaintype
 }
 
+func (bs *BlockService) GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface {
+	return bs.BlocksmithStrategy
+}
+
 // ChainWriteLock locks the chain
 func (bs *BlockService) ChainWriteLock(actionType int) {
 	monitoring.IncrementStatusLockCounter(actionType)

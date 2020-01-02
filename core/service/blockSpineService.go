@@ -109,6 +109,10 @@ func (bs *BlockSpineService) GetChainType() chaintype.ChainType {
 	return bs.Chaintype
 }
 
+func (bs *BlockSpineService) GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface {
+	return bs.BlocksmithStrategy
+}
+
 // ChainWriteLock locks the chain
 func (bs *BlockSpineService) ChainWriteLock(actionType int) {
 	monitoring.IncrementStatusLockCounter(actionType)
