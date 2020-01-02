@@ -375,9 +375,11 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 				}
 			}
 		}
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-		"latest, height FROM node_registry WHERE height >= 0 AND height <= 1 AND registration_status != 1 " +
-		"AND latest=1 ORDER BY height":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height FROM node_registry WHERE " +
+		"height = (SELECT MIN(height) FROM main_block AS mb1 WHERE mb1.timestamp > 12345600) AND " +
+		"height = (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp <= 12345678) AND " +
+		"registration_status != 1 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
@@ -1333,7 +1335,7 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 					PreviousBlockHash:   []byte{},
 					BlockSeed:           []byte{},
 					BlocksmithPublicKey: bcsNodePubKey1,
-					Timestamp:           12344587645,
+					Timestamp:           12345600,
 					TotalAmount:         0,
 					TotalFee:            0,
 					TotalCoinBase:       0,
@@ -2056,7 +2058,6 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		PreviousBlockHash: make([]byte, 32),
 		SpinePublicKeys:   []*model.SpinePublicKey{},
 	}
-	fmt.Printf("%v", mockSpineGoodLastBlockHash)
 
 	mockSpineBlockData.BlockHash = mockSpineGoodLastBlockHash
 
@@ -2512,7 +2513,7 @@ func TestBlockSpineService_GenerateGenesisBlock(t *testing.T) {
 				Observer:                nil,
 			},
 			args: args{
-				genesisEntries: []constant.GenesisConfigEntry{},
+				genesisEntries: constant.GenesisConfig,
 			},
 			wantErr: false,
 			want:    constant.SpinechainGenesisBlockID,
@@ -3352,8 +3353,8 @@ func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
 		Logger                *log.Logger
 	}
 	type args struct {
-		fromHeigth uint32
-		toHeigth   uint32
+		fromTs int64
+		toTs   int64
 	}
 	tests := []struct {
 		name                string
@@ -3362,7 +3363,7 @@ func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
 		wantSpinePublicKeys []*model.SpinePublicKey
 		wantErr             bool
 	}{
-		// TODO: Add test cases.
+		// TODO: @iltoga Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3379,7 +3380,7 @@ func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
 				Observer:              tt.fields.Observer,
 				Logger:                tt.fields.Logger,
 			}
-			gotSpinePublicKeys, err := bs.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromHeigth, tt.args.toHeigth)
+			gotSpinePublicKeys, err := bs.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromTs, tt.args.toTs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.BuildSpinePublicKeysFromNodeRegistry() error = %v, wantErr %v", err, tt.wantErr)
 				return

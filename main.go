@@ -427,7 +427,7 @@ func startMainchain() {
 				mainchainBlockService,
 				loggerCoreService,
 			)
-			go startSmith(sleepPeriod, mainchainProcessor)
+			mainchainProcessor.Start(sleepPeriod)
 		}
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
@@ -504,7 +504,7 @@ func startSpinechain() {
 			spinechainBlockService,
 			loggerCoreService,
 		)
-		go startSmith(sleepPeriod, spinechainProcessor)
+		spinechainProcessor.Start(sleepPeriod)
 	}
 	spinechainSynchronizer := blockchainsync.NewBlockchainSyncService(
 		spinechainBlockService,

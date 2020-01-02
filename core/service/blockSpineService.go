@@ -37,8 +37,8 @@ type (
 			toHeigth uint32,
 		) (spinePublicKeys []*model.SpinePublicKey, err error)
 		BuildSpinePublicKeysFromNodeRegistry(
-			fromHeigth,
-			toHeigth uint32,
+			fromTs,
+			toTs int64,
 		) (spinePublicKeys []*model.SpinePublicKey, err error)
 	}
 
@@ -432,7 +432,10 @@ func (bs *BlockSpineService) GenerateBlock(
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// compute spine pub keys from mainchain node registrations
-	spinePublicKeys, err = bs.BuildSpinePublicKeysFromNodeRegistry(previousBlock.Height, newBlockHeight)
+	// Note: since spine blocks are not in sync with main blocks and they are unaware of the height (on mainchain) where to retrieve
+	// node registration's public keys, we use timestamps for now
+	// TODO: ask @barton if this is ok
+	spinePublicKeys, err = bs.BuildSpinePublicKeysFromNodeRegistry(previousBlock.Timestamp, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -763,13 +766,13 @@ func (bs *BlockSpineService) GetSpinePublicKeysByHeightInterval(
 
 // GetSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
 func (bs *BlockSpineService) BuildSpinePublicKeysFromNodeRegistry(
-	fromHeigth,
-	toHeigth uint32,
+	fromTs,
+	toTs int64,
 ) (spinePublicKeys []*model.SpinePublicKey, err error) {
 	var (
 		nodeRegistrations []*model.NodeRegistration
 	)
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetNodeRegistrationsByHeightInterval(fromHeigth, toHeigth), false)
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.NodeRegistrationQuery.GetNodeRegistrationsByHeightInterval(fromTs, toTs), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

@@ -16,6 +16,7 @@ import (
 type (
 	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
 	BlockchainProcessorInterface interface {
+		Start(sleepPeriod int)
 		StartSmithing() error
 		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
 	}
@@ -28,6 +29,10 @@ type (
 		canSmith     bool
 		Logger       *log.Logger
 	}
+)
+
+var (
+	stopSmith = make(chan bool)
 )
 
 // NewBlockchainProcessor create new instance of BlockchainProcessor
@@ -202,4 +207,25 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	return nil
+}
+
+// Start starts the blockchainProcessor
+func (bp *BlockchainProcessor) Start(sleepPeriod int) {
+	ticker := time.NewTicker(time.Duration(sleepPeriod) * time.Millisecond)
+	stopSmith = make(chan bool)
+	go func(sleepPeriod int) {
+		for {
+			select {
+			case <-stopSmith:
+				ticker.Stop()
+				bp.Logger.Infof("Stoppend smithing %s", bp.BlockService.GetChainType().GetName())
+				return
+			case <-ticker.C:
+				err := bp.StartSmithing()
+				if err != nil {
+					bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
+				}
+			}
+		}
+	}(sleepPeriod)
 }
