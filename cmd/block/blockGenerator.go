@@ -155,6 +155,7 @@ func initialize(
 		observerInstance,
 		blocksmithService,
 		log.New(),
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

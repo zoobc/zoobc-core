@@ -585,6 +585,7 @@ func TestNewBlockService(t *testing.T) {
 		blocksmithService       BlocksmithServiceInterface
 		obsr                    *observer.Observer
 		logger                  *log.Logger
+		accountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name string
@@ -605,12 +606,29 @@ func TestNewBlockService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
-				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
-				tt.args.skippedBlocksmithQuery, tt.args.signature, tt.args.mempoolService, tt.args.receiptService,
-				tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
-				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithService,
-				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlockService(
+				tt.args.ct,
+				tt.args.kvExecutor,
+				tt.args.queryExecutor,
+				tt.args.blockQuery,
+				tt.args.mempoolQuery,
+				tt.args.transactionQuery,
+				tt.args.merkleTreeQuery,
+				tt.args.publishedReceiptQuery,
+				tt.args.skippedBlocksmithQuery,
+				tt.args.signature,
+				tt.args.mempoolService,
+				tt.args.receiptService,
+				tt.args.nodeRegistrationService,
+				tt.args.txTypeSwitcher,
+				tt.args.accountBalanceQuery,
+				tt.args.participationScoreQuery,
+				tt.args.nodeRegistrationQuery,
+				tt.args.obsr,
+				tt.args.blocksmithService,
+				tt.args.logger,
+				tt.args.accountLedgerQuery,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -899,6 +917,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		NodeRegistrationService NodeRegistrationServiceInterface
 		BlocksmithService       BlocksmithServiceInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -925,6 +944,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
 				BlocksmithService:       &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -974,6 +994,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Observer:                observer.NewObserver(),
 				BlocksmithService:       &mockBlocksmithServicePushBlock{},
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1023,6 +1044,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				Observer:                observer.NewObserver(),
 				BlocksmithService:       &mockBlocksmithServicePushBlock{},
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1077,6 +1099,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				BlocksmithService:       tt.fields.BlocksmithService,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
@@ -2281,6 +2304,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		BlocksmithService       BlocksmithServiceInterface
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2477,6 +2501,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                observer.NewObserver(),
 				BlocksmithService:       &mockBlocksmithServicePushBlock{},
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2514,6 +2539,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlocksmithService:       tt.fields.BlocksmithService,
 				Logger:                  logrus.New(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -2730,6 +2756,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		Observer                *observer.Observer
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	type args struct {
 		blocksmithAccountAddresses []string
@@ -2752,6 +2779,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 			fields: fields{
 				QueryExecutor:       &mockQueryExecutorSuccess{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -2771,6 +2799,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 			}
 			if err := bs.RewardBlocksmithAccountAddresses(tt.args.blocksmithAccountAddresses, tt.args.totalReward,
 				tt.args.height); (err != nil) != tt.wantErr {

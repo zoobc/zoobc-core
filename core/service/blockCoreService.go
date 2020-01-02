@@ -78,6 +78,7 @@ type (
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 	}
 
+	// BlockService struct includes fields that needed for BlockService
 	BlockService struct {
 		sync.RWMutex
 		Chaintype               chaintype.ChainType
@@ -100,6 +101,7 @@ type (
 		BlocksmithService       BlocksmithServiceInterface
 		Observer                *observer.Observer
 		Logger                  *log.Logger
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 )
 
@@ -124,6 +126,7 @@ func NewBlockService(
 	obsr *observer.Observer,
 	blocksmithService BlocksmithServiceInterface,
 	logger *log.Logger,
+	accountLedgerQuery query.AccountLedgerQueryInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:               ct,
@@ -146,6 +149,7 @@ func NewBlockService(
 		BlocksmithService:       blocksmithService,
 		Observer:                obsr,
 		Logger:                  logger,
+		AccountLedgerQuery:      accountLedgerQuery,
 	}
 }
 
@@ -328,6 +332,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
+// insert into account ledger when pushBlock success
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast bool) error {
 	var (
 		err error
@@ -409,7 +414,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		err = txType.ApplyConfirmed()
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
-			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
+			err = bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
@@ -424,7 +429,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 	}
 	if block.Height != 0 {
-		if err := bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+		if err = bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -471,7 +476,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 			return err
 		}
-		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+		if err = bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -481,14 +486,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 
 	// admit nodes from registry at genesis and regular intervals
 	// expel nodes from node registry as soon as they reach zero participation score
-	if err := bs.expelNodes(block); err != nil {
+	if err = bs.expelNodes(block); err != nil {
 		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
-		if err := bs.admitNodes(block); err != nil {
+		if err = bs.admitNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -524,7 +529,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	return nil
 }
 
-// adminNodes seelct and admit nodes from node registry
+// adminNodes select and admit nodes from node registry
 func (bs *BlockService) admitNodes(block *model.Block) error {
 	// select n (= MaxNodeAdmittancePerCycle) queued nodes with the highest locked balance from node registry
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
@@ -541,7 +546,7 @@ func (bs *BlockService) admitNodes(block *model.Block) error {
 	return nil
 }
 
-// expelNodes seelct and expel nodes from node registry
+// expelNodes select and expel nodes from node registry
 func (bs *BlockService) expelNodes(block *model.Block) error {
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {
@@ -709,7 +714,8 @@ func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) 
 func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	blocksmithAccountAddresses []string,
 	totalReward int64,
-	height uint32) error {
+	height uint32,
+) error {
 	queries := make([][]interface{}, 0)
 	if len(blocksmithAccountAddresses) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
@@ -724,6 +730,16 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 			},
 		)
 		queries = append(queries, accountBalanceRecipientQ...)
+
+		accountLedgerQ, accountLedgerArgs := bs.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: blocksmithAccountAddress,
+			BalanceChange:  blocksmithReward,
+			BlockHeight:    height,
+			EventType:      model.EventType_EventReward,
+		})
+
+		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
+		queries = append(queries, accountLedgerArgs)
 	}
 	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 		return err

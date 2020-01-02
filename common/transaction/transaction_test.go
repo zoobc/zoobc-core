@@ -62,6 +62,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -151,6 +152,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -179,6 +181,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -205,6 +208,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:         &query.Executor{},
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -233,6 +237,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -259,6 +264,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -285,6 +291,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			},
 		},
 	}
