@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -73,6 +74,7 @@ func TestGenerateBatchReceiptWithReminder(t *testing.T) {
 
 		mockNodePublicKey          = util.GetPublicKeyFromSeed(mockSecretPhrase)
 		mockSuccessBatchReceipt, _ = util.GenerateBatchReceipt(
+			&chaintype.MainChain{},
 			mockBlock,
 			mockSenderPublicKey,
 			mockNodePublicKey,
@@ -88,6 +90,7 @@ func TestGenerateBatchReceiptWithReminder(t *testing.T) {
 	)
 
 	type args struct {
+		ct                chaintype.ChainType
 		receivedDatumHash []byte
 		lastBlock         *model.Block
 		senderPublicKey   []byte
@@ -107,6 +110,7 @@ func TestGenerateBatchReceiptWithReminder(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
+				ct:                &chaintype.MainChain{},
 				receivedDatumHash: mockReceivedDatumHash,
 				lastBlock:         mockBlock,
 				senderPublicKey:   mockSenderPublicKey,
@@ -123,6 +127,7 @@ func TestGenerateBatchReceiptWithReminder(t *testing.T) {
 		{
 			name: "wantFail:KVDBInsertFail",
 			args: args{
+				ct:                &chaintype.MainChain{},
 				receivedDatumHash: mockReceivedDatumHash,
 				lastBlock:         mockBlock,
 				senderPublicKey:   mockSenderPublicKey,
@@ -140,6 +145,7 @@ func TestGenerateBatchReceiptWithReminder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateBatchReceiptWithReminder(
+				tt.args.ct,
 				tt.args.receivedDatumHash,
 				tt.args.lastBlock,
 				tt.args.senderPublicKey,

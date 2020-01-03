@@ -104,7 +104,7 @@ func (*mockBlockServiceSuccess) GetChainType() chaintype.ChainType {
 	return &chaintype.MainChain{}
 }
 
-func (*mockBlockServiceSuccess) GetBlockByID(blockID int64) (*model.Block, error) {
+func (*mockBlockServiceSuccess) GetBlockByID(blockID int64, withAttachedData bool) (*model.Block, error) {
 	if blockID == 1 || blockID == 2 {
 		return &model.Block{
 			ID: 1,
@@ -279,6 +279,7 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 func TestGetNextBlocks(t *testing.T) {
 	blockService := coreService.NewBlockService(
 		&chaintype.MainChain{},
+		nil,
 		nil,
 		nil,
 		nil,

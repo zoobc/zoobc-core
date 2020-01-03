@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -34,8 +35,11 @@ func GetFixturesProofOfOwnershipValidation(height uint32, hash []byte, block *mo
 	if block == nil {
 		block = block1
 	}
+	if block.Transactions == nil {
+		block.Transactions = make([]*model.Transaction, 0)
+	}
 	if len(hash) == 0 {
-		blockHash, _ := util.GetBlockHash(block)
+		blockHash, _ := util.GetBlockHash(block, &chaintype.MainChain{})
 		hash = blockHash
 	}
 	poownMessage := &model.ProofOfOwnershipMessage{

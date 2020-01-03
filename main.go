@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -32,10 +33,11 @@ import (
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
-	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
@@ -57,14 +59,14 @@ var (
 	blockServices                           = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
 	receiptService                          service.ReceiptServiceInterface
-	blocksmithService                       service.BlocksmithServiceInterface
 	peerServiceClient                       client.PeerServiceClientInterface
 	p2pHost                                 *model.Host
-	peerExplorer                            strategy.PeerExplorerStrategyInterface
+	peerExplorer                            p2pStrategy.PeerExplorerStrategyInterface
 	wellknownPeers                          []string
 	smithing, isNodePreSeed, isDebugMode    bool
 	nodeRegistrationService                 service.NodeRegistrationServiceInterface
 	mainchainProcessor                      smith.BlockchainProcessorInterface
+	spinechainProcessor                     smith.BlockchainProcessorInterface
 	loggerAPIService                        *log.Logger
 	loggerCoreService                       *log.Logger
 	loggerP2PService                        *log.Logger
@@ -250,7 +252,7 @@ func initP2pInstance() {
 	)
 
 	// peer discovery strategy
-	peerExplorer = strategy.NewPriorityStrategy(
+	peerExplorer = p2pStrategy.NewPriorityStrategy(
 		p2pHost,
 		peerServiceClient,
 		nodeRegistrationService,
@@ -314,16 +316,6 @@ func startNodeMonitoring() {
 	}
 }
 
-func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
-	for {
-		err := processor.StartSmithing()
-		if err != nil {
-			loggerCoreService.Warn("Smith error: ", err.Error())
-		}
-		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
-	}
-}
-
 func startMainchain() {
 	var (
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
@@ -351,7 +343,7 @@ func startMainchain() {
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
-	blocksmithService = service.NewBlocksmithService(
+	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
@@ -366,6 +358,7 @@ func startMainchain() {
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
+		nil,
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -375,7 +368,7 @@ func startMainchain() {
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithService,
+		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
 	)
@@ -420,14 +413,11 @@ func startMainchain() {
 		}
 		if node != nil {
 			mainchainProcessor = smith.NewBlockchainProcessor(
-				mainchain,
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
-				blocksmithService,
-				nodeRegistrationService,
 				loggerCoreService,
 			)
-			go startSmith(sleepPeriod, mainchainProcessor)
+			mainchainProcessor.Start(sleepPeriod)
 		}
 	}
 	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
@@ -443,6 +433,82 @@ func startMainchain() {
 
 	go func() {
 		mainchainSynchronizer.Start()
+
+	}()
+}
+
+func startSpinechain() {
+	var (
+		nodeID int64
+	)
+	spinechain := &chaintype.SpineChain{}
+	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
+	sleepPeriod := 500
+
+	// TODO: not sure we even need this, since spine blocks are computed and created by every node
+	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
+		queryExecutor,
+		query.NewSpinePublicKeyQuery(),
+		loggerCoreService,
+	)
+	spinechainBlockService := service.NewBlockService(
+		spinechain,
+		kvExecutor,
+		queryExecutor,
+		query.NewBlockQuery(spinechain),
+		query.NewMempoolQuery(spinechain),
+		query.NewTransactionQuery(spinechain),
+		query.NewMerkleTreeQuery(),
+		query.NewPublishedReceiptQuery(),
+		query.NewSkippedBlocksmithQuery(),
+		query.NewSpinePublicKeyQuery(),
+		crypto.NewSignature(),
+		nil, // no mempool for spine blocks
+		receiptService,
+		nodeRegistrationService,
+		nil, // no transaction types for spine blocks
+		query.NewAccountBalanceQuery(),
+		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
+		observerInstance,
+		blocksmithStrategySpine,
+		loggerCoreService,
+		nil, // no account ledger for spine blocks
+	)
+	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
+
+	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
+		if err := spinechainBlockService.AddGenesis(); err != nil {
+			loggerCoreService.Fatal(err)
+		}
+	}
+
+	// Note: spine blocks smith even if smithing is false, because are created by every running node
+	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
+	if len(nodeSecretPhrase) > 0 {
+		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
+		nodeID = int64(binary.LittleEndian.Uint64(nodePublicKey))
+		spinechainProcessor = smith.NewBlockchainProcessor(
+			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
+			spinechainBlockService,
+			loggerCoreService,
+		)
+		spinechainProcessor.Start(sleepPeriod)
+	}
+	spinechainSynchronizer := blockchainsync.NewBlockchainSyncService(
+		spinechainBlockService,
+		peerServiceClient,
+		peerExplorer,
+		queryExecutor,
+		nil, // no mempool for spine blocks
+		nil, // no transaction types for spine blocks
+		loggerCoreService,
+		kvExecutor,
+	)
+
+	go func() {
+		spinechainSynchronizer.Start()
 
 	}()
 }
@@ -486,6 +552,7 @@ func main() {
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain()
+	startSpinechain()
 	startServices()
 	initObserverListeners()
 	startScheduler()
@@ -493,6 +560,24 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
-	loggerCoreService.Info("ZOOBC Shutdown")
-	os.Exit(0)
+	loggerCoreService.Info("Shutting down node...")
+	mainchainProcessor.Stop()
+	spinechainProcessor.Stop()
+	tick := time.Tick(50 * time.Millisecond)
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case <-tick:
+			mcSmithing, _ := mainchainProcessor.GetBlockChainprocessorStatus()
+			scSmithing, _ := spinechainProcessor.GetBlockChainprocessorStatus()
+			if !mcSmithing && !scSmithing {
+				loggerCoreService.Info("ZOOBC Shutdown complete")
+				os.Exit(0)
+			}
+		case <-timeout:
+			loggerCoreService.Info("ZOOBC Shutdown timedout...")
+			os.Exit(1)
+		}
+
+	}
 }

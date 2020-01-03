@@ -326,10 +326,10 @@ func generateGenesisFile(genesisEntries []genesisEntry, newGenesisFilePath strin
 
 func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 	var (
-		genesisConfig []constant.MainchainGenesisConfigEntry
+		genesisConfig []constant.GenesisConfigEntry
 	)
 	for _, entry := range genesisEntries {
-		cfgEntry := constant.MainchainGenesisConfigEntry{
+		cfgEntry := constant.GenesisConfigEntry{
 			AccountAddress:     entry.AccountAddress,
 			AccountBalance:     entry.AccountBalance,
 			LockedBalance:      entry.LockedBalance,
@@ -341,6 +341,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 	}
 	bs := service.NewBlockService(
 		&chaintype.MainChain{},
+		nil,
 		nil,
 		nil,
 		nil,

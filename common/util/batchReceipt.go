@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/crypto/sha3"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -12,11 +13,12 @@ import (
 // block, transaction, etc.
 // generated receipt will not be signed yet (RecipientSignature = nil), will need to be signed using SignReceipt method.
 func GenerateBatchReceipt(
+	ct chaintype.ChainType,
 	referenceBlock *model.Block,
 	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
-	refBlockHash, err := GetBlockHash(referenceBlock)
+	refBlockHash, err := GetBlockHash(referenceBlock, ct)
 	if err != nil {
 		return nil, err
 	}

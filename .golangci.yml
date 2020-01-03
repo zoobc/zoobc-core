@@ -74,6 +74,9 @@ run:
 
 issues:
   exclude-rules:
+    - text: "always receives"
+      linters:
+        - unparam
     - text: "ifElseChain: rewrite if-else to switch statement"
       linters:
         - gocritic
