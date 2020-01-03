@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -25,7 +26,7 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
-	blocksmithService       service.BlocksmithServiceInterface
+	blocksmithStrategy      strategy.BlocksmithStrategyInterface
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
 
@@ -131,7 +132,7 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		log.New(),
 	)
-	blocksmithService = service.NewBlocksmithService(
+	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
 	)
 	blockService = service.NewBlockService(
@@ -144,6 +145,7 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
+		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -153,9 +155,9 @@ func initialize(
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
-		blocksmithService,
+		blocksmithStrategy,
 		log.New(),
-		nil,
+		query.NewAccountLedgerQuery(),
 	)
 
 	migration = database.Migration{Query: queryExecutor}
@@ -166,11 +168,8 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 	initialize(blocksmithSecretPhrase, outputPath)
 	fmt.Println("done initializing database")
 	blockProcessor = smith.NewBlockchainProcessor(
-		chainType,
 		blocksmith,
 		blockService,
-		blocksmithService,
-		nodeRegistrationService,
 		log.New(),
 	)
 	startTime := time.Now().UnixNano() / 1e6

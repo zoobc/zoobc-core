@@ -208,6 +208,33 @@ func (m *Migration) Init() error {
 				ADD COLUMN "block_height" INTEGER AFTER "id"
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "spine_block" (
+				"id" INTEGER,
+				"block_hash" BLOB,
+				"previous_block_hash" BLOB,
+				"height" INTEGER,
+				"timestamp" INTEGER,
+				"block_seed" BLOB,
+				"block_signature" BLOB,
+				"cumulative_difficulty" TEXT,
+				"blocksmith_public_key" BLOB,
+				"total_amount" INTEGER,
+				"total_fee" INTEGER,
+				"total_coinbase" INTEGER,
+				"version" INTEGER,
+				"payload_length" INTEGER,
+				"payload_hash" BLOB,
+				UNIQUE("height")
+			);`,
+			`
+			CREATE TABLE IF NOT EXISTS "spine_public_key"(
+				"node_public_key" BLOB,
+				"public_key_action" INTEGER,
+				"latest" INTEGER,
+				"height" INTEGER,
+				PRIMARY KEY("node_public_key", "height")
+			);`,
+			`
 			CREATE TABLE IF NOT EXISTS "account_ledger" (
 				"account_address" VARCHAR(255) NULL,
 				"balance_change" INTEGER,

@@ -383,7 +383,7 @@ func (tx *NodeRegistration) GetTransactionBody(transaction *model.Transaction) {
 }
 
 func (tx *NodeRegistration) getDefaultParticipationScore() int64 {
-	for _, genesisEntry := range constant.MainChainGenesisConfig {
+	for _, genesisEntry := range constant.GenesisConfig {
 		if bytes.Equal(tx.Body.NodePublicKey, genesisEntry.NodePublicKey) {
 			return genesisEntry.ParticipationScore
 		}

@@ -341,6 +341,7 @@ func (mps *MempoolService) ReceivedTransaction(
 			if err != nil {
 				if err == badger.ErrKeyNotFound {
 					batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+						mps.Chaintype,
 						receivedTxHash[:],
 						lastBlock,
 						senderPublicKey,
@@ -395,6 +396,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	// broadcast transaction
 	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		mps.Chaintype,
 		receivedTxHash[:],
 		lastBlock,
 		senderPublicKey,

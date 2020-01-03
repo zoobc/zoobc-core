@@ -6,9 +6,11 @@ import (
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -26,12 +28,6 @@ func GetBlockSeed(nodeID int64, block *model.Block) (int64, error) {
 	payload.Write(previousSeedHash)
 	seed := sha3.Sum256(payload.Bytes())
 	return new(big.Int).SetBytes(seed[:8]).Int64(), nil
-}
-
-// GetSmithTime calculate smith time of a blocksmith
-func GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTime
-	return block.GetTimestamp() + elapsedFromLastBlock
 }
 
 // CalculateCumulativeDifficulty get the cumulative difficulty of the incoming block based on its blocksmith index
@@ -53,9 +49,9 @@ func CalculateCumulativeDifficulty(
 
 // GetBlockID generate block ID value if haven't
 // return the assigned ID if assigned
-func GetBlockID(block *model.Block) int64 {
+func GetBlockID(block *model.Block, ct chaintype.ChainType) int64 {
 	if block.ID == 0 {
-		hash, err := commonUtils.GetBlockHash(block)
+		hash, err := commonUtils.GetBlockHash(block, ct)
 		if err != nil {
 			return 0
 		}
@@ -96,4 +92,12 @@ func CalculateNodeOrder(score *big.Int, blockSeed, nodeID int64) *big.Int {
 
 func IsGenesis(previousBlockID int64, block *model.Block) bool {
 	return previousBlockID == -1 && block.CumulativeDifficulty != ""
+}
+
+// GetSpinePublicKeyBytes convert a model.SpinePublicKey to []byte
+func GetSpinePublicKeyBytes(spinePublicKey *model.SpinePublicKey) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(spinePublicKey.NodePublicKey)
+	buffer.Write(util.ConvertUint32ToBytes(uint32(spinePublicKey.PublicKeyAction)))
+	return buffer.Bytes()
 }

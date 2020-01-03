@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -39,7 +40,7 @@ func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistration
 	txBody *model.NodeRegistrationTransactionBody,
 	txBodyBytes []byte,
 ) {
-	blockHash, _ := util.GetBlockHash(block1)
+	blockHash, _ := util.GetBlockHash(block1, &chaintype.MainChain{})
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
 		BlockHash:      blockHash,
@@ -74,7 +75,7 @@ func GetFixturesForUpdateNoderegistration(nodeRegistrationQuery query.NodeRegist
 	txBody *model.UpdateNodeRegistrationTransactionBody,
 	txBodyBytes []byte,
 ) {
-	blockHash, _ := util.GetBlockHash(block1)
+	blockHash, _ := util.GetBlockHash(block1, &chaintype.MainChain{})
 
 	poownMessage = &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
@@ -109,7 +110,7 @@ func GetFixturesForClaimNoderegistration() (
 	txBodyBytes []byte,
 ) {
 
-	blockHash, _ := util.GetBlockHash(block1)
+	blockHash, _ := util.GetBlockHash(block1, &chaintype.MainChain{})
 	poownMessage := &model.ProofOfOwnershipMessage{
 		AccountAddress: senderAddress1,
 		BlockHash:      blockHash,

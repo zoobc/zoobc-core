@@ -1,9 +1,11 @@
-package service
+package strategy
 
 import (
+	"math/big"
 	"sort"
 	"sync"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	log "github.com/sirupsen/logrus"
@@ -15,13 +17,7 @@ import (
 )
 
 type (
-	BlocksmithServiceInterface interface {
-		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
-		SortBlocksmiths(block *model.Block)
-		GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith
-		GetSortedBlocksmithsMap(block *model.Block) map[string]*int64
-	}
-	BlocksmithService struct {
+	BlocksmithStrategyMain struct {
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		Logger                *log.Logger
@@ -32,12 +28,12 @@ type (
 	}
 )
 
-func NewBlocksmithService(
+func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	logger *log.Logger,
-) *BlocksmithService {
-	return &BlocksmithService{
+) *BlocksmithStrategyMain {
+	return &BlocksmithStrategyMain{
 		QueryExecutor:         queryExecutor,
 		NodeRegistrationQuery: nodeRegistrationQuery,
 		Logger:                logger,
@@ -46,7 +42,7 @@ func NewBlocksmithService(
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
-func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
+func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
 		activeBlocksmiths, blocksmiths []*model.Blocksmith
 	)
@@ -75,7 +71,7 @@ func (bss *BlocksmithService) GetBlocksmiths(block *model.Block) ([]*model.Block
 	return blocksmiths, nil
 }
 
-func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
+func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
 	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block)
 	}
@@ -87,7 +83,7 @@ func (bss *BlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.
 }
 
 // GetSortedBlocksmithsMap get the sorted blocksmiths in map
-func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
 	var (
 		result = make(map[string]*int64)
 	)
@@ -102,7 +98,7 @@ func (bss *BlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[st
 	return result
 }
 
-func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
+func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block) {
 	if block.ID == bss.LastSortedBlockID && block.ID != constant.MainchainGenesisBlockID {
 		return
 	}
@@ -110,7 +106,7 @@ func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
 	var blocksmiths []*model.Blocksmith
 	nextBlocksmiths, err := bss.GetBlocksmiths(block)
 	if err != nil {
-		bss.Logger.Errorf("SortBlocksmith:GetBlocksmiths fail: %s", err)
+		bss.Logger.Errorf("SortBlocksmith (Main):GetBlocksmiths fail: %s", err)
 		return
 	}
 	// copy the nextBlocksmiths pointers array into an array of blocksmiths
@@ -133,4 +129,23 @@ func (bss *BlocksmithService) SortBlocksmiths(block *model.Block) {
 	// set last sorted block id
 	bss.LastSortedBlockID = block.ID
 	bss.SortedBlocksmiths = blocksmiths
+}
+
+// CalculateSmith calculate seed, smithTime, and Deadline for mainchain
+func (bss *BlocksmithStrategyMain) CalculateSmith(
+	lastBlock *model.Block,
+	blocksmithIndex int64,
+	generator *model.Blocksmith,
+	score int64,
+) error {
+	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
+	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)
+	return nil
+}
+
+// GetSmithTime calculate smith time of a blocksmith
+func (bss *BlocksmithStrategyMain) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	ct := &chaintype.MainChain{}
+	elapsedFromLastBlock := (blocksmithIndex + 1) * ct.GetSmithingPeriod()
+	return block.GetTimestamp() + elapsedFromLastBlock
 }
