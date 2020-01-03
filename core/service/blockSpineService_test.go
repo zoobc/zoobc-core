@@ -3354,8 +3354,8 @@ func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
 		Logger                *log.Logger
 	}
 	type args struct {
-		fromTs int64
-		toTs   int64
+		fromTimestamp int64
+		toTimestamp   int64
 	}
 	tests := []struct {
 		name                string
@@ -3381,7 +3381,7 @@ func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
 				Observer:              tt.fields.Observer,
 				Logger:                tt.fields.Logger,
 			}
-			gotSpinePublicKeys, err := bs.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromTs, tt.args.toTs)
+			gotSpinePublicKeys, err := bs.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromTimestamp, tt.args.toTimestamp)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.BuildSpinePublicKeysFromNodeRegistry() error = %v, wantErr %v", err, tt.wantErr)
 				return
