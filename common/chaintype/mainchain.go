@@ -21,7 +21,7 @@ func (*MainChain) GetChainSmithingDelayTime() int64 {
 }
 
 func (*MainChain) GetSmithingPeriod() int64 {
-	return 60
+	return 15
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	log "github.com/sirupsen/logrus"
@@ -144,6 +145,7 @@ func (bss *BlocksmithStrategyMain) CalculateSmith(
 
 // GetSmithTime calculate smith time of a blocksmith
 func (bss *BlocksmithStrategyMain) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	elapsedFromLastBlock := (blocksmithIndex + 1) * constant.SmithingStartTimeMain
+	ct := &chaintype.MainChain{}
+	elapsedFromLastBlock := (blocksmithIndex + 1) * ct.GetSmithingPeriod()
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
