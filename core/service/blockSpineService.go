@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -554,6 +553,9 @@ func (bs *BlockSpineService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
+	var (
+		err error
+	)
 	// make sure block has previous block hash
 	if block.PreviousBlockHash == nil {
 		return nil, blocker.NewBlocker(
@@ -561,15 +563,15 @@ func (bs *BlockSpineService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	receiptKey, err := commonUtils.GetReceiptKey(
-		block.BlockHash, senderPublicKey,
-	)
-	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			err.Error(),
-		)
-	}
+	// receiptKey, err := commonUtils.GetReceiptKey(
+	// 	block.BlockHash, senderPublicKey,
+	// )
+	// if err != nil {
+	// 	return nil, blocker.NewBlocker(
+	// 		blocker.BlockErr,
+	// 		err.Error(),
+	// 	)
+	// }
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.BlockHash, block.PreviousBlockHash) {
 		// check if incoming block is of higher quality
@@ -620,37 +622,37 @@ func (bs *BlockSpineService) ReceiveBlock(
 				return nil, err
 			}
 		}
-		// check if already broadcast receipt to this node
-		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
-		if err != nil {
-			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				if err != nil {
-					return nil, err
-				}
-				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-					// invalid block hash don't send receipt to client
-					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
-				}
-				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-					bs.Chaintype,
-					blockHash,
-					lastBlock,
-					senderPublicKey,
-					nodeSecretPhrase,
-					constant.KVdbTableBlockReminderKey+string(receiptKey),
-					constant.ReceiptDatumTypeBlock,
-					bs.Signature,
-					bs.QueryExecutor,
-					bs.KVExecutor,
-				)
-				if err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
-				}
-				return batchReceipt, nil
-			}
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		// // check if already broadcast receipt to this node
+		// _, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+		// if err != nil {
+		// 	if err == badger.ErrKeyNotFound {
+		// 		blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+		// 		if err != nil {
+		// 			return nil, err
+		// 		}
+		// 		if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
+		// 			// invalid block hash don't send receipt to client
+		// 			return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
+		// 		}
+		// 		batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+		// 			bs.Chaintype,
+		// 			blockHash,
+		// 			lastBlock,
+		// 			senderPublicKey,
+		// 			nodeSecretPhrase,
+		// 			constant.KVdbTableBlockReminderKey+string(receiptKey),
+		// 			constant.ReceiptDatumTypeBlock,
+		// 			bs.Signature,
+		// 			bs.QueryExecutor,
+		// 			bs.KVExecutor,
+		// 		)
+		// 		if err != nil {
+		// 			return nil, status.Error(codes.Internal, err.Error())
+		// 		}
+		// 		return batchReceipt, nil
+		// 	}
+		// 	return nil, status.Error(codes.Internal, err.Error())
+		// }
 		return nil, status.Error(codes.InvalidArgument,
 			"previousBlockHashDoesNotMatchWithLastBlockHash",
 		)

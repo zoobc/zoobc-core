@@ -2050,14 +2050,14 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 			mockSpinePublicKey,
 		},
 	}
-	successBlockHash := []byte{197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217,
-		209, 67, 185, 183, 116, 101, 64, 47, 196, 207, 27, 173, 3, 141, 12, 163, 245, 254}
-	mockSpineBlockSuccess := &model.Block{
-		BlockSignature:    []byte{},
-		BlockHash:         successBlockHash,
-		PreviousBlockHash: make([]byte, 32),
-		SpinePublicKeys:   []*model.SpinePublicKey{},
-	}
+	// successBlockHash := []byte{197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217,
+	// 	209, 67, 185, 183, 116, 101, 64, 47, 196, 207, 27, 173, 3, 141, 12, 163, 245, 254}
+	// mockSpineBlockSuccess := &model.Block{
+	// 	BlockSignature:    []byte{},
+	// 	BlockHash:         successBlockHash,
+	// 	PreviousBlockHash: make([]byte, 32),
+	// 	SpinePublicKeys:   []*model.SpinePublicKey{},
+	// }
 
 	mockSpineBlockData.BlockHash = mockSpineGoodLastBlockHash
 
@@ -2154,46 +2154,46 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 			wantErr: true,
 			want:    nil,
 		},
-		{
-			name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor KeyNotFound - generate batch receipt success}",
-			args: args{
-				senderPublicKey:  []byte{1, 3, 4, 5, 6},
-				lastBlock:        mockSpineBlockSuccess,
-				block:            mockSpineBlockSuccess,
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              &mockSpineKVExecutorSuccessKeyNotFound{},
-				QueryExecutor:           &mockSpineQueryExecutorSuccess{},
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.SpineChain{}),
-				SpinePublicKeyQuery:     query.NewSpinePublicKeyQuery(),
-				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
-				TransactionQuery:        nil,
-				Signature:               &mockSpineSignature{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				Observer:                nil,
-				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockSpineBlocksmithService{},
-			},
-			wantErr: false,
-			want: &model.BatchReceipt{
-				SenderPublicKey: []byte{1, 3, 4, 5, 6},
-				RecipientPublicKey: []byte{
-					88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
-					223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
-				},
-				DatumHash:            successBlockHash,
-				DatumType:            constant.ReceiptDatumTypeBlock,
-				ReferenceBlockHeight: 0,
-				ReferenceBlockHash:   successBlockHash,
-				RMRLinked:            nil,
-				RecipientSignature:   []byte{},
-			},
-		},
+		// {
+		// 	name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor KeyNotFound - generate batch receipt success}",
+		// 	args: args{
+		// 		senderPublicKey:  []byte{1, 3, 4, 5, 6},
+		// 		lastBlock:        mockSpineBlockSuccess,
+		// 		block:            mockSpineBlockSuccess,
+		// 		nodeSecretPhrase: "",
+		// 	},
+		// 	fields: fields{
+		// 		Chaintype:               &chaintype.SpineChain{},
+		// 		KVExecutor:              &mockSpineKVExecutorSuccessKeyNotFound{},
+		// 		QueryExecutor:           &mockSpineQueryExecutorSuccess{},
+		// 		BlockQuery:              nil,
+		// 		MempoolQuery:            query.NewMempoolQuery(&chaintype.SpineChain{}),
+		// 		SpinePublicKeyQuery:     query.NewSpinePublicKeyQuery(),
+		// 		MerkleTreeQuery:         query.NewMerkleTreeQuery(),
+		// 		TransactionQuery:        nil,
+		// 		Signature:               &mockSpineSignature{},
+		// 		MempoolService:          nil,
+		// 		ActionTypeSwitcher:      nil,
+		// 		AccountBalanceQuery:     nil,
+		// 		Observer:                nil,
+		// 		NodeRegistrationService: nil,
+		// 		BlocksmithStrategy:      &mockSpineBlocksmithService{},
+		// 	},
+		// 	wantErr: false,
+		// 	want: &model.BatchReceipt{
+		// 		SenderPublicKey: []byte{1, 3, 4, 5, 6},
+		// 		RecipientPublicKey: []byte{
+		// 			88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
+		// 			223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
+		// 		},
+		// 		DatumHash:            successBlockHash,
+		// 		DatumType:            constant.ReceiptDatumTypeBlock,
+		// 		ReferenceBlockHeight: 0,
+		// 		ReferenceBlockHash:   successBlockHash,
+		// 		RMRLinked:            nil,
+		// 		RecipientSignature:   []byte{},
+		// 	},
+		// },
 		{
 			name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor other error - generate batch receipt success}",
 			args: args{
