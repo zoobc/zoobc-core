@@ -577,8 +577,6 @@ func main() {
 		case <-timeout:
 			loggerCoreService.Info("ZOOBC Shutdown timedout...")
 			os.Exit(1)
-		default:
-			time.Sleep(50 * time.Millisecond)
 		}
 
 	}
