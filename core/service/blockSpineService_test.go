@@ -2050,6 +2050,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 			mockSpinePublicKey,
 		},
 	}
+	// TODO: remove this if unused
 	// successBlockHash := []byte{197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217,
 	// 	209, 67, 185, 183, 116, 101, 64, 47, 196, 207, 27, 173, 3, 141, 12, 163, 245, 254}
 	// mockSpineBlockSuccess := &model.Block{

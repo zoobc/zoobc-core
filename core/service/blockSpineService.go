@@ -622,7 +622,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 				return nil, err
 			}
 		}
-		// // check if already broadcast receipt to this node
+		// check if already broadcast receipt to this node
 		// _, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		// if err != nil {
 		// 	if err == badger.ErrKeyNotFound {
