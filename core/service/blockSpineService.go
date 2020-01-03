@@ -775,7 +775,7 @@ func (bs *BlockSpineService) BuildSpinePublicKeysFromNodeRegistry(
 		nodeRegistrations []*model.NodeRegistration
 	)
 	rows, err := bs.QueryExecutor.ExecuteSelect(
-		bs.NodeRegistrationQuery.GetNodeRegistrationsByHeightInterval(fromTimestamp, toTimestamp),
+		bs.NodeRegistrationQuery.GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp),
 		false,
 	)
 	if err != nil {

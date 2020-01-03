@@ -413,9 +413,9 @@ func TestNodeRegistrationQuery_GetActiveNodeRegistrationsByHeight(t *testing.T) 
 	})
 }
 
-func TestNodeRegistrationQuery_GetNodeRegistrationsByHeightInterval(t *testing.T) {
+func TestNodeRegistrationQuery_GetNodeRegistrationsByBlockTimestampInterval(t *testing.T) {
 	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetNodeRegistrationsByHeightInterval(0, 1)
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsByBlockTimestampInterval(0, 1)
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
 			"registration_status, latest, height FROM node_registry WHERE " +
 			"height = (SELECT MIN(height) FROM main_block AS mb1 WHERE mb1.timestamp > 0) AND " +
