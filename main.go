@@ -316,16 +316,6 @@ func startNodeMonitoring() {
 	}
 }
 
-func startSmith(sleepPeriod int, processor smith.BlockchainProcessorInterface) {
-	for {
-		err := processor.StartSmithing()
-		if err != nil {
-			loggerCoreService.Warn("Smith error: ", err.Error())
-		}
-		time.Sleep(time.Duration(sleepPeriod) * time.Millisecond)
-	}
-}
-
 func startMainchain() {
 	var (
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
@@ -570,6 +560,26 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
-	loggerCoreService.Info("ZOOBC Shutdown")
-	os.Exit(0)
+	loggerCoreService.Info("Shutting down node...")
+	mainchainProcessor.Stop()
+	spinechainProcessor.Stop()
+	tick := time.Tick(50 * time.Millisecond)
+	timeout := time.After(5 * time.Second)
+	for {
+		select {
+		case <-tick:
+			mcSmithing, _ := mainchainProcessor.GetBlockChainprocessorStatus()
+			scSmithing, _ := spinechainProcessor.GetBlockChainprocessorStatus()
+			if !mcSmithing && !scSmithing {
+				loggerCoreService.Info("ZOOBC Shutdown complete")
+				os.Exit(0)
+			}
+		case <-timeout:
+			loggerCoreService.Info("ZOOBC Shutdown timedout...")
+			os.Exit(1)
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+
+	}
 }

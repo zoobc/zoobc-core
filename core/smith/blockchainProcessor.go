@@ -17,8 +17,10 @@ type (
 	// BlockchainProcessorInterface represents interface for the blockchain processor's implementations
 	BlockchainProcessorInterface interface {
 		Start(sleepPeriod int)
+		Stop()
 		StartSmithing() error
 		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
+		GetBlockChainprocessorStatus() (isSmithing bool, err error)
 	}
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
@@ -28,6 +30,8 @@ type (
 		LastBlockID  int64
 		canSmith     bool
 		Logger       *log.Logger
+		isSmithing   bool
+		smithError   error
 	}
 )
 
@@ -213,19 +217,35 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 func (bp *BlockchainProcessor) Start(sleepPeriod int) {
 	ticker := time.NewTicker(time.Duration(sleepPeriod) * time.Millisecond)
 	stopSmith = make(chan bool)
-	go func(sleepPeriod int) {
+	go func() {
 		for {
 			select {
 			case <-stopSmith:
 				ticker.Stop()
-				bp.Logger.Infof("Stoppend smithing %s", bp.BlockService.GetChainType().GetName())
+				bp.Logger.Infof("Stopped smithing %s", bp.BlockService.GetChainType().GetName())
+				bp.isSmithing = false
+				bp.smithError = nil
 				return
 			case <-ticker.C:
 				err := bp.StartSmithing()
 				if err != nil {
 					bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
+					bp.isSmithing = false
+					bp.smithError = err
 				}
+				bp.isSmithing = true
+				bp.smithError = nil
 			}
 		}
-	}(sleepPeriod)
+	}()
+}
+
+// Stop stops the blockchainProcessor
+func (*BlockchainProcessor) Stop() {
+	stopSmith <- true
+}
+
+// GetBlockChainprocessorStatus return the smithing status for this blockchain processor
+func (bp *BlockchainProcessor) GetBlockChainprocessorStatus() (isSmithing bool, err error) {
+	return bp.isSmithing, bp.smithError
 }
