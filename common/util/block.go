@@ -21,6 +21,7 @@ func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 		cloneBlock = *block
 	)
 	cloneBlock.BlockHash = nil
+	// TODO: this error should be managed. for now we leave it because it causes a cascade of failures in unit tests..
 	blockByte, _ := GetBlockByte(&cloneBlock, true, ct)
 	_, err := digest.Write(blockByte)
 	if err != nil {

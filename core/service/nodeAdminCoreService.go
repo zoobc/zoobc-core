@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -74,7 +73,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 			return nil, err
 		}
 	}
-	lastBlockHash, err := commonUtils.GetBlockHash(lastBlock, &chaintype.MainChain{})
+	lastBlockHash, err := nas.BlockService.GetBlockHash(lastBlock)
 	if err != nil {
 		return nil, err
 	}

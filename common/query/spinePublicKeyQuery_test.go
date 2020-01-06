@@ -30,7 +30,7 @@ func TestSpinePublicKeyQuery_InsertSpinePublicKey(t *testing.T) {
 		if !bytes.Equal(b, wantArg) {
 			t.Errorf("arg does not match:\nget: %v\nwant: %v", res[0][1], wantArg)
 		}
-		wantQry1 := "INSERT INTO spine_public_key (node_public_key,public_key_action,latest,height) VALUES(? , ?, ?, ?)"
+		wantQry1 := "INSERT INTO spine_public_key (node_public_key,block_id,public_key_action,latest,height) VALUES(? , ?, ?, ?, ?)"
 		if fmt.Sprintf("%v", res[1][0]) != wantQry1 {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res[1][0], wantQry)
 		}
@@ -40,7 +40,7 @@ func TestSpinePublicKeyQuery_InsertSpinePublicKey(t *testing.T) {
 func TestSpinePublicKeyQuery_GetValidSpinePublicKeysByHeightInterval(t *testing.T) {
 	t.Run("GetValidSpinePublicKeysByHeightInterval", func(t *testing.T) {
 		res := mockSpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(0, 100)
-		wantQry := "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+		wantQry := "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key " +
 			"WHERE height >= 0 AND height <= 100 AND public_key_action=0 AND latest=1 ORDER BY height"
 		if res != wantQry {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, wantQry)
@@ -48,18 +48,12 @@ func TestSpinePublicKeyQuery_GetValidSpinePublicKeysByHeightInterval(t *testing.
 	})
 }
 
-func TestSpinePublicKeyQuery_GetSpinePublicKeyByNodePublicKey(t *testing.T) {
-	t.Run("GetSpinePublicKeyByNodePublicKey", func(t *testing.T) {
-		query, args := mockSpinePublicKeyQuery.GetSpinePublicKeyByNodePublicKey(mockSpinePublicKey.NodePublicKey)
-		wantQry := "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
-			"WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1"
-		wantArg := mockSpinePublicKey.NodePublicKey
-		if query != wantQry {
-			t.Errorf("string not match:\nget: %s\nwant: %s", query, wantQry)
-		}
-		b, _ := args[0].([]byte)
-		if !bytes.Equal(b, wantArg) {
-			t.Errorf("arg does not match:\nget: %v\nwant: %v", b, wantArg)
+func TestSpinePublicKeyQuery_GetSpinePublicKeysByBlockID(t *testing.T) {
+	t.Run("GetValidSpinePublicKeysByHeightInterval", func(t *testing.T) {
+		res := mockSpinePublicKeyQuery.GetSpinePublicKeysByBlockID(1)
+		wantQry := "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key WHERE block_id = 1"
+		if res != wantQry {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, wantQry)
 		}
 	})
 }

@@ -319,7 +319,7 @@ func (ps *P2PServerService) GetNextBlocks(
 				if block.ID != blockIDList[idx] {
 					break
 				}
-				spinePublicKeys, err := blockSpineService.GetSpinePublicKeysByHeightInterval(block.Height-1, block.Height)
+				spinePublicKeys, err := blockSpineService.GetSpinePublicKeysByBlockID(block.ID)
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
 				}
