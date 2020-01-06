@@ -44,9 +44,10 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 		//
 		// added nil check to make sure that transactions for this block have been populated, even if there are none (empty slice).
 		// if block object doesn't have transactions populated (GetTransactions() = nil), block hash validation will fail later on
-		// if block.GetTransactions() == nil {
-		// 	return nil, blocker.NewBlocker(blocker.BlockErr, "main block transactions is nil")
-		// }
+		// todo: this is temporary solution as proto seems to modify empty slice of pointer to nil
+		if block.GetTransactions() == nil {
+			block.Transactions = make([]*model.Transaction, 0)
+		}
 		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
 	case *chaintype.SpineChain:
 		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
