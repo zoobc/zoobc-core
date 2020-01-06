@@ -743,6 +743,17 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	return lastBlock, nil
 }
 
+// GetBlockHash return block's hash (makes sure always include transactions)
+func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
+	transactions, err := bs.GetTransactionsByBlockID(block.ID)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.Transactions = transactions
+	return commonUtils.GetBlockHash(block, bs.GetChainType())
+
+}
+
 // GetTransactionsByBlockID get transactions of the block
 func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
 	var transactions []*model.Transaction
@@ -1095,10 +1106,14 @@ func (bs *BlockService) ReceiveBlock(
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				if err != nil {
-					return nil, err
-				}
+				// FIXME: @iltoga @ali block hash of the received block should be recomputed for safety reasons
+				//		  the code below has been disabled because as of now, if the received block doesn't contain transactions
+				//		  we always get an error and as a consequence bc never sync with other peers
+				blockHash := block.GetBlockHash()
+				// blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+				// if err != nil {
+				// 	return nil, err
+				// }
 				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
 					// invalid block hash don't send receipt to client
 					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
