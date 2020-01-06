@@ -66,7 +66,6 @@ func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model
 		if err != nil {
 			return nil, err
 		}
-		// TODO: do we need it? Node order in mainchain is used to sort blocksmiths who are rewarded
 		// FIXME: ask @barton how to compute or assign a score to spine blocksmiths, since we don't have any participation score?
 		//		  at the moment we always assign a default score to all blocksmiths
 		blocksmith.Score = big.NewInt(constant.DefaultParticipationScore)

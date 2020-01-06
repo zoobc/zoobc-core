@@ -73,7 +73,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 			return nil, err
 		}
 	}
-	lastBlockHash, err := nas.BlockService.GetBlockHash(lastBlock)
+	lastBlockHash, err := commonUtils.GetBlockHash(lastBlock, nas.BlockService.GetChainType())
 	if err != nil {
 		return nil, err
 	}

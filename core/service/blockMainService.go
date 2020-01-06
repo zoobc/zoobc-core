@@ -1110,14 +1110,10 @@ func (bs *BlockService) ReceiveBlock(
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
-				// FIXME: @iltoga @ali block hash of the received block should be recomputed for safety reasons
-				//		  the code below has been disabled because as of now, if the received block doesn't contain transactions
-				//		  we always get an error and as a consequence bc never sync with other peers
-				blockHash := block.GetBlockHash()
-				// blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				// if err != nil {
-				// 	return nil, err
-				// }
+				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+				if err != nil {
+					return nil, err
+				}
 				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
 					// invalid block hash don't send receipt to client
 					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")

@@ -121,9 +121,11 @@ func (spkq *SpinePublicKeyQuery) BuildBlocksmith(
 			nodeStatus int64
 			height     uint32
 			latest     bool
+			blockID    int64
 		)
 		err := rows.Scan(
 			&blocksmith.NodePublicKey,
+			&blockID,
 			&nodeStatus,
 			&latest,
 			&height,

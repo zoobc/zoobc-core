@@ -39,18 +39,24 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
 	switch ct.(type) {
 	case *chaintype.MainChain:
+		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
+		// instead of an empty array when there aren't transactions
+		//
 		// added nil check to make sure that transactions for this block have been populated, even if there are none (empty slice).
 		// if block object doesn't have transactions populated (GetTransactions() = nil), block hash validation will fail later on
-		if block.GetTransactions() == nil {
-			return nil, blocker.NewBlocker(blocker.BlockErr, "main block transactions is nil")
-		}
+		// if block.GetTransactions() == nil {
+		// 	return nil, blocker.NewBlocker(blocker.BlockErr, "main block transactions is nil")
+		// }
 		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
 	case *chaintype.SpineChain:
+		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
+		// instead of an empty array when there aren't transactions
+		//
 		// added nil check to make sure that spine public keys for this block have been populated, even if there are none (empty slice).
 		// if block object doesn't have spine pub keys populated (GetSpinePublicKeys() = nil), block hash validation will fail later on
-		if block.GetSpinePublicKeys() == nil {
-			return nil, blocker.NewBlocker(blocker.BlockErr, "spine block public keys is nil")
-		}
+		// if block.GetSpinePublicKeys() == nil {
+		// 	return nil, blocker.NewBlocker(blocker.BlockErr, "spine block public keys is nil")
+		// }
 		buffer.Write(ConvertIntToBytes(len(block.GetSpinePublicKeys())))
 	}
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))

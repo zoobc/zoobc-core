@@ -59,12 +59,14 @@ func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			[]string{
 				"node_public_key",
+				"block_id",
 				"public_key_action",
 				"latest",
 				"height",
 			},
 		).AddRow(
 			bssMockBlocksmiths[0].NodePublicKey,
+			0,
 			uint32(model.SpinePublicKeyAction_AddKey),
 			true,
 			uint32(1),
@@ -239,34 +241,34 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 				},
 			},
 		},
-		// {
-		// 	name: "GetBlocksmiths:fail-{sqlSelectErr}",
-		// 	fields: fields{
-		// 		QueryExecutor:        &mockQueryGetBlocksmithsSpineFail{},
-		// 		SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
-		// 		Logger:               log.New(),
-		// 		SortedBlocksmiths:    nil,
-		// 		SortedBlocksmithsMap: make(map[string]*int64),
-		// 		LastSortedBlockID:    1,
-		// 	},
-		// 	args:    args{mockBlock},
-		// 	wantErr: true,
-		// 	want:    nil,
-		// },
-		// {
-		// 	name: "GetBlocksmiths:fail-{noSpinePublicKeyFound}",
-		// 	fields: fields{
-		// 		QueryExecutor:        &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
-		// 		SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
-		// 		Logger:               log.New(),
-		// 		SortedBlocksmiths:    nil,
-		// 		SortedBlocksmithsMap: make(map[string]*int64),
-		// 		LastSortedBlockID:    1,
-		// 	},
-		// 	args:    args{mockBlock},
-		// 	wantErr: false,
-		// 	want:    nil,
-		// },
+		{
+			name: "GetBlocksmiths:fail-{sqlSelectErr}",
+			fields: fields{
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineFail{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
+			},
+			args:    args{mockBlock},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "GetBlocksmiths:fail-{noSpinePublicKeyFound}",
+			fields: fields{
+				QueryExecutor:        &mockQueryGetBlocksmithsSpineSuccessNoBlocksmith{},
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				Logger:               log.New(),
+				SortedBlocksmiths:    nil,
+				SortedBlocksmithsMap: make(map[string]*int64),
+				LastSortedBlockID:    1,
+			},
+			args:    args{mockBlock},
+			wantErr: false,
+			want:    nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
