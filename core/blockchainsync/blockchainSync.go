@@ -56,6 +56,7 @@ func NewBlockchainSyncService(
 			ActionTypeSwitcher: txActionSwitcher,
 			MempoolService:     mempoolService,
 			KVExecutor:         kvdb,
+			PeerExplorer:       peerExplorer,
 			Logger:             logger,
 		},
 		Logger: logger,
