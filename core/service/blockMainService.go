@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
@@ -695,6 +696,9 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	if err = bs.BlockQuery.Scan(&block, row); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
+		}
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
 	}
 
