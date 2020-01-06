@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,7 +19,7 @@ import (
 
 type (
 	P2PServerServiceInterface interface {
-		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error)
+		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error)
 		SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error)
 		GetCumulativeDifficulty(
@@ -80,9 +81,10 @@ func NewP2PServerService(
 	}
 }
 
-func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		return ps.PeerExplorer.GetHostInfo(), nil
+
+		return &model.GetPeerInfoResponse{PeerInfo: ps.PeerExplorer.GetHostInfo()}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
@@ -105,6 +107,7 @@ func (ps *P2PServerService) SendPeers(
 	ctx context.Context,
 	peers []*model.Node,
 ) (*model.Empty, error) {
+	fmt.Printf("ctx : %v\n", ctx)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: only accept nodes that are already registered in the node registration
 		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
