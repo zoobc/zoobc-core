@@ -226,7 +226,7 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 	return peerIndex <= hostEndPeerIndex
 }
 
-// ValidateRequest, to validate incoming request based on metadata in context and Priority strategy
+//ValidateRequest , to validate incoming request based on metadata in context and Priority strategy
 func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 	if ctx != nil {
 		md, _ := metadata.FromIncomingContext(ctx)
@@ -239,11 +239,11 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				return false
 			}
 			scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+			fmt.Printf("scrambled node: %v\n", scrambledNodes)
 			if err != nil {
 				ps.Logger.Errorf("FailGetScrambleNodesByHeight: %v", err)
 				return false
 			}
-
 			// Check host in scramble nodes
 			if ps.ValidateScrambleNode(scrambledNodes, ps.Host.GetInfo()) {
 				var (
@@ -253,13 +253,13 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 					exceedUnresolvedPeers = ps.GetExceedMaxUnresolvedPeers()
 					blacklistedPeers      = ps.GetBlacklistedPeers()
 				)
+
 				// add into unresolved peers if any space
 				if (exceedUnresolvedPeers < 1) && (resolvedPeers[fullAddress] == nil) && (blacklistedPeers[fullAddress] == nil) {
 					if err := ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
 						ps.Logger.Warn(err.Error())
 					}
 				}
-
 				// Check host is in priority peer list of requester
 				// Or requester is in priority peers of host
 				// Or requester is in resolved peers of host

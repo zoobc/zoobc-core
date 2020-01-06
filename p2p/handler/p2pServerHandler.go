@@ -23,7 +23,7 @@ func NewP2PServerHandler(
 }
 
 // GetPeerInfo to return info of this host
-func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
 	return ss.Service.GetPeerInfo(ctx, req)
 }
 

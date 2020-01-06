@@ -9,6 +9,8 @@ nodeKeyFile = "node_keys_2.json"
 peerPort=8002
 myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8001"]
+Version = "0.1.31"
+CodeName = "ZooBC-Alpha"
 
 apiRPCPort=3002
 apiHTTPPort=3032
@@ -21,7 +23,7 @@ smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-logLevels=["fatal", "error", "panic"]
+logLevels=["fatal", "error", "panic","info"]
 
 apiapiCertFile="./resource/network.crt"
 apiKeyFile="./resource/network.key"

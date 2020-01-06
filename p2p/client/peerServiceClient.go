@@ -23,7 +23,7 @@ import (
 type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
-		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
+		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
 		SendBlock(
@@ -173,7 +173,7 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 }
 
 // GetPeerInfo to get Peer info
-func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
+func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error) {
 	// add a copy to avoid pointer delete
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -191,7 +191,10 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 	res, err := p2pClient.GetPeerInfo(
 		ctx,
 		&model.GetPeerInfoRequest{
-			Version: "v1,.0.1",
+			HostInfo: &model.Node{
+				Version:  "1.0",
+				CodeName: "BCZ-Alpha",
+			},
 		},
 	)
 	if err != nil {

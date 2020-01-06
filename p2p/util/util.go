@@ -84,8 +84,10 @@ func GetNodeInfo(fullAddress string) *model.Node {
 	var (
 		splittedAddress = strings.Split(fullAddress, ":")
 		node            = &model.Node{
-			Address: splittedAddress[0],
-			Port:    uint32(viper.GetInt("peerPort")),
+			Address:  splittedAddress[0],
+			Port:     uint32(viper.GetInt("peerPort")),
+			Version:  viper.GetString("Version"),
+			CodeName: viper.GetString("CodeName"),
 		}
 	)
 	if len(splittedAddress) != 1 {
