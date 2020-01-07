@@ -17,7 +17,7 @@ import (
 )
 
 /*
-NewServerInterceptor function can use to inject middlewares like:
+NewServerInterceptor function can use to inject middleware like:
 	- `recover`
 	- `log` triggered
 	- validate `authentication` if needed
@@ -176,6 +176,8 @@ func authRequest(ctx context.Context, method, ownerAddress string) error {
 		requestType = model.RequestType_GetProofOfOwnership
 	case "/service.NodeAdminService/GenerateNodeKey":
 		requestType = model.RequestType_GeneratetNodeKey
+	case "/service.AccountLedgerService/GetAccountLedgers":
+		requestType = model.RequestType_GetAccountLedgers
 	default:
 		// unprotected service, by pass the auth checking
 		requestType = -1

@@ -40,7 +40,7 @@ func startGrpcServer(
 
 	chainType := chaintype.GetChainType(0)
 
-	// load/enaple TLS over grpc
+	// load/enable TLS over grpc
 	creds, err := credentials.NewServerTLSFromFile(apiCertFile, apiKeyFile)
 	if err != nil {
 		logger.Infof("Failed to generate credentials %v. TLS encryption won't be enabled for grpc api", err)
@@ -129,6 +129,11 @@ func startGrpcServer(
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
 		Service: service.NewNodeRegistryService(queryExecutor),
 	})
+
+	// Set GRPC handler for account ledger request
+	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
+		Service: service.NewAccountLederService(queryExecutor),
+	})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -183,6 +188,7 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterNodeRegistrationServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }
