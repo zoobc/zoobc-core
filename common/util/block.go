@@ -32,7 +32,7 @@ func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
-//TODO: Abstract this method is BlockCoreService or ChainType to decouple business logic from block type
+//TODO: Abstract this method in BlockCoreService or ChainType to decouple business logic from block type
 func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(ConvertUint32ToBytes(block.GetVersion()))
