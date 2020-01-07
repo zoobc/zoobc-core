@@ -765,6 +765,11 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		}
 	}
 
+	err = bs.QueryExecutor.CommitTx()
+	if err != nil {
+		return nil, err
+	}
+
 	return poppedBlocks, nil
 }
 

@@ -49,3 +49,7 @@ func (*MainChain) GetGenesisBlockTimestamp() int64 {
 func (*MainChain) GetGenesisBlockSignature() []byte {
 	return constant.MainchainGenesisBlockSignature
 }
+
+func (*MainChain) HasTransactions() bool {
+	return true
+}

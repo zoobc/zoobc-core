@@ -3448,6 +3448,8 @@ func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx 
 				mockSpinePublicKey.Latest,
 				mockSpinePublicKey.Height,
 			))
+	default:
+		return nil, fmt.Errorf("unmocked sql query in mockSpineExecutorPopulateBlockDataSuccess: %s", qStr)
 	}
 	rows, _ := db.Query(qStr)
 	return rows, nil
