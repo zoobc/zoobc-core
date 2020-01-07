@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -284,6 +285,9 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 			fields: fields{
 				BlockService: &blockServiceMocked{
 					height: 1,
+					BlockService: BlockService{
+						Chaintype: &chaintype.MainChain{},
+					},
 				},
 				FilePath: "testdata/node_keys.json",
 			},
@@ -308,6 +312,9 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 			fields: fields{
 				BlockService: &blockServiceMocked{
 					height: 11,
+					BlockService: BlockService{
+						Chaintype: &chaintype.MainChain{},
+					},
 				},
 				FilePath: "testdata/node_keys.json",
 			},

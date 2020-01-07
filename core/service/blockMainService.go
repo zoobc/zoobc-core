@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
@@ -695,6 +696,9 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	if err = bs.BlockQuery.Scan(&block, row); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
+		}
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
 	}
 
@@ -741,6 +745,17 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	}
 	lastBlock.Transactions = transactions
 	return lastBlock, nil
+}
+
+// GetBlockHash return block's hash (makes sure always include transactions)
+func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
+	transactions, err := bs.GetTransactionsByBlockID(block.ID)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.Transactions = transactions
+	return commonUtils.GetBlockHash(block, bs.GetChainType())
+
 }
 
 // GetTransactionsByBlockID get transactions of the block
