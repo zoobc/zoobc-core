@@ -5,6 +5,8 @@ func GetChainType(ctNum int32) ChainType {
 	switch ctNum {
 	case 0:
 		return &MainChain{}
+	case 1:
+		return &SpineChain{}
 	default:
 		return &MainChain{}
 	}

@@ -31,10 +31,7 @@ type (
 		NewSpineBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
 			previousBlockHeight uint32, timestamp int64, blockSpinePublicKeys []*model.SpinePublicKey,
 			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
-		GetSpinePublicKeysByHeightInterval(
-			fromHeigth,
-			toHeigth uint32,
-		) (spinePublicKeys []*model.SpinePublicKey, err error)
+		GetValidSpinePublicKeysByBlockID(blockID int64) (spinePublicKeys []*model.SpinePublicKey, err error)
 		BuildSpinePublicKeysFromNodeRegistry(
 			fromTimestamp,
 			toTimestamp int64,
@@ -323,7 +320,7 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 
 	if block.ID != 0 {
 		if withAttachedData {
-			spinePublicKeys, err := bs.GetSpinePublicKeysByHeightInterval(0, block.Height)
+			spinePublicKeys, err := bs.GetSpinePublicKeysByBlockID(block.ID)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
@@ -358,12 +355,23 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.GetSpinePublicKeysByHeightInterval(0, lastBlock.Height)
+	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockID(lastBlock.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	lastBlock.SpinePublicKeys = spinePublicKeys
 	return lastBlock, nil
+}
+
+// GetBlockHash return block's hash (makes sure always include spine public keys)
+func (bs *BlockSpineService) GetBlockHash(block *model.Block) ([]byte, error) {
+	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockID(block.ID)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.SpinePublicKeys = spinePublicKeys
+	return commonUtils.GetBlockHash(block, bs.GetChainType())
+
 }
 
 // GetLastBlock return the last pushed block
@@ -373,7 +381,7 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.GetSpinePublicKeysByHeightInterval(0, height)
+	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockID(block.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -749,15 +757,11 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	return poppedBlocks, nil
 }
 
-func (bs *BlockSpineService) GetSpinePublicKeysByHeightInterval(
-	fromHeigth,
-	toHeigth uint32,
-) (spinePublicKeys []*model.SpinePublicKey, err error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth), false)
+func (bs *BlockSpineService) GetSpinePublicKeysByBlockID(blockID int64) (spinePublicKeys []*model.SpinePublicKey, err error) {
+	rows, err := bs.QueryExecutor.ExecuteSelect(bs.SpinePublicKeyQuery.GetSpinePublicKeysByBlockID(blockID), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
 
 	spinePublicKeys, err = bs.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
 	if err != nil {

@@ -32,6 +32,7 @@ type (
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
+		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
 		GetGenesisBlock() (*model.Block, error)
 		GenerateGenesisBlock(genesisEntries []constant.GenesisConfigEntry) (*model.Block, error)

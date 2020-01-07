@@ -485,7 +485,7 @@ func startSpinechain() {
 
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
-	if len(nodeSecretPhrase) > 0 {
+	if len(nodeSecretPhrase) > 0 && smithing {
 		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
 		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
 		nodeID = int64(binary.LittleEndian.Uint64(nodePublicKey))
@@ -561,15 +561,25 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
 	loggerCoreService.Info("Shutting down node...")
-	mainchainProcessor.Stop()
-	spinechainProcessor.Stop()
+	if mainchainProcessor != nil {
+		mainchainProcessor.Stop()
+	}
+	if spinechainProcessor != nil {
+		spinechainProcessor.Stop()
+	}
 	tick := time.Tick(50 * time.Millisecond)
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
 		case <-tick:
-			mcSmithing, _ := mainchainProcessor.GetBlockChainprocessorStatus()
-			scSmithing, _ := spinechainProcessor.GetBlockChainprocessorStatus()
+			mcSmithing := false
+			scSmithing := false
+			if mainchainProcessor != nil {
+				mcSmithing, _ = mainchainProcessor.GetBlockChainprocessorStatus()
+			}
+			if spinechainProcessor != nil {
+				scSmithing, _ = spinechainProcessor.GetBlockChainprocessorStatus()
+			}
 			if !mcSmithing && !scSmithing {
 				loggerCoreService.Info("ZOOBC Shutdown complete")
 				os.Exit(0)

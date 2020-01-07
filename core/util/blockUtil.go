@@ -51,6 +51,7 @@ func CalculateCumulativeDifficulty(
 // return the assigned ID if assigned
 func GetBlockID(block *model.Block, ct chaintype.ChainType) int64 {
 	if block.ID == 0 {
+		// Attention! make sure we have the full block data here (block + transactions/spine pub keys, etc...)
 		hash, err := commonUtils.GetBlockHash(block, ct)
 		if err != nil {
 			return 0
