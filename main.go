@@ -576,6 +576,7 @@ func main() {
 	startScheduler()
 	go startBlockchainSyncronizers()
 
+	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
@@ -586,11 +587,11 @@ func main() {
 	if spinechainProcessor != nil {
 		spinechainProcessor.Stop()
 	}
-	tick := time.Tick(50 * time.Millisecond)
+	ticker := time.NewTicker(50 * time.Millisecond)
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
-		case <-tick:
+		case <-ticker.C:
 			mcSmithing := false
 			scSmithing := false
 			if mainchainProcessor != nil {
@@ -600,13 +601,16 @@ func main() {
 				scSmithing, _ = spinechainProcessor.GetBlockChainprocessorStatus()
 			}
 			if !mcSmithing && !scSmithing {
-				loggerCoreService.Info("ZOOBC Shutdown complete")
-				os.Exit(0)
+				ticker.Stop()
+				shutdownCompleted <- true
+				loggerCoreService.Info("All smith processors have stopped")
 			}
 		case <-timeout:
 			loggerCoreService.Info("ZOOBC Shutdown timedout...")
 			os.Exit(1)
+		case <-shutdownCompleted:
+			loggerCoreService.Info("ZOOBC Shutdown complete")
+			os.Exit(0)
 		}
-
 	}
 }
