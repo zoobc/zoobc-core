@@ -34,6 +34,7 @@ type (
 		GetLastBlock() (*model.Block, error)
 		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
+		PopulateBlockData(block *model.Block) error
 		GetGenesisBlock() (*model.Block, error)
 		GenerateGenesisBlock(genesisEntries []constant.GenesisConfigEntry) (*model.Block, error)
 		AddGenesis() error

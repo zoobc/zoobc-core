@@ -3929,3 +3929,173 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockMainExecutorPopulateBlockDataFail struct {
+		query.Executor
+	}
+	mockMainExecutorPopulateBlockDataSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockMainExecutorPopulateBlockDataFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("Mock Error")
+}
+
+func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mockMain, _ := sqlmock.New()
+	defer db.Close()
+	switch qStr {
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
+		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
+		"transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
+		mockMain.ExpectQuery(regexp.QuoteMeta(qStr)).
+			WillReturnRows(sqlmock.NewRows(
+				query.NewTransactionQuery(&chaintype.MainChain{}).Fields,
+			).AddRow(
+				mockTransaction.ID,
+				mockTransaction.BlockID,
+				mockTransaction.Height,
+				mockTransaction.SenderAccountAddress,
+				mockTransaction.RecipientAccountAddress,
+				mockTransaction.TransactionType,
+				mockTransaction.Fee,
+				mockTransaction.Timestamp,
+				mockTransaction.TransactionHash,
+				mockTransaction.TransactionBodyLength,
+				mockTransaction.TransactionBodyBytes,
+				mockTransaction.Signature,
+				mockTransaction.Version,
+				mockTransaction.TransactionIndex,
+			))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
+		mockMain.ExpectQuery(regexp.QuoteMeta(qStr)).
+			WillReturnRows(sqlmock.NewRows(
+				query.NewPublishedReceiptQuery().Fields,
+			).AddRow(
+				mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
+				mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
+				mockPublishedReceipt[0].BatchReceipt.DatumType,
+				mockPublishedReceipt[0].BatchReceipt.DatumHash,
+				mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
+				mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
+				mockPublishedReceipt[0].BatchReceipt.RMRLinked,
+				mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+				mockPublishedReceipt[0].IntermediateHashes,
+				mockPublishedReceipt[0].BlockHeight,
+				mockPublishedReceipt[0].ReceiptIndex,
+				mockPublishedReceipt[0].PublishedIndex,
+			))
+
+	}
+	rows, _ := db.Query(qStr)
+	return rows, nil
+}
+
+func TestBlockMainService_PopulateBlockData(t *testing.T) {
+	type fields struct {
+		Chaintype               chaintype.ChainType
+		KVExecutor              kvdb.KVExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		Observer                *observer.Observer
+		Logger                  *log.Logger
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		expects *model.Block
+	}{
+		{
+			name: "PopulateBlockData:fail-{dbErr}",
+			fields: fields{
+				Chaintype:             &chaintype.SpineChain{},
+				QueryExecutor:         &mockMainExecutorPopulateBlockDataFail{},
+				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				Logger:                logrus.New(),
+			},
+			args: args{
+				block: &model.Block{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "PopulateBlockData:success",
+			fields: fields{
+				Chaintype:             &chaintype.SpineChain{},
+				QueryExecutor:         &mockMainExecutorPopulateBlockDataSuccess{},
+				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				Logger:                logrus.New(),
+			},
+			args: args{
+				block: &model.Block{
+					ID: int64(-1701929749060110283),
+				},
+			},
+			wantErr: false,
+			expects: &model.Block{
+				ID: int64(-1701929749060110283),
+				Transactions: []*model.Transaction{
+					mockTransaction,
+				},
+				PublishedReceipts: []*model.PublishedReceipt{
+					mockPublishedReceipt[0],
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:               tt.fields.Chaintype,
+				KVExecutor:              tt.fields.KVExecutor,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ReceiptService:          tt.fields.ReceiptService,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				Observer:                tt.fields.Observer,
+				Logger:                  tt.fields.Logger,
+			}
+			if err := bs.PopulateBlockData(tt.args.block); (err != nil) != tt.wantErr {
+				t.Errorf("BlockMainService.PopulateBlockData() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.expects != nil && !reflect.DeepEqual(tt.args.block, tt.expects) {
+				t.Errorf("BlockMainService.PopulateBlockData() = %v, want %v", tt.expects, tt.args.block)
+			}
+		})
+	}
+}

@@ -423,6 +423,17 @@ func (bs *BlockSpineService) GetBlocks() ([]*model.Block, error) {
 	return blocks, nil
 }
 
+// PopulateBlockData add spine public keys to model.Block instance
+func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
+	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockID(block.ID)
+	if err != nil {
+		bs.Logger.Errorln(err)
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
+	}
+	block.SpinePublicKeys = spinePublicKeys
+	return nil
+}
+
 // GenerateBlock generate block from transactions in mempool
 func (bs *BlockSpineService) GenerateBlock(
 	previousBlock *model.Block,

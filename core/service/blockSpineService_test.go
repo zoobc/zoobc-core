@@ -3418,3 +3418,119 @@ func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockSpineExecutorPopulateBlockDataFail struct {
+		query.Executor
+	}
+	mockSpineExecutorPopulateBlockDataSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockSpineExecutorPopulateBlockDataFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("Mock Error")
+}
+
+func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mockSpine, _ := sqlmock.New()
+	defer db.Close()
+	switch qStr {
+	case "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key " +
+		"WHERE block_id = -1701929749060110283":
+		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).
+			WillReturnRows(sqlmock.NewRows(
+				query.NewSpinePublicKeyQuery().Fields,
+			).AddRow(
+				mockSpinePublicKey.NodePublicKey,
+				mockSpinePublicKey.BlockID,
+				mockSpinePublicKey.PublicKeyAction,
+				mockSpinePublicKey.Latest,
+				mockSpinePublicKey.Height,
+			))
+	}
+	rows, _ := db.Query(qStr)
+	return rows, nil
+}
+
+func TestBlockSpineService_PopulateBlockData(t *testing.T) {
+	type fields struct {
+		Chaintype             chaintype.ChainType
+		KVExecutor            kvdb.KVExecutorInterface
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
+		Signature             crypto.SignatureInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
+		Observer              *observer.Observer
+		Logger                *log.Logger
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		expects *model.Block
+	}{
+		{
+			name: "PopulateBlockData:fail-{dbErr}",
+			fields: fields{
+				Chaintype:           &chaintype.SpineChain{},
+				QueryExecutor:       &mockSpineExecutorPopulateBlockDataFail{},
+				SpinePublicKeyQuery: query.NewSpinePublicKeyQuery(),
+				Logger:              logrus.New(),
+			},
+			args: args{
+				block: &model.Block{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "PopulateBlockData:success",
+			fields: fields{
+				Chaintype:           &chaintype.SpineChain{},
+				QueryExecutor:       &mockSpineExecutorPopulateBlockDataSuccess{},
+				SpinePublicKeyQuery: query.NewSpinePublicKeyQuery(),
+				Logger:              logrus.New(),
+			},
+			args: args{
+				block: &model.Block{
+					ID: int64(-1701929749060110283),
+				},
+			},
+			wantErr: false,
+			expects: &model.Block{
+				ID: int64(-1701929749060110283),
+				SpinePublicKeys: []*model.SpinePublicKey{
+					mockSpinePublicKey,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockSpineService{
+				Chaintype:             tt.fields.Chaintype,
+				KVExecutor:            tt.fields.KVExecutor,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
+				Signature:             tt.fields.Signature,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
+				Observer:              tt.fields.Observer,
+				Logger:                tt.fields.Logger,
+			}
+			if err := bs.PopulateBlockData(tt.args.block); (err != nil) != tt.wantErr {
+				t.Errorf("BlockSpineService.PopulateBlockData() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.expects != nil && !reflect.DeepEqual(tt.args.block, tt.expects) {
+				t.Errorf("BlockSpineService.PopulateBlockData() = %v, want %v", tt.expects, tt.args.block)
+			}
+		})
+	}
+}
