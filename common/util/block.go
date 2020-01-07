@@ -47,6 +47,7 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 		// todo: this is temporary solution as proto seems to modify empty slice of pointer to nil
 		if block.GetTransactions() == nil {
 			block.Transactions = make([]*model.Transaction, 0)
+			// @iltoga uncommend this when above is ready
 			// return nil, blocker.NewBlocker(blocker.BlockErr, "block transactions field is nil")
 		}
 		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
@@ -58,6 +59,7 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 		// if block object doesn't have spine pub keys populated (GetSpinePublicKeys() = nil), block hash validation will fail later on
 		if block.GetSpinePublicKeys() == nil {
 			block.SpinePublicKeys = make([]*model.SpinePublicKey, 0)
+			// @iltoga uncommend this when above is ready
 			// return nil, blocker.NewBlocker(blocker.BlockErr, "block spinePublicKeys field is nil")
 		}
 		buffer.Write(ConvertIntToBytes(len(block.GetSpinePublicKeys())))
