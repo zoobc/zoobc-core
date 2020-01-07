@@ -284,7 +284,10 @@ func (ps *P2PServerService) GetNextBlocks(
 			if block.ID != blockIDList[idx] {
 				break
 			}
-			ps.BlockServices[chainType.GetTypeInt()].PopulateBlockData(block)
+			err = ps.BlockServices[chainType.GetTypeInt()].PopulateBlockData(block)
+			if err != nil {
+				return nil, err
+			}
 			blocksMessage = append(blocksMessage, block)
 		}
 
