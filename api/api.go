@@ -132,7 +132,7 @@ func startGrpcServer(
 
 	// Set GRPC handler for account ledger request
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
-		Service: service.NewAccountLederService(queryExecutor),
+		Service: service.NewAccountLedgerService(queryExecutor),
 	})
 	// run grpc-gateway handler
 	go func() {

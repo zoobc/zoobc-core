@@ -204,7 +204,8 @@ func authRequest(ctx context.Context, method, ownerAddress string) error {
 		err := crypto.VerifyAuthAPI(
 			ownerAddress,
 			authSlice[0],
-			requestType)
+			requestType,
+		)
 		if err != nil {
 			return err
 		}

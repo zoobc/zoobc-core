@@ -19,5 +19,5 @@ func (al *AccountLedgerHandler) GetAccountLedgers(
 	ctx context.Context,
 	request *model.GetAccountLedgersRequest,
 ) (*model.GetAccountLedgersResponse, error) {
-	return al.GetAccountLedgers(ctx, request)
+	return al.Service.GetAccountLedgers(request)
 }

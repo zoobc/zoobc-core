@@ -48,7 +48,7 @@ func (*mockQueryAccountLedgersSuccess) ExecuteSelect(qStr string, tx bool, args 
 		mockAccountLedger.GetEventType(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(rowsMock)
-	return db.Query(qStr)
+	return db.Query(qStr, args...)
 }
 
 func TestAccountLedgerService_GetAccountLedgers(t *testing.T) {
@@ -73,6 +73,11 @@ func TestAccountLedgerService_GetAccountLedgers(t *testing.T) {
 			args: args{
 				request: &model.GetAccountLedgersRequest{
 					AccountAddress: mockAccountLedger.GetAccountAddress(),
+					Pagination: &model.Pagination{
+						Limit:      30,
+						OrderField: "account_address",
+						OrderBy:    model.OrderBy_DESC,
+					},
 				},
 			},
 			want: &model.GetAccountLedgersResponse{

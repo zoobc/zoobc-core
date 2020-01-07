@@ -21,7 +21,8 @@ type (
 	}
 )
 
-func NewAccountLederService(executorInterface query.ExecutorInterface) *AccountLedgerService {
+// NewAccountLedgerService create instance of AccountLedgerService
+func NewAccountLedgerService(executorInterface query.ExecutorInterface) *AccountLedgerService {
 	return &AccountLedgerService{
 		Query: executorInterface,
 	}
@@ -50,6 +51,13 @@ func (al *AccountLedgerService) GetAccountLedgers(
 	caseQuery.Select(ledgerQuery.TableName, ledgerQuery.Fields...)
 	if request.GetAccountAddress() != "" {
 		caseQuery.Where(caseQuery.Equal("account_address", request.GetAccountAddress()))
+	}
+
+	if request.GetTransactionID() > 0 {
+		caseQuery.Where(caseQuery.Equal("transaction_id", request.GetTransactionID()))
+	}
+	if request.GetEventType() != model.EventType_EventAny {
+		caseQuery.Where(caseQuery.Equal("event_type", request.GetEventType()))
 	}
 
 	selectQuery, args = caseQuery.Build()
