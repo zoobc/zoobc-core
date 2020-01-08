@@ -832,6 +832,9 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 ) (spinePublicKeys []*model.SpinePublicKey) {
 	spinePublicKeys = make([]*model.SpinePublicKey, 0)
 	for _, mainchainGenesisEntry := range genesisEntries {
+		if mainchainGenesisEntry.NodePublicKey == nil {
+			continue
+		}
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,
 			PublicKeyAction: model.SpinePublicKeyAction_AddKey,
