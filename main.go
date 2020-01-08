@@ -532,8 +532,8 @@ func startScheduler() {
 
 func startBlockchainSyncronizers() {
 	go spinechainSynchronizer.Start()
-	ticker := time.NewTicker(600 * time.Second)
-	timeout := time.After(20 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
+	timeout := time.After(60 * time.Second)
 syncronizersLoop:
 	for {
 		select {
