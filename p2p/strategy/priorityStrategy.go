@@ -255,12 +255,6 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 					isAddedToUnresolved = false
 				)
 
-<<<<<<< HEAD
-				// add into unresolved peers if any space
-				if (exceedUnresolvedPeers < 1) && (resolvedPeers[fullAddress] == nil) && (blacklistedPeers[fullAddress] == nil) {
-					if err := ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
-						ps.Logger.Warn(err.Error())
-=======
 				if unresolvedPeers[fullAddress] == nil && blacklistedPeers[fullAddress] == nil {
 					for _, peer := range unresolvedPeers {
 						// add peer requester into unresolved and remove the old one in unresolved peers
@@ -278,7 +272,6 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 								break
 							}
 						}
->>>>>>> 1ff243ac92939e1f3805cd40c9c0100b19bd0965
 					}
 				}
 				// Check host is in priority peer list of requester
