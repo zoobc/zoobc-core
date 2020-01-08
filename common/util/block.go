@@ -50,6 +50,7 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 			// @iltoga uncommend this when above is ready
 			// return nil, blocker.NewBlocker(blocker.BlockErr, "block transactions field is nil")
 		}
+		//FIXME: refactor this code to get the total transactions bytes length instead of counting transactions in the block
 		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
 	case *chaintype.SpineChain:
 		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
@@ -62,6 +63,7 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 			// @iltoga uncommend this when above is ready
 			// return nil, blocker.NewBlocker(blocker.BlockErr, "block spinePublicKeys field is nil")
 		}
+		//FIXME: refactor this code to get the total transactions bytes length instead of counting spine pub keys in the block
 		buffer.Write(ConvertIntToBytes(len(block.GetSpinePublicKeys())))
 	}
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
