@@ -532,8 +532,9 @@ func startScheduler() {
 
 func startBlockchainSyncronizers() {
 	go spinechainSynchronizer.Start()
-	ticker := time.NewTicker(5 * time.Second)
-	timeout := time.After(600 * time.Second)
+	ticker := time.NewTicker(600 * time.Second)
+	timeout := time.After(20 * time.Second)
+syncronizersLoop:
 	for {
 		select {
 		case <-ticker.C:
@@ -545,7 +546,7 @@ func startBlockchainSyncronizers() {
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
 				ticker.Stop()
 				go mainchainSynchronizer.Start()
-				break
+				break syncronizersLoop
 			}
 			loggerCoreService.Infof("downloading spine blocks. last height is %d", lastSpineBlock.Height)
 		// @iltoga this is mostly for debugging purposes.
