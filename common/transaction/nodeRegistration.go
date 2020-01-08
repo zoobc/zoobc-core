@@ -26,6 +26,7 @@ type NodeRegistration struct {
 	ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	QueryExecutor           query.ExecutorInterface
 	AuthPoown               auth.ProofOfOwnershipValidationInterface
+	AccountLedgerQuery      query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -69,6 +70,15 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 		},
 	)
 	queries = append(queries, accountBalanceSenderQ...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  -(tx.Body.LockedBalance + tx.Fee),
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventNodeRegistrationTransaction,
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
 
 	nodeRow, _ := tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
 		false, tx.Body.NodePublicKey)
@@ -373,7 +383,7 @@ func (tx *NodeRegistration) GetTransactionBody(transaction *model.Transaction) {
 }
 
 func (tx *NodeRegistration) getDefaultParticipationScore() int64 {
-	for _, genesisEntry := range constant.MainChainGenesisConfig {
+	for _, genesisEntry := range constant.GenesisConfig {
 		if bytes.Equal(tx.Body.NodePublicKey, genesisEntry.NodePublicKey) {
 			return genesisEntry.ParticipationScore
 		}

@@ -16,7 +16,7 @@ import (
 // very beginning of running the blockchain
 func GetGenesisTransactions(
 	chainType chaintype.ChainType,
-	genesisEntries []constant.MainchainGenesisConfigEntry,
+	genesisEntries []constant.GenesisConfigEntry,
 ) ([]*model.Transaction, error) {
 	var genesisTxs []*model.Transaction
 	switch chainType.(type) {
@@ -53,7 +53,7 @@ func GetGenesisTransactions(
 			}
 			genesisTxs = append(genesisTxs, genesisTx)
 
-			// register the node for the fund receiver, if relative element in MainChainGenesisConfig contains a NodePublicKey
+			// register the node for the fund receiver, if relative element in GenesisConfig contains a NodePublicKey
 			if len(genesisEntry.NodePublicKey) > 0 {
 				genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(genesisEntry.AccountAddress, genesisEntry.NodeAddress,
 					genesisEntry.LockedBalance, genesisEntry.NodePublicKey)
@@ -65,6 +65,8 @@ func GetGenesisTransactions(
 		}
 
 		return genesisTxs, nil
+	case *chaintype.SpineChain:
+		return make([]*model.Transaction, 0), nil
 	default:
 		return nil, blocker.NewBlocker(
 			blocker.AppErr,

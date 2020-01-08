@@ -74,6 +74,12 @@ run:
 
 issues:
   exclude-rules:
+    - text: "mnd: Magic number"
+      linters:
+        - gomnd
+    - text: "always receives"
+      linters:
+        - unparam
     - text: "ifElseChain: rewrite if-else to switch statement"
       linters:
         - gocritic

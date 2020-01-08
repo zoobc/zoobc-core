@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -14,13 +15,14 @@ import (
 
 // GetBlockHash return the block's bytes hash.
 // note: the block must be signed, otherwise this function returns an error
-func GetBlockHash(block *model.Block) ([]byte, error) {
+func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 	var (
 		digest     = sha3.New256()
 		cloneBlock = *block
 	)
 	cloneBlock.BlockHash = nil
-	blockByte, _ := GetBlockByte(&cloneBlock, true)
+	// TODO: this error should be managed. for now we leave it because it causes a cascade of failures in unit tests..
+	blockByte, _ := GetBlockByte(&cloneBlock, true, ct)
 	_, err := digest.Write(blockByte)
 	if err != nil {
 		return nil, err
@@ -30,12 +32,38 @@ func GetBlockHash(block *model.Block) ([]byte, error) {
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
-func GetBlockByte(block *model.Block, signed bool) ([]byte, error) {
+//TODO: Abstract this method in BlockCoreService or ChainType to decouple business logic from block type
+func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(ConvertUint32ToBytes(block.GetVersion()))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
-	// FIXME: be very careful about this. if block object doesn't have transactions populated, block hash validation will fail later on
-	buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
+		// instead of an empty array when there aren't transactions
+		//
+		// added nil check to make sure that transactions for this block have been populated, even if there are none (empty slice).
+		// if block object doesn't have transactions populated (GetTransactions() = nil), block hash validation will fail later on
+		// todo: this is temporary solution as proto seems to modify empty slice of pointer to nil
+		if block.GetTransactions() == nil {
+			block.Transactions = make([]*model.Transaction, 0)
+			// @iltoga uncommend this when above is ready
+			// return nil, blocker.NewBlocker(blocker.BlockErr, "block transactions field is nil")
+		}
+		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
+	case *chaintype.SpineChain:
+		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
+		// instead of an empty array when there aren't transactions
+		//
+		// added nil check to make sure that spine public keys for this block have been populated, even if there are none (empty slice).
+		// if block object doesn't have spine pub keys populated (GetSpinePublicKeys() = nil), block hash validation will fail later on
+		if block.GetSpinePublicKeys() == nil {
+			block.SpinePublicKeys = make([]*model.SpinePublicKey, 0)
+			// @iltoga uncommend this when above is ready
+			// return nil, blocker.NewBlocker(blocker.BlockErr, "block spinePublicKeys field is nil")
+		}
+		buffer.Write(ConvertIntToBytes(len(block.GetSpinePublicKeys())))
+	}
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalFee())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))

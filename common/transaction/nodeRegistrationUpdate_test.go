@@ -674,6 +674,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -689,6 +690,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -717,6 +719,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
 			}
 			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

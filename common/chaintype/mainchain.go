@@ -21,7 +21,7 @@ func (*MainChain) GetChainSmithingDelayTime() int64 {
 }
 
 func (*MainChain) GetSmithingPeriod() int64 {
-	return 60
+	return 15
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node
@@ -32,4 +32,20 @@ func (*MainChain) GetName() string {
 // GetGenesisBlockID return the block ID of genesis block in the chain
 func (*MainChain) GetGenesisBlockID() int64 {
 	return constant.MainchainGenesisBlockID
+}
+
+func (*MainChain) GetGenesisBlockSeed() []byte {
+	return constant.MainchainGenesisBlockSeed
+}
+
+func (*MainChain) GetGenesisNodePublicKey() []byte {
+	return constant.MainchainGenesisNodePublicKey
+}
+
+func (*MainChain) GetGenesisBlockTimestamp() int64 {
+	return constant.MainchainGenesisBlockTimestamp
+}
+
+func (*MainChain) GetGenesisBlockSignature() []byte {
+	return constant.MainchainGenesisBlockSignature
 }

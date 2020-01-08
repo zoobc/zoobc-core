@@ -247,28 +247,50 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 			// Check host in scramble nodes
 			if ps.ValidateScrambleNode(scrambledNodes, ps.Host.GetInfo()) {
 				var (
-					fullAddress           = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-					nodeRequester         = p2pUtil.GetNodeInfo(fullAddress)
-					resolvedPeers         = ps.GetResolvedPeers()
-					exceedUnresolvedPeers = ps.GetExceedMaxUnresolvedPeers()
-					blacklistedPeers      = ps.GetBlacklistedPeers()
+					fullAddress         = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+					nodeRequester       = p2pUtil.GetNodeInfo(fullAddress)
+					resolvedPeers       = ps.GetResolvedPeers()
+					unresolvedPeers     = ps.GetUnresolvedPeers()
+					blacklistedPeers    = ps.GetBlacklistedPeers()
+					isAddedToUnresolved = false
 				)
 
+<<<<<<< HEAD
 				// add into unresolved peers if any space
 				if (exceedUnresolvedPeers < 1) && (resolvedPeers[fullAddress] == nil) && (blacklistedPeers[fullAddress] == nil) {
 					if err := ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
 						ps.Logger.Warn(err.Error())
+=======
+				if unresolvedPeers[fullAddress] == nil && blacklistedPeers[fullAddress] == nil {
+					for _, peer := range unresolvedPeers {
+						// add peer requester into unresolved and remove the old one in unresolved peers
+						// removing one of unresolved peers will do when already stayed more than max stayed
+						// and not priority peers
+						if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
+							!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
+							var err error
+							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
+								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+									ps.Logger.Error(err.Error())
+									break
+								}
+								isAddedToUnresolved = true
+								break
+							}
+						}
+>>>>>>> 1ff243ac92939e1f3805cd40c9c0100b19bd0965
 					}
 				}
 				// Check host is in priority peer list of requester
 				// Or requester is in priority peers of host
 				// Or requester is in resolved peers of host
-				// Or unrelosovedPeers still have available space
+				// Or requester is in unresolved peers of host And not in blacklisted peer
+				// Or requester added into unresolved peers
 				return ps.ValidatePriorityPeer(scrambledNodes, nodeRequester, ps.Host.GetInfo()) ||
 					ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), nodeRequester) ||
 					(resolvedPeers[fullAddress] != nil) ||
-					(exceedUnresolvedPeers < 1 && blacklistedPeers[fullAddress] == nil)
-
+					(unresolvedPeers[fullAddress] != nil) ||
+					isAddedToUnresolved
 			}
 			return true
 		}
@@ -363,7 +385,7 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 	for _, peer := range ps.GetResolvedPeers() {
 		// priority peers no need to maintenance
 		if priorityPeers[p2pUtil.GetFullAddressPeer(peer)] == nil {
-			if currentTime.Unix()-peer.GetLastUpdated() >= constant.SecondsToUpdatePeersConnection {
+			if currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
 				go ps.resolvePeer(peer, true)
 			}
 		}
@@ -390,7 +412,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 		return
 	}
 	if destPeer != nil {
-		destPeer.LastUpdated = time.Now().UTC().Unix()
+		destPeer.ResolvingTime = time.Now().UTC().Unix()
 	}
 	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
@@ -638,6 +660,7 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 		ps.UnresolvedPeersLock.Unlock()
 		monitoring.SetUnresolvedPeersCount(len(ps.Host.UnresolvedPeers))
 	}()
+	peer.UnresolvingTime = time.Now().UTC().Unix()
 	ps.Host.UnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	return nil
 }

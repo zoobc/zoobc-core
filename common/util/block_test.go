@@ -34,6 +34,7 @@ func TestGetBlockByte(t *testing.T) {
 	type args struct {
 		block *model.Block
 		sign  bool
+		ct    chaintype.ChainType
 	}
 	tests := []struct {
 		name    string
@@ -59,6 +60,7 @@ func TestGetBlockByte(t *testing.T) {
 					CumulativeDifficulty: "355353517378119",
 				},
 				sign: false,
+				ct:   &chaintype.MainChain{},
 			},
 			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21,
@@ -85,6 +87,7 @@ func TestGetBlockByte(t *testing.T) {
 					BlockSignature:       []byte{1, 3, 4, 54, 65, 76, 3, 3, 54, 12, 5, 64, 23, 12, 21},
 				},
 				sign: true,
+				ct:   &chaintype.MainChain{},
 			},
 			want: []byte{1, 0, 0, 0, 8, 62, 242, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199,
@@ -111,6 +114,7 @@ func TestGetBlockByte(t *testing.T) {
 					CumulativeDifficulty: "355353517378119",
 				},
 				sign: true,
+				ct:   &chaintype.MainChain{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -118,7 +122,7 @@ func TestGetBlockByte(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetBlockByte(tt.args.block, tt.args.sign)
+			got, err := GetBlockByte(tt.args.block, tt.args.sign, tt.args.ct)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetBlockByte() error = %v, wantErr %v", err, tt.wantErr)
 				return
