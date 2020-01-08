@@ -48,6 +48,7 @@ func (ss *P2PServerHandler) SendPeers(ctx context.Context, req *model.SendPeersR
 			"sendPeers node cannot be nil",
 		)
 	}
+	// qrf fmt.Printf("send peers: %v\n", req.Peers)
 	return ss.Service.SendPeers(ctx, req.Peers)
 }
 

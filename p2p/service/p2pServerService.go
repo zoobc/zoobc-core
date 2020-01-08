@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -107,10 +106,18 @@ func (ps *P2PServerService) SendPeers(
 	ctx context.Context,
 	peers []*model.Node,
 ) (*model.Empty, error) {
-	fmt.Printf("ctx : %v\n", ctx)
+
+	hostInfo := ps.PeerExplorer.GetHostInfo()
+	var resPeers []*model.Node
+	for _, element := range peers {
+		if element.CodeName == hostInfo.CodeName {
+			resPeers = append(resPeers, element)
+		}
+	}
+
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: only accept nodes that are already registered in the node registration
-		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
+		err := ps.PeerExplorer.AddToUnresolvedPeers(resPeers, true)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

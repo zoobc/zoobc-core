@@ -31,8 +31,10 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 
 	return &model.Host{
 		Info: &model.Node{
-			Address: address,
-			Port:    port,
+			Address:  address,
+			Port:     port,
+			Version:  viper.GetString("Version"),
+			CodeName: viper.GetString("CodeName"),
 		},
 		ResolvedPeers:    make(map[string]*model.Peer),
 		UnresolvedPeers:  unresolvedPeersMap,
@@ -46,8 +48,10 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 func NewKnownPeer(address string, port int) *model.Peer {
 	return &model.Peer{
 		Info: &model.Node{
-			Address: address,
-			Port:    uint32(port),
+			Address:  address,
+			Port:     uint32(port),
+			Version:  viper.GetString("Version"),
+			CodeName: viper.GetString("CodeName"),
 		},
 	}
 }
