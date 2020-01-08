@@ -1,18 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -45,30 +38,15 @@ func main() {
 	}
 	defer conn.Close()
 
-	signature := crypto.Signature{}
-	currentTime := uint64(time.Now().Unix())
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint64ToBytes(currentTime))
-	buffer.Write(util.ConvertUint32ToBytes(uint32(model.RequestType_GetAccountLedgers)))
-	sig := signature.Sign(
-		buffer.Bytes(),
-		constant.SignatureTypeDefault,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-	)
-	buffer.Write(sig)
-
-	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
-	ctx := metadata.NewOutgoingContext(context.Background(), md)
-
 	res, err := rpcService.NewAccountLedgerServiceClient(conn).
-		GetAccountLedgers(ctx, &model.GetAccountLedgersRequest{
+		GetAccountLedgers(context.Background(), &model.GetAccountLedgersRequest{
 			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
 			EventType:      model.EventType_EventAny,
 			Pagination: &model.Pagination{
 				OrderField: "account_address",
 				OrderBy:    model.OrderBy_ASC,
 				Page:       1,
-				Limit:      3,
+				Limit:      10,
 			},
 		})
 	if err != nil {
