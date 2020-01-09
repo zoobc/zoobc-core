@@ -226,7 +226,7 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 	return peerIndex <= hostEndPeerIndex
 }
 
-//ValidateRequest , to validate incoming request based on metadata in context and Priority strategy
+// ValidateRequest , to validate incoming request based on metadata in context and Priority strategy
 func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 	if ctx != nil {
 		md, _ := metadata.FromIncomingContext(ctx)
