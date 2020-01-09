@@ -56,6 +56,9 @@ func (al *AccountLedgerService) GetAccountLedgers(
 	if request.GetTransactionID() > 0 {
 		caseQuery.Where(caseQuery.Equal("transaction_id", request.GetTransactionID()))
 	}
+	if request.GetTimestampEnd() > 0 {
+		caseQuery.Where(caseQuery.Between("timestamp", request.GetTimestampStart(), request.GetTimestampEnd()))
+	}
 	if request.GetEventType() != model.EventType_EventAny {
 		caseQuery.Where(caseQuery.Equal("event_type", request.GetEventType()))
 	}

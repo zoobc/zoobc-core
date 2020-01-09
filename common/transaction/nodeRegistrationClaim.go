@@ -13,6 +13,7 @@ import (
 
 // ClaimNodeRegistration Implement service layer for claim node registration's transaction
 type ClaimNodeRegistration struct {
+	ID                    int64
 	Body                  *model.ClaimNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
@@ -42,7 +43,7 @@ func (tx *ClaimNodeRegistration) SkipMempoolTransaction(selectedTransactions []*
 	return false, nil
 }
 
-func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
+func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		nodeQueries          [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
@@ -88,8 +89,10 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  prevNodeRegistration.LockedBalance - tx.Fee,
+		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
 	})
 
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)

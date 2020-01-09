@@ -35,10 +35,17 @@ import (
 
 type (
 	BlockServiceMainInterface interface {
-		NewMainBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
-			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt,
-			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
+		NewMainBlock(
+			version uint32,
+			previousBlockHash, blockSeed, blockSmithPublicKey []byte,
+			previousBlockHeight uint32,
+			timestamp, totalAmount, totalFee, totalCoinBase int64,
+			transactions []*model.Transaction,
+			blockReceipts []*model.PublishedReceipt,
+			payloadHash []byte,
+			payloadLength uint32,
+			secretPhrase string,
+		) (*model.Block, error)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
 		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
@@ -345,7 +352,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
-		err = txType.ApplyConfirmed()
+		err = txType.ApplyConfirmed(block.GetTimestamp())
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -416,7 +423,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 			return err
 		}
-		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+		if err := bs.RewardBlocksmithAccountAddresses(
+			lotteryAccounts,
+			totalReward,
+			block.GetTimestamp(),
+			block.Height,
+		); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -651,7 +663,7 @@ func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) 
 // RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
 func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	blocksmithAccountAddresses []string,
-	totalReward int64,
+	totalReward, blockTimestamp int64,
 	height uint32,
 ) error {
 	queries := make([][]interface{}, 0)
@@ -674,6 +686,7 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 			BalanceChange:  blocksmithReward,
 			BlockHeight:    height,
 			EventType:      model.EventType_EventReward,
+			Timestamp:      uint64(blockTimestamp),
 		})
 
 		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)

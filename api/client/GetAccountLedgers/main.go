@@ -41,12 +41,14 @@ func main() {
 	res, err := rpcService.NewAccountLedgerServiceClient(conn).
 		GetAccountLedgers(context.Background(), &model.GetAccountLedgersRequest{
 			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
-			EventType:      model.EventType_EventAny,
+			// EventType:      model.EventType_EventAny,
+			TimestampStart: 1578548985,
+			TimestampEnd:   1578549075,
 			Pagination: &model.Pagination{
 				OrderField: "account_address",
 				OrderBy:    model.OrderBy_ASC,
 				Page:       1,
-				Limit:      10,
+				Limit:      2,
 			},
 		})
 	if err != nil {

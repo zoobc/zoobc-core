@@ -580,7 +580,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
 			}
-			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				if (err == nil) != tt.wantErr {
 					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 					return

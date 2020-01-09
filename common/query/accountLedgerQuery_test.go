@@ -17,6 +17,7 @@ var (
 		BlockHeight:    1,
 		TransactionID:  -123123123123,
 		EventType:      model.EventType_EventNodeRegistrationTransaction,
+		Timestamp:      1562117271,
 	}
 )
 
@@ -41,14 +42,15 @@ func TestAccountLedgerQuery_InsertAccountLedger(t *testing.T) {
 			args: args{
 				accountLedger: mockAccountLedger,
 			},
-			wantQStr: "INSERT INTO account_ledger (account_address, balance_change, block_height, transaction_id, event_type) " +
-				"VALUES(? , ?, ?, ?, ?)",
+			wantQStr: "INSERT INTO account_ledger (account_address, balance_change, block_height, transaction_id, event_type, timestamp) " +
+				"VALUES(? , ?, ?, ?, ?, ?)",
 			wantArgs: []interface{}{
 				mockAccountLedger.GetAccountAddress(),
 				mockAccountLedger.GetBalanceChange(),
 				mockAccountLedger.GetBlockHeight(),
 				mockAccountLedger.GetTransactionID(),
 				mockAccountLedger.GetEventType(),
+				mockAccountLedger.GetTimestamp(),
 			},
 		},
 	}
@@ -134,6 +136,7 @@ func TestAccountLedgerQuery_ExtractModel(t *testing.T) {
 				mockAccountLedger.GetBlockHeight(),
 				mockAccountLedger.GetTransactionID(),
 				mockAccountLedger.GetEventType(),
+				mockAccountLedger.GetTimestamp(),
 			},
 		},
 	}
@@ -161,6 +164,7 @@ func TestAccountLedgerQuery_BuildModel(t *testing.T) {
 		mockAccountLedger.GetBlockHeight(),
 		mockAccountLedger.GetTransactionID(),
 		mockAccountLedger.GetEventType(),
+		mockAccountLedger.GetTimestamp(),
 	)
 	mock.ExpectQuery("").WillReturnRows(rowsMock)
 	rows, _ := db.Query("")

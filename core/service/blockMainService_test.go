@@ -219,7 +219,7 @@ var (
 )
 
 // mockTypeAction
-func (*mockTypeAction) ApplyConfirmed() error {
+func (*mockTypeAction) ApplyConfirmed(int64) error {
 	return nil
 }
 func (*mockTypeAction) Validate(bool) error {
@@ -2768,6 +2768,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 	type args struct {
 		blocksmithAccountAddresses []string
 		totalReward                int64
+		timestamp                  int64
 		height                     uint32
 	}
 	tests := []struct {
@@ -2781,6 +2782,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 			args: args{
 				blocksmithAccountAddresses: []string{bcsAddress1},
 				totalReward:                10000,
+				timestamp:                  1578549075,
 				height:                     1,
 			},
 			fields: fields{
@@ -2808,8 +2810,12 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
 			}
-			if err := bs.RewardBlocksmithAccountAddresses(tt.args.blocksmithAccountAddresses, tt.args.totalReward,
-				tt.args.height); (err != nil) != tt.wantErr {
+			if err := bs.RewardBlocksmithAccountAddresses(
+				tt.args.blocksmithAccountAddresses,
+				tt.args.totalReward,
+				tt.args.timestamp,
+				tt.args.height,
+			); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.RewardBlocksmithAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

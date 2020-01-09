@@ -32,6 +32,7 @@ func NewAccountLedgerQuery() *AccountLedgerQuery {
 			"block_height",
 			"transaction_id",
 			"event_type",
+			"timestamp",
 		},
 		TableName: "account_ledger",
 	}
@@ -60,6 +61,7 @@ func (*AccountLedgerQuery) ExtractModel(accountLedger *model.AccountLedger) []in
 		accountLedger.GetBlockHeight(),
 		accountLedger.GetTransactionID(),
 		accountLedger.GetEventType(),
+		accountLedger.GetTimestamp(),
 	}
 }
 
@@ -76,6 +78,7 @@ func (*AccountLedgerQuery) BuildModel(accountLedgers []*model.AccountLedger, row
 			&accountLedger.BlockHeight,
 			&accountLedger.TransactionID,
 			&accountLedger.EventType,
+			&accountLedger.Timestamp,
 		)
 		if err != nil {
 			return nil, err
