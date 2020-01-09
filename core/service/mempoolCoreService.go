@@ -144,7 +144,7 @@ func (mps *MempoolService) DeleteBlockTxCandidate(txIds []int64, needAddToMempoo
 
 	for _, txID := range txIds {
 		if needAddToMempool {
-			err := mps.ProcessTransactionBytes(mps.BlockTxCandidate[txID].MempoolTx)
+			err := mps.ProcessTransactionBytesToMempool(mps.BlockTxCandidate[txID].MempoolTx)
 			mps.Logger.Errorln(err)
 		}
 		delete(mps.BlockTxCandidate, txID)
@@ -450,8 +450,8 @@ func (mps *MempoolService) ReceivedTransaction(
 	return batchReceipt, nil
 }
 
-// ProcessTransactionBytes processing mempoolTx to be added to mempool
-func (mps *MempoolService) ProcessTransactionBytes(mempoolTx *model.MempoolTransaction) error {
+// ProcessTransactionBytesToMempool processing mempoolTx to be added to mempool
+func (mps *MempoolService) ProcessTransactionBytesToMempool(mempoolTx *model.MempoolTransaction) error {
 	var (
 		err        error
 		receivedTx *model.Transaction
