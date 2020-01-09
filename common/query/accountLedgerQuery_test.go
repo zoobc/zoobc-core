@@ -1,9 +1,11 @@
 package query
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -101,6 +103,106 @@ func TestAccountLedgerQuery_Rollback(t *testing.T) {
 			}
 			if gotMultiQueries := q.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
 				t.Errorf("Rollback() = %v, want %v", gotMultiQueries, tt.wantMultiQueries)
+			}
+		})
+	}
+}
+
+func TestAccountLedgerQuery_ExtractModel(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountLedger *model.AccountLedger
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountLedgerQuery),
+			args: args{
+				accountLedger: mockAccountLedger,
+			},
+			want: []interface{}{
+				mockAccountLedger.GetAccountAddress(),
+				mockAccountLedger.GetBalanceChange(),
+				mockAccountLedger.GetBlockHeight(),
+				mockAccountLedger.GetTransactionID(),
+				mockAccountLedger.GetEventType(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AccountLedgerQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := a.ExtractModel(tt.args.accountLedger); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountLedgerQuery.ExtractModel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccountLedgerQuery_BuildModel(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	rowsMock := sqlmock.NewRows(mockAccountLedgerQuery.Fields)
+	rowsMock.AddRow(
+		mockAccountLedger.GetAccountAddress(),
+		mockAccountLedger.GetBalanceChange(),
+		mockAccountLedger.GetBlockHeight(),
+		mockAccountLedger.GetTransactionID(),
+		mockAccountLedger.GetEventType(),
+	)
+	mock.ExpectQuery("").WillReturnRows(rowsMock)
+	rows, _ := db.Query("")
+
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountLedgers []*model.AccountLedger
+		rows           *sql.Rows
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.AccountLedger
+		wantErr bool
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockAccountLedgerQuery),
+			args: args{
+				accountLedgers: []*model.AccountLedger{},
+				rows:           rows,
+			},
+			want: []*model.AccountLedger{mockAccountLedger},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AccountLedgerQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			got, err := a.BuildModel(tt.args.accountLedgers, tt.args.rows)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AccountLedgerQuery.BuildModel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountLedgerQuery.BuildModel() = %v, want %v", got, tt.want)
 			}
 		})
 	}

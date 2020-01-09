@@ -10,8 +10,6 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -95,17 +93,6 @@ func (c *nodeAdminServiceClient) GenerateNodeKey(ctx context.Context, in *model.
 type NodeAdminServiceServer interface {
 	GetProofOfOwnership(context.Context, *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error)
 	GenerateNodeKey(context.Context, *model.GenerateNodeKeyRequest) (*model.GenerateNodeKeyResponse, error)
-}
-
-// UnimplementedNodeAdminServiceServer can be embedded to have forward compatible implementations.
-type UnimplementedNodeAdminServiceServer struct {
-}
-
-func (*UnimplementedNodeAdminServiceServer) GetProofOfOwnership(ctx context.Context, req *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetProofOfOwnership not implemented")
-}
-func (*UnimplementedNodeAdminServiceServer) GenerateNodeKey(ctx context.Context, req *model.GenerateNodeKeyRequest) (*model.GenerateNodeKeyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GenerateNodeKey not implemented")
 }
 
 func RegisterNodeAdminServiceServer(s *grpc.Server, srv NodeAdminServiceServer) {
