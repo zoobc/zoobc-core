@@ -328,7 +328,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 		return err
 	}
-	var transactionIDs []int64
+	var transactionIDs = make([]int64, len(block.GetTransactions()))
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
 		// assign block id and block height to tx
@@ -491,7 +491,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	bs.BlocksmithStrategy.SortBlocksmiths(block)
 	// add transactionIDs and remove transaction before broadcast
 	block.TransactionIDs = transactionIDs
-	block.Transactions = make([]*model.Transaction, len(block.GetTransactions()))
+	block.Transactions = make([]*model.Transaction, len(transactionIDs))
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
@@ -1515,10 +1515,13 @@ func (bs *BlockService) ProcessQueuedBlock(block, lastBlock *model.Block) (isQue
 					continue
 				}
 				// save transaction ID when transaction not found
+				if bs.SmithQueue.TransactionsRequiredMap[txID] == nil {
+					bs.SmithQueue.TransactionsRequiredMap[txID] = make(BlockIDsMap)
+				}
+				bs.SmithQueue.TransactionsRequiredMap[txID][block.GetID()] = true
 				txRequiredByBlock[txID] = idx
 				// used as argument when querying in mempool
 				txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
-
 			}
 			// process when needed trasacntions are completed
 			if len(txRequiredByBlock) == 0 {
@@ -1554,6 +1557,7 @@ func (bs *BlockService) ProcessQueuedBlock(block, lastBlock *model.Block) (isQue
 					continue
 				}
 				block.Transactions[txRequiredByBlock[tx.GetID()]] = tx
+				delete(bs.SmithQueue.TransactionsRequiredMap[tx.GetID()], block.GetID())
 				delete(txRequiredByBlock, tx.GetID())
 			}
 			// process when needed trasacntions are completed
@@ -1581,7 +1585,7 @@ func (bs *BlockService) ProcessQueuedBlock(block, lastBlock *model.Block) (isQue
 // RequestBlockTransactions request transactons of incoming block
 func (bs *BlockService) RequestBlockTransactions(txIds []int64) {
 	// TODO: chucks requested transaction
-	bs.Observer.Notify(observer.TransactionRequested, txIds, bs.Chaintype)
+	bs.Observer.Notify(observer.BlockRequestTransactions, txIds, bs.Chaintype)
 	return
 }
 
@@ -1591,11 +1595,11 @@ func (bs *BlockService) ReceiveTransactionListener(transaction *model.Transactio
 	defer bs.SmithQueue.BlockMutex.Unlock()
 	for blockID, _ := range bs.SmithQueue.TransactionsRequiredMap[transaction.GetID()] {
 		var (
-			txs        = bs.SmithQueue.WaitingTxBlocks[blockID].Block.GetTransactions()
-			txPotition = bs.SmithQueue.BlockRequiringTransactionsMap[blockID][transaction.GetID()]
+			txs     = bs.SmithQueue.WaitingTxBlocks[blockID].Block.GetTransactions()
+			txIndex = bs.SmithQueue.BlockRequiringTransactionsMap[blockID][transaction.GetID()]
 		)
 		// add transaction into block
-		txs[txPotition] = transaction
+		txs[txIndex] = transaction
 		bs.SmithQueue.WaitingTxBlocks[blockID].Block.Transactions = txs
 		delete(bs.SmithQueue.BlockRequiringTransactionsMap[blockID], transaction.GetID())
 
@@ -1609,7 +1613,6 @@ func (bs *BlockService) ReceiveTransactionListener(transaction *model.Transactio
 			delete(bs.SmithQueue.WaitingTxBlocks, blockID)
 			delete(bs.SmithQueue.BlockRequiringTransactionsMap, blockID)
 		}
-
 	}
 	// remove block ID when no need reqiered in transaction
 	delete(bs.SmithQueue.TransactionsRequiredMap, transaction.GetID())
