@@ -29,8 +29,8 @@ type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
 		Start()
-		DeleteBlockTxCandidate(txIds []int64, needAddToMempool bool)
-		GetBlockTxCandidate() map[int64]*MempoolTxWithMetaData
+		DeleteBlockTxCached(txIds []int64, needAddToMempool bool)
+		GetBlockTxCached(txID int64) *model.Transaction
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
@@ -47,25 +47,26 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		Chaintype             chaintype.ChainType
-		KVExecutor            kvdb.KVExecutorInterface
-		QueryExecutor         query.ExecutorInterface
-		MempoolQuery          query.MempoolQueryInterface
-		MerkleTreeQuery       query.MerkleTreeQueryInterface
-		ActionTypeSwitcher    transaction.TypeActionSwitcher
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		BlockQuery            query.BlockQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		Signature             crypto.SignatureInterface
-		Observer              *observer.Observer
-		Logger                *log.Logger
-		BlockTxCandidate      map[int64]*MempoolTxWithMetaData
-		BlockTxCandidateMutex sync.Mutex
+		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		BlockQuery          query.BlockQueryInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Signature           crypto.SignatureInterface
+		Observer            *observer.Observer
+		Logger              *log.Logger
+		BlockTxCached       map[int64]*MempoolTxWithMetaData
+		BlockTxCachedMutex  sync.Mutex
 	}
 
 	MempoolTxWithMetaData struct {
-		MempoolTx *model.MempoolTransaction
-		Timestamp int64
+		MempoolTx   *model.MempoolTransaction
+		Transaction *model.Transaction
+		Timestamp   int64
 	}
 )
 
@@ -97,59 +98,58 @@ func NewMempoolService(
 		Observer:            observer,
 		Logger:              logger,
 		BlockQuery:          blockQuery,
-		BlockTxCandidate:    make(map[int64]*MempoolTxWithMetaData),
+		BlockTxCached:       make(map[int64]*MempoolTxWithMetaData),
 	}
 }
 
 // Start mempool service
 func (mps *MempoolService) Start() {
-	go mps.CleanTimedoutTxCandidateThread()
+	go mps.CleanTimedoutBlockTxCachedThread()
 }
 
-// thread for CleanTimedoutTxCandidate
-func (mps *MempoolService) CleanTimedoutTxCandidateThread() {
+// thread for CleanTimedoutBlockTxCached
+func (mps *MempoolService) CleanTimedoutBlockTxCachedThread() {
 	for {
-		mps.CleanTimedoutTxCandidate()
-		time.Sleep(constant.CleanTimedoutTxCandidateThreadGap * time.Second)
+		mps.CleanTimedoutBlockTxCached()
+		time.Sleep(constant.CleanTimedoutBlockTxCachedThreadGap * time.Second)
 	}
 }
 
-// CleanTimedoutTxCandidate deletes timed out tx candidate that are needed by received block
-func (mps *MempoolService) CleanTimedoutTxCandidate() {
-	mps.BlockTxCandidateMutex.Lock()
-	defer mps.BlockTxCandidateMutex.Unlock()
+// CleanTimedoutBlockTxCached deletes timed out tx candidate that are needed by received block
+func (mps *MempoolService) CleanTimedoutBlockTxCached() {
+	mps.BlockTxCachedMutex.Lock()
+	defer mps.BlockTxCachedMutex.Unlock()
 
-	for txID, txWithMetaData := range mps.BlockTxCandidate {
-		if txWithMetaData.Timestamp >= time.Now().Unix()-constant.TxCandidateTimeout {
-			delete(mps.BlockTxCandidate, txID)
+	for txID, txWithMetaData := range mps.BlockTxCached {
+		if txWithMetaData.Timestamp >= time.Now().Unix()-constant.TxCachedTimeout {
+			delete(mps.BlockTxCached, txID)
 		}
 	}
 }
 
-// DeleteBlockTxCandidate deletes transactions candidate cached for blocks
-func (mps *MempoolService) DeleteBlockTxCandidate(txIds []int64, needAddToMempool bool) {
-	mps.BlockTxCandidateMutex.Lock()
-	defer mps.BlockTxCandidateMutex.Unlock()
+// DeleteBlockTxCached deletes transactions candidate cached for blocks
+func (mps *MempoolService) DeleteBlockTxCached(txIds []int64, needAddToMempool bool) {
+	mps.BlockTxCachedMutex.Lock()
+	defer mps.BlockTxCachedMutex.Unlock()
 
 	for _, txID := range txIds {
 		if needAddToMempool {
-			err := mps.ProcessTransactionBytesToMempool(mps.BlockTxCandidate[txID].MempoolTx)
+			err := mps.ProcessTransactionBytesToMempool(mps.BlockTxCached[txID].MempoolTx)
 			mps.Logger.Errorln(err)
 		}
-		delete(mps.BlockTxCandidate, txID)
+		delete(mps.BlockTxCached, txID)
 	}
 }
 
-// GetBlockTxCandidate gets transactions that are requested by the received blocks
-func (mps *MempoolService) GetBlockTxCandidate() map[int64]*MempoolTxWithMetaData {
-	mps.BlockTxCandidateMutex.Lock()
-	defer mps.BlockTxCandidateMutex.Unlock()
+// GetBlockTxCached gets transactions that are requested by the received blocks
+func (mps *MempoolService) GetBlockTxCached(txID int64) *model.Transaction {
+	mps.BlockTxCachedMutex.Lock()
+	defer mps.BlockTxCachedMutex.Unlock()
 
-	newData := make(map[int64]*MempoolTxWithMetaData)
-	for key, mempoolWithMetaData := range mps.BlockTxCandidate {
-		newData[key] = mempoolWithMetaData
+	if mps.BlockTxCached[txID] == nil {
+		return nil
 	}
-	return newData
+	return mps.BlockTxCached[txID].Transaction
 }
 
 // GetMempoolTransactions fetch transactions from mempool
@@ -409,12 +409,13 @@ func (mps *MempoolService) ReceivedTransaction(
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	} else {
-		mps.BlockTxCandidateMutex.Lock()
-		mps.BlockTxCandidate[receivedTx.ID] = &MempoolTxWithMetaData{
-			MempoolTx: mempoolTx,
-			Timestamp: time.Now().Unix(),
+		mps.BlockTxCachedMutex.Lock()
+		mps.BlockTxCached[receivedTx.ID] = &MempoolTxWithMetaData{
+			MempoolTx:   mempoolTx,
+			Transaction: receivedTx,
+			Timestamp:   time.Now().Unix(),
 		}
-		mps.BlockTxCandidateMutex.Unlock()
+		mps.BlockTxCachedMutex.Unlock()
 		mps.Observer.Notify(observer.ReceivedTransactionValidated, receivedTx, mps.Chaintype)
 
 		// broadcast transaction

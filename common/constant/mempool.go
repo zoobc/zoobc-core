@@ -12,7 +12,7 @@ const (
 	// Or just leave it 0 for unlimited mempool transaction
 	MaxMempoolTransactions = 0
 	// Timeout of the transaction candidate in second
-	TxCandidateTimeout = 300
+	TxCachedTimeout = 300
 	// Gap of the CleanTimedoutTxCandidateThread
-	CleanTimedoutTxCandidateThreadGap = 10
+	CleanTimedoutBlockTxCachedThreadGap = 10
 )
