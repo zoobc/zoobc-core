@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"sort"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -27,6 +28,9 @@ import (
 type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
+		Start()
+		DeleteBlockTxCandidateListener() observer.Listener
+		GetBlockTxCandidate() map[int64]*MempoolTxWithMetaData
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
@@ -43,18 +47,25 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		BlockQuery          query.BlockQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Signature           crypto.SignatureInterface
-		Observer            *observer.Observer
-		Logger              *log.Logger
+		Chaintype             chaintype.ChainType
+		KVExecutor            kvdb.KVExecutorInterface
+		QueryExecutor         query.ExecutorInterface
+		MempoolQuery          query.MempoolQueryInterface
+		MerkleTreeQuery       query.MerkleTreeQueryInterface
+		ActionTypeSwitcher    transaction.TypeActionSwitcher
+		AccountBalanceQuery   query.AccountBalanceQueryInterface
+		BlockQuery            query.BlockQueryInterface
+		TransactionQuery      query.TransactionQueryInterface
+		Signature             crypto.SignatureInterface
+		Observer              *observer.Observer
+		Logger                *log.Logger
+		BlockTxCandidate      map[int64]*MempoolTxWithMetaData
+		BlockTxCandidateMutex sync.Mutex
+	}
+
+	MempoolTxWithMetaData struct {
+		MempoolTx *model.MempoolTransaction
+		Timestamp int64
 	}
 )
 
@@ -86,7 +97,70 @@ func NewMempoolService(
 		Observer:            observer,
 		Logger:              logger,
 		BlockQuery:          blockQuery,
+		BlockTxCandidate:    make(map[int64]*MempoolTxWithMetaData),
 	}
+}
+
+// Start mempool service
+func (mps *MempoolService) Start() {
+	go mps.CleanTimedoutTxCandidateThread()
+}
+
+// thread for CleanTimedoutTxCandidate
+func (mps *MempoolService) CleanTimedoutTxCandidateThread() {
+	for {
+		mps.CleanTimedoutTxCandidate()
+		time.Sleep(constant.CleanTimedoutTxCandidateThreadGap * time.Second)
+	}
+}
+
+// CleanTimedoutTxCandidate deletes timed out tx candidate that are needed by received block
+func (mps *MempoolService) CleanTimedoutTxCandidate() {
+	mps.BlockTxCandidateMutex.Lock()
+	defer mps.BlockTxCandidateMutex.Unlock()
+
+	for txID, txWithMetaData := range mps.BlockTxCandidate {
+		if txWithMetaData.Timestamp >= time.Now().Unix()-constant.TxCandidateTimeout {
+			delete(mps.BlockTxCandidate, txID)
+		}
+	}
+}
+
+// DeleteBlockTxCandidateListener listener for action DeleteBlockTxCandidate
+func (mps *MempoolService) DeleteBlockTxCandidateListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(txIdsInterface interface{}, needAddToMempoolInterface interface{}) {
+			txIds := txIdsInterface.([]int64)
+			needAddToMempool := needAddToMempoolInterface.(bool)
+			mps.DeleteBlockTxCandidate(txIds, needAddToMempool)
+		},
+	}
+}
+
+// DeleteBlockTxCandidate deletes transactions candidate cached for blocks
+func (mps *MempoolService) DeleteBlockTxCandidate(txIds []int64, needAddToMempool bool) {
+	mps.BlockTxCandidateMutex.Lock()
+	defer mps.BlockTxCandidateMutex.Unlock()
+
+	for _, txID := range txIds {
+		if needAddToMempool {
+			err := mps.ProcessTransactionBytes(mps.BlockTxCandidate[txID].MempoolTx)
+			mps.Logger.Errorln(err)
+		}
+		delete(mps.BlockTxCandidate, txID)
+	}
+}
+
+// GetBlockTxCandidate gets transactions that are requested by the received blocks
+func (mps *MempoolService) GetBlockTxCandidate() map[int64]*MempoolTxWithMetaData {
+	mps.BlockTxCandidateMutex.Lock()
+	defer mps.BlockTxCandidateMutex.Unlock()
+
+	newData := make(map[int64]*MempoolTxWithMetaData)
+	for key, mempoolWithMetaData := range mps.BlockTxCandidate {
+		newData[key] = mempoolWithMetaData
+	}
+	return newData
 }
 
 // GetMempoolTransactions fetch transactions from mempool
@@ -332,69 +406,32 @@ func (mps *MempoolService) ReceivedTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
 		specificErr := err.(blocker.Blocker)
-		if specificErr.Type == blocker.DuplicateMempoolErr {
-			// already exist in mempool, check if already generated a receipt for this sender
-			_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
-			if err != nil {
-				if err == badger.ErrKeyNotFound {
-					batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-						mps.Chaintype,
-						receivedTxHash[:],
-						lastBlock,
-						senderPublicKey,
-						nodeSecretPhrase,
-						constant.KVdbTableTransactionReminderKey+string(receiptKey),
-						constant.ReceiptDatumTypeTransaction,
-						mps.Signature,
-						mps.QueryExecutor,
-						mps.KVExecutor,
-					)
-					if err != nil {
-						return nil, status.Error(codes.Internal, err.Error())
-					}
-					return batchReceipt, nil
-				}
-				return nil, status.Error(codes.Internal, err.Error())
-			}
+		if specificErr.Type != blocker.DuplicateMempoolErr {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+
+		// already exist in mempool, check if already generated a receipt for this sender
+		_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
+		if err != nil && err != badger.ErrKeyNotFound {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		mps.BlockTxCandidateMutex.Lock()
+		mps.BlockTxCandidate[receivedTx.ID] = &MempoolTxWithMetaData{
+			MempoolTx: mempoolTx,
+			Timestamp: time.Now().Unix(),
+		}
+		mps.BlockTxCandidateMutex.Unlock()
+		mps.Observer.Notify(observer.ReceivedTransactionValidated, receivedTx, mps.Chaintype)
+
+		// broadcast transaction
+		mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
 	}
 
-	if err := mps.QueryExecutor.BeginTx(); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	// Apply Unconfirmed transaction
-	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	err = txType.ApplyUnconfirmed()
-	if err != nil {
-		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
-		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			mps.Logger.Error(rollbackErr.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	// Store to Mempool Transaction
-	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
-		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
-		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			mps.Logger.Error(rollbackErr.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	if err = mps.QueryExecutor.CommitTx(); err != nil {
-		mps.Logger.Warnf("error committing db transaction: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	// broadcast transaction
-	mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 		mps.Chaintype,
 		receivedTxHash[:],
@@ -411,6 +448,52 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return batchReceipt, nil
+}
+
+// ProcessTransactionBytes processing mempoolTx to be added to mempool
+func (mps *MempoolService) ProcessTransactionBytes(mempoolTx *model.MempoolTransaction) error {
+	var (
+		err        error
+		receivedTx *model.Transaction
+	)
+	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	if err := mps.QueryExecutor.BeginTx(); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	// Apply Unconfirmed transaction
+	receivedTx, err = transaction.ParseTransactionBytes(mempoolTx.TransactionBytes, true)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	err = txType.ApplyUnconfirmed()
+	if err != nil {
+		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
+		}
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	// Store to Mempool Transaction
+	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
+		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
+		}
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if err = mps.QueryExecutor.CommitTx(); err != nil {
+		mps.Logger.Warnf("error committing db transaction: %v", err)
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	return nil
 }
 
 // sortFeePerByteThenTimestampThenID sort a slice of mpTx by feePerByte, timestamp, id DESC

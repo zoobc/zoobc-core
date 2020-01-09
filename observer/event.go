@@ -6,6 +6,8 @@ const (
 	BroadcastBlock Event = "BlockEvent.BroadcastBlock"
 
 	// transaction listener event
-	TransactionAdded    Event = "TransactionEvent.TransactionAdded"
-	TransactionReceived Event = "TransactionEvent.TransactionReceived"
+	TransactionAdded              Event = "TransactionEvent.TransactionAdded"
+	TransactionReceived           Event = "TransactionEvent.TransactionReceived"
+	ReceivedTransactionValidated  Event = "TransactionEvent.ReceivedTransactionValidated"
+	NeedDeleteTransactionCadidate Event = "TransactionEvent.NeedDeleteTransactionCadidate"
 )
