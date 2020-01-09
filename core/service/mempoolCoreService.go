@@ -29,7 +29,7 @@ type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
 		Start()
-		DeleteBlockTxCandidateListener() observer.Listener
+		DeleteBlockTxCandidate(txIds []int64, needAddToMempool bool)
 		GetBlockTxCandidate() map[int64]*MempoolTxWithMetaData
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
@@ -123,17 +123,6 @@ func (mps *MempoolService) CleanTimedoutTxCandidate() {
 		if txWithMetaData.Timestamp >= time.Now().Unix()-constant.TxCandidateTimeout {
 			delete(mps.BlockTxCandidate, txID)
 		}
-	}
-}
-
-// DeleteBlockTxCandidateListener listener for action DeleteBlockTxCandidate
-func (mps *MempoolService) DeleteBlockTxCandidateListener() observer.Listener {
-	return observer.Listener{
-		OnNotify: func(txIdsInterface interface{}, needAddToMempoolInterface interface{}) {
-			txIds := txIdsInterface.([]int64)
-			needAddToMempool := needAddToMempoolInterface.(bool)
-			mps.DeleteBlockTxCandidate(txIds, needAddToMempool)
-		},
 	}
 }
 

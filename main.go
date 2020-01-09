@@ -273,7 +273,6 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	observerInstance.AddListener(observer.NeedDeleteTransactionCadidate, mempoolServices[0].DeleteBlockTxCandidateListener())
 }
 
 func startServices() {
