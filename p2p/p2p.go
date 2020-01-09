@@ -38,6 +38,7 @@ type (
 		// event listener that relate to p2p communication
 		SendBlockListener() observer.Listener
 		SendTransactionListener() observer.Listener
+		RequestTransactionsListener() observer.Listener
 	}
 	Peer2PeerService struct {
 		Host              *model.Host
@@ -151,6 +152,24 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				go func() {
 					_ = s.PeerServiceClient.SendTransaction(p, t, chainType)
 
+				}()
+			}
+		},
+	}
+}
+
+func (s *Peer2PeerService) RequestTransactionsListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionIDs interface{}, args interface{}) {
+			var (
+				txIDs     = transactionIDs.([]int64)
+				chainType = args.(chaintype.ChainType)
+				peers     = s.PeerExplorer.GetResolvedPeers()
+			)
+			for _, peer := range peers {
+				p := peer
+				go func() {
+					_ = s.PeerServiceClient.RequestingTransaction(p, txIDs, chainType)
 				}()
 			}
 		},

@@ -39,6 +39,8 @@ type (
 		) (*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
+		GetTransactionQueuedBlock(transactionsID int64) *model.Transaction
+		DeleteTransactionsListener(transactionID int64, addToMempool bool)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -513,4 +515,13 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 	}
 
 	return mempools, nil
+}
+
+// GetTransactionQueuedBlock will get transaction for incoming block without transaction
+func (mps *MempoolService) GetTransactionQueuedBlock(transactionsID int64) *model.Transaction {
+	return nil
+}
+
+func (mps *MempoolService) DeleteTransactionsListener(transactionID int64, addToMempool bool) {
+	return
 }

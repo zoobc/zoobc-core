@@ -273,6 +273,7 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.TransactionRequested, p2pServiceInstance.RequestTransactionsListener())
 }
 
 func startServices() {
@@ -518,22 +519,33 @@ func startScheduler() {
 	var (
 		mainchain               = &chaintype.MainChain{}
 		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
+		mainchainBlockService   = blockServices[mainchain.GetTypeInt()].(*service.BlockService)
 	)
+	// scheduler remove expired mempool transaction
 	if err := schedulerInstance.AddJob(
 		constant.CheckMempoolExpiration,
 		mainchainMempoolService.DeleteExpiredMempoolTransactions,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// scheduler to generate receipt markle root
 	if err := schedulerInstance.AddJob(
 		constant.ReceiptGenerateMarkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// scheduler to pruning receipts that was expired
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// scheduler to remove block that already waiting transactions too long
+	if err := schedulerInstance.AddJob(
+		constant.CheckTimedOutBlock,
+		mainchainBlockService.CleanTheTimedoutBlock,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}

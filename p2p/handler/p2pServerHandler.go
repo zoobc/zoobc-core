@@ -119,3 +119,15 @@ func (ss *P2PServerHandler) SendTransaction(
 		req.SenderPublicKey,
 	)
 }
+
+// RequestingTransaction receive requested transaction from another node
+func (ss *P2PServerHandler) RequestingTransaction(
+	ctx context.Context,
+	req *model.RequestingTransactonsRequest,
+) (*model.Empty, error) {
+	return ss.Service.RequestingTransaction(
+		ctx,
+		chaintype.GetChainType(req.ChainType),
+		req.TransactionIDs,
+	)
+}

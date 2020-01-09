@@ -56,6 +56,11 @@ type (
 			transactionBytes,
 			senderPublicKey []byte,
 		) (*model.SendTransactionResponse, error)
+		RequestingTransaction(
+			ctx context.Context,
+			chainType chaintype.ChainType,
+			transactionsIDs []int64,
+		) (*model.Empty, error)
 	}
 
 	P2PServerService struct {
@@ -394,6 +399,18 @@ func (ps *P2PServerService) SendTransaction(
 		return &model.SendTransactionResponse{
 			BatchReceipt: batchReceipt,
 		}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) RequestingTransaction(
+	ctx context.Context,
+	chainType chaintype.ChainType,
+	transactionsIDs []int64,
+) (*model.Empty, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		// check existing transactions in transaction and mempool table
+		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

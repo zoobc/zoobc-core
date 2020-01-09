@@ -36,6 +36,11 @@ type (
 			transactionBytes []byte,
 			chainType chaintype.ChainType,
 		) error
+		RequestingTransaction(
+			destPeer *model.Peer,
+			transactonIDs []int64,
+			chainType chaintype.ChainType,
+		) error
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
 			astMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
@@ -318,6 +323,32 @@ func (psc *PeerServiceClient) SendTransaction(
 	}
 	err = psc.storeReceipt(response.BatchReceipt)
 	return err
+}
+
+func (psc *PeerServiceClient) RequestingTransaction(
+	destPeer *model.Peer,
+	transactonIDs []int64,
+	chainType chaintype.ChainType,
+) error {
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+	_, err = p2pClient.RequestingTransaction(ctx, &model.RequestingTransactonsRequest{
+		TransactionIDs: transactonIDs,
+		ChainType:      chainType.GetTypeInt(),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node

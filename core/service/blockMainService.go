@@ -47,6 +47,7 @@ type (
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
+		CleanTheTimedoutBlock()
 	}
 
 	//TODO: rename to BlockMainService
@@ -70,10 +71,28 @@ type (
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
+		SmithQueue              *SmithQueue
 		Observer                *observer.Observer
 		Logger                  *log.Logger
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
+	}
+	// TransactionIDs reperesent a list of transaction id will used by queued block
+	TransactionIDsMap map[int64]int
+	BlockIDsMap       map[int64]bool
+	//BlockWithMetaData is incoming block with some information while waiting transaction
+	BlockWithMetaData struct {
+		Block     *model.Block
+		Timestamp int64
+	}
+	// SmithQueue reperesent a list of incoming blocks while waiting their transaction
+	SmithQueue struct {
+		WaitingTxBlocks               map[int64]*BlockWithMetaData
+		BlockRequiringTransactionsMap map[int64]TransactionIDsMap
+		TransactionsRequiredMap       map[int64]BlockIDsMap
+		TimeoutBlock                  int64
+		BlockMutex                    sync.Mutex
+		TxQueueMutex                  sync.Mutex
 	}
 )
 
@@ -184,9 +203,9 @@ func (bs *BlockService) NewGenesisBlock(
 	return block, nil
 }
 
-// ValidateBlock validate block to be pushed into the blockchain
-func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	// todo: validate previous time
+// PreValidateBlock valdiate block without without it's transactions
+func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	// check block timestamp
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
@@ -196,9 +215,19 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
+	// check smithtime
 	blocksmithTime := bs.BlocksmithStrategy.GetSmithTime(*blocksmithIndex, previousLastBlock)
 	if blocksmithTime > block.GetTimestamp() {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
+	}
+	return nil
+}
+
+// ValidateBlock validate block to be pushed into the blockchain
+func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	err := bs.PreValidateBlock(block, previousLastBlock, curTime)
+	if err != nil {
+		return err
 	}
 	if coreUtil.GetBlockID(block, bs.Chaintype) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
@@ -299,12 +328,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 		return err
 	}
+	var transactionIDs []int64
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
 		// assign block id and block height to tx
 		tx.BlockID = block.ID
 		tx.Height = block.Height
 		tx.TransactionIndex = uint32(index) + 1
+		transactionIDs[index] = tx.GetID()
 		// validate tx here
 		// check if is in mempool : if yes, undo unconfirmed
 		rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
@@ -458,6 +489,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block)
+	// add transactionIDs and remove transaction before broadcast
+	block.TransactionIDs = transactionIDs
+	block.Transactions = make([]*model.Transaction, len(block.GetTransactions()))
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
@@ -1056,58 +1090,35 @@ func (bs *BlockService) ReceiveBlock(
 			err.Error(),
 		)
 	}
+	var isQueued bool
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
-		// check if incoming block is of higher quality
+		// when incoming block is better than last block that having same prevoius block hash
 		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
 			block.Timestamp < lastBlock.Timestamp {
-			err := func() error {
-				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
-				if err != nil {
-					return status.Error(codes.Internal,
-						"fail to get last block",
-					)
-				}
-				if !bytes.Equal(previousBlock.GetBlockHash(), block.PreviousBlockHash) {
-					return status.Error(codes.InvalidArgument,
-						"blockchain changed, ignore the incoming block",
-					)
-				}
-				lastBlocks, err := bs.PopOffToBlock(previousBlock)
-				if err != nil {
-					return err
-				}
-				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
-				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
-					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return status.Error(codes.InvalidArgument, "InvalidBlock")
-					}
-
-					bs.Logger.Info("pushing back popped off block")
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
-				}
-				err = bs.PushBlock(previousBlock, block, true)
-				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
-					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return status.Error(codes.InvalidArgument, "InvalidBlock")
-					}
-					bs.Logger.Info("pushing back popped off block")
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
-				}
-				return nil
-			}()
+			var previousBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+			if err != nil {
+				return nil, status.Error(codes.Internal, "FailGetBlock")
+			}
+			// pre validation block
+			if err = bs.PreValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
+				return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+			}
+			isQueued, err = bs.ProcessQueuedBlock(block, lastBlock)
 			if err != nil {
 				return nil, err
 			}
+			// when isQueued is false and err is nil it means need to process completed block
+			if !isQueued && err == nil {
+				err = bs.ProcessCompletedBlock(block)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
+
 		// check if already broadcast receipt to this node
-		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+		_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
 				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
@@ -1141,32 +1152,24 @@ func (bs *BlockService) ReceiveBlock(
 			"previousBlockHashDoesNotMatchWithLastBlockHash",
 		)
 	}
-	err = func() error {
-		// pushBlock closure to release lock as soon as block pushed
-		// Securing receive block process
-		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-		// making sure get last block after paused process
-		lastBlock, err = bs.GetLastBlock()
-		if err != nil {
-			return status.Error(codes.Internal,
-				"fail to get last block",
-			)
-		}
-		// Validate incoming block
-		err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
-		if err != nil {
-			return status.Error(codes.InvalidArgument, "InvalidBlock")
-		}
-		err = bs.PushBlock(lastBlock, block, true)
-		if err != nil {
-			return status.Error(codes.InvalidArgument, err.Error())
-		}
-		return nil
-	}()
+
+	// pre validation block
+	if err = bs.PreValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+	}
+
+	isQueued, err = bs.ProcessQueuedBlock(block, lastBlock)
 	if err != nil {
 		return nil, err
 	}
+	// precess block when block don't have transaction
+	if !isQueued && err == nil {
+		err = bs.ProcessCompletedBlock(block)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 		bs.Chaintype,
@@ -1417,4 +1420,218 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// remove peer memoization
 	bs.NodeRegistrationService.ResetScrambledNodes()
 	return poppedBlocks, nil
+}
+
+// ProcessCompletedBlock to precess block that already having all needed transactions
+func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
+	// pushBlock closure to release lock as soon as block pushed
+	// Securing receive block process
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+
+	// making sure get last block after paused process
+	var lastBlock, err = bs.GetLastBlock()
+	if err != nil {
+		return status.Error(codes.Internal,
+			"fail to get last block",
+		)
+	}
+	// when incoming block is better than last block that having same prevoius block hash
+	if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+		block.Timestamp < lastBlock.Timestamp {
+		var previousBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+		if err != nil {
+			return status.Error(codes.Internal,
+				"fail to get last block",
+			)
+		}
+		// Pop off last block to trying push incoming block
+		lastBlocks, err := bs.PopOffToBlock(previousBlock)
+		if err != nil {
+			return err
+		}
+		err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+		if err != nil {
+			errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+			if errPushBlock != nil {
+				bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+				return status.Error(codes.InvalidArgument, "InvalidBlock")
+			}
+
+			bs.Logger.Info("pushing back popped off block")
+			return status.Error(codes.InvalidArgument, "InvalidBlock")
+		}
+		err = bs.PushBlock(previousBlock, block, true)
+		if err != nil {
+			errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+			if errPushBlock != nil {
+				bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+				return status.Error(codes.InvalidArgument, "InvalidBlock")
+			}
+			bs.Logger.Info("pushing back popped off block")
+			return status.Error(codes.InvalidArgument, "InvalidBlock")
+		}
+
+		fmt.Println("tes t ProcessCompletedBlock 00000 --------------------->")
+		fmt.Println(bs.SmithQueue.WaitingTxBlocks)
+
+		return nil
+	}
+
+	// normal process to validate and push block
+	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+	if err != nil {
+		return status.Error(codes.InvalidArgument, "InvalidBlock")
+	}
+	err = bs.PushBlock(lastBlock, block, true)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	fmt.Println("tes t ProcessCompletedBlock --------------------->")
+	fmt.Println(bs.SmithQueue.WaitingTxBlocks)
+	return nil
+}
+
+// ProcessQueuedBlock process to queue block when waiting their transactions
+// block will directly into completed precess block when isQueued is false and err is nil
+func (bs *BlockService) ProcessQueuedBlock(block, lastBlock *model.Block) (isQueued bool, err error) {
+	// check block having transactions or not
+	if len(block.TransactionIDs) != 0 {
+		bs.SmithQueue.BlockMutex.Lock()
+		defer bs.SmithQueue.BlockMutex.Unlock()
+		// check block already queued or not
+		if bs.SmithQueue.WaitingTxBlocks[block.ID] == nil {
+			var (
+				txRequiredByBlock     = make(TransactionIDsMap)
+				txRequiredByBlockArgs []interface{}
+			)
+			for idx, txID := range block.TransactionIDs {
+				// check if the transaction already exists in the blockTransactionsCandidate
+				var txFound = bs.MempoolService.GetTransactionQueuedBlock(txID)
+				if txFound != nil {
+					// add transaction into block
+					block.Transactions[idx] = txFound
+					continue
+				}
+				// save transaction ID when transaction not found
+				txRequiredByBlock[txID] = idx
+				// used as argument when querying in mempool
+				txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
+
+			}
+			// process when needed trasacntions are completed
+			if len(txRequiredByBlock) == 0 {
+				if err = bs.ProcessCompletedBlock(block); err != nil {
+					return false, err
+				}
+				return true, nil
+			}
+
+			// looking rest of needed transctions in mempool
+			var (
+				caseQuery    = query.NewCaseQuery()
+				mempoolQuery = query.NewMempoolQuery(bs.Chaintype)
+				mempools     []*model.MempoolTransaction
+			)
+			// build query to select transaction in mempool transaction
+			caseQuery.Select(mempoolQuery.TableName, mempoolQuery.Fields...)
+			caseQuery.Where(caseQuery.In("id", txRequiredByBlockArgs...))
+			selectQuery, args := caseQuery.Build()
+			rows, err := bs.QueryExecutor.ExecuteSelect(selectQuery, false, args...)
+			if err != nil {
+				return false, err
+			}
+			defer rows.Close()
+			mempools, err = mempoolQuery.BuildModel(mempools, rows)
+			if err != nil {
+				return false, err
+			}
+			fmt.Println(mempools)
+			for _, mempool := range mempools {
+				tx, err := transaction.ParseTransactionBytes(mempool.TransactionBytes, true)
+				if err != nil {
+					continue
+				}
+				block.Transactions[txRequiredByBlock[tx.GetID()]] = tx
+				delete(txRequiredByBlock, tx.GetID())
+			}
+			// process when needed trasacntions are completed
+			if len(txRequiredByBlock) == 0 {
+				if err = bs.ProcessCompletedBlock(block); err != nil {
+					return false, err
+				}
+				return true, nil
+			}
+
+			// saving temporary map ID transactions and block
+			bs.SmithQueue.BlockRequiringTransactionsMap[block.ID] = txRequiredByBlock
+			bs.SmithQueue.WaitingTxBlocks[block.ID] = &BlockWithMetaData{
+				Block:     block,
+				Timestamp: time.Now().Unix(),
+			}
+			bs.RequestBlockTransactions(block.GetTransactionIDs())
+			return true, nil
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// RequestBlockTransactions request transactons of incoming block
+func (bs *BlockService) RequestBlockTransactions(txIds []int64) {
+	// TODO: chucks requested transaction
+	bs.Observer.Notify(observer.TransactionRequested, txIds, bs.Chaintype)
+	return
+}
+
+// ReceiveTransactionListener will received transaction for queued block
+func (bs *BlockService) ReceiveTransactionListener(transaction *model.Transaction) {
+	bs.SmithQueue.BlockMutex.Lock()
+	defer bs.SmithQueue.BlockMutex.Unlock()
+	for blockID, _ := range bs.SmithQueue.TransactionsRequiredMap[transaction.GetID()] {
+		var (
+			txs        = bs.SmithQueue.WaitingTxBlocks[blockID].Block.GetTransactions()
+			txPotition = bs.SmithQueue.BlockRequiringTransactionsMap[blockID][transaction.GetID()]
+		)
+		// add transaction into block
+		txs[txPotition] = transaction
+		bs.SmithQueue.WaitingTxBlocks[blockID].Block.Transactions = txs
+		delete(bs.SmithQueue.BlockRequiringTransactionsMap[blockID], transaction.GetID())
+
+		// process block when all transactions are completed
+		if len(bs.SmithQueue.BlockRequiringTransactionsMap[blockID]) == 0 {
+			err := bs.ProcessCompletedBlock(bs.SmithQueue.WaitingTxBlocks[blockID].Block)
+			if err != nil {
+				continue
+			}
+			// remove waited block and list of transaction ID map when block already pushed
+			delete(bs.SmithQueue.WaitingTxBlocks, blockID)
+			delete(bs.SmithQueue.BlockRequiringTransactionsMap, blockID)
+		}
+
+	}
+	// remove block ID when no need reqiered in transaction
+	delete(bs.SmithQueue.TransactionsRequiredMap, transaction.GetID())
+	return
+}
+
+//.CleanTheTimedoutBlock will remove waited block when block waiting too long
+func (bs *BlockService) CleanTheTimedoutBlock() {
+	bs.SmithQueue.BlockMutex.Lock()
+	defer bs.SmithQueue.BlockMutex.Unlock()
+	for blockID, blockWithMeta := range bs.SmithQueue.WaitingTxBlocks {
+		if blockWithMeta.Timestamp <= time.Now().Unix()-bs.SmithQueue.TimeoutBlock {
+			for _, transactionID := range blockWithMeta.Block.GetTransactionIDs() {
+				delete(bs.SmithQueue.TransactionsRequiredMap[transactionID], blockID)
+				// removing transaction candidate when it's not needed by any block
+				if len(bs.SmithQueue.TransactionsRequiredMap[transactionID]) == 0 {
+					bs.MempoolService.DeleteTransactionsListener(transactionID, false)
+				}
+			}
+			delete(bs.SmithQueue.WaitingTxBlocks, blockID)
+			delete(bs.SmithQueue.BlockRequiringTransactionsMap, blockID)
+
+		}
+	}
 }
