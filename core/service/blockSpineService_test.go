@@ -50,6 +50,7 @@ var (
 	}
 	mockSpinePublicKey = &model.SpinePublicKey{
 		NodePublicKey:   nrsNodePubKey1,
+		MainBlockHeight: 1,
 		PublicKeyAction: model.SpinePublicKeyAction_AddKey,
 		Height:          1,
 		Latest:          true,
@@ -380,10 +381,14 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			}
 		}
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height FROM node_registry WHERE " +
-		"height = (SELECT MIN(height) FROM main_block AS mb1 WHERE mb1.timestamp > 12345600) AND " +
-		"height = (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp <= 12345678) AND " +
-		"registration_status != 1 AND latest=1 ORDER BY height":
+		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
+		"FROM main_block AS mb1 WHERE mb1.timestamp >= 12345600) AND height <= (SELECT MAX(height) " +
+		"FROM main_block AS mb2 WHERE mb2.timestamp < 12345678) AND registration_status != 1 AND latest=1 ORDER BY height":
+		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
+		"FROM main_block AS mb1 WHERE mb1.timestamp >= 0) AND height <= (SELECT MAX(height) " +
+		"FROM main_block AS mb2 WHERE mb2.timestamp < 12345678) AND registration_status != 1 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
 	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
@@ -430,27 +435,14 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 				mockSpineBlockData.GetTotalCoinBase(),
 				mockSpineBlockData.GetVersion(),
 			))
-	case "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key " +
-		"WHERE block_id = -1701929749060110283":
+	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewSpinePublicKeyQuery().Fields,
 			).AddRow(
 				mockSpinePublicKey.NodePublicKey,
-				mockSpinePublicKey.BlockID,
 				mockSpinePublicKey.PublicKeyAction,
-				mockSpinePublicKey.Latest,
-				mockSpinePublicKey.Height,
-			))
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
-		"WHERE height >= 0 AND height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
-		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).
-			WillReturnRows(sqlmock.NewRows(
-				query.NewSpinePublicKeyQuery().Fields,
-			).AddRow(
-				mockSpinePublicKey.NodePublicKey,
-				mockSpinePublicKey.BlockID,
-				mockSpinePublicKey.PublicKeyAction,
+				mockSpinePublicKey.MainBlockHeight,
 				mockSpinePublicKey.Latest,
 				mockSpinePublicKey.Height,
 			))
@@ -1659,7 +1651,7 @@ func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string,
 		"WHERE height >= 0 AND height <= 0 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key WHERE block_id = -1701929749060110283":
+	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewSpinePublicKeyQuery().Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
@@ -1763,7 +1755,7 @@ func (*mockSpineQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx 
 		"WHERE height >= 0 AND height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key WHERE block_id = -1701929749060110283":
+	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
@@ -3142,7 +3134,7 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, arg
 		"WHERE height >= 0 AND height <= 1000 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
-	case "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key WHERE block_id = 1":
+	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1000":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -3365,60 +3357,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	}
 }
 
-func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
-	type fields struct {
-		RWMutex               sync.RWMutex
-		Chaintype             chaintype.ChainType
-		KVExecutor            kvdb.KVExecutorInterface
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Signature             crypto.SignatureInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
-		Observer              *observer.Observer
-		Logger                *log.Logger
-	}
-	type args struct {
-		fromTimestamp int64
-		toTimestamp   int64
-	}
-	tests := []struct {
-		name                string
-		fields              fields
-		args                args
-		wantSpinePublicKeys []*model.SpinePublicKey
-		wantErr             bool
-	}{
-		// TODO: @iltoga Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockSpineService{
-				RWMutex:               tt.fields.RWMutex,
-				Chaintype:             tt.fields.Chaintype,
-				KVExecutor:            tt.fields.KVExecutor,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
-				Signature:             tt.fields.Signature,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
-				Observer:              tt.fields.Observer,
-				Logger:                tt.fields.Logger,
-			}
-			gotSpinePublicKeys, err := bs.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromTimestamp, tt.args.toTimestamp)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockSpineService.BuildSpinePublicKeysFromNodeRegistry() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(gotSpinePublicKeys, tt.wantSpinePublicKeys) {
-				t.Errorf("BlockSpineService.BuildSpinePublicKeysFromNodeRegistry() = %v, want %v", gotSpinePublicKeys, tt.wantSpinePublicKeys)
-			}
-		})
-	}
-}
-
 type (
 	mockSpineExecutorPopulateBlockDataFail struct {
 		query.Executor
@@ -3436,15 +3374,14 @@ func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx 
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 	switch qStr {
-	case "SELECT node_public_key, block_id, public_key_action, latest, height FROM spine_public_key " +
-		"WHERE block_id = -1701929749060110283":
+	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 0":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewSpinePublicKeyQuery().Fields,
 			).AddRow(
 				mockSpinePublicKey.NodePublicKey,
-				mockSpinePublicKey.BlockID,
 				mockSpinePublicKey.PublicKeyAction,
+				mockSpinePublicKey.MainBlockHeight,
 				mockSpinePublicKey.Latest,
 				mockSpinePublicKey.Height,
 			))
@@ -3532,6 +3469,100 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 			}
 			if tt.expects != nil && !reflect.DeepEqual(tt.args.block, tt.expects) {
 				t.Errorf("BlockSpineService.PopulateBlockData() = %v, want %v", tt.expects, tt.args.block)
+			}
+		})
+	}
+}
+
+type (
+	mockNodeRegistationQueryExecutorSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockNodeRegistationQueryExecutorSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mockSpine, _ := sqlmock.New()
+	defer db.Close()
+	switch qStr {
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
+		"FROM main_block AS mb1 WHERE mb1.timestamp >= 1) AND height <= (SELECT MAX(height) " +
+		"FROM main_block AS mb2 WHERE mb2.timestamp < 2) AND registration_status != 1 AND latest=1 ORDER BY height":
+		mockNodeRegistrationRows := mockSpine.NewRows(query.NewNodeRegistrationQuery().Fields)
+		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockNodeRegistrationRows)
+	default:
+		return nil, fmt.Errorf("unmocked query for mockNodeRegistationQueryExecutorSuccess: %s", qStr)
+	}
+	rows, _ := db.Query(qStr)
+	return rows, nil
+}
+
+func TestBlockSpineService_BuildSpinePublicKeysFromNodeRegistry(t *testing.T) {
+	type fields struct {
+		Chaintype             chaintype.ChainType
+		KVExecutor            kvdb.KVExecutorInterface
+		QueryExecutor         query.ExecutorInterface
+		BlockQuery            query.BlockQueryInterface
+		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
+		Signature             crypto.SignatureInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
+		Observer              *observer.Observer
+		Logger                *log.Logger
+	}
+	type args struct {
+		fromTimestamp int64
+		toTimestamp   int64
+		spineHeight   uint32
+	}
+	tests := []struct {
+		name                string
+		fields              fields
+		args                args
+		wantSpinePublicKeys []*model.SpinePublicKey
+		wantErr             bool
+	}{
+		{
+			name: "BuildSpinePublicKeysFromNodeRegistry:success",
+			fields: fields{
+				Chaintype:             &chaintype.SpineChain{},
+				KVExecutor:            nil,
+				QueryExecutor:         &mockNodeRegistationQueryExecutorSuccess{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
+				SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
+				Signature:             nil,
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				Logger:                logrus.New(),
+			},
+			args: args{
+				fromTimestamp: 1,
+				toTimestamp:   2,
+				spineHeight:   1,
+			},
+			wantSpinePublicKeys: []*model.SpinePublicKey{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockSpineService{
+				Chaintype:             tt.fields.Chaintype,
+				KVExecutor:            tt.fields.KVExecutor,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				BlockQuery:            tt.fields.BlockQuery,
+				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
+				Signature:             tt.fields.Signature,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
+				Observer:              tt.fields.Observer,
+				Logger:                tt.fields.Logger,
+			}
+			gotSpinePublicKeys, err := bs.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromTimestamp, tt.args.toTimestamp, tt.args.spineHeight)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockSpineService.BuildSpinePublicKeysFromNodeRegistry() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotSpinePublicKeys, tt.wantSpinePublicKeys) {
+				t.Errorf("BlockSpineService.BuildSpinePublicKeysFromNodeRegistry() = %v, want %v", gotSpinePublicKeys, tt.wantSpinePublicKeys)
 			}
 		})
 	}

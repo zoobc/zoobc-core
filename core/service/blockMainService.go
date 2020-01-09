@@ -914,6 +914,7 @@ func (bs *BlockService) GenerateBlock(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
+	// FIXME: add published receipts to block payload length
 
 	if err != nil {
 		return nil, err
