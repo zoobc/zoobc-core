@@ -25,4 +25,6 @@ const (
 	PriorityStrategyBuildScrambleNodesGap uint32 = 10
 	// PriorityStrategyMaxStayedInUnresolvedPeers max time a peer can stay before being cycled out from unresolved peers
 	PriorityStrategyMaxStayedInUnresolvedPeers int64 = 120
+	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
+	BlockchainsyncWaitingTime = 3
 )
