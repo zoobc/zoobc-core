@@ -73,7 +73,7 @@ type (
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		AccountLedgerQuery           query.AccountLedgerQueryInterface
 		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
-		WaitingTransactionBlockQueue *WaitingTransactionBlockQueue
+		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
 		Observer                     *observer.Observer
 		Logger                       *log.Logger
 	}

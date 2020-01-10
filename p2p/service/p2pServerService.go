@@ -409,7 +409,7 @@ func (ps *P2PServerService) RequestingTransaction(
 	transactionsIDs []int64,
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		// check existing transactions in transaction and mempool table
+		// TODO: add asyc process to check and send back requested transactions
 		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")

@@ -102,11 +102,10 @@ func NewBlockService(
 			Observer:                obsr,
 			Logger:                  logger,
 			AccountLedgerQuery:      accountLedgerQuery,
-			WaitingTransactionBlockQueue: &WaitingTransactionBlockQueue{
+			WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
 				WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
 				BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
 				TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				TimeoutBlock:                  constant.TimeOutBlockWaitingTransactions,
 			},
 		}
 	case *chaintype.SpineChain:

@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
-	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -2233,6 +2232,26 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 	}
 }
 
+type (
+	mockBlocksmithServiceReceiveBlock struct {
+		strategy.BlocksmithStrategyMain
+	}
+)
+
+func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
+	return mockBlocksmiths
+}
+func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+	var result = make(map[string]*int64)
+	for index, mock := range mockBlocksmiths {
+		mockIndex := int64(index)
+		result[string(mock.NodePublicKey)] = &mockIndex
+	}
+	return result
+}
+func (*mockBlocksmithServiceReceiveBlock) SortBlocksmiths(block *model.Block) {
+}
+
 func TestBlockService_ReceiveBlock(t *testing.T) {
 	var (
 		mockLastBlockData = model.Block{
@@ -2266,9 +2285,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			CumulativeDifficulty: "200",
 			Timestamp:            10000,
 			BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
-			Transactions: []*model.Transaction{
-				mockTransaction,
-			},
+			Transactions:         []*model.Transaction{},
 		}
 		successBlockHash = []byte{
 			197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217, 209, 67, 185, 183, 116, 101, 64, 47, 196,
@@ -2282,26 +2299,31 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		}
 	)
 	mockBlockData.BlockHash = mockGoodLastBlockHash
+	mockBlockData.Transactions = []*model.Transaction{
+		mockTransaction,
+	}
+	fmt.Println(mockGoodLastBlockHash)
 
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
+		Chaintype                    chaintype.ChainType
+		KVExecutor                   kvdb.KVExecutorInterface
+		QueryExecutor                query.ExecutorInterface
+		BlockQuery                   query.BlockQueryInterface
+		MempoolQuery                 query.MempoolQueryInterface
+		TransactionQuery             query.TransactionQueryInterface
+		MerkleTreeQuery              query.MerkleTreeQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
+		Signature                    crypto.SignatureInterface
+		MempoolService               MempoolServiceInterface
+		ActionTypeSwitcher           transaction.TypeActionSwitcher
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		AccountLedgerQuery           query.AccountLedgerQueryInterface
+		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
+		Observer                     *observer.Observer
+		NodeRegistrationService      NodeRegistrationServiceInterface
+		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2340,6 +2362,11 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                nil,
 				NodeRegistrationService: nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2373,6 +2400,11 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                nil,
 				BlocksmithStrategy:      &mockBlocksmithService{},
 				NodeRegistrationService: nil,
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2400,7 +2432,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:      nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2446,7 +2483,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:      nil,
 				Observer:                nil,
 				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2472,7 +2514,12 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:      nil,
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2507,8 +2554,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Observer:                observer.NewObserver(),
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
+				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2528,25 +2580,26 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
-				Observer:                tt.fields.Observer,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				Logger:                  logrus.New(),
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Chaintype:                    tt.fields.Chaintype,
+				KVExecutor:                   tt.fields.KVExecutor,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				BlockQuery:                   tt.fields.BlockQuery,
+				MempoolQuery:                 tt.fields.MempoolQuery,
+				TransactionQuery:             tt.fields.TransactionQuery,
+				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
+				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
+				Signature:                    tt.fields.Signature,
+				MempoolService:               tt.fields.MempoolService,
+				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
+				Observer:                     tt.fields.Observer,
+				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
+				Logger:                       logrus.New(),
+				NodeRegistrationService:      tt.fields.NodeRegistrationService,
+				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -2555,6 +2608,8 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
+				fmt.Println(tt.want.ReferenceBlockHash)
+				fmt.Println(got.ReferenceBlockHash)
 				t.Errorf("ReceiveBlock() got = \n%v want \n%v", got, tt.want)
 			}
 		})
@@ -3684,7 +3739,6 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 
 func TestBlockService_PopOffToBlock(t *testing.T) {
 	type fields struct {
-		RWMutex                 sync.RWMutex
 		Chaintype               chaintype.ChainType
 		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
@@ -3747,7 +3801,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		{
 			name: "Fail - HardFork",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
@@ -3806,7 +3859,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		{
 			name: "Fail - GetPublishedReceiptError",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
@@ -3836,7 +3888,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		{
 			name: "Fail - GetMempoolToBackupFail",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
@@ -3866,7 +3917,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		{
 			name: "Success",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
