@@ -1,6 +1,7 @@
 package query
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,7 @@ type (
 	// AccountLedgerQueryInterface includes interface methods for AccountLedgerQuery
 	AccountLedgerQueryInterface interface {
 		ExtractModel(accountLedger *model.AccountLedger) []interface{}
+		BuildModel(accountLedgers []*model.AccountLedger, rows *sql.Rows) ([]*model.AccountLedger, error)
 		InsertAccountLedger(accountLedger *model.AccountLedger) (qStr string, args []interface{})
 	}
 )
@@ -59,6 +61,28 @@ func (*AccountLedgerQuery) ExtractModel(accountLedger *model.AccountLedger) []in
 		accountLedger.GetTransactionID(),
 		accountLedger.GetEventType(),
 	}
+}
+
+// BuildModel will create or build models that extracted from rows
+func (*AccountLedgerQuery) BuildModel(accountLedgers []*model.AccountLedger, rows *sql.Rows) ([]*model.AccountLedger, error) {
+	for rows.Next() {
+		var (
+			accountLedger model.AccountLedger
+			err           error
+		)
+		err = rows.Scan(
+			&accountLedger.AccountAddress,
+			&accountLedger.BalanceChange,
+			&accountLedger.BlockHeight,
+			&accountLedger.TransactionID,
+			&accountLedger.EventType,
+		)
+		if err != nil {
+			return nil, err
+		}
+		accountLedgers = append(accountLedgers, &accountLedger)
+	}
+	return accountLedgers, nil
 }
 
 // Rollback represents delete query in block_height n
