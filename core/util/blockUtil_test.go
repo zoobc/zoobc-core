@@ -97,7 +97,7 @@ func TestGetBlockID(t *testing.T) {
 				},
 				ct: &chaintype.MainChain{},
 			},
-			want: 4891391764897612667,
+			want: -4663951010383348858,
 		},
 		{
 			name: "GetBlockID:two",
@@ -118,7 +118,7 @@ func TestGetBlockID(t *testing.T) {
 				},
 				ct: &chaintype.MainChain{},
 			},
-			want: 5677934310196121651,
+			want: -7100824243827680979,
 		},
 	}
 	for _, tt := range tests {

@@ -759,7 +759,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				PayloadLength:        8,
 				CumulativeDifficulty: "1",
 				BlockSignature:       []byte{},
-				BlockHash: []byte{222, 81, 44, 228, 147, 156, 145, 104, 1, 97, 62, 138, 253, 90, 55, 41, 
+				BlockHash: []byte{222, 81, 44, 228, 147, 156, 145, 104, 1, 97, 62, 138, 253, 90, 55, 41,
 					29, 150, 230, 196, 68, 216, 14, 244, 224, 161, 132, 157, 229, 68, 33, 147},
 			},
 		},
@@ -2271,8 +2271,8 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 		}
 		successBlockHash = []byte{
-			197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217, 209, 67, 185, 183, 116, 101, 64, 47, 196,
-			207, 27, 173, 3, 141, 12, 163, 245, 254,
+			43, 34, 74, 32, 183, 252, 96, 211, 238, 233, 6, 213, 20, 48, 106, 61, 13, 186, 34, 250, 75, 147, 176, 152, 75, 36,
+			105, 47, 164, 15, 4, 213,
 		}
 		mockBlockSuccess = &model.Block{
 			BlockSignature:    []byte{},
@@ -3011,7 +3011,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    4070746053101615238,
+			want:    4211221405726892592,
 		},
 	}
 	for _, tt := range tests {
