@@ -196,7 +196,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 				QueryExecutor:       tt.fields.QueryExecutor,
 				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
 			}
-			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

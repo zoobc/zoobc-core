@@ -13,7 +13,7 @@ func (tx *TXEmpty) SkipMempoolTransaction(selectedTransactions []*model.Transact
 	return false, nil
 }
 
-func (tx *TXEmpty) ApplyConfirmed() error {
+func (tx *TXEmpty) ApplyConfirmed(int64) error {
 	return nil
 }
 func (tx *TXEmpty) ApplyUnconfirmed() error {

@@ -244,6 +244,10 @@ func (m *Migration) Init() error {
 				"event_type" INTEGER
 			)
 			`,
+			`
+			ALTER TABLE "account_ledger"
+				ADD COLUMN "timestamp" INTEGER
+			`,
 		}
 		return nil
 	}

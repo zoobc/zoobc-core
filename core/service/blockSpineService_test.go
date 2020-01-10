@@ -198,7 +198,7 @@ func (*mockSpineKVExecutorFailOtherError) Insert(key string, value []byte, expir
 }
 
 // mockSpineTypeAction
-func (*mockSpineTypeAction) ApplyConfirmed() error {
+func (*mockSpineTypeAction) ApplyConfirmed(int64) error {
 	return nil
 }
 func (*mockSpineTypeAction) Validate(bool) error {

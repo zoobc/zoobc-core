@@ -548,7 +548,7 @@ type (
 )
 
 // mockTypeAction
-func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed() error {
+func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed(int64) error {
 	return nil
 }
 func (*ReceivedTransactionListenerMockTypeAction) Validate(bool) error {
