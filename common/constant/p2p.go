@@ -27,4 +27,8 @@ const (
 	PriorityStrategyMaxStayedInUnresolvedPeers int64 = 120
 	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
 	BlockchainsyncWaitingTime = 3
+	// BlockchainsyncSpineCheckInterval time, in seconds, between checks if spine blocks have finished to be downloaded
+	BlockchainsyncSpineCheckInterval = 5
+	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
+	BlockchainsyncSpineTimeout = 600
 )
