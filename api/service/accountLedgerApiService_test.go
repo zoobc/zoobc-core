@@ -19,6 +19,7 @@ var (
 		BlockHeight:    2,
 		TransactionID:  -9127118158999748858,
 		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
+		Timestamp:      1562117271,
 	}
 )
 
@@ -46,6 +47,7 @@ func (*mockQueryAccountLedgersSuccess) ExecuteSelect(qStr string, tx bool, args 
 		mockAccountLedger.GetBlockHeight(),
 		mockAccountLedger.GetTransactionID(),
 		mockAccountLedger.GetEventType(),
+		mockAccountLedger.GetTimestamp(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(rowsMock)
 	return db.Query(qStr, args...)
