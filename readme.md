@@ -7,6 +7,9 @@
   <a href="https://circleci.com/gh/zoobc/zoobc-core">
     <img src="https://circleci.com/gh/zoobc/zoobc-core.svg?style=svg&circle-token=cdd770bcb30a201696bb10e76ed15504cf235a9f" alt="CircleCI"/>
   </a>
+  <a href="#">
+    <img src="./coverage_badge.png" alt="cover badge"/>
+  </a>
 </p>
 
 Zoobc-core is the main node application to run the zoobc blockchain. This repository consist of the main node application and the `command line interface` tools to help with development, which is located in the `cmd/` directory.
@@ -23,7 +26,7 @@ Zoobc-core is the main node application to run the zoobc blockchain. This reposi
 ### Install
 
 - clone the repository.
-- run `dep ensure -v --vendor-only` to install the dependencies.
+- run `dep ensure -v --vendor-only` to install the dependencies read from Gopkg.toml only.
 - run `git submodule update --init --recursive --remote` to update / fetch submodule.
 
 ### Run
@@ -53,11 +56,11 @@ go build -o zoobc
 
 - #### unit test
 
-  - run all tests `go test ./...`
+  - run all tests without cache `go test ./... -count=1`
   - run all test with coverage report `go test ./... -coverprofile=cover.out && go tool cover -html=cover.out`
 
 - #### Lint
-  - run `golangci-lint ./...` to check any linting error in the changes.
+  - run `golangci-lint run` to check any linting error in the changes.
   - remember to run tests, and lint before submitting PR.
 
 ### Swagger
