@@ -538,6 +538,12 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
+	if err := schedulerInstance.AddJob(
+		constant.CleanTimedoutBlockTxCachedThreadGap,
+		mempoolServices[0].CleanTimedoutBlockTxCached,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
 }
 
 func main() {

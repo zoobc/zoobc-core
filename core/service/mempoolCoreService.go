@@ -28,7 +28,7 @@ import (
 type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
-		Start()
+		CleanTimedoutBlockTxCached()
 		DeleteBlockTxCached(txIds []int64, needAddToMempool bool)
 		GetBlockTxCached(txID int64) *model.Transaction
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
@@ -99,19 +99,6 @@ func NewMempoolService(
 		Logger:              logger,
 		BlockQuery:          blockQuery,
 		BlockTxCached:       make(map[int64]*MempoolTxWithMetaData),
-	}
-}
-
-// Start mempool service
-func (mps *MempoolService) Start() {
-	go mps.CleanTimedoutBlockTxCachedThread()
-}
-
-// thread for CleanTimedoutBlockTxCached
-func (mps *MempoolService) CleanTimedoutBlockTxCachedThread() {
-	for {
-		mps.CleanTimedoutBlockTxCached()
-		time.Sleep(constant.CleanTimedoutBlockTxCachedThreadGap * time.Second)
 	}
 }
 
@@ -396,30 +383,32 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// Validate received transaction
-	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
-		specificErr := err.(blocker.Blocker)
-		if specificErr.Type != blocker.DuplicateMempoolErr {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
+	if transactionCached := mps.GetBlockTxCached(receivedTx.ID); transactionCached == nil {
+		// Validate received transaction
+		if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
+			specificErr := err.(blocker.Blocker)
+			if specificErr.Type != blocker.DuplicateMempoolErr {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
 
-		// already exist in mempool, check if already generated a receipt for this sender
-		_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
-		if err != nil && err != badger.ErrKeyNotFound {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		mps.BlockTxCachedMutex.Lock()
-		mps.BlockTxCached[receivedTx.ID] = &MempoolTxWithMetaData{
-			MempoolTx:   mempoolTx,
-			Transaction: receivedTx,
-			Timestamp:   time.Now().Unix(),
-		}
-		mps.BlockTxCachedMutex.Unlock()
-		mps.Observer.Notify(observer.ReceivedTransactionValidated, receivedTx, mps.Chaintype)
+			// already exist in mempool, check if already generated a receipt for this sender
+			_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
+			if err != nil && err != badger.ErrKeyNotFound {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		} else {
+			mps.BlockTxCachedMutex.Lock()
+			mps.BlockTxCached[receivedTx.ID] = &MempoolTxWithMetaData{
+				MempoolTx:   mempoolTx,
+				Transaction: receivedTx,
+				Timestamp:   time.Now().Unix(),
+			}
+			mps.BlockTxCachedMutex.Unlock()
+			mps.Observer.Notify(observer.ReceivedTransactionValidated, receivedTx, mps.Chaintype)
 
-		// broadcast transaction
-		mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
+			// broadcast transaction
+			mps.Observer.Notify(observer.TransactionAdded, mempoolTx.GetTransactionBytes(), mps.Chaintype)
+		}
 	}
 
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
