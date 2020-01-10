@@ -10,5 +10,8 @@ var (
 	SmithingBlockCreationTime   = int64(30)
 	SmithingNetworkTolerance    = int64(15)
 	CumulativeDifficultyDivisor = int64(1000000)
-	CheckTimedOutBlock          = time.Duration(ConnectPriorityPeersGap) * time.Second
+	// time out of block while waiting transactions
+	TimeOutBlockWaitingTransactions = int64(2 * 60) // 2 minute
+	//  use in scheduler to check timedout block while waiting transaction
+	CheckTimedOutBlock = 30 * time.Second
 )
