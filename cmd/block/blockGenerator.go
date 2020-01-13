@@ -133,7 +133,7 @@ func initialize(
 		log.New(),
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
+		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
 	blockService = service.NewBlockService(
 		chainType,
@@ -158,6 +158,7 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}
