@@ -2,7 +2,6 @@ package blockchainsync
 
 import (
 	"bytes"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -229,7 +228,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		err                 error
 	)
 
-	kvdbMempoolsBackupKey := fmt.Sprintf("%s_%s", constant.KVDBMempoolsBackup, fp.ChainType.GetName())
+	kvdbMempoolsBackupKey := commonUtil.GetKvDbMempoolDBKey(fp.ChainType)
 	mempoolsBackupBytes, err = fp.KVExecutor.Get(kvdbMempoolsBackupKey)
 	if err != nil {
 		return err

@@ -1440,7 +1440,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := fmt.Sprintf("%s_%s", constant.KVDBMempoolsBackup, bs.GetChainType().GetName())
+		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
 		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
 		if err != nil {
 			return nil, err
