@@ -27,7 +27,7 @@ type (
 			timestamp int64,
 		) (*model.Block, error)
 		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
-		PushBlock(previousBlock, block *model.Block, broadcast bool) error
+		PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error
 		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
@@ -50,9 +50,15 @@ type (
 		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
+		WillSmith(
+			blocksmith *model.Blocksmith,
+			blockchainProcessorLastBlockID int64,
+		) (int64, error)
 	}
 )
 
+// todo: consult with @iltoga, considering breaking this to each constructor returning specific implementation instead
+// of interface
 func NewBlockService(
 	ct chaintype.ChainType,
 	kvExecutor kvdb.KVExecutorInterface,
@@ -76,6 +82,7 @@ func NewBlockService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
+	blockPoolService BlockPoolServiceInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -102,6 +109,7 @@ func NewBlockService(
 			Observer:                obsr,
 			Logger:                  logger,
 			AccountLedgerQuery:      accountLedgerQuery,
+			BlockPoolService:        blockPoolService,
 		}
 	case *chaintype.SpineChain:
 		return &BlockSpineService{
@@ -126,6 +134,7 @@ func NewBlockService(
 			BlocksmithStrategy:    blocksmithStrategy,
 			Observer:              obsr,
 			Logger:                logger,
+			BlockPoolService:      blockPoolService,
 		}
 	}
 	return nil

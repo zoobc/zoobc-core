@@ -277,7 +277,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 
 				break
 			}
-			err = bd.BlockService.PushBlock(lastBlock, block, false)
+			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
 			if err != nil {
 				err := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if err != nil {
