@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/DATA-DOG/go-sqlmock"
 
 	log "github.com/sirupsen/logrus"
@@ -415,7 +417,7 @@ func TestGetSmithTime(t *testing.T) {
 					Timestamp: 120000,
 				},
 			},
-			want: 120000 + 30,
+			want: (&chaintype.MainChain{}).GetSmithingPeriod() + constant.SmithingBlocksmithTimeGap,
 		},
 	}
 	for _, tt := range tests {
@@ -437,9 +439,10 @@ func TestGetSmithTime(t *testing.T) {
 
 func TestNewBlocksmithService(t *testing.T) {
 	type args struct {
-		queryExecutor         query.ExecutorInterface
-		nodeRegistrationQuery query.NodeRegistrationQueryInterface
-		logger                *log.Logger
+		queryExecutor          query.ExecutorInterface
+		nodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
+		logger                 *log.Logger
 	}
 	tests := []struct {
 		name string
@@ -451,13 +454,13 @@ func TestNewBlocksmithService(t *testing.T) {
 			args: args{
 				logger: nil,
 			},
-			want: NewBlocksmithStrategyMain(nil, nil, nil),
+			want: NewBlocksmithStrategyMain(nil, nil, nil, nil),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlocksmithStrategyMain(tt.args.queryExecutor, tt.args.nodeRegistrationQuery,
-				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+				tt.args.skippedBlocksmithQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
 			}
 		})
