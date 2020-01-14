@@ -217,12 +217,9 @@ var (
 		TransactionHash:         []byte{},
 		TransactionBodyLength:   8,
 		TransactionBodyBytes:    mockSendMoneyTxBodyBytes,
-		TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-			SendMoneyTransactionBody: mockSendMoneyTxBody.Body,
-		},
-		Signature:        []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Version:          1,
-		TransactionIndex: 1,
+		Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:                 1,
+		TransactionIndex:        1,
 	}
 
 	mockAccountBalance = &model.AccountBalance{
