@@ -46,7 +46,8 @@ func (tx *NodeRegistration) SkipMempoolTransaction(selectedTransactions []*model
 	return false, nil
 }
 
-func (tx *NodeRegistration) ApplyConfirmed() error {
+// ApplyConfirmed method for confirmed the transaction and store into database
+func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		queries                                                     [][]interface{}
 		registrationStatus                                          uint32
@@ -74,14 +75,19 @@ func (tx *NodeRegistration) ApplyConfirmed() error {
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -(tx.Body.LockedBalance + tx.Fee),
+		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
 	})
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 	queries = append(queries, senderAccountLedgerArgs)
 
-	nodeRow, _ := tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
-		false, tx.Body.NodePublicKey)
+	nodeRow, _ := tx.QueryExecutor.ExecuteSelectRow(
+		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false,
+		tx.Body.NodePublicKey,
+	)
 	err := tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByPubKey, nodeRow)
 	prevNodeFound := true
 	if err != nil {

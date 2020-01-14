@@ -20,5 +20,6 @@ type (
 		GetGenesisNodePublicKey() []byte
 		GetGenesisBlockTimestamp() int64
 		GetGenesisBlockSignature() []byte
+		HasTransactions() bool
 	}
 )

@@ -35,10 +35,17 @@ import (
 
 type (
 	BlockServiceMainInterface interface {
-		NewMainBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
-			previousBlockHeight uint32, timestamp int64, totalAmount int64, totalFee int64, totalCoinBase int64,
-			transactions []*model.Transaction, blockReceipts []*model.PublishedReceipt,
-			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
+		NewMainBlock(
+			version uint32,
+			previousBlockHash, blockSeed, blockSmithPublicKey []byte,
+			previousBlockHeight uint32,
+			timestamp, totalAmount, totalFee, totalCoinBase int64,
+			transactions []*model.Transaction,
+			blockReceipts []*model.PublishedReceipt,
+			payloadHash []byte,
+			payloadLength uint32,
+			secretPhrase string,
+		) (*model.Block, error)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
 		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
@@ -379,7 +386,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
-		err = txType.ApplyConfirmed()
+		err = txType.ApplyConfirmed(block.GetTimestamp())
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -450,7 +457,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			}
 			return err
 		}
-		if err := bs.RewardBlocksmithAccountAddresses(lotteryAccounts, totalReward, block.Height); err != nil {
+		if err := bs.RewardBlocksmithAccountAddresses(
+			lotteryAccounts,
+			totalReward,
+			block.GetTimestamp(),
+			block.Height,
+		); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -688,7 +700,7 @@ func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) 
 // RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
 func (bs *BlockService) RewardBlocksmithAccountAddresses(
 	blocksmithAccountAddresses []string,
-	totalReward int64,
+	totalReward, blockTimestamp int64,
 	height uint32,
 ) error {
 	queries := make([][]interface{}, 0)
@@ -711,6 +723,7 @@ func (bs *BlockService) RewardBlocksmithAccountAddresses(
 			BalanceChange:  blocksmithReward,
 			BlockHeight:    height,
 			EventType:      model.EventType_EventReward,
+			Timestamp:      uint64(blockTimestamp),
 		})
 
 		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
@@ -877,6 +890,23 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	return blocks, nil
 }
 
+// PopulateBlockData add transactions and published receipts to model.Block instance
+func (bs *BlockService) PopulateBlockData(block *model.Block) error {
+	txs, err := bs.GetTransactionsByBlockID(block.ID)
+	if err != nil {
+		bs.Logger.Errorln(err)
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block transactions")
+	}
+	prs, err := bs.GetPublishedReceiptsByBlockHeight(block.Height)
+	if err != nil {
+		bs.Logger.Errorln(err)
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block published receipts")
+	}
+	block.Transactions = txs
+	block.PublishedReceipts = prs
+	return nil
+}
+
 // RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
 func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
 	var idsStr []string
@@ -934,6 +964,7 @@ func (bs *BlockService) GenerateBlock(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
+	// FIXME: add published receipts to block payload length
 
 	if err != nil {
 		return nil, err
@@ -1414,7 +1445,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	if mempoolsBackupBytes.Len() > 0 {
-		err = bs.KVExecutor.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
+		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
 		if err != nil {
 			return nil, err
 		}

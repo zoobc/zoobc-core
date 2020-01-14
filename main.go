@@ -44,32 +44,33 @@ import (
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
 	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath string
-	dbInstance                              *database.SqliteDB
-	badgerDbInstance                        *database.BadgerDB
-	db                                      *sql.DB
-	badgerDb                                *badger.DB
-	apiRPCPort, apiHTTPPort, monitoringPort int
-	apiCertFile, apiKeyFile                 string
-	peerPort                                uint32
-	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
-	queryExecutor                           *query.Executor
-	kvExecutor                              *kvdb.KVExecutor
-	observerInstance                        *observer.Observer
-	schedulerInstance                       *util.Scheduler
-	blockServices                           = make(map[int32]service.BlockServiceInterface)
-	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
-	receiptService                          service.ReceiptServiceInterface
-	peerServiceClient                       client.PeerServiceClientInterface
-	p2pHost                                 *model.Host
-	peerExplorer                            p2pStrategy.PeerExplorerStrategyInterface
-	wellknownPeers                          []string
-	smithing, isNodePreSeed, isDebugMode    bool
-	nodeRegistrationService                 service.NodeRegistrationServiceInterface
-	mainchainProcessor                      smith.BlockchainProcessorInterface
-	spinechainProcessor                     smith.BlockchainProcessorInterface
-	loggerAPIService                        *log.Logger
-	loggerCoreService                       *log.Logger
-	loggerP2PService                        *log.Logger
+	dbInstance                                    *database.SqliteDB
+	badgerDbInstance                              *database.BadgerDB
+	db                                            *sql.DB
+	badgerDb                                      *badger.DB
+	apiRPCPort, apiHTTPPort, monitoringPort       int
+	apiCertFile, apiKeyFile                       string
+	peerPort                                      uint32
+	p2pServiceInstance                            p2p.Peer2PeerServiceInterface
+	queryExecutor                                 *query.Executor
+	kvExecutor                                    *kvdb.KVExecutor
+	observerInstance                              *observer.Observer
+	schedulerInstance                             *util.Scheduler
+	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
+	receiptService                                service.ReceiptServiceInterface
+	peerServiceClient                             client.PeerServiceClientInterface
+	p2pHost                                       *model.Host
+	peerExplorer                                  p2pStrategy.PeerExplorerStrategyInterface
+	wellknownPeers                                []string
+	smithing, isNodePreSeed, isDebugMode          bool
+	nodeRegistrationService                       service.NodeRegistrationServiceInterface
+	mainchainProcessor                            smith.BlockchainProcessorInterface
+	spinechainProcessor                           smith.BlockchainProcessorInterface
+	loggerAPIService                              *log.Logger
+	loggerCoreService                             *log.Logger
+	loggerP2PService                              *log.Logger
+	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 )
 
 func init() {
@@ -321,10 +322,10 @@ func startMainchain() {
 	var (
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
 		err                                         error
+		sleepPeriod                                 = 500
 	)
 	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
-	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
 		mainchain,
 		kvExecutor,
@@ -421,7 +422,7 @@ func startMainchain() {
 			mainchainProcessor.Start(sleepPeriod)
 		}
 	}
-	mainchainSynchronizer := blockchainsync.NewBlockchainSyncService(
+	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		mainchainBlockService,
 		peerServiceClient,
 		peerExplorer,
@@ -431,11 +432,6 @@ func startMainchain() {
 		loggerCoreService,
 		kvExecutor,
 	)
-
-	go func() {
-		mainchainSynchronizer.Start()
-
-	}()
 }
 
 func startSpinechain() {
@@ -497,7 +493,7 @@ func startSpinechain() {
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}
-	spinechainSynchronizer := blockchainsync.NewBlockchainSyncService(
+	spinechainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		spinechainBlockService,
 		peerServiceClient,
 		peerExplorer,
@@ -507,11 +503,6 @@ func startSpinechain() {
 		loggerCoreService,
 		kvExecutor,
 	)
-
-	go func() {
-		spinechainSynchronizer.Start()
-
-	}()
 }
 
 // Scheduler Init
@@ -551,6 +542,34 @@ func startScheduler() {
 	}
 }
 
+func startBlockchainSyncronizers() {
+	go spinechainSynchronizer.Start()
+	ticker := time.NewTicker(constant.BlockchainsyncSpineCheckInterval * time.Second)
+	timeout := time.After(constant.BlockchainsyncSpineTimeout * time.Second)
+syncronizersLoop:
+	for {
+		select {
+		case <-ticker.C:
+			lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock()
+			if err != nil {
+				loggerCoreService.Errorf("cannot get last spine block")
+				os.Exit(1)
+			}
+			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
+				ticker.Stop()
+				go mainchainSynchronizer.Start()
+				break syncronizersLoop
+			}
+			loggerCoreService.Infof("downloading spine blocks. last height is %d", lastSpineBlock.Height)
+		// @iltoga this is mostly for debugging purposes.
+		// spine blocks shouldn't take that long to be downloaded
+		case <-timeout:
+			loggerCoreService.Info("spine blocks sync timedout...")
+			os.Exit(1)
+		}
+	}
+}
+
 func main() {
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
@@ -563,12 +582,14 @@ func main() {
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	startMainchain()
 	startSpinechain()
+	startMainchain()
 	startServices()
 	initObserverListeners()
 	startScheduler()
+	go startBlockchainSyncronizers()
 
+	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
@@ -579,11 +600,11 @@ func main() {
 	if spinechainProcessor != nil {
 		spinechainProcessor.Stop()
 	}
-	tick := time.Tick(50 * time.Millisecond)
+	ticker := time.NewTicker(50 * time.Millisecond)
 	timeout := time.After(5 * time.Second)
 	for {
 		select {
-		case <-tick:
+		case <-ticker.C:
 			mcSmithing := false
 			scSmithing := false
 			if mainchainProcessor != nil {
@@ -593,13 +614,16 @@ func main() {
 				scSmithing, _ = spinechainProcessor.GetBlockChainprocessorStatus()
 			}
 			if !mcSmithing && !scSmithing {
-				loggerCoreService.Info("ZOOBC Shutdown complete")
-				os.Exit(0)
+				ticker.Stop()
+				shutdownCompleted <- true
+				loggerCoreService.Info("All smith processors have stopped")
 			}
 		case <-timeout:
 			loggerCoreService.Info("ZOOBC Shutdown timedout...")
 			os.Exit(1)
+		case <-shutdownCompleted:
+			loggerCoreService.Info("ZOOBC Shutdown complete")
+			os.Exit(0)
 		}
-
 	}
 }
