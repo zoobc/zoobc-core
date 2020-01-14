@@ -11,17 +11,26 @@ type (
 )
 
 // GetDerivedQuery func to get the whole queries has has rollback method
-func GetDerivedQuery(chainType chaintype.ChainType) []DerivedQuery {
-	return []DerivedQuery{
-		NewBlockQuery(chainType),
-		NewTransactionQuery(chainType),
-		NewNodeRegistrationQuery(),
-		NewAccountBalanceQuery(),
-		NewAccountDatasetsQuery(),
-		NewMempoolQuery(chainType),
-		NewSkippedBlocksmithQuery(),
-		NewParticipationScoreQuery(),
-		NewPublishedReceiptQuery(),
-		NewAccountLedgerQuery(),
+func GetDerivedQuery(ct chaintype.ChainType) []DerivedQuery {
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		return []DerivedQuery{
+			NewBlockQuery(ct),
+			NewTransactionQuery(ct),
+			NewNodeRegistrationQuery(),
+			NewAccountBalanceQuery(),
+			NewAccountDatasetsQuery(),
+			NewMempoolQuery(ct),
+			NewSkippedBlocksmithQuery(),
+			NewParticipationScoreQuery(),
+			NewPublishedReceiptQuery(),
+			NewAccountLedgerQuery(),
+		}
+	case *chaintype.SpineChain:
+		return []DerivedQuery{
+			NewSpinePublicKeyQuery(),
+			NewMegablockQuery(),
+		}
 	}
+	return nil
 }

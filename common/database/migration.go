@@ -248,6 +248,14 @@ func (m *Migration) Init() error {
 			ALTER TABLE "account_ledger"
 				ADD COLUMN "timestamp" INTEGER
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "megablock" (
+				"full_snapshot_hash"	BLOB,				-- hash of the snapshot's file contents (sha3-512)
+				"spine_block_height"	INTEGER NOT NULL UNIQUE,	-- spine block height at which the snapshot was taken
+				"main_block_height"	INTEGER NOT NULL UNIQUE,	-- main block height at which the snapshot was taken
+				PRIMARY KEY("full_snapshot_hash")
+			);
+			`,
 		}
 		return nil
 	}

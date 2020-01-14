@@ -11,25 +11,35 @@ func TestGetDerivedQuery(t *testing.T) {
 	type args struct {
 		chainType chaintype.ChainType
 	}
+	mainchain := &chaintype.MainChain{}
+	spinechain := &chaintype.SpineChain{}
 	tests := []struct {
 		name string
 		args args
 		want []DerivedQuery
 	}{
 		{
-			name: "wantDerivedQuery",
-			args: args{chainType: chaintype.GetChainType(0)},
+			name: "wantDerivedQuery:mainchain",
+			args: args{chainType: mainchain},
 			want: []DerivedQuery{
-				NewBlockQuery(chaintype.GetChainType(0)),
-				NewTransactionQuery(chaintype.GetChainType(0)),
+				NewBlockQuery(mainchain),
+				NewTransactionQuery(mainchain),
 				NewNodeRegistrationQuery(),
 				NewAccountBalanceQuery(),
 				NewAccountDatasetsQuery(),
-				NewMempoolQuery(chaintype.GetChainType(0)),
+				NewMempoolQuery(mainchain),
 				NewSkippedBlocksmithQuery(),
 				NewParticipationScoreQuery(),
 				NewPublishedReceiptQuery(),
 				NewAccountLedgerQuery(),
+			},
+		},
+		{
+			name: "wantDerivedQuery:spinechain",
+			args: args{chainType: spinechain},
+			want: []DerivedQuery{
+				NewSpinePublicKeyQuery(),
+				NewMegablockQuery(),
 			},
 		},
 	}
