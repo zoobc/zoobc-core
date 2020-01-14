@@ -4025,9 +4025,6 @@ type (
 	mockMempoolServiceProcessQueuedBlockSuccess struct {
 		MempoolService
 	}
-	mockExecutorProcessQueuedSuccess struct {
-		query.Executor
-	}
 	mockBlocksmithServiceProcessQueued struct {
 		strategy.BlocksmithStrategyMain
 	}
@@ -4036,8 +4033,6 @@ type (
 func (*mockMempoolServiceProcessQueuedBlockSuccess) GetBlockTxCached(transactionsID int64) *model.Transaction {
 	return mockTransaction
 }
-
-type ()
 
 func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
 	return mockBlocksmiths
@@ -4280,27 +4275,27 @@ func TestBlockService_ReceiveTransactionListener(t *testing.T) {
 			fields: fields{
 				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
 					WaitingTxBlocks: map[int64]*BlockWithMetaData{
-						mockBlockData.GetID(): &BlockWithMetaData{
+						mockBlockData.GetID(): {
 							Block:     &mockBlockData,
 							Timestamp: 1,
 						},
-						mockSecondBlock.GetID(): &BlockWithMetaData{
+						mockSecondBlock.GetID(): {
 							Block:     &mockSecondBlock,
 							Timestamp: 1,
 						},
 					},
 					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
-						mockBlockData.GetID(): TransactionIDsMap{
+						mockBlockData.GetID(): {
 							mockTransaction.GetID():     0,
 							mockTransaction.GetID() + 1: 1,
 						},
-						mockSecondBlock.GetID(): TransactionIDsMap{
+						mockSecondBlock.GetID(): {
 							mockTransaction.GetID():     0,
 							mockTransaction.GetID() + 1: 1,
 						},
 					},
 					TransactionsRequiredMap: map[int64]BlockIDsMap{
-						mockTransaction.GetID(): BlockIDsMap{
+						mockTransaction.GetID(): {
 							mockBlockData.GetID():   true,
 							mockSecondBlock.GetID(): true,
 						},
@@ -4389,27 +4384,27 @@ func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
 			fields: fields{
 				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
 					WaitingTxBlocks: map[int64]*BlockWithMetaData{
-						mockBlockData.GetID(): &BlockWithMetaData{
+						mockBlockData.GetID(): {
 							Block:     &mockBlockData,
 							Timestamp: mockTimeoutBlock - 1,
 						},
-						mockSecondBlock.GetID(): &BlockWithMetaData{
+						mockSecondBlock.GetID(): {
 							Block:     &mockSecondBlock,
 							Timestamp: mockTimeoutBlock + 1,
 						},
 					},
 					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
-						mockBlockData.GetID(): TransactionIDsMap{
+						mockBlockData.GetID(): {
 							mockTransaction.GetID():     0,
 							mockTransaction.GetID() + 1: 1,
 						},
-						mockSecondBlock.GetID(): TransactionIDsMap{
+						mockSecondBlock.GetID(): {
 							mockTransaction.GetID():     0,
 							mockTransaction.GetID() + 1: 1,
 						},
 					},
 					TransactionsRequiredMap: map[int64]BlockIDsMap{
-						mockTransaction.GetID(): BlockIDsMap{
+						mockTransaction.GetID(): {
 							mockBlockData.GetID():   true,
 							mockSecondBlock.GetID(): true,
 						},
