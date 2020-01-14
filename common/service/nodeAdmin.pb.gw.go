@@ -129,9 +129,9 @@ func RegisterNodeAdminServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 }
 
 var (
-	pattern_NodeAdminService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, ""))
+	pattern_NodeAdminService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_NodeAdminService_GenerateNodeKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "generateNodeKey"}, ""))
+	pattern_NodeAdminService_GenerateNodeKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "generateNodeKey"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
