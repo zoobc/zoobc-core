@@ -4341,8 +4341,7 @@ func TestBlockService_ReceiveTransactionListener(t *testing.T) {
 
 func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
 	var (
-		mockTimeoutBlock int64 = 2
-		mockSecondBlock        = model.Block{
+		mockSecondBlock = model.Block{
 			ID:           mockBlockData.GetID() + 1,
 			Transactions: make([]*model.Transaction, 2),
 		}
@@ -4385,11 +4384,11 @@ func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
 					WaitingTxBlocks: map[int64]*BlockWithMetaData{
 						mockBlockData.GetID(): {
 							Block:     &mockBlockData,
-							Timestamp: mockTimeoutBlock - 1,
+							Timestamp: constant.TimeOutBlockWaitingTransactions - 1,
 						},
 						mockSecondBlock.GetID(): {
 							Block:     &mockSecondBlock,
-							Timestamp: mockTimeoutBlock + 1,
+							Timestamp: constant.TimeOutBlockWaitingTransactions + 1,
 						},
 					},
 					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
@@ -4408,7 +4407,6 @@ func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
 							mockSecondBlock.GetID(): true,
 						},
 					},
-					TimeoutBlock: mockTimeoutBlock,
 				},
 				MempoolService: &mockMempoolServiceReceiveTransactionListener{},
 			},

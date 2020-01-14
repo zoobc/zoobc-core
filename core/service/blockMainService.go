@@ -100,9 +100,7 @@ type (
 		BlockRequiringTransactionsMap map[int64]TransactionIDsMap
 		// map of transactionIds with blockIds that requires them
 		TransactionsRequiredMap map[int64]BlockIDsMap
-		// time in second to set how long block will waiting their transactions
-		TimeoutBlock int64
-		BlockMutex   sync.Mutex
+		BlockMutex              sync.Mutex
 	}
 )
 
@@ -1658,7 +1656,7 @@ func (bs *BlockService) CleanTheTimedoutBlock() {
 	defer bs.WaitingTransactionBlockQueue.BlockMutex.Unlock()
 	for blockID, blockWithMeta := range bs.WaitingTransactionBlockQueue.WaitingTxBlocks {
 		// check waiting time block
-		if blockWithMeta.Timestamp <= time.Now().Unix()-bs.WaitingTransactionBlockQueue.TimeoutBlock {
+		if blockWithMeta.Timestamp <= time.Now().Unix()-constant.TimeOutBlockWaitingTransactions {
 			for _, transactionID := range blockWithMeta.Block.GetTransactionIDs() {
 				delete(bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[transactionID], blockID)
 				// removing transaction candidate when it's not needed by any block
