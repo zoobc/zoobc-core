@@ -4222,14 +4222,14 @@ func TestBlockService_ProcessQueuedBlock(t *testing.T) {
 	}
 }
 
-type mockMempoolServiceReceiveTransactionListener struct {
+type mockMempoolServiceReceivedValidatedTransactionListener struct {
 	MempoolService
 }
 
-func (*mockMempoolServiceReceiveTransactionListener) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
+func (*mockMempoolServiceReceivedValidatedTransactionListener) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
 }
 
-func TestBlockService_ReceiveTransactionListener(t *testing.T) {
+func TestBlockService_ReceivedValidatedTransactionListener(t *testing.T) {
 	mockBlockData.Transactions = make([]*model.Transaction, 2)
 	var mockSecondBlock = model.Block{
 		ID:           mockBlockData.GetID() + 1,
@@ -4300,7 +4300,7 @@ func TestBlockService_ReceiveTransactionListener(t *testing.T) {
 						},
 					},
 				},
-				MempoolService: &mockMempoolServiceReceiveTransactionListener{},
+				MempoolService: &mockMempoolServiceReceivedValidatedTransactionListener{},
 			},
 			args: args{
 				transaction: mockTransaction,
@@ -4334,7 +4334,7 @@ func TestBlockService_ReceiveTransactionListener(t *testing.T) {
 				Observer:                     tt.fields.Observer,
 				Logger:                       tt.fields.Logger,
 			}
-			bs.ReceiveTransactionListener(tt.args.transaction)
+			bs.ReceivedValidatedTransactionListener(tt.args.transaction)
 		})
 	}
 }
@@ -4408,7 +4408,7 @@ func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
 						},
 					},
 				},
-				MempoolService: &mockMempoolServiceReceiveTransactionListener{},
+				MempoolService: &mockMempoolServiceReceivedValidatedTransactionListener{},
 			},
 		},
 	}

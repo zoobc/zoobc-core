@@ -1616,8 +1616,8 @@ func (bs *BlockService) RequestBlockTransactions(txIds []int64) {
 	bs.Observer.Notify(observer.BlockRequestTransactions, txIds, bs.Chaintype)
 }
 
-// ReceiveTransactionListener will received transaction for queued block
-func (bs *BlockService) ReceiveTransactionListener(transaction *model.Transaction) {
+// ReceivedValidatedTransactionListener will received transaction for queued block
+func (bs *BlockService) ReceivedValidatedTransactionListener(transaction *model.Transaction) {
 	bs.WaitingTransactionBlockQueue.BlockMutex.Lock()
 	defer bs.WaitingTransactionBlockQueue.BlockMutex.Unlock()
 	for blockID := range bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[transaction.GetID()] {
