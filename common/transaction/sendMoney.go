@@ -13,6 +13,7 @@ import (
 
 // SendMoney is Transaction Type that implemented TypeAction
 type SendMoney struct {
+	ID                  int64
 	Body                *model.SendMoneyTransactionBody
 	Fee                 int64
 	SenderAddress       string
@@ -38,7 +39,7 @@ __If Not Genesis__:
 	- perhaps sender and recipient is exists, so update `account_balance`, `recipient.balance` = current + amount and
 	`sender.balance` = current - amount
 */
-func (tx *SendMoney) ApplyConfirmed() error {
+func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err error
 	)
@@ -65,16 +66,20 @@ func (tx *SendMoney) ApplyConfirmed() error {
 	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.RecipientAddress,
 		BalanceChange:  tx.GetAmount(),
+		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
+		Timestamp:      uint64(blockTimestamp),
 	})
 	recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -tx.GetAmount() + tx.Fee,
+		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
+		Timestamp:      uint64(blockTimestamp),
 	})
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 

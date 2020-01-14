@@ -17,7 +17,7 @@ import (
 )
 
 /*
-NewServerInterceptor function can use to inject middlewares like:
+NewServerInterceptor function can use to inject middleware like:
 	- `recover`
 	- `log` triggered
 	- validate `authentication` if needed
@@ -202,7 +202,8 @@ func authRequest(ctx context.Context, method, ownerAddress string) error {
 		err := crypto.VerifyAuthAPI(
 			ownerAddress,
 			authSlice[0],
-			requestType)
+			requestType,
+		)
 		if err != nil {
 			return err
 		}
