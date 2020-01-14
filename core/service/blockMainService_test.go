@@ -199,7 +199,13 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey3 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	mockTransaction = &model.Transaction{
+	mockSendMoneyTxBody = &transaction.SendMoney{
+		Body: &model.SendMoneyTransactionBody{
+			Amount: 10,
+		},
+	}
+	mockSendMoneyTxBodyBytes = mockSendMoneyTxBody.GetBodyBytes()
+	mockTransaction          = &model.Transaction{
 		ID:                      1,
 		BlockID:                 1,
 		Height:                  0,
@@ -210,10 +216,22 @@ var (
 		Timestamp:               1000,
 		TransactionHash:         []byte{},
 		TransactionBodyLength:   8,
-		TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Version:                 1,
-		TransactionIndex:        1,
+		TransactionBodyBytes:    mockSendMoneyTxBodyBytes,
+		TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+			SendMoneyTransactionBody: mockSendMoneyTxBody.Body,
+		},
+		Signature:        []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:          1,
+		TransactionIndex: 1,
+	}
+
+	mockAccountBalance = &model.AccountBalance{
+		AccountAddress:   mockTransaction.GetSenderAccountAddress(),
+		BlockHeight:      1,
+		SpendableBalance: 10000000000,
+		Balance:          10000000000,
+		PopRevenue:       0,
+		Latest:           true,
 	}
 )
 
@@ -409,6 +427,14 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
+	case fmt.Sprintf("SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, "+
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version "+
+		"FROM main_block WHERE height = %d", mockBlockData.GetHeight()+1):
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"Version"},
+		))
 	case "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
 		"ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.registration_status=0 AND A.latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -540,6 +566,18 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
+	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
+		"FROM account_balance WHERE account_address = ? AND latest = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest",
+		}).AddRow(
+			mockAccountBalance.GetAccountAddress(),
+			mockAccountBalance.GetBlockHeight(),
+			mockAccountBalance.GetSpendableBalance(),
+			mockAccountBalance.GetBalance(),
+			mockAccountBalance.GetPopRevenue(),
+			mockAccountBalance.GetLatest(),
+		))
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -3976,6 +4014,437 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PopOffToBlock() got = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+type (
+	mockMempoolServiceProcessQueuedBlockSuccess struct {
+		MempoolService
+	}
+	mockExecutorProcessQueuedSuccess struct {
+		query.Executor
+	}
+	mockBlocksmithServiceProcessQueued struct {
+		strategy.BlocksmithStrategyMain
+	}
+)
+
+func (*mockMempoolServiceProcessQueuedBlockSuccess) GetBlockTxCached(transactionsID int64) *model.Transaction {
+	return mockTransaction
+}
+
+type ()
+
+func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
+	return mockBlocksmiths
+}
+func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+	var result = make(map[string]*int64)
+	for index, mock := range mockBlocksmiths {
+		mockIndex := int64(index)
+		result[string(mock.NodePublicKey)] = &mockIndex
+	}
+	return result
+}
+func (*mockBlocksmithServiceProcessQueued) SortBlocksmiths(block *model.Block) {
+}
+
+func (*mockBlocksmithServiceProcessQueued) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	return 0
+}
+
+func TestBlockService_ProcessQueuedBlock(t *testing.T) {
+	mockBlockData.Transactions = []*model.Transaction{
+		mockTransaction,
+	}
+	var (
+		previousBlockHash, _        = util.GetBlockHash(&mockBlockData, &chaintype.MainChain{})
+		mockBlockWithTransactionIDs = model.Block{
+			ID:                   constant.MainchainGenesisBlockID,
+			BlockHash:            nil,
+			PreviousBlockHash:    previousBlockHash,
+			Height:               0,
+			Timestamp:            mockBlockData.GetTimestamp() + 1,
+			BlockSeed:            nil,
+			BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+			CumulativeDifficulty: "1000",
+			PayloadLength:        1,
+			PayloadHash:          []byte{},
+			BlocksmithPublicKey:  mockBlockData.GetBlocksmithPublicKey(),
+			TotalAmount:          1,
+			TotalFee:             1,
+			TotalCoinBase:        1,
+			Version:              1,
+			TransactionIDs: []int64{
+				mockTransaction.GetID(),
+			},
+			Transactions:      nil,
+			PublishedReceipts: nil,
+		}
+		mockBlockHash, _    = util.GetBlockHash(&mockBlockWithTransactionIDs, &chaintype.MainChain{})
+		mockWaitingTxBlocks = make(map[int64]*BlockWithMetaData)
+	)
+	mockBlockWithTransactionIDs.BlockHash = mockBlockHash
+
+	// add mock block into mock waited tx block
+	mockWaitingTxBlocks[mockBlockWithTransactionIDs.GetID()] = &BlockWithMetaData{
+		Block: &mockBlockWithTransactionIDs,
+	}
+
+	type fields struct {
+		Chaintype                    chaintype.ChainType
+		KVExecutor                   kvdb.KVExecutorInterface
+		QueryExecutor                query.ExecutorInterface
+		BlockQuery                   query.BlockQueryInterface
+		MempoolQuery                 query.MempoolQueryInterface
+		TransactionQuery             query.TransactionQueryInterface
+		MerkleTreeQuery              query.MerkleTreeQueryInterface
+		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
+		Signature                    crypto.SignatureInterface
+		MempoolService               MempoolServiceInterface
+		ReceiptService               ReceiptServiceInterface
+		NodeRegistrationService      NodeRegistrationServiceInterface
+		ActionTypeSwitcher           transaction.TypeActionSwitcher
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		AccountLedgerQuery           query.AccountLedgerQueryInterface
+		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
+		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
+		Observer                     *observer.Observer
+		Logger                       *log.Logger
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name         string
+		fields       fields
+		args         args
+		wantIsQueued bool
+		wantErr      bool
+	}{
+		{
+			name:   "wantFail:NoTransactions",
+			fields: fields{},
+			args: args{
+				block: &mockBlockData,
+			},
+			wantIsQueued: false,
+			wantErr:      false,
+		},
+		{
+			name: "wantSuccess:BlockAlreadyQueued",
+			args: args{
+				block: &mockBlockWithTransactionIDs,
+			},
+			fields: fields{
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks: mockWaitingTxBlocks,
+				},
+			},
+			wantIsQueued: true,
+			wantErr:      false,
+		},
+		{
+			name: "wantSuccess:AllTxInCached",
+			args: args{
+				block: &mockBlockWithTransactionIDs,
+			},
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				KVExecutor:       &mockKVExecutorSuccess{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+				MempoolService:   &mockMempoolServiceProcessQueuedBlockSuccess{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					Executor: &mockQueryExecutorSuccess{},
+				},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				Observer:                observer.NewObserver(),
+				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				BlocksmithStrategy:      &mockBlocksmithServiceProcessQueued{},
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
+					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
+					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
+				},
+				Logger: log.New(),
+			},
+			wantIsQueued: true,
+			wantErr:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:                    tt.fields.Chaintype,
+				KVExecutor:                   tt.fields.KVExecutor,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				BlockQuery:                   tt.fields.BlockQuery,
+				MempoolQuery:                 tt.fields.MempoolQuery,
+				TransactionQuery:             tt.fields.TransactionQuery,
+				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
+				SpinePublicKeyQuery:          tt.fields.SpinePublicKeyQuery,
+				Signature:                    tt.fields.Signature,
+				MempoolService:               tt.fields.MempoolService,
+				ReceiptService:               tt.fields.ReceiptService,
+				NodeRegistrationService:      tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
+				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
+				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
+				Observer:                     tt.fields.Observer,
+				Logger:                       tt.fields.Logger,
+			}
+			gotIsQueued, err := bs.ProcessQueuedBlock(tt.args.block)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.ProcessQueuedBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotIsQueued != tt.wantIsQueued {
+				t.Errorf("BlockService.ProcessQueuedBlock() = %v, want %v", gotIsQueued, tt.wantIsQueued)
+			}
+		})
+	}
+}
+
+type mockMempoolServiceReceiveTransactionListener struct {
+	MempoolService
+}
+
+func (*mockMempoolServiceReceiveTransactionListener) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
+	return
+}
+
+func TestBlockService_ReceiveTransactionListener(t *testing.T) {
+	mockBlockData.Transactions = make([]*model.Transaction, 2)
+	var mockSecondBlock = model.Block{
+		ID:           mockBlockData.GetID() + 1,
+		Transactions: make([]*model.Transaction, 2),
+	}
+
+	type fields struct {
+		Chaintype                    chaintype.ChainType
+		KVExecutor                   kvdb.KVExecutorInterface
+		QueryExecutor                query.ExecutorInterface
+		BlockQuery                   query.BlockQueryInterface
+		MempoolQuery                 query.MempoolQueryInterface
+		TransactionQuery             query.TransactionQueryInterface
+		MerkleTreeQuery              query.MerkleTreeQueryInterface
+		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
+		Signature                    crypto.SignatureInterface
+		MempoolService               MempoolServiceInterface
+		ReceiptService               ReceiptServiceInterface
+		NodeRegistrationService      NodeRegistrationServiceInterface
+		ActionTypeSwitcher           transaction.TypeActionSwitcher
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		AccountLedgerQuery           query.AccountLedgerQueryInterface
+		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
+		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
+		Observer                     *observer.Observer
+		Logger                       *log.Logger
+	}
+	type args struct {
+		transaction *model.Transaction
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks: map[int64]*BlockWithMetaData{
+						mockBlockData.GetID(): &BlockWithMetaData{
+							Block:     &mockBlockData,
+							Timestamp: 1,
+						},
+						mockSecondBlock.GetID(): &BlockWithMetaData{
+							Block:     &mockSecondBlock,
+							Timestamp: 1,
+						},
+					},
+					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
+						mockBlockData.GetID(): TransactionIDsMap{
+							mockTransaction.GetID():     0,
+							mockTransaction.GetID() + 1: 1,
+						},
+						mockSecondBlock.GetID(): TransactionIDsMap{
+							mockTransaction.GetID():     0,
+							mockTransaction.GetID() + 1: 1,
+						},
+					},
+					TransactionsRequiredMap: map[int64]BlockIDsMap{
+						mockTransaction.GetID(): BlockIDsMap{
+							mockBlockData.GetID():   true,
+							mockSecondBlock.GetID(): true,
+						},
+					},
+				},
+				MempoolService: &mockMempoolServiceReceiveTransactionListener{},
+			},
+			args: args{
+				transaction: mockTransaction,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:                    tt.fields.Chaintype,
+				KVExecutor:                   tt.fields.KVExecutor,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				BlockQuery:                   tt.fields.BlockQuery,
+				MempoolQuery:                 tt.fields.MempoolQuery,
+				TransactionQuery:             tt.fields.TransactionQuery,
+				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
+				SpinePublicKeyQuery:          tt.fields.SpinePublicKeyQuery,
+				Signature:                    tt.fields.Signature,
+				MempoolService:               tt.fields.MempoolService,
+				ReceiptService:               tt.fields.ReceiptService,
+				NodeRegistrationService:      tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
+				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
+				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
+				Observer:                     tt.fields.Observer,
+				Logger:                       tt.fields.Logger,
+			}
+			bs.ReceiveTransactionListener(tt.args.transaction)
+		})
+	}
+}
+
+func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
+	var (
+		mockTimeoutBlock int64 = 2
+		mockSecondBlock        = model.Block{
+			ID:           mockBlockData.GetID() + 1,
+			Transactions: make([]*model.Transaction, 2),
+		}
+	)
+	mockBlockData.Transactions = make([]*model.Transaction, 2)
+
+	type fields struct {
+		Chaintype                    chaintype.ChainType
+		KVExecutor                   kvdb.KVExecutorInterface
+		QueryExecutor                query.ExecutorInterface
+		BlockQuery                   query.BlockQueryInterface
+		MempoolQuery                 query.MempoolQueryInterface
+		TransactionQuery             query.TransactionQueryInterface
+		MerkleTreeQuery              query.MerkleTreeQueryInterface
+		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
+		Signature                    crypto.SignatureInterface
+		MempoolService               MempoolServiceInterface
+		ReceiptService               ReceiptServiceInterface
+		NodeRegistrationService      NodeRegistrationServiceInterface
+		ActionTypeSwitcher           transaction.TypeActionSwitcher
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		AccountLedgerQuery           query.AccountLedgerQueryInterface
+		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
+		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
+		Observer                     *observer.Observer
+		Logger                       *log.Logger
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
+					WaitingTxBlocks: map[int64]*BlockWithMetaData{
+						mockBlockData.GetID(): &BlockWithMetaData{
+							Block:     &mockBlockData,
+							Timestamp: mockTimeoutBlock - 1,
+						},
+						mockSecondBlock.GetID(): &BlockWithMetaData{
+							Block:     &mockSecondBlock,
+							Timestamp: mockTimeoutBlock + 1,
+						},
+					},
+					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
+						mockBlockData.GetID(): TransactionIDsMap{
+							mockTransaction.GetID():     0,
+							mockTransaction.GetID() + 1: 1,
+						},
+						mockSecondBlock.GetID(): TransactionIDsMap{
+							mockTransaction.GetID():     0,
+							mockTransaction.GetID() + 1: 1,
+						},
+					},
+					TransactionsRequiredMap: map[int64]BlockIDsMap{
+						mockTransaction.GetID(): BlockIDsMap{
+							mockBlockData.GetID():   true,
+							mockSecondBlock.GetID(): true,
+						},
+					},
+					TimeoutBlock: mockTimeoutBlock,
+				},
+				MempoolService: &mockMempoolServiceReceiveTransactionListener{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:                    tt.fields.Chaintype,
+				KVExecutor:                   tt.fields.KVExecutor,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				BlockQuery:                   tt.fields.BlockQuery,
+				MempoolQuery:                 tt.fields.MempoolQuery,
+				TransactionQuery:             tt.fields.TransactionQuery,
+				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
+				SpinePublicKeyQuery:          tt.fields.SpinePublicKeyQuery,
+				Signature:                    tt.fields.Signature,
+				MempoolService:               tt.fields.MempoolService,
+				ReceiptService:               tt.fields.ReceiptService,
+				NodeRegistrationService:      tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
+				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
+				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
+				Observer:                     tt.fields.Observer,
+				Logger:                       tt.fields.Logger,
+			}
+			bs.CleanTheTimedoutBlock()
 		})
 	}
 }

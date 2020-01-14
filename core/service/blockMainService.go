@@ -1107,7 +1107,7 @@ func (bs *BlockService) ReceiveBlock(
 			if err = bs.PreValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
 				return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
-			isQueued, err = bs.ProcessQueuedBlock(block, lastBlock)
+			isQueued, err = bs.ProcessQueuedBlock(block)
 			if err != nil {
 				return nil, err
 			}
@@ -1160,7 +1160,7 @@ func (bs *BlockService) ReceiveBlock(
 	if err = bs.PreValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
-	isQueued, err = bs.ProcessQueuedBlock(block, lastBlock)
+	isQueued, err = bs.ProcessQueuedBlock(block)
 	if err != nil {
 		return nil, err
 	}
@@ -1491,7 +1491,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 
 // ProcessQueuedBlock process to queue block when waiting their transactions
 // block will directly into completed precess block when isQueued is false and err is nil
-func (bs *BlockService) ProcessQueuedBlock(block, lastBlock *model.Block) (isQueued bool, err error) {
+func (bs *BlockService) ProcessQueuedBlock(block *model.Block) (isQueued bool, err error) {
 	// check block having transactions or not
 	if len(block.TransactionIDs) == 0 {
 		return false, nil
@@ -1521,7 +1521,7 @@ func (bs *BlockService) ProcessQueuedBlock(block, lastBlock *model.Block) (isQue
 		}
 		bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[txID][block.GetID()] = true
 		txRequiredByBlock[txID] = idx
-		// used as argument when querying in mempool
+		// used as argument when quermockBlockDataying in mempool
 		txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
 	}
 	// process when needed trasacntions are completed
@@ -1590,11 +1590,12 @@ func (bs *BlockService) ReceiveTransactionListener(transaction *model.Transactio
 	bs.WaitingTransactionBlockQueue.BlockMutex.Lock()
 	defer bs.WaitingTransactionBlockQueue.BlockMutex.Unlock()
 	for blockID, _ := range bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[transaction.GetID()] {
-		// check if wa
+		// check if waiting block don't have required this transaction
 		if bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID] == nil ||
 			bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID] == nil {
 			continue
 		}
+		// fmt.Println(bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID])
 		var (
 			txs     = bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID].Block.GetTransactions()
 			txIndex = bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID][transaction.GetID()]
@@ -1603,7 +1604,6 @@ func (bs *BlockService) ReceiveTransactionListener(transaction *model.Transactio
 		txs[txIndex] = transaction
 		bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID].Block.Transactions = txs
 		delete(bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID], transaction.GetID())
-
 		// process block when all transactions are completed
 		if len(bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID]) == 0 {
 			err := bs.ProcessCompletedBlock(bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID].Block)
