@@ -523,5 +523,4 @@ func (mps *MempoolService) GetBlockTxCached(transactionsID int64) *model.Transac
 }
 
 func (mps *MempoolService) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
-	return
 }

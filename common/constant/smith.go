@@ -12,6 +12,6 @@ var (
 	CumulativeDifficultyDivisor = int64(1000000)
 	// TimeOutBlockWaitingTransactions is the timeout of block while waiting transactions
 	TimeOutBlockWaitingTransactions = int64(2 * 60) // 2 minute
-	//  CheckTimedOutBlock to use in scheduler to check timedout block while waiting transaction
+	// CheckTimedOutBlock to use in scheduler to check timedout block while waiting transaction
 	CheckTimedOutBlock = 30 * time.Second
 )

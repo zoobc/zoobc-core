@@ -4227,7 +4227,6 @@ type mockMempoolServiceReceiveTransactionListener struct {
 }
 
 func (*mockMempoolServiceReceiveTransactionListener) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
-	return
 }
 
 func TestBlockService_ReceiveTransactionListener(t *testing.T) {
