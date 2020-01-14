@@ -3,16 +3,10 @@ package service
 import (
 	"math/big"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
-	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -56,86 +50,3 @@ type (
 		) (int64, error)
 	}
 )
-
-// todo: consult with @iltoga, considering breaking this to each constructor returning specific implementation instead
-// of interface
-func NewBlockService(
-	ct chaintype.ChainType,
-	kvExecutor kvdb.KVExecutorInterface,
-	queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface,
-	mempoolQuery query.MempoolQueryInterface,
-	transactionQuery query.TransactionQueryInterface,
-	merkleTreeQuery query.MerkleTreeQueryInterface,
-	publishedReceiptQuery query.PublishedReceiptQueryInterface,
-	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
-	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
-	signature crypto.SignatureInterface,
-	mempoolService MempoolServiceInterface,
-	receiptService ReceiptServiceInterface,
-	nodeRegistrationService NodeRegistrationServiceInterface,
-	txTypeSwitcher transaction.TypeActionSwitcher,
-	accountBalanceQuery query.AccountBalanceQueryInterface,
-	participationScoreQuery query.ParticipationScoreQueryInterface,
-	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
-	obsr *observer.Observer,
-	blocksmithStrategy strategy.BlocksmithStrategyInterface,
-	logger *log.Logger,
-	accountLedgerQuery query.AccountLedgerQueryInterface,
-	blockPoolService BlockPoolServiceInterface,
-) BlockServiceInterface {
-	switch ct.(type) {
-	case *chaintype.MainChain:
-		return &BlockService{
-			Chaintype:               ct,
-			KVExecutor:              kvExecutor,
-			QueryExecutor:           queryExecutor,
-			BlockQuery:              blockQuery,
-			MempoolQuery:            mempoolQuery,
-			TransactionQuery:        transactionQuery,
-			MerkleTreeQuery:         merkleTreeQuery,
-			PublishedReceiptQuery:   publishedReceiptQuery,
-			SkippedBlocksmithQuery:  skippedBlocksmithQuery,
-			SpinePublicKeyQuery:     spinePublicKeyQuery,
-			Signature:               signature,
-			MempoolService:          mempoolService,
-			ReceiptService:          receiptService,
-			NodeRegistrationService: nodeRegistrationService,
-			ActionTypeSwitcher:      txTypeSwitcher,
-			AccountBalanceQuery:     accountBalanceQuery,
-			ParticipationScoreQuery: participationScoreQuery,
-			NodeRegistrationQuery:   nodeRegistrationQuery,
-			BlocksmithStrategy:      blocksmithStrategy,
-			Observer:                obsr,
-			Logger:                  logger,
-			AccountLedgerQuery:      accountLedgerQuery,
-			BlockPoolService:        blockPoolService,
-		}
-	case *chaintype.SpineChain:
-		return &BlockSpineService{
-			Chaintype:     ct,
-			KVExecutor:    kvExecutor,
-			QueryExecutor: queryExecutor,
-			BlockQuery:    blockQuery,
-			// MempoolQuery:            mempoolQuery,
-			// TransactionQuery:        transactionQuery,
-			// MerkleTreeQuery:         merkleTreeQuery,
-			// PublishedReceiptQuery:   publishedReceiptQuery,
-			// SkippedBlocksmithQuery:  skippedBlocksmithQuery,
-			SpinePublicKeyQuery: spinePublicKeyQuery,
-			Signature:           signature,
-			// MempoolService:          mempoolService,
-			// ReceiptService:          receiptService,
-			// NodeRegistrationService: nodeRegistrationService,
-			// ActionTypeSwitcher:      txTypeSwitcher,
-			// AccountBalanceQuery:     accountBalanceQuery,
-			// ParticipationScoreQuery: participationScoreQuery,
-			NodeRegistrationQuery: nodeRegistrationQuery,
-			BlocksmithStrategy:    blocksmithStrategy,
-			Observer:              obsr,
-			Logger:                logger,
-			BlockPoolService:      blockPoolService,
-		}
-	}
-	return nil
-}

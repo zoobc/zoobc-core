@@ -26,6 +26,7 @@ func NewBlockPoolService() *BlockPoolService {
 	}
 }
 
+// GetBlocks return all block that are currently in the pool
 func (bps *BlockPoolService) GetBlocks() map[int64]*model.Block {
 	var result = make(map[int64]*model.Block)
 	bps.BlockQueueLock.RLock()
@@ -35,6 +36,8 @@ func (bps *BlockPoolService) GetBlocks() map[int64]*model.Block {
 	}
 	return result
 }
+
+// GetBlock return the block in the pool at [index], return nil if no block at the [index]
 func (bps *BlockPoolService) GetBlock(index int64) *model.Block {
 	bps.BlockQueueLock.RLock()
 	defer bps.BlockQueueLock.RUnlock()
@@ -42,12 +45,14 @@ func (bps *BlockPoolService) GetBlock(index int64) *model.Block {
 	return block
 }
 
+// InsertBlock insert block to mempool
 func (bps *BlockPoolService) InsertBlock(block *model.Block, index int64) {
 	bps.BlockQueueLock.Lock()
 	defer bps.BlockQueueLock.Unlock()
 	bps.BlockQueue[index] = block
 }
 
+// ClearBlockPool clear all the block in the block pool, this should be executed every push block
 func (bps *BlockPoolService) ClearBlockPool() {
 	bps.BlockQueueLock.Lock()
 	defer bps.BlockQueueLock.Unlock()
