@@ -417,10 +417,9 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsByBlockTimestampInterval(t *t
 	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.GetNodeRegistrationsByBlockTimestampInterval(0, 1)
 		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-			"registration_status, latest, height FROM node_registry WHERE " +
-			"height = (SELECT MIN(height) FROM main_block AS mb1 WHERE mb1.timestamp > 0) AND " +
-			"height = (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp <= 1) AND " +
-			"registration_status != 1 AND latest=1 ORDER BY height"
+			"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
+			"FROM main_block AS mb1 WHERE mb1.timestamp >= 0) AND height <= (SELECT MAX(height) " +
+			"FROM main_block AS mb2 WHERE mb2.timestamp < 1) AND registration_status != 1 AND latest=1 ORDER BY height"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
