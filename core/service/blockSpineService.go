@@ -916,7 +916,6 @@ func (bs *BlockSpineService) WillSmith(
 		if err != nil {
 			return blockchainProcessorLastBlockID, err
 		}
-		fmt.Printf("chain: %v\tmy smith time: %v\n", bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
 		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
 	}
 	return blockchainProcessorLastBlockID, nil
