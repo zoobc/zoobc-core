@@ -14,10 +14,12 @@ import (
 
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
+	ID                    int64
 	Body                  *model.UpdateNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
 	Height                uint32
+	Timestamp             int64
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface
@@ -43,7 +45,8 @@ func (tx *UpdateNodeRegistration) SkipMempoolTransaction(selectedTransactions []
 	return false, nil
 }
 
-func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
+// ApplyConfirmed method for confirmed the transaction and store into database
+func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		nodeQueries          [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
@@ -51,7 +54,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 		nodeAddress          *model.NodeAddress
 		nodePublicKey        []byte
 	)
-	// get the latest noderegistration by owner (sender account)
+	// get the latest node registration by owner (sender account)
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
 	rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
@@ -116,8 +119,10 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed() error {
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -(effectiveBalanceToLock + tx.Fee),
+		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventUpdateNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
 	})
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 	queries = append(queries, senderAccountLedgerArgs)
