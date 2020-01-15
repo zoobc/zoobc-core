@@ -34,6 +34,7 @@ type (
 		GetLastBlock() (*model.Block, error)
 		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
+		PopulateBlockData(block *model.Block) error
 		GetGenesisBlock() (*model.Block, error)
 		GenerateGenesisBlock(genesisEntries []constant.GenesisConfigEntry) (*model.Block, error)
 		AddGenesis() error
@@ -105,23 +106,12 @@ func NewBlockService(
 		}
 	case *chaintype.SpineChain:
 		return &BlockSpineService{
-			Chaintype:     ct,
-			KVExecutor:    kvExecutor,
-			QueryExecutor: queryExecutor,
-			BlockQuery:    blockQuery,
-			// MempoolQuery:            mempoolQuery,
-			// TransactionQuery:        transactionQuery,
-			// MerkleTreeQuery:         merkleTreeQuery,
-			// PublishedReceiptQuery:   publishedReceiptQuery,
-			// SkippedBlocksmithQuery:  skippedBlocksmithQuery,
-			SpinePublicKeyQuery: spinePublicKeyQuery,
-			Signature:           signature,
-			// MempoolService:          mempoolService,
-			// ReceiptService:          receiptService,
-			// NodeRegistrationService: nodeRegistrationService,
-			// ActionTypeSwitcher:      txTypeSwitcher,
-			// AccountBalanceQuery:     accountBalanceQuery,
-			// ParticipationScoreQuery: participationScoreQuery,
+			Chaintype:             ct,
+			KVExecutor:            kvExecutor,
+			QueryExecutor:         queryExecutor,
+			BlockQuery:            blockQuery,
+			SpinePublicKeyQuery:   spinePublicKeyQuery,
+			Signature:             signature,
 			NodeRegistrationQuery: nodeRegistrationQuery,
 			BlocksmithStrategy:    blocksmithStrategy,
 			Observer:              obsr,

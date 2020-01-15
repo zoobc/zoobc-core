@@ -105,10 +105,11 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrations(registrationHeight, size 
 }
 
 // GetNodeRegistrationsByBlockTimestampInterval returns query string to get multiple node registrations
+// Note: toTimestamp (limit) is excluded from selection to avoid selecting duplicates
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp int64) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE "+
-		"height = (SELECT MIN(height) FROM main_block AS mb1 WHERE mb1.timestamp > %d) AND "+
-		"height = (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp <= %d) AND "+
+		"height >= (SELECT MIN(height) FROM main_block AS mb1 WHERE mb1.timestamp >= %d) AND "+
+		"height <= (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp < %d) AND "+
 		"registration_status != %d AND latest=1 ORDER BY height",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromTimestamp, toTimestamp, uint32(model.NodeRegistrationState_NodeQueued))
 }

@@ -2,7 +2,6 @@ package auth
 
 import (
 	"bytes"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
