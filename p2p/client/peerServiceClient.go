@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -192,8 +193,8 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 		ctx,
 		&model.GetPeerInfoRequest{
 			HostInfo: &model.Node{
-				Version:  "1.0",
-				CodeName: "BCZ-Alpha",
+				Version:  viper.GetString("Version"),
+				CodeName: viper.GetString("CodeName"),
 			},
 		},
 	)

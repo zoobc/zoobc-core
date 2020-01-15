@@ -231,6 +231,15 @@ func initLogInstance() {
 }
 
 func initP2pInstance() {
+	// checking version and codename configuration
+	if viper.GetString("Version") == "" {
+		loggerCoreService.Fatal("Version is need to be filled  ")
+	}
+
+	if viper.GetString("CodeName") == "" {
+		loggerCoreService.Fatal("Code Name is  need to be filled  ")
+	}
+
 	// init p2p instances
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {

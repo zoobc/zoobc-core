@@ -110,9 +110,9 @@ func (ps *P2PServerService) SendPeers(
 
 	hostInfo := ps.PeerExplorer.GetHostInfo()
 	var resPeers []*model.Node
-	for _, element := range peers {
-		if element.CodeName == hostInfo.CodeName {
-			resPeers = append(resPeers, element)
+	for _, peer := range peers {
+		if peer.CodeName == hostInfo.CodeName {
+			resPeers = append(resPeers, peer)
 		}
 	}
 
