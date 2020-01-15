@@ -372,6 +372,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
+		query.NewMegablockQuery(),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -470,6 +471,7 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
+		query.NewMegablockQuery(),
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

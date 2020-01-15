@@ -158,6 +158,7 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
+		query.NewMegablockQuery(),
 	)
 
 	migration = database.Migration{Query: queryExecutor}

@@ -77,6 +77,7 @@ func NewBlockService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
+	megablockQuery query.MegablockQueryInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -106,16 +107,28 @@ func NewBlockService(
 		}
 	case *chaintype.SpineChain:
 		return &BlockSpineService{
-			Chaintype:             ct,
-			KVExecutor:            kvExecutor,
-			QueryExecutor:         queryExecutor,
-			BlockQuery:            blockQuery,
-			SpinePublicKeyQuery:   spinePublicKeyQuery,
-			Signature:             signature,
-			NodeRegistrationQuery: nodeRegistrationQuery,
-			BlocksmithStrategy:    blocksmithStrategy,
-			Observer:              obsr,
-			Logger:                logger,
+			Chaintype: ct,
+			// KVExecutor:            kvExecutor,
+			QueryExecutor: queryExecutor,
+			BlockQuery:    blockQuery,
+			// SpinePublicKeyQuery:   spinePublicKeyQuery,
+			Signature: signature,
+			// NodeRegistrationQuery: nodeRegistrationQuery,
+			BlocksmithStrategy: blocksmithStrategy,
+			Observer:           obsr,
+			Logger:             logger,
+			SpinePublicKeyService: &BlockSpinePublicKeyService{
+				Logger:                logger,
+				NodeRegistrationQuery: nodeRegistrationQuery,
+				QueryExecutor:         queryExecutor,
+				Signature:             signature,
+				SpinePublicKeyQuery:   spinePublicKeyQuery,
+			},
+			MegablockService: &BlockSpineMegablockService{
+				QueryExecutor:  queryExecutor,
+				Logger:         logger,
+				MegablockQuery: megablockQuery,
+			},
 		}
 	}
 	return nil
