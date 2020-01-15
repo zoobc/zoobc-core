@@ -11,7 +11,7 @@ import (
 
 type (
 	MegablockQueryInterface interface {
-		InsertMegablock(megablock *model.Megablock) [][]interface{}
+		InsertMegablock(megablock *model.Megablock) (str string, args []interface{})
 		GetMegablocksByBlockHeight(height uint32, ct chaintype.ChainType) string
 		ExtractModel(mb *model.Megablock) []interface{}
 		BuildModel(megablocks []*model.Megablock, rows *sql.Rows) ([]*model.Megablock, error)
@@ -41,21 +41,14 @@ func (mbl *MegablockQuery) getTableName() string {
 }
 
 // InsertMegablock
-func (mbl *MegablockQuery) InsertMegablock(megablock *model.Megablock) [][]interface{} {
-	var (
-		queries [][]interface{}
-	)
+func (mbl *MegablockQuery) InsertMegablock(megablock *model.Megablock) (str string, args []interface{}) {
 	qryInsert := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		mbl.getTableName(),
 		strings.Join(mbl.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(mbl.Fields)-1)),
 	)
-
-	queries = append(queries,
-		append([]interface{}{qryInsert}, mbl.ExtractModel(megablock)...),
-	)
-	return queries
+	return qryInsert, mbl.ExtractModel(megablock)
 }
 
 // GetMegablocksByBlockHeight returns query string to get megablock at given block's height (spine or main)
@@ -91,7 +84,7 @@ func (mbl *MegablockQuery) BuildModel(
 ) ([]*model.Megablock, error) {
 	for rows.Next() {
 		var (
-			mb model.Megablock
+			mb  model.Megablock
 			err error
 		)
 		err = rows.Scan(

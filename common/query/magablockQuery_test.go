@@ -76,16 +76,11 @@ func TestMegablockQuery_InsertMegablock(t *testing.T) {
 		SpineBlockHeight: 1,
 		MainBlockHeight:  720,
 	}
-	var (
-		want1 [][]interface{}
-	)
-	want1 = append(want1, append([]interface{}{"INSERT INTO megablock (full_snapshot_hash,spine_block_height," +
-		"main_block_height) VALUES(? , ?, ?)"}, NewMegablockQuery().ExtractModel(mb1)...))
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
-		want   [][]interface{}
+		want   string
 	}{
 		{
 			name: "InsertMegablock:success",
@@ -96,7 +91,8 @@ func TestMegablockQuery_InsertMegablock(t *testing.T) {
 			args: args{
 				megablock: mb1,
 			},
-			want: want1,
+			want: "INSERT INTO megablock (full_snapshot_hash,spine_block_height," +
+				"main_block_height) VALUES(? , ?, ?)",
 		},
 	}
 	for _, tt := range tests {
@@ -105,7 +101,7 @@ func TestMegablockQuery_InsertMegablock(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := mbl.InsertMegablock(tt.args.megablock); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := mbl.InsertMegablock(tt.args.megablock); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("MegablockQuery.InsertMegablock() = %v, want %v", got, tt.want)
 			}
 		})
@@ -125,10 +121,10 @@ func TestMegablockQuery_Rollback(t *testing.T) {
 	)
 	want1 = append(want1, append([]interface{}{"DELETE FROM megablock WHERE spine_block_height > ?"}, uint32(1)))
 	tests := []struct {
-		name             string
-		fields           fields
-		args             args
-		want [][]interface{}
+		name   string
+		fields fields
+		args   args
+		want   [][]interface{}
 	}{
 		{
 			name: "RollBack:success",
@@ -137,7 +133,7 @@ func TestMegablockQuery_Rollback(t *testing.T) {
 				TableName: NewMegablockQuery().TableName,
 			},
 			args: args{
-				spineBlockHeight:1,
+				spineBlockHeight: 1,
 			},
 			want: want1,
 		},
