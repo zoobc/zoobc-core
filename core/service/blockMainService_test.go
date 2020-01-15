@@ -2337,7 +2337,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 	mockBlockData.Transactions = []*model.Transaction{
 		mockTransaction,
 	}
-	fmt.Println(mockGoodLastBlockHash)
 
 	type fields struct {
 		Chaintype                    chaintype.ChainType

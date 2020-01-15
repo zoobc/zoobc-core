@@ -131,10 +131,9 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			chainType := args.(chaintype.ChainType)
 			for _, peer := range peers {
-				p := peer
-				go func() {
+				go func(p *model.Peer) {
 					_ = s.PeerServiceClient.SendBlock(p, b, chainType)
-				}()
+				}(peer)
 			}
 		},
 	}
@@ -148,11 +147,10 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 			chainType := args.(chaintype.ChainType)
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
-				p := peer
-				go func() {
+				go func(p *model.Peer) {
 					_ = s.PeerServiceClient.SendTransaction(p, t, chainType)
 
-				}()
+				}(peer)
 			}
 		},
 	}
@@ -167,10 +165,9 @@ func (s *Peer2PeerService) RequestTransactionsListener() observer.Listener {
 				peers     = s.PeerExplorer.GetResolvedPeers()
 			)
 			for _, peer := range peers {
-				p := peer
-				go func() {
+				go func(p *model.Peer) {
 					_ = s.PeerServiceClient.RequestingTransaction(p, txIDs, chainType)
-				}()
+				}(peer)
 			}
 		},
 	}
