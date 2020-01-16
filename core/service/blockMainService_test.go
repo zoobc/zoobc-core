@@ -2435,17 +2435,6 @@ var (
 			mockTransaction,
 		},
 	}
-	successBlockHash = []byte{
-		43, 34, 74, 32, 183, 252, 96, 211, 238, 233, 6, 213, 20, 48, 106, 61, 13, 186, 34, 250, 75, 147, 176, 152, 75, 36,
-		105, 47, 164, 15, 4, 213,
-	}
-	mockBlockSuccess = &model.Block{
-		BlockSignature:    []byte{},
-		BlockHash:         successBlockHash,
-		PreviousBlockHash: make([]byte, 32),
-		Transactions:      make([]*model.Transaction, 0),
-	}
-
 	mockGoodLastBlockHash, _ = util.GetBlockHash(&mockLastBlockData, &chaintype.MainChain{})
 	mockGoodIncomingBlock    = &model.Block{
 		PreviousBlockHash:    mockGoodLastBlockHash,
@@ -2484,13 +2473,6 @@ var (
 		Transactions: []*model.Transaction{
 			mockTransaction,
 		},
-	}
-	mockBlockSuccessInvalidBlockHash = &model.Block{
-		BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-		BlockSignature:      []byte{},
-		BlockHash:           []byte{},
-		PreviousBlockHash:   make([]byte, 32),
-		Transactions:        make([]*model.Transaction, 0),
 	}
 )
 
