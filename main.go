@@ -461,8 +461,8 @@ func startSpinechain() {
 		spinechain,
 		kvExecutor,
 		queryExecutor,
-		query.NewBlockQuery(spinechain),
 		query.NewBlockQuery(mainchain),
+		query.NewBlockQuery(spinechain),
 		nil, // no mempool for spine blocks
 		nil, // no transactions for spine blocks
 		nil,
