@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -78,6 +80,14 @@ func (c *accountLedgerServiceClient) GetAccountLedgers(ctx context.Context, in *
 // AccountLedgerServiceServer is the server API for AccountLedgerService service.
 type AccountLedgerServiceServer interface {
 	GetAccountLedgers(context.Context, *model.GetAccountLedgersRequest) (*model.GetAccountLedgersResponse, error)
+}
+
+// UnimplementedAccountLedgerServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedAccountLedgerServiceServer struct {
+}
+
+func (*UnimplementedAccountLedgerServiceServer) GetAccountLedgers(ctx context.Context, req *model.GetAccountLedgersRequest) (*model.GetAccountLedgersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountLedgers not implemented")
 }
 
 func RegisterAccountLedgerServiceServer(s *grpc.Server, srv AccountLedgerServiceServer) {

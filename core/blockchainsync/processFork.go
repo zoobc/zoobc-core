@@ -82,7 +82,6 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false, true)
 				if err != nil {
-
 					err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 					if err != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
@@ -145,10 +144,12 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	}
 
-	// start restoring mempool from badgerDB
-	err = fp.restoreMempoolsBackup()
-	if err != nil {
-		fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
+	if fp.ChainType.HasTransactions() {
+		// start restoring mempool from badgerDB
+		err = fp.restoreMempoolsBackup()
+		if err != nil {
+			fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
+		}
 	}
 	return nil
 }
@@ -227,7 +228,8 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		err                 error
 	)
 
-	mempoolsBackupBytes, err = fp.KVExecutor.Get(constant.KVDBMempoolsBackup)
+	kvdbMempoolsBackupKey := commonUtil.GetKvDbMempoolDBKey(fp.ChainType)
+	mempoolsBackupBytes, err = fp.KVExecutor.Get(kvdbMempoolsBackupKey)
 	if err != nil {
 		return err
 	}

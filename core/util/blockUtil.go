@@ -10,7 +10,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -93,12 +92,4 @@ func CalculateNodeOrder(score *big.Int, blockSeed, nodeID int64) *big.Int {
 
 func IsGenesis(previousBlockID int64, block *model.Block) bool {
 	return previousBlockID == -1 && block.CumulativeDifficulty != ""
-}
-
-// GetSpinePublicKeyBytes convert a model.SpinePublicKey to []byte
-func GetSpinePublicKeyBytes(spinePublicKey *model.SpinePublicKey) []byte {
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(spinePublicKey.NodePublicKey)
-	buffer.Write(util.ConvertUint32ToBytes(uint32(spinePublicKey.PublicKeyAction)))
-	return buffer.Bytes()
 }

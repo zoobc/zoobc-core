@@ -980,6 +980,23 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 	return blocks, nil
 }
 
+// PopulateBlockData add transactions and published receipts to model.Block instance
+func (bs *BlockService) PopulateBlockData(block *model.Block) error {
+	txs, err := bs.GetTransactionsByBlockID(block.ID)
+	if err != nil {
+		bs.Logger.Errorln(err)
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block transactions")
+	}
+	prs, err := bs.GetPublishedReceiptsByBlockHeight(block.Height)
+	if err != nil {
+		bs.Logger.Errorln(err)
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block published receipts")
+	}
+	block.Transactions = txs
+	block.PublishedReceipts = prs
+	return nil
+}
+
 // RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
 func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
 	var idsStr []string
@@ -1037,6 +1054,7 @@ func (bs *BlockService) GenerateBlock(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
+	// FIXME: add published receipts to block payload length
 
 	if err != nil {
 		return nil, err
@@ -1574,7 +1592,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	if mempoolsBackupBytes.Len() > 0 {
-		err = bs.KVExecutor.Insert(constant.KVDBMempoolsBackup, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
+		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
 		if err != nil {
 			return nil, err
 		}
