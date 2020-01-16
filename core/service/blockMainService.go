@@ -330,7 +330,8 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err error
+		blocksmithIndex *int64
+		err             error
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -527,9 +528,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if !persist { // block content are validated
 		// get blocksmith index
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
+		blocksmithIndex = blocksmithsMap[string(block.BlocksmithPublicKey)]
 		// handle if is first index
-		if *blocksmithIndex != 0 {
+		if *blocksmithIndex > 0 {
 			// check if current block is in pushable window
 			if !bs.canPersistBlock(*blocksmithIndex, previousBlock) {
 				// insert into block pool
@@ -556,7 +557,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// clear the block poolo
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
-	if broadcast {
+	if broadcast && !persist && *blocksmithIndex == 0 {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
@@ -589,6 +590,7 @@ func (bs *BlockService) ScanBlockPool() error {
 // canPersistBlock check if the blocksmith can push the block based on previous block's blocksmiths order
 // this function must only run when receiving / generating block, not on download block since it uses the current machine
 // time as comparison
+// todo: will move this to block pool service + write the test when refactoring the block service
 func (bs *BlockService) canPersistBlock(blocksmithIndex int64, previousBlock *model.Block) bool {
 	if blocksmithIndex < 1 {
 		return true
@@ -619,7 +621,6 @@ func (bs *BlockService) admitNodes(block *model.Block) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -635,7 +636,6 @@ func (bs *BlockService) expelNodes(block *model.Block) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -1180,16 +1180,6 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
-	// make sure block has previous block hash
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
-	if blocksmithIndex == nil {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
-	}
-	blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
-	if blockPool != nil && blockPool == block {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "BlockPoolDuplicate")
-	}
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
 			blocker.BlockErr,
@@ -1205,9 +1195,14 @@ func (bs *BlockService) ReceiveBlock(
 			err.Error(),
 		)
 	}
+	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+	if err != nil {
+		return nil, err
+	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
 		// check if incoming block is of higher quality
+		// todo: moving this piece of code to another interface (block popper or process fork) the test will come later.
 		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
 			block.Timestamp < lastBlock.Timestamp {
 			err := func() error {
@@ -1235,7 +1230,6 @@ func (bs *BlockService) ReceiveBlock(
 						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
-
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
@@ -1259,25 +1253,18 @@ func (bs *BlockService) ReceiveBlock(
 		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
 		if err != nil {
 			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				if err != nil {
-					return nil, err
-				}
 				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
 					// invalid block hash don't send receipt to client
 					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
 				}
-				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+				batchReceipt, err := bs.ReceiptService.GenerateBatchReceiptWithReminder(
 					bs.Chaintype,
-					block.GetBlockHash(),
+					blockHash,
 					lastBlock,
 					senderPublicKey,
 					nodeSecretPhrase,
 					constant.KVdbTableBlockReminderKey+string(receiptKey),
 					constant.ReceiptDatumTypeBlock,
-					bs.Signature,
-					bs.QueryExecutor,
-					bs.KVExecutor,
 				)
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
@@ -1290,9 +1277,40 @@ func (bs *BlockService) ReceiveBlock(
 			"previousBlockHashDoesNotMatchWithLastBlockHash",
 		)
 	}
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
+	if blocksmithIndex == nil {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
+	}
+	blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
+	if blockPool != nil {
+		if !bytes.Equal(blockPool.GetBlockHash(), blockHash) {
+			return nil, blocker.NewBlocker(blocker.BlockErr, "BlockPoolDuplicate:invalidBlock")
+		}
+		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+		if err != nil {
+			if err == badger.ErrKeyNotFound {
+				batchReceipt, err := bs.ReceiptService.GenerateBatchReceiptWithReminder(
+					bs.Chaintype,
+					blockHash,
+					lastBlock,
+					senderPublicKey,
+					nodeSecretPhrase,
+					constant.KVdbTableBlockReminderKey+string(receiptKey),
+					constant.ReceiptDatumTypeBlock,
+				)
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				return batchReceipt, nil
+			}
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return nil, blocker.NewBlocker(blocker.BlockErr, "BlockPoolDuplicate")
+	}
 	err = func() error {
 		// pushBlock closure to release lock as soon as block pushed
-		// Securoing receive block process
+		// Securing receive block process
 		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 		// making sure get last block after paused process
@@ -1318,7 +1336,7 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// generate receipt and return as response
-	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+	batchReceipt, err := bs.ReceiptService.GenerateBatchReceiptWithReminder(
 		bs.Chaintype,
 		block.GetBlockHash(),
 		lastBlock,
@@ -1326,9 +1344,6 @@ func (bs *BlockService) ReceiveBlock(
 		nodeSecretPhrase,
 		constant.KVdbTableBlockReminderKey+string(receiptKey),
 		constant.ReceiptDatumTypeBlock,
-		bs.Signature,
-		bs.QueryExecutor,
-		bs.KVExecutor,
 	)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -1566,6 +1581,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 	// remove peer memoization
 	bs.NodeRegistrationService.ResetScrambledNodes()
+	// clear block pool
+	bs.BlockPoolService.ClearBlockPool()
 	return poppedBlocks, nil
 }
 
