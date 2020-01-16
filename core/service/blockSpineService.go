@@ -37,7 +37,7 @@ type (
 		Observer              *observer.Observer
 		Logger                *log.Logger
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      BlockSpineMegablockServiceInterface
+		SnapshotService       BlockSpineSnapshotServiceInterface
 	}
 )
 

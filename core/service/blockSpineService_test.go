@@ -813,7 +813,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		MegablockService        BlockSpineMegablockServiceInterface
+		SnapshotService         BlockSpineSnapshotServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -847,10 +847,12 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &BlockSpineMegablockService{
+				SnapshotService: &BlockSpineSnapshotService{
 					QueryExecutor:  &mockSpineQueryExecutorSuccess{},
 					Logger:         log.New(),
 					MegablockQuery: query.NewMegablockQuery(),
+					Spinechain:     &chaintype.SpineChain{},
+					Mainchain:      &chaintype.MainChain{},
 				},
 			},
 			args: args{
@@ -908,10 +910,12 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &BlockSpineMegablockService{
+				SnapshotService: &BlockSpineSnapshotService{
 					QueryExecutor:  &mockSpineQueryExecutorSuccess{},
 					Logger:         log.New(),
 					MegablockQuery: query.NewMegablockQuery(),
+					Spinechain:     &chaintype.SpineChain{},
+					Mainchain:      &chaintype.MainChain{},
 				},
 			},
 			args: args{
@@ -960,7 +964,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				Logger:                logrus.New(),
 				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				SnapshotService:       tt.fields.SnapshotService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
@@ -1477,7 +1481,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Logger                  *logrus.Logger
 		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		MegablockService        BlockSpineMegablockServiceInterface
+		SnapshotService         BlockSpineSnapshotServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1508,10 +1512,12 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &BlockSpineMegablockService{
+				SnapshotService: &BlockSpineSnapshotService{
 					QueryExecutor:  &mockSpineAddGenesisExecutor{},
 					Logger:         log.New(),
 					MegablockQuery: query.NewMegablockQuery(),
+					Spinechain:     &chaintype.SpineChain{},
+					Mainchain:      &chaintype.MainChain{},
 				},
 			},
 			wantErr: false,
@@ -1528,7 +1534,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
 				Logger:                tt.fields.Logger,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				SnapshotService:       tt.fields.SnapshotService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)

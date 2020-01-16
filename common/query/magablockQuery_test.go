@@ -150,3 +150,36 @@ func TestMegablockQuery_Rollback(t *testing.T) {
 		})
 	}
 }
+
+func TestMegablockQuery_GetLastMegablock(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "GetLastMegablock:success",
+			fields: fields{
+				Fields:    NewMegablockQuery().Fields,
+				TableName: NewMegablockQuery().TableName,
+			},
+			want: "SELECT full_snapshot_hash, spine_block_height, " +
+				"main_block_height FROM megablock ORDER BY spine_block_height DESC LIMIT 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mbl := &MegablockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := mbl.GetLastMegablock(); got != tt.want {
+				t.Errorf("MegablockQuery.GetLastMegablock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

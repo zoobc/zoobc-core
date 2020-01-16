@@ -71,6 +71,8 @@ var (
 	loggerCoreService                             *log.Logger
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
+	mainchainBlockService, spinechainBlockService service.BlockServiceInterface
+	snapshotService                               service.BlockSpineSnapshotServiceInterface
 )
 
 func init() {
@@ -129,6 +131,13 @@ func init() {
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
+	)
+	snapshotService = service.NewSnapshotService(
+		queryExecutor,
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(&chaintype.SpineChain{}),
+		query.NewMegablockQuery(),
+		loggerCoreService,
 	)
 
 	// initialize Observer
@@ -349,11 +358,12 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
 	)
-	mainchainBlockService := service.NewBlockService(
+	mainchainBlockService = service.NewBlockService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
+		nil, // no spinechain query in main blocks (main blocks are completely decoupled from spine blocks)
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
 		query.NewMerkleTreeQuery(),
@@ -439,33 +449,33 @@ func startSpinechain() {
 		nodeID int64
 	)
 	spinechain := &chaintype.SpineChain{}
+	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
 	sleepPeriod := 500
-
-	// TODO: not sure we even need this, since spine blocks are computed and created by every node
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockService := service.NewBlockService(
+	spinechainBlockService = service.NewBlockService(
 		spinechain,
 		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
-		query.NewMempoolQuery(spinechain),
-		query.NewTransactionQuery(spinechain),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
+		query.NewBlockQuery(mainchain),
+		nil, // no mempool for spine blocks
+		nil, // no transactions for spine blocks
+		nil,
+		nil,
 		query.NewSkippedBlocksmithQuery(),
 		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
 		nil, // no mempool for spine blocks
-		receiptService,
+		nil, // no receipts for spine blocks
 		nodeRegistrationService,
 		nil, // no transaction types for spine blocks
 		query.NewAccountBalanceQuery(),
-		query.NewParticipationScoreQuery(),
+		nil, // no participation score for spine blocks
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithStrategySpine,
@@ -547,6 +557,17 @@ syncronizersLoop:
 			}
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
 				ticker.Stop()
+				lastMegablock, err := snapshotService.GetLastMegablock()
+				if err != nil {
+					loggerCoreService.Errorf("cannot get last megablock")
+					os.Exit(1)
+				}
+				if lastMegablock != nil {
+					loggerCoreService.Infof("found megablock at spine height %d. snapshot taken at main height %d",
+						lastMegablock.SpineBlockHeight, lastMegablock.MainBlockHeight)
+					// TODO: snapshot download
+				}
+				// download remaining main blocks and start the mainchain synchronizer
 				go mainchainSynchronizer.Start()
 				break syncronizersLoop
 			}
@@ -554,7 +575,7 @@ syncronizersLoop:
 		// @iltoga this is mostly for debugging purposes.
 		// spine blocks shouldn't take that long to be downloaded
 		case <-timeout:
-			loggerCoreService.Info("spine blocks sync timedout...")
+			loggerCoreService.Info("spine blocks sync timed out...")
 			os.Exit(1)
 		}
 	}

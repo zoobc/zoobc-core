@@ -58,7 +58,8 @@ func NewBlockService(
 	ct chaintype.ChainType,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface,
+	mainBlockQuery query.BlockQueryInterface,
+	spineBlockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
@@ -85,7 +86,7 @@ func NewBlockService(
 			Chaintype:               ct,
 			KVExecutor:              kvExecutor,
 			QueryExecutor:           queryExecutor,
-			BlockQuery:              blockQuery,
+			BlockQuery:              mainBlockQuery,
 			MempoolQuery:            mempoolQuery,
 			TransactionQuery:        transactionQuery,
 			MerkleTreeQuery:         merkleTreeQuery,
@@ -110,7 +111,7 @@ func NewBlockService(
 			Chaintype: ct,
 			// KVExecutor:            kvExecutor,
 			QueryExecutor: queryExecutor,
-			BlockQuery:    blockQuery,
+			BlockQuery:    spineBlockQuery,
 			// SpinePublicKeyQuery:   spinePublicKeyQuery,
 			Signature: signature,
 			// NodeRegistrationQuery: nodeRegistrationQuery,
@@ -124,11 +125,13 @@ func NewBlockService(
 				Signature:             signature,
 				SpinePublicKeyQuery:   spinePublicKeyQuery,
 			},
-			MegablockService: &BlockSpineMegablockService{
-				QueryExecutor:  queryExecutor,
-				Logger:         logger,
-				MegablockQuery: megablockQuery,
-			},
+			SnapshotService: NewSnapshotService(
+				queryExecutor,
+				mainBlockQuery,
+				spineBlockQuery,
+				megablockQuery,
+				logger,
+			),
 		}
 	}
 	return nil

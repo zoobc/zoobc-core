@@ -19,7 +19,8 @@ func TestNewBlockService(t *testing.T) {
 		ct                      chaintype.ChainType
 		kvExecutor              kvdb.KVExecutorInterface
 		queryExecutor           query.ExecutorInterface
-		blockQuery              query.BlockQueryInterface
+		spineBlockQuery         query.BlockQueryInterface
+		mainBlockQuery          query.BlockQueryInterface
 		mempoolQuery            query.MempoolQueryInterface
 		transactionQuery        query.TransactionQueryInterface
 		merkleTreeQuery         query.MerkleTreeQueryInterface
@@ -59,12 +60,13 @@ func TestNewBlockService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
-				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
-				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
-				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
-				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
-				tt.args.logger, tt.args.accountLedgerQuery, tt.args.megablockQuery); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.mainBlockQuery,
+				tt.args.spineBlockQuery, tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery,
+				tt.args.publishedReceiptQuery, tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery,
+				tt.args.signature, tt.args.mempoolService, tt.args.receiptService, tt.args.nodeRegistrationService,
+				tt.args.txTypeSwitcher, tt.args.accountBalanceQuery, tt.args.participationScoreQuery,
+				tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain, tt.args.logger,
+				tt.args.accountLedgerQuery, tt.args.megablockQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})

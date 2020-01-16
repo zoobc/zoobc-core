@@ -13,6 +13,7 @@ type (
 	MegablockQueryInterface interface {
 		InsertMegablock(megablock *model.Megablock) (str string, args []interface{})
 		GetMegablocksByBlockHeight(height uint32, ct chaintype.ChainType) string
+		GetLastMegablock() string
 		ExtractModel(mb *model.Megablock) []interface{}
 		BuildModel(megablocks []*model.Megablock, rows *sql.Rows) ([]*model.Megablock, error)
 		Scan(mb *model.Megablock, row *sql.Row) error
@@ -64,6 +65,13 @@ func (mbl *MegablockQuery) GetMegablocksByBlockHeight(height uint32, ct chaintyp
 	}
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s_block_height = %d",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), heightPrefix, height)
+	return query
+}
+
+// GetLastMegablock returns the last megablock
+func (mbl *MegablockQuery) GetLastMegablock() string {
+	query := fmt.Sprintf("SELECT %s FROM %s ORDER BY spine_block_height DESC LIMIT 1",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName())
 	return query
 }
 
