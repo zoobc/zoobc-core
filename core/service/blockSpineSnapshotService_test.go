@@ -36,6 +36,11 @@ var (
 		Timestamp: constant.MainchainGenesisBlockTimestamp + ssMainchain.GetSmithingPeriod() + ssMainchain.
 			GetChainSmithingDelayTime(),
 	}
+	ssMockSpineBlock = &model.Block{
+		Height: 10,
+		Timestamp: constant.SpinechainGenesisBlockTimestamp + ssSpinechain.GetSmithingPeriod() + ssSpinechain.
+			GetChainSmithingDelayTime(),
+	}
 	ssSnapshotInterval          = int64(1440 * 60 * 30) // 30 days
 	ssSnapshotGenerationTimeout = int64(1440 * 60 * 3)  // 3 days
 )
@@ -68,6 +73,27 @@ func (mqe *mockQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...int
 					ssMockMainBlock.TotalCoinBase,
 					ssMockMainBlock.Version,
 				))
+		case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
+			"version FROM spine_block ORDER BY height DESC LIMIT 1":
+			mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(ssMainchain).Fields).
+				AddRow(
+					ssMockSpineBlock.ID,
+					ssMockSpineBlock.BlockHash,
+					ssMockSpineBlock.PreviousBlockHash,
+					ssMockSpineBlock.Height,
+					ssMockSpineBlock.Timestamp,
+					ssMockSpineBlock.BlockSeed,
+					ssMockSpineBlock.BlockSignature,
+					ssMockSpineBlock.CumulativeDifficulty,
+					ssMockSpineBlock.PayloadLength,
+					ssMockSpineBlock.PayloadHash,
+					ssMockSpineBlock.BlocksmithPublicKey,
+					ssMockSpineBlock.TotalAmount,
+					ssMockSpineBlock.TotalFee,
+					ssMockSpineBlock.TotalCoinBase,
+					ssMockSpineBlock.Version,
+				))
 		default:
 			return nil, fmt.Errorf("unmocked query for ExecuteSelectRow in test %s: %s", mqe.testName, qStr)
 		}
@@ -80,6 +106,10 @@ func (mqe *mockQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...int
 }
 
 func (*mockQueryExecutor) ExecuteTransaction(query string, args ...interface{}) error {
+	return nil
+}
+
+func (*mockQueryExecutor) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
 
@@ -103,6 +133,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 	type fields struct {
 		QueryExecutor             query.ExecutorInterface
 		MegablockQuery            query.MegablockQueryInterface
+		SnapshotChunkQuery        query.SnapshotChunkQueryInterface
 		Logger                    *log.Logger
 		Spinechain                chaintype.ChainType
 		Mainchain                 chaintype.ChainType
@@ -189,6 +220,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 			mbl := &BlockSpineSnapshotService{
 				QueryExecutor:             tt.fields.QueryExecutor,
 				MegablockQuery:            tt.fields.MegablockQuery,
+				SnapshotChunkQuery:        tt.fields.SnapshotChunkQuery,
 				Logger:                    tt.fields.Logger,
 				Mainchain:                 tt.fields.Mainchain,
 				Spinechain:                tt.fields.Spinechain,
@@ -208,6 +240,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 		MegablockQuery            query.MegablockQueryInterface
 		SpineBlockQuery           query.BlockQueryInterface
 		MainBlockQuery            query.BlockQueryInterface
+		SnapshotChunkQuery        query.SnapshotChunkQueryInterface
 		Logger                    *log.Logger
 		Spinechain                chaintype.ChainType
 		Mainchain                 chaintype.ChainType
@@ -215,8 +248,10 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 		SnapshotGenerationTimeout int64
 	}
 	type args struct {
-		snapshotHash []byte
-		mainHeight   uint32
+		snapshotHash               []byte
+		mainHeight                 uint32
+		sortedSnapshotChunksHashes [][]byte
+		lastSnapshotChunkHash      []byte
 	}
 	tests := []struct {
 		name    string
@@ -234,6 +269,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
 				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
 				MegablockQuery:            query.NewMegablockQuery(),
+				SnapshotChunkQuery:        query.NewSnapshotChunkQuery(),
 				Logger:                    log.New(),
 				Spinechain:                &mockSpinechain{},
 				Mainchain:                 &mockMainchain{},
@@ -241,14 +277,17 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
 			},
 			args: args{
-				snapshotHash: make([]byte, 64),
-				mainHeight:   ssMockMainBlock.Height,
+				snapshotHash:               make([]byte, 64),
+				mainHeight:                 ssMockMainBlock.Height,
+				sortedSnapshotChunksHashes: make([][]byte, 0),
+				lastSnapshotChunkHash:      make([]byte, 64),
 			},
 			wantErr: false,
 			want: &model.Megablock{
 				FullSnapshotHash: make([]byte, 64),
 				MainBlockHeight:  ssMockMainBlock.Height,
 				SpineBlockHeight: uint32(419),
+				SnapshotChunks:   make([]*model.SnapshotChunk, 0),
 			},
 		},
 	}
@@ -260,13 +299,15 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 				MegablockQuery:            tt.fields.MegablockQuery,
 				SpineBlockQuery:           tt.fields.SpineBlockQuery,
 				MainBlockQuery:            tt.fields.MainBlockQuery,
+				SnapshotChunkQuery:        tt.fields.SnapshotChunkQuery,
 				Logger:                    tt.fields.Logger,
 				Spinechain:                tt.fields.Spinechain,
 				Mainchain:                 tt.fields.Mainchain,
 				SnapshotInterval:          tt.fields.SnapshotInterval,
 				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
 			}
-			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight)
+			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight, tt.args.sortedSnapshotChunksHashes,
+				tt.args.lastSnapshotChunkHash)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineSnapshotService.CreateMegablock() error = %v, wantErr %v", err, tt.wantErr)
 			}

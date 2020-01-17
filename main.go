@@ -137,6 +137,7 @@ func init() {
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		query.NewMegablockQuery(),
+		query.NewSnapshotChunkQuery(),
 		loggerCoreService,
 	)
 
@@ -383,6 +384,7 @@ func startMainchain() {
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
 		query.NewMegablockQuery(),
+		query.NewSnapshotChunkQuery(),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -482,6 +484,7 @@ func startSpinechain() {
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
 		query.NewMegablockQuery(),
+		query.NewSnapshotChunkQuery(),
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

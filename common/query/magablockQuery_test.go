@@ -33,7 +33,7 @@ func TestMegablockQuery_GetMegablocksByBlockHeight(t *testing.T) {
 				height: 1,
 				ct:     &chaintype.MainChain{},
 			},
-			wantStr: "SELECT full_snapshot_hash, spine_block_height, main_block_height FROM megablock WHERE main_block_height = 1",
+			wantStr: "SELECT full_snapshot_hash, chunks_count, spine_block_height, main_block_height FROM megablock WHERE main_block_height = 1",
 		},
 		{
 			name: "GetMegablocksByBlockHeight:mainchain",
@@ -45,7 +45,7 @@ func TestMegablockQuery_GetMegablocksByBlockHeight(t *testing.T) {
 				height: 1,
 				ct:     &chaintype.SpineChain{},
 			},
-			wantStr: "SELECT full_snapshot_hash, spine_block_height, " +
+			wantStr: "SELECT full_snapshot_hash, chunks_count, spine_block_height, " +
 				"main_block_height FROM megablock WHERE spine_block_height = 1",
 		},
 	}
@@ -91,8 +91,8 @@ func TestMegablockQuery_InsertMegablock(t *testing.T) {
 			args: args{
 				megablock: mb1,
 			},
-			want: "INSERT INTO megablock (full_snapshot_hash,spine_block_height," +
-				"main_block_height) VALUES(? , ?, ?)",
+			want: "INSERT INTO megablock (full_snapshot_hash,chunks_count,spine_block_height," +
+				"main_block_height) VALUES(? , ?, ?, ?)",
 		},
 	}
 	for _, tt := range tests {
@@ -117,9 +117,8 @@ func TestMegablockQuery_Rollback(t *testing.T) {
 		spineBlockHeight uint32
 	}
 	var (
-		want1 [][]interface{}
+		want [][]interface{}
 	)
-	want1 = append(want1, append([]interface{}{"DELETE FROM megablock WHERE spine_block_height > ?"}, uint32(1)))
 	tests := []struct {
 		name   string
 		fields fields
@@ -135,7 +134,7 @@ func TestMegablockQuery_Rollback(t *testing.T) {
 			args: args{
 				spineBlockHeight: 1,
 			},
-			want: want1,
+			want: append(want, append([]interface{}{"DELETE FROM megablock WHERE spine_block_height > ?"}, uint32(1))),
 		},
 	}
 	for _, tt := range tests {
@@ -167,7 +166,7 @@ func TestMegablockQuery_GetLastMegablock(t *testing.T) {
 				Fields:    NewMegablockQuery().Fields,
 				TableName: NewMegablockQuery().TableName,
 			},
-			want: "SELECT full_snapshot_hash, spine_block_height, " +
+			want: "SELECT full_snapshot_hash, chunks_count, spine_block_height, " +
 				"main_block_height FROM megablock ORDER BY spine_block_height DESC LIMIT 1",
 		},
 	}

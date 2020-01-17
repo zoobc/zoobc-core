@@ -58,8 +58,7 @@ func NewBlockService(
 	ct chaintype.ChainType,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
-	mainBlockQuery query.BlockQueryInterface,
-	spineBlockQuery query.BlockQueryInterface,
+	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
@@ -79,6 +78,7 @@ func NewBlockService(
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
 	megablockQuery query.MegablockQueryInterface,
+	snapshotChunkQuery query.SnapshotChunkQueryInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -130,6 +130,7 @@ func NewBlockService(
 				mainBlockQuery,
 				spineBlockQuery,
 				megablockQuery,
+				snapshotChunkQuery,
 				logger,
 			),
 		}

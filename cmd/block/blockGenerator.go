@@ -160,6 +160,7 @@ func initialize(
 		log.New(),
 		query.NewAccountLedgerQuery(),
 		query.NewMegablockQuery(),
+		query.NewSnapshotChunkQuery(),
 	)
 
 	migration = database.Migration{Query: queryExecutor}

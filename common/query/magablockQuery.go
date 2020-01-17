@@ -3,8 +3,9 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -30,6 +31,7 @@ func NewMegablockQuery() *MegablockQuery {
 	return &MegablockQuery{
 		Fields: []string{
 			"full_snapshot_hash",
+			"chunks_count",
 			"spine_block_height",
 			"main_block_height",
 		},
@@ -79,6 +81,7 @@ func (mbl *MegablockQuery) GetLastMegablock() string {
 func (mbl *MegablockQuery) ExtractModel(mb *model.Megablock) []interface{} {
 	return []interface{}{
 		mb.FullSnapshotHash,
+		mb.ChunksCount,
 		mb.SpineBlockHeight,
 		mb.MainBlockHeight,
 	}
@@ -97,6 +100,7 @@ func (mbl *MegablockQuery) BuildModel(
 		)
 		err = rows.Scan(
 			&mb.FullSnapshotHash,
+			&mb.ChunksCount,
 			&mb.SpineBlockHeight,
 			&mb.MainBlockHeight,
 		)
@@ -122,6 +126,7 @@ func (mbl *MegablockQuery) Rollback(spineBlockHeight uint32) [][]interface{} {
 func (mbl *MegablockQuery) Scan(mb *model.Megablock, row *sql.Row) error {
 	err := row.Scan(
 		&mb.FullSnapshotHash,
+		&mb.ChunksCount,
 		&mb.SpineBlockHeight,
 		&mb.MainBlockHeight,
 	)

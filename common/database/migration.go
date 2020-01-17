@@ -250,10 +250,20 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "megablock" (
-				"full_snapshot_hash"	BLOB,				-- hash of the snapshot's file contents (sha3-512)
+				"full_snapshot_hash"	BLOB,				-- hash of the snapshot's file contents
+				"chunks_count" INTEGER,					-- number of chunks in this megablock
 				"spine_block_height"	INTEGER NOT NULL UNIQUE,	-- spine block height at which the snapshot was taken
 				"main_block_height"	INTEGER NOT NULL UNIQUE,	-- main block height at which the snapshot was taken
 				PRIMARY KEY("full_snapshot_hash")
+			);
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "snapshot_chunk" (
+				"chunk_hash" BLOB,					-- hash of the snapshot chunk
+				"chunk_index" INTEGER  NOT NULL,			-- chunk' sequential index
+				"previous_chunk_hash" BLOB,				-- hash of the previous snapshot chunk
+				"spine_block_height"	INTEGER NOT NULL UNIQUE,	-- spine block height which the chunk refers to 
+				PRIMARY KEY("chunk_hash")
 			);
 			`,
 		}
