@@ -78,7 +78,7 @@ func (buqs *BlockUncompleteQueueService) SetTransactionsRequired(blockIDs int64,
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
 	buqs.BlockRequiringTransactionsMap[blockIDs] = requiredTxIDs
-	for txID, _ := range requiredTxIDs {
+	for txID := range requiredTxIDs {
 		// save transaction ID when transaction not found
 		if buqs.TransactionsRequiredMap[txID] == nil {
 			buqs.TransactionsRequiredMap[txID] = make(BlockIDsMap)
