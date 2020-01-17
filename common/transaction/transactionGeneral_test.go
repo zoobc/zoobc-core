@@ -125,7 +125,7 @@ func TestGetTransactionBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTransactionBytes(tt.args.transaction, tt.args.sign)
+			got, err := (&Util{}).GetTransactionBytes(tt.args.transaction, tt.args.sign)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -233,7 +233,7 @@ func TestParseTransactionBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
+			got, err := (&Util{}).ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -275,7 +275,7 @@ func TestReadAccountAddress(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
+			if got := (&Util{}).ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
 			}
 		})
@@ -319,7 +319,7 @@ func TestGetTransactionID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTransactionID(tt.args.tx.TransactionHash)
+			got, err := (&Util{}).GetTransactionID(tt.args.tx.TransactionHash)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTransactionID() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -365,7 +365,7 @@ func TestValidateTransaction(t *testing.T) {
 		1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 	)
-	txBytes, _ := GetTransactionBytes(tx, false)
+	txBytes, _ := (&Util{}).GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
@@ -420,7 +420,7 @@ func TestValidateTransaction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
+			if err := (&Util{}).ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
 				tt.args.verifySignature); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}

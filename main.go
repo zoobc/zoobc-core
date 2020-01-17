@@ -70,6 +70,7 @@ var (
 	loggerAPIService                        *log.Logger
 	loggerCoreService                       *log.Logger
 	loggerP2PService                        *log.Logger
+	transactionUtil                         = &transaction.Util{}
 )
 
 func init() {
@@ -298,6 +299,7 @@ func startServices() {
 		isDebugMode,
 		apiCertFile,
 		apiKeyFile,
+		transactionUtil,
 	)
 
 	if isDebugMode {
@@ -325,6 +327,7 @@ func startMainchain() {
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
 	sleepPeriod := 500
 	mempoolService := service.NewMempoolService(
+		transactionUtil,
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -338,7 +341,6 @@ func startMainchain() {
 		observerInstance,
 		loggerCoreService,
 	)
-	mempoolService.Start()
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
 	actionSwitcher := &transaction.TypeSwitcher{
@@ -372,6 +374,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
+		transactionUtil,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -430,6 +433,7 @@ func startMainchain() {
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
+		transactionUtil,
 	)
 
 	go func() {
@@ -475,6 +479,7 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
+		transactionUtil,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -506,6 +511,7 @@ func startSpinechain() {
 		nil, // no transaction types for spine blocks
 		loggerCoreService,
 		kvExecutor,
+		transactionUtil,
 	)
 
 	go func() {

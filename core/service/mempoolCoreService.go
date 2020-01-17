@@ -47,6 +47,9 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
+		MempoolServiceUtil  MempoolServiceUtilInterface
+		MempoolGetter       MempoolGetterInterface
+		TransactionUtil     transaction.UtilInterface
 		Chaintype           chaintype.ChainType
 		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
@@ -72,6 +75,7 @@ type (
 
 // NewMempoolService returns an instance of mempool service
 func NewMempoolService(
+	transactionUtil transaction.UtilInterface,
 	ct chaintype.ChainType,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
@@ -85,7 +89,23 @@ func NewMempoolService(
 	observer *observer.Observer,
 	logger *log.Logger,
 ) *MempoolService {
+	mempoolGetter := &MempoolGetter{
+		MempoolQuery:  mempoolQuery,
+		QueryExecutor: queryExecutor,
+	}
+
 	return &MempoolService{
+		MempoolServiceUtil: NewMempoolServiceUtil(transactionUtil,
+			transactionQuery,
+			queryExecutor,
+			mempoolQuery,
+			actionTypeSwitcher,
+			accountBalanceQuery,
+			blockQuery,
+			mempoolGetter,
+		),
+		MempoolGetter:       mempoolGetter,
+		TransactionUtil:     transactionUtil,
 		Chaintype:           ct,
 		KVExecutor:          kvExecutor,
 		QueryExecutor:       queryExecutor,
@@ -141,154 +161,21 @@ func (mps *MempoolService) GetBlockTxCached(txID int64) *model.Transaction {
 
 // GetMempoolTransactions fetch transactions from mempool
 func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
-	var (
-		rows *sql.Rows
-		err  error
-	)
-	sqlStr := mps.MempoolQuery.GetMempoolTransactions()
-	rows, err = mps.QueryExecutor.ExecuteSelect(sqlStr, false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var mempoolTransactions []*model.MempoolTransaction
-	mempoolTransactions, err = mps.MempoolQuery.BuildModel(mempoolTransactions, rows)
-	if err != nil {
-		return nil, err
-	}
-	return mempoolTransactions, nil
+	return mps.MempoolGetter.GetMempoolTransactions()
 }
 
 // GetMempoolTransaction return a mempool transaction by its ID
 func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransaction, error) {
-	var (
-		rows *sql.Rows
-		mpTx []*model.MempoolTransaction
-		err  error
-	)
-
-	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransaction(), false, id)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	mpTx, err = mps.MempoolQuery.BuildModel(mpTx, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if len(mpTx) > 0 {
-		return mpTx[0], nil
-	}
-
-	return nil, blocker.NewBlocker(blocker.DBRowNotFound, "MempoolTransactionNotFound")
+	return mps.MempoolGetter.GetMempoolTransaction(id)
 }
 
 // AddMempoolTransaction validates and insert a transaction into the mempool and also set the BlockHeight as well
 func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
-
-	// check maximum mempool
-	if constant.MaxMempoolTransactions > 0 {
-		var count int
-		sqlStr := mps.MempoolQuery.GetMempoolTransactions()
-		// note: this select is always insid a db transaction because AddMempoolTransaction is always called within a db tx
-		row, err := mps.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr), true)
-		if err != nil {
-			return err
-		}
-		err = row.Scan(&count)
-		if err != nil {
-			return err
-		}
-		if count >= constant.MaxMempoolTransactions {
-			return blocker.NewBlocker(blocker.ValidationErr, "Mempool already full")
-		}
-	}
-
-	// check if already in db
-	mempool, err := mps.GetMempoolTransaction(mpTx.ID)
-	if err != nil {
-		if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type != blocker.DBRowNotFound {
-			return blocker.NewBlocker(blocker.ValidationErr, blockErr.Message)
-		}
-	}
-	if mempool != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
-	}
-
-	// note: this select is always insid a db transaction because AddMempoolTransaction is always called within a db tx
-	row, err := mps.QueryExecutor.ExecuteSelectRow(mps.BlockQuery.GetLastBlock(), true)
-	if err != nil {
-		return err
-	}
-	var lastBlock model.Block
-	err = mps.BlockQuery.Scan(&lastBlock, row)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "GetLastBlockFail")
-	}
-
-	mpTx.BlockHeight = lastBlock.GetHeight()
-	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
-	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
-	if err != nil {
-		return err
-	}
-	return nil
+	return mps.MempoolServiceUtil.AddMempoolTransaction(mpTx)
 }
 
 func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
-	var (
-		tx        model.Transaction
-		mempoolTx model.MempoolTransaction
-		parsedTx  *model.Transaction
-		err       error
-	)
-	// check for duplication in transaction table
-	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.ID)
-	row, _ := mps.QueryExecutor.ExecuteSelectRow(transactionQ, false)
-	err = mps.TransactionQuery.Scan(&tx, row)
-	if err != nil && err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-
-	if mpTx.GetID() == tx.GetID() {
-		return blocker.NewBlocker(blocker.ValidationErr, "MempoolDuplicated")
-	}
-
-	// check for duplication in mempool table
-	mempoolQ := mps.MempoolQuery.GetMempoolTransaction()
-	row, _ = mps.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
-	err = mps.MempoolQuery.Scan(&mempoolTx, row)
-
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-	}
-	if mpTx.GetID() == mempoolTx.GetID() {
-		return blocker.NewBlocker(blocker.ValidationErr, "MempoolDuplicated")
-	}
-
-	parsedTx, err = transaction.ParseTransactionBytes(mpTx.TransactionBytes, true)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-
-	if err := transaction.ValidateTransaction(parsedTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	txType, err := mps.ActionTypeSwitcher.GetTransactionType(parsedTx)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-
-	err = txType.Validate(false)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-
-	return nil
+	return mps.MempoolServiceUtil.ValidateMempoolTransaction(mpTx)
 }
 
 // SelectTransactionsFromMempool Select transactions from mempool to be included in the block and return an ordered list.
@@ -300,7 +187,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
 func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
-	mempoolTransactions, err := mps.GetMempoolTransactions()
+	mempoolTransactions, err := mps.MempoolGetter.GetMempoolTransactions()
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +204,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		tx, err := transaction.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
+		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
 		if err != nil {
 			continue
 		}
@@ -328,7 +215,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 			continue
 		}
 
-		if err := transaction.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+		if err := mps.TransactionUtil.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
 
@@ -363,7 +250,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		receivedTx *model.Transaction
 		mempoolTx  *model.MempoolTransaction
 	)
-	receivedTx, err = transaction.ParseTransactionBytes(receivedTxBytes, true)
+	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -385,7 +272,7 @@ func (mps *MempoolService) ReceivedTransaction(
 
 	if transactionCached := mps.GetBlockTxCached(receivedTx.ID); transactionCached == nil {
 		// Validate received transaction
-		if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
+		if err = mps.MempoolServiceUtil.ValidateMempoolTransaction(mempoolTx); err != nil {
 			specificErr := err.(blocker.Blocker)
 			if specificErr.Type != blocker.DuplicateMempoolErr {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -435,14 +322,14 @@ func (mps *MempoolService) ProcessTransactionBytesToMempool(mempoolTx *model.Mem
 		err        error
 		receivedTx *model.Transaction
 	)
-	if err = mps.ValidateMempoolTransaction(mempoolTx); err != nil {
+	if err = mps.MempoolServiceUtil.ValidateMempoolTransaction(mempoolTx); err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	if err := mps.QueryExecutor.BeginTx(); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed transaction
-	receivedTx, err = transaction.ParseTransactionBytes(mempoolTx.TransactionBytes, true)
+	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(mempoolTx.TransactionBytes, true)
 	if err != nil {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -459,7 +346,7 @@ func (mps *MempoolService) ProcessTransactionBytesToMempool(mempoolTx *model.Mem
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Store to Mempool Transaction
-	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
+	if err = mps.MempoolServiceUtil.AddMempoolTransaction(mempoolTx); err != nil {
 		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
 		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
@@ -519,7 +406,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		return err
 	}
 	for _, m := range mempools {
-		tx, err := transaction.ParseTransactionBytes(m.GetTransactionBytes(), true)
+		tx, err := mps.TransactionUtil.ParseTransactionBytes(m.GetTransactionBytes(), true)
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())

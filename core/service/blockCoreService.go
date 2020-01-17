@@ -76,6 +76,7 @@ func NewBlockService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
+	transactionUtil transaction.UtilInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -102,6 +103,7 @@ func NewBlockService(
 			Observer:                obsr,
 			Logger:                  logger,
 			AccountLedgerQuery:      accountLedgerQuery,
+			TransactionUtil:         transactionUtil,
 		}
 	case *chaintype.SpineChain:
 		return &BlockSpineService{

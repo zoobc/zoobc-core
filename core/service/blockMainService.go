@@ -74,6 +74,7 @@ type (
 		Observer                *observer.Observer
 		Logger                  *log.Logger
 		AccountLedgerQuery      query.AccountLedgerQueryInterface
+		TransactionUtil         transaction.UtilInterface
 	}
 )
 
@@ -1381,7 +1382,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			tx     *model.Transaction
 			txType transaction.TypeAction
 		)
-		tx, err := transaction.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
+		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
 		if err != nil {
 			return nil, err
 		}

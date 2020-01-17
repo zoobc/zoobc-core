@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -300,6 +301,7 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		&transaction.Util{},
 	)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,

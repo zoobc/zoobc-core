@@ -80,6 +80,7 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
+	transactionUtil := &transaction.Util{}
 	paths := strings.Split(outputPath, "/")
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
@@ -99,6 +100,7 @@ func initialize(
 		Executor: queryExecutor,
 	}
 	mempoolService := service.NewMempoolService(
+		transactionUtil,
 		chainType,
 		nil,
 		queryExecutor,
@@ -158,6 +160,7 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
+		transactionUtil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

@@ -38,6 +38,7 @@ func TestNewBlockService(t *testing.T) {
 		obsr                    *observer.Observer
 		logger                  *log.Logger
 		accountLedgerQuery      query.AccountLedgerQueryInterface
+		transactionUtil         transaction.UtilInterface
 	}
 	tests := []struct {
 		name string
@@ -47,12 +48,14 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				ct:   &chaintype.MainChain{},
-				obsr: observer.NewObserver(),
+				ct:              &chaintype.MainChain{},
+				obsr:            observer.NewObserver(),
+				transactionUtil: &transaction.Util{},
 			},
 			want: &BlockService{
-				Chaintype: &chaintype.MainChain{},
-				Observer:  observer.NewObserver(),
+				Chaintype:       &chaintype.MainChain{},
+				Observer:        observer.NewObserver(),
+				TransactionUtil: &transaction.Util{},
 			},
 		},
 	}
@@ -63,7 +66,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
-				tt.args.logger, tt.args.accountLedgerQuery); !reflect.DeepEqual(got, tt.want) {
+				tt.args.logger, tt.args.accountLedgerQuery, &transaction.Util{}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})
