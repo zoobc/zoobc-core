@@ -55,6 +55,8 @@ func NewBlockUncompleteQueueService(
 		Observer:                      obsr,
 	}
 }
+
+// GetBlockQueue return a block based on block ID
 func (buqs *BlockUncompleteQueueService) GetBlockQueue(blockID int64) *model.Block {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
@@ -65,6 +67,7 @@ func (buqs *BlockUncompleteQueueService) GetBlockQueue(blockID int64) *model.Blo
 	return block
 }
 
+// AddBlockQueue add new block into block queue list
 func (buqs *BlockUncompleteQueueService) AddBlockQueue(block *model.Block) {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
@@ -74,6 +77,7 @@ func (buqs *BlockUncompleteQueueService) AddBlockQueue(block *model.Block) {
 	}
 }
 
+// SetTransactionsRequired setup map of  block with required transactions and map of transaction required by block
 func (buqs *BlockUncompleteQueueService) SetTransactionsRequired(blockIDs int64, requiredTxIDs TransactionIDsMap) {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()

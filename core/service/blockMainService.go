@@ -54,7 +54,6 @@ type (
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
-		CleanTheTimedoutBlock()
 	}
 
 	//TODO: rename to BlockMainService
@@ -1438,7 +1437,6 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 
 // ProcessCompletedBlock to process block that already having all needed transactions
 func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
-	// pushBlock closure to release lock as soon as block pushed
 	// Securing receive block process
 	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
