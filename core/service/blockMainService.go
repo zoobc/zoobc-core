@@ -1563,16 +1563,13 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool,
 	return true, nil
 }
 
+// ReceiveValidatedTransactionListener will receive validated transaction to completing transaction of blocks queue
 func (bs *BlockService) ReceiveValidatedTransactionListener(transaction *model.Transaction) {
 	var completedBlocks = bs.BlockUncompleteQueueService.AddTransaction(transaction)
-	if len(completedBlocks) > 0 {
-		for _, block := range completedBlocks {
-			go func(b *model.Block) {
-				err := bs.ProcessCompletedBlock(b)
-				if err != nil {
-					bs.Logger.Warn(blocker.BlockErr, err.Error())
-				}
-			}(block)
+	for _, block := range completedBlocks {
+		err := bs.ProcessCompletedBlock(block)
+		if err != nil {
+			bs.Logger.Warn(blocker.BlockErr, err.Error())
 		}
 	}
 }
