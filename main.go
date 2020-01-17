@@ -72,7 +72,7 @@ var (
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	mainchainBlockService, spinechainBlockService service.BlockServiceInterface
-	snapshotService                               service.BlockSpineSnapshotServiceInterface
+	snapshotService                               service.SnapshotServiceInterface
 )
 
 func init() {
@@ -284,6 +284,7 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
 }
 
 func startServices() {

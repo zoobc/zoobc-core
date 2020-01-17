@@ -583,6 +583,7 @@ func TestBlockSpineService_newSpineBlock(t *testing.T) {
 		payloadHash         []byte
 		payloadLength       uint32
 		secretPhrase        string
+		megablock           *model.Megablock
 	}
 	tests := []struct {
 		name    string
@@ -627,10 +628,11 @@ func TestBlockSpineService_newSpineBlock(t *testing.T) {
 				tt.args.blockSmithPublicKey,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
-				tt.args.spinePublicKeys,
 				tt.args.payloadHash,
 				tt.args.payloadLength,
 				tt.args.secretPhrase,
+				tt.args.spinePublicKeys,
+				tt.args.megablock,
 			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.NewBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -813,7 +815,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		SnapshotService         BlockSpineSnapshotServiceInterface
+		SnapshotService         SnapshotServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -847,13 +849,14 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				SnapshotService: &BlockSpineSnapshotService{
-					QueryExecutor:  &mockSpineQueryExecutorSuccess{},
-					Logger:         log.New(),
-					MegablockQuery: query.NewMegablockQuery(),
-					Spinechain:     &chaintype.SpineChain{},
-					Mainchain:      &chaintype.MainChain{},
-				},
+				SnapshotService: &mockSpineSnapshotService{},
+				// SnapshotService: &SnapshotService{
+				// 	QueryExecutor:  &mockSpineQueryExecutorSuccess{},
+				// 	Logger:         log.New(),
+				// 	MegablockQuery: query.NewMegablockQuery(),
+				// 	Spinechain:     &chaintype.SpineChain{},
+				// 	Mainchain:      &chaintype.MainChain{},
+				// },
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -910,13 +913,14 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				SnapshotService: &BlockSpineSnapshotService{
-					QueryExecutor:  &mockSpineQueryExecutorSuccess{},
-					Logger:         log.New(),
-					MegablockQuery: query.NewMegablockQuery(),
-					Spinechain:     &chaintype.SpineChain{},
-					Mainchain:      &chaintype.MainChain{},
-				},
+				SnapshotService: &mockSpineSnapshotService{},
+				// SnapshotService: &SnapshotService{
+				// 	QueryExecutor:  &mockSpineQueryExecutorSuccess{},
+				// 	Logger:         log.New(),
+				// 	MegablockQuery: query.NewMegablockQuery(),
+				// 	Spinechain:     &chaintype.SpineChain{},
+				// 	Mainchain:      &chaintype.MainChain{},
+				// },
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1264,7 +1268,26 @@ type (
 	mockSpineReceiptServiceReturnEmpty struct {
 		ReceiptService
 	}
+	mockSpineSnapshotService struct {
+		SnapshotService
+		ResMegablock *model.Megablock
+		ResError     error
+	}
 )
+
+func (ss *mockSpineSnapshotService) GetMegablockFromSpineHeight(spineHeight uint32) (*model.Megablock, error) {
+	var (
+		megablock *model.Megablock
+		err       error
+	)
+	if ss.ResMegablock != nil {
+		megablock = ss.ResMegablock
+	}
+	if ss.ResError != nil {
+		err = ss.ResError
+	}
+	return megablock, err
+}
 
 func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(
 	blockTimestamp int64,
@@ -1347,6 +1370,7 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
 		ActionTypeSwitcher    transaction.TypeActionSwitcher
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
+		SnapshotService       SnapshotServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1385,6 +1409,15 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				SnapshotService: &mockSpineSnapshotService{
+					ResMegablock: &model.Megablock{
+						SnapshotChunks: make([]*model.SnapshotChunk,0),
+						FullSnapshotHash: make([]byte, 64),
+						MainBlockHeight: 720,
+						ChunksCount:0,
+						SpineBlockHeight: 1,
+					},
+				},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1416,6 +1449,7 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				Signature:             tt.fields.Signature,
 				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				SnapshotService:       tt.fields.SnapshotService,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -1481,7 +1515,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		Logger                  *logrus.Logger
 		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		SnapshotService         BlockSpineSnapshotServiceInterface
+		SnapshotService         SnapshotServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1512,7 +1546,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				SnapshotService: &BlockSpineSnapshotService{
+				SnapshotService: &SnapshotService{
 					QueryExecutor:  &mockSpineAddGenesisExecutor{},
 					Logger:         log.New(),
 					MegablockQuery: query.NewMegablockQuery(),

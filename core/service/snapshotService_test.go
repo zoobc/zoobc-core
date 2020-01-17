@@ -3,15 +3,15 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -43,6 +43,35 @@ var (
 	}
 	ssSnapshotInterval          = int64(1440 * 60 * 30) // 30 days
 	ssSnapshotGenerationTimeout = int64(1440 * 60 * 3)  // 3 days
+	ssMockHash1                 = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	ssMockHash2 = []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}
+	ssMockFullHash = []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
+	ssMockSnapshotChunk = &model.SnapshotChunk{
+		ChunkHash: ssMockHash1,
+	}
+	ssMockMegablock = &model.Megablock{
+		SnapshotChunks: []*model.SnapshotChunk{
+			{
+				SpineBlockHeight:  10,
+				PreviousChunkHash: nil,
+				ChunkIndex:        0,
+				ChunkHash:         ssMockHash1,
+			},
+			{
+				SpineBlockHeight:  10,
+				PreviousChunkHash: ssMockHash1,
+				ChunkIndex:        1,
+				ChunkHash:         ssMockHash2,
+			},
+		},
+		SpineBlockHeight: 10,
+		ChunksCount:      2,
+		FullSnapshotHash: ssMockFullHash,
+		MainBlockHeight:  720,
+	}
 )
 
 func (mqe *mockQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
@@ -50,7 +79,7 @@ func (mqe *mockQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...int
 	defer db.Close()
 
 	switch mqe.testName {
-	case "CreateMegablock:success":
+	case "GenerateSnapshot:success":
 		switch qStr {
 		case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
@@ -93,6 +122,15 @@ func (mqe *mockQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...int
 					ssMockSpineBlock.TotalFee,
 					ssMockSpineBlock.TotalCoinBase,
 					ssMockSpineBlock.Version,
+				))
+		case "SELECT chunk_hash, chunk_index, previous_chunk_hash, " +
+			"spine_block_height FROM snapshot_chunk ORDER BY spine_block_height, chunk_index DESC LIMIT 1":
+			mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewSnapshotChunkQuery().Fields).
+				AddRow(
+					ssMockSnapshotChunk.ChunkHash,
+					ssMockSnapshotChunk.ChunkIndex,
+					ssMockSnapshotChunk.PreviousChunkHash,
+					ssMockSnapshotChunk.SpineBlockHeight,
 				))
 		default:
 			return nil, fmt.Errorf("unmocked query for ExecuteSelectRow in test %s: %s", mqe.testName, qStr)
@@ -217,7 +255,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mbl := &BlockSpineSnapshotService{
+			mbl := &SnapshotService{
 				QueryExecutor:             tt.fields.QueryExecutor,
 				MegablockQuery:            tt.fields.MegablockQuery,
 				SnapshotChunkQuery:        tt.fields.SnapshotChunkQuery,
@@ -228,7 +266,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
 			}
 			if got := mbl.GetNextSnapshotHeight(tt.args.mainHeight); got != tt.want {
-				t.Errorf("BlockSpineSnapshotService.GetNextSnapshotHeight() = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotService.GetNextSnapshotHeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -249,7 +287,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 	}
 	type args struct {
 		snapshotHash               []byte
-		mainHeight                 uint32
+		mainHeight, spineHeight    uint32
 		sortedSnapshotChunksHashes [][]byte
 		lastSnapshotChunkHash      []byte
 	}
@@ -279,6 +317,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 			args: args{
 				snapshotHash:               make([]byte, 64),
 				mainHeight:                 ssMockMainBlock.Height,
+				spineHeight:                ssMockSpineBlock.Height,
 				sortedSnapshotChunksHashes: make([][]byte, 0),
 				lastSnapshotChunkHash:      make([]byte, 64),
 			},
@@ -286,7 +325,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 			want: &model.Megablock{
 				FullSnapshotHash: make([]byte, 64),
 				MainBlockHeight:  ssMockMainBlock.Height,
-				SpineBlockHeight: uint32(419),
+				SpineBlockHeight: ssMockSpineBlock.Height,
 				SnapshotChunks:   make([]*model.SnapshotChunk, 0),
 			},
 		},
@@ -294,7 +333,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 	for _, tt := range tests {
 		fmt.Println(t.Name())
 		t.Run(tt.name, func(t *testing.T) {
-			mbl := &BlockSpineSnapshotService{
+			mbl := &SnapshotService{
 				QueryExecutor:             tt.fields.QueryExecutor,
 				MegablockQuery:            tt.fields.MegablockQuery,
 				SpineBlockQuery:           tt.fields.SpineBlockQuery,
@@ -306,13 +345,171 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 				SnapshotInterval:          tt.fields.SnapshotInterval,
 				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
 			}
-			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight, tt.args.sortedSnapshotChunksHashes,
+			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight, tt.args.spineHeight,
+				tt.args.sortedSnapshotChunksHashes,
 				tt.args.lastSnapshotChunkHash)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockSpineSnapshotService.CreateMegablock() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SnapshotService.CreateMegablock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockSpineSnapshotService.CreateMegablock() error = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotService.CreateMegablock() error = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSnapshotService_GenerateSnapshot(t *testing.T) {
+	type fields struct {
+		QueryExecutor             query.ExecutorInterface
+		MegablockQuery            query.MegablockQueryInterface
+		SpineBlockQuery           query.BlockQueryInterface
+		MainBlockQuery            query.BlockQueryInterface
+		SnapshotChunkQuery        query.SnapshotChunkQueryInterface
+		Logger                    *log.Logger
+		Spinechain                chaintype.ChainType
+		Mainchain                 chaintype.ChainType
+		SnapshotInterval          int64
+		SnapshotGenerationTimeout int64
+	}
+	type args struct {
+		mainHeight uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.Megablock
+		wantErr bool
+	}{
+		{
+			name: "GenerateSnapshot:success",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutor{
+					testName: "GenerateSnapshot:success",
+				},
+				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
+				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
+				MegablockQuery:            query.NewMegablockQuery(),
+				SnapshotChunkQuery:        query.NewSnapshotChunkQuery(),
+				Logger:                    log.New(),
+				Spinechain:                &mockSpinechain{},
+				Mainchain:                 &mockMainchain{},
+				SnapshotInterval:          ssSnapshotInterval,
+				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
+			},
+			args: args{
+				mainHeight: ssMockMainBlock.Height,
+			},
+			wantErr: false,
+			want: &model.Megablock{
+				FullSnapshotHash: make([]byte, 64),
+				MainBlockHeight:  ssMockMainBlock.Height,
+				SpineBlockHeight: uint32(419),
+				SnapshotChunks:   make([]*model.SnapshotChunk, 0),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &SnapshotService{
+				QueryExecutor:             tt.fields.QueryExecutor,
+				MegablockQuery:            tt.fields.MegablockQuery,
+				SpineBlockQuery:           tt.fields.SpineBlockQuery,
+				MainBlockQuery:            tt.fields.MainBlockQuery,
+				SnapshotChunkQuery:        tt.fields.SnapshotChunkQuery,
+				Logger:                    tt.fields.Logger,
+				Spinechain:                tt.fields.Spinechain,
+				Mainchain:                 tt.fields.Mainchain,
+				SnapshotInterval:          tt.fields.SnapshotInterval,
+				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
+			}
+			got, err := ss.GenerateSnapshot(tt.args.mainHeight)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SnapshotService.GenerateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SnapshotService.GenerateSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSnapshotService_GetMegablockBytes(t *testing.T) {
+	type fields struct {
+		QueryExecutor             query.ExecutorInterface
+		MegablockQuery            query.MegablockQueryInterface
+		SpineBlockQuery           query.BlockQueryInterface
+		MainBlockQuery            query.BlockQueryInterface
+		SnapshotChunkQuery        query.SnapshotChunkQueryInterface
+		Logger                    *log.Logger
+		Spinechain                chaintype.ChainType
+		Mainchain                 chaintype.ChainType
+		SnapshotInterval          int64
+		SnapshotGenerationTimeout int64
+	}
+	type args struct {
+		megablock *model.Megablock
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "GenerateSnapshot:success",
+			fields: fields{
+				QueryExecutor: &mockQueryExecutor{
+					testName: "GenerateSnapshot:success",
+				},
+				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
+				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
+				MegablockQuery:            query.NewMegablockQuery(),
+				SnapshotChunkQuery:        query.NewSnapshotChunkQuery(),
+				Logger:                    log.New(),
+				Spinechain:                &mockSpinechain{},
+				Mainchain:                 &mockMainchain{},
+				SnapshotInterval:          ssSnapshotInterval,
+				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
+			},
+			args: args{
+				megablock: ssMockMegablock,
+			},
+			wantErr: false,
+			want:    []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 
+				3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 0, 0, 0, 
+				10, 0, 0, 0, 208, 2, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 0, 0, 0, 0, 10, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+				2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+				2, 2, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 
+				0, 0, 0},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &SnapshotService{
+				QueryExecutor:             tt.fields.QueryExecutor,
+				MegablockQuery:            tt.fields.MegablockQuery,
+				SpineBlockQuery:           tt.fields.SpineBlockQuery,
+				MainBlockQuery:            tt.fields.MainBlockQuery,
+				SnapshotChunkQuery:        tt.fields.SnapshotChunkQuery,
+				Logger:                    tt.fields.Logger,
+				Spinechain:                tt.fields.Spinechain,
+				Mainchain:                 tt.fields.Mainchain,
+				SnapshotInterval:          tt.fields.SnapshotInterval,
+				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
+			}
+			got, err := ss.GetMegablockBytes(tt.args.megablock)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SnapshotService.GetMegablockBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SnapshotService.GetMegablockBytes() = %v, want %v", got, tt.want)
 			}
 		})
 	}

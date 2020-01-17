@@ -37,7 +37,7 @@ type (
 		Observer              *observer.Observer
 		Logger                *log.Logger
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		SnapshotService       BlockSpineSnapshotServiceInterface
+		SnapshotService       SnapshotServiceInterface
 	}
 )
 
@@ -228,6 +228,18 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 		return err
 	}
+	
+	// add megablock entity to db if part of the block
+	if block.Megablock != nil {
+		// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
+		if err := bs.SnapshotService.InsertMegablock(block.Megablock); err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
 
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -397,18 +409,31 @@ func (bs *BlockSpineService) GenerateBlock(
 	// compute spine pub keys from mainchain node registrations
 	// Note: since spine blocks are not in sync with main blocks and they are unaware of the height (on mainchain) where to retrieve
 	// node registration's public keys, we use timestamps for now
-	// TODO: when megablocks are implemented (and so we have a reference of a mainblock in every spineblock, use mainblock's height instead)
 	if fromTimestamp == bs.GetChainType().GetGenesisBlockTimestamp() {
 		fromTimestamp++
 	}
 	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(fromTimestamp, timestamp, newBlockHeight)
 	for _, spinePubKey := range spinePublicKeys {
 		payloadBytes = append(payloadBytes, commonUtils.GetSpinePublicKeyBytes(spinePubKey)...)
-		if _, err := digest.Write(payloadBytes); err != nil {
-			return nil, err
-		}
 	}
 	if err != nil {
+		return nil, err
+	}
+	
+	// retrieve megablock (complete with snapshot chunks) and add it to payload
+	megablock, err := bs.SnapshotService.GetMegablockFromSpineHeight(newBlockHeight)
+	if err != nil {
+		return nil, err
+	}
+	if megablock != nil {
+		megablockBytes, err := bs.SnapshotService.GetMegablockBytes(megablock)
+		if err != nil {
+			return nil, err
+		}
+		payloadBytes = append(payloadBytes, megablockBytes...)
+	}
+
+	if _, err := digest.Write(payloadBytes); err != nil {
 		return nil, err
 	}
 	payloadHash = digest.Sum([]byte{})
@@ -434,10 +459,11 @@ func (bs *BlockSpineService) GenerateBlock(
 		blockSmithPublicKey,
 		newBlockHeight,
 		timestamp,
-		spinePublicKeys,
 		payloadHash,
 		payloadLength,
 		secretPhrase,
+		spinePublicKeys,
+		megablock,
 	)
 	if err != nil {
 		return nil, err
@@ -695,10 +721,11 @@ func (bs *BlockSpineService) newSpineBlock(
 	blockSeed, blockSmithPublicKey []byte,
 	previousBlockHeight uint32,
 	timestamp int64,
-	spinePublicKeys []*model.SpinePublicKey,
 	payloadHash []byte,
 	payloadLength uint32,
 	secretPhrase string,
+	spinePublicKeys []*model.SpinePublicKey,
+	megablock *model.Megablock,
 ) (*model.Block, error) {
 	block := &model.Block{
 		Version:             version,
@@ -707,9 +734,10 @@ func (bs *BlockSpineService) newSpineBlock(
 		BlocksmithPublicKey: blockSmithPublicKey,
 		Height:              previousBlockHeight,
 		Timestamp:           timestamp,
-		SpinePublicKeys:     spinePublicKeys,
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
+		SpinePublicKeys:     spinePublicKeys,
+		Megablock:           megablock,
 	}
 	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
