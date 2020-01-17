@@ -48,7 +48,9 @@ type (
 		) (*model.Block, error)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
-		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
+		RewardBlocksmithAccountAddresses(
+			blocksmithAccountAddresses []string, totalReward, blocktimestamp int64, height uint32,
+		) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
@@ -57,7 +59,7 @@ type (
 		ScanBlockPool() error
 	}
 
-	//TODO: rename to BlockMainService
+	// TODO: rename to BlockMainService
 	BlockService struct {
 		sync.RWMutex
 		Chaintype               chaintype.ChainType
@@ -567,7 +569,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
-	previousBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	previousBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
 	}
@@ -595,6 +597,9 @@ func (bs *BlockService) canPersistBlock(blocksmithIndex int64, previousBlock *mo
 	if blocksmithIndex < 1 {
 		return true
 	}
+	var (
+		currentTime = time.Now().Unix()
+	)
 	blocksmithAllowedBeginTime := bs.BlocksmithStrategy.GetSmithTime(blocksmithIndex, previousBlock)
 	blocksmithExpiredPersistTime := blocksmithAllowedBeginTime +
 		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
@@ -603,9 +608,9 @@ func (bs *BlockService) canPersistBlock(blocksmithIndex int64, previousBlock *mo
 		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
 	// allowed time window = lastBlocksmithExpiredTime < current_time <= currentBlocksmithExpiredTime
 	if previousBlock.GetHeight() == 0 {
-		return time.Now().Unix() > blocksmithAllowedPersistTime
+		return currentTime > blocksmithAllowedPersistTime
 	}
-	return time.Now().Unix() >= blocksmithAllowedPersistTime && time.Now().Unix() <= blocksmithExpiredPersistTime
+	return currentTime >= blocksmithAllowedPersistTime && currentTime <= blocksmithExpiredPersistTime
 }
 
 // adminNodes seelct and admit nodes from node registry
