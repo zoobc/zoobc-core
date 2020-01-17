@@ -58,6 +58,7 @@ var (
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
+	blockUncompleteQueueService                   service.BlockUncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
 	peerServiceClient                             client.PeerServiceClientInterface
 	p2pHost                                       *model.Host
@@ -350,6 +351,11 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
 	)
+	blockUncompleteQueueService = service.NewBlockUncompleteQueueService(
+		mainchain,
+		observerInstance,
+	)
+
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
 		kvExecutor,
@@ -373,6 +379,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
+		blockUncompleteQueueService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -471,6 +478,7 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
+		nil, // no need block uncomplete queue service
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -510,7 +518,6 @@ func startScheduler() {
 	var (
 		mainchain               = &chaintype.MainChain{}
 		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
-		mainchainBlockService   = blockServices[mainchain.GetTypeInt()].(*service.BlockService)
 	)
 	// scheduler remove expired mempool transaction
 	if err := schedulerInstance.AddJob(
@@ -533,10 +540,10 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
-	// scheduler to remove block that already waiting transactions too long
+	// scheduler to remove block uncomplete queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,
-		mainchainBlockService.CleanTheTimedoutBlock,
+		blockUncompleteQueueService.PruneTimeoutBlockQueue,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}

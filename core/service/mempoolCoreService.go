@@ -39,8 +39,6 @@ type (
 		) (*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
-		GetBlockTxCached(transactionsID int64) *model.Transaction
-		DeleteBlockTxCandidate(transactionID int64, addToMempool bool)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -515,12 +513,4 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 	}
 
 	return mempools, nil
-}
-
-// GetBlockTxCached will return needed transaction from transaction candidate
-func (mps *MempoolService) GetBlockTxCached(transactionsID int64) *model.Transaction {
-	return nil
-}
-
-func (mps *MempoolService) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
 }

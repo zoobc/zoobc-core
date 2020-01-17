@@ -60,47 +60,29 @@ type (
 	//TODO: rename to BlockMainService
 	BlockService struct {
 		sync.RWMutex
-		Chaintype                    chaintype.ChainType
-		KVExecutor                   kvdb.KVExecutorInterface
-		QueryExecutor                query.ExecutorInterface
-		BlockQuery                   query.BlockQueryInterface
-		MempoolQuery                 query.MempoolQueryInterface
-		TransactionQuery             query.TransactionQueryInterface
-		MerkleTreeQuery              query.MerkleTreeQueryInterface
-		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
-		Signature                    crypto.SignatureInterface
-		MempoolService               MempoolServiceInterface
-		ReceiptService               ReceiptServiceInterface
-		NodeRegistrationService      NodeRegistrationServiceInterface
-		ActionTypeSwitcher           transaction.TypeActionSwitcher
-		AccountBalanceQuery          query.AccountBalanceQueryInterface
-		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
-		AccountLedgerQuery           query.AccountLedgerQueryInterface
-		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
-		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
-		Observer                     *observer.Observer
-		Logger                       *log.Logger
-	}
-	// TransactionIDs reperesent a list of transaction id will used by queued block
-	TransactionIDsMap map[int64]int
-	BlockIDsMap       map[int64]bool
-	// BlockWithMetaData is incoming block with some information while waiting transaction
-	BlockWithMetaData struct {
-		Block     *model.Block
-		Timestamp int64
-	}
-	// WaitingTransactionBlockQueue reperesent a list of incoming blocks while waiting their transaction
-	WaitingTransactionBlockQueue struct {
-		// map of block ID with the blocks that have been received but waiting transactions to be completed
-		WaitingTxBlocks map[int64]*BlockWithMetaData
-		// map of blockID with an array of transactionIds it requires
-		BlockRequiringTransactionsMap map[int64]TransactionIDsMap
-		// map of transactionIds with blockIds that requires them
-		TransactionsRequiredMap map[int64]BlockIDsMap
-		BlockMutex              sync.Mutex
+		Chaintype                   chaintype.ChainType
+		KVExecutor                  kvdb.KVExecutorInterface
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		MerkleTreeQuery             query.MerkleTreeQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery         query.SpinePublicKeyQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockUncompleteQueueService BlockUncompleteQueueServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
 	}
 )
 
@@ -211,7 +193,7 @@ func (bs *BlockService) NewGenesisBlock(
 	return block, nil
 }
 
-// PreValidateBlock valdiate block without without it's transactions
+// PreValidateBlock valdiate block without it's transactions
 func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
 	// check block timestamp
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
@@ -1125,7 +1107,7 @@ func (bs *BlockService) ReceiveBlock(
 	var isQueued bool
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
-		// when incoming block is better than last block that having same prevoius block hash
+		// check if incoming block is of higher quality
 		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
 			block.Timestamp < lastBlock.Timestamp {
 			var previousBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
@@ -1136,11 +1118,11 @@ func (bs *BlockService) ReceiveBlock(
 			if err = bs.PreValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
 				return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
-			isQueued, err = bs.ProcessQueuedBlock(block)
+			isQueued, err = bs.ProcessQueueBlock(block)
 			if err != nil {
 				return nil, err
 			}
-			// when isQueued is false and err is nil it means need to process completed block
+			// process block when block don't have transaction
 			if !isQueued {
 				err = bs.ProcessCompletedBlock(block)
 				if err != nil {
@@ -1189,11 +1171,11 @@ func (bs *BlockService) ReceiveBlock(
 	if err = bs.PreValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
-	isQueued, err = bs.ProcessQueuedBlock(block)
+	isQueued, err = bs.ProcessQueueBlock(block)
 	if err != nil {
 		return nil, err
 	}
-	// precess block when block don't have transaction
+	// process block when block don't have transaction
 	if !isQueued {
 		err = bs.ProcessCompletedBlock(block)
 		if err != nil {
@@ -1454,7 +1436,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	return poppedBlocks, nil
 }
 
-// ProcessCompletedBlock to precess block that already having all needed transactions
+// ProcessCompletedBlock to process block that already having all needed transactions
 func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	// pushBlock closure to release lock as soon as block pushed
 	// Securing receive block process
@@ -1519,17 +1501,14 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	return nil
 }
 
-// ProcessQueuedBlock process to queue block when waiting their transactions
-// block will directly into completed precess block when isQueued is false and err is nil
-func (bs *BlockService) ProcessQueuedBlock(block *model.Block) (isQueued bool, err error) {
+// ProcessQueueBlock process to queue block when waiting their transactions
+func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool, err error) {
 	// check block having transactions or not
 	if len(block.TransactionIDs) == 0 {
 		return false, nil
 	}
-	bs.WaitingTransactionBlockQueue.BlockMutex.Lock()
-	defer bs.WaitingTransactionBlockQueue.BlockMutex.Unlock()
 	// check block already queued or not
-	if bs.WaitingTransactionBlockQueue.WaitingTxBlocks[block.ID] != nil {
+	if bs.BlockUncompleteQueueService.GetBlockQueue(block.GetID()) != nil {
 		return true, nil
 	}
 	var (
@@ -1538,32 +1517,12 @@ func (bs *BlockService) ProcessQueuedBlock(block *model.Block) (isQueued bool, e
 	)
 	block.Transactions = make([]*model.Transaction, len(block.GetTransactionIDs()))
 	for idx, txID := range block.TransactionIDs {
-		// check if the transaction already exists in the blockTransactionsCandidate
-		var txFound = bs.MempoolService.GetBlockTxCached(txID)
-		if txFound != nil {
-			// add transaction into block
-			block.Transactions[idx] = txFound
-			continue
-		}
-		// save transaction ID when transaction not found
-		if bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[txID] == nil {
-			bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[txID] = make(BlockIDsMap)
-		}
-		bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[txID][block.GetID()] = true
 		txRequiredByBlock[txID] = idx
 		// used as argument when quermockBlockDataying in mempool
 		txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
 	}
-	// process when needed trasacntions are completed
-	if len(txRequiredByBlock) == 0 {
-		err := bs.ProcessCompletedBlock(block)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
-	}
 
-	// looking rest of needed transactions in mempool
+	// find the rest of needed transactions in mempool
 	var (
 		caseQuery    = query.NewCaseQuery()
 		mempoolQuery = query.NewMempoolQuery(bs.Chaintype)
@@ -1588,7 +1547,6 @@ func (bs *BlockService) ProcessQueuedBlock(block *model.Block) (isQueued bool, e
 			continue
 		}
 		block.Transactions[txRequiredByBlock[tx.GetID()]] = tx
-		delete(bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[tx.GetID()], block.GetID())
 		delete(txRequiredByBlock, tx.GetID())
 	}
 	// process when needed trasacntions are completed
@@ -1600,73 +1558,23 @@ func (bs *BlockService) ProcessQueuedBlock(block *model.Block) (isQueued bool, e
 		return true, nil
 	}
 
-	// saving temporary map ID transactions and block
-	bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[block.ID] = txRequiredByBlock
-	bs.WaitingTransactionBlockQueue.WaitingTxBlocks[block.ID] = &BlockWithMetaData{
-		Block:     block,
-		Timestamp: time.Now().Unix(),
-	}
-	bs.RequestBlockTransactions(block.GetTransactionIDs())
+	// saving temporary block
+	bs.BlockUncompleteQueueService.AddBlockQueue(block)
+	bs.BlockUncompleteQueueService.SetTransactionsRequired(block.GetID(), txRequiredByBlock)
+	bs.BlockUncompleteQueueService.RequestBlockTransactions(txRequiredByBlock)
 	return true, nil
 }
 
-// RequestBlockTransactions request transactons of incoming block
-func (bs *BlockService) RequestBlockTransactions(txIds []int64) {
-	// TODO: chunks requested transaction
-	bs.Observer.Notify(observer.BlockRequestTransactions, txIds, bs.Chaintype)
-}
-
-// ReceivedValidatedTransactionListener will received transaction for queued block
-func (bs *BlockService) ReceivedValidatedTransactionListener(transaction *model.Transaction) {
-	bs.WaitingTransactionBlockQueue.BlockMutex.Lock()
-	defer bs.WaitingTransactionBlockQueue.BlockMutex.Unlock()
-	for blockID := range bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[transaction.GetID()] {
-		// check if waiting block don't have required this transaction
-		if bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID] == nil ||
-			bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID] == nil {
-			continue
-		}
-		var (
-			txs     = bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID].Block.GetTransactions()
-			txIndex = bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID][transaction.GetID()]
-		)
-		// joining new transaction into existing transactions
-		txs[txIndex] = transaction
-		bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID].Block.Transactions = txs
-		delete(bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID], transaction.GetID())
-		// process block when all transactions are completed
-		if len(bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap[blockID]) == 0 {
-			err := bs.ProcessCompletedBlock(bs.WaitingTransactionBlockQueue.WaitingTxBlocks[blockID].Block)
-			if err != nil {
-				continue
-			}
-			// remove waited block and list of transaction ID map when block already pushed
-			delete(bs.WaitingTransactionBlockQueue.WaitingTxBlocks, blockID)
-			delete(bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap, blockID)
-		}
-	}
-	// removing transaction ID and transaction candidate when it's not needed by any block
-	delete(bs.WaitingTransactionBlockQueue.TransactionsRequiredMap, transaction.GetID())
-	bs.MempoolService.DeleteBlockTxCandidate(transaction.GetID(), false)
-}
-
-// CleanTheTimedoutBlock will remove waited block when block waiting too long
-func (bs *BlockService) CleanTheTimedoutBlock() {
-	bs.WaitingTransactionBlockQueue.BlockMutex.Lock()
-	defer bs.WaitingTransactionBlockQueue.BlockMutex.Unlock()
-	for blockID, blockWithMeta := range bs.WaitingTransactionBlockQueue.WaitingTxBlocks {
-		// check waiting time block
-		if blockWithMeta.Timestamp <= time.Now().Unix()-constant.TimeOutBlockWaitingTransactions {
-			for _, transactionID := range blockWithMeta.Block.GetTransactionIDs() {
-				delete(bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[transactionID], blockID)
-				// removing transaction candidate when it's not needed by any block
-				if len(bs.WaitingTransactionBlockQueue.TransactionsRequiredMap[transactionID]) == 0 {
-					bs.MempoolService.DeleteBlockTxCandidate(transactionID, false)
+func (bs *BlockService) ReceiveValidatedTransactionListener(transaction *model.Transaction) {
+	var completedBlocks = bs.BlockUncompleteQueueService.AddTransaction(transaction)
+	if len(completedBlocks) > 0 {
+		for _, block := range completedBlocks {
+			go func(b *model.Block) {
+				err := bs.ProcessCompletedBlock(b)
+				if err != nil {
+					bs.Logger.Warn(blocker.BlockErr, err.Error())
 				}
-			}
-			delete(bs.WaitingTransactionBlockQueue.WaitingTxBlocks, blockID)
-			delete(bs.WaitingTransactionBlockQueue.BlockRequiringTransactionsMap, blockID)
-
+			}(block)
 		}
 	}
 }

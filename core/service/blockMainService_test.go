@@ -575,6 +575,22 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockAccountBalance.GetPopRevenue(),
 			mockAccountBalance.GetLatest(),
 		))
+	case "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, " +
+		"sender_account_address, recipient_account_address FROM mempool WHERE id IN (?)  ":
+		txBytes, _ := transaction.GetTransactionBytes(mockTransaction, true)
+		fmt.Println("test -->")
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id", "block_height", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
+			"sender_account_address", "recipient_account_address",
+		}).AddRow(
+			mockTransaction.GetID(),
+			mockTransaction.GetHeight(),
+			mockTransaction.GetFee(),
+			1,
+			txBytes,
+			mockTransaction.GetSenderAccountAddress(),
+			mockTransaction.GetRecipientAccountAddress(),
+		))
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -2339,25 +2355,25 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 	}
 
 	type fields struct {
-		Chaintype                    chaintype.ChainType
-		KVExecutor                   kvdb.KVExecutorInterface
-		QueryExecutor                query.ExecutorInterface
-		BlockQuery                   query.BlockQueryInterface
-		MempoolQuery                 query.MempoolQueryInterface
-		TransactionQuery             query.TransactionQueryInterface
-		MerkleTreeQuery              query.MerkleTreeQueryInterface
-		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
-		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
-		Signature                    crypto.SignatureInterface
-		MempoolService               MempoolServiceInterface
-		ActionTypeSwitcher           transaction.TypeActionSwitcher
-		AccountBalanceQuery          query.AccountBalanceQueryInterface
-		AccountLedgerQuery           query.AccountLedgerQueryInterface
-		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
-		Observer                     *observer.Observer
-		NodeRegistrationService      NodeRegistrationServiceInterface
-		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
+		Chaintype                   chaintype.ChainType
+		KVExecutor                  kvdb.KVExecutorInterface
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		MerkleTreeQuery             query.MerkleTreeQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		Observer                    *observer.Observer
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		BlockUncompleteQueueService BlockUncompleteQueueServiceInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2383,24 +2399,20 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               nil,
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
+				Chaintype:                   &chaintype.MainChain{},
+				QueryExecutor:               nil,
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				NodeRegistrationService:     nil,
+				BlocksmithStrategy:          &mockBlocksmithService{},
+				BlockUncompleteQueueService: nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -2420,25 +2432,21 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              &mockKVExecutorSuccess{},
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               &mockSignature{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
-				NodeRegistrationService: nil,
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorSuccess{},
+				QueryExecutor:               nil,
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   &mockSignature{},
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithService{},
+				NodeRegistrationService:     nil,
+				BlockUncompleteQueueService: nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -2452,26 +2460,22 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              &mockKVExecutorSuccessKeyNotFound{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
-				TransactionQuery:        nil,
-				Signature:               &mockSignature{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
+				QueryExecutor:               &mockQueryExecutorSuccess{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:             query.NewMerkleTreeQuery(),
+				TransactionQuery:            nil,
+				Signature:                   &mockSignature{},
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				NodeRegistrationService:     nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2504,25 +2508,21 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              &mockKVExecutorFailOtherError{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               &mockSignature{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorFailOtherError{},
+				QueryExecutor:               &mockQueryExecutorSuccess{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   &mockSignature{},
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				NodeRegistrationService:     nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 			},
 			wantErr: true,
 			want:    nil,
@@ -2536,24 +2536,20 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorFail{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               &mockSignature{},
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                observer.NewObserver(),
-				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
+				Chaintype:                   &chaintype.MainChain{},
+				QueryExecutor:               &mockQueryExecutorFail{},
+				BlockQuery:                  query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   &mockSignature{},
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    observer.NewObserver(),
+				NodeRegistrationService:     nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 			},
 			wantErr: true,
 			want:    nil,
@@ -2584,17 +2580,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockTypeActionSuccess{},
 					},
 				},
-				ActionTypeSwitcher:      &mockTypeActionSuccess{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				Observer:                observer.NewObserver(),
-				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
+				ActionTypeSwitcher:          &mockTypeActionSuccess{},
+				AccountBalanceQuery:         query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:          query.NewAccountLedgerQuery(),
+				Observer:                    observer.NewObserver(),
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				NodeRegistrationService:     &mockNodeRegistrationServiceSuccess{},
+				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 			},
 			wantErr: false,
 			want: &model.BatchReceipt{
@@ -2614,26 +2606,26 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:                    tt.fields.Chaintype,
-				KVExecutor:                   tt.fields.KVExecutor,
-				QueryExecutor:                tt.fields.QueryExecutor,
-				BlockQuery:                   tt.fields.BlockQuery,
-				MempoolQuery:                 tt.fields.MempoolQuery,
-				TransactionQuery:             tt.fields.TransactionQuery,
-				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
-				Signature:                    tt.fields.Signature,
-				MempoolService:               tt.fields.MempoolService,
-				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
-				Observer:                     tt.fields.Observer,
-				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
-				Logger:                       logrus.New(),
-				NodeRegistrationService:      tt.fields.NodeRegistrationService,
-				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
+				Chaintype:                   tt.fields.Chaintype,
+				KVExecutor:                  tt.fields.KVExecutor,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				MerkleTreeQuery:             tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				Observer:                    tt.fields.Observer,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				Logger:                      logrus.New(),
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				BlockUncompleteQueueService: tt.fields.BlockUncompleteQueueService,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -4027,11 +4019,11 @@ type (
 	mockBlocksmithServiceProcessQueued struct {
 		strategy.BlocksmithStrategyMain
 	}
-)
 
-func (*mockMempoolServiceProcessQueuedBlockSuccess) GetBlockTxCached(transactionsID int64) *model.Transaction {
-	return mockTransaction
-}
+	mockBlockUncompleteQueueServiceAlreadyExist struct {
+		BlockUncompleteQueueService
+	}
+)
 
 func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
 	return mockBlocksmiths
@@ -4051,7 +4043,13 @@ func (*mockBlocksmithServiceProcessQueued) GetSmithTime(blocksmithIndex int64, b
 	return 0
 }
 
-func TestBlockService_ProcessQueuedBlock(t *testing.T) {
+func (*mockBlockUncompleteQueueServiceAlreadyExist) GetBlockQueue(blockID int64) *model.Block {
+	return &model.Block{
+		ID: constant.MainchainGenesisBlockID,
+	}
+}
+
+func TestBlockService_ProcessQueueBlock(t *testing.T) {
 	mockBlockData.Transactions = []*model.Transaction{
 		mockTransaction,
 	}
@@ -4090,29 +4088,29 @@ func TestBlockService_ProcessQueuedBlock(t *testing.T) {
 	}
 
 	type fields struct {
-		Chaintype                    chaintype.ChainType
-		KVExecutor                   kvdb.KVExecutorInterface
-		QueryExecutor                query.ExecutorInterface
-		BlockQuery                   query.BlockQueryInterface
-		MempoolQuery                 query.MempoolQueryInterface
-		TransactionQuery             query.TransactionQueryInterface
-		MerkleTreeQuery              query.MerkleTreeQueryInterface
-		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
-		Signature                    crypto.SignatureInterface
-		MempoolService               MempoolServiceInterface
-		ReceiptService               ReceiptServiceInterface
-		NodeRegistrationService      NodeRegistrationServiceInterface
-		ActionTypeSwitcher           transaction.TypeActionSwitcher
-		AccountBalanceQuery          query.AccountBalanceQueryInterface
-		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
-		AccountLedgerQuery           query.AccountLedgerQueryInterface
-		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
-		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
-		Observer                     *observer.Observer
-		Logger                       *log.Logger
+		Chaintype                   chaintype.ChainType
+		KVExecutor                  kvdb.KVExecutorInterface
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		MerkleTreeQuery             query.MerkleTreeQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		SpinePublicKeyQuery         query.SpinePublicKeyQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockUncompleteQueueService BlockUncompleteQueueServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
 	}
 	type args struct {
 		block *model.Block
@@ -4139,9 +4137,7 @@ func TestBlockService_ProcessQueuedBlock(t *testing.T) {
 				block: &mockBlockWithTransactionIDs,
 			},
 			fields: fields{
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks: mockWaitingTxBlocks,
-				},
+				BlockUncompleteQueueService: &mockBlockUncompleteQueueServiceAlreadyExist{},
 			},
 			wantIsQueued: true,
 			wantErr:      false,
@@ -4164,19 +4160,15 @@ func TestBlockService_ProcessQueuedBlock(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockQueryExecutorSuccess{},
 				},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				Observer:                observer.NewObserver(),
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				BlocksmithStrategy:      &mockBlocksmithServiceProcessQueued{},
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks:               make(map[int64]*BlockWithMetaData),
-					BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
-					TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
-				},
-				Logger: log.New(),
+				AccountBalanceQuery:         query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:          query.NewAccountLedgerQuery(),
+				SkippedBlocksmithQuery:      query.NewSkippedBlocksmithQuery(),
+				NodeRegistrationQuery:       query.NewNodeRegistrationQuery(),
+				Observer:                    observer.NewObserver(),
+				NodeRegistrationService:     &mockNodeRegistrationServiceSuccess{},
+				BlocksmithStrategy:          &mockBlocksmithServiceProcessQueued{},
+				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
+				Logger:                      log.New(),
 			},
 			wantIsQueued: true,
 			wantErr:      false,
@@ -4185,260 +4177,38 @@ func TestBlockService_ProcessQueuedBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:                    tt.fields.Chaintype,
-				KVExecutor:                   tt.fields.KVExecutor,
-				QueryExecutor:                tt.fields.QueryExecutor,
-				BlockQuery:                   tt.fields.BlockQuery,
-				MempoolQuery:                 tt.fields.MempoolQuery,
-				TransactionQuery:             tt.fields.TransactionQuery,
-				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
-				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
-				SpinePublicKeyQuery:          tt.fields.SpinePublicKeyQuery,
-				Signature:                    tt.fields.Signature,
-				MempoolService:               tt.fields.MempoolService,
-				ReceiptService:               tt.fields.ReceiptService,
-				NodeRegistrationService:      tt.fields.NodeRegistrationService,
-				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
-				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
-				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
-				Observer:                     tt.fields.Observer,
-				Logger:                       tt.fields.Logger,
+				Chaintype:                   tt.fields.Chaintype,
+				KVExecutor:                  tt.fields.KVExecutor,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				MerkleTreeQuery:             tt.fields.MerkleTreeQuery,
+				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				SpinePublicKeyQuery:         tt.fields.SpinePublicKeyQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ReceiptService:              tt.fields.ReceiptService,
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				BlockUncompleteQueueService: tt.fields.BlockUncompleteQueueService,
+				Observer:                    tt.fields.Observer,
+				Logger:                      tt.fields.Logger,
 			}
-			gotIsQueued, err := bs.ProcessQueuedBlock(tt.args.block)
+			gotIsQueued, err := bs.ProcessQueueBlock(tt.args.block)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.ProcessQueuedBlock() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("BlockService.ProcessQueueBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if gotIsQueued != tt.wantIsQueued {
-				t.Errorf("BlockService.ProcessQueuedBlock() = %v, want %v", gotIsQueued, tt.wantIsQueued)
+				t.Errorf("BlockService.ProcessQueueBlock() = %v, want %v", gotIsQueued, tt.wantIsQueued)
 			}
-		})
-	}
-}
-
-type mockMempoolServiceReceivedValidatedTransactionListener struct {
-	MempoolService
-}
-
-func (*mockMempoolServiceReceivedValidatedTransactionListener) DeleteBlockTxCandidate(transactionID int64, addToMempool bool) {
-}
-
-func TestBlockService_ReceivedValidatedTransactionListener(t *testing.T) {
-	mockBlockData.Transactions = make([]*model.Transaction, 2)
-	var mockSecondBlock = model.Block{
-		ID:           mockBlockData.GetID() + 1,
-		Transactions: make([]*model.Transaction, 2),
-	}
-
-	type fields struct {
-		Chaintype                    chaintype.ChainType
-		KVExecutor                   kvdb.KVExecutorInterface
-		QueryExecutor                query.ExecutorInterface
-		BlockQuery                   query.BlockQueryInterface
-		MempoolQuery                 query.MempoolQueryInterface
-		TransactionQuery             query.TransactionQueryInterface
-		MerkleTreeQuery              query.MerkleTreeQueryInterface
-		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
-		Signature                    crypto.SignatureInterface
-		MempoolService               MempoolServiceInterface
-		ReceiptService               ReceiptServiceInterface
-		NodeRegistrationService      NodeRegistrationServiceInterface
-		ActionTypeSwitcher           transaction.TypeActionSwitcher
-		AccountBalanceQuery          query.AccountBalanceQueryInterface
-		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
-		AccountLedgerQuery           query.AccountLedgerQueryInterface
-		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
-		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
-		Observer                     *observer.Observer
-		Logger                       *log.Logger
-	}
-	type args struct {
-		transaction *model.Transaction
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "wantSuccess",
-			fields: fields{
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks: map[int64]*BlockWithMetaData{
-						mockBlockData.GetID(): {
-							Block:     &mockBlockData,
-							Timestamp: 1,
-						},
-						mockSecondBlock.GetID(): {
-							Block:     &mockSecondBlock,
-							Timestamp: 1,
-						},
-					},
-					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
-						mockBlockData.GetID(): {
-							mockTransaction.GetID():     0,
-							mockTransaction.GetID() + 1: 1,
-						},
-						mockSecondBlock.GetID(): {
-							mockTransaction.GetID():     0,
-							mockTransaction.GetID() + 1: 1,
-						},
-					},
-					TransactionsRequiredMap: map[int64]BlockIDsMap{
-						mockTransaction.GetID(): {
-							mockBlockData.GetID():   true,
-							mockSecondBlock.GetID(): true,
-						},
-					},
-				},
-				MempoolService: &mockMempoolServiceReceivedValidatedTransactionListener{},
-			},
-			args: args{
-				transaction: mockTransaction,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:                    tt.fields.Chaintype,
-				KVExecutor:                   tt.fields.KVExecutor,
-				QueryExecutor:                tt.fields.QueryExecutor,
-				BlockQuery:                   tt.fields.BlockQuery,
-				MempoolQuery:                 tt.fields.MempoolQuery,
-				TransactionQuery:             tt.fields.TransactionQuery,
-				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
-				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
-				SpinePublicKeyQuery:          tt.fields.SpinePublicKeyQuery,
-				Signature:                    tt.fields.Signature,
-				MempoolService:               tt.fields.MempoolService,
-				ReceiptService:               tt.fields.ReceiptService,
-				NodeRegistrationService:      tt.fields.NodeRegistrationService,
-				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
-				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
-				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
-				Observer:                     tt.fields.Observer,
-				Logger:                       tt.fields.Logger,
-			}
-			bs.ReceivedValidatedTransactionListener(tt.args.transaction)
-		})
-	}
-}
-
-func TestBlockService_CleanTheTimedoutBlock(t *testing.T) {
-	var (
-		mockSecondBlock = model.Block{
-			ID:           mockBlockData.GetID() + 1,
-			Transactions: make([]*model.Transaction, 2),
-		}
-	)
-	mockBlockData.Transactions = make([]*model.Transaction, 2)
-
-	type fields struct {
-		Chaintype                    chaintype.ChainType
-		KVExecutor                   kvdb.KVExecutorInterface
-		QueryExecutor                query.ExecutorInterface
-		BlockQuery                   query.BlockQueryInterface
-		MempoolQuery                 query.MempoolQueryInterface
-		TransactionQuery             query.TransactionQueryInterface
-		MerkleTreeQuery              query.MerkleTreeQueryInterface
-		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery       query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery          query.SpinePublicKeyQueryInterface
-		Signature                    crypto.SignatureInterface
-		MempoolService               MempoolServiceInterface
-		ReceiptService               ReceiptServiceInterface
-		NodeRegistrationService      NodeRegistrationServiceInterface
-		ActionTypeSwitcher           transaction.TypeActionSwitcher
-		AccountBalanceQuery          query.AccountBalanceQueryInterface
-		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
-		AccountLedgerQuery           query.AccountLedgerQueryInterface
-		BlocksmithStrategy           strategy.BlocksmithStrategyInterface
-		WaitingTransactionBlockQueue WaitingTransactionBlockQueue
-		Observer                     *observer.Observer
-		Logger                       *log.Logger
-	}
-	tests := []struct {
-		name   string
-		fields fields
-	}{
-		{
-			name: "wantSuccess",
-			fields: fields{
-				WaitingTransactionBlockQueue: WaitingTransactionBlockQueue{
-					WaitingTxBlocks: map[int64]*BlockWithMetaData{
-						mockBlockData.GetID(): {
-							Block:     &mockBlockData,
-							Timestamp: constant.TimeOutBlockWaitingTransactions - 1,
-						},
-						mockSecondBlock.GetID(): {
-							Block:     &mockSecondBlock,
-							Timestamp: constant.TimeOutBlockWaitingTransactions + 1,
-						},
-					},
-					BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
-						mockBlockData.GetID(): {
-							mockTransaction.GetID():     0,
-							mockTransaction.GetID() + 1: 1,
-						},
-						mockSecondBlock.GetID(): {
-							mockTransaction.GetID():     0,
-							mockTransaction.GetID() + 1: 1,
-						},
-					},
-					TransactionsRequiredMap: map[int64]BlockIDsMap{
-						mockTransaction.GetID(): {
-							mockBlockData.GetID():   true,
-							mockSecondBlock.GetID(): true,
-						},
-					},
-				},
-				MempoolService: &mockMempoolServiceReceivedValidatedTransactionListener{},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:                    tt.fields.Chaintype,
-				KVExecutor:                   tt.fields.KVExecutor,
-				QueryExecutor:                tt.fields.QueryExecutor,
-				BlockQuery:                   tt.fields.BlockQuery,
-				MempoolQuery:                 tt.fields.MempoolQuery,
-				TransactionQuery:             tt.fields.TransactionQuery,
-				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
-				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:       tt.fields.SkippedBlocksmithQuery,
-				SpinePublicKeyQuery:          tt.fields.SpinePublicKeyQuery,
-				Signature:                    tt.fields.Signature,
-				MempoolService:               tt.fields.MempoolService,
-				ReceiptService:               tt.fields.ReceiptService,
-				NodeRegistrationService:      tt.fields.NodeRegistrationService,
-				ActionTypeSwitcher:           tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				AccountLedgerQuery:           tt.fields.AccountLedgerQuery,
-				BlocksmithStrategy:           tt.fields.BlocksmithStrategy,
-				WaitingTransactionBlockQueue: tt.fields.WaitingTransactionBlockQueue,
-				Observer:                     tt.fields.Observer,
-				Logger:                       tt.fields.Logger,
-			}
-			bs.CleanTheTimedoutBlock()
 		})
 	}
 }
