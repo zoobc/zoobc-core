@@ -120,12 +120,12 @@ func (ss *P2PServerHandler) SendTransaction(
 	)
 }
 
-// RequestingTransaction receive requested transaction from another node
-func (ss *P2PServerHandler) RequestingTransaction(
+// RequestBlockTransactions receive requested transaction from another node
+func (ss *P2PServerHandler) RequestBlockTransactions(
 	ctx context.Context,
-	req *model.RequestingTransactonsRequest,
+	req *model.RequestBlockTransactonsRequest,
 ) (*model.Empty, error) {
-	return ss.Service.RequestingTransaction(
+	return ss.Service.RequestBlockTransactions(
 		ctx,
 		chaintype.GetChainType(req.ChainType),
 		req.TransactionIDs,

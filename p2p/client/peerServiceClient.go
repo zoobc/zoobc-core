@@ -36,7 +36,7 @@ type (
 			transactionBytes []byte,
 			chainType chaintype.ChainType,
 		) error
-		RequestingTransaction(
+		RequestBlockTransactions(
 			destPeer *model.Peer,
 			transactonIDs []int64,
 			chainType chaintype.ChainType,
@@ -325,7 +325,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	return err
 }
 
-func (psc *PeerServiceClient) RequestingTransaction(
+func (psc *PeerServiceClient) RequestBlockTransactions(
 	destPeer *model.Peer,
 	transactonIDs []int64,
 	chainType chaintype.ChainType,
@@ -341,7 +341,7 @@ func (psc *PeerServiceClient) RequestingTransaction(
 	defer func() {
 		cancelReq()
 	}()
-	_, err = p2pClient.RequestingTransaction(ctx, &model.RequestingTransactonsRequest{
+	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactonsRequest{
 		TransactionIDs: transactonIDs,
 		ChainType:      chainType.GetTypeInt(),
 	})

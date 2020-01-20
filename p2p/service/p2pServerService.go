@@ -55,7 +55,7 @@ type (
 			transactionBytes,
 			senderPublicKey []byte,
 		) (*model.SendTransactionResponse, error)
-		RequestingTransaction(
+		RequestBlockTransactions(
 			ctx context.Context,
 			chainType chaintype.ChainType,
 			transactionsIDs []int64,
@@ -364,7 +364,7 @@ func (ps *P2PServerService) SendTransaction(
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
-func (ps *P2PServerService) RequestingTransaction(
+func (ps *P2PServerService) RequestBlockTransactions(
 	ctx context.Context,
 	chainType chaintype.ChainType,
 	transactionsIDs []int64,
