@@ -2338,16 +2338,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
 			Transactions:         []*model.Transaction{},
 		}
-		// successBlockHash = []byte{
-		// 	43, 34, 74, 32, 183, 252, 96, 211, 238, 233, 6, 213, 20, 48, 106, 61, 13, 186, 34, 250, 75, 147, 176, 152, 75, 36,
-		// 	105, 47, 164, 15, 4, 213,
-		// }
-		// mockBlockSuccess = &model.Block{
-		// 	BlockSignature:    []byte{},
-		// 	BlockHash:         successBlockHash,
-		// 	PreviousBlockHash: make([]byte, 32),
-		// 	Transactions:      make([]*model.Transaction, 0),
-		// }
 	)
 	mockBlockData.BlockHash = mockGoodLastBlockHash
 	mockBlockData.Transactions = []*model.Transaction{
@@ -2452,82 +2442,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 
-		// {
-		// 	name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor KeyNotFound - generate batch receipt success}",
-		// 	args: args{
-		// 		senderPublicKey:  []byte{1, 3, 4, 5, 6},
-		// 		lastBlock:        mockBlockSuccess,
-		// 		block:            mockBlockSuccess,
-		// 		nodeSecretPhrase: "",
-		// 	},
-		// 	fields: fields{
-		// 		Chaintype:                   &chaintype.MainChain{},
-		// 		KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
-		// 		QueryExecutor:               &mockQueryExecutorSuccess{},
-		// 		BlockQuery:                  nil,
-		// 		MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-		// 		MerkleTreeQuery:             query.NewMerkleTreeQuery(),
-		// 		TransactionQuery:            nil,
-		// 		Signature:                   &mockSignature{},
-		// 		MempoolService:              nil,
-		// 		ActionTypeSwitcher:          nil,
-		// 		AccountBalanceQuery:         nil,
-		// 		AccountLedgerQuery:          nil,
-		// 		Observer:                    nil,
-		// 		NodeRegistrationService:     nil,
-		// 		BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-		// 		BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
-		// 	},
-		// 	wantErr: false,
-		// 	want: &model.BatchReceipt{
-		// 		SenderPublicKey: []byte{1, 3, 4, 5, 6},
-		// 		RecipientPublicKey: []byte{
-		// 			88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
-		// 			223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
-		// 		},
-		// 		DatumHash:            successBlockHash,
-		// 		DatumType:            constant.ReceiptDatumTypeBlock,
-		// 		ReferenceBlockHeight: 0,
-		// 		ReferenceBlockHash:   successBlockHash,
-		// 		RMRLinked:            nil,
-		// 		RecipientSignature:   []byte{},
-		// 	},
-		// },
-		// {
-		// 	name: "ReceiveBlock:fail - {last block hash != previousBlockHash - kvExecutor other error - generate batch receipt success}",
-		// 	args: args{
-		// 		senderPublicKey: []byte{1, 3, 4, 5, 6},
-		// 		lastBlock: &model.Block{
-		// 			BlockSignature: []byte{},
-		// 		},
-		// 		block: &model.Block{
-		// 			PreviousBlockHash: []byte{133, 198, 93, 19, 200, 113, 155, 159, 136, 63, 230, 29, 21, 173, 160, 40,
-		// 				169, 25, 61, 85, 203, 79, 43, 182, 5, 236, 141, 124, 46, 193, 223, 255, 0},
-		// 			BlockSignature:      nil,
-		// 			BlocksmithPublicKey: []byte{1, 3, 4, 5, 6},
-		// 		},
-		// 		nodeSecretPhrase: "",
-		// 	},
-		// 	fields: fields{
-		// 		Chaintype:                   &chaintype.MainChain{},
-		// 		KVExecutor:                  &mockKVExecutorFailOtherError{},
-		// 		QueryExecutor:               &mockQueryExecutorSuccess{},
-		// 		BlockQuery:                  nil,
-		// 		MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-		// 		TransactionQuery:            nil,
-		// 		Signature:                   &mockSignature{},
-		// 		MempoolService:              nil,
-		// 		ActionTypeSwitcher:          nil,
-		// 		AccountBalanceQuery:         nil,
-		// 		AccountLedgerQuery:          nil,
-		// 		Observer:                    nil,
-		// 		NodeRegistrationService:     nil,
-		// 		BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-		// 		BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
-		// 	},
-		// 	wantErr: true,
-		// 	want:    nil,
-		// },
 		{
 			name: "ReceiveBlock:pushBlockFail",
 			args: args{
@@ -2555,54 +2469,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			wantErr: true,
 			want:    nil,
 		},
-		// {
-		// 	name: "ReceiveBlock:success",
-		// 	args: args{
-		// 		senderPublicKey:  []byte{1, 3, 4, 5, 6},
-		// 		lastBlock:        &mockBlockData,
-		// 		block:            mockGoodIncomingBlock,
-		// 		nodeSecretPhrase: "",
-		// 	},
-		// 	fields: fields{
-		// 		Chaintype:               &chaintype.MainChain{},
-		// 		KVExecutor:              &mockKVExecutorSuccess{},
-		// 		QueryExecutor:           &mockQueryExecutorSuccess{},
-		// 		BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-		// 		NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-		// 		TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-		// 		MerkleTreeQuery:         query.NewMerkleTreeQuery(),
-		// 		ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-		// 		SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-		// 		Signature:               &mockSignature{},
-		// 		MempoolService: &mockMempoolServiceSelectSuccess{
-		// 			MempoolService{
-		// 				QueryExecutor:      &mockQueryExecutorMempoolSuccess{},
-		// 				ActionTypeSwitcher: &mockTypeActionSuccess{},
-		// 			},
-		// 		},
-		// 		ActionTypeSwitcher:          &mockTypeActionSuccess{},
-		// 		AccountBalanceQuery:         query.NewAccountBalanceQuery(),
-		// 		AccountLedgerQuery:          query.NewAccountLedgerQuery(),
-		// 		Observer:                    observer.NewObserver(),
-		// 		BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-		// 		NodeRegistrationService:     &mockNodeRegistrationServiceSuccess{},
-		// 		BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
-		// 	},
-		// 	wantErr: false,
-		// 	want: &model.BatchReceipt{
-		// 		SenderPublicKey: []byte{1, 3, 4, 5, 6},
-		// 		RecipientPublicKey: []byte{
-		// 			88, 220, 21, 76, 132, 107, 209, 213, 213, 206, 112, 50, 201, 183, 134, 250, 90, 163, 91, 63, 176,
-		// 			223, 177, 77, 197, 161, 178, 55, 31, 225, 233, 115,
-		// 		},
-		// 		DatumType:            constant.ReceiptDatumTypeBlock,
-		// 		ReferenceBlockHeight: mockBlockData.GetHeight(),
-		// 		ReferenceBlockHash:   mockGoodLastBlockHash,
-		// 		RMRLinked:            nil,
-		// 		RecipientSignature:   []byte{},
-		// 	},
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
