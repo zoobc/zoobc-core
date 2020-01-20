@@ -83,7 +83,6 @@ func (buqs *BlockUncompleteQueueService) SetTransactionsRequired(blockIDs int64,
 	defer buqs.BlockQueueLock.Unlock()
 	buqs.BlockRequiringTransactionsMap[blockIDs] = requiredTxIDs
 	for txID := range requiredTxIDs {
-		// save transaction ID when transaction not found
 		if buqs.TransactionsRequiredMap[txID] == nil {
 			buqs.TransactionsRequiredMap[txID] = make(BlockIDsMap)
 		}
@@ -144,7 +143,6 @@ func (buqs *BlockUncompleteQueueService) PruneTimeoutBlockQueue() {
 			}
 			delete(buqs.BlocksQueue, blockID)
 			delete(buqs.BlockRequiringTransactionsMap, blockID)
-
 		}
 	}
 }
