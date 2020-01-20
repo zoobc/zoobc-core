@@ -300,6 +300,7 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,
