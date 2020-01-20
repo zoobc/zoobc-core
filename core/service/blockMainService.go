@@ -193,11 +193,7 @@ func (bs *BlockService) NewGenesisBlock(
 }
 
 // PreValidateBlock valdiate block without it's transactions
-func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	// check block timestamp
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
-	}
+func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) error {
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
 	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
@@ -214,7 +210,12 @@ func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block, 
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	err := bs.PreValidateBlock(block, previousLastBlock, curTime)
+	// check block timestamp
+	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
+	}
+
+	err := bs.PreValidateBlock(block, previousLastBlock)
 	if err != nil {
 		return err
 	}
@@ -1087,6 +1088,7 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
+	var err error
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1094,83 +1096,30 @@ func (bs *BlockService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	receiptKey, err := commonUtils.GetReceiptKey(
-		block.GetBlockHash(), senderPublicKey,
-	)
-	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			err.Error(),
-		)
-	}
-	var isQueued bool
-	//  check equality last block hash with previous block hash from received block
-	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
-		// check if incoming block is of higher quality
-		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
-			block.Timestamp < lastBlock.Timestamp {
-			var previousBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
-			if err != nil {
-				return nil, status.Error(codes.Internal, "FailGetBlock")
-			}
-			// pre validation block
-			if err = bs.PreValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
-				return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
-			}
-			isQueued, err = bs.ProcessQueueBlock(block)
-			if err != nil {
-				return nil, err
-			}
-			// process block when block don't have transaction
-			if !isQueued {
-				err = bs.ProcessCompletedBlock(block)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
 
-		// check if already broadcast receipt to this node
-		_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+	// check previous block hash of new block not same with current block hash and
+	// check new block is not better than current block
+	if !bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetBlockHash()) &&
+		!(bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
+			block.Timestamp < lastBlock.Timestamp) {
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+	}
+
+	// check new block is better than current block
+	if bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
+		block.Timestamp > lastBlock.Timestamp {
+		lastBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
 		if err != nil {
-			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				if err != nil {
-					return nil, err
-				}
-				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-					// invalid block hash don't send receipt to client
-					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
-				}
-				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-					bs.Chaintype,
-					block.GetBlockHash(),
-					lastBlock,
-					senderPublicKey,
-					nodeSecretPhrase,
-					constant.KVdbTableBlockReminderKey+string(receiptKey),
-					constant.ReceiptDatumTypeBlock,
-					bs.Signature,
-					bs.QueryExecutor,
-					bs.KVExecutor,
-				)
-				if err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
-				}
-				return batchReceipt, nil
-			}
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, "FailGetBlock")
 		}
-		return nil, status.Error(codes.InvalidArgument,
-			"previousBlockHashDoesNotMatchWithLastBlockHash",
-		)
 	}
 
 	// pre validation block
-	if err = bs.PreValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
+	if err = bs.PreValidateBlock(block, lastBlock); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
-	isQueued, err = bs.ProcessQueueBlock(block)
+
+	isQueued, err := bs.ProcessQueueBlock(block)
 	if err != nil {
 		return nil, err
 	}
@@ -1182,6 +1131,24 @@ func (bs *BlockService) ReceiveBlock(
 		}
 	}
 
+	receiptKey, err := commonUtils.GetReceiptKey(
+		block.GetBlockHash(), senderPublicKey,
+	)
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			err.Error(),
+		)
+	}
+	// check if already broadcast receipt to this node
+	_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+	if err == nil {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	}
+
+	if err != badger.ErrKeyNotFound {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "failed get receipt key")
+	}
 	// generate receipt and return as response
 	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 		bs.Chaintype,
@@ -1520,7 +1487,7 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool,
 		txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
 	}
 
-	// find the rest of needed transactions in mempool
+	// find needed transactions in mempool
 	var (
 		caseQuery    = query.NewCaseQuery()
 		mempoolQuery = query.NewMempoolQuery(bs.Chaintype)
