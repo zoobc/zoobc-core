@@ -159,6 +159,7 @@ func initialize(
 		log.New(),
 		query.NewAccountLedgerQuery(),
 		nil,
+		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 	)
 
 	migration = database.Migration{Query: queryExecutor}
