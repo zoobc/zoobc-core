@@ -158,7 +158,7 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
-		service.NewBlockUncompleteQueueService(chainType, observerInstance),
+		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 	)
 
 	migration = database.Migration{Query: queryExecutor}

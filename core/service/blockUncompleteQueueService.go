@@ -11,7 +11,7 @@ import (
 )
 
 type (
-	BlockUncompleteQueueServiceInterface interface {
+	BlockIncompleteQueueServiceInterface interface {
 		GetBlockQueue(blockID int64) *model.Block
 		AddBlockQueue(block *model.Block)
 		SetTransactionsRequired(blockIDs int64, requiredTxIDs TransactionIDsMap)
@@ -20,8 +20,8 @@ type (
 		PruneTimeoutBlockQueue()
 	}
 
-	// BlockUncompleteQueueService reperesent a list of blocks while waiting their transaction
-	BlockUncompleteQueueService struct {
+	// BlockIncompleteQueueService reperesent a list of blocks while waiting their transaction
+	BlockIncompleteQueueService struct {
 		// map of block ID with the blocks that have been received but waiting transactions to be completed
 		BlocksQueue map[int64]*BlockWithMetaData
 		// map of blockID with an array of transactionIds it requires
@@ -43,11 +43,11 @@ type (
 	}
 )
 
-func NewBlockUncompleteQueueService(
+func NewBlockIncompleteQueueService(
 	ct chaintype.ChainType,
 	obsr *observer.Observer,
-) BlockUncompleteQueueServiceInterface {
-	return &BlockUncompleteQueueService{
+) BlockIncompleteQueueServiceInterface {
+	return &BlockIncompleteQueueService{
 		BlocksQueue:                   make(map[int64]*BlockWithMetaData),
 		BlockRequiringTransactionsMap: make(map[int64]TransactionIDsMap),
 		TransactionsRequiredMap:       make(map[int64]BlockIDsMap),
@@ -57,7 +57,7 @@ func NewBlockUncompleteQueueService(
 }
 
 // GetBlockQueue return a block based on block ID
-func (buqs *BlockUncompleteQueueService) GetBlockQueue(blockID int64) *model.Block {
+func (buqs *BlockIncompleteQueueService) GetBlockQueue(blockID int64) *model.Block {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
 	if buqs.BlocksQueue[blockID] == nil {
@@ -68,7 +68,7 @@ func (buqs *BlockUncompleteQueueService) GetBlockQueue(blockID int64) *model.Blo
 }
 
 // AddBlockQueue add new block into block queue list
-func (buqs *BlockUncompleteQueueService) AddBlockQueue(block *model.Block) {
+func (buqs *BlockIncompleteQueueService) AddBlockQueue(block *model.Block) {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
 	buqs.BlocksQueue[block.ID] = &BlockWithMetaData{
@@ -78,7 +78,7 @@ func (buqs *BlockUncompleteQueueService) AddBlockQueue(block *model.Block) {
 }
 
 // SetTransactionsRequired setup map of  block with required transactions and map of transaction required by block
-func (buqs *BlockUncompleteQueueService) SetTransactionsRequired(blockIDs int64, requiredTxIDs TransactionIDsMap) {
+func (buqs *BlockIncompleteQueueService) SetTransactionsRequired(blockIDs int64, requiredTxIDs TransactionIDsMap) {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
 	buqs.BlockRequiringTransactionsMap[blockIDs] = requiredTxIDs
@@ -91,13 +91,13 @@ func (buqs *BlockUncompleteQueueService) SetTransactionsRequired(blockIDs int64,
 }
 
 // RequestBlockTransactions request transactons to the peers
-func (buqs *BlockUncompleteQueueService) RequestBlockTransactions(txIds TransactionIDsMap) {
+func (buqs *BlockIncompleteQueueService) RequestBlockTransactions(txIds TransactionIDsMap) {
 	// TODO: chunks requested transaction
 	buqs.Observer.Notify(observer.BlockRequestTransactions, txIds, buqs.Chaintype)
 }
 
 // AddTransaction will add validated transaction for queue block and return completed block
-func (buqs *BlockUncompleteQueueService) AddTransaction(transaction *model.Transaction) []*model.Block {
+func (buqs *BlockIncompleteQueueService) AddTransaction(transaction *model.Transaction) []*model.Block {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
 
@@ -132,7 +132,7 @@ func (buqs *BlockUncompleteQueueService) AddTransaction(transaction *model.Trans
 }
 
 // PruneTimeoutBlockQueue used as scheduler remove block when already expired
-func (buqs *BlockUncompleteQueueService) PruneTimeoutBlockQueue() {
+func (buqs *BlockIncompleteQueueService) PruneTimeoutBlockQueue() {
 	buqs.BlockQueueLock.Lock()
 	defer buqs.BlockQueueLock.Unlock()
 	for blockID, blockWithMetaData := range buqs.BlocksQueue {

@@ -58,7 +58,7 @@ var (
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
-	blockUncompleteQueueService                   service.BlockUncompleteQueueServiceInterface
+	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
 	peerServiceClient                             client.PeerServiceClientInterface
 	p2pHost                                       *model.Host
@@ -351,7 +351,7 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
 	)
-	blockUncompleteQueueService = service.NewBlockUncompleteQueueService(
+	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
 	)
@@ -379,7 +379,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
-		blockUncompleteQueueService,
+		blockIncompleteQueueService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -543,7 +543,7 @@ func startScheduler() {
 	// scheduler to remove block uncomplete queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,
-		blockUncompleteQueueService.PruneTimeoutBlockQueue,
+		blockIncompleteQueueService.PruneTimeoutBlockQueue,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}

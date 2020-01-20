@@ -79,7 +79,7 @@ type (
 		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
 		AccountLedgerQuery          query.AccountLedgerQueryInterface
 		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
-		BlockUncompleteQueueService BlockUncompleteQueueServiceInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		Observer                    *observer.Observer
 		Logger                      *log.Logger
 	}
@@ -1107,7 +1107,7 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check new block is better than current block
 	if bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
-		block.Timestamp > lastBlock.Timestamp {
+		block.Timestamp < lastBlock.Timestamp {
 		lastBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
 		if err != nil {
 			return nil, status.Error(codes.Internal, "FailGetBlock")
@@ -1473,7 +1473,7 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool,
 		return false, nil
 	}
 	// check block already queued or not
-	if bs.BlockUncompleteQueueService.GetBlockQueue(block.GetID()) != nil {
+	if bs.BlockIncompleteQueueService.GetBlockQueue(block.GetID()) != nil {
 		return true, nil
 	}
 	var (
@@ -1524,15 +1524,15 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool,
 	}
 
 	// saving temporary block
-	bs.BlockUncompleteQueueService.AddBlockQueue(block)
-	bs.BlockUncompleteQueueService.SetTransactionsRequired(block.GetID(), txRequiredByBlock)
-	bs.BlockUncompleteQueueService.RequestBlockTransactions(txRequiredByBlock)
+	bs.BlockIncompleteQueueService.AddBlockQueue(block)
+	bs.BlockIncompleteQueueService.SetTransactionsRequired(block.GetID(), txRequiredByBlock)
+	bs.BlockIncompleteQueueService.RequestBlockTransactions(txRequiredByBlock)
 	return true, nil
 }
 
 // ReceiveValidatedTransactionListener will receive validated transaction to completing transaction of blocks queue
 func (bs *BlockService) ReceiveValidatedTransactionListener(transaction *model.Transaction) {
-	var completedBlocks = bs.BlockUncompleteQueueService.AddTransaction(transaction)
+	var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(transaction)
 	for _, block := range completedBlocks {
 		err := bs.ProcessCompletedBlock(block)
 		if err != nil {

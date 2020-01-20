@@ -2363,7 +2363,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
 		Observer                    *observer.Observer
 		NodeRegistrationService     NodeRegistrationServiceInterface
-		BlockUncompleteQueueService BlockUncompleteQueueServiceInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2402,7 +2402,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                    nil,
 				NodeRegistrationService:     nil,
 				BlocksmithStrategy:          &mockBlocksmithService{},
-				BlockUncompleteQueueService: nil,
+				BlockIncompleteQueueService: nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -2436,7 +2436,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                    nil,
 				BlocksmithStrategy:          &mockBlocksmithService{},
 				NodeRegistrationService:     nil,
-				BlockUncompleteQueueService: nil,
+				BlockIncompleteQueueService: nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -2464,7 +2464,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                    observer.NewObserver(),
 				NodeRegistrationService:     nil,
 				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
+				BlockIncompleteQueueService: NewBlockIncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 			},
 			wantErr: true,
 			want:    nil,
@@ -2492,7 +2492,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
 				Logger:                      logrus.New(),
 				NodeRegistrationService:     tt.fields.NodeRegistrationService,
-				BlockUncompleteQueueService: tt.fields.BlockUncompleteQueueService,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -3887,8 +3887,8 @@ type (
 		strategy.BlocksmithStrategyMain
 	}
 
-	mockBlockUncompleteQueueServiceAlreadyExist struct {
-		BlockUncompleteQueueService
+	mockBlockIncompleteQueueServiceAlreadyExist struct {
+		BlockIncompleteQueueService
 	}
 )
 
@@ -3910,7 +3910,7 @@ func (*mockBlocksmithServiceProcessQueued) GetSmithTime(blocksmithIndex int64, b
 	return 0
 }
 
-func (*mockBlockUncompleteQueueServiceAlreadyExist) GetBlockQueue(blockID int64) *model.Block {
+func (*mockBlockIncompleteQueueServiceAlreadyExist) GetBlockQueue(blockID int64) *model.Block {
 	return &model.Block{
 		ID: constant.MainchainGenesisBlockID,
 	}
@@ -3975,7 +3975,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
 		AccountLedgerQuery          query.AccountLedgerQueryInterface
 		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
-		BlockUncompleteQueueService BlockUncompleteQueueServiceInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		Observer                    *observer.Observer
 		Logger                      *log.Logger
 	}
@@ -4004,7 +4004,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				block: &mockBlockWithTransactionIDs,
 			},
 			fields: fields{
-				BlockUncompleteQueueService: &mockBlockUncompleteQueueServiceAlreadyExist{},
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceAlreadyExist{},
 			},
 			wantIsQueued: true,
 			wantErr:      false,
@@ -4034,7 +4034,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				Observer:                    observer.NewObserver(),
 				NodeRegistrationService:     &mockNodeRegistrationServiceSuccess{},
 				BlocksmithStrategy:          &mockBlocksmithServiceProcessQueued{},
-				BlockUncompleteQueueService: NewBlockUncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
+				BlockIncompleteQueueService: NewBlockIncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 				Logger:                      log.New(),
 			},
 			wantIsQueued: true,
@@ -4064,7 +4064,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
 				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
 				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
-				BlockUncompleteQueueService: tt.fields.BlockUncompleteQueueService,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
 				Observer:                    tt.fields.Observer,
 				Logger:                      tt.fields.Logger,
 			}
