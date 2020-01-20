@@ -78,7 +78,7 @@ func NewBlockService(
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
 	megablockQuery query.MegablockQueryInterface,
-	snapshotChunkQuery query.SnapshotChunkQueryInterface,
+	snapshotChunkQuery query.FileChunkQueryInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -125,7 +125,7 @@ func NewBlockService(
 				Signature:             signature,
 				SpinePublicKeyQuery:   spinePublicKeyQuery,
 			},
-			SnapshotService: NewSnapshotService(
+			MegablockService: NewMegablockService(
 				queryExecutor,
 				mainBlockQuery,
 				spineBlockQuery,

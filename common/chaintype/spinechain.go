@@ -53,3 +53,7 @@ func (*SpineChain) GetGenesisBlockSignature() []byte {
 func (*SpineChain) HasTransactions() bool {
 	return false
 }
+
+func (*SpineChain) HasSnapshots() bool {
+	return false
+}

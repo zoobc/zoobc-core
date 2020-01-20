@@ -13,8 +13,8 @@ import (
 type (
 	MegablockQueryInterface interface {
 		InsertMegablock(megablock *model.Megablock) (str string, args []interface{})
-		GetMegablocksByBlockHeight(height uint32, ct chaintype.ChainType) string
-		GetLastMegablock() string
+		GetMegablocksBySpineBlockHeight(height uint32, ct chaintype.ChainType, mbType model.MegablockType) string
+		GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string
 		ExtractModel(mb *model.Megablock) []interface{}
 		BuildModel(megablocks []*model.Megablock, rows *sql.Rows) ([]*model.Megablock, error)
 		Scan(mb *model.Megablock, row *sql.Row) error
@@ -30,10 +30,13 @@ type (
 func NewMegablockQuery() *MegablockQuery {
 	return &MegablockQuery{
 		Fields: []string{
-			"full_snapshot_hash",
-			"chunks_count",
+			"full_file_hash",
+			"megablock_payload_length",
+			"megablock_payload_hash",
 			"spine_block_height",
-			"main_block_height",
+			"megablock_height",
+			"chain_type",
+			"megablock_type",
 		},
 		TableName: "megablock",
 	}
@@ -54,36 +57,30 @@ func (mbl *MegablockQuery) InsertMegablock(megablock *model.Megablock) (str stri
 	return qryInsert, mbl.ExtractModel(megablock)
 }
 
-// GetMegablocksByBlockHeight returns query string to get megablock at given block's height (spine or main)
-func (mbl *MegablockQuery) GetMegablocksByBlockHeight(height uint32, ct chaintype.ChainType) (str string) {
-	var (
-		heightPrefix string
-	)
-	switch ct.(type) {
-	case *chaintype.MainChain:
-		heightPrefix = "main"
-	case *chaintype.SpineChain:
-		heightPrefix = "spine"
-	}
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE %s_block_height = %d",
-		strings.Join(mbl.Fields, ", "), mbl.getTableName(), heightPrefix, height)
+// GetMegablocksBySpineBlockHeight returns query string to get megablock at given block's height
+func (mbl *MegablockQuery) GetMegablocksBySpineBlockHeight(height uint32, ct chaintype.ChainType, mbType model.MegablockType) (str string) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE spine_block_height = %d AND chain_type = %d AND megablock_type = %d",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName(), height, ct.GetTypeInt(), mbType)
 	return query
 }
 
 // GetLastMegablock returns the last megablock
-func (mbl *MegablockQuery) GetLastMegablock() string {
-	query := fmt.Sprintf("SELECT %s FROM %s ORDER BY spine_block_height DESC LIMIT 1",
-		strings.Join(mbl.Fields, ", "), mbl.getTableName())
+func (mbl *MegablockQuery) GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND megablock_type = %d ORDER BY spine_block_height DESC LIMIT 1",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName(), ct.GetTypeInt(), mbType)
 	return query
 }
 
 // ExtractModel extract the model struct fields to the order of MegablockQuery.Fields
 func (mbl *MegablockQuery) ExtractModel(mb *model.Megablock) []interface{} {
 	return []interface{}{
-		mb.FullSnapshotHash,
-		mb.ChunksCount,
+		mb.FullFileHash,
+		mb.MegablockPayloadLength,
+		mb.MegablockPayloadHash,
 		mb.SpineBlockHeight,
-		mb.MainBlockHeight,
+		mb.MegablockHeight,
+		mb.ChainType,
+		mb.MegablockType,
 	}
 }
 
@@ -99,10 +96,13 @@ func (mbl *MegablockQuery) BuildModel(
 			err error
 		)
 		err = rows.Scan(
-			&mb.FullSnapshotHash,
-			&mb.ChunksCount,
+			&mb.FullFileHash,
+			&mb.MegablockPayloadLength,
+			&mb.MegablockPayloadHash,
 			&mb.SpineBlockHeight,
-			&mb.MainBlockHeight,
+			&mb.MegablockHeight,
+			&mb.ChainType,
+			&mb.MegablockType,
 		)
 		if err != nil {
 			return nil, err
@@ -125,10 +125,13 @@ func (mbl *MegablockQuery) Rollback(spineBlockHeight uint32) [][]interface{} {
 // Scan represents `sql.Scan`
 func (mbl *MegablockQuery) Scan(mb *model.Megablock, row *sql.Row) error {
 	err := row.Scan(
-		&mb.FullSnapshotHash,
-		&mb.ChunksCount,
+		&mb.FullFileHash,
+		&mb.MegablockPayloadLength,
+		&mb.MegablockPayloadHash,
 		&mb.SpineBlockHeight,
-		&mb.MainBlockHeight,
+		&mb.MegablockHeight,
+		&mb.ChainType,
+		&mb.MegablockType,
 	)
 	if err != nil {
 		return err

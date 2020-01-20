@@ -72,6 +72,7 @@ var (
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	mainchainBlockService, spinechainBlockService service.BlockServiceInterface
+	megablockService                              service.MegablockServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
 )
 
@@ -132,12 +133,21 @@ func init() {
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
 	)
+	megablockService = service.NewMegablockService(
+		queryExecutor,
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(&chaintype.SpineChain{}),
+		query.NewMegablockQuery(),
+		query.NewFileChunkQuery(),
+		loggerCoreService,
+	)
 	snapshotService = service.NewSnapshotService(
 		queryExecutor,
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		query.NewMegablockQuery(),
-		query.NewSnapshotChunkQuery(),
+		query.NewFileChunkQuery(),
+		megablockService,
 		loggerCoreService,
 	)
 
@@ -385,7 +395,7 @@ func startMainchain() {
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
 		query.NewMegablockQuery(),
-		query.NewSnapshotChunkQuery(),
+		query.NewFileChunkQuery(),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -485,7 +495,7 @@ func startSpinechain() {
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
 		query.NewMegablockQuery(),
-		query.NewSnapshotChunkQuery(),
+		query.NewFileChunkQuery(),
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -561,14 +571,16 @@ syncronizersLoop:
 			}
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
 				ticker.Stop()
-				lastMegablock, err := snapshotService.GetLastMegablock()
+				// TODO: in future loop through all chain types that support snapshots and download them if we find
+				//  relative megablock
+				lastMegablock, err := megablockService.GetLastMegablock(&chaintype.MainChain{}, model.MegablockType_Snapshot)
 				if err != nil {
 					loggerCoreService.Errorf("cannot get last megablock")
 					os.Exit(1)
 				}
 				if lastMegablock != nil {
-					loggerCoreService.Infof("found megablock at spine height %d. snapshot taken at main height %d",
-						lastMegablock.SpineBlockHeight, lastMegablock.MainBlockHeight)
+					loggerCoreService.Infof("found megablock at spine height %d. snapshot taken at block height %d",
+						lastMegablock.SpineBlockHeight, lastMegablock.MegablockHeight)
 					// TODO: snapshot download
 				}
 				// download remaining main blocks and start the mainchain synchronizer

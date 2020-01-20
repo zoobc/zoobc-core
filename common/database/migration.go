@@ -250,20 +250,28 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "megablock" (
-				"full_snapshot_hash"	BLOB,				-- hash of the snapshot's file contents
-				"chunks_count" INTEGER,					-- number of chunks in this megablock
-				"spine_block_height"	INTEGER NOT NULL UNIQUE,	-- spine block height at which the snapshot was taken
-				"main_block_height"	INTEGER NOT NULL UNIQUE,	-- main block height at which the snapshot was taken
-				PRIMARY KEY("full_snapshot_hash")
+				"id" INTEGER,
+				"full_file_hash" BLOB,			-- hash of the (snapshot) file content
+				"megablock_payload_length" INTEGER,	-- payload length of the megablock: len(snapshot chunk bytes)
+				"megablock_payload_hash" BLOB,		-- MegablockPayloadHash hash of megablock payload
+				"spine_block_height" INTEGER NOT NULL,	-- spine block (height) that reference this snapshot
+				"megablock_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
+				"chain_type" INTEGER NOT NULL,		-- chain type this megablock reference to
+				"megablock_type" INTEGER NOT NULL,	-- type of megablock (as of now only snapshot)
+				PRIMARY KEY("id")
+				UNIQUE("full_file_hash")
 			);
 			`,
 			`
-			CREATE TABLE IF NOT EXISTS "snapshot_chunk" (
-				"chunk_hash" BLOB,					-- hash of the snapshot chunk
-				"chunk_index" INTEGER  NOT NULL,			-- chunk' sequential index
-				"previous_chunk_hash" BLOB,				-- hash of the previous snapshot chunk
-				"spine_block_height"	INTEGER NOT NULL UNIQUE,	-- spine block height which the chunk refers to 
+			CREATE TABLE IF NOT EXISTS "file_chunk" (
+				"chunk_hash" BLOB,				-- hash of the snapshot chunk
+				"megablock_id" BLOB,				-- megablock PK
+				"chunk_index" INTEGER NOT NULL,			-- chunk' sequential index
+				"previous_chunk_hash" BLOB NULL,		-- hash of the previous snapshot chunk
+				"spine_block_height" INTEGER NOT NULL,		-- spine block height which the chunk refers to 
+				"chain_type" INTEGER NOT NULL,			-- number indicating chaintype
 				PRIMARY KEY("chunk_hash")
+				UNIQUE("chain_type", "spine_block_height")	-- there can be only one megablock per chaintype/spine height
 			);
 			`,
 		}

@@ -40,7 +40,7 @@ func TestNewBlockService(t *testing.T) {
 		logger                  *log.Logger
 		accountLedgerQuery      query.AccountLedgerQueryInterface
 		megablockQuery          query.MegablockQueryInterface
-		snapshotChunkQuery      query.SnapshotChunkQueryInterface
+		snapshotChunkQuery      query.FileChunkQueryInterface
 	}
 	tests := []struct {
 		name string
