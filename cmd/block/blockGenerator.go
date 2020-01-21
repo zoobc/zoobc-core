@@ -17,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -81,6 +82,7 @@ func initialize(
 	secretPhrase, outputPath string,
 ) {
 	transactionUtil := &transaction.Util{}
+	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
@@ -113,6 +115,7 @@ func initialize(
 		crypto.NewSignature(),
 		observerInstance,
 		log.New(),
+		receiptUtil,
 	)
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
@@ -125,6 +128,7 @@ func initialize(
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		nil,
+		receiptUtil,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -161,6 +165,7 @@ func initialize(
 		log.New(),
 		query.NewAccountLedgerQuery(),
 		transactionUtil,
+		receiptUtil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

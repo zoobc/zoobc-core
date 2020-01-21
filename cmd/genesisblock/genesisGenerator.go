@@ -19,6 +19,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -363,6 +364,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {

@@ -75,6 +75,7 @@ type (
 		Logger                  *log.Logger
 		AccountLedgerQuery      query.AccountLedgerQueryInterface
 		TransactionUtil         transaction.UtilInterface
+		ReceiptUtil             coreUtil.ReceiptUtilInterface
 	}
 )
 
@@ -392,7 +393,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
+			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -569,7 +570,7 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 					ReceiptIndex:       0,
 				}
 				merkle := &commonUtils.MerkleRoot{}
-				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+				rcByte := bs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 				rcHash := sha3.Sum256(rcByte)
 				root, err := merkle.GetMerkleRootFromIntermediateHashes(
 					rcHash[:],
@@ -894,7 +895,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// select published receipts to be added to the block
 	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-		timestamp, coreUtil.GetNumberOfMaxReceipts(
+		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
@@ -904,7 +905,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// filter only good receipt
 	for _, br := range publishedReceipts {
-		_, err = digest.Write(util.GetSignedBatchReceiptBytes(br.BatchReceipt))
+		_, err = digest.Write(bs.ReceiptUtil.GetSignedBatchReceiptBytes(br.BatchReceipt))
 		if err != nil {
 			return nil, err
 		}
@@ -1048,7 +1049,7 @@ func (bs *BlockService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	receiptKey, err := commonUtils.GetReceiptKey(
+	receiptKey, err := bs.ReceiptUtil.GetReceiptKey(
 		block.GetBlockHash(), senderPublicKey,
 	)
 	if err != nil {
@@ -1119,7 +1120,7 @@ func (bs *BlockService) ReceiveBlock(
 					// invalid block hash don't send receipt to client
 					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
 				}
-				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+				batchReceipt, err := bs.ReceiptUtil.GenerateBatchReceiptWithReminder(
 					bs.Chaintype,
 					block.GetBlockHash(),
 					lastBlock,
@@ -1169,7 +1170,7 @@ func (bs *BlockService) ReceiveBlock(
 		return nil, err
 	}
 	// generate receipt and return as response
-	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+	batchReceipt, err := bs.ReceiptUtil.GenerateBatchReceiptWithReminder(
 		bs.Chaintype,
 		block.GetBlockHash(),
 		lastBlock,
@@ -1269,7 +1270,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
-		coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
+		bs.ReceiptUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
 	)
 	if err != nil {
 		return nil, err

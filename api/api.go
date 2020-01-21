@@ -18,6 +18,7 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc"
@@ -37,6 +38,7 @@ func startGrpcServer(
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -77,6 +79,7 @@ func startGrpcServer(
 		crypto.NewSignature(),
 		observer.NewObserver(),
 		logger,
+		receiptUtil,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -154,10 +157,11 @@ func Start(
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
 ) {
 	startGrpcServer(
 		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile, transactionUtil,
+		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile, transactionUtil, receiptUtil,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

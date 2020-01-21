@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -39,7 +40,11 @@ func TestNewBlockService(t *testing.T) {
 		logger                  *log.Logger
 		accountLedgerQuery      query.AccountLedgerQueryInterface
 		transactionUtil         transaction.UtilInterface
+		receiptUtil             coreUtil.ReceiptUtilInterface
 	}
+	transactionUtil := &transaction.Util{}
+	receiptUtil := &coreUtil.ReceiptUtil{}
+
 	tests := []struct {
 		name string
 		args args
@@ -50,12 +55,14 @@ func TestNewBlockService(t *testing.T) {
 			args: args{
 				ct:              &chaintype.MainChain{},
 				obsr:            observer.NewObserver(),
-				transactionUtil: &transaction.Util{},
+				transactionUtil: transactionUtil,
+				receiptUtil:     receiptUtil,
 			},
 			want: &BlockService{
 				Chaintype:       &chaintype.MainChain{},
 				Observer:        observer.NewObserver(),
-				TransactionUtil: &transaction.Util{},
+				TransactionUtil: transactionUtil,
+				ReceiptUtil:     receiptUtil,
 			},
 		},
 	}
@@ -66,7 +73,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
-				tt.args.logger, tt.args.accountLedgerQuery, &transaction.Util{}); !reflect.DeepEqual(got, tt.want) {
+				tt.args.logger, tt.args.accountLedgerQuery, tt.args.transactionUtil, tt.args.receiptUtil); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}
 		})

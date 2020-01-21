@@ -23,6 +23,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 )
@@ -1040,6 +1041,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
 				tt.args.broadcast); (err != nil) != tt.wantErr {
@@ -1574,6 +1576,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				ReceiptService:     tt.fields.ReceiptService,
 				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				ReceiptUtil:        &coreUtil.ReceiptUtil{},
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -2547,6 +2550,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				Logger:                  logrus.New(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -2736,6 +2740,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 			}
 			got, err := bs.GetBlockExtendedInfo(tt.args.block, false)
 			if (err != nil) != tt.wantErr {

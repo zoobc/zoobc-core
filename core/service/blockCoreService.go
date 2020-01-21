@@ -12,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -77,6 +78,7 @@ func NewBlockService(
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
 	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -104,6 +106,7 @@ func NewBlockService(
 			Logger:                  logger,
 			AccountLedgerQuery:      accountLedgerQuery,
 			TransactionUtil:         transactionUtil,
+			ReceiptUtil:             receiptUtil,
 		}
 	case *chaintype.SpineChain:
 		return &BlockSpineService{

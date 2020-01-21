@@ -34,6 +34,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -71,6 +72,7 @@ var (
 	loggerCoreService                       *log.Logger
 	loggerP2PService                        *log.Logger
 	transactionUtil                         = &transaction.Util{}
+	receiptUtil                             = &coreUtil.ReceiptUtil{}
 )
 
 func init() {
@@ -129,6 +131,7 @@ func init() {
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
+		receiptUtil,
 	)
 
 	// initialize Observer
@@ -300,6 +303,7 @@ func startServices() {
 		apiCertFile,
 		apiKeyFile,
 		transactionUtil,
+		receiptUtil,
 	)
 
 	if isDebugMode {
@@ -340,6 +344,7 @@ func startMainchain() {
 		crypto.NewSignature(),
 		observerInstance,
 		loggerCoreService,
+		receiptUtil,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
@@ -375,6 +380,7 @@ func startMainchain() {
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
 		transactionUtil,
+		receiptUtil,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -479,7 +485,8 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
-		transactionUtil,
+		nil, // no transaction util is needed by the spine blocks
+		nil, // no receipt util is needed by the spine blocks
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -541,12 +548,6 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err: ", err.Error())
-	}
-	if err := schedulerInstance.AddJob(
-		constant.CleanTimedoutBlockTxCachedThreadGap,
-		mempoolServices[0].CleanTimedoutBlockTxCached,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
