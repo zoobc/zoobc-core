@@ -57,10 +57,14 @@ func (fq *CaseQuery) Select(tableName string, columns ...string) *CaseQuery {
 
 // Where build buffer query string, can combine with `In(), NotIn() ...`
 func (fq *CaseQuery) Where(query ...string) *CaseQuery {
-	fq.Query.WriteString(fmt.Sprintf(
-		"WHERE %s ",
-		strings.Join(query, ""),
-	))
+	if !strings.Contains(fq.Query.String(), "WHERE") {
+		fq.Query.WriteString(fmt.Sprintf(
+			"WHERE %s ",
+			strings.Join(query, ""),
+		))
+	} else {
+		fq.And(query...)
+	}
 	return fq
 }
 

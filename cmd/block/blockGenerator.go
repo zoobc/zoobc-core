@@ -164,6 +164,7 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
+		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 		transactionUtil,
 		receiptUtil,
 	)

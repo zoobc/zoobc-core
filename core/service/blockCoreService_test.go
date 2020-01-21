@@ -17,30 +17,31 @@ import (
 
 func TestNewBlockService(t *testing.T) {
 	type args struct {
-		ct                      chaintype.ChainType
-		kvExecutor              kvdb.KVExecutorInterface
-		queryExecutor           query.ExecutorInterface
-		blockQuery              query.BlockQueryInterface
-		mempoolQuery            query.MempoolQueryInterface
-		transactionQuery        query.TransactionQueryInterface
-		merkleTreeQuery         query.MerkleTreeQueryInterface
-		publishedReceiptQuery   query.PublishedReceiptQueryInterface
-		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		spinePublicKeyQuery     query.SpinePublicKeyQueryInterface
-		signature               crypto.SignatureInterface
-		mempoolService          MempoolServiceInterface
-		receiptService          ReceiptServiceInterface
-		nodeRegistrationService NodeRegistrationServiceInterface
-		txTypeSwitcher          transaction.TypeActionSwitcher
-		accountBalanceQuery     query.AccountBalanceQueryInterface
-		participationScoreQuery query.ParticipationScoreQueryInterface
-		nodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		blocksmithStrategyMain  strategy.BlocksmithStrategyInterface
-		obsr                    *observer.Observer
-		logger                  *log.Logger
-		accountLedgerQuery      query.AccountLedgerQueryInterface
-		transactionUtil         transaction.UtilInterface
-		receiptUtil             coreUtil.ReceiptUtilInterface
+		ct                          chaintype.ChainType
+		kvExecutor                  kvdb.KVExecutorInterface
+		queryExecutor               query.ExecutorInterface
+		blockQuery                  query.BlockQueryInterface
+		mempoolQuery                query.MempoolQueryInterface
+		transactionQuery            query.TransactionQueryInterface
+		merkleTreeQuery             query.MerkleTreeQueryInterface
+		publishedReceiptQuery       query.PublishedReceiptQueryInterface
+		skippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		spinePublicKeyQuery         query.SpinePublicKeyQueryInterface
+		signature                   crypto.SignatureInterface
+		mempoolService              MempoolServiceInterface
+		receiptService              ReceiptServiceInterface
+		nodeRegistrationService     NodeRegistrationServiceInterface
+		txTypeSwitcher              transaction.TypeActionSwitcher
+		accountBalanceQuery         query.AccountBalanceQueryInterface
+		participationScoreQuery     query.ParticipationScoreQueryInterface
+		nodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		blocksmithStrategyMain      strategy.BlocksmithStrategyInterface
+		obsr                        *observer.Observer
+		logger                      *log.Logger
+		accountLedgerQuery          query.AccountLedgerQueryInterface
+		blockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		transactionUtil             transaction.UtilInterface
+		receiptUtil                 coreUtil.ReceiptUtilInterface
 	}
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
@@ -73,8 +74,8 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
-				tt.args.logger, tt.args.accountLedgerQuery, tt.args.transactionUtil, tt.args.receiptUtil); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
+				tt.args.logger, tt.args.accountLedgerQuery, tt.args.blockIncompleteQueueService, tt.args.transactionUtil, tt.args.receiptUtil); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBlockService() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

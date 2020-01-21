@@ -37,39 +37,11 @@ func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]by
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(ConvertUint32ToBytes(block.GetVersion()))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTimestamp())))
-	switch ct.(type) {
-	case *chaintype.MainChain:
-		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
-		// instead of an empty array when there aren't transactions
-		//
-		// added nil check to make sure that transactions for this block have been populated, even if there are none (empty slice).
-		// if block object doesn't have transactions populated (GetTransactions() = nil), block hash validation will fail later on
-		// todo: this is temporary solution as proto seems to modify empty slice of pointer to nil
-		if block.GetTransactions() == nil {
-			block.Transactions = make([]*model.Transaction, 0)
-			// @iltoga uncommend this when above is ready
-			// return nil, blocker.NewBlocker(blocker.BlockErr, "block transactions field is nil")
-		}
-		buffer.Write(ConvertIntToBytes(len(block.GetTransactions())))
-	case *chaintype.SpineChain:
-		// @iltoga @ali uncomment this when fixed download/broadcast blocks Transactions = nil
-		// instead of an empty array when there aren't transactions
-		//
-		// added nil check to make sure that spine public keys for this block have been populated, even if there are none (empty slice).
-		// if block object doesn't have spine pub keys populated (GetSpinePublicKeys() = nil), block hash validation will fail later on
-		if block.GetSpinePublicKeys() == nil {
-			block.SpinePublicKeys = make([]*model.SpinePublicKey, 0)
-			// @iltoga uncommend this when above is ready
-			// return nil, blocker.NewBlocker(blocker.BlockErr, "block spinePublicKeys field is nil")
-		}
-		buffer.Write(ConvertIntToBytes(len(block.GetSpinePublicKeys())))
-	}
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalAmount())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalFee())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetTotalCoinBase())))
 	buffer.Write(ConvertUint64ToBytes(uint64(block.GetPayloadLength())))
 	buffer.Write(block.PayloadHash)
-
 	buffer.Write(block.BlocksmithPublicKey)
 	buffer.Write(block.GetBlockSeed())
 	buffer.Write(block.GetPreviousBlockHash())
@@ -146,4 +118,14 @@ func GetMinRollbackHeight(currentHeight uint32) uint32 {
 		return 0
 	}
 	return currentHeight - constant.MinRollbackBlocks
+}
+
+// GetSpinePublicKeyBytes convert a model.SpinePublicKey to []byte
+func GetSpinePublicKeyBytes(spinePublicKey *model.SpinePublicKey) []byte {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(ConvertUint32ToBytes(spinePublicKey.MainBlockHeight))
+	buffer.Write(spinePublicKey.NodePublicKey)
+	buffer.Write(ConvertUint32ToBytes(uint32(spinePublicKey.PublicKeyAction)))
+	buffer.Write(ConvertUint32ToBytes(spinePublicKey.Height))
+	return buffer.Bytes()
 }

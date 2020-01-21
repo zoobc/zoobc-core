@@ -229,8 +229,8 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "spine_public_key"(
 				"node_public_key" BLOB,
-				"block_id"	INTEGER,
 				"public_key_action" INTEGER,
+				"main_block_height"	INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
 				PRIMARY KEY("node_public_key", "height")
@@ -243,6 +243,10 @@ func (m *Migration) Init() error {
 				"transaction_id" INTEGER NULL,
 				"event_type" INTEGER
 			)
+			`,
+			`
+			ALTER TABLE "account_ledger"
+				ADD COLUMN "timestamp" INTEGER
 			`,
 		}
 		return nil

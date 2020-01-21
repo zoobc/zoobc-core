@@ -83,8 +83,8 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"version",
 		}).AddRow(
 			0,
-			[]byte{204, 49, 74, 114, 213, 94, 136, 109, 130, 252, 182, 25, 31, 49, 83, 238,
-				65, 207, 202, 144, 95, 176, 46, 69, 165, 6, 135, 93, 217, 0, 101, 18},
+			[]byte{171, 30, 155, 89, 1, 225, 53, 99, 25, 254, 37, 124, 190, 197, 187, 95, 102, 101, 185, 136, 166, 218, 170,
+				156, 49, 43, 208, 228, 157, 166, 224, 91},
 			[]byte{},
 			1,
 			1562806389280,
@@ -122,8 +122,8 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"version",
 		}).AddRow(
 			0,
-			[]byte{204, 49, 74, 114, 213, 94, 136, 109, 130, 252, 182, 25, 31, 49, 83, 238,
-				65, 207, 202, 144, 95, 176, 46, 69, 165, 6, 135, 93, 217, 0, 101, 18},
+			[]byte{171, 30, 155, 89, 1, 225, 53, 99, 25, 254, 37, 124, 190, 197, 187, 95, 102, 101, 185, 136, 166, 218, 170,
+				156, 49, 43, 208, 228, 157, 166, 224, 91},
 			[]byte{},
 			1,
 			1562806389280,
@@ -157,6 +157,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	}
 	return nil, nil
 }
+
 func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 	poown := GetFixturesProofOfOwnershipValidation(0, nil, nil)
 	type args struct {
