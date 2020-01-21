@@ -13,7 +13,7 @@ type (
 		ApplyConfirmed(blockTimestamp int64) error
 		ApplyUnconfirmed() error
 		UndoApplyUnconfirmed() error
-		// dbTx specify wether validation should read from transaction state or db state
+		// Validate dbTx specify whether validation should read from transaction state or db state
 		Validate(dbTx bool) error
 		GetAmount() int64
 		GetSize() uint32
@@ -57,6 +57,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Escrow:              tx.GetEscrow(),
 			}, nil
 		default:
 			return nil, nil
@@ -83,6 +84,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AuthPoown:               &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:           ts.Executor,
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				Escrow:                  tx.GetEscrow(),
 			}, nil
 		case 1:
 			nodeRegistrationBody, err := (&UpdateNodeRegistration{
@@ -103,6 +105,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				Escrow:                tx.GetEscrow(),
 			}, nil
 		case 2:
 			removeNodeRegistrationBody, err := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -119,6 +122,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				Escrow:                tx.GetEscrow(),
 			}, nil
 		case 3:
 			claimNodeRegistrationBody, err := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -137,6 +141,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				Escrow:                tx.GetEscrow(),
 			}, nil
 		default:
 			return nil, nil
@@ -158,6 +163,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Escrow:              tx.GetEscrow(),
 			}, nil
 		case 1:
 			removeAccountDatasetTransactionBody, err := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -174,6 +180,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Escrow:              tx.GetEscrow(),
 			}, nil
 		default:
 			return nil, nil

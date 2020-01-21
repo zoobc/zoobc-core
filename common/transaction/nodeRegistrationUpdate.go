@@ -15,11 +15,12 @@ import (
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
 	ID                    int64
-	Body                  *model.UpdateNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
 	Height                uint32
 	Timestamp             int64
+	Body                  *model.UpdateNodeRegistrationTransactionBody
+	Escrow                *model.Escrow
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface

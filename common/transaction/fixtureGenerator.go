@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 		TotalCoinBase:        1,
 		Version:              0,
 	}
+	EmptyAaccountAddressFromBytes = string(make([]byte, 45))
 )
 
 func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistrationQueryInterface) (
@@ -181,4 +183,9 @@ func GetFixturesForRemoveAccountDataset() (
 		Body: txBody,
 	}
 	return txBody, ra.GetBodyBytes()
+}
+func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes []byte, hashed [32]byte) {
+	byteValue, _ := GetTransactionBytes(tx, sign)
+	transactionHash := sha3.Sum256(byteValue)
+	return byteValue, transactionHash
 }

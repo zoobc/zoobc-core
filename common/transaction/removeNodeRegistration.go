@@ -13,10 +13,11 @@ import (
 // RemoveNodeRegistration Implement service layer for (new) node registration's transaction
 type RemoveNodeRegistration struct {
 	ID                    int64
-	Body                  *model.RemoveNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
 	Height                uint32
+	Body                  *model.RemoveNodeRegistrationTransactionBody
+	Escrow                *model.Escrow
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	QueryExecutor         query.ExecutorInterface
