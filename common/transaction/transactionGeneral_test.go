@@ -161,6 +161,38 @@ func TestGetTransactionBytes(t *testing.T) {
 				124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
 			},
 		},
+		{
+			name: "SuccessNoSigned:WithEscrow",
+			args: args{
+				transaction: &model.Transaction{
+					Version:                 1,
+					TransactionType:         2,
+					Timestamp:               1562806389280,
+					SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					Fee:                     1000000,
+					TransactionBodyLength:   8,
+					TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
+					Escrow: &model.Escrow{
+						ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+						Commission:      24,
+						Timeout:         100,
+					},
+					Signature: []byte{0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174,
+						239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+						139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				},
+				sign: false,
+			},
+			want: []byte{
+				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51,
+				99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44, 0, 0, 0, 66, 67, 90,
+				75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73,
+				106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 44, 0, 0, 0, 66, 67,
+				90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88,
+				117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -447,14 +479,28 @@ func TestValidateTransaction(t *testing.T) {
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		verifySignature     bool
 	}
-	tx := buildTransaction(
-		1562893303, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+	txEscrowValidate := GetFixturesForTransaction(
+		1562893303,
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		true,
 	)
-	txBytes, _ := GetTransactionBytes(tx, false)
+	txBytesEscrow, _ := GetTransactionBytes(txEscrowValidate, false)
+	signatureEscrow := (&crypto.Signature{}).Sign(txBytesEscrow, constant.SignatureTypeDefault,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	txEscrowValidate.Signature = signatureEscrow
+
+	txValidate := GetFixturesForTransaction(
+		1562893303,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		false,
+	)
+	txBytes, _ := GetTransactionBytes(txValidate, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-	tx.Signature = signature
+	txValidate.Signature = signature
+
 	tests := []struct {
 		name    string
 		args    args
@@ -463,10 +509,12 @@ func TestValidateTransaction(t *testing.T) {
 		{
 			name: "TestValidateTransaction:success",
 			args: args{
-				tx: buildTransaction(
+				tx: GetFixturesForTransaction(
 					time.Now().Unix()+int64(constant.TransactionTimeOffset)-1,
 					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"),
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					false,
+				),
 				queryExecutor:       &mockQueryExecutorSuccess{},
 				accountBalanceQuery: query.NewAccountBalanceQuery(),
 				verifySignature:     false,
@@ -474,9 +522,18 @@ func TestValidateTransaction(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "TestValidateTransactionWithEscrow:success",
+			args: args{
+				tx:                  txEscrowValidate,
+				queryExecutor:       &mockQueryExecutorSuccess{},
+				accountBalanceQuery: query.NewAccountBalanceQuery(),
+				verifySignature:     true,
+			},
+		},
+		{
 			name: "TestValidateTransaction:success - verify signature",
 			args: args{
-				tx:                  tx,
+				tx:                  txValidate,
 				queryExecutor:       &mockQueryExecutorSuccess{},
 				accountBalanceQuery: query.NewAccountBalanceQuery(),
 				verifySignature:     true,
@@ -511,24 +568,5 @@ func TestValidateTransaction(t *testing.T) {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
-	}
-}
-
-func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
-	return &model.Transaction{
-		Version:                 1,
-		ID:                      2774809487,
-		BlockID:                 1,
-		Height:                  1,
-		SenderAccountAddress:    sender,
-		RecipientAccountAddress: recipient,
-		TransactionType:         0,
-		Fee:                     1,
-		Timestamp:               timestamp,
-		TransactionHash:         make([]byte, 32),
-		TransactionBodyLength:   0,
-		TransactionBodyBytes:    make([]byte, 0),
-		TransactionBody:         nil,
-		Signature:               make([]byte, 64),
 	}
 }

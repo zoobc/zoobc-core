@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -33,7 +34,33 @@ var (
 		TotalCoinBase:        1,
 		Version:              0,
 	}
-	EmptyAaccountAddressFromBytes = string(make([]byte, 45))
+	TransactionWithEscrow = &model.Transaction{
+		ID:                      670925173877174625,
+		Version:                 1,
+		TransactionType:         2,
+		BlockID:                 0,
+		Height:                  0,
+		Timestamp:               1562806389280,
+		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Fee:                     1,
+		TransactionHash: []byte{
+			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
+			187, 45, 245, 113, 210, 87, 23, 67, 157, 117, 41, 143,
+		},
+		TransactionBodyLength: 8,
+		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Signature: []byte{
+			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174,
+			239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+			139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
+		},
+		Escrow: &model.Escrow{
+			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			Commission:      1,
+			Timeout:         100,
+		},
+	}
 )
 
 func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistrationQueryInterface) (
@@ -188,4 +215,59 @@ func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes [
 	byteValue, _ := GetTransactionBytes(tx, sign)
 	transactionHash := sha3.Sum256(byteValue)
 	return byteValue, transactionHash
+}
+func GetFixturesForTransaction(
+	timestamp int64,
+	sender, recipient string,
+	escrow bool,
+) *model.Transaction {
+
+	tx := model.Transaction{
+		Version:                 1,
+		ID:                      2774809487,
+		BlockID:                 1,
+		Height:                  1,
+		SenderAccountAddress:    sender,
+		RecipientAccountAddress: recipient,
+		TransactionType:         0,
+		Fee:                     1,
+		Timestamp:               timestamp,
+		TransactionHash:         make([]byte, 32),
+		TransactionBodyLength:   0,
+		TransactionBodyBytes:    make([]byte, 0),
+		TransactionBody:         nil,
+		Signature:               make([]byte, 64),
+	}
+	if escrow {
+		tx.Escrow = &model.Escrow{
+			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			Commission:      1,
+			Timeout:         100,
+		}
+	}
+	return &tx
+}
+func GetFixturesForSignedMempoolTransaction(
+	id, timestamp int64,
+	sender, recipient string,
+	escrow bool,
+) *model.MempoolTransaction {
+	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
+	// sender := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+	// recipient := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+
+	txBytes, _ := GetTransactionBytes(tx, false)
+	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	tx.Signature = signature
+	txBytes, _ = GetTransactionBytes(tx, true)
+	return &model.MempoolTransaction{
+		ID:                      id,
+		BlockHeight:             0,
+		FeePerByte:              1,
+		ArrivalTimestamp:        timestamp,
+		TransactionBytes:        txBytes,
+		SenderAccountAddress:    "A",
+		RecipientAccountAddress: "B",
+	}
 }

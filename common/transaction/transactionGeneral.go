@@ -28,6 +28,7 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.SenderAccountAddress)))))
 	buffer.Write([]byte(transaction.SenderAccountAddress))
 
+	// Address format: [len][address]
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
 	if transaction.RecipientAccountAddress == "" {
 		buffer.Write(make([]byte, constant.AccountAddress)) // if no recipient pad with 44 (zoobc address length)
@@ -44,12 +45,13 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	2. Commission
 	3. Timeout
 	*/
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
 	if transaction.GetEscrow() != nil {
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetApproverAddress()))
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
 		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
 	} else {
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
 		buffer.Write(make([]byte, constant.AccountAddress))
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
@@ -230,14 +232,15 @@ func ValidateTransaction(
 		return err
 	}
 	defer rows.Close()
-	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 
+	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 	if err != nil || len(res) == 0 {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxSenderNotFound",
 		)
 	}
+
 	senderAccountBalance := res[0]
 	if senderAccountBalance.SpendableBalance < tx.Fee {
 		return blocker.NewBlocker(
