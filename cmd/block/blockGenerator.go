@@ -161,6 +161,7 @@ func initialize(
 		query.NewAccountLedgerQuery(),
 		query.NewMegablockQuery(),
 		query.NewFileChunkQuery(),
+		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 	)
 
 	migration = database.Migration{Query: queryExecutor}
