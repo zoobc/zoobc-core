@@ -37,9 +37,9 @@ func TestMegablockQuery_InsertMegablock(t *testing.T) {
 			args: args{
 				megablock: mb1,
 			},
-			want: "INSERT INTO megablock (full_file_hash,megablock_payload_length,megablock_payload_hash,spine_block_height," +
+			want: "INSERT INTO megablock (id,full_file_hash,megablock_payload_length,megablock_payload_hash,spine_block_height," +
 				"megablock_height,chain_type," +
-				"megablock_type) VALUES(? , ?, ?, ?, ?, ?, ?)",
+				"megablock_type) VALUES(? , ?, ?, ?, ?, ?, ?, ?)",
 		},
 	}
 	for _, tt := range tests {
@@ -122,7 +122,7 @@ func TestMegablockQuery_GetLastMegablock(t *testing.T) {
 				ct:     &chaintype.MainChain{},
 				mbType: model.MegablockType_Snapshot,
 			},
-			want: "SELECT full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
+			want: "SELECT id, full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
 				"megablock_height, chain_type, " +
 				"megablock_type FROM megablock WHERE chain_type = 0 AND megablock_type = 0 ORDER BY spine_block_height DESC" +
 				" LIMIT 1",
@@ -167,7 +167,7 @@ func TestMegablockQuery_GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockT
 				ct:     &chaintype.MainChain{},
 				mbType: model.MegablockType_Snapshot,
 			},
-			want: "SELECT full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
+			want: "SELECT id, full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
 				"megablock_height, chain_type, " +
 				"megablock_type FROM megablock WHERE spine_block_height = 1 AND chain_type = 0 AND megablock_type = 0 LIMIT 1",
 		},
@@ -213,7 +213,7 @@ func TestMegablockQuery_GetMegablocksBySpineBlockHeight(t *testing.T) {
 			args: args{
 				height: 1,
 			},
-			wantStr: "SELECT full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
+			wantStr: "SELECT id, full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
 				"megablock_height, chain_type, " +
 				"megablock_type FROM megablock WHERE spine_block_height = 1 ORDER BY megablock_type, chain_type, id",
 		},

@@ -116,12 +116,14 @@ func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight
 	var (
 		previousChunkHash, fileChunksBytes, fileChunksHash []byte
 		sortedFileChunks                                   = make([]*model.FileChunk, 0)
+		megablockID                                        = int64(util.ConvertBytesToUint64(fullFileHash))
 	)
 
 	// build the snapshot chunks
 	previousChunkHash = lastFileChunkHash
 	for idx, chunkHash := range sortedFileChunksHashes {
 		fileChunk := &model.FileChunk{
+			MegablockID:       megablockID,
 			ChunkHash:         chunkHash,
 			ChunkIndex:        uint32(idx),
 			PreviousChunkHash: previousChunkHash,
@@ -141,7 +143,7 @@ func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight
 	// build the megablock
 	megablock := &model.Megablock{
 		// we store Megablock ID as little endian of fullFileHash so that we can join the megablock and FileChunks tables if needed
-		ID:                     int64(util.ConvertBytesToUint64(fullFileHash)),
+		ID:                     megablockID,
 		FullFileHash:           fullFileHash,
 		MegablockHeight:        megablockHeight,
 		SpineBlockHeight:       spineHeight,
@@ -151,7 +153,17 @@ func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight
 		MegablockType:          mbType,
 		FileChunks:             sortedFileChunks,
 	}
+	if err := ss.QueryExecutor.BeginTx(); err != nil {
+		return nil, err
+	}
 	if err := ss.InsertMegablock(megablock); err != nil {
+		if rollbackErr := ss.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			ss.Logger.Error(rollbackErr.Error())
+		}
+		return nil, err
+	}
+	err = ss.QueryExecutor.CommitTx()
+	if err != nil {
 		return nil, err
 	}
 	return megablock, nil
@@ -160,7 +172,7 @@ func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight
 // InsertMegablock persist a megablock to db (query wrapper)
 func (ss *MegablockService) InsertMegablock(megablock *model.Megablock) error {
 	var (
-		queries [][]interface{}
+		queries = make([][]interface{}, 0)
 	)
 	if megablock.FileChunks == nil {
 		return blocker.NewBlocker(blocker.AppErr, "FileChunksNil")
@@ -175,7 +187,6 @@ func (ss *MegablockService) InsertMegablock(megablock *model.Megablock) error {
 		insertFileChunkQry := append([]interface{}{insertFileChunkQ}, insertFileChunkArgs...)
 		queries = append(queries, insertFileChunkQry)
 	}
-
 	err := ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

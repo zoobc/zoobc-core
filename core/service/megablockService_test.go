@@ -26,6 +26,17 @@ func (*mockMegablockServiceQueryExecutor) ExecuteTransactions(queries [][]interf
 	return nil
 }
 
+func (*mockMegablockServiceQueryExecutor) BeginTx() error {
+	return nil
+}
+
+func (*mockMegablockServiceQueryExecutor) RollbackTx() error {
+	return nil
+}
+func (*mockMegablockServiceQueryExecutor) CommitTx() error {
+	return nil
+}
+
 func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 	type fields struct {
 		QueryExecutor             query.ExecutorInterface

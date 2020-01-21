@@ -35,6 +35,7 @@ type (
 func NewMegablockQuery() *MegablockQuery {
 	return &MegablockQuery{
 		Fields: []string{
+			"id",
 			"full_file_hash",
 			"megablock_payload_length",
 			"megablock_payload_hash",
@@ -90,6 +91,7 @@ func (mbl *MegablockQuery) GetLastMegablock(ct chaintype.ChainType, mbType model
 // ExtractModel extract the model struct fields to the order of MegablockQuery.Fields
 func (mbl *MegablockQuery) ExtractModel(mb *model.Megablock) []interface{} {
 	return []interface{}{
+		mb.ID,
 		mb.FullFileHash,
 		mb.MegablockPayloadLength,
 		mb.MegablockPayloadHash,
@@ -112,6 +114,7 @@ func (mbl *MegablockQuery) BuildModel(
 			err error
 		)
 		err = rows.Scan(
+			&mb.ID,
 			&mb.FullFileHash,
 			&mb.MegablockPayloadLength,
 			&mb.MegablockPayloadHash,
@@ -141,6 +144,7 @@ func (mbl *MegablockQuery) Rollback(spineBlockHeight uint32) [][]interface{} {
 // Scan represents `sql.Scan`
 func (mbl *MegablockQuery) Scan(mb *model.Megablock, row *sql.Row) error {
 	err := row.Scan(
+		&mb.ID,
 		&mb.FullFileHash,
 		&mb.MegablockPayloadLength,
 		&mb.MegablockPayloadHash,
