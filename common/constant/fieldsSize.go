@@ -26,5 +26,5 @@ var (
 	DatasetPropertyLength uint32 = 4
 	// DatasetValueLength is max length of string property value in dataset
 	DatasetValueLength uint32 = 4
-	Sha512 uint32 = 64
+	Sha512             uint32 = 64
 )

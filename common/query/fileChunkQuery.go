@@ -64,7 +64,7 @@ func (scl *FileChunkQuery) GetFileChunksByBlockHeight(height uint32, ct chaintyp
 	return query
 }
 
-// GetFileChunksByMegablockID returns query string to get all snapshotChunks relative to a megablock 
+// GetFileChunksByMegablockID returns query string to get all snapshotChunks relative to a megablock
 func (scl *FileChunkQuery) GetFileChunksByMegablockID(megablockID int64) (str string) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE megablock_id = %d",
 		strings.Join(scl.Fields, ", "), scl.getTableName(), megablockID)

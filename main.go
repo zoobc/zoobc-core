@@ -377,7 +377,7 @@ func startMainchain() {
 		observerInstance,
 	)
 
-	mainchainBlockService := service.NewBlockService(
+	mainchainBlockService = service.NewBlockService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,

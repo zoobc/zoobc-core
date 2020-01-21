@@ -69,7 +69,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.txTypeSwitcher, tt.args.accountBalanceQuery, tt.args.participationScoreQuery,
 				tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain, tt.args.logger,
 				tt.args.accountLedgerQuery, tt.args.megablockQuery, tt.args.fileChunkQuery,
-				tt.blockIncompleteQueueService); !reflect.DeepEqual(got,
+				tt.args.blockIncompleteQueueService); !reflect.DeepEqual(got,
 				tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)
 			}

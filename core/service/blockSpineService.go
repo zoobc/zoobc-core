@@ -37,7 +37,7 @@ type (
 		Observer              *observer.Observer
 		Logger                *log.Logger
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService       MegablockServiceInterface
+		MegablockService      MegablockServiceInterface
 	}
 )
 
@@ -422,17 +422,18 @@ func (bs *BlockSpineService) GenerateBlock(
 		return nil, err
 	}
 
-	// retrieve megablock (complete with snapshot chunks) and add it to payload
-	// TODO: in future generalise for all block types that support snapshots
-	megablock, err := bs.MegablockService.GetMegablockFromSpineHeight(newBlockHeight, &chaintype.MainChain{}, model.MegablockType_Snapshot)
+	// retrieve all megablocks at current spine height (complete with file chunks entities)
+	megablocks, err = bs.MegablockService.GetMegablocksFromSpineHeight(newBlockHeight)
 	if err != nil {
 		return nil, err
 	}
-	if megablock != nil {
-		megablockBytes := bs.MegablockService.GetMegablockBytes(megablock)
-		payloadBytes = append(payloadBytes, megablockBytes...)
+	// compute the block payload length and hash by parsing all file chunks db entities into their bytes representation
+	if len(megablocks) > 0 {
+		for _, megablock := range megablocks {
+			megablockBytes := bs.MegablockService.GetMegablockBytes(megablock)
+			payloadBytes = append(payloadBytes, megablockBytes...)
+		}
 	}
-	megablocks = append(megablocks, megablock)
 
 	if _, err := digest.Write(payloadBytes); err != nil {
 		return nil, err

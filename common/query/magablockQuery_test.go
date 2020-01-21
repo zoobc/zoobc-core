@@ -140,7 +140,7 @@ func TestMegablockQuery_GetLastMegablock(t *testing.T) {
 	}
 }
 
-func TestMegablockQuery_GetMegablocksBySpineBlockHeight(t *testing.T) {
+func TestMegablockQuery_GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -151,13 +151,13 @@ func TestMegablockQuery_GetMegablocksBySpineBlockHeight(t *testing.T) {
 		mbType model.MegablockType
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantStr string
+		name   string
+		fields fields
+		args   args
+		want   string
 	}{
 		{
-			name: "GetMegablocksBySpineBlockHeight:mainchain",
+			name: "GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType:mainchain-snapshots",
 			fields: fields{
 				Fields:    NewMegablockQuery().Fields,
 				TableName: NewMegablockQuery().TableName,
@@ -167,9 +167,9 @@ func TestMegablockQuery_GetMegablocksBySpineBlockHeight(t *testing.T) {
 				ct:     &chaintype.MainChain{},
 				mbType: model.MegablockType_Snapshot,
 			},
-			wantStr: "SELECT full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
+			want: "SELECT full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
 				"megablock_height, chain_type, " +
-				"megablock_type FROM megablock WHERE spine_block_height = 1 AND chain_type = 0 AND megablock_type = 0",
+				"megablock_type FROM megablock WHERE spine_block_height = 1 AND chain_type = 0 AND megablock_type = 0 LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
@@ -178,7 +178,53 @@ func TestMegablockQuery_GetMegablocksBySpineBlockHeight(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if gotStr := mbl.GetMegablocksBySpineBlockHeight(tt.args.height, tt.args.ct, tt.args.mbType); gotStr != tt.wantStr {
+			if got := mbl.GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType(
+				tt.args.height,
+				tt.args.ct,
+				tt.args.mbType,
+			); got != tt.want {
+				t.Errorf("MegablockQuery.GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType() "+
+					"= %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMegablockQuery_GetMegablocksBySpineBlockHeight(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantStr string
+	}{
+		{
+			name: "GetMegablocksBySpineBlockHeight:success",
+			fields: fields{
+				Fields:    NewMegablockQuery().Fields,
+				TableName: NewMegablockQuery().TableName,
+			},
+			args: args{
+				height: 1,
+			},
+			wantStr: "SELECT full_file_hash, megablock_payload_length, megablock_payload_hash, spine_block_height, " +
+				"megablock_height, chain_type, " +
+				"megablock_type FROM megablock WHERE spine_block_height = 1 ORDER BY megablock_type, chain_type, id",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mbl := &MegablockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if gotStr := mbl.GetMegablocksBySpineBlockHeight(tt.args.height); gotStr != tt.wantStr {
 				t.Errorf("MegablockQuery.GetMegablocksBySpineBlockHeight() = %v, want %v", gotStr, tt.wantStr)
 			}
 		})

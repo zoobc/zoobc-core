@@ -175,7 +175,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 	type fields struct {
 		QueryExecutor             query.ExecutorInterface
 		MegablockQuery            query.MegablockQueryInterface
-		FileChunkQuery        query.FileChunkQueryInterface
+		FileChunkQuery            query.FileChunkQueryInterface
 		Logger                    *log.Logger
 		Spinechain                chaintype.ChainType
 		Mainchain                 chaintype.ChainType
@@ -268,7 +268,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 			mbl := &SnapshotService{
 				QueryExecutor:             tt.fields.QueryExecutor,
 				MegablockQuery:            tt.fields.MegablockQuery,
-				FileChunkQuery:        tt.fields.FileChunkQuery,
+				FileChunkQuery:            tt.fields.FileChunkQuery,
 				Logger:                    tt.fields.Logger,
 				Mainchain:                 tt.fields.Mainchain,
 				Spinechain:                tt.fields.Spinechain,
@@ -281,7 +281,6 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 		})
 	}
 }
-
 
 // FIXME: uncomment and fix the test once this method is completed
 // func TestSnapshotService_GenerateSnapshot(t *testing.T) {

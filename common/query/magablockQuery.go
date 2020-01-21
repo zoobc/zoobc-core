@@ -13,7 +13,12 @@ import (
 type (
 	MegablockQueryInterface interface {
 		InsertMegablock(megablock *model.Megablock) (str string, args []interface{})
-		GetMegablocksBySpineBlockHeight(height uint32, ct chaintype.ChainType, mbType model.MegablockType) string
+		GetMegablocksBySpineBlockHeight(height uint32) string
+		GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType(
+			height uint32,
+			ct chaintype.ChainType,
+			mbType model.MegablockType,
+		) string
 		GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string
 		ExtractModel(mb *model.Megablock) []interface{}
 		BuildModel(megablocks []*model.Megablock, rows *sql.Rows) ([]*model.Megablock, error)
@@ -57,9 +62,20 @@ func (mbl *MegablockQuery) InsertMegablock(megablock *model.Megablock) (str stri
 	return qryInsert, mbl.ExtractModel(megablock)
 }
 
-// GetMegablocksBySpineBlockHeight returns query string to get megablock at given block's height
-func (mbl *MegablockQuery) GetMegablocksBySpineBlockHeight(height uint32, ct chaintype.ChainType, mbType model.MegablockType) (str string) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE spine_block_height = %d AND chain_type = %d AND megablock_type = %d",
+// GetMegablocksBySpineBlockHeight returns query string to get all megablocks at given spine block's height
+func (mbl *MegablockQuery) GetMegablocksBySpineBlockHeight(height uint32) (str string) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE spine_block_height = %d ORDER BY megablock_type, chain_type, id",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName(), height)
+	return query
+}
+
+// GetMegablocksBySpineBlockHeight returns query string to get all megablocks at given spine block's height
+func (mbl *MegablockQuery) GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType(
+	height uint32,
+	ct chaintype.ChainType,
+	mbType model.MegablockType,
+) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE spine_block_height = %d AND chain_type = %d AND megablock_type = %d LIMIT 1",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), height, ct.GetTypeInt(), mbType)
 	return query
 }
