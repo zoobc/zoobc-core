@@ -58,6 +58,7 @@ var (
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
+	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
 	peerServiceClient                             client.PeerServiceClientInterface
 	p2pHost                                       *model.Host
@@ -274,6 +275,7 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 }
 
 func startServices() {
@@ -349,6 +351,11 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		loggerCoreService,
 	)
+	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
+		mainchain,
+		observerInstance,
+	)
+
 	mainchainBlockService := service.NewBlockService(
 		mainchain,
 		kvExecutor,
@@ -372,6 +379,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
+		blockIncompleteQueueService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -470,6 +478,7 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
+		nil, // no need block uncomplete queue service
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -510,21 +519,31 @@ func startScheduler() {
 		mainchain               = &chaintype.MainChain{}
 		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
 	)
+	// scheduler remove expired mempool transaction
 	if err := schedulerInstance.AddJob(
 		constant.CheckMempoolExpiration,
 		mainchainMempoolService.DeleteExpiredMempoolTransactions,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// scheduler to generate receipt markle root
 	if err := schedulerInstance.AddJob(
 		constant.ReceiptGenerateMarkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// scheduler to pruning receipts that was expired
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// scheduler to remove block uncomplete queue that already waiting transactions too long
+	if err := schedulerInstance.AddJob(
+		constant.CheckTimedOutBlock,
+		blockIncompleteQueueService.PruneTimeoutBlockQueue,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
