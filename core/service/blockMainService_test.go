@@ -2440,6 +2440,14 @@ type (
 	mockBlocksmithServiceReceiveBlock struct {
 		strategy.BlocksmithStrategyMain
 	}
+
+	mockBlockIncompleteQueueServiceReceiveBlock struct {
+		BlockIncompleteQueueService
+	}
+
+	mockQueryExecutorReceiveBlockFail struct {
+		query.Executor
+	}
 )
 
 func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
@@ -2528,20 +2536,62 @@ var (
 			mockTransaction,
 		},
 	}
+
+	mockBlockIDProcessQueueReceiveBlockAlreadyQueued int64 = 1
 )
 
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
-	return mockBlocksmiths
-}
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
-	var result = make(map[string]*int64)
-	for index, mock := range mockBlocksmiths {
-		mockIndex := int64(index)
-		result[string(mock.NodePublicKey)] = &mockIndex
+func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
+	return []*model.Blocksmith{
+		{
+			NodeID:        1,
+			NodeOrder:     new(big.Int).SetInt64(8000),
+			NodePublicKey: []byte{1, 3, 4, 5, 6},
+		},
+		{
+			NodeID:    2,
+			NodeOrder: new(big.Int).SetInt64(1000),
+		},
+		{
+			NodeID:    3,
+			NodeOrder: new(big.Int).SetInt64(5000),
+		},
 	}
-	return result
 }
-func (*mockBlocksmithServiceReceiveBlock) SortBlocksmiths(block *model.Block) {
+
+func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
+	var a, b, c = int64(0), int64(1), int64(2)
+	return map[string]*int64{
+		string(mockBlocksmiths[0].NodePublicKey): &a,
+		string(mockBlocksmiths[1].NodePublicKey): &b,
+		string(mockBlocksmiths[2].NodePublicKey): &c,
+	}
+}
+
+func (*mockBlocksmithServiceReceiveBlock) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	return mockSmithTime
+}
+
+func (*mockBlockIncompleteQueueServiceReceiveBlock) GetBlockQueue(blockID int64) *model.Block {
+	switch blockID {
+	case mockBlockIDProcessQueueReceiveBlockAlreadyQueued:
+		return &model.Block{
+			ID: constant.MainchainGenesisBlockID,
+		}
+
+	default:
+		return nil
+	}
+}
+
+func (*mockQueryExecutorReceiveBlockFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("Mock Error")
+}
+func (*mockQueryExecutorReceiveBlockFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mockRows := mock.NewRows([]string{"fake"})
+	mockRows.AddRow("1")
+	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
+	return db.QueryRow(qStr), nil
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
@@ -2585,7 +2635,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "ReceiveBlock:fail - {incoming block.previousBlockHash == nil}",
+			name: "ReceiveBlock:wantErr-{incoming-block.previousBlockHash==nil}",
 			args: args{
 				senderPublicKey:  nil,
 				lastBlock:        nil,
@@ -2606,14 +2656,14 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Observer:                    nil,
 				NodeRegistrationService:     nil,
 				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlocksmithStrategy:          &mockBlocksmithService{},
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
 				BlockIncompleteQueueService: nil,
 			},
 			wantErr: true,
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:fail - {last block hash != previousBlockHash}",
+			name: "ReceiveBlock:wantErr-{last-block-hash!=previousBlockHash}",
 			args: args{
 				senderPublicKey: nil,
 				lastBlock: &model.Block{
@@ -2625,7 +2675,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              &mockKVExecutorSuccess{},
+				KVExecutor:              nil,
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -2636,7 +2686,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				AccountLedgerQuery:      nil,
 				Observer:                nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				NodeRegistrationService: nil,
 			},
@@ -2644,7 +2694,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:fail - {same height } - fail get block by height",
+			name: "ReceiveBlock:wamtErr-{same-height}-fail-get-block-by-height",
 			args: args{
 				senderPublicKey: nil,
 				lastBlock:       &mockLastBlockData,
@@ -2676,7 +2726,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:fail-Prevalidate-fail",
+			name: "ReceiveBlock:wantErr-Prevalidate-fail",
 			args: args{
 				senderPublicKey: nil,
 				lastBlock:       &mockLastBlockData,
@@ -2699,7 +2749,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				AccountLedgerQuery:      nil,
 				Observer:                nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
 				ReceiptService:          &mockReceiptServiceSuccess{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				NodeRegistrationService: nil,
@@ -2708,35 +2758,265 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:fail-ProcessQueue-fail",
+			name: "ReceiveBlock:wantErr-ProcessQueue-fail",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       &mockLastBlockData,
+				block: &model.Block{
+					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued + 1,
+					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
+					TransactionIDs: []int64{
+						mockTransaction.GetID(),
+					},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  nil,
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              &mockReceiptServiceSuccess{},
+				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:wantErr-ProcessCompletedBlock-fail",
 			args: args{
 				senderPublicKey: nil,
 				lastBlock:       &mockLastBlockData,
 				block: &model.Block{
 					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: []byte{1},
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
 				},
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            nil,
-				TransactionQuery:        nil,
-				Signature:               nil,
-				MempoolService:          nil,
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
-				ReceiptService:          &mockReceiptServiceSuccess{},
-				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
-				NodeRegistrationService: nil,
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  nil,
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              nil,
+				BlockPoolService:            nil,
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
 			},
 			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:wantErr-get-receipt-key-failed",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       &mockLastBlockData,
+				block: &model.Block{
+					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
+					PreviousBlockHash:   []byte{00},
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
+					TransactionIDs: []int64{
+						mockTransaction.GetID(),
+					},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorSuccess{},
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              &mockReceiptServiceSuccess{},
+				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:wantErr-already-send-receipt",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       &mockLastBlockData,
+				block: &model.Block{
+					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
+					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
+					TransactionIDs: []int64{
+						mockTransaction.GetID(),
+					},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorSuccess{},
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              &mockReceiptServiceSuccess{},
+				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:wantErr-failed-get-receipt",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       &mockLastBlockData,
+				block: &model.Block{
+					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
+					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
+					TransactionIDs: []int64{
+						mockTransaction.GetID(),
+					},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorFailOtherError{},
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              &mockReceiptServiceSuccess{},
+				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:wantErr-generate-receipt-failed",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       &mockLastBlockData,
+				block: &model.Block{
+					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
+					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
+					TransactionIDs: []int64{
+						mockTransaction.GetID(),
+					},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              &mockReceiptServiceFail{},
+				BlockPoolService:            nil,
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:wantErr-generate-receipt-success",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock:       &mockLastBlockData,
+				block: &model.Block{
+					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
+					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
+					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
+					Timestamp:           mockSmithTime + 1,
+					TransactionIDs: []int64{
+						mockTransaction.GetID(),
+					},
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:                   &chaintype.MainChain{},
+				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
+				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
+				BlockQuery:                  nil,
+				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:            nil,
+				Signature:                   nil,
+				MempoolService:              nil,
+				ActionTypeSwitcher:          nil,
+				AccountBalanceQuery:         nil,
+				AccountLedgerQuery:          nil,
+				Observer:                    nil,
+				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
+				ReceiptService:              &mockReceiptServiceSuccess{},
+				BlockPoolService:            nil,
+				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
+				NodeRegistrationService:     nil,
+			},
+			wantErr: false,
 			want:    nil,
 		},
 		//{
@@ -3286,6 +3566,8 @@ type (
 	}
 )
 
+var mockSmithTime int64 = 1
+
 func (*mockBlocksmithService) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
 	return []*model.Blocksmith{
 		{
@@ -3311,6 +3593,10 @@ func (*mockBlocksmithService) GetSortedBlocksmithsMap(block *model.Block) map[st
 		string(mockBlocksmiths[1].NodePublicKey): &b,
 		string(mockBlocksmiths[2].NodePublicKey): &c,
 	}
+}
+
+func (*mockBlocksmithService) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	return mockSmithTime
 }
 
 func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
