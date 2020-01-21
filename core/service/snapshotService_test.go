@@ -174,7 +174,6 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 	type fields struct {
 		QueryExecutor             query.ExecutorInterface
-		MegablockQuery            query.MegablockQueryInterface
 		FileChunkQuery            query.FileChunkQueryInterface
 		Logger                    *log.Logger
 		Spinechain                chaintype.ChainType
@@ -267,7 +266,6 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mbl := &SnapshotService{
 				QueryExecutor:             tt.fields.QueryExecutor,
-				MegablockQuery:            tt.fields.MegablockQuery,
 				FileChunkQuery:            tt.fields.FileChunkQuery,
 				Logger:                    tt.fields.Logger,
 				Mainchain:                 tt.fields.Mainchain,

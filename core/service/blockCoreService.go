@@ -129,8 +129,6 @@ func NewBlockService(
 			},
 			MegablockService: NewMegablockService(
 				queryExecutor,
-				mainBlockQuery,
-				spineBlockQuery,
 				megablockQuery,
 				fileChunkQuery,
 				logger,

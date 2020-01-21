@@ -60,15 +60,9 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 				QueryExecutor: &mockMegablockServiceQueryExecutor{
 					testName: "CreateMegablock:success",
 				},
-				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
-				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
-				MegablockQuery:            query.NewMegablockQuery(),
-				FileChunkQuery:            query.NewFileChunkQuery(),
-				Logger:                    log.New(),
-				Spinechain:                &mockSpinechain{},
-				Mainchain:                 &mockMainchain{},
-				SnapshotInterval:          ssSnapshotInterval,
-				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
+				MegablockQuery: query.NewMegablockQuery(),
+				FileChunkQuery: query.NewFileChunkQuery(),
+				Logger:         log.New(),
 			},
 			args: args{
 				snapshotHash:           make([]byte, 64),
@@ -99,16 +93,10 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 		fmt.Println(t.Name())
 		t.Run(tt.name, func(t *testing.T) {
 			mbl := &MegablockService{
-				QueryExecutor:             tt.fields.QueryExecutor,
-				MegablockQuery:            tt.fields.MegablockQuery,
-				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-				MainBlockQuery:            tt.fields.MainBlockQuery,
-				FileChunkQuery:            tt.fields.FileChunkQuery,
-				Logger:                    tt.fields.Logger,
-				Spinechain:                tt.fields.Spinechain,
-				Mainchain:                 tt.fields.Mainchain,
-				SnapshotInterval:          tt.fields.SnapshotInterval,
-				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
+				QueryExecutor:  tt.fields.QueryExecutor,
+				MegablockQuery: tt.fields.MegablockQuery,
+				FileChunkQuery: tt.fields.FileChunkQuery,
+				Logger:         tt.fields.Logger,
 			}
 			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight, tt.args.spineHeight,
 				tt.args.sortedFileChunksHashes,
@@ -125,16 +113,10 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 
 func TestSnapshotService_GetMegablockBytes(t *testing.T) {
 	type fields struct {
-		QueryExecutor             query.ExecutorInterface
-		MegablockQuery            query.MegablockQueryInterface
-		SpineBlockQuery           query.BlockQueryInterface
-		MainBlockQuery            query.BlockQueryInterface
-		FileChunkQuery            query.FileChunkQueryInterface
-		Logger                    *log.Logger
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          int64
-		SnapshotGenerationTimeout int64
+		QueryExecutor  query.ExecutorInterface
+		MegablockQuery query.MegablockQueryInterface
+		FileChunkQuery query.FileChunkQueryInterface
+		Logger         *log.Logger
 	}
 	type args struct {
 		megablock *model.Megablock
@@ -161,16 +143,10 @@ func TestSnapshotService_GetMegablockBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &MegablockService{
-				QueryExecutor:             tt.fields.QueryExecutor,
-				MegablockQuery:            tt.fields.MegablockQuery,
-				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-				MainBlockQuery:            tt.fields.MainBlockQuery,
-				FileChunkQuery:            tt.fields.FileChunkQuery,
-				Logger:                    tt.fields.Logger,
-				Spinechain:                tt.fields.Spinechain,
-				Mainchain:                 tt.fields.Mainchain,
-				SnapshotInterval:          tt.fields.SnapshotInterval,
-				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
+				QueryExecutor:  tt.fields.QueryExecutor,
+				MegablockQuery: tt.fields.MegablockQuery,
+				FileChunkQuery: tt.fields.FileChunkQuery,
+				Logger:         tt.fields.Logger,
 			}
 			got := ss.GetMegablockBytes(tt.args.megablock)
 			if !reflect.DeepEqual(got, tt.want) {

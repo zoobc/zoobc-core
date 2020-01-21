@@ -23,7 +23,6 @@ type (
 
 	SnapshotService struct {
 		QueryExecutor   query.ExecutorInterface
-		MegablockQuery  query.MegablockQueryInterface
 		SpineBlockQuery query.BlockQueryInterface
 		MainBlockQuery  query.BlockQueryInterface
 		FileChunkQuery  query.FileChunkQueryInterface
@@ -40,17 +39,15 @@ type (
 func NewSnapshotService(
 	queryExecutor query.ExecutorInterface,
 	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
-	megablockQuery query.MegablockQueryInterface,
-	snapshotChunkQuery query.FileChunkQueryInterface,
+	fileChunkQuery query.FileChunkQueryInterface,
 	megablockService MegablockServiceInterface,
 	logger *log.Logger,
 ) *SnapshotService {
 	return &SnapshotService{
 		QueryExecutor:             queryExecutor,
-		MegablockQuery:            megablockQuery,
 		SpineBlockQuery:           spineBlockQuery,
 		MainBlockQuery:            mainBlockQuery,
-		FileChunkQuery:            snapshotChunkQuery,
+		FileChunkQuery:            fileChunkQuery,
 		Spinechain:                &chaintype.SpineChain{},
 		Mainchain:                 &chaintype.MainChain{},
 		SnapshotInterval:          constant.SnapshotInterval,
@@ -93,7 +90,7 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 		lastFileChunk                       model.FileChunk
 		firstValidSpineHeight               uint32
 		lastFileChunkHash, snapshotFullHash []byte
-		snapshotChunkHashes                 = make([][]byte, 0)
+		fileChunkHashes                     = make([][]byte, 0)
 	)
 
 	switch ct.(type) {
@@ -156,7 +153,7 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 			return nil, err
 		}
 		hash1 := digest.Sum([]byte{})
-		snapshotChunkHashes = append(snapshotChunkHashes, hash1)
+		fileChunkHashes = append(fileChunkHashes, hash1)
 
 		digest.Reset()
 		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(util.GetSecureRandom())))
@@ -172,7 +169,7 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 	return &model.SnapshotFileInfo{
 		ChainType:         ct.GetTypeInt(),
 		MegablockType:     model.MegablockType_Snapshot,
-		FileChunksHashes:  snapshotChunkHashes,
+		FileChunksHashes:  fileChunkHashes,
 		MainHeight:        mainHeight,
 		PrevFileChunkHash: lastFileChunkHash,
 		SnapshotFileHash:  snapshotFullHash,

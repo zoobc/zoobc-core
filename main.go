@@ -136,8 +136,6 @@ func init() {
 	)
 	megablockService = service.NewMegablockService(
 		queryExecutor,
-		query.NewBlockQuery(&chaintype.MainChain{}),
-		query.NewBlockQuery(&chaintype.SpineChain{}),
 		query.NewMegablockQuery(),
 		query.NewFileChunkQuery(),
 		loggerCoreService,
@@ -146,7 +144,6 @@ func init() {
 		queryExecutor,
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
-		query.NewMegablockQuery(),
 		query.NewFileChunkQuery(),
 		megablockService,
 		loggerCoreService,

@@ -1541,8 +1541,6 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					QueryExecutor:  &mockSpineAddGenesisExecutor{},
 					Logger:         log.New(),
 					MegablockQuery: query.NewMegablockQuery(),
-					Spinechain:     &chaintype.SpineChain{},
-					Mainchain:      &chaintype.MainChain{},
 				},
 			},
 			wantErr: false,

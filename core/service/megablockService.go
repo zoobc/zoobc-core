@@ -6,7 +6,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -26,38 +25,24 @@ type (
 	}
 
 	MegablockService struct {
-		QueryExecutor   query.ExecutorInterface
-		MegablockQuery  query.MegablockQueryInterface
-		SpineBlockQuery query.BlockQueryInterface
-		MainBlockQuery  query.BlockQueryInterface
-		FileChunkQuery  query.FileChunkQueryInterface
-		Logger          *log.Logger
-		// below fields are for better code testability
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          int64
-		SnapshotGenerationTimeout int64
+		QueryExecutor  query.ExecutorInterface
+		MegablockQuery query.MegablockQueryInterface
+		FileChunkQuery query.FileChunkQueryInterface
+		Logger         *log.Logger
 	}
 )
 
 func NewMegablockService(
 	queryExecutor query.ExecutorInterface,
-	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
 	megablockQuery query.MegablockQueryInterface,
 	snapshotChunkQuery query.FileChunkQueryInterface,
 	logger *log.Logger,
 ) *MegablockService {
 	return &MegablockService{
-		QueryExecutor:             queryExecutor,
-		MegablockQuery:            megablockQuery,
-		SpineBlockQuery:           spineBlockQuery,
-		MainBlockQuery:            mainBlockQuery,
-		FileChunkQuery:            snapshotChunkQuery,
-		Spinechain:                &chaintype.SpineChain{},
-		Mainchain:                 &chaintype.MainChain{},
-		SnapshotInterval:          constant.SnapshotInterval,
-		SnapshotGenerationTimeout: constant.SnapshotGenerationTimeout,
-		Logger:                    logger,
+		QueryExecutor:  queryExecutor,
+		MegablockQuery: megablockQuery,
+		FileChunkQuery: snapshotChunkQuery,
+		Logger:         logger,
 	}
 }
 
