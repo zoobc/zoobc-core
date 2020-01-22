@@ -258,6 +258,7 @@ func (m *Migration) Init() error {
 				"commission" INTEGER,
 				"timeout" INTEGER,
 				"status" INTEGER,
+				"block_height" INTEGER,
 				"latest" INTEGER
 			)
 			`,
