@@ -34,6 +34,8 @@ func NewEscrowTransactionQuery() *EscrowTransactionQuery {
 			"amount",
 			"commission",
 			"timeout",
+			"status",
+			"latest",
 		},
 	}
 }

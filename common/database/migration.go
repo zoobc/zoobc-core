@@ -256,7 +256,9 @@ func (m *Migration) Init() error {
 				"approver_address" VARCHAR(255),
 				"amount" INTEGER,
 				"commission" INTEGER,
-				"timeout" INTEGER
+				"timeout" INTEGER,
+				"status" INTEGER,
+				"latest" INTEGER
 			)
 			`,
 		}
