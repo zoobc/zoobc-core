@@ -13,17 +13,11 @@ import (
 type (
 	MegablockQueryInterface interface {
 		InsertMegablock(megablock *model.Megablock) (str string, args []interface{})
-		GetMegablocksBySpineBlockHeight(height uint32) string
-		GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType(
-			height uint32,
-			ct chaintype.ChainType,
-			mbType model.MegablockType,
-		) string
+		GetMegablocksInTimeInterval(fromTimestamp, toTimestamp int64) string
 		GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string
 		ExtractModel(mb *model.Megablock) []interface{}
 		BuildModel(megablocks []*model.Megablock, rows *sql.Rows) ([]*model.Megablock, error)
 		Scan(mb *model.Megablock, row *sql.Row) error
-		Rollback(spineBlockHeight uint32) [][]interface{}
 	}
 
 	MegablockQuery struct {
@@ -37,12 +31,11 @@ func NewMegablockQuery() *MegablockQuery {
 		Fields: []string{
 			"id",
 			"full_file_hash",
-			"megablock_payload_length",
-			"megablock_payload_hash",
-			"spine_block_height",
+			"file_chunk_hashes",
 			"megablock_height",
 			"chain_type",
 			"megablock_type",
+			"expiration_timestamp",
 		},
 		TableName: "megablock",
 	}
@@ -63,28 +56,19 @@ func (mbl *MegablockQuery) InsertMegablock(megablock *model.Megablock) (str stri
 	return qryInsert, mbl.ExtractModel(megablock)
 }
 
-// GetMegablocksBySpineBlockHeight returns query string to get all megablocks at given spine block's height
-func (mbl *MegablockQuery) GetMegablocksBySpineBlockHeight(height uint32) (str string) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE spine_block_height = %d ORDER BY megablock_type, chain_type, id",
-		strings.Join(mbl.Fields, ", "), mbl.getTableName(), height)
-	return query
-}
-
-// GetMegablocksBySpineBlockHeight returns query string to get all megablocks at given spine block's height
-func (mbl *MegablockQuery) GetMegablocksBySpineBlockHeightAndChaintypeAndMegablockType(
-	height uint32,
-	ct chaintype.ChainType,
-	mbType model.MegablockType,
-) string {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE spine_block_height = %d AND chain_type = %d AND megablock_type = %d LIMIT 1",
-		strings.Join(mbl.Fields, ", "), mbl.getTableName(), height, ct.GetTypeInt(), mbType)
-	return query
-}
-
 // GetLastMegablock returns the last megablock
 func (mbl *MegablockQuery) GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND megablock_type = %d ORDER BY spine_block_height DESC LIMIT 1",
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND megablock_type = %d ORDER BY megablock_height DESC LIMIT 1",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), ct.GetTypeInt(), mbType)
+	return query
+}
+
+// GetMegablocksInTimeInterval retrieve all megablocks within a time frame
+// Note: it is used to get all entities that have expired between spine blocks
+func (mbl *MegablockQuery) GetMegablocksInTimeInterval(fromTimestamp, toTimestamp int64) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE expiration_timestamp > %d AND expiration_timestamp <= %d "+
+		"ORDER BY megablock_type, chain_type, megablock_height",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName(), fromTimestamp, toTimestamp)
 	return query
 }
 
@@ -93,12 +77,11 @@ func (mbl *MegablockQuery) ExtractModel(mb *model.Megablock) []interface{} {
 	return []interface{}{
 		mb.ID,
 		mb.FullFileHash,
-		mb.MegablockPayloadLength,
-		mb.MegablockPayloadHash,
-		mb.SpineBlockHeight,
+		mb.FileChunkHashes,
 		mb.MegablockHeight,
 		mb.ChainType,
 		mb.MegablockType,
+		mb.ExpirationTimestamp,
 	}
 }
 
@@ -116,12 +99,11 @@ func (mbl *MegablockQuery) BuildModel(
 		err = rows.Scan(
 			&mb.ID,
 			&mb.FullFileHash,
-			&mb.MegablockPayloadLength,
-			&mb.MegablockPayloadHash,
-			&mb.SpineBlockHeight,
+			&mb.FileChunkHashes,
 			&mb.MegablockHeight,
 			&mb.ChainType,
 			&mb.MegablockType,
+			&mb.ExpirationTimestamp,
 		)
 		if err != nil {
 			return nil, err
@@ -131,27 +113,16 @@ func (mbl *MegablockQuery) BuildModel(
 	return megablocks, nil
 }
 
-// Rollback delete records `WHERE spine_block_height > `height`
-func (mbl *MegablockQuery) Rollback(spineBlockHeight uint32) [][]interface{} {
-	return [][]interface{}{
-		{
-			fmt.Sprintf("DELETE FROM %s WHERE spine_block_height > ?", mbl.TableName),
-			spineBlockHeight,
-		},
-	}
-}
-
 // Scan represents `sql.Scan`
 func (mbl *MegablockQuery) Scan(mb *model.Megablock, row *sql.Row) error {
 	err := row.Scan(
 		&mb.ID,
 		&mb.FullFileHash,
-		&mb.MegablockPayloadLength,
-		&mb.MegablockPayloadHash,
-		&mb.SpineBlockHeight,
+		&mb.FileChunkHashes,
 		&mb.MegablockHeight,
 		&mb.ChainType,
 		&mb.MegablockType,
+		&mb.ExpirationTimestamp,
 	)
 	if err != nil {
 		return err

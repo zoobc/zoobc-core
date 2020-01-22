@@ -53,27 +53,6 @@ var (
 		ChunkHash:   ssMockHash1,
 		ChainType:   ssMainchain.GetTypeInt(),
 	}
-	ssMockMegablock = &model.Megablock{
-		FileChunks: []*model.FileChunk{
-			{
-				SpineBlockHeight:  10,
-				PreviousChunkHash: nil,
-				ChunkIndex:        0,
-				ChunkHash:         ssMockHash1,
-			},
-			{
-				SpineBlockHeight:  10,
-				PreviousChunkHash: ssMockHash1,
-				ChunkIndex:        1,
-				ChunkHash:         ssMockHash2,
-			},
-		},
-		SpineBlockHeight:       10,
-		MegablockPayloadLength: 0,
-		MegablockPayloadHash:   make([]byte, 64),
-		FullFileHash:           ssMockFullHash,
-		MegablockHeight:        720,
-	}
 )
 
 func (mqe *mockSnapshotServiceQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {

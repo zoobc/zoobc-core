@@ -160,7 +160,6 @@ func initialize(
 		log.New(),
 		query.NewAccountLedgerQuery(),
 		query.NewMegablockQuery(),
-		query.NewFileChunkQuery(),
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 	)
 

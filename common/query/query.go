@@ -29,7 +29,6 @@ func GetDerivedQuery(ct chaintype.ChainType) []DerivedQuery {
 	case *chaintype.SpineChain:
 		return []DerivedQuery{
 			NewSpinePublicKeyQuery(),
-			NewMegablockQuery(),
 		}
 	}
 	return nil

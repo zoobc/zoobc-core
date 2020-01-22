@@ -365,7 +365,6 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		nil,
-		nil,
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {

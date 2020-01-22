@@ -1,7 +1,6 @@
 package service
 
 import (
-	"database/sql"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -25,7 +24,6 @@ type (
 		QueryExecutor   query.ExecutorInterface
 		SpineBlockQuery query.BlockQueryInterface
 		MainBlockQuery  query.BlockQueryInterface
-		FileChunkQuery  query.FileChunkQueryInterface
 		Logger          *log.Logger
 		// below fields are for better code testability
 		Spinechain                chaintype.ChainType
@@ -39,7 +37,6 @@ type (
 func NewSnapshotService(
 	queryExecutor query.ExecutorInterface,
 	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
-	fileChunkQuery query.FileChunkQueryInterface,
 	megablockService MegablockServiceInterface,
 	logger *log.Logger,
 ) *SnapshotService {
@@ -47,7 +44,6 @@ func NewSnapshotService(
 		QueryExecutor:             queryExecutor,
 		SpineBlockQuery:           spineBlockQuery,
 		MainBlockQuery:            mainBlockQuery,
-		FileChunkQuery:            fileChunkQuery,
 		Spinechain:                &chaintype.SpineChain{},
 		Mainchain:                 &chaintype.MainChain{},
 		SnapshotInterval:          constant.SnapshotInterval,
@@ -87,9 +83,8 @@ func (ss *SnapshotService) GetNextSnapshotHeight(snapshotHeight uint32, ct chain
 func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.ChainType) (*model.SnapshotFileInfo, error) {
 	var (
 		lastMainBlock, lastSpineBlock       model.Block
-		lastFileChunk                       model.FileChunk
 		firstValidSpineHeight               uint32
-		lastFileChunkHash, snapshotFullHash []byte
+		snapshotFullHash []byte
 		fileChunkHashes                     = make([][]byte, 0)
 	)
 
@@ -113,22 +108,7 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-
-		// get the last snapshot chunk's hash (to attach to the first chunk of the megablock, as previous chunk hash)
-		row, err = ss.QueryExecutor.ExecuteSelectRow(ss.FileChunkQuery.GetLastFileChunk(ct), false)
-		if err != nil {
-			return nil, err
-		}
-		err = ss.FileChunkQuery.Scan(&lastFileChunk, row)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
-			lastFileChunkHash = nil
-		} else {
-			lastFileChunkHash = lastFileChunk.ChunkHash
-		}
-
+		
 		// calculate first valid spine block height for the snapshot (= megablock) to be included in.
 		// spine blocks have discrete timing,
 		// so we can calculate accurately next spine timestamp and give enough time to all nodes to complete their snapshot
@@ -147,7 +127,7 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 		//  the snapshot chunks' hashes
 		//  the snapshot full hash
 		// TODO: below logic is only for live testing without real snapshots
-		digest := sha3.New512()
+		digest := sha3.New256()
 		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(util.GetSecureRandom())))
 		if err != nil {
 			return nil, err
@@ -171,7 +151,6 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 		MegablockType:     model.MegablockType_Snapshot,
 		FileChunksHashes:  fileChunkHashes,
 		MainHeight:        mainHeight,
-		PrevFileChunkHash: lastFileChunkHash,
 		SnapshotFileHash:  snapshotFullHash,
 		SpineHeight:       firstValidSpineHeight,
 	}, nil
@@ -194,12 +173,12 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 						ss.Logger.Errorf("Snapshot at block "+
 							"height %d terminated with errors %s", b.Height, err)
 					}
+					snapshotExpirationTimestamp := b.Timestamp + constant.SnapshotGenerationTimeout
 					_, err = ss.MegablockService.CreateMegablock(
 						snapshotInfo.SnapshotFileHash,
 						snapshotInfo.MainHeight,
-						snapshotInfo.SpineHeight,
+						snapshotExpirationTimestamp,
 						snapshotInfo.FileChunksHashes,
-						snapshotInfo.PrevFileChunkHash,
 						ct,
 						model.MegablockType_Snapshot,
 					)

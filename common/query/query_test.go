@@ -39,7 +39,6 @@ func TestGetDerivedQuery(t *testing.T) {
 			args: args{chainType: spinechain},
 			want: []DerivedQuery{
 				NewSpinePublicKeyQuery(),
-				NewMegablockQuery(),
 			},
 		},
 	}

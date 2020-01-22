@@ -14,46 +14,62 @@ import (
 
 type (
 	MegablockServiceInterface interface {
-		GetMegablocksFromSpineHeight(spineHeight uint32) ([]*model.Megablock, error)
+		GetMegablockID(megablock *model.Megablock) (int64, error)
+		GetMegablocksForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.Megablock, error)
 		GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock, error)
-		CreateMegablock(fileFullHash []byte, megablockHeight, spineHeight uint32,
-			sortedFileChunksHashes [][]byte, lastFileChunkHash []byte, ct chaintype.ChainType,
-			mbType model.MegablockType) (*model.Megablock, error)
+		CreateMegablock(fullFileHash []byte, megablockHeight uint32, expirationTimestamp int64, sortedFileChunksHashes [][]byte,
+			ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock, error)
 		GetMegablockBytes(megablock *model.Megablock) []byte
-		GetFileChunkBytes(snapshotChunk *model.FileChunk) []byte
 		InsertMegablock(megablock *model.Megablock) error
 	}
 
 	MegablockService struct {
-		QueryExecutor  query.ExecutorInterface
-		MegablockQuery query.MegablockQueryInterface
-		FileChunkQuery query.FileChunkQueryInterface
-		Logger         *log.Logger
+		QueryExecutor   query.ExecutorInterface
+		MegablockQuery  query.MegablockQueryInterface
+		SpineBlockQuery query.BlockQueryInterface
+		Logger          *log.Logger
 	}
 )
 
 func NewMegablockService(
 	queryExecutor query.ExecutorInterface,
 	megablockQuery query.MegablockQueryInterface,
-	snapshotChunkQuery query.FileChunkQueryInterface,
+	spineBlockQuery query.BlockQueryInterface,
 	logger *log.Logger,
 ) *MegablockService {
 	return &MegablockService{
-		QueryExecutor:  queryExecutor,
-		MegablockQuery: megablockQuery,
-		FileChunkQuery: snapshotChunkQuery,
-		Logger:         logger,
+		QueryExecutor:   queryExecutor,
+		MegablockQuery:  megablockQuery,
+		SpineBlockQuery: spineBlockQuery,
+		Logger:          logger,
 	}
 }
 
-// GetMegablocksFromSpineHeight retrieve all megablocks for a given spine height and chain type
-// if there is no megablock at this height, return nil
-func (ss *MegablockService) GetMegablocksFromSpineHeight(spineHeight uint32) ([]*model.Megablock, error) {
+// GetMegablocksForSpineBlock retrieve all megablocks for a given spine height
+// if there are no megablock at this height, return nil
+// spineHeight height of the spine block we want to fetch the megablocks for
+// spineTimestamp timestamp spine block we want to fetch the megablocks for
+func (ss *MegablockService) GetMegablocksForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.Megablock, error) {
 	var (
-		megablocks     []*model.Megablock
-		snapshotChunks []*model.FileChunk
+		megablocks     = make([]*model.Megablock, 0)
+		prevSpineBlock model.Block
 	)
-	qry := ss.MegablockQuery.GetMegablocksBySpineBlockHeight(spineHeight)
+	// genesis can never have megablocks
+	if spineHeight == 0 {
+		return megablocks, nil
+	}
+
+	qry := ss.SpineBlockQuery.GetBlockByHeight(spineHeight - 1)
+	row, err := ss.QueryExecutor.ExecuteSelectRow(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	err = ss.SpineBlockQuery.Scan(&prevSpineBlock, row)
+	if err != nil {
+		return nil, err
+	}
+
+	qry = ss.MegablockQuery.GetMegablocksInTimeInterval(prevSpineBlock.Timestamp, spineTimestamp)
 	rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -66,20 +82,6 @@ func (ss *MegablockService) GetMegablocksFromSpineHeight(spineHeight uint32) ([]
 		return nil, nil
 	}
 
-	// populate snapshotChunks
-	for _, megablock := range megablocks {
-		sqlStr := ss.FileChunkQuery.GetFileChunksByMegablockID(megablock.ID)
-		rows, err := ss.QueryExecutor.ExecuteSelect(sqlStr, false)
-		if err != nil {
-			return nil, err
-		}
-		rows.Close()
-		snapshotChunks, err = ss.FileChunkQuery.BuildModel(snapshotChunks, rows)
-		if err != nil {
-			return nil, err
-		}
-		megablock.FileChunks = snapshotChunks
-	}
 	return megablocks, nil
 }
 
@@ -109,50 +111,36 @@ func (ss *MegablockService) GetLastMegablock(ct chaintype.ChainType, mbType mode
 // megablockHeight: (mainchain) height at which the (snapshot) file computation has started (note: this is not the captured
 // snapshot's height, which should be = mainHeight - minRollbackHeight)
 // sortedFileChunksHashes all (snapshot) file chunks hashes for this megablock (already sorted from first to last chunk)
-// lastFileChunkHash last available (snapshot) file chunk hash (from db)
-// ct the megablock's chain type
-func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight, spineHeight uint32,
-	sortedFileChunksHashes [][]byte, lastFileChunkHash []byte, ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock, error) {
+// ct the megablock's chain type (eg. mainchain)
+// ct the megablock's type (eg. snapshot)
+func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight uint32,
+	megablockTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock,
+	error) {
 	var (
-		previousChunkHash, fileChunksBytes, fileChunksHash []byte
-		sortedFileChunks                                   = make([]*model.FileChunk, 0)
-		megablockID                                        = int64(util.ConvertBytesToUint64(fullFileHash))
+		megablockID         = int64(util.ConvertBytesToUint64(fullFileHash))
+		megablockFileHashes = make([]byte, 0)
 	)
 
-	// build the snapshot chunks
-	previousChunkHash = lastFileChunkHash
-	for idx, chunkHash := range sortedFileChunksHashes {
-		fileChunk := &model.FileChunk{
-			MegablockID:       megablockID,
-			ChunkHash:         chunkHash,
-			ChunkIndex:        uint32(idx),
-			PreviousChunkHash: previousChunkHash,
-			SpineBlockHeight:  spineHeight,
-		}
-		sortedFileChunks = append(sortedFileChunks, fileChunk)
-		fileChunksBytes = append(fileChunksBytes, ss.GetFileChunkBytes(fileChunk)...)
-		previousChunkHash = chunkHash
+	// build the megablock's payload (ordered sequence of file hashes been referenced by the megablock)
+	for _, chunkHash := range sortedFileChunksHashes {
+		megablockFileHashes = append(megablockFileHashes, chunkHash...)
 	}
-	digest := sha3.New512()
-	_, err := digest.Write(fileChunksBytes)
-	if err != nil {
-		return nil, err
-	}
-	fileChunksHash = digest.Sum([]byte{})
 
 	// build the megablock
 	megablock := &model.Megablock{
 		// we store Megablock ID as little endian of fullFileHash so that we can join the megablock and FileChunks tables if needed
-		ID:                     megablockID,
-		FullFileHash:           fullFileHash,
-		MegablockHeight:        megablockHeight,
-		SpineBlockHeight:       spineHeight,
-		MegablockPayloadLength: uint32(len(fileChunksBytes)),
-		MegablockPayloadHash:   fileChunksHash,
-		ChainType:              ct.GetTypeInt(),
-		MegablockType:          mbType,
-		FileChunks:             sortedFileChunks,
+		FullFileHash:        fullFileHash,
+		FileChunkHashes:     megablockFileHashes,
+		MegablockHeight:     megablockHeight,
+		ChainType:           ct.GetTypeInt(),
+		MegablockType:       mbType,
+		ExpirationTimestamp: megablockTimestamp,
 	}
+	megablockID, err := ss.GetMegablockID(megablock)
+	if err != nil {
+		return nil, err
+	}
+	megablock.ID = megablockID
 	if err := ss.QueryExecutor.BeginTx(); err != nil {
 		return nil, err
 	}
@@ -174,19 +162,9 @@ func (ss *MegablockService) InsertMegablock(megablock *model.Megablock) error {
 	var (
 		queries = make([][]interface{}, 0)
 	)
-	if megablock.FileChunks == nil {
-		return blocker.NewBlocker(blocker.AppErr, "FileChunksNil")
-	}
 	insertMegablockQ, insertMegablockArgs := ss.MegablockQuery.InsertMegablock(megablock)
 	insertMegablockQry := append([]interface{}{insertMegablockQ}, insertMegablockArgs...)
 	queries = append(queries, insertMegablockQry)
-
-	for _, snapshotChunk := range megablock.FileChunks {
-		// add chunk to db transaction
-		insertFileChunkQ, insertFileChunkArgs := ss.FileChunkQuery.InsertFileChunk(snapshotChunk)
-		insertFileChunkQry := append([]interface{}{insertFileChunkQ}, insertFileChunkArgs...)
-		queries = append(queries, insertFileChunkQry)
-	}
 	err := ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
@@ -200,21 +178,21 @@ func (ss *MegablockService) GetMegablockBytes(megablock *model.Megablock) []byte
 	buffer.Write(util.ConvertUint64ToBytes(uint64(megablock.ID)))
 	buffer.Write(megablock.FullFileHash)
 	// megablock payload = all file chunks' entities bytes
-	buffer.Write(util.ConvertUint32ToBytes(megablock.MegablockPayloadLength))
-	buffer.Write(megablock.MegablockPayloadHash)
-	buffer.Write(util.ConvertUint32ToBytes(megablock.SpineBlockHeight))
+	buffer.Write(megablock.FileChunkHashes)
 	buffer.Write(util.ConvertUint32ToBytes(megablock.MegablockHeight))
 	buffer.Write(util.ConvertUint32ToBytes(uint32(megablock.ChainType)))
+	buffer.Write(util.ConvertUint64ToBytes(uint64(megablock.ExpirationTimestamp)))
 	return buffer.Bytes()
 }
 
-func (ss *MegablockService) GetFileChunkBytes(snapshotChunk *model.FileChunk) []byte {
-	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(snapshotChunk.ChunkHash)
-	buffer.Write(util.ConvertUint64ToBytes(uint64(snapshotChunk.MegablockID)))
-	buffer.Write(util.ConvertUint32ToBytes(snapshotChunk.ChunkIndex))
-	buffer.Write(snapshotChunk.PreviousChunkHash)
-	buffer.Write(util.ConvertUint32ToBytes(snapshotChunk.SpineBlockHeight))
-	buffer.Write(util.ConvertUint32ToBytes(uint32(snapshotChunk.ChainType)))
-	return buffer.Bytes()
+// GetMegablockID hash the megablock bytes and return its little endian representation
+func (ss *MegablockService) GetMegablockID(megablock *model.Megablock) (int64, error) {
+	digest := sha3.New256()
+	_, err := digest.Write(ss.GetMegablockBytes(megablock))
+	if err != nil {
+		return -1, err
+	}
+	megablockHash := digest.Sum([]byte{})
+	return int64(util.ConvertBytesToUint64(megablockHash)), nil
+
 }

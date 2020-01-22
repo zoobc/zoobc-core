@@ -137,14 +137,13 @@ func init() {
 	megablockService = service.NewMegablockService(
 		queryExecutor,
 		query.NewMegablockQuery(),
-		query.NewFileChunkQuery(),
+		query.NewBlockQuery(&chaintype.SpineChain{}),
 		loggerCoreService,
 	)
 	snapshotService = service.NewSnapshotService(
 		queryExecutor,
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
-		query.NewFileChunkQuery(),
 		megablockService,
 		loggerCoreService,
 	)
@@ -399,7 +398,6 @@ func startMainchain() {
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
 		query.NewMegablockQuery(),
-		query.NewFileChunkQuery(),
 		blockIncompleteQueueService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -500,7 +498,6 @@ func startSpinechain() {
 		loggerCoreService,
 		nil, // no account ledger for spine blocks
 		query.NewMegablockQuery(),
-		query.NewFileChunkQuery(),
 		nil, // no need block uncomplete queue service
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
@@ -596,7 +593,7 @@ syncronizersLoop:
 				}
 				if lastMegablock != nil {
 					loggerCoreService.Infof("found megablock at spine height %d. snapshot taken at block height %d",
-						lastMegablock.SpineBlockHeight, lastMegablock.MegablockHeight)
+						lastSpineBlock.Height, lastMegablock.MegablockHeight)
 					// TODO: snapshot download
 				}
 				// download remaining main blocks and start the mainchain synchronizer

@@ -47,6 +47,27 @@ var (
 		Version:       0,
 		PayloadLength: 1,
 		PayloadHash:   []byte{},
+		Megablocks:    make([]*model.Megablock, 0),
+	}
+	mockSpineBlockDataNoMegablocks = model.Block{
+		ID:        -1701929749060110283,
+		BlockHash: make([]byte, 32),
+		PreviousBlockHash: []byte{204, 131, 181, 204, 170, 112, 249, 115, 172, 193, 120, 7, 166, 200, 160, 138, 32, 0, 163, 161,
+			45, 128, 173, 123, 252, 203, 199, 224, 249, 124, 168, 41},
+		Height:    1,
+		Timestamp: 1,
+		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+		CumulativeDifficulty: "1000",
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		TotalAmount:   0,
+		TotalFee:      0,
+		TotalCoinBase: 0,
+		Version:       0,
+		PayloadLength: 1,
+		PayloadHash:   []byte{},
 	}
 	mockSpinePublicKey = &model.SpinePublicKey{
 		NodePublicKey:   nrsNodePubKey1,
@@ -849,7 +870,18 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				MegablockService: &mockMegablockService{
+					ResMegablocks: []*model.Megablock{
+						{
+							ID:                  1,
+							FullFileHash:        make([]byte, 64),
+							FileChunkHashes:     make([]byte, 0),
+							MegablockHeight:     720,
+							MegablockType:       model.MegablockType_Snapshot,
+							ExpirationTimestamp: int64(1000),
+						},
+					},
+				},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -906,7 +938,18 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				MegablockService: &mockMegablockService{
+					ResMegablocks: []*model.Megablock{
+						{
+							ID:                  1,
+							FullFileHash:        make([]byte, 64),
+							FileChunkHashes:     make([]byte, 0),
+							MegablockHeight:     720,
+							MegablockType:       model.MegablockType_Snapshot,
+							ExpirationTimestamp: int64(1000),
+						},
+					},
+				},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -971,6 +1014,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 	mockSpineBlockGetLastBlock.SpinePublicKeys = []*model.SpinePublicKey{
 		mockSpinePublicKey,
 	}
+	mockSpineBlockGetLastBlock.Megablocks = make([]*model.Megablock, 0)
 
 	type fields struct {
 		Chaintype             chaintype.ChainType
@@ -982,6 +1026,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 		Signature             crypto.SignatureInterface
 		ActionTypeSwitcher    transaction.TypeActionSwitcher
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
+		MegablockService      MegablockServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1004,6 +1049,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			want:    &mockSpineBlockGetLastBlock,
 			wantErr: false,
@@ -1015,6 +1061,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				QueryExecutor:       &mockSpineQueryExecutorFail{},
 				BlockQuery:          query.NewBlockQuery(&chaintype.SpineChain{}),
 				SpinePublicKeyQuery: query.NewSpinePublicKeyQuery(),
+				MegablockService:    &mockMegablockService{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -1028,6 +1075,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				Signature:             tt.fields.Signature,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				MegablockService:      tt.fields.MegablockService,
 			}
 			got, err := bs.GetLastBlock()
 			if (err != nil) != tt.wantErr {
@@ -1180,6 +1228,7 @@ func (*mockSpineQueryExecutorGetBlocksFail) ExecuteSelect(query string, tx bool,
 }
 
 func TestBlockSpineService_GetBlocks(t *testing.T) {
+	mockSpineBlockData.Megablocks = nil
 	type fields struct {
 		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
@@ -1261,7 +1310,7 @@ type (
 	}
 )
 
-func (ss *mockMegablockService) GetMegablocksFromSpineHeight(spineHeight uint32) ([]*model.Megablock, error) {
+func (ss *mockMegablockService) GetMegablocksForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.Megablock, error) {
 	var (
 		megablocks = make([]*model.Megablock, 0)
 		err        error
@@ -1398,14 +1447,12 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				MegablockService: &mockMegablockService{
 					ResMegablocks: []*model.Megablock{
 						{
-							ID:                     1,
-							FullFileHash:           make([]byte, 64),
-							MegablockPayloadLength: 0,
-							MegablockPayloadHash:   make([]byte, 0),
-							SpineBlockHeight:       1,
-							MegablockHeight:        720,
-							MegablockType:          model.MegablockType_Snapshot,
-							FileChunks:             make([]*model.FileChunk, 0),
+							ID:                  1,
+							FullFileHash:        make([]byte, 64),
+							FileChunkHashes:     make([]byte, 0),
+							MegablockHeight:     720,
+							MegablockType:       model.MegablockType_Snapshot,
+							ExpirationTimestamp: int64(1000),
 						},
 					},
 				},
@@ -1538,9 +1585,10 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				MegablockService: &MegablockService{
-					QueryExecutor:  &mockSpineAddGenesisExecutor{},
-					Logger:         log.New(),
-					MegablockQuery: query.NewMegablockQuery(),
+					QueryExecutor:   &mockSpineAddGenesisExecutor{},
+					Logger:          log.New(),
+					MegablockQuery:  query.NewMegablockQuery(),
+					SpineBlockQuery: query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
 			},
 			wantErr: false,
@@ -1769,10 +1817,12 @@ func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		Observer              *observer.Observer
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
+		MegablockService      MegablockServiceInterface
 	}
 	type args struct {
 		height uint32
 	}
+	mockSpineBlockData.Megablocks = make([]*model.Megablock, 0)
 	tests := []struct {
 		name    string
 		fields  fields
@@ -1794,6 +1844,7 @@ func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			want:    &mockSpineBlockData,
 			wantErr: false,
@@ -1826,6 +1877,7 @@ func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 				Signature:             tt.fields.Signature,
 				Observer:              tt.fields.Observer,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				MegablockService:      tt.fields.MegablockService,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -1924,6 +1976,9 @@ func (*mockSpineQueryExecutorGetBlockByIDFail) ExecuteSelectRow(query string, tx
 
 func TestBlockSpineService_GetBlockByID(t *testing.T) {
 	var mockData = mockSpineBlockData
+	mockData.Megablocks = []*model.Megablock{
+		ssMockMegablock,
+	}
 	type fields struct {
 		Chaintype             chaintype.ChainType
 		QueryExecutor         query.ExecutorInterface
@@ -1937,6 +1992,7 @@ func TestBlockSpineService_GetBlockByID(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		Observer              *observer.Observer
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
+		MegablockService      MegablockServiceInterface
 	}
 	type args struct {
 		ID               int64
@@ -1962,6 +2018,11 @@ func TestBlockSpineService_GetBlockByID(t *testing.T) {
 					QueryExecutor:         &mockSpineQueryExecutorGetBlockByIDSuccess{},
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
+				},
+				MegablockService: &mockMegablockService{
+					ResMegablocks: []*model.Megablock{
+						ssMockMegablock,
+					},
 				},
 			},
 			args: args{
@@ -1998,6 +2059,7 @@ func TestBlockSpineService_GetBlockByID(t *testing.T) {
 				Signature:             tt.fields.Signature,
 				Observer:              tt.fields.Observer,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				MegablockService:      tt.fields.MegablockService,
 			}
 			got, err := bs.GetBlockByID(tt.args.ID, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
@@ -2071,6 +2133,7 @@ func (*mockSpineQueryExecutorGetBlocksFromHeightFail) ExecuteSelect(query string
 }
 
 func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
+	mockSpineBlockData.Megablocks = nil
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
@@ -2202,6 +2265,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
 		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
+		MegablockService        MegablockServiceInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2245,6 +2309,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2284,6 +2349,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2317,6 +2383,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2358,6 +2425,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2391,6 +2459,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2429,6 +2498,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			wantErr: false,
 			want:    nil,
@@ -2445,6 +2515,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
 				Logger:                logrus.New(),
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				MegablockService:      tt.fields.MegablockService,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -3321,6 +3392,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		Observer                *observer.Observer
 		Logger                  *log.Logger
 		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
+		MegablockService        MegablockServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3359,6 +3431,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3394,6 +3467,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			args: args{
 				commonBlock: mockSpineBadCommonBlockHardFork,
@@ -3429,6 +3503,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3464,6 +3539,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3483,6 +3559,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				Observer:              tt.fields.Observer,
 				Logger:                tt.fields.Logger,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				MegablockService:      tt.fields.MegablockService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
@@ -3544,6 +3621,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 		Observer              *observer.Observer
 		Logger                *log.Logger
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
+		MegablockService      MegablockServiceInterface
 	}
 	type args struct {
 		block *model.Block
@@ -3568,6 +3646,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			args: args{
 				block: &model.Block{},
@@ -3587,6 +3666,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
+				MegablockService: &mockMegablockService{},
 			},
 			args: args{
 				block: &model.Block{
@@ -3599,6 +3679,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 				SpinePublicKeys: []*model.SpinePublicKey{
 					mockSpinePublicKey,
 				},
+				Megablocks: make([]*model.Megablock, 0),
 			},
 		},
 	}
@@ -3613,6 +3694,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 				Observer:              tt.fields.Observer,
 				Logger:                tt.fields.Logger,
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
+				MegablockService:      tt.fields.MegablockService,
 			}
 			if err := bs.PopulateBlockData(tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.PopulateBlockData() error = %v, wantErr %v", err, tt.wantErr)

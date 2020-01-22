@@ -229,19 +229,6 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		return err
 	}
 
-	// add megablocks entities to db if part of the block
-	if block.Megablocks != nil {
-		for _, megablock := range block.Megablocks {
-			if err := bs.MegablockService.InsertMegablock(megablock); err != nil {
-				bs.Logger.Error(err.Error())
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
-			}
-		}
-	}
-
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -277,11 +264,10 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 
 	if block.ID != 0 {
 		if withAttachedData {
-			spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.Height)
+			err := bs.PopulateBlockData(&block)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
-			block.SpinePublicKeys = spinePublicKeys
 		}
 		return &block, nil
 	}
@@ -312,21 +298,19 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(lastBlock.Height)
+	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	lastBlock.SpinePublicKeys = spinePublicKeys
 	return lastBlock, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
 func (bs *BlockSpineService) GetBlockHash(block *model.Block) ([]byte, error) {
-	spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.Height)
+	err := bs.PopulateBlockData(block)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	block.SpinePublicKeys = spinePublicKeys
 	return commonUtils.GetBlockHash(block, bs.GetChainType())
 
 }
@@ -337,30 +321,28 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-
-	spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.Height)
+	err = bs.PopulateBlockData(block)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	block.SpinePublicKeys = spinePublicKeys
-
 	return block, nil
 }
 
-// GetGenesis return the last pushed block
+// GetGenesis return the genesis block
 func (bs *BlockSpineService) GetGenesisBlock() (*model.Block, error) {
 	var (
-		lastBlock model.Block
-		row, _    = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock(), false)
+		genesisBlock model.Block
+		row, _       = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock(), false)
 	)
 	if row == nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 	}
-	err := bs.BlockQuery.Scan(&lastBlock, row)
+	err := bs.BlockQuery.Scan(&genesisBlock, row)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "cannot parse genesis block db entity")
 	}
-	return &lastBlock, nil
+	genesisBlock.Megablocks = make([]*model.Megablock, 0)
+	return &genesisBlock, nil
 }
 
 // GetBlocks return all pushed blocks
@@ -388,6 +370,12 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
 	}
 	block.SpinePublicKeys = spinePublicKeys
+	megablocks, err := bs.MegablockService.GetMegablocksForSpineBlock(block.Height, block.Timestamp)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block megablocks")
+	}
+	block.Megablocks = megablocks
+
 	return nil
 }
 
@@ -423,7 +411,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	}
 
 	// retrieve all megablocks at current spine height (complete with file chunks entities)
-	megablocks, err = bs.MegablockService.GetMegablocksFromSpineHeight(newBlockHeight)
+	megablocks, err = bs.MegablockService.GetMegablocksForSpineBlock(newBlockHeight, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -573,7 +561,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 			err := func() error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+				previousBlock, err := bs.GetBlockByHeight(lastBlock.Height - 1)
 				if err != nil {
 					return status.Error(codes.Internal,
 						"fail to get last block",
@@ -599,6 +587,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
+
 				err = bs.PushBlock(previousBlock, block, true)
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)

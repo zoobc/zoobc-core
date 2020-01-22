@@ -40,7 +40,6 @@ func TestNewBlockService(t *testing.T) {
 		logger                      *log.Logger
 		accountLedgerQuery          query.AccountLedgerQueryInterface
 		megablockQuery              query.MegablockQueryInterface
-		fileChunkQuery              query.FileChunkQueryInterface
 		blockIncompleteQueueService BlockIncompleteQueueServiceInterface
 	}
 	tests := []struct {
@@ -68,7 +67,7 @@ func TestNewBlockService(t *testing.T) {
 				tt.args.signature, tt.args.mempoolService, tt.args.receiptService, tt.args.nodeRegistrationService,
 				tt.args.txTypeSwitcher, tt.args.accountBalanceQuery, tt.args.participationScoreQuery,
 				tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain, tt.args.logger,
-				tt.args.accountLedgerQuery, tt.args.megablockQuery, tt.args.fileChunkQuery,
+				tt.args.accountLedgerQuery, tt.args.megablockQuery,
 				tt.args.blockIncompleteQueueService); !reflect.DeepEqual(got,
 				tt.want) {
 				t.Errorf("NewBlockService() = %v, want %v", got, tt.want)

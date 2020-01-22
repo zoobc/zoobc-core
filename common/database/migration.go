@@ -250,28 +250,15 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "megablock" (
-				"id" INTEGER,
+				"id" INTEGER,				-- little endian of hash of all megablock fields but itself
 				"full_file_hash" BLOB,			-- hash of the (snapshot) file content
-				"megablock_payload_length" INTEGER,	-- payload length of the megablock: len(snapshot chunk bytes)
-				"megablock_payload_hash" BLOB,		-- MegablockPayloadHash hash of megablock payload
-				"spine_block_height" INTEGER NOT NULL,	-- spine block (height) that reference this snapshot
+				"file_chunk_hashes" BLOB,		-- sorted sequence file chunks hashes referenced by the megablock
 				"megablock_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
 				"chain_type" INTEGER NOT NULL,		-- chain type this megablock reference to
 				"megablock_type" INTEGER NOT NULL,	-- type of megablock (as of now only snapshot)
+				"expiration_timestamp" INTEGER NOT NULL,-- timestamp that marks the end of megablock processing 
 				PRIMARY KEY("id")
-				UNIQUE("full_file_hash")
-			);
-			`,
-			`
-			CREATE TABLE IF NOT EXISTS "file_chunk" (
-				"chunk_hash" BLOB,				-- hash of the snapshot chunk
-				"megablock_id" BLOB,				-- megablock PK
-				"chunk_index" INTEGER NOT NULL,			-- chunk' sequential index
-				"previous_chunk_hash" BLOB NULL,		-- hash of the previous snapshot chunk
-				"spine_block_height" INTEGER NOT NULL,		-- spine block height which the chunk refers to 
-				"chain_type" INTEGER NOT NULL,			-- number indicating chaintype
-				PRIMARY KEY("chunk_hash")
-				UNIQUE("chain_type", "spine_block_height")	-- there can be only one megablock per chaintype/spine height
+				UNIQUE("id")
 			);
 			`,
 		}

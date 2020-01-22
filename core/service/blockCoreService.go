@@ -78,7 +78,6 @@ func NewBlockService(
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
 	megablockQuery query.MegablockQueryInterface,
-	fileChunkQuery query.FileChunkQueryInterface,
 	blockIncompleteQueueService BlockIncompleteQueueServiceInterface,
 ) BlockServiceInterface {
 	switch ct.(type) {
@@ -130,7 +129,7 @@ func NewBlockService(
 			MegablockService: NewMegablockService(
 				queryExecutor,
 				megablockQuery,
-				fileChunkQuery,
+				spineBlockQuery,
 				logger,
 			),
 		}

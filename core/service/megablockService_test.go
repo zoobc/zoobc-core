@@ -18,6 +18,18 @@ type (
 	}
 )
 
+var (
+	ssMockMegablock = &model.Megablock{
+		ID:                  1,
+		FullFileHash:        ssMockFullHash,
+		MegablockHeight:     720,
+		FileChunkHashes:     []byte{},
+		ChainType:           0,
+		MegablockType:       model.MegablockType_Snapshot,
+		ExpirationTimestamp: 1000,
+	}
+)
+
 func (*mockMegablockServiceQueryExecutor) ExecuteTransaction(query string, args ...interface{}) error {
 	return nil
 }
@@ -43,7 +55,6 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 		MegablockQuery            query.MegablockQueryInterface
 		SpineBlockQuery           query.BlockQueryInterface
 		MainBlockQuery            query.BlockQueryInterface
-		FileChunkQuery            query.FileChunkQueryInterface
 		Logger                    *log.Logger
 		Spinechain                chaintype.ChainType
 		Mainchain                 chaintype.ChainType
@@ -53,6 +64,7 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 	type args struct {
 		snapshotHash            []byte
 		mainHeight, spineHeight uint32
+		megablockTimestamp      int64
 		sortedFileChunksHashes  [][]byte
 		lastFileChunkHash       []byte
 		ct                      chaintype.ChainType
@@ -71,32 +83,28 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 				QueryExecutor: &mockMegablockServiceQueryExecutor{
 					testName: "CreateMegablock:success",
 				},
-				MegablockQuery: query.NewMegablockQuery(),
-				FileChunkQuery: query.NewFileChunkQuery(),
-				Logger:         log.New(),
+				MegablockQuery:  query.NewMegablockQuery(),
+				SpineBlockQuery: query.NewBlockQuery(&chaintype.SpineChain{}),
+				Logger:          log.New(),
 			},
 			args: args{
-				snapshotHash:           make([]byte, 64),
+				snapshotHash:           make([]byte, 32),
 				mainHeight:             ssMockMainBlock.Height,
-				spineHeight:            ssMockSpineBlock.Height,
+				megablockTimestamp:     ssMockMainBlock.Timestamp,
 				sortedFileChunksHashes: make([][]byte, 0),
-				lastFileChunkHash:      make([]byte, 64),
+				lastFileChunkHash:      make([]byte, 32),
 				ct:                     &chaintype.MainChain{},
 				mbType:                 model.MegablockType_Snapshot,
 			},
 			wantErr: false,
 			want: &model.Megablock{
-				ID:                     0,
-				FullFileHash:           make([]byte, 64),
-				MegablockPayloadLength: 0,
-				MegablockPayloadHash: []byte{166, 159, 115, 204,
-					162, 58, 154, 197, 200, 181, 103, 220, 24, 90, 117, 110, 151, 201, 130, 22, 79,
-					226, 88, 89, 224, 209, 220, 193, 71, 92, 128, 166, 21, 178, 18, 58, 241, 245,
-					249, 76, 17, 227, 233, 64, 44, 58, 197, 88, 245, 0, 25, 157, 149, 182, 211, 227,
-					1, 117, 133, 134, 40, 29, 205, 38},
-				MegablockHeight:  ssMockMainBlock.Height,
-				SpineBlockHeight: ssMockSpineBlock.Height,
-				FileChunks:       make([]*model.FileChunk, 0),
+				ID:                  int64(5585293634049981880),
+				FullFileHash:        make([]byte, 32),
+				MegablockHeight:     ssMockMainBlock.Height,
+				ExpirationTimestamp: int64(1562117306),
+				FileChunkHashes:     make([]byte, 0),
+				MegablockType:       model.MegablockType_Snapshot,
+				ChainType:           0,
 			},
 		},
 	}
@@ -104,14 +112,13 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 		fmt.Println(t.Name())
 		t.Run(tt.name, func(t *testing.T) {
 			mbl := &MegablockService{
-				QueryExecutor:  tt.fields.QueryExecutor,
-				MegablockQuery: tt.fields.MegablockQuery,
-				FileChunkQuery: tt.fields.FileChunkQuery,
-				Logger:         tt.fields.Logger,
+				QueryExecutor:   tt.fields.QueryExecutor,
+				MegablockQuery:  tt.fields.MegablockQuery,
+				SpineBlockQuery: tt.fields.SpineBlockQuery,
+				Logger:          tt.fields.Logger,
 			}
-			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight, tt.args.spineHeight,
-				tt.args.sortedFileChunksHashes,
-				tt.args.lastFileChunkHash, tt.args.ct, tt.args.mbType)
+			got, err := mbl.CreateMegablock(tt.args.snapshotHash, tt.args.mainHeight, tt.args.megablockTimestamp,
+				tt.args.sortedFileChunksHashes, tt.args.ct, tt.args.mbType)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SnapshotService.CreateMegablock() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -124,10 +131,10 @@ func TestBlockSpineSnapshotService_CreateMegablock(t *testing.T) {
 
 func TestSnapshotService_GetMegablockBytes(t *testing.T) {
 	type fields struct {
-		QueryExecutor  query.ExecutorInterface
-		MegablockQuery query.MegablockQueryInterface
-		FileChunkQuery query.FileChunkQueryInterface
-		Logger         *log.Logger
+		QueryExecutor   query.ExecutorInterface
+		MegablockQuery  query.MegablockQueryInterface
+		SpineBlockQuery query.BlockQueryInterface
+		Logger          *log.Logger
 	}
 	type args struct {
 		megablock *model.Megablock
@@ -144,20 +151,18 @@ func TestSnapshotService_GetMegablockBytes(t *testing.T) {
 			args: args{
 				megablock: ssMockMegablock,
 			},
-			want: []byte{0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+			want: []byte{1, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 				3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-				3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10,
-				0, 0, 0, 208, 2, 0, 0, 0, 0, 0, 0},
+				3, 3, 208, 2, 0, 0, 0, 0, 0, 0, 232, 3, 0, 0, 0, 0, 0, 0},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &MegablockService{
-				QueryExecutor:  tt.fields.QueryExecutor,
-				MegablockQuery: tt.fields.MegablockQuery,
-				FileChunkQuery: tt.fields.FileChunkQuery,
-				Logger:         tt.fields.Logger,
+				QueryExecutor:   tt.fields.QueryExecutor,
+				MegablockQuery:  tt.fields.MegablockQuery,
+				SpineBlockQuery: tt.fields.SpineBlockQuery,
+				Logger:          tt.fields.Logger,
 			}
 			got := ss.GetMegablockBytes(tt.args.megablock)
 			if !reflect.DeepEqual(got, tt.want) {
