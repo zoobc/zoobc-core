@@ -38,6 +38,7 @@ type (
 		// event listener that relate to p2p communication
 		SendBlockListener() observer.Listener
 		SendTransactionListener() observer.Listener
+		RequestBlockTransactionsListener() observer.Listener
 	}
 	Peer2PeerService struct {
 		Host              *model.Host
@@ -130,10 +131,9 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			chainType := args.(chaintype.ChainType)
 			for _, peer := range peers {
-				p := peer
-				go func() {
+				go func(p *model.Peer) {
 					_ = s.PeerServiceClient.SendBlock(p, b, chainType)
-				}()
+				}(peer)
 			}
 		},
 	}
@@ -147,11 +147,27 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 			chainType := args.(chaintype.ChainType)
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
-				p := peer
-				go func() {
+				go func(p *model.Peer) {
 					_ = s.PeerServiceClient.SendTransaction(p, t, chainType)
 
-				}()
+				}(peer)
+			}
+		},
+	}
+}
+
+func (s *Peer2PeerService) RequestBlockTransactionsListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionIDs interface{}, args interface{}) {
+			var (
+				txIDs     = transactionIDs.([]int64)
+				chainType = args.(chaintype.ChainType)
+				peers     = s.PeerExplorer.GetResolvedPeers()
+			)
+			for _, peer := range peers {
+				go func(p *model.Peer) {
+					_ = s.PeerServiceClient.RequestBlockTransactions(p, txIDs, chainType)
+				}(peer)
 			}
 		},
 	}
