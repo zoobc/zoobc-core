@@ -14,10 +14,11 @@ import (
 // ClaimNodeRegistration Implement service layer for claim node registration's transaction
 type ClaimNodeRegistration struct {
 	ID                    int64
-	Body                  *model.ClaimNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
 	Height                uint32
+	Body                  *model.ClaimNodeRegistrationTransactionBody
+	Escrow                *model.Escrow
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface

@@ -22,8 +22,12 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionType))
 	buffer.Write(util.ConvertUint32ToBytes(transaction.Version)[:constant.TransactionVersion])
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Timestamp)))
+
+	// Address format: [len][address]
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.SenderAccountAddress)))))
 	buffer.Write([]byte(transaction.SenderAccountAddress))
+
+	// Address format: [len][address]
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
 	if transaction.RecipientAccountAddress == "" {
 		buffer.Write(make([]byte, constant.AccountAddress)) // if no recipient pad with 44 (zoobc address length)
@@ -34,6 +38,24 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 	// transaction body length
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionBodyLength))
 	buffer.Write(transaction.TransactionBodyBytes)
+	/***
+	Escrow part
+	1. ApproverAddress
+	2. Commission
+	3. Timeout
+	*/
+	if transaction.GetEscrow() != nil {
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
+		buffer.Write([]byte(transaction.GetEscrow().GetApproverAddress()))
+		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
+		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
+	} else {
+		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
+		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
+		buffer.Write(make([]byte, constant.EscrowCommissionLength))
+		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
+	}
+
 	if sign {
 		if transaction.Signature == nil {
 			return nil, errors.New("TransactionSignatureNotExist")
@@ -45,58 +67,99 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 
 // ParseTransactionBytes build transaction from transaction bytes
 func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
-	buffer := bytes.NewBuffer(transactionBytes)
+	var (
+		chunkedBytes []byte
+		transaction  model.Transaction
+		buffer       = bytes.NewBuffer(transactionBytes)
+		escrow       model.Escrow
+		err          error
+	)
 
-	transactionTypeBytes, err := util.ReadTransactionBytes(buffer, int(constant.TransactionType))
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionType))
 	if err != nil {
 		return nil, err
 	}
-	transactionType := util.ConvertBytesToUint32(transactionTypeBytes)
-	transactionVersionByte, err := util.ReadTransactionBytes(buffer, int(constant.TransactionVersion))
+	transaction.TransactionType = util.ConvertBytesToUint32(chunkedBytes)
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionVersion))
 	if err != nil {
 		return nil, err
 	}
-	transactionVersion := uint32(transactionVersionByte[0])
-	timestampBytes, err := util.ReadTransactionBytes(buffer, int(constant.Timestamp))
+	transaction.Version = uint32(chunkedBytes[0])
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Timestamp))
 	if err != nil {
 		return nil, err
 	}
-	timestamp := util.ConvertBytesToUint64(timestampBytes)
-	senderAccountAddressLength, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	transaction.Timestamp = int64(util.ConvertBytesToUint64(chunkedBytes))
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	senderAccountAddress := ReadAccountAddress(util.ConvertBytesToUint32(senderAccountAddressLength), buffer)
-	recipientAccountAddressLength, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	transaction.SenderAccountAddress = string(ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	recipientAccountAddress := ReadAccountAddress(util.ConvertBytesToUint32(recipientAccountAddressLength), buffer)
-	feeBytes, err := util.ReadTransactionBytes(buffer, int(constant.Fee))
+	transaction.RecipientAccountAddress = string(ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
 		return nil, err
 	}
-	fee := util.ConvertBytesToUint64(feeBytes)
-	transactionBodyLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.TransactionBodyLength))
+	transaction.Fee = int64(util.ConvertBytesToUint64(chunkedBytes))
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionBodyLength))
 	if err != nil {
 		return nil, err
 	}
-	transactionBodyLength := util.ConvertBytesToUint32(transactionBodyLengthBytes)
-	transactionBodyBytes, err := util.ReadTransactionBytes(buffer, int(transactionBodyLength))
+	transaction.TransactionBodyLength = util.ConvertBytesToUint32(chunkedBytes)
+
+	transaction.TransactionBodyBytes, err = util.ReadTransactionBytes(buffer, int(transaction.TransactionBodyLength))
 	if err != nil {
 		return nil, err
 	}
-	var sig []byte
+	/***
+	Escrow part
+	1. ApproverAddress
+	2. Commission
+	3. Timeout
+	*/
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	if err != nil {
+		return nil, err
+	}
+	approverAddress, err := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if err != nil {
+		return nil, err
+	}
+	escrow.ApproverAddress = string(approverAddress)
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowCommissionLength))
+	if err != nil {
+		return nil, err
+	}
+	escrow.Commission = int64(util.ConvertBytesToUint64(chunkedBytes))
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowTimeoutLength))
+	if err != nil {
+		return nil, err
+	}
+	escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
+
+	transaction.Escrow = &escrow
+
 	if sign {
-		var err error
-		//TODO: implement below logic to allow multiple signature algorithm to work
+		// TODO: implement below logic to allow multiple signature algorithm to work
 		// first 4 bytes of signature are the signature type
 		// signatureLengthBytes, err := ReadTransactionBytes(buffer, 2)
 		// if err != nil {
 		// 	return nil, err
 		// }
 		// signatureLength := int(ConvertBytesToUint32(signatureLengthBytes))
-		sig, err = util.ReadTransactionBytes(buffer, int(constant.SignatureType+constant.AccountSignature))
+		transaction.Signature, err = util.ReadTransactionBytes(buffer, int(constant.SignatureType+constant.AccountSignature))
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.ParserErr,
@@ -107,20 +170,9 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	// compute and return tx hash and ID too
 	transactionHash := sha3.Sum256(transactionBytes)
 	txID, _ := GetTransactionID(transactionHash[:])
-	tx := &model.Transaction{
-		ID:                      txID,
-		TransactionType:         transactionType,
-		Version:                 transactionVersion,
-		Timestamp:               int64(timestamp),
-		SenderAccountAddress:    string(senderAccountAddress),
-		RecipientAccountAddress: string(recipientAccountAddress),
-		Fee:                     int64(fee),
-		TransactionBodyLength:   transactionBodyLength,
-		TransactionBodyBytes:    transactionBodyBytes,
-		TransactionHash:         transactionHash[:],
-		Signature:               sig,
-	}
-	return tx, nil
+	transaction.ID = txID
+	transaction.TransactionHash = transactionHash[:]
+	return &transaction, nil
 }
 
 // ReadAccountAddress to read the sender or recipient address from transaction bytes
@@ -178,14 +230,15 @@ func ValidateTransaction(
 		return err
 	}
 	defer rows.Close()
-	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 
+	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 	if err != nil || len(res) == 0 {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxSenderNotFound",
 		)
 	}
+
 	senderAccountBalance := res[0]
 	if senderAccountBalance.SpendableBalance < tx.Fee {
 		return blocker.NewBlocker(

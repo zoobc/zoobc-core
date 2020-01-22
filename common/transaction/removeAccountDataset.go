@@ -14,10 +14,11 @@ import (
 
 type RemoveAccountDataset struct {
 	ID                  int64
-	Body                *model.RemoveAccountDatasetTransactionBody
 	Fee                 int64
 	SenderAddress       string
 	Height              uint32
+	Body                *model.RemoveAccountDatasetTransactionBody
+	Escrow              *model.Escrow
 	AccountBalanceQuery query.AccountBalanceQueryInterface
 	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface
