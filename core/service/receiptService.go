@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -30,6 +32,14 @@ type (
 		) error
 		PruningNodeReceipts() error
 		GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
+		GenerateBatchReceiptWithReminder(
+			ct chaintype.ChainType,
+			receivedDatumHash []byte,
+			lastBlock *model.Block,
+			senderPublicKey []byte,
+			nodeSecretPhrase, receiptKey string,
+			datumType uint32,
+		) (*model.BatchReceipt, error)
 	}
 
 	ReceiptService struct {
@@ -490,4 +500,51 @@ func (rs *ReceiptService) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*m
 		return publishedReceipts, err
 	}
 	return publishedReceipts, nil
+}
+
+func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
+	ct chaintype.ChainType,
+	receivedDatumHash []byte,
+	lastBlock *model.Block,
+	senderPublicKey []byte,
+	nodeSecretPhrase, receiptKey string,
+	datumType uint32,
+) (*model.BatchReceipt, error) {
+	var (
+		rmrLinked     []byte
+		batchReceipt  *model.BatchReceipt
+		err           error
+		merkleQuery   = query.NewMerkleTreeQuery()
+		nodePublicKey = util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		lastRmrQ      = merkleQuery.GetLastMerkleRoot()
+		row, _        = rs.QueryExecutor.ExecuteSelectRow(lastRmrQ, false)
+	)
+
+	rmrLinked, err = merkleQuery.ScanRoot(row)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	// generate receipt
+	batchReceipt, err = util.GenerateBatchReceipt(
+		ct,
+		lastBlock,
+		senderPublicKey,
+		nodePublicKey,
+		receivedDatumHash,
+		rmrLinked,
+		datumType,
+	)
+	if err != nil {
+		return nil, err
+	}
+	batchReceipt.RecipientSignature = rs.Signature.SignByNode(
+		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		nodeSecretPhrase,
+	)
+	// store the generated batch receipt hash for reminder
+	err = rs.KVExecutor.Insert(receiptKey, receivedDatumHash, constant.KVdbExpiryReceiptReminder)
+	if err != nil {
+		return nil, err
+	}
+	return batchReceipt, nil
 }

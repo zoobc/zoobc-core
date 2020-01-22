@@ -796,6 +796,9 @@ func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block
 }
 func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block) {
 }
+func (*mockSpineBlocksmithServicePushBlock) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+	return 0
+}
 func TestBlockSpineService_PushBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -934,8 +937,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				Logger:             logrus.New(),
 				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
 			}
-			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
-				tt.args.broadcast); (err != nil) != tt.wantErr {
+			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast, true); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -2703,6 +2705,9 @@ func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*
 		string(mockSpineValidateBadBlockInvalidBlockHash.BlocksmithPublicKey): &firstIndex,
 		string(mockSpineBlockData.BlocksmithPublicKey):                        &secondIndex,
 	}
+}
+func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+	return 0
 }
 
 func TestBlockSpineService_ValidateBlock(t *testing.T) {

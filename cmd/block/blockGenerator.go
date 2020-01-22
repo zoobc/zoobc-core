@@ -133,9 +133,9 @@ func initialize(
 		log.New(),
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
+		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
-	blockService = service.NewBlockService(
+	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
 		queryExecutor,
@@ -158,6 +158,7 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
+		nil,
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 	)
 
