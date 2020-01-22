@@ -237,6 +237,11 @@ func GetFixturesForTransaction(
 		TransactionBodyBytes:    make([]byte, 0),
 		TransactionBody:         nil,
 		Signature:               make([]byte, 64),
+		Escrow: &model.Escrow{
+			ApproverAddress: "",
+			Commission:      0,
+			Timeout:         0,
+		},
 	}
 	if escrow {
 		tx.Escrow = &model.Escrow{
@@ -253,13 +258,7 @@ func GetFixturesForSignedMempoolTransaction(
 	sender, recipient string,
 	escrow bool,
 ) *model.MempoolTransaction {
-	// senderx := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
-	// recipientx := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	// senderPub := util.GetPublicKeyFromSeed("concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-	// senderAddress, _ := util.GetAddressFromPublicKey(senderPub)
-	// fmt.Printf("\n%s \n%s", recipient, senderAddress)
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
-
 	txBytes, _ := GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")

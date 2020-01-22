@@ -808,62 +808,83 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		// {
-		// 	name: "wantErr:TransactionExisted",
-		// 	fields: fields{
-		// 		Chaintype:          &chaintype.MainChain{},
-		// 		QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccess{},
-		// 		MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-		// 		ActionTypeSwitcher: &transaction.TypeSwitcher{},
-		// 		TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
-		// 	},
-		// 	args: args{
-		// 		mpTx: transaction.GetFixturesForSignedMempoolTransaction(
-		// 			3,
-		// 			1562893302,
-		// 			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		// 			false,
-		// 		),
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "wantErr:TransactionExisted",
-		// 	fields: fields{
-		// 		Chaintype:          &chaintype.MainChain{},
-		// 		QueryExecutor:      &mockExecutorValidateMempoolTransactionFail{},
-		// 		TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
-		// 		MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-		// 		ActionTypeSwitcher: &transaction.TypeSwitcher{},
-		// 	},
-		// 	args: args{
-		// 		mpTx: transaction.GetFixturesForSignedMempoolTransaction(
-		// 			3,
-		// 			1562893302,
-		// 			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		// 			false,
-		// 		),
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "wantErr:ParseFail",
-		// 	fields: fields{
-		// 		Chaintype:          &chaintype.MainChain{},
-		// 		QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccessNoRow{},
-		// 		TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
-		// 		MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-		// 		ActionTypeSwitcher: &transaction.TypeSwitcher{},
-		// 	},
-		// 	args: args{
-		// 		mpTx: &model.MempoolTransaction{
-		// 			ID: 12,
-		// 		},
-		// 	},
-		// 	wantErr: true,
-		// },
+		{
+			name: "wantSuccess:WithEscrow",
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893303,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					true,
+				),
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantErr:TransactionExisted",
+			fields: fields{
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccess{},
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:TransactionExisted",
+			fields: fields{
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockExecutorValidateMempoolTransactionFail{},
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+			},
+			args: args{
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:ParseFail",
+			fields: fields{
+				Chaintype:          &chaintype.MainChain{},
+				QueryExecutor:      &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+			},
+			args: args{
+				mpTx: &model.MempoolTransaction{
+					ID: 12,
+				},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

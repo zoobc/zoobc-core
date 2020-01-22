@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"time"
-	"unicode/utf8"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -51,8 +50,8 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
 		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
 	} else {
-		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
-		buffer.Write(make([]byte, constant.AccountAddress))
+		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
+		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
 	}
@@ -132,12 +131,11 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	if err != nil {
 		return nil, err
 	}
-	approvedAddress := ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer)
-	if ok, _ := utf8.DecodeRune(approvedAddress); ok == 0 {
-		escrow.ApproverAddress = ""
-	} else {
-		escrow.ApproverAddress = string(approvedAddress)
+	approverAddress, err := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if err != nil {
+		return nil, err
 	}
+	escrow.ApproverAddress = string(approverAddress)
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowCommissionLength))
 	if err != nil {
