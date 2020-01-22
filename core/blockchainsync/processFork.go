@@ -80,7 +80,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					}
 					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				}
-				err = fp.BlockService.PushBlock(lastBlock, block, false)
+				err = fp.BlockService.PushBlock(lastBlock, block, false, true)
 				if err != nil {
 					err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 					if err != nil {
@@ -133,7 +133,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
-			err = fp.BlockService.PushBlock(lastBlock, block, false)
+			err = fp.BlockService.PushBlock(lastBlock, block, false, true)
 			if err != nil {
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}

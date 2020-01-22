@@ -340,6 +340,7 @@ func (mps *MempoolService) ReceivedTransaction(
 			_, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
 			if err != nil {
 				if err == badger.ErrKeyNotFound {
+					// todo: switch to ReceiptService.GenerateBatchReceiptWithReminder
 					batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
 						mps.Chaintype,
 						receivedTxHash[:],

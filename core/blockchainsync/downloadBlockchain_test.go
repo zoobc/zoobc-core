@@ -277,8 +277,9 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 }
 
 func TestGetNextBlocks(t *testing.T) {
-	blockService := coreService.NewBlockService(
+	blockService := coreService.NewBlockMainService(
 		&chaintype.MainChain{},
+		nil,
 		nil,
 		nil,
 		nil,
