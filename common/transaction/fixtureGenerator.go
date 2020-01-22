@@ -245,6 +245,7 @@ func GetFixturesForTransaction(
 			Timeout:         100,
 		}
 	}
+
 	return &tx
 }
 func GetFixturesForSignedMempoolTransaction(
@@ -252,9 +253,12 @@ func GetFixturesForSignedMempoolTransaction(
 	sender, recipient string,
 	escrow bool,
 ) *model.MempoolTransaction {
+	// senderx := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+	// recipientx := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+	// senderPub := util.GetPublicKeyFromSeed("concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	// senderAddress, _ := util.GetAddressFromPublicKey(senderPub)
+	// fmt.Printf("\n%s \n%s", recipient, senderAddress)
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
-	// sender := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
-	// recipient := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
 
 	txBytes, _ := GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
@@ -267,7 +271,7 @@ func GetFixturesForSignedMempoolTransaction(
 		FeePerByte:              1,
 		ArrivalTimestamp:        timestamp,
 		TransactionBytes:        txBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress:    sender,
+		RecipientAccountAddress: recipient,
 	}
 }
