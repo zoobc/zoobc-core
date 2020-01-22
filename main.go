@@ -57,6 +57,8 @@ var (
 	observerInstance                              *observer.Observer
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	mainchainBlockService                         *service.BlockService
+	spinechainBlockService                        *service.BlockSpineService
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
 	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
@@ -349,14 +351,16 @@ func startMainchain() {
 	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 	)
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
 	)
+	mainchainBlockPool := service.NewBlockPoolService()
 
-	mainchainBlockService := service.NewBlockService(
+	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -379,6 +383,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
+		mainchainBlockPool,
 		blockIncompleteQueueService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -455,30 +460,19 @@ func startSpinechain() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockService := service.NewBlockService(
+	spinechainBlockPool := service.NewBlockPoolService()
+	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
 		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
-		query.NewMempoolQuery(spinechain),
-		query.NewTransactionQuery(spinechain),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
-		query.NewSkippedBlocksmithQuery(),
 		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
-		nil, // no mempool for spine blocks
-		receiptService,
-		nodeRegistrationService,
-		nil, // no transaction types for spine blocks
-		query.NewAccountBalanceQuery(),
-		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
-		nil, // no account ledger for spine blocks
-		nil, // no need block uncomplete queue service
+		spinechainBlockPool,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -537,6 +531,13 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// register scan block pool for mainchain
+	if err := schedulerInstance.AddJob(
+		constant.BlockPoolScanPeriod,
+		mainchainBlockService.ScanBlockPool,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
