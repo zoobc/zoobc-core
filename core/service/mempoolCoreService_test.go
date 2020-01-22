@@ -919,7 +919,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) BeginTx() error {
 func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) CommitTx() error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransaction(query string, args ...interface{}) error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransaction(string, ...interface{}) error {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectPrepare("").
@@ -927,11 +927,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransactio
 	_, _ = db.Exec("")
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteSelect(
-	query string,
-	tx bool,
-	args ...interface{},
-) (*sql.Rows, error) {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -951,10 +947,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) CommitTx() error {
 func (*mockQueryExecutorDeleteExpiredMempoolTransactions) RollbackTx() error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(
-	query string,
-	args ...interface{},
-) error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(string, ...interface{}) error {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectPrepare("").
@@ -965,43 +958,23 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(
 func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	transactionBytes, _ := transaction.GetFixturesForTransactionBytes(&model.Transaction{
-		ID:                      670925173877174625,
-		Version:                 1,
-		TransactionType:         2,
-		BlockID:                 0,
-		Height:                  0,
-		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Fee:                     1000000,
-		TransactionHash: []byte{
-			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
-			187, 45, 245, 113, 210, 87, 23, 67, 157, 117, 41, 143,
-		},
-		TransactionBodyLength: 8,
-		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Signature: []byte{
-			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
-			68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-			77, 80, 80, 39, 254, 173, 28, 169,
-		},
-		Escrow: &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-			Commission:      24,
-			Timeout:         100,
-		},
-	}, true)
+	mTx := transaction.GetFixturesForSignedMempoolTransaction(
+		3,
+		1562893302,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		true,
+	)
 
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(mockMempoolQuery.Fields).AddRow(
-			1,
-			0,
-			1000,
-			10,
-			transactionBytes,
-			"BCZ",
-			"ZCB",
+			mTx.GetID(),
+			mTx.GetBlockHeight(),
+			mTx.GetFeePerByte(),
+			mTx.GetArrivalTimestamp(),
+			mTx.GetTransactionBytes(),
+			mTx.GetSenderAccountAddress(),
+			mTx.GetRecipientAccountAddress(),
 		),
 	)
 	return db.Query("")

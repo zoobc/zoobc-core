@@ -222,7 +222,7 @@ func TestNewTransactionService(t *testing.T) {
 
 func TestTransactionService_PostTransaction(t *testing.T) {
 	transactionBytes, transactionHashed := transaction.GetFixturesForTransactionBytes(&model.Transaction{
-		ID:                      -1841892008951856706,
+		ID:                      9132391972059444517,
 		Version:                 1,
 		TransactionType:         2,
 		BlockID:                 0,
@@ -467,7 +467,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			},
 			wantErr: false,
 			want: &model.Transaction{
-				ID:                      -1841892008951856706,
+				ID:                      9132391972059444517,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
