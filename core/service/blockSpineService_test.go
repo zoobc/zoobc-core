@@ -1397,7 +1397,7 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				},
 				MegablockService: &mockMegablockService{
 					ResMegablocks: []*model.Megablock{
-						&model.Megablock{
+						{
 							ID:                     1,
 							FullFileHash:           make([]byte, 64),
 							MegablockPayloadLength: 0,
