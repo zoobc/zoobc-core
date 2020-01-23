@@ -366,19 +366,20 @@ func startMainchain() {
 	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 	)
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
 	)
+	mainchainBlockPool := service.NewBlockPoolService()
 
-	mainchainBlockService = service.NewBlockService(
+	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
-		nil, // no spinechain query in main blocks (main blocks are completely decoupled from spine blocks)
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
 		query.NewMerkleTreeQuery(),
@@ -397,7 +398,7 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
-		query.NewMegablockQuery(),
+		mainchainBlockPool,
 		blockIncompleteQueueService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -465,7 +466,6 @@ func startSpinechain() {
 		nodeID int64
 	)
 	spinechain := &chaintype.SpineChain{}
-	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
 	sleepPeriod := 500
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
@@ -473,32 +473,19 @@ func startSpinechain() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockService = service.NewBlockService(
+	spinechainBlockPool := service.NewBlockPoolService()
+	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
-		kvExecutor,
 		queryExecutor,
-		query.NewBlockQuery(mainchain),
 		query.NewBlockQuery(spinechain),
-		nil, // no mempool for spine blocks
-		nil, // no transactions for spine blocks
-		nil,
-		nil,
-		query.NewSkippedBlocksmithQuery(),
 		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
-		nil, // no mempool for spine blocks
-		nil, // no receipts for spine blocks
-		nodeRegistrationService,
-		nil, // no transaction types for spine blocks
-		query.NewAccountBalanceQuery(),
-		nil, // no participation score for spine blocks
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
-		nil, // no account ledger for spine blocks
+		spinechainBlockPool,
 		query.NewMegablockQuery(),
-		nil, // no need block uncomplete queue service
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

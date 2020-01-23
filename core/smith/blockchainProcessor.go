@@ -1,15 +1,12 @@
 package smith
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/core/service"
 )
 
@@ -28,7 +25,6 @@ type (
 		Generator    *model.Blocksmith
 		BlockService service.BlockServiceInterface
 		LastBlockID  int64
-		canSmith     bool
 		Logger       *log.Logger
 		isSmithing   bool
 		smithError   error
@@ -111,7 +107,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			return err
 		}
 		// if validated push
-		err = bp.BlockService.PushBlock(previousBlock, block, false)
+		err = bp.BlockService.PushBlock(previousBlock, block, false, true)
 		if err != nil {
 			return err
 		}
@@ -121,9 +117,6 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
-	var (
-		blocksmithScore int64
-	)
 	// Securing smithing process
 	// will pause another process that used block service lock until this process done
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
@@ -134,59 +127,13 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
+	// todo: move this piece of code to service layer
 	// caching: only calculate smith time once per new block
-	if lastBlock.GetID() != bp.LastBlockID {
-		bp.LastBlockID = lastBlock.GetID()
-		blockSmithStrategy := bp.BlockService.GetBlocksmithStrategy()
-		blockSmithStrategy.SortBlocksmiths(lastBlock)
-		// check if eligible to create block in this round
-		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		if blocksmithsMap[string(bp.Generator.NodePublicKey)] == nil {
-			bp.canSmith = false
-			return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
-		}
-		bp.canSmith = true
-		ct := bp.BlockService.GetChainType()
-		// calculate blocksmith score for the block type
-		switch ct.(type) {
-		case *chaintype.MainChain:
-			// get the concrete type for BlockService so we can use mainchain specific methods
-			blockMainService, ok := bp.BlockService.(*service.BlockService)
-			if !ok {
-				return blocker.NewBlocker(blocker.AppErr, "InvalidChaintype")
-			}
-			// try to get the node's participation score (ps) from node public key
-			// if node is not registered, ps will be 0 and this node won't be able to smith
-			// the default ps is 100000, smithing could be slower than when using account balances
-			// since default balance was 1000 times higher than default ps
-			blocksmithScore, err = blockMainService.GetParticipationScore(bp.Generator.NodePublicKey)
-			if blocksmithScore <= 0 {
-				bp.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
-			}
-			if err != nil || blocksmithScore < 0 {
-				// no negative scores allowed
-				blocksmithScore = 0
-				bp.Logger.Errorf("Participation score calculation: %s", err)
-			}
-		case *chaintype.SpineChain:
-			// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
-			blocksmithScore = constant.DefaultParticipationScore
-		default:
-			return blocker.NewBlocker(blocker.SmithingErr, fmt.Sprintf("undefined chaintype %s", ct.GetName()))
-		}
-		err = blockSmithStrategy.CalculateSmith(
-			lastBlock,
-			*(blocksmithsMap[string(bp.Generator.NodePublicKey)]),
-			bp.Generator,
-			blocksmithScore,
-		)
-		if err != nil {
-			return err
-		}
-		monitoring.SetBlockchainSmithTime(ct.GetTypeInt(), bp.Generator.SmithTime-lastBlock.Timestamp)
-	}
-	if !bp.canSmith {
-		return blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
+	bp.LastBlockID, err = bp.BlockService.WillSmith(
+		bp.Generator, bp.LastBlockID,
+	)
+	if err != nil {
+		return err
 	}
 	timestamp := time.Now().Unix()
 	if bp.Generator.SmithTime > timestamp {
@@ -206,7 +153,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// if validated push
-	err = bp.BlockService.PushBlock(lastBlock, block, true)
+	err = bp.BlockService.PushBlock(lastBlock, block, true, false)
 	if err != nil {
 		return err
 	}

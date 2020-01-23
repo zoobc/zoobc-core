@@ -10,7 +10,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -65,45 +64,45 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 	return errors.New("MockedError")
 }
 
-func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
-	return &model.Transaction{
-		Version:                 1,
-		ID:                      2774809487,
-		BlockID:                 1,
-		Height:                  1,
-		SenderAccountAddress:    sender,
-		RecipientAccountAddress: recipient,
-		TransactionType:         0,
-		Fee:                     1,
-		Timestamp:               timestamp,
-		TransactionHash:         make([]byte, 32),
-		TransactionBodyLength:   0,
-		TransactionBodyBytes:    make([]byte, 0),
-		TransactionBody:         nil,
-		Signature:               make([]byte, 68),
-	}
-}
+// func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
+// 	return &model.Transaction{
+// 		Version:                 1,
+// 		ID:                      2774809487,
+// 		BlockID:                 1,
+// 		Height:                  1,
+// 		SenderAccountAddress:    sender,
+// 		RecipientAccountAddress: recipient,
+// 		TransactionType:         0,
+// 		Fee:                     1,
+// 		Timestamp:               timestamp,
+// 		TransactionHash:         make([]byte, 32),
+// 		TransactionBodyLength:   0,
+// 		TransactionBodyBytes:    make([]byte, 0),
+// 		TransactionBody:         nil,
+// 		Signature:               make([]byte, 68),
+// 	}
+// }
 
-func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
-	sender := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
-	recipient := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	tx := buildTransaction(timestamp, sender, recipient)
-
-	txBytes, _ := transaction.GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-	tx.Signature = signature
-	txBytes, _ = transaction.GetTransactionBytes(tx, true)
-	return &model.MempoolTransaction{
-		ID:                      id,
-		BlockHeight:             0,
-		FeePerByte:              1,
-		ArrivalTimestamp:        timestamp,
-		TransactionBytes:        txBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
-	}
-}
+// func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
+// 	sender := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+// 	recipient := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+// 	tx := buildTransaction(timestamp, sender, recipient)
+//
+// 	txBytes, _ := transaction.GetTransactionBytes(tx, false)
+// 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
+// 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+// 	tx.Signature = signature
+// 	txBytes, _ = transaction.GetTransactionBytes(tx, true)
+// 	return &model.MempoolTransaction{
+// 		ID:                      id,
+// 		BlockHeight:             0,
+// 		FeePerByte:              1,
+// 		ArrivalTimestamp:        timestamp,
+// 		TransactionBytes:        txBytes,
+// 		SenderAccountAddress:    "A",
+// 		RecipientAccountAddress: "B",
+// 	}
+// }
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
@@ -170,11 +169,41 @@ func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, 
 	defer db.Close()
 
 	mockedRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
-	mockedRows.AddRow(1, 0, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-	mockedRows.AddRow(2, 0, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-	mockedRows.AddRow(3, 0, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-	mockedRows.AddRow(4, 0, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-	mockedRows.AddRow(5, 0, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+	mockedRows.AddRow(1, 0, 1, 1562893305, transaction.GetFixturesForSignedMempoolTransaction(
+		1,
+		1562893305,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		false,
+	).TransactionBytes, "A", "B")
+	mockedRows.AddRow(2, 0, 10, 1562893304, transaction.GetFixturesForSignedMempoolTransaction(
+		2,
+		1562893304,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		false,
+	).TransactionBytes, "A", "B")
+	mockedRows.AddRow(3, 0, 1, 1562893302, transaction.GetFixturesForSignedMempoolTransaction(
+		3,
+		1562893302,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		false,
+	).TransactionBytes, "A", "B")
+	mockedRows.AddRow(4, 0, 100, 1562893306, transaction.GetFixturesForSignedMempoolTransaction(
+		4,
+		1562893306,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		false,
+	).TransactionBytes, "A", "B")
+	mockedRows.AddRow(5, 0, 5, 1562893303, transaction.GetFixturesForSignedMempoolTransaction(
+		5,
+		1562893303,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		false,
+	).TransactionBytes, "A", "B")
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -207,42 +236,72 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			},
 			want: []*model.MempoolTransaction{
 				{
-					ID:                      1,
-					FeePerByte:              1,
-					ArrivalTimestamp:        1562893305,
-					TransactionBytes:        getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+					ID:               1,
+					FeePerByte:       1,
+					ArrivalTimestamp: 1562893305,
+					TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+						1,
+						1562893305,
+						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						false,
+					).TransactionBytes,
 					SenderAccountAddress:    "A",
 					RecipientAccountAddress: "B",
 				},
 				{
-					ID:                      2,
-					FeePerByte:              10,
-					ArrivalTimestamp:        1562893304,
-					TransactionBytes:        getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+					ID:               2,
+					FeePerByte:       10,
+					ArrivalTimestamp: 1562893304,
+					TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+						2,
+						1562893304,
+						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						false,
+					).TransactionBytes,
 					SenderAccountAddress:    "A",
 					RecipientAccountAddress: "B",
 				},
 				{
-					ID:                      3,
-					FeePerByte:              1,
-					ArrivalTimestamp:        1562893302,
-					TransactionBytes:        getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+					ID:               3,
+					FeePerByte:       1,
+					ArrivalTimestamp: 1562893302,
+					TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+						3,
+						1562893302,
+						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						false,
+					).TransactionBytes,
 					SenderAccountAddress:    "A",
 					RecipientAccountAddress: "B",
 				},
 				{
-					ID:                      4,
-					FeePerByte:              100,
-					ArrivalTimestamp:        1562893306,
-					TransactionBytes:        getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+					ID:               4,
+					FeePerByte:       100,
+					ArrivalTimestamp: 1562893306,
+					TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+						4,
+						1562893306,
+						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						false,
+					).TransactionBytes,
 					SenderAccountAddress:    "A",
 					RecipientAccountAddress: "B",
 				},
 				{
-					ID:                      5,
-					FeePerByte:              5,
-					ArrivalTimestamp:        1562893303,
-					TransactionBytes:        getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+					ID:               5,
+					FeePerByte:       5,
+					ArrivalTimestamp: 1562893303,
+					TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+						5,
+						1562893303,
+						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						false,
+					).TransactionBytes,
 					SenderAccountAddress:    "A",
 					RecipientAccountAddress: "B",
 				},
@@ -370,7 +429,13 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				Observer:           observer.NewObserver(),
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: false,
 		},
@@ -384,7 +449,13 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				Observer:           observer.NewObserver(),
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(3, 1562893303),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893303,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: true,
 		},
@@ -414,42 +485,72 @@ type (
 
 var mockSuccessSelectMempool = []*model.MempoolTransaction{
 	{
-		ID:                      1,
-		FeePerByte:              1,
-		ArrivalTimestamp:        1562893305,
-		TransactionBytes:        getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+		ID:               1,
+		FeePerByte:       1,
+		ArrivalTimestamp: 1562893305,
+		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+			1,
+			1562893305,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes,
 		SenderAccountAddress:    "A",
 		RecipientAccountAddress: "B",
 	},
 	{
-		ID:                      2,
-		FeePerByte:              10,
-		ArrivalTimestamp:        1562893304,
-		TransactionBytes:        getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes,
+		ID:               2,
+		FeePerByte:       10,
+		ArrivalTimestamp: 1562893304,
+		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+			2,
+			1562893304,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes,
 		SenderAccountAddress:    "A",
 		RecipientAccountAddress: "B",
 	},
 	{
-		ID:                      3,
-		FeePerByte:              1,
-		ArrivalTimestamp:        1562893302,
-		TransactionBytes:        getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes,
+		ID:               3,
+		FeePerByte:       1,
+		ArrivalTimestamp: 1562893302,
+		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+			3,
+			1562893302,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes,
 		SenderAccountAddress:    "A",
 		RecipientAccountAddress: "B",
 	},
 	{
-		ID:                      4,
-		FeePerByte:              100,
-		ArrivalTimestamp:        1562893306,
-		TransactionBytes:        getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes,
+		ID:               4,
+		FeePerByte:       100,
+		ArrivalTimestamp: 1562893306,
+		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+			4,
+			1562893306,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes,
 		SenderAccountAddress:    "A",
 		RecipientAccountAddress: "B",
 	},
 	{
-		ID:                      5,
-		FeePerByte:              5,
-		ArrivalTimestamp:        1562893303,
-		TransactionBytes:        getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes,
+		ID:               5,
+		FeePerByte:       5,
+		ArrivalTimestamp: 1562893303,
+		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+			5,
+			1562893303,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes,
 		SenderAccountAddress:    "A",
 		RecipientAccountAddress: "B",
 	},
@@ -466,11 +567,41 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(abRows)
 	default:
 		mtxRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
-		mtxRows.AddRow(1, 0, 1, 1562893305, getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes, "A", "B")
-		mtxRows.AddRow(2, 0, 10, 1562893304, getTestSignedMempoolTransaction(2, 1562893304).TransactionBytes, "A", "B")
-		mtxRows.AddRow(3, 0, 1, 1562893302, getTestSignedMempoolTransaction(3, 1562893302).TransactionBytes, "A", "B")
-		mtxRows.AddRow(4, 0, 100, 1562893306, getTestSignedMempoolTransaction(4, 1562893306).TransactionBytes, "A", "B")
-		mtxRows.AddRow(5, 0, 5, 1562893303, getTestSignedMempoolTransaction(5, 1562893303).TransactionBytes, "A", "B")
+		mtxRows.AddRow(1, 0, 1, 1562893305, transaction.GetFixturesForSignedMempoolTransaction(
+			1,
+			1562893305,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes, "A", "B")
+		mtxRows.AddRow(2, 0, 10, 1562893304, transaction.GetFixturesForSignedMempoolTransaction(
+			2,
+			1562893304,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes, "A", "B")
+		mtxRows.AddRow(3, 0, 1, 1562893302, transaction.GetFixturesForSignedMempoolTransaction(
+			3,
+			1562893302,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes, "A", "B")
+		mtxRows.AddRow(4, 0, 100, 1562893306, transaction.GetFixturesForSignedMempoolTransaction(
+			4,
+			1562893306,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes, "A", "B")
+		mtxRows.AddRow(5, 0, 5, 1562893303, transaction.GetFixturesForSignedMempoolTransaction(
+			5,
+			1562893303,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes, "A", "B")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mtxRows)
 	}
 	rows, _ := db.Query(qe)
@@ -633,7 +764,7 @@ func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelectRow(qStr string,
 	return db.QueryRow(qStr), nil
 }
 
-func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockExecutorValidateMempoolTransactionFail : mocked Err")
 }
 
@@ -667,7 +798,34 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893303,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantSuccess:WithEscrow",
+			fields: fields{
+				Chaintype:           &chaintype.MainChain{},
+				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+			},
+			args: args{
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893303,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					true,
+				),
 			},
 			wantErr: false,
 		},
@@ -681,7 +839,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: true,
 		},
@@ -695,7 +859,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
-				mpTx: getTestSignedMempoolTransaction(3, 1562893302),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: true,
 		},
@@ -749,7 +919,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) BeginTx() error {
 func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) CommitTx() error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransaction(query string, args ...interface{}) error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransaction(string, ...interface{}) error {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectPrepare("").
@@ -757,11 +927,7 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransactio
 	_, _ = db.Exec("")
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteSelect(
-	query string,
-	tx bool,
-	args ...interface{},
-) (*sql.Rows, error) {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
@@ -778,10 +944,10 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) BeginTx() error {
 func (*mockQueryExecutorDeleteExpiredMempoolTransactions) CommitTx() error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(
-	query string,
-	args ...interface{},
-) error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) RollbackTx() error {
+	return nil
+}
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(string, ...interface{}) error {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectPrepare("").
@@ -789,31 +955,26 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(
 	_, _ = db.Exec("")
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(
-	query string,
-	tx bool,
-	args ...interface{},
-) (*sql.Rows, error) {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
+	mTx := transaction.GetFixturesForSignedMempoolTransaction(
+		3,
+		1562893302,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		true,
+	)
 
 	mock.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(mockMempoolQuery.Fields).AddRow(
-			1,
-			0,
-			1000,
-			10,
-			[]byte{1, 0, 0, 0, 1, 210, 225, 121, 93, 0, 0, 0, 0, 44, 0, 0, 0, 110, 75, 95, 111, 117, 120, 100, 68,
-				68, 119, 117, 74, 105, 111, 103, 105, 68, 65, 105, 95, 122, 115, 49, 76, 113, 101, 78, 55, 102,
-				53, 90, 115, 88, 98, 70, 116, 88, 71, 113, 71, 99, 48, 80, 100, 44, 0, 0, 0, 118, 66, 75, 98,
-				114, 82, 53, 89, 57, 83, 71, 68, 74, 51, 50, 49, 76, 119, 53, 53, 50, 119, 53, 106, 85, 50, 76,
-				109, 79, 81, 67, 68, 120, 81, 114, 114, 118, 74, 48, 67, 85, 107, 101, 70, 160, 134, 1, 0, 0,
-				0, 0, 0, 8, 0, 0, 0, 0, 225, 245, 5, 0, 0, 0, 0, 0, 0, 0, 0, 109, 6, 82, 80, 77, 171, 32, 88,
-				211, 199, 11, 114, 75, 229, 243, 98, 167, 159, 225, 11, 40, 125, 221, 252, 44, 131, 136, 13,
-				104, 109, 228, 40, 27, 177, 175, 128, 223, 154, 19, 71, 18, 134, 177, 77, 96, 157, 187, 91,
-				152, 160, 78, 140, 96, 81, 116, 38, 164, 105, 149, 50, 138, 236, 209, 11},
-			"BCZ",
-			"ZCB",
+			mTx.GetID(),
+			mTx.GetBlockHeight(),
+			mTx.GetFeePerByte(),
+			mTx.GetArrivalTimestamp(),
+			mTx.GetTransactionBytes(),
+			mTx.GetSenderAccountAddress(),
+			mTx.GetRecipientAccountAddress(),
 		),
 	)
 	return db.Query("")

@@ -339,9 +339,8 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
-	bs := service.NewBlockService(
+	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
-		nil,
 		nil,
 		nil,
 		nil,

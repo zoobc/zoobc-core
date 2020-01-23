@@ -567,7 +567,7 @@ func (*mockSpineQueryExecutorSuccess) ExecuteStatement(qe string, args ...interf
 	return nil, nil
 }
 
-func TestBlockSpineService_newSpineBlock(t *testing.T) {
+func TestBlockSpineService_NewSpineBlock(t *testing.T) {
 	var (
 		mockSpineBlock = &model.Block{
 			Version:             1,
@@ -642,7 +642,7 @@ func TestBlockSpineService_newSpineBlock(t *testing.T) {
 				BlockQuery:    tt.fields.BlockQuery,
 				Signature:     tt.fields.Signature,
 			}
-			got, err := bs.newSpineBlock(
+			got, err := bs.NewSpineBlock(
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
@@ -818,6 +818,9 @@ func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block
 	return result
 }
 func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block) {
+}
+func (*mockSpineBlocksmithServicePushBlock) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+	return 0
 }
 func TestBlockSpineService_PushBlock(t *testing.T) {
 	type fields struct {
@@ -999,8 +1002,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
 				MegablockService:      tt.fields.MegablockService,
 			}
-			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block,
-				tt.args.broadcast); (err != nil) != tt.wantErr {
+			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast, true); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -1324,15 +1326,12 @@ func (ss *mockMegablockService) GetMegablocksForSpineBlock(spineHeight uint32, s
 	return megablocks, err
 }
 
-func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(
-	blockTimestamp int64,
-	numberOfReceipt, lastBlockHeight uint32,
-) ([]*model.PublishedReceipt, error) {
+func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(int64, uint32, uint32) ([]*model.PublishedReceipt, error) {
 	return []*model.PublishedReceipt{}, nil
 }
 
 // mockSpineQueryExecutorMempoolSuccess
-func (*mockSpineQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockSpineQueryExecutorMempoolSuccess) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mockSpine, err := sqlmock.New()
 	if err != nil {
 		return nil, err
@@ -1346,26 +1345,42 @@ func (*mockSpineQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool
 		1,
 		1,
 		123456,
-		getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes),
+		transaction.GetFixturesForSignedMempoolTransaction(
+			1,
+			1562893305,
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			false,
+		).TransactionBytes),
 	)
 	return db.Query("")
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionFromMempool(
-	blockTimestamp int64,
-) ([]*model.MempoolTransaction, error) {
+func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*model.MempoolTransaction, error) {
 	return []*model.MempoolTransaction{
 		{
-			FeePerByte:       1,
-			TransactionBytes: getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes,
+			FeePerByte: 1,
+			TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
+				1,
+				1562893305,
+				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				false,
+			).TransactionBytes,
 		},
 	}, nil
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
-	txByte := getTestSignedMempoolTransaction(1, 1562893305).TransactionBytes
+func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+	txByte := transaction.GetFixturesForSignedMempoolTransaction(
+		1,
+		1562893305,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		false,
+	).TransactionBytes
 	txHash := sha3.Sum256(txByte)
 	return []*model.Transaction{
 		{
@@ -1376,14 +1391,12 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(block
 }
 
 // mockSpineMempoolServiceSelectFail
-func (*mockSpineMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectFail) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
-	blockTimestamp int64,
-) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,
@@ -2833,6 +2846,9 @@ func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*
 		string(mockSpineValidateBadBlockInvalidBlockHash.BlocksmithPublicKey): &firstIndex,
 		string(mockSpineBlockData.BlocksmithPublicKey):                        &secondIndex,
 	}
+}
+func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+	return 0
 }
 
 func TestBlockSpineService_ValidateBlock(t *testing.T) {

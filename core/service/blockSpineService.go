@@ -38,8 +38,84 @@ type (
 		Logger                *log.Logger
 		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
 		MegablockService      MegablockServiceInterface
+		BlockPoolService      BlockPoolServiceInterface
 	}
 )
+
+func NewBlockSpineService(
+	ct chaintype.ChainType,
+	queryExecutor query.ExecutorInterface,
+	spineBlockQuery query.BlockQueryInterface,
+	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
+	signature crypto.SignatureInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	obsr *observer.Observer,
+	blocksmithStrategy strategy.BlocksmithStrategyInterface,
+	logger *log.Logger,
+	blockPoolService BlockPoolServiceInterface,
+	megablockQuery query.MegablockQueryInterface,
+) *BlockSpineService {
+	return &BlockSpineService{
+		Chaintype: ct,
+		QueryExecutor: queryExecutor,
+		BlockQuery:    spineBlockQuery,
+		Signature: signature,
+		BlocksmithStrategy: blocksmithStrategy,
+		Observer:           obsr,
+		Logger:             logger,
+		SpinePublicKeyService: &BlockSpinePublicKeyService{
+			Logger:                logger,
+			NodeRegistrationQuery: nodeRegistrationQuery,
+			QueryExecutor:         queryExecutor,
+			Signature:             signature,
+			SpinePublicKeyQuery:   spinePublicKeyQuery,
+		},
+		MegablockService: NewMegablockService(
+			queryExecutor,
+			megablockQuery,
+			spineBlockQuery,
+			logger,
+		),
+	}
+}
+
+// NewSpineBlock generate new spinechain block
+func (bs *BlockSpineService) NewSpineBlock(
+	version uint32,
+	previousBlockHash,
+	blockSeed, blockSmithPublicKey []byte,
+	previousBlockHeight uint32,
+	timestamp int64,
+	payloadHash []byte,
+	payloadLength uint32,
+	secretPhrase string,
+	spinePublicKeys []*model.SpinePublicKey,
+	megablocks []*model.Megablock,
+) (*model.Block, error) {
+	block := &model.Block{
+		Version:             version,
+		PreviousBlockHash:   previousBlockHash,
+		BlockSeed:           blockSeed,
+		BlocksmithPublicKey: blockSmithPublicKey,
+		Height:              previousBlockHeight,
+		Timestamp:           timestamp,
+		PayloadHash:         payloadHash,
+		PayloadLength:       payloadLength,
+		SpinePublicKeys:     spinePublicKeys,
+		Megablocks:          megablocks,
+	}
+	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
+	if err != nil {
+		bs.Logger.Error(err.Error())
+	}
+	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
+	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
+	if err != nil {
+		return nil, err
+	}
+	block.BlockHash = blockHash
+	return block, nil
+}
 
 // GetChainType returns the chaintype
 func (bs *BlockSpineService) GetChainType() chaintype.ChainType {
@@ -187,7 +263,7 @@ func (bs *BlockSpineService) validateBlockHeight(block *model.Block) error {
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
-func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast bool) error {
+func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
 		err error
 	)
@@ -442,7 +518,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	block, err := bs.newSpineBlock(
+	block, err := bs.NewSpineBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
@@ -516,7 +592,7 @@ func (bs *BlockSpineService) AddGenesis() error {
 	if err != nil {
 		return err
 	}
-	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false)
+	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
 		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
@@ -578,7 +654,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 				}
 				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
 				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
@@ -587,10 +663,9 @@ func (bs *BlockSpineService) ReceiveBlock(
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
-
-				err = bs.PushBlock(previousBlock, block, true)
+				err = bs.PushBlock(previousBlock, block, true, true)
 				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
@@ -625,7 +700,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 		if err != nil {
 			return status.Error(codes.InvalidArgument, "InvalidBlock")
 		}
-		err = bs.PushBlock(lastBlock, block, true)
+		err = bs.PushBlock(lastBlock, block, true, true)
 		if err != nil {
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -705,44 +780,6 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	return poppedBlocks, nil
 }
 
-// NewSpineBlock generate new spinechain block
-func (bs *BlockSpineService) newSpineBlock(
-	version uint32,
-	previousBlockHash,
-	blockSeed, blockSmithPublicKey []byte,
-	previousBlockHeight uint32,
-	timestamp int64,
-	payloadHash []byte,
-	payloadLength uint32,
-	secretPhrase string,
-	spinePublicKeys []*model.SpinePublicKey,
-	megablocks []*model.Megablock,
-) (*model.Block, error) {
-	block := &model.Block{
-		Version:             version,
-		PreviousBlockHash:   previousBlockHash,
-		BlockSeed:           blockSeed,
-		BlocksmithPublicKey: blockSmithPublicKey,
-		Height:              previousBlockHeight,
-		Timestamp:           timestamp,
-		PayloadHash:         payloadHash,
-		PayloadLength:       payloadLength,
-		SpinePublicKeys:     spinePublicKeys,
-		Megablocks:          megablocks,
-	}
-	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
-	if err != nil {
-		bs.Logger.Error(err.Error())
-	}
-	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
-	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
-	if err != nil {
-		return nil, err
-	}
-	block.BlockHash = blockHash
-	return block, nil
-}
-
 func (bs *BlockSpineService) getGenesisSpinePayloadBytes(spinePublicKeys []*model.SpinePublicKey) (spinePublicKeysBytes []byte) {
 	spinePublicKeysBytes = make([]byte, 0)
 	for _, spinePublicKey := range spinePublicKeys {
@@ -771,4 +808,41 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
 	return spinePublicKeys
+}
+
+func (bs *BlockSpineService) WillSmith(
+	blocksmith *model.Blocksmith,
+	blockchainProcessorLastBlockID int64,
+) (int64, error) {
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+			blocker.SmithingErr, "genesis block has not been applied")
+	}
+	// caching: only calculate smith time once per new block
+	if lastBlock.GetID() != blockchainProcessorLastBlockID {
+		blockchainProcessorLastBlockID = lastBlock.GetID()
+		blockSmithStrategy := bs.GetBlocksmithStrategy()
+		blockSmithStrategy.SortBlocksmiths(lastBlock)
+		// check if eligible to create block in this round
+		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
+			return blockchainProcessorLastBlockID,
+				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
+		}
+		// calculate blocksmith score for the block type
+		// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
+		blocksmithScore := constant.DefaultParticipationScore
+		err = blockSmithStrategy.CalculateSmith(
+			lastBlock,
+			*(blocksmithsMap[string(blocksmith.NodePublicKey)]),
+			blocksmith,
+			blocksmithScore,
+		)
+		if err != nil {
+			return blockchainProcessorLastBlockID, err
+		}
+		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
+	}
+	return blockchainProcessorLastBlockID, nil
 }

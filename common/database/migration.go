@@ -249,6 +249,20 @@ func (m *Migration) Init() error {
 				ADD COLUMN "timestamp" INTEGER
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"approver_address" VARCHAR(255),
+				"amount" INTEGER,
+				"commission" INTEGER,
+				"timeout" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER
+			)
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "megablock" (
 				"id" INTEGER,				-- little endian of hash of all megablock fields but itself
 				"full_file_hash" BLOB,			-- hash of the (snapshot) file content
@@ -259,7 +273,7 @@ func (m *Migration) Init() error {
 				"expiration_timestamp" INTEGER NOT NULL,-- timestamp that marks the end of megablock processing 
 				PRIMARY KEY("id")
 				UNIQUE("id")
-			);
+			)
 			`,
 		}
 		return nil

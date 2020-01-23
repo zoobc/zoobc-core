@@ -48,11 +48,6 @@ var (
 		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}
 	ssMockFullHash = []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
-	ssMockFileChunk = &model.FileChunk{
-		MegablockID: 1,
-		ChunkHash:   ssMockHash1,
-		ChainType:   ssMainchain.GetTypeInt(),
-	}
 )
 
 func (mqe *mockSnapshotServiceQueryExecutor) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
@@ -104,17 +99,6 @@ func (mqe *mockSnapshotServiceQueryExecutor) ExecuteSelectRow(qStr string, tx bo
 					ssMockSpineBlock.TotalCoinBase,
 					ssMockSpineBlock.Version,
 				))
-		case "SELECT chunk_hash, megablock_id, chunk_index, previous_chunk_hash, spine_block_height, " +
-			"chain_type FROM file_chunk WHERE chain_type = 0 ORDER BY spine_block_height, chunk_index DESC LIMIT 1":
-			mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewFileChunkQuery().Fields).
-				AddRow(
-					ssMockFileChunk.ChunkHash,
-					ssMockFileChunk.MegablockID,
-					ssMockFileChunk.ChunkIndex,
-					ssMockFileChunk.PreviousChunkHash,
-					ssMockFileChunk.SpineBlockHeight,
-					ssMockFileChunk.ChainType,
-				))
 		default:
 			return nil, fmt.Errorf("unmocked query for ExecuteSelectRow in test %s: %s", mqe.testName, qStr)
 		}
@@ -153,7 +137,6 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 	type fields struct {
 		QueryExecutor             query.ExecutorInterface
-		FileChunkQuery            query.FileChunkQueryInterface
 		Logger                    *log.Logger
 		Spinechain                chaintype.ChainType
 		Mainchain                 chaintype.ChainType
@@ -245,7 +228,6 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mbl := &SnapshotService{
 				QueryExecutor:             tt.fields.QueryExecutor,
-				FileChunkQuery:            tt.fields.FileChunkQuery,
 				Logger:                    tt.fields.Logger,
 				Mainchain:                 tt.fields.Mainchain,
 				Spinechain:                tt.fields.Spinechain,
