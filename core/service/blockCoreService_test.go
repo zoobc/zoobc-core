@@ -15,7 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 )
 
-func TestNewBlockService(t *testing.T) {
+func TestNewMainBlockService(t *testing.T) {
 	type args struct {
 		ct                          chaintype.ChainType
 		kvExecutor                  kvdb.KVExecutorInterface
@@ -26,7 +26,6 @@ func TestNewBlockService(t *testing.T) {
 		merkleTreeQuery             query.MerkleTreeQueryInterface
 		publishedReceiptQuery       query.PublishedReceiptQueryInterface
 		skippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
-		spinePublicKeyQuery         query.SpinePublicKeyQueryInterface
 		signature                   crypto.SignatureInterface
 		mempoolService              MempoolServiceInterface
 		receiptService              ReceiptServiceInterface
@@ -42,9 +41,11 @@ func TestNewBlockService(t *testing.T) {
 		blockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		transactionUtil             transaction.UtilInterface
 		receiptUtil                 coreUtil.ReceiptUtilInterface
+		transactionCoreService      TransactionCoreServiceInterface
 	}
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
+	transactionCoreService := &TransactionCoreService{}
 
 	tests := []struct {
 		name string
@@ -54,27 +55,72 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				ct:              &chaintype.MainChain{},
-				obsr:            observer.NewObserver(),
-				transactionUtil: transactionUtil,
-				receiptUtil:     receiptUtil,
+				ct:                     &chaintype.MainChain{},
+				obsr:                   observer.NewObserver(),
+				transactionUtil:        transactionUtil,
+				receiptUtil:            receiptUtil,
+				transactionCoreService: transactionCoreService,
 			},
 			want: &BlockService{
-				Chaintype:       &chaintype.MainChain{},
-				Observer:        observer.NewObserver(),
-				TransactionUtil: transactionUtil,
-				ReceiptUtil:     receiptUtil,
+				Chaintype:              &chaintype.MainChain{},
+				Observer:               observer.NewObserver(),
+				TransactionUtil:        transactionUtil,
+				ReceiptUtil:            receiptUtil,
+				TransactionCoreService: transactionCoreService,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
+			if got := NewMainBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
 				tt.args.mempoolQuery, tt.args.transactionQuery, tt.args.merkleTreeQuery, tt.args.publishedReceiptQuery,
-				tt.args.skippedBlocksmithQuery, tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.mempoolService,
+				tt.args.skippedBlocksmithQuery, tt.args.signature, tt.args.mempoolService,
 				tt.args.receiptService, tt.args.nodeRegistrationService, tt.args.txTypeSwitcher, tt.args.accountBalanceQuery,
 				tt.args.participationScoreQuery, tt.args.nodeRegistrationQuery, tt.args.obsr, tt.args.blocksmithStrategyMain,
-				tt.args.logger, tt.args.accountLedgerQuery, tt.args.blockIncompleteQueueService, tt.args.transactionUtil, tt.args.receiptUtil); !reflect.DeepEqual(got, tt.want) {
+				tt.args.logger, tt.args.accountLedgerQuery, tt.args.blockIncompleteQueueService, tt.args.transactionUtil,
+				tt.args.receiptUtil, tt.args.transactionCoreService); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewBlockService() = \n%v, want \n%v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewSpineBlockService(t *testing.T) {
+	type args struct {
+		ct                     chaintype.ChainType
+		kvExecutor             kvdb.KVExecutorInterface
+		queryExecutor          query.ExecutorInterface
+		blockQuery             query.BlockQueryInterface
+		spinePublicKeyQuery    query.SpinePublicKeyQueryInterface
+		signature              crypto.SignatureInterface
+		nodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		obsr                   *observer.Observer
+		blocksmithStrategyMain strategy.BlocksmithStrategyInterface
+		logger                 *log.Logger
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want *BlockSpineService
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				ct:   &chaintype.SpineChain{},
+				obsr: observer.NewObserver(),
+			},
+			want: &BlockSpineService{
+				Chaintype: &chaintype.SpineChain{},
+				Observer:  observer.NewObserver(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewSpineBlockService(tt.args.ct, tt.args.kvExecutor, tt.args.queryExecutor, tt.args.blockQuery,
+				tt.args.spinePublicKeyQuery, tt.args.signature, tt.args.nodeRegistrationQuery, tt.args.obsr,
+				tt.args.blocksmithStrategyMain, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockService() = \n%v, want \n%v", got, tt.want)
 			}
 		})

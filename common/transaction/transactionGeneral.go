@@ -20,7 +20,8 @@ type (
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
 		ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte
 		GetTransactionID(transactionHash []byte) (int64, error)
-		ValidateTransaction(tx *model.Transaction, queryExecutor query.ExecutorInterface, accountBalanceQuery query.AccountBalanceQueryInterface, verifySignature bool) error
+		ValidateTransaction(tx *model.Transaction, queryExecutor query.ExecutorInterface,
+			accountBalanceQuery query.AccountBalanceQueryInterface, verifySignature bool) error
 	}
 
 	Util struct{}

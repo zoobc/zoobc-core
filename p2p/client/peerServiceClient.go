@@ -36,6 +36,11 @@ type (
 			transactionBytes []byte,
 			chainType chaintype.ChainType,
 		) error
+		SendBlockTransactions(
+			destPeer *model.Peer,
+			transactionsBytes [][]byte,
+			chainType chaintype.ChainType,
+		) error
 		RequestBlockTransactions(
 			destPeer *model.Peer,
 			transactonIDs []int64,
@@ -322,6 +327,45 @@ func (psc *PeerServiceClient) SendTransaction(
 		return err
 	}
 	err = psc.storeReceipt(response.BatchReceipt)
+	return err
+}
+
+// SendBlockTransactions sends transactions required by a block requested by the peer
+func (psc *PeerServiceClient) SendBlockTransactions(
+	destPeer *model.Peer,
+	transactionsBytes [][]byte,
+	chainType chaintype.ChainType,
+) error {
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return err
+	}
+	var (
+		response       *model.SendBlockTransactionsResponse
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+
+	response, err = p2pClient.SendBlockTransactions(ctx, &model.SendBlockTransactionsRequest{
+		SenderPublicKey:   psc.NodePublicKey,
+		TransactionsBytes: transactionsBytes,
+		ChainType:         chainType.GetTypeInt(),
+	})
+	if err != nil {
+		return err
+	}
+	if response == nil || response.BatchReceipts == nil || len(response.BatchReceipts) == 0 {
+		return nil
+	}
+
+	for _, batchReceipt := range response.BatchReceipts {
+		// continue even though some receipts are failing
+		_ = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		_ = psc.storeReceipt(batchReceipt)
+	}
 	return err
 }
 

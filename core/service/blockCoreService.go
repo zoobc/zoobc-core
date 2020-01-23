@@ -48,14 +48,17 @@ type (
 			lastBlock,
 			block *model.Block,
 			nodeSecretPhrase string,
+			peer *model.Peer,
 		) (*model.BatchReceipt, error)
 		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
+		ReceivedValidatedBlockTransactionsListener() observer.Listener
+		BlockTransactionsRequestedListener() observer.Listener
 	}
 )
 
-func NewBlockService(
+func NewMainBlockService(
 	ct chaintype.ChainType,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
@@ -65,7 +68,6 @@ func NewBlockService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
-	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
@@ -81,49 +83,59 @@ func NewBlockService(
 	blockIncompleteQueueService BlockIncompleteQueueServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
+	transactionCoreService TransactionCoreServiceInterface,
 ) BlockServiceInterface {
-	switch ct.(type) {
-	case *chaintype.MainChain:
-		return &BlockService{
-			Chaintype:                   ct,
-			KVExecutor:                  kvExecutor,
-			QueryExecutor:               queryExecutor,
-			BlockQuery:                  blockQuery,
-			MempoolQuery:                mempoolQuery,
-			TransactionQuery:            transactionQuery,
-			MerkleTreeQuery:             merkleTreeQuery,
-			PublishedReceiptQuery:       publishedReceiptQuery,
-			SkippedBlocksmithQuery:      skippedBlocksmithQuery,
-			SpinePublicKeyQuery:         spinePublicKeyQuery,
-			Signature:                   signature,
-			MempoolService:              mempoolService,
-			ReceiptService:              receiptService,
-			NodeRegistrationService:     nodeRegistrationService,
-			ActionTypeSwitcher:          txTypeSwitcher,
-			AccountBalanceQuery:         accountBalanceQuery,
-			ParticipationScoreQuery:     participationScoreQuery,
-			NodeRegistrationQuery:       nodeRegistrationQuery,
-			BlocksmithStrategy:          blocksmithStrategy,
-			Observer:                    obsr,
-			Logger:                      logger,
-			AccountLedgerQuery:          accountLedgerQuery,
-			BlockIncompleteQueueService: blockIncompleteQueueService,
-			TransactionUtil:             transactionUtil,
-			ReceiptUtil:                 receiptUtil,
-		}
-	case *chaintype.SpineChain:
-		return &BlockSpineService{
-			Chaintype:             ct,
-			KVExecutor:            kvExecutor,
-			QueryExecutor:         queryExecutor,
-			BlockQuery:            blockQuery,
-			SpinePublicKeyQuery:   spinePublicKeyQuery,
-			Signature:             signature,
-			NodeRegistrationQuery: nodeRegistrationQuery,
-			BlocksmithStrategy:    blocksmithStrategy,
-			Observer:              obsr,
-			Logger:                logger,
-		}
+	return &BlockService{
+		Chaintype:                   ct,
+		KVExecutor:                  kvExecutor,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  blockQuery,
+		MempoolQuery:                mempoolQuery,
+		TransactionQuery:            transactionQuery,
+		MerkleTreeQuery:             merkleTreeQuery,
+		PublishedReceiptQuery:       publishedReceiptQuery,
+		SkippedBlocksmithQuery:      skippedBlocksmithQuery,
+		Signature:                   signature,
+		MempoolService:              mempoolService,
+		ReceiptService:              receiptService,
+		NodeRegistrationService:     nodeRegistrationService,
+		ActionTypeSwitcher:          txTypeSwitcher,
+		AccountBalanceQuery:         accountBalanceQuery,
+		ParticipationScoreQuery:     participationScoreQuery,
+		NodeRegistrationQuery:       nodeRegistrationQuery,
+		BlocksmithStrategy:          blocksmithStrategy,
+		Observer:                    obsr,
+		Logger:                      logger,
+		AccountLedgerQuery:          accountLedgerQuery,
+		BlockIncompleteQueueService: blockIncompleteQueueService,
+		TransactionUtil:             transactionUtil,
+		ReceiptUtil:                 receiptUtil,
+		TransactionCoreService:      transactionCoreService,
 	}
-	return nil
+}
+
+func NewSpineBlockService(
+	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
+	signature crypto.SignatureInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	obsr *observer.Observer,
+	blocksmithStrategy strategy.BlocksmithStrategyInterface,
+	logger *log.Logger,
+) BlockServiceInterface {
+	return &BlockSpineService{
+		Chaintype:             ct,
+		KVExecutor:            kvExecutor,
+		QueryExecutor:         queryExecutor,
+		BlockQuery:            blockQuery,
+		SpinePublicKeyQuery:   spinePublicKeyQuery,
+		Signature:             signature,
+		NodeRegistrationQuery: nodeRegistrationQuery,
+		Observer:              obsr,
+		BlocksmithStrategy:    blocksmithStrategy,
+		Logger:                logger,
+	}
 }

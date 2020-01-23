@@ -383,6 +383,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 }
 
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	transactionUtil := &transaction.Util{}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -578,7 +579,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		))
 	case "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, " +
 		"sender_account_address, recipient_account_address FROM mempool WHERE id IN (?)  ":
-		txBytes, _ := transaction.GetTransactionBytes(mockTransaction, true)
+		txBytes, _ := transactionUtil.GetTransactionBytes(mockTransaction, true)
 		fmt.Println("test -->")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id", "block_height", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
@@ -2347,6 +2348,8 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		mockTransaction,
 	}
 
+	mockPeer := &model.Peer{}
+
 	type fields struct {
 		Chaintype                   chaintype.ChainType
 		KVExecutor                  kvdb.KVExecutorInterface
@@ -2499,7 +2502,8 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ReceiptUtil:                 &coreUtil.ReceiptUtil{},
 			}
 			got, err := bs.ReceiveBlock(
-				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
+				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase, mockPeer,
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReceiveBlock() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
@@ -3959,6 +3963,8 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 		Block: &mockBlockWithTransactionIDs,
 	}
 
+	mockPeer := &model.Peer{}
+
 	type fields struct {
 		Chaintype                   chaintype.ChainType
 		KVExecutor                  kvdb.KVExecutorInterface
@@ -4058,7 +4064,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				MerkleTreeQuery:             tt.fields.MerkleTreeQuery,
 				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
 				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
-				SpinePublicKeyQuery:         tt.fields.SpinePublicKeyQuery,
 				Signature:                   tt.fields.Signature,
 				MempoolService:              tt.fields.MempoolService,
 				ReceiptService:              tt.fields.ReceiptService,
@@ -4072,8 +4077,9 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
 				Observer:                    tt.fields.Observer,
 				Logger:                      tt.fields.Logger,
+				TransactionUtil:             &transaction.Util{},
 			}
-			gotIsQueued, err := bs.ProcessQueueBlock(tt.args.block)
+			gotIsQueued, err := bs.ProcessQueueBlock(tt.args.block, mockPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.ProcessQueueBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return

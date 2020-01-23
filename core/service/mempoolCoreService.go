@@ -37,6 +37,12 @@ type (
 			lastBlock *model.Block,
 			nodeSecretPhrase string,
 		) (*model.BatchReceipt, error)
+		ReceivedBlockTransactions(
+			senderPublicKey []byte,
+			receivedTxBytes [][]byte,
+			lastBlock *model.Block,
+			nodeSecretPhrase string,
+		) ([]*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
 	}
@@ -334,7 +340,7 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 ) ([]*model.BatchReceipt, error) {
 	var (
 		batchReceiptArray    []*model.BatchReceipt
-		receivedTransactions = make(map[int64]*model.Transaction)
+		receivedTransactions []*model.Transaction
 	)
 	for _, txBytes := range receivedTxBytes {
 		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlock, nodeSecretPhrase)
@@ -344,11 +350,11 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 		if receivedTx == nil {
 			continue
 		}
-		receivedTransactions[receivedTx.GetID()] = receivedTx
+		receivedTransactions = append(receivedTransactions, receivedTx)
 		batchReceiptArray = append(batchReceiptArray, batchReceipt)
 	}
 
-	mps.Observer.Notify(observer.ReceivedTransactionValidated, receivedTransactions, mps.Chaintype)
+	go mps.Observer.Notify(observer.ReceivedBlockTransactionsValidated, receivedTransactions, mps.Chaintype)
 
 	return batchReceiptArray, nil
 }

@@ -279,9 +279,8 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 }
 
 func TestGetNextBlocks(t *testing.T) {
-	blockService := coreService.NewBlockService(
+	blockService := coreService.NewMainBlockService(
 		&chaintype.MainChain{},
-		nil,
 		nil,
 		nil,
 		nil,
@@ -305,6 +304,7 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		&transaction.Util{},
 		&coreUtil.ReceiptUtil{},
+		nil,
 	)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,

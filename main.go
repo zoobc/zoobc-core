@@ -271,6 +271,7 @@ func initP2pInstance() {
 		peerServiceClient,
 		peerExplorer,
 		loggerP2PService,
+		transactionUtil,
 	)
 }
 
@@ -280,6 +281,9 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
+	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
+	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
+	observerInstance.AddListener(observer.SendBlockTransactions, p2pServiceInstance.SendBlockTransactionsListener())
 }
 
 func startServices() {
@@ -290,6 +294,7 @@ func startServices() {
 		queryExecutor,
 		blockServices,
 		mempoolServices,
+		observerInstance,
 	)
 	api.Start(
 		apiRPCPort,
@@ -364,7 +369,7 @@ func startMainchain() {
 		observerInstance,
 	)
 
-	mainchainBlockService := service.NewBlockService(
+	mainchainBlockService := service.NewMainBlockService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -374,7 +379,6 @@ func startMainchain() {
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
-		nil,
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -390,6 +394,7 @@ func startMainchain() {
 		blockIncompleteQueueService,
 		transactionUtil,
 		receiptUtil,
+		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -466,32 +471,17 @@ func startSpinechain() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockService := service.NewBlockService(
+	spinechainBlockService := service.NewSpineBlockService(
 		spinechain,
 		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
-		query.NewMempoolQuery(spinechain),
-		query.NewTransactionQuery(spinechain),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
-		query.NewSkippedBlocksmithQuery(),
 		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
-		nil, // no mempool for spine blocks
-		receiptService,
-		nodeRegistrationService,
-		nil, // no transaction types for spine blocks
-		query.NewAccountBalanceQuery(),
-		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
-		nil, // no account ledger for spine blocks
-		nil, // no transaction util is needed by the spine blocks
-		nil, // no receipt util is needed by the spine blocks
-		nil, // no need block uncomplete queue service
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

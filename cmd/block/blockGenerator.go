@@ -141,7 +141,8 @@ func initialize(
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
 	)
-	blockService = service.NewBlockService(
+
+	blockService = service.NewMainBlockService(
 		chainType,
 		nil,
 		queryExecutor,
@@ -151,7 +152,6 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
-		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -167,6 +167,7 @@ func initialize(
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 		transactionUtil,
 		receiptUtil,
+		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
 	)
 
 	migration = database.Migration{Query: queryExecutor}
