@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -16,7 +15,7 @@ import (
 type (
 	SnapshotServiceInterface interface {
 		GetNextSnapshotHeight(mainHeight uint32, ct chaintype.ChainType) uint32
-		GenerateSnapshot(mainHeight uint32, ct chaintype.ChainType) (*model.SnapshotFileInfo, error)
+		GenerateSnapshot(block *model.Block, ct chaintype.ChainType) (*model.SnapshotFileInfo, error)
 		StartSnapshotListener() observer.Listener
 	}
 
@@ -60,7 +59,7 @@ func (ss *SnapshotService) GetNextSnapshotHeight(snapshotHeight uint32, ct chain
 		avgBlockTime int64
 	)
 	// first snapshot cannot be taken before minRollBack height
-	// FIXME: uncomment this. for testing only!
+	// FIXME: STEF uncomment this. for testing only!
 	// if snapshotHeight < constant.MinRollbackBlocks {
 	// 	snapshotHeight = constant.MinRollbackBlocks
 	// }
@@ -80,55 +79,23 @@ func (ss *SnapshotService) GetNextSnapshotHeight(snapshotHeight uint32, ct chain
 // Note: First iteration will save a single chunk, for simplicity, but in future we should be able to split the file into multiple parts
 // TODO: in future generalise (maybe by injecting a method from another service/strategy that implements logic specific to a given
 //  chaintype. At the moment is not needed because we only have mainchain as chain type that can be snapshotted
-func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.ChainType) (*model.SnapshotFileInfo, error) {
+func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.ChainType) (*model.SnapshotFileInfo, error) {
 	var (
-		lastMainBlock, lastSpineBlock model.Block
-		firstValidSpineHeight         uint32
-		snapshotFullHash              []byte
-		fileChunkHashes               = make([][]byte, 0)
+		snapshotFullHash            []byte
+		fileChunkHashes             = make([][]byte, 0)
+		snapshotExpirationTimestamp int64
 	)
 
 	switch ct.(type) {
 	case *chaintype.MainChain:
-		// get the last main block
-		row, err := ss.QueryExecutor.ExecuteSelectRow(ss.MainBlockQuery.GetLastBlock(), false)
-		if err != nil {
-			return nil, err
-		}
-		err = ss.MainBlockQuery.Scan(&lastMainBlock, row)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		// get the last spine block
-		row, err = ss.QueryExecutor.ExecuteSelectRow(ss.SpineBlockQuery.GetLastBlock(), false)
-		if err != nil {
-			return nil, err
-		}
-		err = ss.MainBlockQuery.Scan(&lastSpineBlock, row)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
+		snapshotExpirationTimestamp = block.Timestamp + constant.SnapshotGenerationTimeout
 
-		// calculate first valid spine block height for the snapshot (= spineBlockManifest) to be included in.
-		// spine blocks have discrete timing,
-		// so we can calculate accurately next spine timestamp and give enough time to all nodes to complete their snapshot
-		spinechainInterval := ss.Spinechain.GetSmithingPeriod() + ss.Spinechain.GetChainSmithingDelayTime()
-		// lastMainBlock.Timestamp is the timestamp at which the snapshot started to be computed
-		nextMinimumSpineBlockTimestamp := lastMainBlock.Timestamp + ss.SnapshotGenerationTimeout
-		firstValidTime := util.GetNextStep(nextMinimumSpineBlockTimestamp, spinechainInterval)
-		// firstValidSpineHeight = previous spine block height + delta (in spine in blocks) based on previously computed first valid timestamp
-		firstValidSpineHeight = lastSpineBlock.Height + uint32((firstValidTime-lastMainBlock.Timestamp)/spinechainInterval)
-		// don't allow megablocks to reference past spine blocks
-		if firstValidSpineHeight < lastSpineBlock.Height {
-			firstValidSpineHeight = lastSpineBlock.Height + 1
-		}
-
-		// TODO: call here the function that compute the snapshot and returns:
+		// FIXME: call here the function that compute the snapshot and returns:
 		//  the snapshot chunks' hashes
 		//  the snapshot full hash
-		// TODO: below logic is only for live testing without real snapshots
+		// FIXME: below logic is only for live testing without real snapshots
 		digest := sha3.New256()
-		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(util.GetSecureRandom())))
+		_, err := digest.Write(util.ConvertUint64ToBytes(uint64(util.GetSecureRandom())))
 		if err != nil {
 			return nil, err
 		}
@@ -147,12 +114,12 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 	}
 
 	return &model.SnapshotFileInfo{
-		ChainType:              ct.GetTypeInt(),
-		SpineBlockManifestType: model.SpineBlockManifestType_Snapshot,
-		FileChunksHashes:       fileChunkHashes,
-		MainHeight:             mainHeight,
-		SnapshotFileHash:       snapshotFullHash,
-		SpineHeight:            firstValidSpineHeight,
+		SnapshotFileHash:           snapshotFullHash,
+		FileChunksHashes:           fileChunkHashes,
+		ChainType:                  ct.GetTypeInt(),
+		Height:                     block.Height,
+		ProcessExpirationTimestamp: snapshotExpirationTimestamp,
+		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 	}, nil
 
 }
@@ -163,21 +130,22 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 		OnNotify: func(block interface{}, args interface{}) {
 			b := block.(*model.Block)
 			ct := args.(chaintype.ChainType)
-			if ct.HasSnapshots() && b.Height == ss.GetNextSnapshotHeight(b.Height, ct) {
+			if ct.HasSnapshots() {
+				// STEF for testing only
+				// if ct.HasSnapshots() && b.Height == ss.GetNextSnapshotHeight(b.Height, ct) {
 				go func() {
-					// TODO: implement some process management,
+					// TODO: implement some sort of process management,
 					//  such as controlling if there is another snapshot running before starting to compute a new one (
 					//  or compute the new one and kill the one already running...)
-					snapshotInfo, err := ss.GenerateSnapshot(b.Height, &chaintype.MainChain{})
+					snapshotInfo, err := ss.GenerateSnapshot(b, &chaintype.MainChain{})
 					if err != nil {
 						ss.Logger.Errorf("Snapshot at block "+
 							"height %d terminated with errors %s", b.Height, err)
 					}
-					snapshotExpirationTimestamp := b.Timestamp + constant.SnapshotGenerationTimeout
 					_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
 						snapshotInfo.SnapshotFileHash,
-						snapshotInfo.MainHeight,
-						snapshotExpirationTimestamp,
+						snapshotInfo.Height,
+						snapshotInfo.ProcessExpirationTimestamp,
 						snapshotInfo.FileChunksHashes,
 						ct,
 						model.SpineBlockManifestType_Snapshot,

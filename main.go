@@ -73,7 +73,7 @@ var (
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	mainchainBlockService, spinechainBlockService service.BlockServiceInterface
-	spineBlockManifestService                              service.SpineBlockManifestServiceInterface
+	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
 )
 
@@ -573,7 +573,8 @@ syncronizersLoop:
 				ticker.Stop()
 				// TODO: in future loop through all chain types that support snapshots and download them if we find
 				//  relative spineBlockManifest
-				lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(&chaintype.MainChain{}, model.SpineBlockManifestType_Snapshot)
+				lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(&chaintype.MainChain{},
+					model.SpineBlockManifestType_Snapshot)
 				if err != nil {
 					loggerCoreService.Errorf("cannot get last spineBlockManifest")
 					os.Exit(1)

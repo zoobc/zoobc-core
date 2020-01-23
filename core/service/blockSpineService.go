@@ -90,7 +90,7 @@ func (bs *BlockSpineService) NewSpineBlock(
 	payloadLength uint32,
 	secretPhrase string,
 	spinePublicKeys []*model.SpinePublicKey,
-	megablocks []*model.SpineBlockManifest,
+	spineBlockManifests []*model.SpineBlockManifest,
 ) (*model.Block, error) {
 	block := &model.Block{
 		Version:             version,
@@ -102,7 +102,7 @@ func (bs *BlockSpineService) NewSpineBlock(
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 		SpinePublicKeys:     spinePublicKeys,
-		SpineBlockManifests: megablocks,
+		SpineBlockManifests: spineBlockManifests,
 	}
 	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
@@ -446,11 +446,11 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
 	}
 	block.SpinePublicKeys = spinePublicKeys
-	megablocks, err := bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(block.Height, block.Timestamp)
+	spineBlockManifests, err := bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(block.Height, block.Timestamp)
 	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, "error getting block megablocks")
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block spineBlockManifests")
 	}
-	block.SpineBlockManifests = megablocks
+	block.SpineBlockManifests = spineBlockManifests
 
 	return nil
 }
@@ -469,7 +469,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		digest                    = sha3.New256()
 		blockSmithPublicKey       = util.GetPublicKeyFromSeed(secretPhrase)
 		fromTimestamp             = previousBlock.Timestamp
-		megablocks                []*model.SpineBlockManifest
+		spineBlockManifests       []*model.SpineBlockManifest
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// compute spine pub keys from mainchain node registrations
@@ -486,14 +486,14 @@ func (bs *BlockSpineService) GenerateBlock(
 		return nil, err
 	}
 
-	// retrieve all megablocks at current spine height (complete with file chunks entities)
-	megablocks, err = bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(newBlockHeight, timestamp)
+	// retrieve all spineBlockManifests at current spine height (complete with file chunks entities)
+	spineBlockManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(newBlockHeight, timestamp)
 	if err != nil {
 		return nil, err
 	}
 	// compute the block payload length and hash by parsing all file chunks db entities into their bytes representation
-	if len(megablocks) > 0 {
-		for _, spineBlockManifest := range megablocks {
+	if len(spineBlockManifests) > 0 {
+		for _, spineBlockManifest := range spineBlockManifests {
 			megablockBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
 			payloadBytes = append(payloadBytes, megablockBytes...)
 		}
@@ -529,7 +529,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		payloadLength,
 		secretPhrase,
 		spinePublicKeys,
-		megablocks,
+		spineBlockManifests,
 	)
 	if err != nil {
 		return nil, err

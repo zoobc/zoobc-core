@@ -45,18 +45,19 @@ func NewSpineBlockManifestService(
 	}
 }
 
-// GetSpineBlockManifestsForSpineBlock retrieve all megablocks for a given spine height
+// GetSpineBlockManifestsForSpineBlock retrieve all spineBlockManifests for a given spine height
 // if there are no spineBlockManifest at this height, return nil
-// spineHeight height of the spine block we want to fetch the megablocks for
-// spineTimestamp timestamp spine block we want to fetch the megablocks for
-func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.SpineBlockManifest, error) {
+// spineHeight height of the spine block we want to fetch the spineBlockManifests for
+// spineTimestamp timestamp spine block we want to fetch the spineBlockManifests for
+func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHeight uint32,
+	spineTimestamp int64) ([]*model.SpineBlockManifest, error) {
 	var (
-		megablocks     = make([]*model.SpineBlockManifest, 0)
-		prevSpineBlock model.Block
+		spineBlockManifests = make([]*model.SpineBlockManifest, 0)
+		prevSpineBlock      model.Block
 	)
-	// genesis can never have megablocks
+	// genesis can never have spineBlockManifests
 	if spineHeight == 0 {
-		return megablocks, nil
+		return spineBlockManifests, nil
 	}
 
 	qry := ss.SpineBlockQuery.GetBlockByHeight(spineHeight - 1)
@@ -74,7 +75,7 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHe
 	if err != nil {
 		return nil, err
 	}
-	megablocks, err = ss.SpineBlockManifestQuery.BuildModel(megablocks, rows)
+	spineBlockManifests, err = ss.SpineBlockManifestQuery.BuildModel(spineBlockManifests, rows)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -82,11 +83,12 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHe
 		return nil, nil
 	}
 
-	return megablocks, nil
+	return spineBlockManifests, nil
 }
 
 // GetLastSpineBlockManifest retrieve the last available spineBlockManifest for the given chaintype
-func (ss *SpineBlockManifestService) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
+func (ss *SpineBlockManifestService) GetLastSpineBlockManifest(ct chaintype.ChainType,
+	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
 	var (
 		spineBlockManifest model.SpineBlockManifest
 	)
@@ -100,7 +102,7 @@ func (ss *SpineBlockManifestService) GetLastSpineBlockManifest(ct chaintype.Chai
 		if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type != blocker.DBRowNotFound {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		// return nil if no megablocks are found
+		// return nil if no spineBlockManifests are found
 		return nil, nil
 	}
 	return &spineBlockManifest, nil
@@ -114,10 +116,10 @@ func (ss *SpineBlockManifestService) GetLastSpineBlockManifest(ct chaintype.Chai
 // ct the spineBlockManifest's chain type (eg. mainchain)
 // ct the spineBlockManifest's type (eg. snapshot)
 func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byte, megablockHeight uint32,
-	megablockTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest,
+	megablockTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType,
+	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest,
 	error) {
 	var (
-		megablockID         = int64(util.ConvertBytesToUint64(fullFileHash))
 		megablockFileHashes = make([]byte, 0)
 	)
 
@@ -128,7 +130,8 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 
 	// build the spineBlockManifest
 	spineBlockManifest := &model.SpineBlockManifest{
-		// we store SpineBlockManifest ID as little endian of fullFileHash so that we can join the spineBlockManifest and FileChunks tables if needed
+		// we store SpineBlockManifest ID as little endian of fullFileHash so that we can join the spineBlockManifest and
+		// FileChunks tables if needed
 		FullFileHash:             fullFileHash,
 		FileChunkHashes:          megablockFileHashes,
 		SpineBlockManifestHeight: megablockHeight,

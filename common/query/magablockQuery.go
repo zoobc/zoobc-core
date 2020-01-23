@@ -16,7 +16,7 @@ type (
 		GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string
 		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string
 		ExtractModel(mb *model.SpineBlockManifest) []interface{}
-		BuildModel(megablocks []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
+		BuildModel(spineBlockManifests []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
 		Scan(mb *model.SpineBlockManifest, row *sql.Row) error
 	}
 
@@ -46,7 +46,9 @@ func (mbl *SpineBlockManifestQuery) getTableName() string {
 }
 
 // InsertSpineBlockManifest
-func (mbl *SpineBlockManifestQuery) InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) (str string, args []interface{}) {
+func (mbl *SpineBlockManifestQuery) InsertSpineBlockManifest(
+	spineBlockManifest *model.SpineBlockManifest,
+) (str string, args []interface{}) {
 	qryInsert := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		mbl.getTableName(),
@@ -58,12 +60,12 @@ func (mbl *SpineBlockManifestQuery) InsertSpineBlockManifest(spineBlockManifest 
 
 // GetLastSpineBlockManifest returns the last spineBlockManifest
 func (mbl *SpineBlockManifestQuery) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND manifest_type = %d ORDER BY manifest_reference_height DESC LIMIT 1",
-		strings.Join(mbl.Fields, ", "), mbl.getTableName(), ct.GetTypeInt(), mbType)
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND manifest_type = %d ORDER BY manifest_reference_height "+
+		"DESC LIMIT 1", strings.Join(mbl.Fields, ", "), mbl.getTableName(), ct.GetTypeInt(), mbType)
 	return query
 }
 
-// GetSpineBlockManifestsInTimeInterval retrieve all megablocks within a time frame
+// GetSpineBlockManifestsInTimeInterval retrieve all spineBlockManifests within a time frame
 // Note: it is used to get all entities that have expired between spine blocks
 func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_timestamp > %d AND manifest_timestamp <= %d "+
@@ -88,7 +90,7 @@ func (mbl *SpineBlockManifestQuery) ExtractModel(mb *model.SpineBlockManifest) [
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
 func (mbl *SpineBlockManifestQuery) BuildModel(
-	megablocks []*model.SpineBlockManifest,
+	spineBlockManifests []*model.SpineBlockManifest,
 	rows *sql.Rows,
 ) ([]*model.SpineBlockManifest, error) {
 	for rows.Next() {
@@ -108,9 +110,9 @@ func (mbl *SpineBlockManifestQuery) BuildModel(
 		if err != nil {
 			return nil, err
 		}
-		megablocks = append(megablocks, &mb)
+		spineBlockManifests = append(spineBlockManifests, &mb)
 	}
-	return megablocks, nil
+	return spineBlockManifests, nil
 }
 
 // Scan represents `sql.Scan`
