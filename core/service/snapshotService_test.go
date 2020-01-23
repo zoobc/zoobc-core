@@ -245,7 +245,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 // func TestSnapshotService_GenerateSnapshot(t *testing.T) {
 // 	type fields struct {
 // 		QueryExecutor             query.ExecutorInterface
-// 		MegablockQuery            query.MegablockQueryInterface
+// 		SpineBlockManifestQuery            query.SpineBlockManifestQueryInterface
 // 		SpineBlockQuery           query.BlockQueryInterface
 // 		MainBlockQuery            query.BlockQueryInterface
 // 		FileChunkQuery        query.FileChunkQueryInterface
@@ -263,7 +263,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 // 		name    string
 // 		fields  fields
 // 		args    args
-// 		want    *model.Megablock
+// 		want    *model.SpineBlockManifest
 // 		wantErr bool
 // 	}{
 // 		{
@@ -274,7 +274,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 // 				},
 // 				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
 // 				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
-// 				MegablockQuery:            query.NewMegablockQuery(),
+// 				SpineBlockManifestQuery:            query.NewSpineBlockManifestQuery(),
 // 				FileChunkQuery:        query.NewFileChunkQuery(),
 // 				Logger:                    log.New(),
 // 				Spinechain:                &mockSpinechain{},
@@ -287,10 +287,10 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 // 				ct:         &chaintype.MainChain{},
 // 			},
 // 			wantErr: false,
-// 			want: &model.Megablock{
+// 			want: &model.SpineBlockManifest{
 // 				ID: int64(1919891213155270003),
 // 				FullFileHash:     make([]byte, 64),
-// 				MegablockHeight:  ssMockMainBlock.Height,
+// 				SpineBlockManifestHeight:  ssMockMainBlock.Height,
 // 				SpineBlockHeight: uint32(419),
 // 				FileChunks:   make([]*model.FileChunk, 0),
 // 			},
@@ -300,7 +300,7 @@ func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
 // 		t.Run(tt.name, func(t *testing.T) {
 // 			ss := &SnapshotService{
 // 				QueryExecutor:             tt.fields.QueryExecutor,
-// 				MegablockQuery:            tt.fields.MegablockQuery,
+// 				SpineBlockManifestQuery:            tt.fields.SpineBlockManifestQuery,
 // 				SpineBlockQuery:           tt.fields.SpineBlockQuery,
 // 				MainBlockQuery:            tt.fields.MainBlockQuery,
 // 				FileChunkQuery:        tt.fields.FileChunkQuery,

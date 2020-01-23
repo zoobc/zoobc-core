@@ -73,7 +73,7 @@ var (
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	mainchainBlockService, spinechainBlockService service.BlockServiceInterface
-	megablockService                              service.MegablockServiceInterface
+	spineBlockManifestService                              service.SpineBlockManifestServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
 )
 
@@ -134,9 +134,9 @@ func init() {
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
 	)
-	megablockService = service.NewMegablockService(
+	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
-		query.NewMegablockQuery(),
+		query.NewSpineBlockManifestQuery(),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		loggerCoreService,
 	)
@@ -144,7 +144,7 @@ func init() {
 		queryExecutor,
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
-		megablockService,
+		spineBlockManifestService,
 		loggerCoreService,
 	)
 
@@ -485,7 +485,7 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		spinechainBlockPool,
-		query.NewMegablockQuery(),
+		query.NewSpineBlockManifestQuery(),
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -572,15 +572,15 @@ syncronizersLoop:
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
 				ticker.Stop()
 				// TODO: in future loop through all chain types that support snapshots and download them if we find
-				//  relative megablock
-				lastMegablock, err := megablockService.GetLastMegablock(&chaintype.MainChain{}, model.MegablockType_Snapshot)
+				//  relative spineBlockManifest
+				lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(&chaintype.MainChain{}, model.SpineBlockManifestType_Snapshot)
 				if err != nil {
-					loggerCoreService.Errorf("cannot get last megablock")
+					loggerCoreService.Errorf("cannot get last spineBlockManifest")
 					os.Exit(1)
 				}
-				if lastMegablock != nil {
-					loggerCoreService.Infof("found megablock at spine height %d. snapshot taken at block height %d",
-						lastSpineBlock.Height, lastMegablock.MegablockHeight)
+				if lastSpineBlockManifest != nil {
+					loggerCoreService.Infof("found spineBlockManifest at spine height %d. snapshot taken at block height %d",
+						lastSpineBlock.Height, lastSpineBlockManifest.SpineBlockManifestHeight)
 					// TODO: snapshot download
 				}
 				// download remaining main blocks and start the mainchain synchronizer

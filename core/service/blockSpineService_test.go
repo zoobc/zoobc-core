@@ -41,15 +41,15 @@ var (
 		CumulativeDifficulty: "1000",
 		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		TotalAmount:   0,
-		TotalFee:      0,
-		TotalCoinBase: 0,
-		Version:       0,
-		PayloadLength: 1,
-		PayloadHash:   []byte{},
-		Megablocks:    make([]*model.Megablock, 0),
+		TotalAmount:         0,
+		TotalFee:            0,
+		TotalCoinBase:       0,
+		Version:             0,
+		PayloadLength:       1,
+		PayloadHash:         []byte{},
+		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
 	}
-	mockSpineBlockDataNoMegablocks = model.Block{
+	mockSpineBlockDataNoSpineBlockManifests = model.Block{
 		ID:        -1701929749060110283,
 		BlockHash: make([]byte, 32),
 		PreviousBlockHash: []byte{204, 131, 181, 204, 170, 112, 249, 115, 172, 193, 120, 7, 166, 200, 160, 138, 32, 0, 163, 161,
@@ -604,7 +604,7 @@ func TestBlockSpineService_NewSpineBlock(t *testing.T) {
 		payloadHash         []byte
 		payloadLength       uint32
 		secretPhrase        string
-		megablocks          []*model.Megablock
+		megablocks          []*model.SpineBlockManifest
 	}
 	tests := []struct {
 		name    string
@@ -824,22 +824,22 @@ func (*mockSpineBlocksmithServicePushBlock) GetSmithTime(blocksmithIndex int64, 
 }
 func TestBlockSpineService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		Signature               crypto.SignatureInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		MegablockService        MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
+		Signature                 crypto.SignatureInterface
+		SkippedBlocksmithQuery    query.SkippedBlocksmithQueryInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		Observer                  *observer.Observer
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -873,15 +873,15 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{
-					ResMegablocks: []*model.Megablock{
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                  1,
-							FullFileHash:        make([]byte, 64),
-							FileChunkHashes:     make([]byte, 0),
-							MegablockHeight:     720,
-							MegablockType:       model.MegablockType_Snapshot,
-							ExpirationTimestamp: int64(1000),
+							ID:                       1,
+							FullFileHash:             make([]byte, 64),
+							FileChunkHashes:          make([]byte, 0),
+							SpineBlockManifestHeight: 720,
+							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:      int64(1000),
 						},
 					},
 				},
@@ -941,15 +941,15 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{
-					ResMegablocks: []*model.Megablock{
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                  1,
-							FullFileHash:        make([]byte, 64),
-							FileChunkHashes:     make([]byte, 0),
-							MegablockHeight:     720,
-							MegablockType:       model.MegablockType_Snapshot,
-							ExpirationTimestamp: int64(1000),
+							ID:                       1,
+							FullFileHash:             make([]byte, 64),
+							FileChunkHashes:          make([]byte, 0),
+							SpineBlockManifestHeight: 720,
+							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:      int64(1000),
 						},
 					},
 				},
@@ -992,15 +992,15 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				Observer:              tt.fields.Observer,
-				Logger:                logrus.New(),
-				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				Observer:                  tt.fields.Observer,
+				Logger:                    logrus.New(),
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast, true); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -1016,19 +1016,19 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 	mockSpineBlockGetLastBlock.SpinePublicKeys = []*model.SpinePublicKey{
 		mockSpinePublicKey,
 	}
-	mockSpineBlockGetLastBlock.Megablocks = make([]*model.Megablock, 0)
+	mockSpineBlockGetLastBlock.SpineBlockManifests = make([]*model.SpineBlockManifest, 0)
 
 	type fields struct {
-		Chaintype             chaintype.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Signature             crypto.SignatureInterface
-		ActionTypeSwitcher    transaction.TypeActionSwitcher
-		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		Signature                 crypto.SignatureInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1051,7 +1051,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			want:    &mockSpineBlockGetLastBlock,
 			wantErr: false,
@@ -1059,11 +1059,11 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 		{
 			name: "GetLastBlock:SelectFail",
 			fields: fields{
-				Chaintype:           &chaintype.SpineChain{},
-				QueryExecutor:       &mockSpineQueryExecutorFail{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.SpineChain{}),
-				SpinePublicKeyQuery: query.NewSpinePublicKeyQuery(),
-				MegablockService:    &mockMegablockService{},
+				Chaintype:                 &chaintype.SpineChain{},
+				QueryExecutor:             &mockSpineQueryExecutorFail{},
+				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
+				SpinePublicKeyQuery:       query.NewSpinePublicKeyQuery(),
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -1072,12 +1072,12 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			got, err := bs.GetLastBlock()
 			if (err != nil) != tt.wantErr {
@@ -1230,7 +1230,7 @@ func (*mockSpineQueryExecutorGetBlocksFail) ExecuteSelect(query string, tx bool,
 }
 
 func TestBlockSpineService_GetBlocks(t *testing.T) {
-	mockSpineBlockData.Megablocks = nil
+	mockSpineBlockData.SpineBlockManifests = nil
 	type fields struct {
 		Chaintype          chaintype.ChainType
 		QueryExecutor      query.ExecutorInterface
@@ -1305,20 +1305,20 @@ type (
 	mockSpineReceiptServiceReturnEmpty struct {
 		ReceiptService
 	}
-	mockMegablockService struct {
-		MegablockService
-		ResMegablocks []*model.Megablock
-		ResError      error
+	mockSpineBlockManifestService struct {
+		SpineBlockManifestService
+		ResSpineBlockManifests []*model.SpineBlockManifest
+		ResError               error
 	}
 )
 
-func (ss *mockMegablockService) GetMegablocksForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.Megablock, error) {
+func (ss *mockSpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.SpineBlockManifest, error) {
 	var (
-		megablocks = make([]*model.Megablock, 0)
+		megablocks = make([]*model.SpineBlockManifest, 0)
 		err        error
 	)
-	if ss.ResMegablocks != nil {
-		megablocks = ss.ResMegablocks
+	if ss.ResSpineBlockManifests != nil {
+		megablocks = ss.ResSpineBlockManifests
 	}
 	if ss.ResError != nil {
 		err = ss.ResError
@@ -1406,19 +1406,19 @@ func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFro
 
 func TestBlockSpineService_GenerateBlock(t *testing.T) {
 	type fields struct {
-		Chaintype             chaintype.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		Signature             crypto.SignatureInterface
-		MempoolService        MempoolServiceInterface
-		ReceiptService        ReceiptServiceInterface
-		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
-		ActionTypeSwitcher    transaction.TypeActionSwitcher
-		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ReceiptService            ReceiptServiceInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1457,15 +1457,15 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{
-					ResMegablocks: []*model.Megablock{
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                  1,
-							FullFileHash:        make([]byte, 64),
-							FileChunkHashes:     make([]byte, 0),
-							MegablockHeight:     720,
-							MegablockType:       model.MegablockType_Snapshot,
-							ExpirationTimestamp: int64(1000),
+							ID:                       1,
+							FullFileHash:             make([]byte, 64),
+							FileChunkHashes:          make([]byte, 0),
+							SpineBlockManifestHeight: 720,
+							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:      int64(1000),
 						},
 					},
 				},
@@ -1494,13 +1494,13 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -1551,22 +1551,22 @@ func (*mockSpineBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model
 
 func TestBlockSpineService_AddGenesis(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Logger                  *logrus.Logger
-		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		MegablockService        MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		Observer                  *observer.Observer
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		Logger                    *logrus.Logger
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1597,11 +1597,11 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &MegablockService{
-					QueryExecutor:   &mockSpineAddGenesisExecutor{},
-					Logger:          log.New(),
-					MegablockQuery:  query.NewMegablockQuery(),
-					SpineBlockQuery: query.NewBlockQuery(&chaintype.SpineChain{}),
+				SpineBlockManifestService: &SpineBlockManifestService{
+					QueryExecutor:           &mockSpineAddGenesisExecutor{},
+					Logger:                  log.New(),
+					SpineBlockManifestQuery: query.NewSpineBlockManifestQuery(),
+					SpineBlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
 			},
 			wantErr: false,
@@ -1610,15 +1610,15 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				Observer:              tt.fields.Observer,
-				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
-				Logger:                tt.fields.Logger,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				Observer:                  tt.fields.Observer,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				Logger:                    tt.fields.Logger,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -1818,24 +1818,24 @@ func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelect(query string, t
 
 func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
-		Chaintype             chaintype.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Signature             crypto.SignatureInterface
-		MempoolService        MempoolServiceInterface
-		ActionTypeSwitcher    transaction.TypeActionSwitcher
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		Observer              *observer.Observer
-		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		Observer                  *observer.Observer
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		height uint32
 	}
-	mockSpineBlockData.Megablocks = make([]*model.Megablock, 0)
+	mockSpineBlockData.SpineBlockManifests = make([]*model.SpineBlockManifest, 0)
 	tests := []struct {
 		name    string
 		fields  fields
@@ -1857,7 +1857,7 @@ func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			want:    &mockSpineBlockData,
 			wantErr: false,
@@ -1884,13 +1884,13 @@ func TestBlockSpineService_GetBlockByHeight(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				Observer:              tt.fields.Observer,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				Observer:                  tt.fields.Observer,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -1989,23 +1989,23 @@ func (*mockSpineQueryExecutorGetBlockByIDFail) ExecuteSelectRow(query string, tx
 
 func TestBlockSpineService_GetBlockByID(t *testing.T) {
 	var mockData = mockSpineBlockData
-	mockData.Megablocks = []*model.Megablock{
-		ssMockMegablock,
+	mockData.SpineBlockManifests = []*model.SpineBlockManifest{
+		ssMockSpineBlockManifest,
 	}
 	type fields struct {
-		Chaintype             chaintype.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		MempoolQuery          query.MempoolQueryInterface
-		TransactionQuery      query.TransactionQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Signature             crypto.SignatureInterface
-		MempoolService        MempoolServiceInterface
-		ActionTypeSwitcher    transaction.TypeActionSwitcher
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		Observer              *observer.Observer
-		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		Observer                  *observer.Observer
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		ID               int64
@@ -2032,9 +2032,9 @@ func TestBlockSpineService_GetBlockByID(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{
-					ResMegablocks: []*model.Megablock{
-						ssMockMegablock,
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
+						ssMockSpineBlockManifest,
 					},
 				},
 			},
@@ -2066,13 +2066,13 @@ func TestBlockSpineService_GetBlockByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				Observer:              tt.fields.Observer,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				Observer:                  tt.fields.Observer,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			got, err := bs.GetBlockByID(tt.args.ID, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
@@ -2146,7 +2146,7 @@ func (*mockSpineQueryExecutorGetBlocksFromHeightFail) ExecuteSelect(query string
 }
 
 func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
-	mockSpineBlockData.Megablocks = nil
+	mockSpineBlockData.SpineBlockManifests = nil
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
@@ -2259,26 +2259,26 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 	mockSpineBlockData.BlockHash = mockSpineGoodLastBlockHash
 
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		MegablockService        MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		KVExecutor                kvdb.KVExecutorInterface
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		MerkleTreeQuery           query.MerkleTreeQueryInterface
+		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
+		SkippedBlocksmithQuery    query.SkippedBlocksmithQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		Observer                  *observer.Observer
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2322,7 +2322,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2362,7 +2362,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2396,7 +2396,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2438,7 +2438,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2472,7 +2472,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2511,7 +2511,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					Signature:             &mockSpineSignature{},
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			wantErr: false,
 			want:    nil,
@@ -2520,15 +2520,15 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				Observer:              tt.fields.Observer,
-				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
-				Logger:                logrus.New(),
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				Observer:                  tt.fields.Observer,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				Logger:                    logrus.New(),
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
@@ -3386,29 +3386,29 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, 
 
 func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	type fields struct {
-		RWMutex                 sync.RWMutex
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ReceiptService          ReceiptServiceInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		Observer                *observer.Observer
-		Logger                  *log.Logger
-		SpinePublicKeyService   BlockSpinePublicKeyServiceInterface
-		MegablockService        MegablockServiceInterface
+		RWMutex                   sync.RWMutex
+		Chaintype                 chaintype.ChainType
+		KVExecutor                kvdb.KVExecutorInterface
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		MerkleTreeQuery           query.MerkleTreeQueryInterface
+		PublishedReceiptQuery     query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery    query.SkippedBlocksmithQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ReceiptService            ReceiptServiceInterface
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
+		Observer                  *observer.Observer
+		Logger                    *log.Logger
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3447,7 +3447,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3483,7 +3483,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			args: args{
 				commonBlock: mockSpineBadCommonBlockHardFork,
@@ -3519,7 +3519,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3555,7 +3555,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3568,14 +3568,14 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				Observer:              tt.fields.Observer,
-				Logger:                tt.fields.Logger,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				Observer:                  tt.fields.Observer,
+				Logger:                    tt.fields.Logger,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
@@ -3626,18 +3626,18 @@ func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx 
 
 func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 	type fields struct {
-		Chaintype             chaintype.ChainType
-		KVExecutor            kvdb.KVExecutorInterface
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Signature             crypto.SignatureInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
-		Observer              *observer.Observer
-		Logger                *log.Logger
-		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      MegablockServiceInterface
+		Chaintype                 chaintype.ChainType
+		KVExecutor                kvdb.KVExecutorInterface
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
+		Signature                 crypto.SignatureInterface
+		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		Observer                  *observer.Observer
+		Logger                    *log.Logger
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 	type args struct {
 		block *model.Block
@@ -3662,7 +3662,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			args: args{
 				block: &model.Block{},
@@ -3682,7 +3682,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				MegablockService: &mockMegablockService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{},
 			},
 			args: args{
 				block: &model.Block{
@@ -3695,22 +3695,22 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 				SpinePublicKeys: []*model.SpinePublicKey{
 					mockSpinePublicKey,
 				},
-				Megablocks: make([]*model.Megablock, 0),
+				SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockSpineService{
-				Chaintype:             tt.fields.Chaintype,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				BlockQuery:            tt.fields.BlockQuery,
-				Signature:             tt.fields.Signature,
-				BlocksmithStrategy:    tt.fields.BlocksmithStrategy,
-				Observer:              tt.fields.Observer,
-				Logger:                tt.fields.Logger,
-				SpinePublicKeyService: tt.fields.SpinePublicKeyService,
-				MegablockService:      tt.fields.MegablockService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				Observer:                  tt.fields.Observer,
+				Logger:                    tt.fields.Logger,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			if err := bs.PopulateBlockData(tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.PopulateBlockData() error = %v, wantErr %v", err, tt.wantErr)

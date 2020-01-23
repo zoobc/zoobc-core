@@ -11,98 +11,98 @@ import (
 )
 
 type (
-	MegablockQueryInterface interface {
-		InsertMegablock(megablock *model.Megablock) (str string, args []interface{})
-		GetMegablocksInTimeInterval(fromTimestamp, toTimestamp int64) string
-		GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string
-		ExtractModel(mb *model.Megablock) []interface{}
-		BuildModel(megablocks []*model.Megablock, rows *sql.Rows) ([]*model.Megablock, error)
-		Scan(mb *model.Megablock, row *sql.Row) error
+	SpineBlockManifestQueryInterface interface {
+		InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) (str string, args []interface{})
+		GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string
+		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string
+		ExtractModel(mb *model.SpineBlockManifest) []interface{}
+		BuildModel(megablocks []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
+		Scan(mb *model.SpineBlockManifest, row *sql.Row) error
 	}
 
-	MegablockQuery struct {
+	SpineBlockManifestQuery struct {
 		Fields    []string
 		TableName string
 	}
 )
 
-func NewMegablockQuery() *MegablockQuery {
-	return &MegablockQuery{
+func NewSpineBlockManifestQuery() *SpineBlockManifestQuery {
+	return &SpineBlockManifestQuery{
 		Fields: []string{
 			"id",
 			"full_file_hash",
 			"file_chunk_hashes",
-			"megablock_height",
+			"manifest_reference_height",
 			"chain_type",
-			"megablock_type",
-			"expiration_timestamp",
+			"manifest_type",
+			"manifest_timestamp",
 		},
-		TableName: "megablock",
+		TableName: "spine_block_manifest",
 	}
 }
 
-func (mbl *MegablockQuery) getTableName() string {
+func (mbl *SpineBlockManifestQuery) getTableName() string {
 	return mbl.TableName
 }
 
-// InsertMegablock
-func (mbl *MegablockQuery) InsertMegablock(megablock *model.Megablock) (str string, args []interface{}) {
+// InsertSpineBlockManifest
+func (mbl *SpineBlockManifestQuery) InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) (str string, args []interface{}) {
 	qryInsert := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		mbl.getTableName(),
 		strings.Join(mbl.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(mbl.Fields)-1)),
 	)
-	return qryInsert, mbl.ExtractModel(megablock)
+	return qryInsert, mbl.ExtractModel(spineBlockManifest)
 }
 
-// GetLastMegablock returns the last megablock
-func (mbl *MegablockQuery) GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) string {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND megablock_type = %d ORDER BY megablock_height DESC LIMIT 1",
+// GetLastSpineBlockManifest returns the last spineBlockManifest
+func (mbl *SpineBlockManifestQuery) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE chain_type = %d AND manifest_type = %d ORDER BY manifest_reference_height DESC LIMIT 1",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), ct.GetTypeInt(), mbType)
 	return query
 }
 
-// GetMegablocksInTimeInterval retrieve all megablocks within a time frame
+// GetSpineBlockManifestsInTimeInterval retrieve all megablocks within a time frame
 // Note: it is used to get all entities that have expired between spine blocks
-func (mbl *MegablockQuery) GetMegablocksInTimeInterval(fromTimestamp, toTimestamp int64) string {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE expiration_timestamp > %d AND expiration_timestamp <= %d "+
-		"ORDER BY megablock_type, chain_type, megablock_height",
+func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_timestamp > %d AND manifest_timestamp <= %d "+
+		"ORDER BY manifest_type, chain_type, manifest_reference_height",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), fromTimestamp, toTimestamp)
 	return query
 }
 
-// ExtractModel extract the model struct fields to the order of MegablockQuery.Fields
-func (mbl *MegablockQuery) ExtractModel(mb *model.Megablock) []interface{} {
+// ExtractModel extract the model struct fields to the order of SpineBlockManifestQuery.Fields
+func (mbl *SpineBlockManifestQuery) ExtractModel(mb *model.SpineBlockManifest) []interface{} {
 	return []interface{}{
 		mb.ID,
 		mb.FullFileHash,
 		mb.FileChunkHashes,
-		mb.MegablockHeight,
+		mb.SpineBlockManifestHeight,
 		mb.ChainType,
-		mb.MegablockType,
+		mb.SpineBlockManifestType,
 		mb.ExpirationTimestamp,
 	}
 }
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
-func (mbl *MegablockQuery) BuildModel(
-	megablocks []*model.Megablock,
+func (mbl *SpineBlockManifestQuery) BuildModel(
+	megablocks []*model.SpineBlockManifest,
 	rows *sql.Rows,
-) ([]*model.Megablock, error) {
+) ([]*model.SpineBlockManifest, error) {
 	for rows.Next() {
 		var (
-			mb  model.Megablock
+			mb  model.SpineBlockManifest
 			err error
 		)
 		err = rows.Scan(
 			&mb.ID,
 			&mb.FullFileHash,
 			&mb.FileChunkHashes,
-			&mb.MegablockHeight,
+			&mb.SpineBlockManifestHeight,
 			&mb.ChainType,
-			&mb.MegablockType,
+			&mb.SpineBlockManifestType,
 			&mb.ExpirationTimestamp,
 		)
 		if err != nil {
@@ -114,14 +114,14 @@ func (mbl *MegablockQuery) BuildModel(
 }
 
 // Scan represents `sql.Scan`
-func (mbl *MegablockQuery) Scan(mb *model.Megablock, row *sql.Row) error {
+func (mbl *SpineBlockManifestQuery) Scan(mb *model.SpineBlockManifest, row *sql.Row) error {
 	err := row.Scan(
 		&mb.ID,
 		&mb.FullFileHash,
 		&mb.FileChunkHashes,
-		&mb.MegablockHeight,
+		&mb.SpineBlockManifestHeight,
 		&mb.ChainType,
-		&mb.MegablockType,
+		&mb.SpineBlockManifestType,
 		&mb.ExpirationTimestamp,
 	)
 	if err != nil {

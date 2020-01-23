@@ -263,14 +263,14 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
-			CREATE TABLE IF NOT EXISTS "megablock" (
-				"id" INTEGER,				-- little endian of hash of all megablock fields but itself
+			CREATE TABLE IF NOT EXISTS "spine_block_manifest" (
+				"id" INTEGER,				-- little endian of hash of all spine_block_manifest fields but itself
 				"full_file_hash" BLOB,			-- hash of the (snapshot) file content
-				"file_chunk_hashes" BLOB,		-- sorted sequence file chunks hashes referenced by the megablock
-				"megablock_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
-				"chain_type" INTEGER NOT NULL,		-- chain type this megablock reference to
-				"megablock_type" INTEGER NOT NULL,	-- type of megablock (as of now only snapshot)
-				"expiration_timestamp" INTEGER NOT NULL,-- timestamp that marks the end of megablock processing 
+				"file_chunk_hashes" BLOB,		-- sorted sequence file chunks hashes referenced by the spine_block_manifest
+				"manifest_reference_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
+				"chain_type" INTEGER NOT NULL,		-- chain type this spine_block_manifest reference to
+				"manifest_type" INTEGER NOT NULL,	-- type of spine_block_manifest (as of now only snapshot)
+				"manifest_timestamp" INTEGER NOT NULL,-- timestamp that marks the end of file chunks processing 
 				PRIMARY KEY("id")
 				UNIQUE("id")
 			)

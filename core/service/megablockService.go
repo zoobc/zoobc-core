@@ -13,45 +13,45 @@ import (
 )
 
 type (
-	MegablockServiceInterface interface {
-		GetMegablockID(megablock *model.Megablock) (int64, error)
-		GetMegablocksForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.Megablock, error)
-		GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock, error)
-		CreateMegablock(fullFileHash []byte, megablockHeight uint32, expirationTimestamp int64, sortedFileChunksHashes [][]byte,
-			ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock, error)
-		GetMegablockBytes(megablock *model.Megablock) []byte
-		InsertMegablock(megablock *model.Megablock) error
+	SpineBlockManifestServiceInterface interface {
+		GetSpineBlockManifestID(spineBlockManifest *model.SpineBlockManifest) (int64, error)
+		GetSpineBlockManifestsForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.SpineBlockManifest, error)
+		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error)
+		CreateSpineBlockManifest(fullFileHash []byte, megablockHeight uint32, expirationTimestamp int64, sortedFileChunksHashes [][]byte,
+			ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error)
+		GetSpineBlockManifestBytes(spineBlockManifest *model.SpineBlockManifest) []byte
+		InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error
 	}
 
-	MegablockService struct {
-		QueryExecutor   query.ExecutorInterface
-		MegablockQuery  query.MegablockQueryInterface
-		SpineBlockQuery query.BlockQueryInterface
-		Logger          *log.Logger
+	SpineBlockManifestService struct {
+		QueryExecutor           query.ExecutorInterface
+		SpineBlockManifestQuery query.SpineBlockManifestQueryInterface
+		SpineBlockQuery         query.BlockQueryInterface
+		Logger                  *log.Logger
 	}
 )
 
-func NewMegablockService(
+func NewSpineBlockManifestService(
 	queryExecutor query.ExecutorInterface,
-	megablockQuery query.MegablockQueryInterface,
+	megablockQuery query.SpineBlockManifestQueryInterface,
 	spineBlockQuery query.BlockQueryInterface,
 	logger *log.Logger,
-) *MegablockService {
-	return &MegablockService{
-		QueryExecutor:   queryExecutor,
-		MegablockQuery:  megablockQuery,
-		SpineBlockQuery: spineBlockQuery,
-		Logger:          logger,
+) *SpineBlockManifestService {
+	return &SpineBlockManifestService{
+		QueryExecutor:           queryExecutor,
+		SpineBlockManifestQuery: megablockQuery,
+		SpineBlockQuery:         spineBlockQuery,
+		Logger:                  logger,
 	}
 }
 
-// GetMegablocksForSpineBlock retrieve all megablocks for a given spine height
-// if there are no megablock at this height, return nil
+// GetSpineBlockManifestsForSpineBlock retrieve all megablocks for a given spine height
+// if there are no spineBlockManifest at this height, return nil
 // spineHeight height of the spine block we want to fetch the megablocks for
 // spineTimestamp timestamp spine block we want to fetch the megablocks for
-func (ss *MegablockService) GetMegablocksForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.Megablock, error) {
+func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHeight uint32, spineTimestamp int64) ([]*model.SpineBlockManifest, error) {
 	var (
-		megablocks     = make([]*model.Megablock, 0)
+		megablocks     = make([]*model.SpineBlockManifest, 0)
 		prevSpineBlock model.Block
 	)
 	// genesis can never have megablocks
@@ -69,12 +69,12 @@ func (ss *MegablockService) GetMegablocksForSpineBlock(spineHeight uint32, spine
 		return nil, err
 	}
 
-	qry = ss.MegablockQuery.GetMegablocksInTimeInterval(prevSpineBlock.Timestamp, spineTimestamp)
+	qry = ss.SpineBlockManifestQuery.GetSpineBlockManifestsInTimeInterval(prevSpineBlock.Timestamp, spineTimestamp)
 	rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
-	megablocks, err = ss.MegablockQuery.BuildModel(megablocks, rows)
+	megablocks, err = ss.SpineBlockManifestQuery.BuildModel(megablocks, rows)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -85,17 +85,17 @@ func (ss *MegablockService) GetMegablocksForSpineBlock(spineHeight uint32, spine
 	return megablocks, nil
 }
 
-// GetLastMegablock retrieve the last available megablock for the given chaintype
-func (ss *MegablockService) GetLastMegablock(ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock, error) {
+// GetLastSpineBlockManifest retrieve the last available spineBlockManifest for the given chaintype
+func (ss *SpineBlockManifestService) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
 	var (
-		megablock model.Megablock
+		spineBlockManifest model.SpineBlockManifest
 	)
-	qry := ss.MegablockQuery.GetLastMegablock(ct, mbType)
+	qry := ss.SpineBlockManifestQuery.GetLastSpineBlockManifest(ct, mbType)
 	row, err := ss.QueryExecutor.ExecuteSelectRow(qry, false)
 	if err != nil {
 		return nil, err
 	}
-	err = ss.MegablockQuery.Scan(&megablock, row)
+	err = ss.SpineBlockManifestQuery.Scan(&spineBlockManifest, row)
 	if err != nil {
 		if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type != blocker.DBRowNotFound {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -103,48 +103,48 @@ func (ss *MegablockService) GetLastMegablock(ct chaintype.ChainType, mbType mode
 		// return nil if no megablocks are found
 		return nil, nil
 	}
-	return &megablock, nil
+	return &spineBlockManifest, nil
 }
 
-// CreateMegablock persist a new megablock
+// CreateSpineBlockManifest persist a new spineBlockManifest
 // fullFileHash: hash of the full (snapshot) file content
 // megablockHeight: (mainchain) height at which the (snapshot) file computation has started (note: this is not the captured
 // snapshot's height, which should be = mainHeight - minRollbackHeight)
-// sortedFileChunksHashes all (snapshot) file chunks hashes for this megablock (already sorted from first to last chunk)
-// ct the megablock's chain type (eg. mainchain)
-// ct the megablock's type (eg. snapshot)
-func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight uint32,
-	megablockTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType, mbType model.MegablockType) (*model.Megablock,
+// sortedFileChunksHashes all (snapshot) file chunks hashes for this spineBlockManifest (already sorted from first to last chunk)
+// ct the spineBlockManifest's chain type (eg. mainchain)
+// ct the spineBlockManifest's type (eg. snapshot)
+func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byte, megablockHeight uint32,
+	megablockTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest,
 	error) {
 	var (
 		megablockID         = int64(util.ConvertBytesToUint64(fullFileHash))
 		megablockFileHashes = make([]byte, 0)
 	)
 
-	// build the megablock's payload (ordered sequence of file hashes been referenced by the megablock)
+	// build the spineBlockManifest's payload (ordered sequence of file hashes been referenced by the spineBlockManifest)
 	for _, chunkHash := range sortedFileChunksHashes {
 		megablockFileHashes = append(megablockFileHashes, chunkHash...)
 	}
 
-	// build the megablock
-	megablock := &model.Megablock{
-		// we store Megablock ID as little endian of fullFileHash so that we can join the megablock and FileChunks tables if needed
-		FullFileHash:        fullFileHash,
-		FileChunkHashes:     megablockFileHashes,
-		MegablockHeight:     megablockHeight,
-		ChainType:           ct.GetTypeInt(),
-		MegablockType:       mbType,
-		ExpirationTimestamp: megablockTimestamp,
+	// build the spineBlockManifest
+	spineBlockManifest := &model.SpineBlockManifest{
+		// we store SpineBlockManifest ID as little endian of fullFileHash so that we can join the spineBlockManifest and FileChunks tables if needed
+		FullFileHash:             fullFileHash,
+		FileChunkHashes:          megablockFileHashes,
+		SpineBlockManifestHeight: megablockHeight,
+		ChainType:                ct.GetTypeInt(),
+		SpineBlockManifestType:   mbType,
+		ExpirationTimestamp:      megablockTimestamp,
 	}
-	megablockID, err := ss.GetMegablockID(megablock)
+	megablockID, err := ss.GetSpineBlockManifestID(spineBlockManifest)
 	if err != nil {
 		return nil, err
 	}
-	megablock.ID = megablockID
+	spineBlockManifest.ID = megablockID
 	if err := ss.QueryExecutor.BeginTx(); err != nil {
 		return nil, err
 	}
-	if err := ss.InsertMegablock(megablock); err != nil {
+	if err := ss.InsertSpineBlockManifest(spineBlockManifest); err != nil {
 		if rollbackErr := ss.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			ss.Logger.Error(rollbackErr.Error())
 		}
@@ -154,17 +154,17 @@ func (ss *MegablockService) CreateMegablock(fullFileHash []byte, megablockHeight
 	if err != nil {
 		return nil, err
 	}
-	return megablock, nil
+	return spineBlockManifest, nil
 }
 
-// InsertMegablock persist a megablock to db (query wrapper)
-func (ss *MegablockService) InsertMegablock(megablock *model.Megablock) error {
+// InsertSpineBlockManifest persist a spineBlockManifest to db (query wrapper)
+func (ss *SpineBlockManifestService) InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {
 	var (
 		queries = make([][]interface{}, 0)
 	)
-	insertMegablockQ, insertMegablockArgs := ss.MegablockQuery.InsertMegablock(megablock)
-	insertMegablockQry := append([]interface{}{insertMegablockQ}, insertMegablockArgs...)
-	queries = append(queries, insertMegablockQry)
+	insertSpineBlockManifestQ, insertSpineBlockManifestArgs := ss.SpineBlockManifestQuery.InsertSpineBlockManifest(spineBlockManifest)
+	insertSpineBlockManifestQry := append([]interface{}{insertSpineBlockManifestQ}, insertSpineBlockManifestArgs...)
+	queries = append(queries, insertSpineBlockManifestQry)
 	err := ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
@@ -173,22 +173,22 @@ func (ss *MegablockService) InsertMegablock(megablock *model.Megablock) error {
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (ss *MegablockService) GetMegablockBytes(megablock *model.Megablock) []byte {
+func (ss *SpineBlockManifestService) GetSpineBlockManifestBytes(spineBlockManifest *model.SpineBlockManifest) []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint64ToBytes(uint64(megablock.ID)))
-	buffer.Write(megablock.FullFileHash)
-	// megablock payload = all file chunks' entities bytes
-	buffer.Write(megablock.FileChunkHashes)
-	buffer.Write(util.ConvertUint32ToBytes(megablock.MegablockHeight))
-	buffer.Write(util.ConvertUint32ToBytes(uint32(megablock.ChainType)))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(megablock.ExpirationTimestamp)))
+	buffer.Write(util.ConvertUint64ToBytes(uint64(spineBlockManifest.ID)))
+	buffer.Write(spineBlockManifest.FullFileHash)
+	// spineBlockManifest payload = all file chunks' entities bytes
+	buffer.Write(spineBlockManifest.FileChunkHashes)
+	buffer.Write(util.ConvertUint32ToBytes(spineBlockManifest.SpineBlockManifestHeight))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(spineBlockManifest.ChainType)))
+	buffer.Write(util.ConvertUint64ToBytes(uint64(spineBlockManifest.ExpirationTimestamp)))
 	return buffer.Bytes()
 }
 
-// GetMegablockID hash the megablock bytes and return its little endian representation
-func (ss *MegablockService) GetMegablockID(megablock *model.Megablock) (int64, error) {
+// GetSpineBlockManifestID hash the spineBlockManifest bytes and return its little endian representation
+func (ss *SpineBlockManifestService) GetSpineBlockManifestID(spineBlockManifest *model.SpineBlockManifest) (int64, error) {
 	digest := sha3.New256()
-	_, err := digest.Write(ss.GetMegablockBytes(megablock))
+	_, err := digest.Write(ss.GetSpineBlockManifestBytes(spineBlockManifest))
 	if err != nil {
 		return -1, err
 	}

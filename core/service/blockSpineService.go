@@ -29,16 +29,16 @@ import (
 type (
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype             chaintype.ChainType
-		QueryExecutor         query.ExecutorInterface
-		BlockQuery            query.BlockQueryInterface
-		Signature             crypto.SignatureInterface
-		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
-		Observer              *observer.Observer
-		Logger                *log.Logger
-		SpinePublicKeyService BlockSpinePublicKeyServiceInterface
-		MegablockService      MegablockServiceInterface
-		BlockPoolService      BlockPoolServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		Signature                 crypto.SignatureInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		Observer                  *observer.Observer
+		Logger                    *log.Logger
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockPoolService          BlockPoolServiceInterface
 	}
 )
 
@@ -53,13 +53,13 @@ func NewBlockSpineService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	blockPoolService BlockPoolServiceInterface,
-	megablockQuery query.MegablockQueryInterface,
+	megablockQuery query.SpineBlockManifestQueryInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype: ct,
-		QueryExecutor: queryExecutor,
-		BlockQuery:    spineBlockQuery,
-		Signature: signature,
+		Chaintype:          ct,
+		QueryExecutor:      queryExecutor,
+		BlockQuery:         spineBlockQuery,
+		Signature:          signature,
 		BlocksmithStrategy: blocksmithStrategy,
 		Observer:           obsr,
 		Logger:             logger,
@@ -70,7 +70,7 @@ func NewBlockSpineService(
 			Signature:             signature,
 			SpinePublicKeyQuery:   spinePublicKeyQuery,
 		},
-		MegablockService: NewMegablockService(
+		SpineBlockManifestService: NewSpineBlockManifestService(
 			queryExecutor,
 			megablockQuery,
 			spineBlockQuery,
@@ -90,7 +90,7 @@ func (bs *BlockSpineService) NewSpineBlock(
 	payloadLength uint32,
 	secretPhrase string,
 	spinePublicKeys []*model.SpinePublicKey,
-	megablocks []*model.Megablock,
+	megablocks []*model.SpineBlockManifest,
 ) (*model.Block, error) {
 	block := &model.Block{
 		Version:             version,
@@ -102,7 +102,7 @@ func (bs *BlockSpineService) NewSpineBlock(
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 		SpinePublicKeys:     spinePublicKeys,
-		Megablocks:          megablocks,
+		SpineBlockManifests: megablocks,
 	}
 	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
@@ -417,7 +417,7 @@ func (bs *BlockSpineService) GetGenesisBlock() (*model.Block, error) {
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "cannot parse genesis block db entity")
 	}
-	genesisBlock.Megablocks = make([]*model.Megablock, 0)
+	genesisBlock.SpineBlockManifests = make([]*model.SpineBlockManifest, 0)
 	return &genesisBlock, nil
 }
 
@@ -446,11 +446,11 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
 	}
 	block.SpinePublicKeys = spinePublicKeys
-	megablocks, err := bs.MegablockService.GetMegablocksForSpineBlock(block.Height, block.Timestamp)
+	megablocks, err := bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(block.Height, block.Timestamp)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block megablocks")
 	}
-	block.Megablocks = megablocks
+	block.SpineBlockManifests = megablocks
 
 	return nil
 }
@@ -469,7 +469,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		digest                    = sha3.New256()
 		blockSmithPublicKey       = util.GetPublicKeyFromSeed(secretPhrase)
 		fromTimestamp             = previousBlock.Timestamp
-		megablocks                []*model.Megablock
+		megablocks                []*model.SpineBlockManifest
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// compute spine pub keys from mainchain node registrations
@@ -487,14 +487,14 @@ func (bs *BlockSpineService) GenerateBlock(
 	}
 
 	// retrieve all megablocks at current spine height (complete with file chunks entities)
-	megablocks, err = bs.MegablockService.GetMegablocksForSpineBlock(newBlockHeight, timestamp)
+	megablocks, err = bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(newBlockHeight, timestamp)
 	if err != nil {
 		return nil, err
 	}
 	// compute the block payload length and hash by parsing all file chunks db entities into their bytes representation
 	if len(megablocks) > 0 {
-		for _, megablock := range megablocks {
-			megablockBytes := bs.MegablockService.GetMegablockBytes(megablock)
+		for _, spineBlockManifest := range megablocks {
+			megablockBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
 			payloadBytes = append(payloadBytes, megablockBytes...)
 		}
 	}

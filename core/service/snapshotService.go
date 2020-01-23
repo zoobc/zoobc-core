@@ -30,14 +30,14 @@ type (
 		Mainchain                 chaintype.ChainType
 		SnapshotInterval          int64
 		SnapshotGenerationTimeout int64
-		MegablockService          MegablockServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 )
 
 func NewSnapshotService(
 	queryExecutor query.ExecutorInterface,
 	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
-	megablockService MegablockServiceInterface,
+	spineBlockManifestService SpineBlockManifestServiceInterface,
 	logger *log.Logger,
 ) *SnapshotService {
 	return &SnapshotService{
@@ -48,7 +48,7 @@ func NewSnapshotService(
 		Mainchain:                 &chaintype.MainChain{},
 		SnapshotInterval:          constant.SnapshotInterval,
 		SnapshotGenerationTimeout: constant.SnapshotGenerationTimeout,
-		MegablockService:          megablockService,
+		SpineBlockManifestService: spineBlockManifestService,
 		Logger:                    logger,
 	}
 }
@@ -82,10 +82,10 @@ func (ss *SnapshotService) GetNextSnapshotHeight(snapshotHeight uint32, ct chain
 //  chaintype. At the moment is not needed because we only have mainchain as chain type that can be snapshotted
 func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.ChainType) (*model.SnapshotFileInfo, error) {
 	var (
-		lastMainBlock, lastSpineBlock       model.Block
-		firstValidSpineHeight               uint32
-		snapshotFullHash []byte
-		fileChunkHashes                     = make([][]byte, 0)
+		lastMainBlock, lastSpineBlock model.Block
+		firstValidSpineHeight         uint32
+		snapshotFullHash              []byte
+		fileChunkHashes               = make([][]byte, 0)
 	)
 
 	switch ct.(type) {
@@ -108,8 +108,8 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		
-		// calculate first valid spine block height for the snapshot (= megablock) to be included in.
+
+		// calculate first valid spine block height for the snapshot (= spineBlockManifest) to be included in.
 		// spine blocks have discrete timing,
 		// so we can calculate accurately next spine timestamp and give enough time to all nodes to complete their snapshot
 		spinechainInterval := ss.Spinechain.GetSmithingPeriod() + ss.Spinechain.GetChainSmithingDelayTime()
@@ -147,12 +147,12 @@ func (ss *SnapshotService) GenerateSnapshot(mainHeight uint32, ct chaintype.Chai
 	}
 
 	return &model.SnapshotFileInfo{
-		ChainType:         ct.GetTypeInt(),
-		MegablockType:     model.MegablockType_Snapshot,
-		FileChunksHashes:  fileChunkHashes,
-		MainHeight:        mainHeight,
-		SnapshotFileHash:  snapshotFullHash,
-		SpineHeight:       firstValidSpineHeight,
+		ChainType:              ct.GetTypeInt(),
+		SpineBlockManifestType: model.SpineBlockManifestType_Snapshot,
+		FileChunksHashes:       fileChunkHashes,
+		MainHeight:             mainHeight,
+		SnapshotFileHash:       snapshotFullHash,
+		SpineHeight:            firstValidSpineHeight,
 	}, nil
 
 }
@@ -174,16 +174,16 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 							"height %d terminated with errors %s", b.Height, err)
 					}
 					snapshotExpirationTimestamp := b.Timestamp + constant.SnapshotGenerationTimeout
-					_, err = ss.MegablockService.CreateMegablock(
+					_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
 						snapshotInfo.SnapshotFileHash,
 						snapshotInfo.MainHeight,
 						snapshotExpirationTimestamp,
 						snapshotInfo.FileChunksHashes,
 						ct,
-						model.MegablockType_Snapshot,
+						model.SpineBlockManifestType_Snapshot,
 					)
 					if err != nil {
-						ss.Logger.Errorf("Cannot create megablock at block "+
+						ss.Logger.Errorf("Cannot create spineBlockManifest at block "+
 							"height %d. Error %s", b.Height, err)
 					}
 					ss.Logger.Infof("Snapshot at main block "+

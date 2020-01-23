@@ -8,18 +8,18 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-func TestMegablockQuery_InsertMegablock(t *testing.T) {
+func TestSpineBlockManifestQuery_InsertSpineBlockManifest(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
-		megablock *model.Megablock
+		spineBlockManifest *model.SpineBlockManifest
 	}
 
-	mb1 := &model.Megablock{
-		FullFileHash:    make([]byte, 64), // sha3-512
-		MegablockHeight: 720,
+	mb1 := &model.SpineBlockManifest{
+		FullFileHash:             make([]byte, 64), // sha3-512
+		SpineBlockManifestHeight: 720,
 	}
 	tests := []struct {
 		name   string
@@ -28,39 +28,39 @@ func TestMegablockQuery_InsertMegablock(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "InsertMegablock:success",
+			name: "InsertSpineBlockManifest:success",
 			fields: fields{
-				Fields:    NewMegablockQuery().Fields,
-				TableName: NewMegablockQuery().TableName,
+				Fields:    NewSpineBlockManifestQuery().Fields,
+				TableName: NewSpineBlockManifestQuery().TableName,
 			},
 			args: args{
-				megablock: mb1,
+				spineBlockManifest: mb1,
 			},
-			want: "INSERT INTO megablock (id,full_file_hash,file_chunk_hashes,megablock_height,chain_type,megablock_type," +
-				"expiration_timestamp) VALUES(? , ?, ?, ?, ?, ?, ?)",
+			want: "INSERT INTO spine_block_manifest (id,full_file_hash,file_chunk_hashes,manifest_reference_height,chain_type,manifest_type," +
+				"manifest_timestamp) VALUES(? , ?, ?, ?, ?, ?, ?)",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mbl := &MegablockQuery{
+			mbl := &SpineBlockManifestQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got, _ := mbl.InsertMegablock(tt.args.megablock); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MegablockQuery.InsertMegablock() = %v, want %v", got, tt.want)
+			if got, _ := mbl.InsertSpineBlockManifest(tt.args.spineBlockManifest); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SpineBlockManifestQuery.InsertSpineBlockManifest() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestMegablockQuery_GetLastMegablock(t *testing.T) {
+func TestSpineBlockManifestQuery_GetLastSpineBlockManifest(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
 		ct     chaintype.ChainType
-		mbType model.MegablockType
+		mbType model.SpineBlockManifestType
 	}
 	tests := []struct {
 		name   string
@@ -69,34 +69,34 @@ func TestMegablockQuery_GetLastMegablock(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "GetLastMegablock:success",
+			name: "GetLastSpineBlockManifest:success",
 			fields: fields{
-				Fields:    NewMegablockQuery().Fields,
-				TableName: NewMegablockQuery().TableName,
+				Fields:    NewSpineBlockManifestQuery().Fields,
+				TableName: NewSpineBlockManifestQuery().TableName,
 			},
 			args: args{
 				ct:     &chaintype.MainChain{},
-				mbType: model.MegablockType_Snapshot,
+				mbType: model.SpineBlockManifestType_Snapshot,
 			},
-			want: "SELECT id, full_file_hash, file_chunk_hashes, megablock_height, chain_type, megablock_type, " +
-				"expiration_timestamp FROM megablock WHERE chain_type = 0 AND megablock_type = 0 ORDER BY megablock_height" +
+			want: "SELECT id, full_file_hash, file_chunk_hashes, manifest_reference_height, chain_type, manifest_type, " +
+				"manifest_timestamp FROM spine_block_manifest WHERE chain_type = 0 AND manifest_type = 0 ORDER BY manifest_reference_height" +
 				" DESC LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mbl := &MegablockQuery{
+			mbl := &SpineBlockManifestQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := mbl.GetLastMegablock(tt.args.ct, tt.args.mbType); got != tt.want {
-				t.Errorf("MegablockQuery.GetLastMegablock() = %v, want %v", got, tt.want)
+			if got := mbl.GetLastSpineBlockManifest(tt.args.ct, tt.args.mbType); got != tt.want {
+				t.Errorf("SpineBlockManifestQuery.GetLastSpineBlockManifest() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestMegablockQuery_GetMegablocksInTimeInterval(t *testing.T) {
+func TestSpineBlockManifestQuery_GetSpineBlockManifestsInTimeInterval(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -112,28 +112,28 @@ func TestMegablockQuery_GetMegablocksInTimeInterval(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "GetMegablocksInTimeInterval:success",
+			name: "GetSpineBlockManifestsInTimeInterval:success",
 			fields: fields{
-				Fields:    NewMegablockQuery().Fields,
-				TableName: NewMegablockQuery().TableName,
+				Fields:    NewSpineBlockManifestQuery().Fields,
+				TableName: NewSpineBlockManifestQuery().TableName,
 			},
 			args: args{
 				fromTimestamp: 10,
 				toTimestamp:   20,
 			},
-			want: "SELECT id, full_file_hash, file_chunk_hashes, megablock_height, chain_type, megablock_type, " +
-				"expiration_timestamp FROM megablock WHERE expiration_timestamp > 10 AND expiration_timestamp <= 20 ORDER" +
-				" BY megablock_type, chain_type, megablock_height",
+			want: "SELECT id, full_file_hash, file_chunk_hashes, manifest_reference_height, chain_type, manifest_type, " +
+				"manifest_timestamp FROM spine_block_manifest WHERE manifest_timestamp > 10 AND manifest_timestamp <= 20 ORDER" +
+				" BY manifest_type, chain_type, manifest_reference_height",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mbl := &MegablockQuery{
+			mbl := &SpineBlockManifestQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := mbl.GetMegablocksInTimeInterval(tt.args.fromTimestamp, tt.args.toTimestamp); got != tt.want {
-				t.Errorf("MegablockQuery.GetMegablocksInTimeInterval() = %v, want %v", got, tt.want)
+			if got := mbl.GetSpineBlockManifestsInTimeInterval(tt.args.fromTimestamp, tt.args.toTimestamp); got != tt.want {
+				t.Errorf("SpineBlockManifestQuery.GetSpineBlockManifestsInTimeInterval() = %v, want %v", got, tt.want)
 			}
 		})
 	}
