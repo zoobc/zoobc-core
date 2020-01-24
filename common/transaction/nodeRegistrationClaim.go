@@ -13,6 +13,7 @@ import (
 
 // ClaimNodeRegistration Implement service layer for claim node registration's transaction
 type ClaimNodeRegistration struct {
+	ID                    int64
 	Body                  *model.ClaimNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
@@ -22,6 +23,7 @@ type ClaimNodeRegistration struct {
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.ProofOfOwnershipValidationInterface
+	AccountLedgerQuery    query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -41,7 +43,7 @@ func (tx *ClaimNodeRegistration) SkipMempoolTransaction(selectedTransactions []*
 	return false, nil
 }
 
-func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
+func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		nodeQueries          [][]interface{}
 		prevNodeRegistration *model.NodeRegistration
@@ -75,7 +77,7 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	}
 	// update sender balance by claiming the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		(prevNodeRegistration.LockedBalance - tx.Fee),
+		prevNodeRegistration.LockedBalance-tx.Fee,
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
 			"block_height":    tx.Height,
@@ -83,6 +85,19 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed() error {
 	)
 	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 	queries := append(accountBalanceSenderQ, nodeQueries...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  prevNodeRegistration.LockedBalance - tx.Fee,
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

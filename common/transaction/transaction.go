@@ -10,7 +10,7 @@ import (
 
 type (
 	TypeAction interface {
-		ApplyConfirmed() error
+		ApplyConfirmed(blockTimestamp int64) error
 		ApplyUnconfirmed() error
 		UndoApplyUnconfirmed() error
 		// dbTx specify wether validation should read from transaction state or db state
@@ -48,6 +48,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &SendMoney{
+				ID:                  tx.GetID(),
 				Body:                sendMoneyBody.(*model.SendMoneyTransactionBody),
 				Fee:                 tx.Fee,
 				SenderAddress:       tx.GetSenderAccountAddress(),
@@ -55,6 +56,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:              tx.GetHeight(),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil
@@ -80,6 +82,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				AuthPoown:               &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:           ts.Executor,
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			}, nil
 		case 1:
 			nodeRegistrationBody, err := (&UpdateNodeRegistration{
@@ -89,6 +92,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &UpdateNodeRegistration{
+				ID:                    tx.GetID(),
 				Body:                  nodeRegistrationBody.(*model.UpdateNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
@@ -98,6 +102,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			}, nil
 		case 2:
 			removeNodeRegistrationBody, err := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -105,6 +110,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
+				ID:                    tx.GetID(),
 				Body:                  removeNodeRegistrationBody.(*model.RemoveNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
@@ -112,6 +118,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			}, nil
 		case 3:
 			claimNodeRegistrationBody, err := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -119,6 +126,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
+				ID:                    tx.GetID(),
 				Body:                  claimNodeRegistrationBody.(*model.ClaimNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
@@ -128,6 +136,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.ProofOfOwnershipValidation{},
 				QueryExecutor:         ts.Executor,
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil
@@ -140,6 +149,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &SetupAccountDataset{
+				ID:                  tx.GetID(),
 				Body:                setupAccountDatasetTransactionBody.(*model.SetupAccountDatasetTransactionBody),
 				Fee:                 tx.Fee,
 				SenderAddress:       tx.GetSenderAccountAddress(),
@@ -147,6 +157,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			}, nil
 		case 1:
 			removeAccountDatasetTransactionBody, err := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -154,6 +165,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveAccountDataset{
+				ID:                  tx.GetID(),
 				Body:                removeAccountDatasetTransactionBody.(*model.RemoveAccountDatasetTransactionBody),
 				Fee:                 tx.Fee,
 				SenderAddress:       tx.GetSenderAccountAddress(),
@@ -161,6 +173,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil

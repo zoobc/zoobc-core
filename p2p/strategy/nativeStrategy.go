@@ -96,7 +96,7 @@ func (ns *NativeStrategy) ResolvePeers() {
 func (ns *NativeStrategy) UpdateResolvedPeers() {
 	currentTime := time.Now().UTC()
 	for _, peer := range ns.GetResolvedPeers() {
-		if currentTime.Unix()-peer.GetLastUpdated() >= constant.SecondsToUpdatePeersConnection {
+		if currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
 			go ns.resolvePeer(peer)
 		}
 	}
@@ -111,7 +111,7 @@ func (ns *NativeStrategy) resolvePeer(destPeer *model.Peer) {
 		return
 	}
 	if destPeer != nil {
-		destPeer.LastUpdated = time.Now().UTC().Unix()
+		destPeer.ResolvingTime = time.Now().UTC().Unix()
 	}
 	if err := ns.RemoveUnresolvedPeer(destPeer); err != nil {
 		ns.Logger.Error(err.Error())

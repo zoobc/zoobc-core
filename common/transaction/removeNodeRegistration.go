@@ -12,6 +12,7 @@ import (
 
 // RemoveNodeRegistration Implement service layer for (new) node registration's transaction
 type RemoveNodeRegistration struct {
+	ID                    int64
 	Body                  *model.RemoveNodeRegistrationTransactionBody
 	Fee                   int64
 	SenderAddress         string
@@ -19,6 +20,7 @@ type RemoveNodeRegistration struct {
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	QueryExecutor         query.ExecutorInterface
+	AccountLedgerQuery    query.AccountLedgerQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -38,11 +40,12 @@ func (tx *RemoveNodeRegistration) SkipMempoolTransaction(selectedTransactions []
 	return false, nil
 }
 
-func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
+// ApplyConfirmed method for confirmed the transaction and store into database
+func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 
 	var (
 		nodeQueries       [][]interface{}
-		nodereGistrations []*model.NodeRegistration
+		nodeRegistrations []*model.NodeRegistration
 	)
 
 	nodeRow, err := tx.QueryExecutor.ExecuteSelect(
@@ -52,12 +55,12 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	if err != nil {
 		return err
 	}
-	nodereGistrations, err = tx.NodeRegistrationQuery.BuildModel(nodereGistrations, nodeRow)
-	if (err != nil) || len(nodereGistrations) == 0 {
+	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+	if (err != nil) || len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
 
-	prevNodeRegistration := nodereGistrations[0]
+	prevNodeRegistration := nodeRegistrations[0]
 	// tag the node as deleted
 	nodeRegistration := &model.NodeRegistration{
 		NodeID:             prevNodeRegistration.NodeID,
@@ -82,6 +85,18 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed() error {
 	)
 	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
 	queries := append(accountBalanceSenderQ, nodeQueries...)
+
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  prevNodeRegistration.GetLockedBalance() - tx.Fee,
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventRemoveNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err

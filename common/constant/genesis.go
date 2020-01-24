@@ -7,7 +7,7 @@ const (
 )
 
 type (
-	MainchainGenesisConfigEntry struct {
+	GenesisConfigEntry struct {
 		AccountAddress     string
 		AccountBalance     int64
 		NodePublicKey      []byte
@@ -27,7 +27,8 @@ var (
 	MainchainGenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
 	MainchainGenesisBlockSeed      = make([]byte, 64)
 	MainchainGenesisNodePublicKey  = make([]byte, 32)
-	MainChainGenesisConfig         = []MainchainGenesisConfigEntry{
+	// GenesisConfig one configuration for all block types (mainchain, spinechain), since they might share some fields
+	GenesisConfig = []GenesisConfigEntry{
 		{
 			AccountAddress: "5Zup5YFOgVUZHRtoz4E9-8Ki2fN0U8DTHCM6WxbvgGg_",
 			AccountBalance: 0,

@@ -529,6 +529,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -560,6 +561,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -576,8 +578,9 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
 			}
-			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				if (err == nil) != tt.wantErr {
 					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 					return

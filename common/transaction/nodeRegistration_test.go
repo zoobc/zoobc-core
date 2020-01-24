@@ -930,6 +930,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		BlockQuery              query.BlockQueryInterface
 		QueryExecutor           query.ExecutorInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -951,6 +952,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -968,6 +970,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -985,6 +988,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -1002,6 +1006,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 		},
 		{
@@ -1018,6 +1023,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
+				AccountLedgerQuery: query.NewAccountLedgerQuery(),
 			},
 		},
 	}
@@ -1033,8 +1039,9 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				BlockQuery:              tt.fields.BlockQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
 			}
-			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

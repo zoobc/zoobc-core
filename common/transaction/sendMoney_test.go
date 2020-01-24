@@ -353,6 +353,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
+		AccountLedgerQuery   query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -372,6 +373,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorFailUpdateAccount{},
+				AccountLedgerQuery:   query.NewAccountLedgerQuery(),
 			},
 			wantErr: true,
 		},
@@ -388,6 +390,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorFailUpdateAccount{},
+				AccountLedgerQuery:   query.NewAccountLedgerQuery(),
 			},
 			wantErr: true,
 		},
@@ -404,6 +407,7 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorSuccessUpdateAccount{},
+				AccountLedgerQuery:   query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
 		},
@@ -418,8 +422,9 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
 			}
-			if err := tx.ApplyConfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

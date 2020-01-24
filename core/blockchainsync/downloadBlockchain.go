@@ -117,7 +117,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	}
 
 	commonBlockID := chainBlockIds[0]
-	commonBlock, err = bd.BlockService.GetBlockByID(commonBlockID)
+	commonBlock, err = bd.BlockService.GetBlockByID(commonBlockID, false)
 	if err != nil {
 		bd.Logger.Infof("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
 		return nil, err
@@ -159,7 +159,7 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 	if len(otherPeerChainBlockIds) < 1 || otherPeerChainBlockIds[0] == currentLastBlock.ID {
 		return []int64{}, nil
 	}
-	otherPeerCommonBlock, err = bd.BlockService.GetBlockByID(otherPeerChainBlockIds[0])
+	otherPeerCommonBlock, err = bd.BlockService.GetBlockByID(otherPeerChainBlockIds[0], false)
 	if err != nil {
 		return []int64{}, err
 	}
@@ -339,7 +339,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 			if commonMilestoneTemp[blockID] {
 				continue
 			}
-			_, err := bd.BlockService.GetBlockByID(blockID)
+			_, err := bd.BlockService.GetBlockByID(blockID, false)
 			if err == nil {
 				return blockID, nil
 			}
@@ -370,7 +370,7 @@ func (bd *BlockchainDownloader) getBlockIdsAfterCommon(peer *model.Peer, commonM
 
 	newBlockIDIdx := 0
 	for idx, blockID := range blockIds.BlockIds {
-		_, err := bd.BlockService.GetBlockByID(blockID)
+		_, err := bd.BlockService.GetBlockByID(blockID, false)
 		// mark the new block ID starting where it is not found
 		if err != nil {
 			break

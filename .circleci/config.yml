@@ -82,7 +82,7 @@ jobs:
           name: Build
           command: |
             go build -o ./dist/zoobc
-            rsync -va --exclude='*.db' ./resource ./dist
+#            rsync -va --exclude='*.db' ./resource ./dist
       - save_cache:
           key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:

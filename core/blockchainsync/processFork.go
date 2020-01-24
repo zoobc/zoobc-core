@@ -67,7 +67,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if err != nil {
 				return err
 			}
-			lastBlockHash, err := commonUtil.GetBlockHash(lastBlock)
+			lastBlockHash, err := commonUtil.GetBlockHash(lastBlock, fp.ChainType)
 			if err != nil {
 				return err
 			}

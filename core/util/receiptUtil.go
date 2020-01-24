@@ -3,6 +3,7 @@ package util
 import (
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -12,6 +13,7 @@ import (
 )
 
 func GenerateBatchReceiptWithReminder(
+	ct chaintype.ChainType,
 	receivedDatumHash []byte,
 	lastBlock *model.Block,
 	senderPublicKey []byte,
@@ -37,6 +39,7 @@ func GenerateBatchReceiptWithReminder(
 	}
 	// generate receipt
 	batchReceipt, err = util.GenerateBatchReceipt(
+		ct,
 		lastBlock,
 		senderPublicKey,
 		nodePublicKey,

@@ -85,7 +85,9 @@ func buildTransaction(timestamp int64, sender, recipient string) *model.Transact
 }
 
 func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
-	tx := buildTransaction(timestamp, "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN")
+	sender := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+	recipient := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+	tx := buildTransaction(timestamp, sender, recipient)
 
 	txBytes, _ := transaction.GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
@@ -554,7 +556,7 @@ type (
 )
 
 // mockTypeAction
-func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed() error {
+func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed(int64) error {
 	return nil
 }
 func (*ReceivedTransactionListenerMockTypeAction) Validate(bool) error {

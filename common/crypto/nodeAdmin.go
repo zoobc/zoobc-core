@@ -18,7 +18,8 @@ var LastRequestTimestamp uint64
 func VerifyAuthAPI(
 	ownerAddress,
 	auth string,
-	requestType model.RequestType) error {
+	requestType model.RequestType,
+) error {
 	// parse
 	var (
 		authTimestamp   uint64
