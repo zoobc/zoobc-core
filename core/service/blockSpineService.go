@@ -193,6 +193,9 @@ func (bs *BlockSpineService) NewGenesisBlock(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	// TODO: should we validate the received spineblcokManifests against the one that have been generated locally?
+	//		 what if they have been deleted?
+
 	// todo: validate previous time
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
