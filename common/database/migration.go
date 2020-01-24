@@ -248,6 +248,20 @@ func (m *Migration) Init() error {
 			ALTER TABLE "account_ledger"
 				ADD COLUMN "timestamp" INTEGER
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"approver_address" VARCHAR(255),
+				"amount" INTEGER,
+				"commission" INTEGER,
+				"timeout" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER
+			)
+			`,
 		}
 		return nil
 	}

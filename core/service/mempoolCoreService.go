@@ -5,9 +5,6 @@ import (
 	"sort"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -22,6 +19,8 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -65,6 +64,7 @@ type (
 		Observer            *observer.Observer
 		Logger              *log.Logger
 		ReceiptUtil         coreUtil.ReceiptUtilInterface
+		ReceiptService      ReceiptServiceInterface
 	}
 )
 
@@ -84,6 +84,7 @@ func NewMempoolService(
 	observer *observer.Observer,
 	logger *log.Logger,
 	receiptUtil coreUtil.ReceiptUtilInterface,
+	receiptService ReceiptServiceInterface,
 ) *MempoolService {
 	mempoolGetter := &MempoolGetter{
 		MempoolQuery:  mempoolQuery,
@@ -115,6 +116,7 @@ func NewMempoolService(
 		Logger:              logger,
 		BlockQuery:          blockQuery,
 		ReceiptUtil:         receiptUtil,
+		ReceiptService:      receiptService,
 	}
 }
 
@@ -313,7 +315,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		}
 	}
 
-	batchReceipt, err := mps.ReceiptUtil.GenerateBatchReceiptWithReminder(
+	batchReceipt, err := mps.ReceiptService.GenerateBatchReceiptWithReminder(
 		mps.Chaintype,
 		receivedTxHash[:],
 		lastBlock,
@@ -321,10 +323,8 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		nodeSecretPhrase,
 		constant.KVdbTableTransactionReminderKey+string(receiptKey),
 		constant.ReceiptDatumTypeTransaction,
-		mps.Signature,
-		mps.QueryExecutor,
-		mps.KVExecutor,
 	)
+
 	if err != nil {
 		return nil, nil, status.Error(codes.Internal, err.Error())
 	}
@@ -376,7 +376,7 @@ func sortFeePerByteThenTimestampThenID(members []*model.Transaction, mempools []
 	})
 }
 
-// PruneMempoolTransactions handle fresh clean the mempool
+// DeleteExpiredMempoolTransactions handle fresh clean the mempool
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	var (

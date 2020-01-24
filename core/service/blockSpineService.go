@@ -63,8 +63,37 @@ type (
 		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
 		Observer              *observer.Observer
 		Logger                *log.Logger
+		BlockPoolService      BlockPoolServiceInterface
 	}
 )
+
+func NewBlockSpineService(
+	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
+	signature crypto.SignatureInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	obsr *observer.Observer,
+	blocksmithStrategy strategy.BlocksmithStrategyInterface,
+	logger *log.Logger,
+	blockPoolService BlockPoolServiceInterface,
+) *BlockSpineService {
+	return &BlockSpineService{
+		Chaintype:             ct,
+		KVExecutor:            kvExecutor,
+		QueryExecutor:         queryExecutor,
+		BlockQuery:            blockQuery,
+		SpinePublicKeyQuery:   spinePublicKeyQuery,
+		Signature:             signature,
+		NodeRegistrationQuery: nodeRegistrationQuery,
+		BlocksmithStrategy:    blocksmithStrategy,
+		Observer:              obsr,
+		Logger:                logger,
+		BlockPoolService:      blockPoolService,
+	}
+}
 
 // NewSpineBlock generate new spinechain block
 func (bs *BlockSpineService) NewSpineBlock(
@@ -248,7 +277,7 @@ func (bs *BlockSpineService) validateBlockHeight(block *model.Block) error {
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
-func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast bool) error {
+func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
 		err error
 	)
@@ -561,7 +590,7 @@ func (bs *BlockSpineService) AddGenesis() error {
 	if err != nil {
 		return err
 	}
-	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false)
+	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
 		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
@@ -624,7 +653,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 				}
 				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
 				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
@@ -633,9 +662,9 @@ func (bs *BlockSpineService) ReceiveBlock(
 					bs.Logger.Info("pushing back popped off block")
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
-				err = bs.PushBlock(previousBlock, block, true)
+				err = bs.PushBlock(previousBlock, block, true, true)
 				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
@@ -670,7 +699,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 		if err != nil {
 			return status.Error(codes.InvalidArgument, "InvalidBlock")
 		}
-		err = bs.PushBlock(lastBlock, block, true)
+		err = bs.PushBlock(lastBlock, block, true, true)
 		if err != nil {
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -859,4 +888,41 @@ func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Liste
 	return observer.Listener{
 		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {},
 	}
+}
+
+func (bs *BlockSpineService) WillSmith(
+	blocksmith *model.Blocksmith,
+	blockchainProcessorLastBlockID int64,
+) (int64, error) {
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+			blocker.SmithingErr, "genesis block has not been applied")
+	}
+	// caching: only calculate smith time once per new block
+	if lastBlock.GetID() != blockchainProcessorLastBlockID {
+		blockchainProcessorLastBlockID = lastBlock.GetID()
+		blockSmithStrategy := bs.GetBlocksmithStrategy()
+		blockSmithStrategy.SortBlocksmiths(lastBlock)
+		// check if eligible to create block in this round
+		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
+			return blockchainProcessorLastBlockID,
+				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
+		}
+		// calculate blocksmith score for the block type
+		// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
+		blocksmithScore := constant.DefaultParticipationScore
+		err = blockSmithStrategy.CalculateSmith(
+			lastBlock,
+			*(blocksmithsMap[string(blocksmith.NodePublicKey)]),
+			blocksmith,
+			blocksmithScore,
+		)
+		if err != nil {
+			return blockchainProcessorLastBlockID, err
+		}
+		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
+	}
+	return blockchainProcessorLastBlockID, nil
 }

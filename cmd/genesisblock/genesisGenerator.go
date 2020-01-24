@@ -340,7 +340,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
-	bs := service.NewMainBlockService(
+	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
 		nil,
 		nil,
@@ -365,6 +365,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		&transaction.Util{},
 		&coreUtil.ReceiptUtil{},
+		nil,
 		nil,
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)

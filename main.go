@@ -58,6 +58,8 @@ var (
 	observerInstance                              *observer.Observer
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	mainchainBlockService                         *service.BlockService
+	spinechainBlockService                        *service.BlockSpineService
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
 	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
@@ -312,6 +314,7 @@ func startServices() {
 		apiKeyFile,
 		transactionUtil,
 		receiptUtil,
+		receiptService,
 	)
 
 	if isDebugMode {
@@ -353,6 +356,7 @@ func startMainchain() {
 		observerInstance,
 		loggerCoreService,
 		receiptUtil,
+		receiptService,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
@@ -362,14 +366,16 @@ func startMainchain() {
 	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 	)
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
 	)
+	mainchainBlockPool := service.NewBlockPoolService()
 
-	mainchainBlockService := service.NewMainBlockService(
+	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -395,6 +401,7 @@ func startMainchain() {
 		transactionUtil,
 		receiptUtil,
 		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
+		mainchainBlockPool,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -471,7 +478,8 @@ func startSpinechain() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockService := service.NewSpineBlockService(
+	spinechainBlockPool := service.NewBlockPoolService()
+	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
 		kvExecutor,
 		queryExecutor,
@@ -482,6 +490,7 @@ func startSpinechain() {
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
+		spinechainBlockPool,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -541,6 +550,13 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// register scan block pool for mainchain
+	if err := schedulerInstance.AddJob(
+		constant.BlockPoolScanPeriod,
+		mainchainBlockService.ScanBlockPool,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}

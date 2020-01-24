@@ -2,7 +2,6 @@ package service
 
 import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -79,30 +78,31 @@ func (m *MockKVExecutor) Get(key string) ([]byte, error) {
 
 type MockReceiptUtil struct {
 	coreUtil.ReceiptUtilInterface
-	GenerateBatchReceiptWithReminderResult *model.BatchReceipt
-	GenerateBatchReceiptWithReminderError  error
-	GetReceiptKeyResult                    []byte
-	GetReceiptKeyError                     error
-}
-
-func (m *MockReceiptUtil) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
-	signature crypto.SignatureInterface,
-	queryExecutor query.ExecutorInterface,
-	kvExecutor kvdb.KVExecutorInterface,
-) (*model.BatchReceipt, error) {
-	return m.GenerateBatchReceiptWithReminderResult, m.GenerateBatchReceiptWithReminderError
+	GetReceiptKeyResult []byte
+	GetReceiptKeyError  error
 }
 
 func (m *MockReceiptUtil) GetReceiptKey(
 	dataHash, senderPublicKey []byte,
 ) ([]byte, error) {
 	return m.GetReceiptKeyResult, m.GetReceiptKeyError
+}
+
+type MockReceiptService struct {
+	ReceiptServiceInterface
+	GenerateBatchReceiptWithReminderResult *model.BatchReceipt
+	GenerateBatchReceiptWithReminderError  error
+}
+
+func (m *MockReceiptService) GenerateBatchReceiptWithReminder(
+	ct chaintype.ChainType,
+	receivedDatumHash []byte,
+	lastBlock *model.Block,
+	senderPublicKey []byte,
+	nodeSecretPhrase, receiptKey string,
+	datumType uint32,
+) (*model.BatchReceipt, error) {
+	return m.GenerateBatchReceiptWithReminderResult, m.GenerateBatchReceiptWithReminderError
 }
 
 type (

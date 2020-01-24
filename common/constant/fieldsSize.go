@@ -1,9 +1,10 @@
 package constant
 
 var (
-	AccountAddressLength uint32 = 4
-	NodeAddressLength    uint32 = 4
-	AccountAddress       uint32 = 44
+	AccountAddressLength      uint32 = 4
+	NodeAddressLength         uint32 = 4
+	AccountAddress            uint32 = 44
+	AccountAddressEmptyLength uint32
 	// NodePublicKey TODO: this is valid for pub keys generated using Ed25519. in future we might have more implementations
 	NodePublicKey uint32 = 32
 	Balance       uint32 = 8
@@ -26,4 +27,8 @@ var (
 	DatasetPropertyLength uint32 = 4
 	// DatasetValueLength is max length of string property value in dataset
 	DatasetValueLength uint32 = 4
+
+	EscrowApproverAddressLength uint32 = 4
+	EscrowCommissionLength      uint32 = 8
+	EscrowTimeoutLength         uint32 = 8
 )

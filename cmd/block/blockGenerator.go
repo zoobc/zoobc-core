@@ -101,6 +101,19 @@ func initialize(
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
+	receiptService := service.NewReceiptService(
+		query.NewNodeReceiptQuery(),
+		nil,
+		query.NewMerkleTreeQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
+		nil,
+		queryExecutor,
+		nodeRegistrationService,
+		crypto.NewSignature(),
+		nil,
+		receiptUtil,
+	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		chainType,
@@ -116,19 +129,7 @@ func initialize(
 		observerInstance,
 		log.New(),
 		receiptUtil,
-	)
-	receiptService := service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
-		nil,
-		query.NewMerkleTreeQuery(),
-		query.NewNodeRegistrationQuery(),
-		query.NewBlockQuery(chainType),
-		nil,
-		queryExecutor,
-		nodeRegistrationService,
-		crypto.NewSignature(),
-		nil,
-		receiptUtil,
+		receiptService,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -139,10 +140,9 @@ func initialize(
 		log.New(),
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
+		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
-
-	blockService = service.NewMainBlockService(
+	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
 		queryExecutor,
@@ -168,6 +168,7 @@ func initialize(
 		transactionUtil,
 		receiptUtil,
 		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}
