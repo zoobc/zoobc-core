@@ -10,7 +10,6 @@ import (
 	"github.com/dgraph-io/badger"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -81,123 +80,6 @@ func (*mockGenerateBatchReceiptWithReminderQueryExecutorSuccess) ExecuteSelectRo
 	}))
 	row := db.QueryRow(qStr)
 	return row, nil
-}
-
-func TestGenerateBatchReceiptWithReminder(t *testing.T) {
-	var (
-		mockSecretPhrase = ""
-		mockBlock        = &model.Block{
-			ID:                   0,
-			PreviousBlockHash:    nil,
-			Height:               0,
-			Timestamp:            0,
-			BlockSeed:            nil,
-			BlockSignature:       nil,
-			CumulativeDifficulty: "",
-			BlocksmithPublicKey:  []byte{},
-			TotalAmount:          0,
-			TotalFee:             0,
-			TotalCoinBase:        0,
-			Version:              0,
-			PayloadLength:        0,
-			PayloadHash:          nil,
-			Transactions:         nil,
-		}
-		mockSenderPublicKey, mockReceivedDatumHash = make([]byte, 32), make([]byte, 32)
-		mockReceiptKey, _                          = receiptUtilInstance.GetReceiptKey(mockReceivedDatumHash, mockSenderPublicKey)
-
-		mockNodePublicKey          = util.GetPublicKeyFromSeed(mockSecretPhrase)
-		mockSuccessBatchReceipt, _ = receiptUtilInstance.GenerateBatchReceipt(
-			&chaintype.MainChain{},
-			mockBlock,
-			mockSenderPublicKey,
-			mockNodePublicKey,
-			mockReceivedDatumHash,
-			nil,
-			constant.ReceiptDatumTypeBlock,
-		)
-	)
-
-	mockSuccessBatchReceipt.RecipientSignature = (&crypto.Signature{}).SignByNode(
-		receiptUtilInstance.GetUnsignedBatchReceiptBytes(mockSuccessBatchReceipt),
-		mockSecretPhrase,
-	)
-
-	type args struct {
-		ct                chaintype.ChainType
-		receivedDatumHash []byte
-		lastBlock         *model.Block
-		senderPublicKey   []byte
-		nodeSecretPhrase  string
-		receiptKey        string
-		datumType         uint32
-		signature         crypto.SignatureInterface
-		queryExecutor     query.ExecutorInterface
-		kvExecutor        kvdb.KVExecutorInterface
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    *model.BatchReceipt
-		wantErr bool
-	}{
-		{
-			name: "wantSuccess",
-			args: args{
-				ct:                &chaintype.MainChain{},
-				receivedDatumHash: mockReceivedDatumHash,
-				lastBlock:         mockBlock,
-				senderPublicKey:   mockSenderPublicKey,
-				nodeSecretPhrase:  "",
-				receiptKey:        "test_" + string(mockReceiptKey),
-				datumType:         constant.ReceiptDatumTypeBlock,
-				signature:         &crypto.Signature{},
-				queryExecutor:     &mockGenerateBatchReceiptWithReminderQueryExecutorSuccess{},
-				kvExecutor:        &mockGenerateBatchReceiptWithReminderKVExecutorSuccess{},
-			},
-			want:    mockSuccessBatchReceipt,
-			wantErr: false,
-		},
-		{
-			name: "wantFail:KVDBInsertFail",
-			args: args{
-				ct:                &chaintype.MainChain{},
-				receivedDatumHash: mockReceivedDatumHash,
-				lastBlock:         mockBlock,
-				senderPublicKey:   mockSenderPublicKey,
-				nodeSecretPhrase:  "",
-				receiptKey:        "test_" + string(mockReceiptKey),
-				datumType:         constant.ReceiptDatumTypeBlock,
-				signature:         &crypto.Signature{},
-				queryExecutor:     &mockGenerateBatchReceiptWithReminderQueryExecutorSuccess{},
-				kvExecutor:        &mockGenerateBatchReceiptWithReminderKVExecutorFailOtherError{},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := receiptUtilInstance.GenerateBatchReceiptWithReminder(
-				tt.args.ct,
-				tt.args.receivedDatumHash,
-				tt.args.lastBlock,
-				tt.args.senderPublicKey,
-				tt.args.nodeSecretPhrase,
-				tt.args.receiptKey,
-				tt.args.datumType,
-				tt.args.signature,
-				tt.args.queryExecutor,
-				tt.args.kvExecutor)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateBatchReceiptWithReminder() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GenerateBatchReceiptWithReminder() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestGetNumberOfMaxReceipts(t *testing.T) {
