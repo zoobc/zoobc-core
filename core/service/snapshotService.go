@@ -14,7 +14,6 @@ import (
 
 type (
 	SnapshotServiceInterface interface {
-		GetNextSnapshotHeight(mainHeight uint32, ct chaintype.ChainType) uint32
 		GenerateSnapshot(block *model.Block, ct chaintype.ChainType) (*model.SnapshotFileInfo, error)
 		StartSnapshotListener() observer.Listener
 	}
@@ -27,7 +26,7 @@ type (
 		// below fields are for better code testability
 		Spinechain                chaintype.ChainType
 		Mainchain                 chaintype.ChainType
-		SnapshotInterval          int64
+		SnapshotInterval          uint32
 		SnapshotGenerationTimeout int64
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
@@ -50,29 +49,6 @@ func NewSnapshotService(
 		SpineBlockManifestService: spineBlockManifestService,
 		Logger:                    logger,
 	}
-}
-
-// GetNextSnapshotHeight calculate next snapshot (main block) height given an arbitrary main block height
-// snapshotHeight is the height, on the chain type been snapshotted at which the snapshot is taken (start computing)
-func (ss *SnapshotService) GetNextSnapshotHeight(snapshotHeight uint32, ct chaintype.ChainType) uint32 {
-	var (
-		avgBlockTime int64
-	)
-	// first snapshot cannot be taken before minRollBack height
-	// FIXME: STEF uncomment this. for testing only!
-	// if snapshotHeight < constant.MinRollbackBlocks {
-	// 	snapshotHeight = constant.MinRollbackBlocks
-	// }
-	switch ct.(type) {
-	case *chaintype.MainChain:
-		avgBlockTime = ss.Mainchain.GetSmithingPeriod() + ss.Mainchain.GetChainSmithingDelayTime()
-	default:
-		// for now, only mainchain is supported
-		ss.Logger.Fatalf("block type not supported for snapshots!")
-	}
-
-	avgBlockInterval := ss.SnapshotInterval / avgBlockTime
-	return uint32(util.GetNextStep(int64(snapshotHeight), avgBlockInterval))
 }
 
 // GenerateSnapshot compute and persist a snapshot to file
@@ -130,9 +106,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 		OnNotify: func(block interface{}, args interface{}) {
 			b := block.(*model.Block)
 			ct := args.(chaintype.ChainType)
-			if ct.HasSnapshots() {
-				// STEF for testing only
-				// if ct.HasSnapshots() && b.Height == ss.GetNextSnapshotHeight(b.Height, ct) {
+			if ct.HasSnapshots() && b.Height%constant.SnapshotInterval == 0 {
 				go func() {
 					// TODO: implement some sort of process management,
 					//  such as controlling if there is another snapshot running before starting to compute a new one (

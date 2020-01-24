@@ -3,15 +3,12 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
-	"testing"
-
 	"github.com/DATA-DOG/go-sqlmock"
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"regexp"
 )
 
 type (
@@ -40,8 +37,8 @@ var (
 		Timestamp: constant.SpinechainGenesisBlockTimestamp + ssSpinechain.GetSmithingPeriod() + ssSpinechain.
 			GetChainSmithingDelayTime(),
 	}
-	ssSnapshotInterval          = int64(1440 * 60 * 30) // 30 days
-	ssSnapshotGenerationTimeout = int64(1440 * 60 * 3)  // 3 days
+	ssSnapshotInterval          = uint32(1440 * 60 * 30) // 30 days
+	ssSnapshotGenerationTimeout = int64(1440 * 60 * 3)   // 3 days
 	ssMockFullHash              = []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
 )
@@ -128,113 +125,6 @@ func (*mockMainchain) GetChainSmithingDelayTime() int64 {
 
 func (*mockMainchain) GetSmithingPeriod() int64 {
 	return 15
-}
-
-func TestBlockSpineSnapshotService_GetNextSnapshotHeight(t *testing.T) {
-	type fields struct {
-		QueryExecutor             query.ExecutorInterface
-		Logger                    *log.Logger
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          int64
-		SnapshotGenerationTimeout int64
-	}
-	type args struct {
-		mainHeight uint32
-		ct         chaintype.ChainType
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   uint32
-	}{
-		{
-			name: "GetNextSnapshotHeight:success-{height_less_than_minRollback_height}",
-			fields: fields{
-				Spinechain:                &mockSpinechain{},
-				Mainchain:                 &mockMainchain{},
-				SnapshotInterval:          ssSnapshotInterval,
-				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-			},
-			args: args{
-				mainHeight: 100,
-				ct:         &chaintype.MainChain{},
-			},
-			want: uint32(74057),
-		},
-		{
-			name: "GetNextSnapshotHeight:success-{height_lower_than_nextStep}",
-			fields: fields{
-				Spinechain:                &mockSpinechain{},
-				Mainchain:                 &mockMainchain{},
-				SnapshotInterval:          ssSnapshotInterval,
-				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-			},
-			args: args{
-				mainHeight: 1000,
-				ct:         &chaintype.MainChain{},
-			},
-			want: uint32(74057),
-		},
-		{
-			name: "GetNextSnapshotHeight:success-{height_same_as_nextStep}",
-			fields: fields{
-				Spinechain:                &mockSpinechain{},
-				Mainchain:                 &mockMainchain{},
-				SnapshotInterval:          ssSnapshotInterval,
-				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-			},
-			args: args{
-				mainHeight: 148114,
-				ct:         &chaintype.MainChain{},
-			},
-			want: uint32(148114),
-		},
-		{
-			name: "GetNextSnapshotHeight:success-{height_higher_than_nextStep}",
-			fields: fields{
-				Spinechain:                &mockSpinechain{},
-				Mainchain:                 &mockMainchain{},
-				SnapshotInterval:          ssSnapshotInterval,
-				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-			},
-			args: args{
-				mainHeight: 148115,
-				ct:         &chaintype.MainChain{},
-			},
-			want: uint32(222171),
-		},
-		{
-			name: "GetNextSnapshotHeight:success-{height_more_than_double_nextStep}",
-			fields: fields{
-				Spinechain:                &mockSpinechain{},
-				Mainchain:                 &mockMainchain{},
-				SnapshotInterval:          ssSnapshotInterval,
-				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-			},
-			args: args{
-				mainHeight: 296230,
-				ct:         &chaintype.MainChain{},
-			},
-			want: uint32(370285),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mbl := &SnapshotService{
-				QueryExecutor:             tt.fields.QueryExecutor,
-				Logger:                    tt.fields.Logger,
-				Mainchain:                 tt.fields.Mainchain,
-				Spinechain:                tt.fields.Spinechain,
-				SnapshotInterval:          tt.fields.SnapshotInterval,
-				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
-			}
-			if got := mbl.GetNextSnapshotHeight(tt.args.mainHeight, tt.args.ct); got != tt.want {
-				t.Errorf("SnapshotService.GetNextSnapshotHeight() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 // FIXME: uncomment and fix the test once this method is completed

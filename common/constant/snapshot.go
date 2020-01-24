@@ -1,12 +1,8 @@
 package constant
 
-var (
-	// SnapshotInterval interval in seconds between snapshots (30 days)
-	SnapshotInterval = int64(10 * 60) // 1 snapshot every 10 minutes (only for testing)
+const (
 	// SnapshotGenerationTimeout maximum time, in seconds, allowed for a node to generate a snapshot
-	SnapshotGenerationTimeout = int64(4 * 60) // 4 minutes before including in spine block (only for testing)
-
-	// TODO: in production use these values
-	// SnapshotInterval     = int64(1440 * 60 * 30) // 30 days
-	// SnapshotGenerationTimeout = int64(1440 * 60) // 1 day
+	SnapshotGenerationTimeout int64 = 4 * 60 // 4 minutes before including in spine block (only for testing)
+	// SnapshotInterval interval in mainchain blocks between snapshots
+	SnapshotInterval uint32 = 10 // 1 snapshot every 10 mainchain blocks (only for testing)
 )

@@ -164,7 +164,7 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 					Timestamp: 0,
 				},
 			},
-			want: 30,
+			want: 60,
 		},
 		{
 			name: "GetSmithTime:1",
@@ -177,10 +177,10 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 			args: args{
 				blocksmithIndex: 1,
 				block: &model.Block{
-					Timestamp: 120000,
+					Timestamp: 120120,
 				},
 			},
-			want: 120000 + 60,
+			want: 120000 + 240,
 		},
 	}
 	for _, tt := range tests {
@@ -518,7 +518,7 @@ func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
 				NodePublicKey: bssNodePubKey1,
 				NodeID:        1,
 				Score:         big.NewInt(1000000000),
-				SmithTime:     30,
+				SmithTime:     60,
 			},
 		},
 	}
