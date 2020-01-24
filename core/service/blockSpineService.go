@@ -27,6 +27,17 @@ import (
 )
 
 type (
+	BlockServiceSpineInterface interface {
+		NewSpineBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
+			previousBlockHeight uint32, timestamp int64, blockSpinePublicKeys []*model.SpinePublicKey,
+			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
+		BuildSpinePublicKeysFromNodeRegistry(
+			fromTimestamp,
+			toTimestamp int64,
+			spineBlockHeight uint32,
+		) (spinePublicKeys []*model.SpinePublicKey, err error)
+		GetSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error)
+	}
 	BlockSpineService struct {
 		sync.RWMutex
 		Chaintype                 chaintype.ChainType

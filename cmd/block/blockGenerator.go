@@ -139,7 +139,7 @@ func initialize(
 		chainType,
 		nil,
 		queryExecutor,
-		query.NewBlockQuery(&chaintype.SpineChain{}),
+		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
 		query.NewMerkleTreeQuery(),

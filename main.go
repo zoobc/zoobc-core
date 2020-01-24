@@ -57,6 +57,8 @@ var (
 	observerInstance                              *observer.Observer
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	mainchainBlockService                         *service.BlockService
+	spinechainBlockService                        *service.BlockSpineService
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
 	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
@@ -72,7 +74,6 @@ var (
 	loggerCoreService                             *log.Logger
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
-	mainchainBlockService, spinechainBlockService service.BlockServiceInterface
 	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
 )
@@ -544,6 +545,20 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// scheduler to remove block uncomplete queue that already waiting transactions too long
+	if err := schedulerInstance.AddJob(
+		constant.CheckTimedOutBlock,
+		blockIncompleteQueueService.PruneTimeoutBlockQueue,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// register scan block pool for mainchain
+	if err := schedulerInstance.AddJob(
+		constant.BlockPoolScanPeriod,
+		mainchainBlockService.ScanBlockPool,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
