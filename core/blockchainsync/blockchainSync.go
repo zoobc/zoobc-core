@@ -122,7 +122,7 @@ func (bss *Service) getMoreBlocks() {
 			peerForkInfo, err = bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
 				peerBlockchainInfo.CommonBlock)
 			if err != nil {
-				bss.Logger.Warnf("\nfailed to DownloadFromPeer: %v\n\n", err)
+				bss.Logger.Errorf("\nfailed to DownloadFromPeer: %v\n\n", err)
 				break
 			}
 
@@ -130,7 +130,7 @@ func (bss *Service) getMoreBlocks() {
 
 				err := bss.ForkingProcessor.ProcessFork(peerForkInfo.ForkBlocks, peerBlockchainInfo.CommonBlock, peerForkInfo.FeederPeer)
 				if err != nil {
-					bss.Logger.Warnf("\nfailed to ProcessFork: %v\n\n", err)
+					bss.Logger.Errorf("\nfailed to ProcessFork: %v\n\n", err)
 					break
 				}
 			}
