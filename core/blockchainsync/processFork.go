@@ -78,7 +78,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if err != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
 					}
-					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+					fp.Logger.Errorf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n",
+						block.ID, err, lastBlock.ID)
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
@@ -87,7 +88,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if err != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
 					}
-					fp.Logger.Warnf("\n\nPushBlock err %v\n\n", err)
+					fp.Logger.Errorf("\n\nPushBlock err %v\n\n", err)
 					break
 				}
 
@@ -131,7 +132,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if err != nil {
 					fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
 				}
-				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
+				fp.Logger.Errorf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
 			err = fp.BlockService.PushBlock(lastBlock, block, false)
