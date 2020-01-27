@@ -83,9 +83,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				err = fp.BlockService.PushBlock(lastBlock, block, false)
 				if err != nil {
 
-					err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-					if err != nil {
-						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
+					errBlackList := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+					if errBlackList != nil {
+						fp.Logger.Errorf("Failed to add blacklist: %v\n", errBlackList)
 					}
 					fp.Logger.Warnf("\n\nPushBlock err %v\n\n", err)
 					break
