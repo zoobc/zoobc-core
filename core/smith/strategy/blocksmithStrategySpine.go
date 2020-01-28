@@ -124,7 +124,7 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
 		// ascending sort
 		return blocksmiths[i].BlockSeed < blocksmiths[j].BlockSeed
 	})
-	
+
 	bss.SortedBlocksmithsLock.Lock()
 	defer bss.SortedBlocksmithsLock.Unlock()
 	// copying the sorted list to map[string(publicKey)]index

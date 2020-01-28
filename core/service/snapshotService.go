@@ -16,7 +16,7 @@ type (
 	SnapshotServiceInterface interface {
 		GenerateSnapshot(block *model.Block, ct chaintype.ChainType) (*model.SnapshotFileInfo, error)
 		StartSnapshotListener() observer.Listener
-		IsSnapshotHeight(height uint32, snapshotInterval uint32) bool
+		IsSnapshotHeight(height, snapshotInterval uint32) bool
 	}
 
 	SnapshotService struct {
@@ -39,17 +39,19 @@ func NewSnapshotService(
 	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
 	spineBlockManifestService SpineBlockManifestServiceInterface,
 	logger *log.Logger,
+	isSpineBlocksDownloadFinished bool,
 ) *SnapshotService {
 	return &SnapshotService{
-		QueryExecutor:             queryExecutor,
-		SpineBlockQuery:           spineBlockQuery,
-		MainBlockQuery:            mainBlockQuery,
-		Spinechain:                &chaintype.SpineChain{},
-		Mainchain:                 &chaintype.MainChain{},
-		SnapshotInterval:          constant.MainchainSnapshotInterval,
-		SnapshotGenerationTimeout: constant.SnapshotGenerationTimeout,
-		SpineBlockManifestService: spineBlockManifestService,
-		Logger:                    logger,
+		QueryExecutor:                 queryExecutor,
+		SpineBlockQuery:               spineBlockQuery,
+		MainBlockQuery:                mainBlockQuery,
+		Spinechain:                    &chaintype.SpineChain{},
+		Mainchain:                     &chaintype.MainChain{},
+		SnapshotInterval:              constant.MainchainSnapshotInterval,
+		SnapshotGenerationTimeout:     constant.SnapshotGenerationTimeout,
+		SpineBlockManifestService:     spineBlockManifestService,
+		Logger:                        logger,
+		IsSpineBlocksDownloadFinished: isSpineBlocksDownloadFinished,
 	}
 }
 
@@ -108,16 +110,16 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 		OnNotify: func(block interface{}, args interface{}) {
 			b := block.(*model.Block)
 			ct := args.(chaintype.ChainType)
-			// if spine blocks is downloading, do not generate (or download from other peers) snapshots
-			// don't generate snapshots until all spine blocks have been downloaded
-			if !ss.IsSpineBlocksDownloadFinished {
-				ss.Logger.Warnf("Snapshot at block "+
-					"height %d not generated because spine blocks are still downloading",
-					b.Height)
-				return
-			}
 			if ct.HasSnapshots() && ss.IsSnapshotHeight(b.Height, constant.MainchainSnapshotInterval) {
 				go func() {
+					// if spine blocks is downloading, do not generate (or download from other peers) snapshots
+					// don't generate snapshots until all spine blocks have been downloaded
+					if !ss.IsSpineBlocksDownloadFinished {
+						ss.Logger.Warnf("Snapshot at block "+
+							"height %d not generated because spine blocks are still downloading",
+							b.Height)
+						return
+					}
 					// TODO: implement some sort of process management,
 					//  such as controlling if there is another snapshot running before starting to compute a new one (
 					//  or compute the new one and kill the one already running...)
@@ -125,9 +127,6 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 					if err != nil {
 						ss.Logger.Errorf("Snapshot at block "+
 							"height %d terminated with errors %s", b.Height, err)
-					}
-					if snapshotInfo == nil {
-
 					}
 					_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
 						snapshotInfo.SnapshotFileHash,
@@ -150,15 +149,14 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 }
 
 // IsSnapshotHeight returns true if chain height passed is a snapshot height
-func (*SnapshotService) IsSnapshotHeight(height uint32, snapshotInterval uint32) bool {
-	// FIXME: STEF uncomment this (for testing only)
-	// if snapshotInterval < constant.MinRollbackBlocks {
-	// 	if height < constant.MinRollbackBlocks {
-	// 		return false
-	// 	} else if height == constant.MinRollbackBlocks {
-	// 		return true
-	// 	}
-	// 	return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
-	// }
+func (*SnapshotService) IsSnapshotHeight(height, snapshotInterval uint32) bool {
+	if snapshotInterval < constant.MinRollbackBlocks {
+		if height < constant.MinRollbackBlocks {
+			return false
+		} else if height == constant.MinRollbackBlocks {
+			return true
+		}
+		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	}
 	return height%snapshotInterval == 0
 }

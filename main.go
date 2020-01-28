@@ -44,29 +44,30 @@ import (
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
 	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath string
-	dbInstance                                    *database.SqliteDB
-	badgerDbInstance                              *database.BadgerDB
-	db                                            *sql.DB
-	badgerDb                                      *badger.DB
-	apiRPCPort, apiHTTPPort, monitoringPort       int
-	apiCertFile, apiKeyFile                       string
-	peerPort                                      uint32
-	p2pServiceInstance                            p2p.Peer2PeerServiceInterface
-	queryExecutor                                 *query.Executor
-	kvExecutor                                    *kvdb.KVExecutor
-	observerInstance                              *observer.Observer
-	schedulerInstance                             *util.Scheduler
-	blockServices                                 = make(map[int32]service.BlockServiceInterface)
-	mainchainBlockService                         *service.BlockService
-	spinechainBlockService                        *service.BlockSpineService
-	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
-	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
-	receiptService                                service.ReceiptServiceInterface
-	peerServiceClient                             client.PeerServiceClientInterface
-	p2pHost                                       *model.Host
-	peerExplorer                                  p2pStrategy.PeerExplorerStrategyInterface
-	wellknownPeers                                []string
-	smithing, isNodePreSeed, isDebugMode          bool
+	dbInstance                              *database.SqliteDB
+	badgerDbInstance                        *database.BadgerDB
+	db                                      *sql.DB
+	badgerDb                                *badger.DB
+	apiRPCPort, apiHTTPPort, monitoringPort int
+	apiCertFile, apiKeyFile                 string
+	peerPort                                uint32
+	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
+	queryExecutor                           *query.Executor
+	kvExecutor                              *kvdb.KVExecutor
+	observerInstance                        *observer.Observer
+	schedulerInstance                       *util.Scheduler
+	blockServices                           = make(map[int32]service.BlockServiceInterface)
+	mainchainBlockService                   *service.BlockService
+	spinechainBlockService                  *service.BlockSpineService
+	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
+	blockIncompleteQueueService             service.BlockIncompleteQueueServiceInterface
+	receiptService                          service.ReceiptServiceInterface
+	peerServiceClient                       client.PeerServiceClientInterface
+	p2pHost                                 *model.Host
+	peerExplorer                            p2pStrategy.PeerExplorerStrategyInterface
+	wellknownPeers                          []string
+	smithing, isNodePreSeed, isDebugMode,
+	isSpineBlocksDownloadFinished bool
 	nodeRegistrationService                       service.NodeRegistrationServiceInterface
 	mainchainProcessor                            smith.BlockchainProcessorInterface
 	spinechainProcessor                           smith.BlockchainProcessorInterface
@@ -76,7 +77,6 @@ var (
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
-	isSpineBlocksDownloadFinished                 bool = false
 )
 
 func init() {
@@ -86,6 +86,7 @@ func init() {
 		err           error
 	)
 
+	isSpineBlocksDownloadFinished = false
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
@@ -148,6 +149,7 @@ func init() {
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		spineBlockManifestService,
 		loggerCoreService,
+		isSpineBlocksDownloadFinished,
 	)
 
 	// initialize Observer

@@ -38,6 +38,7 @@ func TestGetDerivedQuery(t *testing.T) {
 			name: "wantDerivedQuery:spinechain",
 			args: args{chainType: spinechain},
 			want: []DerivedQuery{
+				NewBlockQuery(spinechain),
 				NewSpinePublicKeyQuery(),
 			},
 		},
