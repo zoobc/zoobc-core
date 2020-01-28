@@ -83,7 +83,7 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 		fileChunkHashes = append(fileChunkHashes, hash1)
 
 		digest.Reset()
-		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp+1)))
+		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp + 1)))
 		if err != nil {
 			return nil, err
 		}
