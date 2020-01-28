@@ -343,14 +343,19 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		blockService := ps.BlockServices[chainType.GetTypeInt()]
+
+		blockService.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+		defer blockService.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+
+		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
 				"fail to get last block",
 			)
 		}
-		batchReceipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
+		batchReceipt, err := blockService.ReceiveBlock(
 			senderPublicKey,
 			lastBlock,
 			block,

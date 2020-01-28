@@ -410,6 +410,13 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 2":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
+			"Version"},
+		))
 	case "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
 		"ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.registration_status=0 AND A.latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -2236,8 +2243,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 func TestBlockService_ReceiveBlock(t *testing.T) {
 	var (
 		mockLastBlockData = model.Block{
-			ID:        constant.MainchainGenesisBlockID,
-			BlockHash: make([]byte, 32),
+			ID: constant.MainchainGenesisBlockID,
 			PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
 				97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
 			Height:    1,
@@ -2263,12 +2269,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		mockGoodIncomingBlock    = &model.Block{
 			PreviousBlockHash:    mockGoodLastBlockHash,
 			BlockSignature:       nil,
-			CumulativeDifficulty: "200",
+			CumulativeDifficulty: "2000",
 			Timestamp:            10000,
 			BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
 			Transactions: []*model.Transaction{
 				mockTransaction,
 			},
+			Height: 2,
 		}
 		successBlockHash = []byte{
 			197, 250, 152, 172, 169, 236, 102, 225, 55, 58, 90, 101, 214, 217, 209, 67, 185, 183, 116, 101, 64, 47, 196,
@@ -2282,6 +2289,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		}
 	)
 	mockBlockData.BlockHash = mockGoodLastBlockHash
+	mockLastBlockData.BlockHash = mockGoodLastBlockHash
 
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -2323,6 +2331,36 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				lastBlock:       nil,
 				block: &model.Block{
 					PreviousBlockHash: nil,
+				},
+				nodeSecretPhrase: "",
+			},
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				QueryExecutor:           nil,
+				BlockQuery:              nil,
+				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
+				TransactionQuery:        nil,
+				Signature:               nil,
+				MempoolService:          nil,
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				AccountLedgerQuery:      nil,
+				Observer:                nil,
+				NodeRegistrationService: nil,
+				BlocksmithStrategy:      &mockBlocksmithService{},
+			},
+			wantErr: true,
+			want:    nil,
+		},
+		{
+			name: "ReceiveBlock:fail - {incoming block.height is not compatible with the blockchain}",
+			args: args{
+				senderPublicKey: nil,
+				lastBlock: &model.Block{
+					Height: uint32(100),
+				},
+				block: &model.Block{
+					Height: uint32(255),
 				},
 				nodeSecretPhrase: "",
 			},
@@ -2472,7 +2510,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:      nil,
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: nil,
-				BlocksmithStrategy:      &mockBlocksmithService{},
+				BlocksmithStrategy:      &mockBlocksmithServiceValidateBlockSuccess{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2481,13 +2519,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			name: "ReceiveBlock:success",
 			args: args{
 				senderPublicKey:  []byte{1, 3, 4, 5, 6},
-				lastBlock:        &mockBlockData,
+				lastBlock:        &mockLastBlockData,
 				block:            mockGoodIncomingBlock,
 				nodeSecretPhrase: "",
 			},
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              &mockKVExecutorSuccess{},
+				KVExecutor:              &mockKVExecutorSuccessKeyNotFound{},
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),

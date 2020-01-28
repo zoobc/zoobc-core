@@ -86,14 +86,20 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 		return nil, fmt.Errorf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err)
 	}
 
-	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
+	peerCumulativeDifficulty, ok := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("peer cumulative difficulty parsing error: %s", peerCumulativeDifficultyResponse.CumulativeDifficulty))
+	}
 	peerHeight := peerCumulativeDifficultyResponse.Height
 
 	lastBlock, err = bd.BlockService.GetLastBlock()
 	if err != nil {
 		return nil, err
 	}
-	lastBlockCumulativeDifficulty, _ := new(big.Int).SetString(lastBlock.CumulativeDifficulty, 10)
+	lastBlockCumulativeDifficulty, ok := new(big.Int).SetString(lastBlock.CumulativeDifficulty, 10)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("lastblock cumulative difficulty parsing error: %s", lastBlock.CumulativeDifficulty))
+	}
 	lastBlockHeight := lastBlock.Height
 	lastBlockID := lastBlock.ID
 
@@ -155,7 +161,10 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 	if err != nil {
 		return []int64{}, err
 	}
-	currentLastBlockCumulativeDifficulty, _ := new(big.Int).SetString(currentLastBlock.CumulativeDifficulty, 10)
+	currentLastBlockCumulativeDifficulty, ok := new(big.Int).SetString(currentLastBlock.CumulativeDifficulty, 10)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("current cumulative difficulty parsing error: %s", currentLastBlock.CumulativeDifficulty))
+	}
 	if len(otherPeerChainBlockIds) < 1 || otherPeerChainBlockIds[0] == currentLastBlock.ID {
 		return []int64{}, nil
 	}
@@ -175,7 +184,11 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 			peerToCheck.GetInfo().Address))
 	}
 
-	otherPeerCumulativeDifficulty, _ := new(big.Int).SetString(otherPeerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
+	otherPeerCumulativeDifficulty, ok := new(big.Int).SetString(otherPeerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.ParserErr,
+			fmt.Sprintf("other cumulative difficulty parsing error: %s", otherPeerCumulativeDifficultyResponse.CumulativeDifficulty))
+	}
 	if otherPeerCumulativeDifficulty.Cmp(currentLastBlockCumulativeDifficulty) <= 0 {
 		return []int64{}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("peer's cumulative difficulty %s:%v is lower than ours",
 			peerToCheck.GetInfo().Address, peerToCheck.GetInfo().Port))

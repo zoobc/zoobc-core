@@ -1055,11 +1055,91 @@ func (bs *BlockService) ReceiveBlock(
 ) (*model.BatchReceipt, error) {
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			"last block hash does not exist",
-		)
+		return nil, status.Error(codes.InvalidArgument, "last block hash does not exist")
 	}
+	if block.GetHeight() != lastBlock.GetHeight() && block.GetHeight() != lastBlock.GetHeight()+1 {
+		return nil, status.Error(codes.InvalidArgument,
+			fmt.Sprintf("incoming block is not compatible with the node's blockchain, lastBlock height: %d, incoming block height: %d",
+				lastBlock.GetHeight(), block.GetHeight()))
+	}
+
+	// if the last block isn't the same as the incoming block, otherwise just send the receipt
+	if lastBlock.GetID() != block.GetID() {
+		lastBlockCumulativeDifficulty, ok := new(big.Int).SetString(lastBlock.GetCumulativeDifficulty(), 10)
+		if !ok {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("last block cumulative difficulty parsing error: %s",
+				lastBlock.GetCumulativeDifficulty()))
+		}
+
+		receivedBlockCumulativeDifficulty, ok := new(big.Int).SetString(block.GetCumulativeDifficulty(), 10)
+		if !ok {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("received block cumulative difficulty parsing error: %s",
+				block.GetCumulativeDifficulty()))
+		}
+
+		// if the cumulative difficulty of the incoming block is lower or same => reject
+		if receivedBlockCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
+			return nil, status.Error(codes.InvalidArgument,
+				"InvalidBlock, incoming block cumulative difficulty is lower/same as the node's last block cumulative difficulty")
+		}
+
+		// if the incoming block is the continuation of our last block => validate, push and send receipt
+		if bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
+			// Validate incoming block
+			if err := bs.ValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
+				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock, %s", err.Error()))
+			}
+			if err := bs.PushBlock(lastBlock, block, true); err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+		} else {
+			// if the incoming block is the same height as our current last block and have better cumulative difficulty
+			// => validate, rollback, push send receipt
+			if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+				block.Timestamp < lastBlock.Timestamp {
+				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+				if err != nil {
+					return nil, status.Error(codes.Internal,
+						"fail to get previous of last block",
+					)
+				}
+				lastBlocks, err := bs.PopOffToBlock(previousBlock)
+				if err != nil {
+					return nil, err
+				}
+				err = func() error {
+					if err := bs.ValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
+						return err
+					}
+					if err := bs.PushBlock(previousBlock, block, true); err != nil {
+						return err
+					}
+					return nil
+				}()
+				if err != nil {
+					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+					if errPushBlock != nil {
+						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						return nil, status.Error(codes.InvalidArgument, "InvalidBlock, failed pushing popped off block")
+					}
+					bs.Logger.Info("pushing back popped off block")
+					return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock, %s", err.Error()))
+				}
+			}
+			return nil, status.Error(codes.InvalidArgument, "InvalidBlock, hash do not match")
+		}
+	} else {
+		blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
+			// invalid block hash don't send receipt to client
+			return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash, same ID but different hash")
+		}
+	}
+
+	// generate batch receipt
 	receiptKey, err := commonUtils.GetReceiptKey(
 		block.GetBlockHash(), senderPublicKey,
 	)
@@ -1069,134 +1149,129 @@ func (bs *BlockService) ReceiveBlock(
 			err.Error(),
 		)
 	}
-	//  check equality last block hash with previous block hash from received block
-	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
-		// check if incoming block is of higher quality
-		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
-			block.Timestamp < lastBlock.Timestamp {
-			err := func() error {
-				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
-				if err != nil {
-					return status.Error(codes.Internal,
-						"fail to get last block",
-					)
-				}
-				if !bytes.Equal(previousBlock.GetBlockHash(), block.PreviousBlockHash) {
-					return status.Error(codes.InvalidArgument,
-						"blockchain changed, ignore the incoming block",
-					)
-				}
-				lastBlocks, err := bs.PopOffToBlock(previousBlock)
-				if err != nil {
-					return err
-				}
-				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
-				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
-					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return status.Error(codes.InvalidArgument, "InvalidBlock")
-					}
 
-					bs.Logger.Info("pushing back popped off block")
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
-				}
-				err = bs.PushBlock(previousBlock, block, true)
-				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
-					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return status.Error(codes.InvalidArgument, "InvalidBlock")
-					}
-					bs.Logger.Info("pushing back popped off block")
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
-				}
-				return nil
-			}()
-			if err != nil {
-				return nil, err
-			}
-		}
-		// check if already broadcast receipt to this node
-		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
-		if err != nil {
-			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				if err != nil {
-					return nil, err
-				}
-				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-					// invalid block hash don't send receipt to client
-					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
-				}
-				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-					bs.Chaintype,
-					block.GetBlockHash(),
-					lastBlock,
-					senderPublicKey,
-					nodeSecretPhrase,
-					constant.KVdbTableBlockReminderKey+string(receiptKey),
-					constant.ReceiptDatumTypeBlock,
-					bs.Signature,
-					bs.QueryExecutor,
-					bs.KVExecutor,
-				)
-				if err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
-				}
-				return batchReceipt, nil
-			}
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument,
-			"previousBlockHashDoesNotMatchWithLastBlockHash",
-		)
-	}
-	err = func() error {
-		// pushBlock closure to release lock as soon as block pushed
-		// Securing receive block process
-		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-		// making sure get last block after paused process
-		lastBlock, err = bs.GetLastBlock()
-		if err != nil {
-			return status.Error(codes.Internal,
-				"fail to get last block",
+	// check if already broadcast receipt to this node
+	_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+	if err != nil {
+		if err == badger.ErrKeyNotFound {
+			batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+				bs.Chaintype,
+				block.GetBlockHash(),
+				lastBlock,
+				senderPublicKey,
+				nodeSecretPhrase,
+				constant.KVdbTableBlockReminderKey+string(receiptKey),
+				constant.ReceiptDatumTypeBlock,
+				bs.Signature,
+				bs.QueryExecutor,
+				bs.KVExecutor,
 			)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return batchReceipt, nil
 		}
-		// Validate incoming block
-		err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
-		if err != nil {
-			return status.Error(codes.InvalidArgument, "InvalidBlock")
-		}
-		err = bs.PushBlock(lastBlock, block, true)
-		if err != nil {
-			return status.Error(codes.InvalidArgument, err.Error())
-		}
-		return nil
-	}()
-	if err != nil {
-		return nil, err
-	}
-	// generate receipt and return as response
-	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-		bs.Chaintype,
-		block.GetBlockHash(),
-		lastBlock,
-		senderPublicKey,
-		nodeSecretPhrase,
-		constant.KVdbTableBlockReminderKey+string(receiptKey),
-		constant.ReceiptDatumTypeBlock,
-		bs.Signature,
-		bs.QueryExecutor,
-		bs.KVExecutor,
-	)
-	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return batchReceipt, nil
+
+	return nil, status.Error(codes.InvalidArgument,
+		"previousBlockHashDoesNotMatchWithLastBlockHash",
+	)
+
+	// //  check equality last block hash with previous block hash from received block
+	// if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
+	// 	// check if incoming block is of higher quality
+	// 	if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+	// 		block.Timestamp < lastBlock.Timestamp {
+	// 		err := func() error {
+	// 			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	// 			defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	// 			previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+	// 			if err != nil {
+	// 				return status.Error(codes.Internal,
+	// 					"fail to get last block",
+	// 				)
+	// 			}
+	// 			if !bytes.Equal(previousBlock.GetBlockHash(), block.PreviousBlockHash) {
+	// 				return status.Error(codes.InvalidArgument,
+	// 					"blockchain changed, ignore the incoming block",
+	// 				)
+	// 			}
+	// 			lastBlocks, err := bs.PopOffToBlock(previousBlock)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			err = func() error{
+	// 				if err := bs.ValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
+	// 					return err
+	// 				}
+	// 				if err := bs.PushBlock(previousBlock, block, true);err != nil {
+	// 					return err
+	// 				}
+	// 			}()
+	// 			if err != nil {
+	// 				errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
+	// 				if errPushBlock != nil {
+	// 					bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+	// 					return status.Error(codes.InvalidArgument, "InvalidBlock")
+	// 				}
+	// 				bs.Logger.Info("pushing back popped off block")
+	// 				return status.Error(codes.InvalidArgument, "InvalidBlock")
+	// 			}
+	// 			return nil
+	// 		}()
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 	}
+	// 	needCreateReceipt = true
+	// 	return nil, status.Error(codes.InvalidArgument,
+	// 		"previousBlockHashDoesNotMatchWithLastBlockHash",
+	// 	)
+	// }
+	// err = func() error {
+	// 	// pushBlock closure to release lock as soon as block pushed
+	// 	// Securing receive block process
+	// 	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	// 	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	// 	// making sure get last block after paused process
+	// 	lastBlock, err = bs.GetLastBlock()
+	// 	if err != nil {
+	// 		return status.Error(codes.Internal,
+	// 			"fail to get last block",
+	// 		)
+	// 	}
+	// 	// Validate incoming block
+	// 	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+	// 	if err != nil {
+	// 		return status.Error(codes.InvalidArgument, "InvalidBlock")
+	// 	}
+	// 	err = bs.PushBlock(lastBlock, block, true)
+	// 	if err != nil {
+	// 		return status.Error(codes.InvalidArgument, err.Error())
+	// 	}
+	// 	return nil
+	// }()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // generate receipt and return as response
+	// batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+	// 	bs.Chaintype,
+	// 	block.GetBlockHash(),
+	// 	lastBlock,
+	// 	senderPublicKey,
+	// 	nodeSecretPhrase,
+	// 	constant.KVdbTableBlockReminderKey+string(receiptKey),
+	// 	constant.ReceiptDatumTypeBlock,
+	// 	bs.Signature,
+	// 	bs.QueryExecutor,
+	// 	bs.KVExecutor,
+	// )
+	// if err != nil {
+	// 	return nil, status.Error(codes.Internal, err.Error())
+	// }
+	// return batchReceipt, nil
 }
 
 // GetParticipationScore handle received block from another node

@@ -2,6 +2,7 @@ package blockchainsync
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -100,8 +101,16 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	if err != nil {
 		return err
 	}
-	currentCumulativeDifficulty, _ := new(big.Int).SetString(currentLastBlock.CumulativeDifficulty, 10)
-	cumulativeDifficultyOriginalBefore, _ := new(big.Int).SetString(beforeApplyCumulativeDifficulty, 10)
+	currentCumulativeDifficulty, ok := new(big.Int).SetString(currentLastBlock.CumulativeDifficulty, 10)
+	if !ok {
+		return blocker.NewBlocker(blocker.ParserErr,
+			fmt.Sprintf("current cumulative difficulty parsing error: %s", currentLastBlock.CumulativeDifficulty))
+	}
+	cumulativeDifficultyOriginalBefore, ok := new(big.Int).SetString(beforeApplyCumulativeDifficulty, 10)
+	if !ok {
+		return blocker.NewBlocker(blocker.ParserErr,
+			fmt.Sprintf("original cumulative difficulty parsing error: %s", beforeApplyCumulativeDifficulty))
+	}
 
 	// if after applying the fork blocks the cumulative difficulty is still less than current one
 	// only take the transactions to be processed, but later will get back to our own fork

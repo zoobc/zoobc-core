@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -256,6 +257,7 @@ func (*NodeRegistrationQuery) BuildBlocksmith(
 			blocksmith  model.Blocksmith
 			scoreString string
 			maxHeight   uint32
+			ok          bool
 		)
 		err := rows.Scan(
 			&blocksmith.NodeID,
@@ -266,7 +268,10 @@ func (*NodeRegistrationQuery) BuildBlocksmith(
 		if err != nil {
 			return nil, err
 		}
-		blocksmith.Score, _ = new(big.Int).SetString(scoreString, 10)
+		blocksmith.Score, ok = new(big.Int).SetString(scoreString, 10)
+		if !ok {
+			return nil, blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("blocksmith score parsing error: %s", scoreString))
+		}
 		blocksmiths = append(blocksmiths, &blocksmith)
 	}
 	return blocksmiths, nil

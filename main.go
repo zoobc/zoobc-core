@@ -539,27 +539,7 @@ func startScheduler() {
 	}
 }
 
-func main() {
-	migration := database.Migration{Query: queryExecutor}
-	if err := migration.Init(); err != nil {
-		loggerCoreService.Fatal(err)
-	}
-
-	if err := migration.Apply(); err != nil {
-		loggerCoreService.Fatal(err)
-	}
-
-	mainchainSyncChannel := make(chan bool, 1)
-	mainchainSyncChannel <- true
-	startMainchain()
-	// startSpinechain()
-	startServices()
-	initObserverListeners()
-	startScheduler()
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	<-sigs
+func gracefulShutdown() {
 	loggerCoreService.Info("Shutting down node...")
 	if mainchainProcessor != nil {
 		mainchainProcessor.Stop()
@@ -588,6 +568,27 @@ func main() {
 			loggerCoreService.Info("ZOOBC Shutdown timedout...")
 			os.Exit(1)
 		}
-
 	}
+}
+
+func main() {
+	migration := database.Migration{Query: queryExecutor}
+	if err := migration.Init(); err != nil {
+		loggerCoreService.Fatal(err)
+	}
+
+	if err := migration.Apply(); err != nil {
+		loggerCoreService.Fatal(err)
+	}
+
+	startMainchain()
+	// startSpinechain()
+	startServices()
+	initObserverListeners()
+	startScheduler()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+	gracefulShutdown()
 }

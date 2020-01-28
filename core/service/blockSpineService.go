@@ -586,8 +586,6 @@ func (bs *BlockSpineService) ReceiveBlock(
 		if bytes.Equal(lastBlock.PreviousBlockHash, block.PreviousBlockHash) &&
 			block.Timestamp < lastBlock.Timestamp {
 			err := func() error {
-				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
 				if err != nil {
 					return status.Error(codes.Internal,
@@ -668,8 +666,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 	err = func() error {
 		// pushBlock closure to release lock as soon as block pushed
 		// Securing receive block process
-		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+
 		// making sure get last block after paused process
 		lastBlock, err = bs.GetLastBlock()
 		if err != nil {
