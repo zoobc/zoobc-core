@@ -118,14 +118,13 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
 	blocksmiths = append(blocksmiths, nextBlocksmiths...)
 	// sort blocksmiths by SmithOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.BlockSeed - bj.BlockSeed
-		if res == 0 {
-			res = bi.NodeID - bj.NodeID
+		if blocksmiths[i].BlockSeed == blocksmiths[j].BlockSeed {
+			return blocksmiths[i].NodeID < blocksmiths[j].NodeID
 		}
 		// ascending sort
-		return res < 0
+		return blocksmiths[i].BlockSeed < blocksmiths[j].BlockSeed
 	})
+	
 	bss.SortedBlocksmithsLock.Lock()
 	defer bss.SortedBlocksmithsLock.Unlock()
 	// copying the sorted list to map[string(publicKey)]index

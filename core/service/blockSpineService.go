@@ -49,7 +49,6 @@ type (
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlockPoolService          BlockPoolServiceInterface
 	}
 )
 
@@ -63,7 +62,6 @@ func NewBlockSpineService(
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
-	blockPoolService BlockPoolServiceInterface,
 	megablockQuery query.SpineBlockManifestQueryInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{

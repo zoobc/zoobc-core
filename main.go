@@ -76,6 +76,7 @@ var (
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
+	isSpineBlocksDownloadFinished                 bool = false
 )
 
 func init() {
@@ -474,7 +475,6 @@ func startSpinechain() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockPool := service.NewBlockPoolService()
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
 		queryExecutor,
@@ -485,7 +485,6 @@ func startSpinechain() {
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
-		spinechainBlockPool,
 		query.NewSpineBlockManifestQuery(),
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
@@ -585,6 +584,7 @@ syncronizersLoop:
 				os.Exit(1)
 			}
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
+				isSpineBlocksDownloadFinished = true
 				ticker.Stop()
 				// TODO: in future loop through all chain types that support snapshots and download them if we find
 				//  relative spineBlockManifest

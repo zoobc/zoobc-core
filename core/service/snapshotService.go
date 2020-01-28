@@ -16,6 +16,7 @@ type (
 	SnapshotServiceInterface interface {
 		GenerateSnapshot(block *model.Block, ct chaintype.ChainType) (*model.SnapshotFileInfo, error)
 		StartSnapshotListener() observer.Listener
+		IsSnapshotHeight(height uint32, snapshotInterval uint32) bool
 	}
 
 	SnapshotService struct {
@@ -24,11 +25,12 @@ type (
 		MainBlockQuery  query.BlockQueryInterface
 		Logger          *log.Logger
 		// below fields are for better code testability
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          uint32
-		SnapshotGenerationTimeout int64
-		SpineBlockManifestService SpineBlockManifestServiceInterface
+		Spinechain                    chaintype.ChainType
+		Mainchain                     chaintype.ChainType
+		SnapshotInterval              uint32
+		SnapshotGenerationTimeout     int64
+		SpineBlockManifestService     SpineBlockManifestServiceInterface
+		IsSpineBlocksDownloadFinished bool
 	}
 )
 
@@ -44,7 +46,7 @@ func NewSnapshotService(
 		MainBlockQuery:            mainBlockQuery,
 		Spinechain:                &chaintype.SpineChain{},
 		Mainchain:                 &chaintype.MainChain{},
-		SnapshotInterval:          constant.SnapshotInterval,
+		SnapshotInterval:          constant.MainchainSnapshotInterval,
 		SnapshotGenerationTimeout: constant.SnapshotGenerationTimeout,
 		SpineBlockManifestService: spineBlockManifestService,
 		Logger:                    logger,
@@ -106,7 +108,15 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 		OnNotify: func(block interface{}, args interface{}) {
 			b := block.(*model.Block)
 			ct := args.(chaintype.ChainType)
-			if ct.HasSnapshots() && b.Height%constant.SnapshotInterval == 0 {
+			// if spine blocks is downloading, do not generate (or download from other peers) snapshots
+			// don't generate snapshots until all spine blocks have been downloaded
+			if !ss.IsSpineBlocksDownloadFinished {
+				ss.Logger.Warnf("Snapshot at block "+
+					"height %d not generated because spine blocks are still downloading",
+					b.Height)
+				return
+			}
+			if ct.HasSnapshots() && ss.IsSnapshotHeight(b.Height, constant.MainchainSnapshotInterval) {
 				go func() {
 					// TODO: implement some sort of process management,
 					//  such as controlling if there is another snapshot running before starting to compute a new one (
@@ -115,6 +125,9 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 					if err != nil {
 						ss.Logger.Errorf("Snapshot at block "+
 							"height %d terminated with errors %s", b.Height, err)
+					}
+					if snapshotInfo == nil {
+
 					}
 					_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
 						snapshotInfo.SnapshotFileHash,
@@ -134,4 +147,18 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 			}
 		},
 	}
+}
+
+// IsSnapshotHeight returns true if chain height passed is a snapshot height
+func (*SnapshotService) IsSnapshotHeight(height uint32, snapshotInterval uint32) bool {
+	// FIXME: STEF uncomment this (for testing only)
+	// if snapshotInterval < constant.MinRollbackBlocks {
+	// 	if height < constant.MinRollbackBlocks {
+	// 		return false
+	// 	} else if height == constant.MinRollbackBlocks {
+	// 		return true
+	// 	}
+	// 	return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	// }
+	return height%snapshotInterval == 0
 }
