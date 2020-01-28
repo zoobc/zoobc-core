@@ -762,7 +762,7 @@ func (bs *BlockSpineService) GetSpinePublicKeysByBlockID(blockID int64) (spinePu
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-
+	defer rows.Close()
 	spinePublicKeys, err = bs.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
