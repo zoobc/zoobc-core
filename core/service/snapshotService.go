@@ -30,7 +30,7 @@ type (
 		SnapshotInterval              uint32
 		SnapshotGenerationTimeout     int64
 		SpineBlockManifestService     SpineBlockManifestServiceInterface
-		IsSpineBlocksDownloadFinished bool
+		IsSpineBlocksDownloadFinished *bool
 	}
 )
 
@@ -39,7 +39,7 @@ func NewSnapshotService(
 	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
 	spineBlockManifestService SpineBlockManifestServiceInterface,
 	logger *log.Logger,
-	isSpineBlocksDownloadFinished bool,
+	isSpineBlocksDownloadFinished *bool,
 ) *SnapshotService {
 	return &SnapshotService{
 		QueryExecutor:                 queryExecutor,
@@ -75,7 +75,7 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 		//  the snapshot full hash
 		// FIXME: below logic is only for live testing without real snapshots
 		digest := sha3.New256()
-		_, err := digest.Write(util.ConvertUint64ToBytes(uint64(util.GetSecureRandom())))
+		_, err := digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp)))
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +83,7 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 		fileChunkHashes = append(fileChunkHashes, hash1)
 
 		digest.Reset()
-		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(util.GetSecureRandom())))
+		_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp+1)))
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +114,8 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 				go func() {
 					// if spine blocks is downloading, do not generate (or download from other peers) snapshots
 					// don't generate snapshots until all spine blocks have been downloaded
-					if !ss.IsSpineBlocksDownloadFinished {
-						ss.Logger.Warnf("Snapshot at block "+
+					if !*ss.IsSpineBlocksDownloadFinished {
+						ss.Logger.Infof("Snapshot at block "+
 							"height %d not generated because spine blocks are still downloading",
 							b.Height)
 						return

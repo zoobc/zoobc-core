@@ -149,7 +149,7 @@ func init() {
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		spineBlockManifestService,
 		loggerCoreService,
-		isSpineBlocksDownloadFinished,
+		&isSpineBlocksDownloadFinished,
 	)
 
 	// initialize Observer
