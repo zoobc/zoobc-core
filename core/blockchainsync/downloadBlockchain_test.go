@@ -113,7 +113,7 @@ func (*mockBlockServiceSuccess) GetBlockByID(blockID int64, withAttachedData boo
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
 }
 
-func (*mockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
+func (*mockBlockServiceSuccess) GetLastBlock(flagTrans int) (*model.Block, error) {
 	return &model.Block{ID: 1}, nil
 }
 
@@ -125,7 +125,7 @@ func (*mockBlockServiceFail) GetChainType() chaintype.ChainType {
 	return &chaintype.MainChain{}
 }
 
-func (*mockBlockServiceFail) GetLastBlock() (*model.Block, error) {
+func (*mockBlockServiceFail) GetLastBlock(flagTrans int) (*model.Block, error) {
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
 }
 

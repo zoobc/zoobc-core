@@ -398,7 +398,7 @@ func startMainchain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
+	lastBlockAtStart, err = mainchainBlockService.GetLastBlock(0)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -558,7 +558,7 @@ syncronizersLoop:
 	for {
 		select {
 		case <-ticker.C:
-			lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock()
+			lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock(1)
 			if err != nil {
 				loggerCoreService.Errorf("cannot get last spine block")
 				os.Exit(1)

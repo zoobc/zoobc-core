@@ -98,7 +98,7 @@ func (bss *Service) getMoreBlocks() {
 		otherPeerChainBlockIds []int64
 		newLastBlock           *model.Block
 		peerForkInfo           *PeerForkInfo
-		lastBlock, err         = bss.BlockService.GetLastBlock()
+		lastBlock, err         = bss.BlockService.GetLastBlock(1)
 	)
 	// notify observer about start of blockchain download of this specific chain
 	if err != nil {
@@ -159,7 +159,7 @@ func (bss *Service) getMoreBlocks() {
 				}
 			}
 
-			newLastBlock, err = bss.BlockService.GetLastBlock()
+			newLastBlock, err = bss.BlockService.GetLastBlock(1)
 			if err != nil {
 				bss.Logger.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)
 				break

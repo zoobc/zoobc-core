@@ -588,7 +588,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
-	previousBlock, err := bs.GetLastBlock()
+	previousBlock, err := bs.GetLastBlock(0)
 	if err != nil {
 		return err
 	}
@@ -897,17 +897,20 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 }
 
 // GetLastBlock return the last pushed block
-func (bs *BlockService) GetLastBlock() (*model.Block, error) {
+func (bs *BlockService) GetLastBlock(transFlag int) (*model.Block, error) {
 	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	if transFlag == 1 {
+		transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		lastBlock.Transactions = transactions
 	}
-	lastBlock.Transactions = transactions
+
 	return lastBlock, nil
 }
 
@@ -1425,7 +1428,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		err                 error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := bs.GetLastBlock()
+	lastBlock, err := bs.GetLastBlock(0)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -1542,7 +1545,7 @@ func (bs *BlockService) WillSmith(
 	blockchainProcessorLastBlockID int64,
 ) (int64, error) {
 	var blocksmithScore int64
-	lastBlock, err := bs.GetLastBlock()
+	lastBlock, err := bs.GetLastBlock(0)
 	if err != nil {
 		return blockchainProcessorLastBlockID, blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
@@ -1599,7 +1602,7 @@ func (bs *BlockService) WillSmith(
 func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-	lastBlock, err := bs.GetLastBlock()
+	lastBlock, err := bs.GetLastBlock(0)
 	if err != nil {
 		return err
 	}

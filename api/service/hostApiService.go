@@ -45,7 +45,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		err           error
 	)
 	for chainType, blockService := range hs.BlockServices {
-		lastBlock, err = blockService.GetLastBlock()
+		lastBlock, err = blockService.GetLastBlock(0)
 		if lastBlock == nil || err != nil {
 			continue
 		}

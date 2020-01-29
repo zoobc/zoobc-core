@@ -25,7 +25,7 @@ type (
 		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
-		GetLastBlock() (*model.Block, error)
+		GetLastBlock(transFlag int) (*model.Block, error)
 		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
 		PopulateBlockData(block *model.Block) error

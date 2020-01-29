@@ -45,7 +45,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		err                                                 error
 	)
 
-	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock()
+	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock(0)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		return err
 	}
 
-	lastBlock, err = fp.BlockService.GetLastBlock()
+	lastBlock, err = fp.BlockService.GetLastBlock(0)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	if lastBlock.ID == commonBlock.ID {
 		// rebuilding the chain
 		for _, block := range forkBlocks {
-			lastBlock, err = fp.BlockService.GetLastBlock()
+			lastBlock, err = fp.BlockService.GetLastBlock(1)
 			if err != nil {
 				return err
 			}
@@ -95,7 +95,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	}
 
-	currentLastBlock, err = fp.BlockService.GetLastBlock()
+	currentLastBlock, err = fp.BlockService.GetLastBlock(0)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	if pushedForkBlocks == 0 {
 		fp.Logger.Println("Did not accept any blocks from peer, pushing back my blocks")
 		for _, block := range myPoppedOffBlocks {
-			lastBlock, err = fp.BlockService.GetLastBlock()
+			lastBlock, err = fp.BlockService.GetLastBlock(1)
 			if err != nil {
 				return err
 			}

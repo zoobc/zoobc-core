@@ -1001,7 +1001,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
 				Signature:           tt.fields.Signature,
 			}
-			got, err := bs.GetLastBlock()
+			got, err := bs.GetLastBlock(1)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.GetLastBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return

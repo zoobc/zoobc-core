@@ -52,7 +52,7 @@ type (
 func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) bool {
 	currentHeight := currentLastBlock.Height
 	currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
-	afterDownloadLastBlock, err := bd.BlockService.GetLastBlock()
+	afterDownloadLastBlock, err := bd.BlockService.GetLastBlock(1)
 	if err != nil {
 		bd.Logger.Warnf("failed to get the last block state after block download: %v\n", err)
 		return false
@@ -89,7 +89,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	peerHeight := peerCumulativeDifficultyResponse.Height
 
-	lastBlock, err = bd.BlockService.GetLastBlock()
+	lastBlock, err = bd.BlockService.GetLastBlock(1)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 
 	// if the host found other peer with better difficulty
 	otherPeerChainBlockIds := bd.getBlockIdsAfterCommon(peerToCheck, commonMilestoneBlockID)
-	currentLastBlock, err = bd.BlockService.GetLastBlock()
+	currentLastBlock, err = bd.BlockService.GetLastBlock(1)
 	if err != nil {
 		return []int64{}, err
 	}
@@ -258,7 +258,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		if block.Height == 0 {
 			continue
 		}
-		lastBlock, err := bd.BlockService.GetLastBlock()
+		lastBlock, err := bd.BlockService.GetLastBlock(1)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +306,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 		// to avoid processing duplicated block IDs
 		commonMilestoneTemp = make(map[int64]bool)
 	)
-	lastBlock, err := bd.BlockService.GetLastBlock()
+	lastBlock, err := bd.BlockService.GetLastBlock(1)
 	if err != nil {
 		bd.Logger.Infof("failed to get blockchain last block: %v\n", err)
 		return 0, err

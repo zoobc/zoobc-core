@@ -1297,7 +1297,7 @@ func TestBlockService_GetLastBlock(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			got, err := bs.GetLastBlock()
+			got, err := bs.GetLastBlock(1)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetLastBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return

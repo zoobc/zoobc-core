@@ -57,7 +57,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 	)
 	// creating a virtual time
 	if !fromGenesis {
-		lastBlock, err := bp.BlockService.GetLastBlock()
+		lastBlock, err := bp.BlockService.GetLastBlock(0)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		timeNow = constant.MainchainGenesisBlockTimestamp
 	}
 	for i := 0; i < numberOfBlocks; i++ {
-		lastBlock, err := bp.BlockService.GetLastBlock()
+		lastBlock, err := bp.BlockService.GetLastBlock(0)
 		if err != nil {
 			return blocker.NewBlocker(
 				blocker.SmithingErr, "genesis block has not been applied")
@@ -89,7 +89,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 				blocker.SmithingErr, "verify seed return false",
 			)
 		}
-		previousBlock, err := bp.BlockService.GetLastBlock()
+		previousBlock, err := bp.BlockService.GetLastBlock(0)
 		if err != nil {
 			return err
 		}
@@ -122,7 +122,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
 	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
-	lastBlock, err := bp.BlockService.GetLastBlock()
+	lastBlock, err := bp.BlockService.GetLastBlock(0)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")

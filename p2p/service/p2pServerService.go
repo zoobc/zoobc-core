@@ -128,7 +128,7 @@ func (ps *P2PServerService) GetCumulativeDifficulty(
 ) (*model.GetCumulativeDifficultyResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlock, err := blockService.GetLastBlock(0)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -165,7 +165,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		if lastBlockID == 0 && lastMilestoneBlockID == 0 {
 			return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 		}
-		myLastBlock, err := blockService.GetLastBlock()
+		myLastBlock, err := blockService.GetLastBlock(0)
 		if err != nil || myLastBlock == nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
@@ -309,7 +309,7 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock(0)
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
@@ -340,7 +340,7 @@ func (ps *P2PServerService) SendTransaction(
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock(1)
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,

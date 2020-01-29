@@ -383,17 +383,20 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32) ([]*
 }
 
 // GetLastBlock return the last pushed block
-func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
+func (bs *BlockSpineService) GetLastBlock(flagTrans int) (*model.Block, error) {
 	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(lastBlock.Height)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	if flagTrans == 1 {
+		spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(lastBlock.Height)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		lastBlock.SpinePublicKeys = spinePublicKeys
 	}
-	lastBlock.SpinePublicKeys = spinePublicKeys
+
 	return lastBlock, nil
 }
 
@@ -687,7 +690,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 		// making sure get last block after paused process
-		lastBlock, err = bs.GetLastBlock()
+		lastBlock, err = bs.GetLastBlock(1)
 		if err != nil {
 			return status.Error(codes.Internal,
 				"fail to get last block",
@@ -727,7 +730,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		err error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := bs.GetLastBlock()
+	lastBlock, err := bs.GetLastBlock(1)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -881,7 +884,7 @@ func (bs *BlockSpineService) WillSmith(
 	blocksmith *model.Blocksmith,
 	blockchainProcessorLastBlockID int64,
 ) (int64, error) {
-	lastBlock, err := bs.GetLastBlock()
+	lastBlock, err := bs.GetLastBlock(1)
 	if err != nil {
 		return blockchainProcessorLastBlockID, blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")

@@ -42,7 +42,7 @@ var (
 	}
 )
 
-func (bsMock *blockServiceMocked) GetLastBlock() (*model.Block, error) {
+func (bsMock *blockServiceMocked) GetLastBlock(flagTrans int) (*model.Block, error) {
 	return &model.Block{
 		Height: bsMock.height,
 	}, nil

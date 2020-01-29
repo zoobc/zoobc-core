@@ -61,7 +61,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 		return nil, blocker.NewBlocker(blocker.AppErr, "MissingNodePrivateKey")
 	}
 
-	lastBlock, err := nas.BlockService.GetLastBlock()
+	lastBlock, err := nas.BlockService.GetLastBlock(0)
 	if err != nil {
 		return nil, err
 	}
