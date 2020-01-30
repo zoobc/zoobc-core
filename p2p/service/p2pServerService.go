@@ -345,9 +345,6 @@ func (ps *P2PServerService) SendBlock(
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 
-		blockService.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-		defer blockService.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(

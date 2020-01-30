@@ -1050,9 +1050,16 @@ func (bs *BlockService) CheckGenesis() bool {
 // argument block is the in coming block from peer
 func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
-	lastBlock, block *model.Block,
+	lastBlockNotLocked, block *model.Block,
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, error) {
+	var (
+		lastBlockCumulativeDifficulty     *big.Int
+		receivedBlockCumulativeDifficulty *big.Int
+		ok                                bool
+		lastBlock                         = lastBlockNotLocked
+	)
+
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, status.Error(codes.InvalidArgument, "last block hash does not exist")
@@ -1063,49 +1070,87 @@ func (bs *BlockService) ReceiveBlock(
 				lastBlock.GetHeight(), block.GetHeight()))
 	}
 
-	// if the last block isn't the same as the incoming block, otherwise just send the receipt
-	if lastBlock.GetID() != block.GetID() {
-		lastBlockCumulativeDifficulty, ok := new(big.Int).SetString(lastBlock.GetCumulativeDifficulty(), 10)
+	if lastBlock.GetID() == block.GetID() {
+		blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(block.GetBlockHash(), blockHash) || !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
+			// invalid block hash, don't send receipt to client
+			return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash, same ID but different hash")
+		}
+	} else {
+		// if the last block isn't the same as the incoming block, otherwise just send the receipt
+		lastBlockCumulativeDifficulty, ok = new(big.Int).SetString(lastBlock.GetCumulativeDifficulty(), 10)
 		if !ok {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("last block cumulative difficulty parsing error: %s",
 				lastBlock.GetCumulativeDifficulty()))
 		}
 
-		receivedBlockCumulativeDifficulty, ok := new(big.Int).SetString(block.GetCumulativeDifficulty(), 10)
+		receivedBlockCumulativeDifficulty, ok = new(big.Int).SetString(block.GetCumulativeDifficulty(), 10)
 		if !ok {
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("received block cumulative difficulty parsing error: %s",
 				block.GetCumulativeDifficulty()))
 		}
 
-		// if the cumulative difficulty of the incoming block is lower or same => reject
+		// if the cumulative difficulty of the incoming block is lower or same (but different ID)=> reject
 		if receivedBlockCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
 			return nil, status.Error(codes.InvalidArgument,
 				"InvalidBlock, incoming block cumulative difficulty is lower/same as the node's last block cumulative difficulty")
 		}
 
-		// if the incoming block is the continuation of our last block => validate, push and send receipt
-		if bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
-			// Validate incoming block
-			if err := bs.ValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
-				return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock, %s", err.Error()))
+		err := func() error {
+			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+			defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+
+			// updating last block along with locking the blockchain
+			lastBlockWithLock, errLastBlock := bs.GetLastBlock()
+			if errLastBlock != nil {
+				return blocker.NewBlocker(
+					blocker.BlockErr,
+					"fail to get last block",
+				)
 			}
-			if err := bs.PushBlock(lastBlock, block, true); err != nil {
-				return nil, status.Error(codes.InvalidArgument, err.Error())
+
+			if lastBlock.GetID() != lastBlockWithLock.GetID() {
+				lastBlock = lastBlockWithLock
+
+				lastBlockCumulativeDifficulty, ok = new(big.Int).SetString(lastBlockWithLock.GetCumulativeDifficulty(), 10)
+				if !ok {
+					return status.Error(codes.InvalidArgument, fmt.Sprintf("last block cumulative difficulty parsing error: %s",
+						lastBlock.GetCumulativeDifficulty()))
+				}
+				// reevaluating the cumulative difficulty if the lastblock changes
+				if receivedBlockCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
+					return status.Error(codes.InvalidArgument,
+						"InvalidBlock, incoming block cumulative difficulty is lower/same as the node's last block cumulative difficulty")
+				}
+
 			}
-		} else {
-			// if the incoming block is the same height as our current last block and have better cumulative difficulty
-			// => validate, rollback, push send receipt
-			if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+
+			// if the incoming block is the continuation of our last block => validate, push and send receipt
+			if bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
+				// Validate incoming block
+				if err := bs.ValidateBlock(block, lastBlock, time.Now().Unix()); err != nil {
+					return status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock, %s", err.Error()))
+				}
+				if err := bs.PushBlock(lastBlock, block, true); err != nil {
+					return status.Error(codes.InvalidArgument, err.Error())
+				}
+			} else if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.GetPreviousBlockHash()) &&
 				block.Timestamp < lastBlock.Timestamp {
+				// if the incoming block is the same height as our current last block and have better cumulative difficulty
+				// => validate, rollback, push send receipt
+
 				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
 				if err != nil {
-					return nil, status.Error(codes.Internal,
+					return status.Error(codes.Internal,
 						"fail to get previous of last block",
 					)
 				}
 				lastBlocks, err := bs.PopOffToBlock(previousBlock)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				err = func() error {
 					if err := bs.ValidateBlock(block, previousBlock, time.Now().Unix()); err != nil {
@@ -1120,22 +1165,18 @@ func (bs *BlockService) ReceiveBlock(
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return nil, status.Error(codes.InvalidArgument, "InvalidBlock, failed pushing popped off block")
+						return status.Error(codes.InvalidArgument, "InvalidBlock, failed pushing popped off block")
 					}
 					bs.Logger.Info("pushing back popped off block")
-					return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock, %s", err.Error()))
+					return status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock, %s", err.Error()))
 				}
+
+				return status.Error(codes.InvalidArgument, "InvalidBlock, hash is not valid")
 			}
-			return nil, status.Error(codes.InvalidArgument, "InvalidBlock, hash do not match")
-		}
-	} else {
-		blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+			return nil
+		}()
 		if err != nil {
 			return nil, err
-		}
-		if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-			// invalid block hash don't send receipt to client
-			return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash, same ID but different hash")
 		}
 	}
 
