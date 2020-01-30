@@ -235,6 +235,29 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 	if err := bs.validateBlockHeight(block); err != nil {
 		return err
 	}
+	// validate payload hash todo: remove this later, just to track some bug - andy-shi88
+	digest := sha3.New256()
+	for _, tx := range block.Transactions {
+		if _, err := digest.Write(tx.TransactionHash); err != nil {
+			bs.Logger.Errorf("wrong payload hash 2\n\n\n")
+			return err
+		}
+	}
+
+	for _, br := range block.PublishedReceipts {
+		_, err = digest.Write(util.GetSignedBatchReceiptBytes(br.BatchReceipt))
+		if err != nil {
+			bs.Logger.Errorf("wrong payload hash 1\n\n\n")
+			return err
+		}
+	}
+
+	payloadHash := digest.Sum([]byte{})
+	if !bytes.Equal(payloadHash, block.PayloadHash) {
+		bs.Logger.Errorf("wrong payload hash\n\n\n")
+		return blocker.NewBlocker(blocker.ValidationErr,
+			fmt.Sprintf("invalid payload hash. block_height = %d", block.Height))
+	}
 	return nil
 }
 
