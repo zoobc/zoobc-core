@@ -127,7 +127,6 @@ func (bss *Service) getMoreBlocks() {
 			}
 
 			if len(peerForkInfo.ForkBlocks) > 0 {
-
 				err := bss.ForkingProcessor.ProcessFork(peerForkInfo.ForkBlocks, peerBlockchainInfo.CommonBlock, peerForkInfo.FeederPeer)
 				if err != nil {
 					bss.Logger.Warnf("\nfailed to ProcessFork: %v\n\n", err)
