@@ -17,9 +17,11 @@ type (
 
 	// EscrowTransactionQueryInterface methods must have
 	EscrowTransactionQueryInterface interface {
-		InsertEscrowTransaction(*model.Escrow) (string, []interface{})
+		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
+		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
+		Scan(escrow *model.Escrow, row *sql.Row) error
 	}
 )
 
@@ -35,6 +37,7 @@ func NewEscrowTransactionQuery() *EscrowTransactionQuery {
 			"commission",
 			"timeout",
 			"status",
+			"block_height",
 			"latest",
 		},
 	}
@@ -44,15 +47,39 @@ func (et *EscrowTransactionQuery) getTableName() string {
 	return et.TableName
 }
 
-// InsertEscrowTransaction represents insert query for escrow_transaction table
-func (et *EscrowTransactionQuery) InsertEscrowTransaction(escrow *model.Escrow) (qStr string, args []interface{}) {
+/*
+InsertEscrowTransaction represents insert query for escrow_transaction table.
+There 2 queries result:
+		1. Update the previous record to latest = false
+		2. Insert new record which is the newest
+*/
+func (et *EscrowTransactionQuery) InsertEscrowTransaction(escrow *model.Escrow) [][]interface{} {
+	return [][]interface{}{
+		{
+			fmt.Sprintf(
+				"UPDATE %s IF EXISTS set latest = ? WHERE id = ?",
+				et.getTableName(),
+			),
+			[]interface{}{false, escrow.GetID()},
+			fmt.Sprintf(
+				"INSERT INTO %s (%s) VALUES(%s)",
+				et.getTableName(),
+				strings.Join(et.Fields, ","),
+				fmt.Sprintf("? %s", strings.Repeat(", ?", len(et.Fields)-1)),
+			),
+			et.ExtractModel(escrow),
+		},
+	}
+}
+
+// GetLatestEscrowTransactionByID represents getting latest escrow by id
+func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
-			"INSERT INTO %s (%s) VALUES(%s)",
+			"SELECT %s FROM %s WHERE id = ? AND latest = ?",
+			strings.Join(et.Fields, ", "),
 			et.getTableName(),
-			strings.Join(et.Fields, ","),
-			fmt.Sprintf("? %s", strings.Repeat(", ?", len(et.Fields)-1)),
 		),
-		et.ExtractModel(escrow)
+		[]interface{}{id, true}
 }
 
 // ExtractModel will extract values of escrow as []interface{}
@@ -65,6 +92,9 @@ func (et *EscrowTransactionQuery) ExtractModel(escrow *model.Escrow) []interface
 		escrow.GetAmount(),
 		escrow.GetCommission(),
 		escrow.GetTimeout(),
+		escrow.GetStatus(),
+		escrow.GetBlockHeight(),
+		escrow.GetLatest(),
 	}
 }
 
@@ -85,6 +115,9 @@ func (et *EscrowTransactionQuery) BuildModels(rows *sql.Rows) ([]*model.Escrow, 
 			&escrow.Amount,
 			&escrow.Commission,
 			&escrow.Timeout,
+			&escrow.Status,
+			&escrow.BlockHeight,
+			&escrow.Latest,
 		)
 		if err != nil {
 			return nil, err
@@ -92,4 +125,20 @@ func (et *EscrowTransactionQuery) BuildModels(rows *sql.Rows) ([]*model.Escrow, 
 		escrows = append(escrows, &escrow)
 	}
 	return escrows, nil
+}
+
+// Scan extract sqlRaw *sql.Row into model.Escrow
+func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error {
+	return row.Scan(
+		&escrow.ID,
+		&escrow.SenderAddress,
+		&escrow.RecipientAddress,
+		&escrow.ApproverAddress,
+		&escrow.Amount,
+		&escrow.Commission,
+		&escrow.Timeout,
+		&escrow.Status,
+		&escrow.BlockHeight,
+		&escrow.Latest,
+	)
 }

@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -202,6 +203,12 @@ func ValidateTransaction(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	verifySignature bool,
 ) error {
+	var (
+		senderAccountBalance model.AccountBalance
+		row                  *sql.Row
+		err                  error
+	)
+
 	if tx.Fee <= 0 {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -225,21 +232,19 @@ func ValidateTransaction(
 
 	// validate sender account
 	qry, args := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	rows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+	row, err = queryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
-	if err != nil || len(res) == 0 {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"TxSenderNotFound",
-		)
+	err = accountBalanceQuery.Scan(&senderAccountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
 
-	senderAccountBalance := res[0]
 	if senderAccountBalance.SpendableBalance < tx.Fee {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -270,4 +275,22 @@ func ValidateTransaction(
 	}
 
 	return nil
+}
+
+// ESCROW PART
+
+// ParseEscrowApprovalBytes read bytes to separated approval and transactionID
+func ParseEscrowApprovalBytes(escrowApprovalBytes []byte) (approval model.EscrowApproval, id int64, err error) {
+	var (
+		chunkedBytes []byte
+		buffer       = bytes.NewBuffer(escrowApprovalBytes)
+	)
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionType))
+	if err != nil {
+		return approval, 0, err
+	}
+	approval = model.EscrowApproval(int32(util.ConvertBytesToUint32(chunkedBytes)))
+	return approval, int64(util.ConvertBytesToUint64(buffer.Bytes())), nil
+
 }

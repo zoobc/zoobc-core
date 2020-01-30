@@ -208,18 +208,24 @@ func (ts *TransactionService) GetTransactions(
 	}, nil
 }
 
+// PostTransaction represents POST transaction method
 func (ts *TransactionService) PostTransaction(
 	chaintype chaintype.ChainType,
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
-	txBytes := req.TransactionBytes
+	var (
+		txBytes = req.TransactionBytes
+		txType  transaction.TypeAction
+		tx      *model.Transaction
+		err     error
+	)
 	// get unsigned bytes
-	tx, err := transaction.ParseTransactionBytes(txBytes, true)
+	tx, err = transaction.ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Validate Tx
-	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	txType, err = ts.ActionTypeSwitcher.GetTransactionType(tx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -232,7 +238,7 @@ func (ts *TransactionService) PostTransaction(
 		SenderAccountAddress:    tx.SenderAccountAddress,
 		RecipientAccountAddress: tx.RecipientAccountAddress,
 	}
-	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+	if err = ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
