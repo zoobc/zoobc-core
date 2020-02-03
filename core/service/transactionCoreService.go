@@ -5,11 +5,16 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
 type (
 	TransactionCoreServiceInterface interface {
 		GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error)
+		ValidateTransaction(txAction transaction.TypeAction, useTX bool) error
+		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
+		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
+		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
 	}
 
 	TransactionCoreService struct {
@@ -45,4 +50,49 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 	}
 
 	return transactions, nil
+}
+
+func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {
+
+	escrowAction, ok := txAction.Escrowable()
+	switch ok {
+	case true:
+		return escrowAction.EscrowValidate(useTX)
+	default:
+		return txAction.Validate(useTX)
+	}
+}
+
+func (tg *TransactionCoreService) ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error {
+
+	escrowAction, ok := txAction.Escrowable()
+	switch ok {
+	case true:
+		return escrowAction.EscrowApplyUnconfirmed()
+	default:
+		return txAction.ApplyUnconfirmed()
+	}
+}
+
+func (tg *TransactionCoreService) UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error {
+
+	escrowAction, ok := txAction.Escrowable()
+	switch ok {
+	case true:
+		return escrowAction.EscrowUndoApplyUnconfirmed()
+	default:
+		return txAction.UndoApplyUnconfirmed()
+	}
+
+}
+func (tg *TransactionCoreService) ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error {
+
+	escrowAction, ok := txAction.Escrowable()
+	switch ok {
+	case true:
+		return escrowAction.EscrowApplyConfirmed(blockTimestamp)
+	default:
+		return txAction.ApplyConfirmed(blockTimestamp)
+	}
+
 }

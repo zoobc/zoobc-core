@@ -403,7 +403,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 	defer func() {
 		cancelReq()
 	}()
-	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactonsRequest{
+	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactionsRequest{
 		TransactionIDs: transactonIDs,
 		ChainType:      chainType.GetTypeInt(),
 	})

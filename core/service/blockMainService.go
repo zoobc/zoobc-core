@@ -418,14 +418,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
-		escrowable, escrowOk := txType.Escrowable()
+
 		if rows.Next() {
-			// undo unconfirmed
-			if escrowOk {
-				err = escrowable.EscrowUndoApplyUnconfirmed()
-			} else {
-				err = txType.UndoApplyUnconfirmed()
-			}
+			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
 				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -437,11 +432,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		rows.Close()
 
 		if block.Height > 0 {
-			if escrowOk {
-				err = escrowable.EscrowValidate(true)
-			} else {
-				err = txType.Validate(true)
-			}
+			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
@@ -450,13 +441,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
-		if escrowOk {
-			err = escrowable.EscrowApplyConfirmed(block.GetTimestamp())
-		} else {
-			err = txType.ApplyConfirmed(block.GetTimestamp())
-
-		}
-
+		err = bs.TransactionCoreService.ApplyConfirmedTransaction(txType, block.GetTimestamp())
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -1529,12 +1514,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			return nil, err
 		}
 
-		escrowable, ok := txType.Escrowable()
-		if ok {
-			err = escrowable.EscrowUndoApplyUnconfirmed()
-		} else {
-			err = txType.UndoApplyUnconfirmed()
-		}
+		err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			return nil, err
 		}

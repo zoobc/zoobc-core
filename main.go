@@ -341,23 +341,7 @@ func startMainchain() {
 	)
 	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
-	mempoolService := service.NewMempoolService(
-		transactionUtil,
-		mainchain,
-		kvExecutor,
-		queryExecutor,
-		query.NewMempoolQuery(mainchain),
-		query.NewMerkleTreeQuery(),
-		&transaction.TypeSwitcher{Executor: queryExecutor},
-		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(mainchain),
-		query.NewTransactionQuery(mainchain),
-		crypto.NewSignature(),
-		observerInstance,
-		loggerCoreService,
-		receiptUtil,
-		receiptService,
-	)
+	mempoolService := service.NewMempoolService(transactionUtil, mainchain, kvExecutor, queryExecutor, query.NewMempoolQuery(mainchain), query.NewMerkleTreeQuery(), &transaction.TypeSwitcher{Executor: queryExecutor}, query.NewAccountBalanceQuery(), query.NewBlockQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature(), observerInstance, loggerCoreService, receiptUtil, receiptService, nil)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
 	actionSwitcher := &transaction.TypeSwitcher{
@@ -453,14 +437,16 @@ func startMainchain() {
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		mainchainBlockService,
-		peerServiceClient,
-		peerExplorer,
-		queryExecutor,
-		mempoolService,
+		peerServiceClient, peerExplorer,
+		queryExecutor, mempoolService,
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
 		transactionUtil,
+		service.NewTransactionCoreService(
+			query.NewTransactionQuery(mainchain),
+			queryExecutor,
+		),
 	)
 }
 
@@ -523,6 +509,10 @@ func startSpinechain() {
 		loggerCoreService,
 		kvExecutor,
 		transactionUtil,
+		service.NewTransactionCoreService(
+			query.NewTransactionQuery(spinechain),
+			queryExecutor,
+		),
 	)
 }
 

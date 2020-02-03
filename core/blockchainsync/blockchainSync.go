@@ -39,6 +39,7 @@ func NewBlockchainSyncService(
 	logger *log.Logger,
 	kvdb kvdb.KVExecutorInterface,
 	transactionUtil transaction.UtilInterface,
+	transactionCoreService service.TransactionCoreServiceInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -53,15 +54,16 @@ func NewBlockchainSyncService(
 			Logger:            logger,
 		},
 		ForkingProcessor: &ForkingProcessor{
-			ChainType:          blockService.GetChainType(),
-			BlockService:       blockService,
-			QueryExecutor:      queryExecutor,
-			ActionTypeSwitcher: txActionSwitcher,
-			MempoolService:     mempoolService,
-			KVExecutor:         kvdb,
-			PeerExplorer:       peerExplorer,
-			Logger:             logger,
-			TransactionUtil:    transactionUtil,
+			ChainType:             blockService.GetChainType(),
+			BlockService:          blockService,
+			QueryExecutor:         queryExecutor,
+			ActionTypeSwitcher:    txActionSwitcher,
+			MempoolService:        mempoolService,
+			KVExecutor:            kvdb,
+			PeerExplorer:          peerExplorer,
+			Logger:                logger,
+			TransactionUtil:       transactionUtil,
+			TransactionCorService: transactionCoreService,
 		},
 		Logger: logger,
 	}

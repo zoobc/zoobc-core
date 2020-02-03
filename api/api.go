@@ -69,7 +69,8 @@ func startGrpcServer(
 	}
 	mempoolService := coreService.NewMempoolService(
 		transactionUtil,
-		chainType, kvExecutor,
+		chainType,
+		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -82,6 +83,7 @@ func startGrpcServer(
 		logger,
 		receiptUtil,
 		receiptService,
+		coreService.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

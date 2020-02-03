@@ -68,7 +68,7 @@ func (eas *EscrowApprovalService) PostApprovalEscrowTransaction(
 		tx      *model.Transaction
 	)
 
-	tx, err = transaction.ParseTransactionBytes(txBytes, true)
+	tx, err = (&transaction.Util{}).ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, err
 	}

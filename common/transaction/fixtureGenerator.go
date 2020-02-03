@@ -278,3 +278,19 @@ func GetFixturesForSignedMempoolTransaction(
 		RecipientAccountAddress: recipient,
 	}
 }
+func GetFixturesForApprovalEscrowTransaction() (
+	txBody *model.ApprovalEscrowTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.ApprovalEscrowTransactionBody{
+		Approval:      model.EscrowApproval_Approve,
+		TransactionID: 100,
+	}
+
+	sa := ApprovalEscrowTransaction{
+		ID:     100,
+		Height: 0,
+		Body:   txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}

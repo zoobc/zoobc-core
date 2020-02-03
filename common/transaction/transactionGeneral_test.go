@@ -450,23 +450,15 @@ type mockQueryExecutorSuccess struct {
 	query.Executor
 }
 
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-
-	getAccountBalanceByAccountID := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
-		"FROM account_balance WHERE account_address = ? AND latest = 1"
-	defer db.Close()
-	switch qe {
-	case getAccountBalanceByAccountID:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"},
-		).AddRow("BCZ", 1, 10000, 10000, 0, 1))
-	default:
-		return nil, nil
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
+	mockRow := mock.NewRows(query.NewAccountBalanceQuery().Fields)
+	mockRow.AddRow(
+		"BCZ", 1, 10000, 10000, 0, 1,
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
+	row := db.QueryRow(qStr)
+	return row, nil
 }
 
 func TestValidateTransaction(t *testing.T) {
@@ -561,8 +553,12 @@ func TestValidateTransaction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := transactionUtil.ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
-				tt.args.verifySignature); (err != nil) != tt.wantErr {
+			if err := transactionUtil.ValidateTransaction(
+				tt.args.tx,
+				tt.args.queryExecutor,
+				tt.args.accountBalanceQuery,
+				tt.args.verifySignature,
+			); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

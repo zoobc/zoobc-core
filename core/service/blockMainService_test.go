@@ -1859,6 +1859,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		BlockPoolService        BlockPoolServiceInterface
 		Logger                  *logrus.Logger
+		TransactionCoreService  TransactionCoreServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1882,6 +1883,10 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlocksmithStrategy:      &mockBlocksmithServiceAddGenesisSuccess{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
+				TransactionCoreService: NewTransactionCoreService(
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					&mockQueryExecutorSuccess{},
+				),
 			},
 			wantErr: false,
 		},
@@ -1903,6 +1908,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				BlockPoolService:        tt.fields.BlockPoolService,
 				Logger:                  tt.fields.Logger,
+				TransactionCoreService:  tt.fields.TransactionCoreService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)

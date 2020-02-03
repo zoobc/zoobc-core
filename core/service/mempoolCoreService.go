@@ -48,23 +48,24 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		MempoolServiceUtil  MempoolServiceUtilInterface
-		MempoolGetter       MempoolGetterInterface
-		TransactionUtil     transaction.UtilInterface
-		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		BlockQuery          query.BlockQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Signature           crypto.SignatureInterface
-		Observer            *observer.Observer
-		Logger              *log.Logger
-		ReceiptUtil         coreUtil.ReceiptUtilInterface
-		ReceiptService      ReceiptServiceInterface
+		MempoolServiceUtil     MempoolServiceUtilInterface
+		MempoolGetter          MempoolGetterInterface
+		TransactionUtil        transaction.UtilInterface
+		Chaintype              chaintype.ChainType
+		KVExecutor             kvdb.KVExecutorInterface
+		QueryExecutor          query.ExecutorInterface
+		MempoolQuery           query.MempoolQueryInterface
+		MerkleTreeQuery        query.MerkleTreeQueryInterface
+		ActionTypeSwitcher     transaction.TypeActionSwitcher
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		BlockQuery             query.BlockQueryInterface
+		TransactionQuery       query.TransactionQueryInterface
+		Signature              crypto.SignatureInterface
+		Observer               *observer.Observer
+		Logger                 *log.Logger
+		ReceiptUtil            coreUtil.ReceiptUtilInterface
+		ReceiptService         ReceiptServiceInterface
+		TransactionCoreService TransactionCoreServiceInterface
 	}
 )
 
@@ -84,15 +85,15 @@ func NewMempoolService(
 	observer *observer.Observer,
 	logger *log.Logger,
 	receiptUtil coreUtil.ReceiptUtilInterface,
-	receiptService ReceiptServiceInterface,
-) *MempoolService {
+	receiptService ReceiptServiceInterface, transactionCoreService TransactionCoreServiceInterface) *MempoolService {
 	mempoolGetter := &MempoolGetter{
 		MempoolQuery:  mempoolQuery,
 		QueryExecutor: queryExecutor,
 	}
 
 	return &MempoolService{
-		MempoolServiceUtil: NewMempoolServiceUtil(transactionUtil,
+		MempoolServiceUtil: NewMempoolServiceUtil(
+			transactionUtil,
 			transactionQuery,
 			queryExecutor,
 			mempoolQuery,
@@ -100,6 +101,7 @@ func NewMempoolService(
 			accountBalanceQuery,
 			blockQuery,
 			mempoolGetter,
+			transactionCoreService,
 		),
 		MempoolGetter:       mempoolGetter,
 		TransactionUtil:     transactionUtil,
@@ -213,10 +215,12 @@ func (mps *MempoolService) ReceivedTransaction(
 		mempoolTx    *model.MempoolTransaction
 		batchReceipt *model.BatchReceipt
 	)
-	batchReceipt, receivedTx, err = mps.ProcessReceivedTransaction(senderPublicKey,
+	batchReceipt, receivedTx, err = mps.ProcessReceivedTransaction(
+		senderPublicKey,
 		receivedTxBytes,
 		lastBlock,
-		nodeSecretPhrase)
+		nodeSecretPhrase,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +241,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	err = txType.ApplyUnconfirmed()
+	err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
 	if err != nil {
 		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
 		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -413,13 +417,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 			}
 			return err
 		}
-		escrowable, ok := action.Escrowable()
-		if ok {
-			err = escrowable.EscrowUndoApplyUnconfirmed()
-		} else {
-			err = action.UndoApplyUnconfirmed()
-
-		}
+		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(action)
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())

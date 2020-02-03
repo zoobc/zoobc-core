@@ -91,7 +91,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:           ts.Executor,
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Escrow:                  tx.GetEscrow(),
-				EscrowQuery:             query.NewEscrowTransactionQuery(),
 			}, nil
 		case 1:
 			nodeRegistrationBody, err := (&UpdateNodeRegistration{
@@ -113,7 +112,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			}, nil
 		case 2:
 			removeNodeRegistrationBody, err := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -131,7 +129,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			}, nil
 		case 3:
 			claimNodeRegistrationBody, err := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -151,7 +148,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			}, nil
 		default:
 			return nil, nil
@@ -174,7 +170,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
 			}, nil
 		case 1:
 			removeAccountDatasetTransactionBody, err := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -192,7 +187,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
 			}, nil
 		default:
 			return nil, nil

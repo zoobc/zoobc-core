@@ -5,18 +5,17 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/kvdb"
-	"github.com/zoobc/zoobc-core/p2p/strategy"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
 
 type (
@@ -24,15 +23,16 @@ type (
 		ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error
 	}
 	ForkingProcessor struct {
-		ChainType          chaintype.ChainType
-		BlockService       service.BlockServiceInterface
-		QueryExecutor      query.ExecutorInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
-		MempoolService     service.MempoolServiceInterface
-		KVExecutor         kvdb.KVExecutorInterface
-		Logger             *log.Logger
-		PeerExplorer       strategy.PeerExplorerStrategyInterface
-		TransactionUtil    transaction.UtilInterface
+		ChainType             chaintype.ChainType
+		BlockService          service.BlockServiceInterface
+		QueryExecutor         query.ExecutorInterface
+		ActionTypeSwitcher    transaction.TypeActionSwitcher
+		MempoolService        service.MempoolServiceInterface
+		KVExecutor            kvdb.KVExecutorInterface
+		Logger                *log.Logger
+		PeerExplorer          strategy.PeerExplorerStrategyInterface
+		TransactionUtil       transaction.UtilInterface
+		TransactionCorService service.TransactionCoreServiceInterface
 	}
 )
 
@@ -192,7 +192,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		if err != nil {
 			return err
 		}
-		err = txType.ApplyUnconfirmed()
+		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			errRollback := fp.QueryExecutor.RollbackTx()
 			if errRollback != nil {
@@ -275,7 +275,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		if err != nil {
 			return err
 		}
-		err = txType.ApplyUnconfirmed()
+		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			err = fp.QueryExecutor.RollbackTx()
 			if err != nil {

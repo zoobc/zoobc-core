@@ -111,21 +111,22 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
-		ct                  chaintype.ChainType
-		kvExecutor          kvdb.KVExecutorInterface
-		queryExecutor       query.ExecutorInterface
-		mempoolQuery        query.MempoolQueryInterface
-		merkleTreeQuery     query.MerkleTreeQueryInterface
-		accountBalanceQuery query.AccountBalanceQueryInterface
-		transactionQuery    query.TransactionQueryInterface
-		blockQuery          query.BlockQueryInterface
-		actionTypeSwitcher  transaction.TypeActionSwitcher
-		obsr                *observer.Observer
-		signature           crypto.SignatureInterface
-		logger              *log.Logger
-		transactionUtil     transaction.UtilInterface
-		receiptUtil         coreUtil.ReceiptUtilInterface
-		receiptService      ReceiptServiceInterface
+		ct                     chaintype.ChainType
+		kvExecutor             kvdb.KVExecutorInterface
+		queryExecutor          query.ExecutorInterface
+		mempoolQuery           query.MempoolQueryInterface
+		merkleTreeQuery        query.MerkleTreeQueryInterface
+		accountBalanceQuery    query.AccountBalanceQueryInterface
+		transactionQuery       query.TransactionQueryInterface
+		blockQuery             query.BlockQueryInterface
+		actionTypeSwitcher     transaction.TypeActionSwitcher
+		obsr                   *observer.Observer
+		signature              crypto.SignatureInterface
+		logger                 *log.Logger
+		transactionUtil        transaction.UtilInterface
+		receiptUtil            coreUtil.ReceiptUtilInterface
+		receiptService         ReceiptServiceInterface
+		TransactionCoreService TransactionCoreServiceInterface
 	}
 
 	test := struct {
@@ -160,13 +161,15 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.logger,
 		test.args.receiptUtil,
 		test.args.receiptService,
+		test.args.TransactionCoreService,
 	)
 
 	mempoolGetter := &MempoolGetter{
 		MempoolQuery:  test.args.mempoolQuery,
 		QueryExecutor: test.args.queryExecutor,
 	}
-	test.want.MempoolServiceUtil = NewMempoolServiceUtil(test.args.transactionUtil,
+	test.want.MempoolServiceUtil = NewMempoolServiceUtil(
+		test.args.transactionUtil,
 		test.args.transactionQuery,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
@@ -174,6 +177,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.accountBalanceQuery,
 		test.args.blockQuery,
 		mempoolGetter,
+		test.args.TransactionCoreService,
 	)
 	test.want.MempoolGetter = mempoolGetter
 
@@ -313,6 +317,22 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelect(qe s
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
+}
+func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mockRow := sqlmock.NewRows(query.NewAccountBalanceQuery().Fields)
+	mockRow.AddRow(
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		1,
+		100,
+		10,
+		0,
+		true,
+	)
+	mock.ExpectQuery("").WillReturnRows(mockRow)
+
+	mockedRow := db.QueryRow("")
+	return mockedRow, nil
 }
 
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
@@ -488,14 +508,15 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(string, 
 
 func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Observer            *observer.Observer
+		Chaintype              chaintype.ChainType
+		QueryExecutor          query.ExecutorInterface
+		MempoolQuery           query.MempoolQueryInterface
+		ActionTypeSwitcher     transaction.TypeActionSwitcher
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		Signature              crypto.SignatureInterface
+		TransactionQuery       query.TransactionQueryInterface
+		Observer               *observer.Observer
+		TransactionCoreService TransactionCoreServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -518,6 +539,10 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
 				},
+				TransactionCoreService: NewTransactionCoreService(
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
+				),
 			},
 			wantErr: false,
 		},
@@ -525,15 +550,16 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				TransactionUtil:     &transaction.Util{},
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Signature:           tt.fields.Signature,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Observer:            tt.fields.Observer,
+				TransactionUtil:        &transaction.Util{},
+				Chaintype:              tt.fields.Chaintype,
+				QueryExecutor:          tt.fields.QueryExecutor,
+				MempoolQuery:           tt.fields.MempoolQuery,
+				ActionTypeSwitcher:     tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				Signature:              tt.fields.Signature,
+				TransactionQuery:       tt.fields.TransactionQuery,
+				Observer:               tt.fields.Observer,
+				TransactionCoreService: tt.fields.TransactionCoreService,
 			}
 			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
@@ -939,33 +965,44 @@ type (
 	mockActionTypeSwitcherSuccess struct {
 		transaction.TypeActionSwitcher
 	}
+	mockEscrowTypeAction struct {
+		transaction.EscrowTypeAction
+	}
 )
 
+func (*mockEscrowTypeAction) EscrowApplyUnconfirmed() error {
+	return nil
+}
 func (*mockTxTypeSuccess) ApplyUnconfirmed() error {
 	return nil
 }
 
-func (*mockActionTypeSwitcherSuccess) GetTransactionType(*model.Transaction) (transaction.TypeAction, error) {
+func (*mockTxTypeSuccess) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockEscrowTypeAction{}, true
+}
+
+func (*mockActionTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
 	return &mockTxTypeSuccess{}, nil
 }
 
 func TestMempoolService_ReceivedTransaction(t *testing.T) {
 	type fields struct {
-		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Observer            *observer.Observer
-		Logger              *log.Logger
-		TransactionUtil     transaction.UtilInterface
-		ReceiptUtil         coreUtil.ReceiptUtilInterface
-		MempoolServiceUtil  MempoolServiceUtilInterface
-		ReceiptService      ReceiptServiceInterface
+		Chaintype              chaintype.ChainType
+		KVExecutor             kvdb.KVExecutorInterface
+		QueryExecutor          query.ExecutorInterface
+		MempoolQuery           query.MempoolQueryInterface
+		MerkleTreeQuery        query.MerkleTreeQueryInterface
+		ActionTypeSwitcher     transaction.TypeActionSwitcher
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		Signature              crypto.SignatureInterface
+		TransactionQuery       query.TransactionQueryInterface
+		Observer               *observer.Observer
+		Logger                 *log.Logger
+		TransactionUtil        transaction.UtilInterface
+		ReceiptUtil            coreUtil.ReceiptUtilInterface
+		MempoolServiceUtil     MempoolServiceUtilInterface
+		ReceiptService         ReceiptServiceInterface
+		TransactionCoreService TransactionCoreServiceInterface
 	}
 	type args struct {
 		senderPublicKey, receivedTxBytes []byte
@@ -1010,6 +1047,10 @@ func TestMempoolService_ReceivedTransaction(t *testing.T) {
 				ReceiptService:     &mockReceiptServiceSucces{},
 				ActionTypeSwitcher: &mockActionTypeSwitcherSuccess{},
 				Observer:           observer.NewObserver(),
+				TransactionCoreService: NewTransactionCoreService(
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
+				),
 			},
 			args: args{},
 			want: want{
@@ -1021,20 +1062,21 @@ func TestMempoolService_ReceivedTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				KVExecutor:          tt.fields.KVExecutor,
-				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Signature:           tt.fields.Signature,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Observer:            tt.fields.Observer,
-				Logger:              tt.fields.Logger,
-				TransactionUtil:     tt.fields.TransactionUtil,
-				ReceiptUtil:         tt.fields.ReceiptUtil,
-				MempoolServiceUtil:  tt.fields.MempoolServiceUtil,
-				ReceiptService:      tt.fields.ReceiptService,
+				Chaintype:              tt.fields.Chaintype,
+				QueryExecutor:          tt.fields.QueryExecutor,
+				KVExecutor:             tt.fields.KVExecutor,
+				MerkleTreeQuery:        tt.fields.MerkleTreeQuery,
+				ActionTypeSwitcher:     tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				Signature:              tt.fields.Signature,
+				TransactionQuery:       tt.fields.TransactionQuery,
+				Observer:               tt.fields.Observer,
+				Logger:                 tt.fields.Logger,
+				TransactionUtil:        tt.fields.TransactionUtil,
+				ReceiptUtil:            tt.fields.ReceiptUtil,
+				MempoolServiceUtil:     tt.fields.MempoolServiceUtil,
+				ReceiptService:         tt.fields.ReceiptService,
+				TransactionCoreService: tt.fields.TransactionCoreService,
 			}
 			batchReceipt, err := mps.ReceivedTransaction(
 				tt.args.senderPublicKey,
