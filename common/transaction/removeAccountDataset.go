@@ -271,7 +271,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *RemoveAccountDataset) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow != nil {
+	if tx.Escrow.GetApproverAddress() != "" {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -434,32 +434,16 @@ func (tx *RemoveAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *RemoveAccountDataset) EscrowApproval(blockTimestamp int64) error {
+func (tx *RemoveAccountDataset) EscrowApproval(
+	blockTimestamp int64,
+	txBody *model.ApprovalEscrowTransactionBody,
+) error {
+
 	var (
 		// currentTime = uint64(time.Now().Unix())
 		queries [][]interface{}
 		err     error
 	)
-	// approver balance
-	approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
-		tx.Escrow.GetCommission(),
-		map[string]interface{}{
-			"account_address": tx.Escrow.GetApproverAddress(),
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, approverBalanceQ...)
-	// approver ledger log
-	approverLedgerQ, approverLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.Escrow.GetApproverAddress(),
-		BalanceChange:  tx.Escrow.GetCommission(),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventRemoveNodeRegistrationTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	approverLedgerArgs = append([]interface{}{approverLedgerQ}, approverLedgerArgs...)
-	queries = append(queries, approverLedgerArgs)
 
 	// Account dataset removed when TimestampStarts same with TimestampExpires
 	datasetQuery := tx.AccountDatasetQuery.RemoveDataset(&model.AccountDataset{

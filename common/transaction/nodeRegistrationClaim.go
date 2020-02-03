@@ -243,7 +243,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ClaimNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow != nil {
+	if tx.Escrow.GetApproverAddress() != "" {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -416,49 +416,75 @@ func (tx *ClaimNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) erro
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *ClaimNodeRegistration) EscrowApproval(blockTimestamp int64) error {
+func (tx *ClaimNodeRegistration) EscrowApproval(
+	blockTimestamp int64,
+	txBody *model.ApprovalEscrowTransactionBody,
+) error {
 	var (
+		prevNodeRegistration model.NodeRegistration
 		queries              [][]interface{}
+		escrow               = tx.Escrow
 		row                  *sql.Row
 		err                  error
-		prevNodeRegistration model.NodeRegistration
 	)
-	// approver balance
-	approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
-		tx.Escrow.GetCommission(),
-		map[string]interface{}{
-			"account_address": tx.Escrow.GetApproverAddress(),
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, approverBalanceQ...)
 
-	// approver account ledger log
-	approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.Escrow.GetApproverAddress(),
-		BalanceChange:  tx.Escrow.GetCommission(),
-		BlockHeight:    tx.Height,
-		TransactionID:  tx.ID,
-		Timestamp:      uint64(blockTimestamp),
-		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
-	})
-	approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
-	queries = append(queries, approverAccountLedgerArgs)
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Reject:
+		escrow.Status = model.EscrowStatus_Rejected
+	default:
+		escrow.Status = model.EscrowStatus_Approved
+		// approver balance
+		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetApproverAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, approverBalanceQ...)
 
-	row, err = tx.QueryExecutor.ExecuteSelectRow(
-		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
-		false,
-		tx.Body.NodePublicKey,
-	)
-	if err != nil {
-		return err
-	}
-	err = row.Scan(&prevNodeRegistration)
-	if err != nil {
-		if err != sql.ErrNoRows {
+		// approver account ledger log
+		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetApproverAddress(),
+			BalanceChange:  tx.Escrow.GetCommission(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
+		})
+		approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
+		queries = append(queries, approverAccountLedgerArgs)
+
+		row, err = tx.QueryExecutor.ExecuteSelectRow(
+			tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+			false,
+			tx.Body.NodePublicKey,
+		)
+		if err != nil {
 			return err
 		}
-		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
+		err = row.Scan(&prevNodeRegistration)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return err
+			}
+			return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
+		}
+		// Node registration
+		nodeQueries := tx.NodeRegistrationQuery.UpdateNodeRegistration(&model.NodeRegistration{
+			NodeID:        prevNodeRegistration.GetNodeID(),
+			LockedBalance: 0,
+			Height:        tx.Height,
+			// NodeAddress:        nil,
+			RegistrationHeight: prevNodeRegistration.GetRegistrationHeight(),
+			NodePublicKey:      tx.Body.NodePublicKey,
+			Latest:             true,
+			RegistrationStatus: uint32(model.NodeRegistrationState_NodeDeleted),
+			// We can't just set accountAddress to an empty string,
+			// otherwise it could trigger an error when parsing the transaction from its bytes
+			AccountAddress: prevNodeRegistration.GetAccountAddress(),
+		})
+		queries = append(queries, nodeQueries...)
 	}
 	// Node registration
 	nodeQueries := tx.NodeRegistrationQuery.UpdateNodeRegistration(&model.NodeRegistration{

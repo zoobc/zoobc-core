@@ -393,7 +393,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
 		blocksmithIndex *int64
-		err             error
+		err, errApply   error
 	)
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
@@ -472,6 +472,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
+
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
 			rows.Close()
@@ -492,6 +493,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		rows.Close()
+
 		if block.Height > 0 {
 			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
@@ -500,6 +502,27 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				}
 				return err
 			}
+			// TODO: repetitive way
+			if escrowable, ok := txType.Escrowable(); ok {
+				err = escrowable.EscrowValidate(true)
+				if err != nil {
+					if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+						bs.Logger.Error(rollbackErr.Error())
+					}
+					return err
+
+				}
+			}
+
+		}
+
+		// TODO: repetitive way
+		escrowable, ok := txType.Escrowable()
+		switch ok {
+		case true:
+			errApply = escrowable.EscrowApplyConfirmed(block.GetTimestamp())
+		default:
+			errApply = txType.ApplyConfirmed(block.GetTimestamp())
 		}
 		// validate tx body and apply/perform transaction-specific logic
 		err = bs.TransactionCoreService.ApplyConfirmedTransaction(txType, block.GetTimestamp())

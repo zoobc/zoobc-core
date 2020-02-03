@@ -2,6 +2,8 @@ package blockchainsync
 
 import (
 	"bytes"
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -15,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"math/big"
 )
 
 type (

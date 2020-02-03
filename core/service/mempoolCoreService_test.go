@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"

@@ -378,7 +378,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow != nil {
+	if tx.Escrow.GetApproverAddress() != "" {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,

@@ -3,10 +3,11 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"

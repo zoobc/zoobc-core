@@ -279,7 +279,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SetupAccountDataset) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow != nil {
+	if tx.Escrow.GetApproverAddress() != "" {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -430,45 +430,65 @@ func (tx *SetupAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error 
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *SetupAccountDataset) EscrowApproval(blockTimestamp int64) error {
+func (tx *SetupAccountDataset) EscrowApproval(
+	blockTimestamp int64,
+	txBody *model.ApprovalEscrowTransactionBody,
+) error {
 	var (
 		currentTime = uint64(time.Now().Unix())
 		queries     [][]interface{}
+		escrow      = tx.Escrow
 		err         error
 	)
-	// approver balance
-	approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
-		tx.Escrow.GetCommission(),
-		map[string]interface{}{
-			"account_address": tx.Escrow.GetApproverAddress(),
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, approverBalanceQ...)
-	// approver ledger
-	approverLedgerQ, approverLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.Escrow.GetApproverAddress(),
-		BalanceChange:  tx.Escrow.GetCommission(),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventSetupAccountDatasetTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	approverLedgerArgs = append([]interface{}{approverLedgerQ}, approverLedgerArgs...)
-	queries = append(queries, approverLedgerArgs)
 
-	// This is Default mode, Dataset will be active as soon as block creation
-	datasetQuery := tx.AccountDatasetQuery.AddDataset(&model.AccountDataset{
-		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
-		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
-		Property:                tx.Body.GetProperty(),
-		Value:                   tx.Body.GetValue(),
-		TimestampStarts:         currentTime,
-		TimestampExpires:        currentTime + tx.Body.GetMuchTime(),
-		Height:                  tx.Height,
-		Latest:                  true,
-	})
-	queries = append(queries, datasetQuery...)
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Reject:
+		escrow.Status = model.EscrowStatus_Rejected
+		// give back sender balance
+		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": escrow.GetSenderAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, senderBalanceQ...)
+	default:
+		escrow.Status = model.EscrowStatus_Approved
+		// approver balance
+		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": escrow.GetApproverAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, approverBalanceQ...)
+		// approver ledger
+		approverLedgerQ, approverLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: escrow.GetApproverAddress(),
+			BalanceChange:  escrow.GetCommission(),
+			TransactionID:  tx.ID,
+			BlockHeight:    tx.Height,
+			EventType:      model.EventType_EventSetupAccountDatasetTransaction,
+			Timestamp:      uint64(blockTimestamp),
+		})
+		approverLedgerArgs = append([]interface{}{approverLedgerQ}, approverLedgerArgs...)
+		queries = append(queries, approverLedgerArgs)
+
+		// This is Default mode, Dataset will be active as soon as block creation
+		datasetQuery := tx.AccountDatasetQuery.AddDataset(&model.AccountDataset{
+			SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
+			RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
+			Property:                tx.Body.GetProperty(),
+			Value:                   tx.Body.GetValue(),
+			TimestampStarts:         currentTime,
+			TimestampExpires:        currentTime + tx.Body.GetMuchTime(),
+			Height:                  tx.Height,
+			Latest:                  true,
+		})
+		queries = append(queries, datasetQuery...)
+	}
 
 	// Insert Escrow
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)

@@ -2,11 +2,12 @@ package api
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"html/template"
 	"net"
 	"net/http"
+
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -83,7 +84,8 @@ func startGrpcServer(
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
 		Service: service.NewTransactionService(
-			queryExecutor, crypto.NewSignature(),
+			queryExecutor,
+			crypto.NewSignature(),
 			actionTypeSwitcher,
 			mempoolService,
 			observer.NewObserver(),

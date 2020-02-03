@@ -157,6 +157,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -186,6 +187,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -272,6 +274,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -300,6 +303,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
 			},
 		},
 		{

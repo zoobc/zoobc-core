@@ -67,7 +67,7 @@ func (*ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
 }
 
 // GetAmount return Amount from TransactionBody
-func (*ApprovalEscrowTransaction) GetAmount() int64 {
+func (tx *ApprovalEscrowTransaction) GetAmount() int64 {
 	return 0
 }
 
@@ -115,10 +115,8 @@ func (tx *ApprovalEscrowTransaction) ParseBodyBytes(
 }
 
 /*
-Validate is func that for validating to Transaction SendMoney type
-That specs:
-	- If Genesis, sender and recipient allowed not exists,
-	- If Not Genesis,  sender and recipient must be exists, `sender.spendable_balance` must bigger than amount
+Validate is func that for validating to Transaction type.
+Check transaction fields, spendable balance and more
 */
 func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 	var (
@@ -192,8 +190,7 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 }
 
 /*
-ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SendMoney` type:
-	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
+ApplyUnconfirmed exec before Confirmed
 */
 func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
@@ -210,8 +207,7 @@ func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed() error {
 }
 
 /*
-UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
-this will be called on apply confirmed or when rollback occurred
+UndoApplyUnconfirmed func exec before confirmed
 */
 func (tx *ApprovalEscrowTransaction) UndoApplyUnconfirmed() error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(

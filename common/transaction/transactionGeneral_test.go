@@ -3,12 +3,13 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/fee"
 
