@@ -35,7 +35,7 @@ func TestNewObserver(t *testing.T) {
 }
 
 func TestObserver_AddListener(t *testing.T) {
-	mockOnNotify = func(block interface{}, args interface{}) {}
+	mockOnNotify = func(block interface{}, args ...interface{}) {}
 
 	type fields struct {
 		Listeners map[Event][]Listener

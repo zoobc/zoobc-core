@@ -193,7 +193,7 @@ func TestGetTransactionBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTransactionBytes(tt.args.transaction, tt.args.sign)
+			got, err := (&Util{}).GetTransactionBytes(tt.args.transaction, tt.args.sign)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTransactionBytes() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
@@ -348,7 +348,7 @@ func TestParseTransactionBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
+			got, err := (&Util{}).ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -390,7 +390,7 @@ func TestReadAccountAddress(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
+			if got := (&Util{}).ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
 			}
 		})
@@ -434,7 +434,7 @@ func TestGetTransactionID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetTransactionID(tt.args.tx.TransactionHash)
+			got, err := (&Util{}).GetTransactionID(tt.args.tx.TransactionHash)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetTransactionID() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -470,6 +470,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 }
 
 func TestValidateTransaction(t *testing.T) {
+	transactionUtil := &Util{}
 	type args struct {
 		tx                  *model.Transaction
 		queryExecutor       query.ExecutorInterface
@@ -482,7 +483,7 @@ func TestValidateTransaction(t *testing.T) {
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		true,
 	)
-	txBytesEscrow, _ := GetTransactionBytes(txEscrowValidate, false)
+	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txEscrowValidate, false)
 	signatureEscrow := (&crypto.Signature{}).Sign(txBytesEscrow, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txEscrowValidate.Signature = signatureEscrow
@@ -493,7 +494,7 @@ func TestValidateTransaction(t *testing.T) {
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		false,
 	)
-	txBytes, _ := GetTransactionBytes(txValidate, false)
+	txBytes, _ := transactionUtil.GetTransactionBytes(txValidate, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txValidate.Signature = signature
@@ -560,7 +561,7 @@ func TestValidateTransaction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
+			if err := transactionUtil.ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
 				tt.args.verifySignature); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}

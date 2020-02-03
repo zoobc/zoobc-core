@@ -14,10 +14,23 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+type (
+	UtilInterface interface {
+		GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error)
+		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
+		ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte
+		GetTransactionID(transactionHash []byte) (int64, error)
+		ValidateTransaction(tx *model.Transaction, queryExecutor query.ExecutorInterface,
+			accountBalanceQuery query.AccountBalanceQueryInterface, verifySignature bool) error
+	}
+
+	Util struct{}
+)
+
 // GetTransactionBytes translate transaction model to its byte representation
 // provide sign = true to translate transaction with its signature, sign = false
 // for without signature (used for verify signature)
-func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error) {
+func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionType))
 	buffer.Write(util.ConvertUint32ToBytes(transaction.Version)[:constant.TransactionVersion])
@@ -66,7 +79,7 @@ func GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, err
 }
 
 // ParseTransactionBytes build transaction from transaction bytes
-func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
+func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
 	var (
 		chunkedBytes []byte
 		transaction  model.Transaction
@@ -97,13 +110,13 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	if err != nil {
 		return nil, err
 	}
-	transaction.SenderAccountAddress = string(ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+	transaction.SenderAccountAddress = string(tu.ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	transaction.RecipientAccountAddress = string(ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+	transaction.RecipientAccountAddress = string(tu.ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
@@ -169,7 +182,7 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 	}
 	// compute and return tx hash and ID too
 	transactionHash := sha3.Sum256(transactionBytes)
-	txID, _ := GetTransactionID(transactionHash[:])
+	txID, _ := tu.GetTransactionID(transactionHash[:])
 	transaction.ID = txID
 	transaction.TransactionHash = transactionHash[:]
 	return &transaction, nil
@@ -177,7 +190,7 @@ func ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transacti
 
 // ReadAccountAddress to read the sender or recipient address from transaction bytes
 // depend on their account types.
-func ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte {
+func (*Util) ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte {
 	switch accountType {
 	case 0:
 		return transactionBuffer.Next(int(constant.AccountAddress)) // zoobc account address length
@@ -187,7 +200,7 @@ func ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []b
 }
 
 // GetTransactionID calculate and returns a transaction ID given a transaction model
-func GetTransactionID(transactionHash []byte) (int64, error) {
+func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 	if len(transactionHash) == 0 {
 		return -1, errors.New("InvalidTransactionHash")
 	}
@@ -196,7 +209,7 @@ func GetTransactionID(transactionHash []byte) (int64, error) {
 }
 
 // ValidateTransaction take in transaction object and execute basic validation
-func ValidateTransaction(
+func (tu *Util) ValidateTransaction(
 	tx *model.Transaction,
 	queryExecutor query.ExecutorInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
@@ -255,7 +268,7 @@ func ValidateTransaction(
 		)
 	}
 
-	unsignedTransactionBytes, err := GetTransactionBytes(tx, false)
+	unsignedTransactionBytes, err := tu.GetTransactionBytes(tx, false)
 	if err != nil {
 		return err
 	}

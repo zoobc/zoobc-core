@@ -148,6 +148,19 @@ func (ss *P2PServerHandler) SendTransaction(
 	)
 }
 
+// SendTransaction receive transaction from other node and calling TransactionReceived Event
+func (ss *P2PServerHandler) SendBlockTransactions(
+	ctx context.Context,
+	req *model.SendBlockTransactionsRequest,
+) (*model.SendBlockTransactionsResponse, error) {
+	return ss.Service.SendBlockTransactions(
+		ctx,
+		chaintype.GetChainType(req.ChainType),
+		req.TransactionsBytes,
+		req.SenderPublicKey,
+	)
+}
+
 // RequestBlockTransactions receive requested transaction from another node
 func (ss *P2PServerHandler) RequestBlockTransactions(
 	ctx context.Context,
