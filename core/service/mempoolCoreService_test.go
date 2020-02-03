@@ -18,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
@@ -626,21 +627,148 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 	}
 }
 
+type (
+	mockTransactionUtilSuccess struct {
+		transaction.UtilInterface
+	}
+
+	mockTransactionUtilErrorParse struct {
+		transaction.UtilInterface
+	}
+
+	mockReceiptUtilSuccess struct {
+		util.ReceiptUtilInterface
+	}
+
+	mockReceiptUtilError struct {
+		util.ReceiptUtilInterface
+	}
+
+	mockMempoolServiceUtilSuccess struct {
+		MempoolServiceUtilInterface
+	}
+
+	mockMempoolServiceUtilErrorDuplicate struct {
+		MempoolServiceUtilInterface
+	}
+
+	mockMempoolServiceUtilErrorNonDuplicate struct {
+		MempoolServiceUtilInterface
+	}
+
+	mockReceiptServiceSucces struct {
+		ReceiptServiceInterface
+	}
+
+	mockReceiptServiceError struct {
+		ReceiptServiceInterface
+	}
+
+	mockKvExecutorErrKeyNotFound struct {
+		kvdb.KVExecutorInterface
+	}
+
+	mockKvExecutorErrNonKeyNotFound struct {
+		kvdb.KVExecutorInterface
+	}
+
+	mockKvExecutorFoundKey struct {
+		kvdb.KVExecutorInterface
+	}
+)
+
+func (*mockTransactionUtilSuccess) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
+	return &model.Transaction{}, nil
+}
+
+func (*mockTransactionUtilErrorParse) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
+	return nil, errors.New("")
+}
+
+func (*mockReceiptUtilSuccess) GetReceiptKey(
+	dataHash, senderPublicKey []byte,
+) ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (*mockReceiptUtilError) GetReceiptKey(
+	dataHash, senderPublicKey []byte,
+) ([]byte, error) {
+	return nil, errors.New("")
+}
+
+func (*mockMempoolServiceUtilSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return nil
+}
+
+func (*mockMempoolServiceUtilSuccess) AddMempoolTransaction(*model.MempoolTransaction) error {
+	return nil
+}
+
+func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
+	ct chaintype.ChainType,
+	receivedDatumHash []byte,
+	lastBlock *model.Block,
+	senderPublicKey []byte,
+	nodeSecretPhrase, receiptKey string,
+	datumType uint32,
+) (*model.BatchReceipt, error) {
+	return &model.BatchReceipt{}, nil
+}
+
+func (*mockReceiptServiceError) GenerateBatchReceiptWithReminder(
+	ct chaintype.ChainType,
+	receivedDatumHash []byte,
+	lastBlock *model.Block,
+	senderPublicKey []byte,
+	nodeSecretPhrase, receiptKey string,
+	datumType uint32,
+) (*model.BatchReceipt, error) {
+	return nil, errors.New("")
+}
+
+func (*mockMempoolServiceUtilErrorDuplicate) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return blocker.NewBlocker(blocker.DuplicateMempoolErr, "")
+}
+
+func (*mockMempoolServiceUtilErrorNonDuplicate) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return blocker.NewBlocker(blocker.ParserErr, "")
+}
+
+func (*mockKvExecutorErrKeyNotFound) Get(key string) ([]byte, error) {
+	return nil, badger.ErrKeyNotFound
+}
+
+func (*mockKvExecutorErrNonKeyNotFound) Get(key string) ([]byte, error) {
+	return nil, errors.New("")
+}
+
+func (*mockKvExecutorFoundKey) Get(key string) ([]byte, error) {
+	return []byte{1}, nil
+}
+
 func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
-	chainTypeUsed := &chaintype.MainChain{}
-	type conditions struct {
-		parseTransactionResult                 *model.Transaction
-		parseTransactionError                  error
-		getReceiptKeyResult                    []byte
-		getReceiptKeyError                     error
-		validateMempoolError                   error
-		kvdbGetResult                          []byte
-		kvdbGetError                           error
-		generateBatchReceiptWithReminderResult *model.BatchReceipt
-		generateBatchReceiptWithReminderError  error
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+		Logger              *log.Logger
+		TransactionUtil     transaction.UtilInterface
+		ReceiptUtil         coreUtil.ReceiptUtilInterface
+		MempoolServiceUtil  MempoolServiceUtilInterface
+		ReceiptService      ReceiptServiceInterface
 	}
 	type args struct {
-		mempoolTx *model.MempoolTransaction
+		senderPublicKey, receivedTxBytes []byte
+		lastBlock                        *model.Block
+		nodeSecretPhrase                 string
 	}
 	type want struct {
 		batchReceipt *model.BatchReceipt
@@ -648,143 +776,149 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		err          bool
 	}
 	tests := []struct {
-		name       string
-		conditions conditions
-		args       args
-		want       want
+		name    string
+		fields  fields
+		args    args
+		want    want
+		wantErr bool
 	}{
 		{
 			name: "Fail:ParseTransaction_error",
-			conditions: conditions{
-				parseTransactionError: errors.New(""),
+			fields: fields{
+				TransactionUtil: &mockTransactionUtilErrorParse{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
-			want: want{
-				err: true,
-			},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
 		},
 		{
 			name: "Fail:GetReceiptKey_error",
-			conditions: conditions{
-				parseTransactionResult: &model.Transaction{},
-				getReceiptKeyError:     errors.New(""),
+			fields: fields{
+				TransactionUtil: &mockTransactionUtilSuccess{},
+				ReceiptUtil:     &mockReceiptUtilError{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
-			want: want{
-				err: true,
-			},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
 		},
 		{
 			name: "Fail:ValidateMempoolTransaction_error_non_duplicate",
-			conditions: conditions{
-				parseTransactionResult: &model.Transaction{},
-				getReceiptKeyError:     errors.New(""),
+			fields: fields{
+				QueryExecutor:      &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilErrorNonDuplicate{},
+				ReceiptService:     &mockReceiptServiceSucces{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
-			want: want{
-				err: true,
-			},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
 		},
 		{
 			name: "Fail:ValidateMempoolTransaction_error_duplicate_and_kv_executor_get_error_non_err_key_not_found",
-			conditions: conditions{
-				parseTransactionResult: &model.Transaction{},
-				validateMempoolError:   blocker.NewBlocker(blocker.DuplicateMempoolErr, ""),
-				kvdbGetError:           errors.New(""),
+			fields: fields{
+				QueryExecutor:      &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilErrorDuplicate{},
+				ReceiptService:     &mockReceiptServiceSucces{},
+				KVExecutor:         &mockKvExecutorErrNonKeyNotFound{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
-			want: want{
-				err: true,
-			},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
 		},
 		{
 			name: "Fail:ValidateMempoolTransaction_error_duplicate_and_kv_executor_found_the_record_the_sender_has_received_receipt_for_this_data",
-			conditions: conditions{
-				parseTransactionResult: &model.Transaction{},
-				kvdbGetError:           nil,
-				validateMempoolError:   blocker.NewBlocker(blocker.DuplicateMempoolErr, ""),
-				kvdbGetResult:          []byte{1},
+			fields: fields{
+				QueryExecutor:      &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilErrorDuplicate{},
+				ReceiptService:     &mockReceiptServiceSucces{},
+				KVExecutor:         &mockKvExecutorFoundKey{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
-			want: want{
-				err: true,
-			},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
 		},
 		{
 			name: "Fail:GenerateBatchReceiptWithReminder_error",
-			conditions: conditions{
-				parseTransactionResult:                &model.Transaction{},
-				generateBatchReceiptWithReminderError: errors.New(""),
+			fields: fields{
+				QueryExecutor:      &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilSuccess{},
+				ReceiptService:     &mockReceiptServiceError{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
-			want: want{
-				err: true,
-			},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
 		},
 		{
 			name: "Success:expected_returns_and_no_errors",
-			conditions: conditions{
-				parseTransactionResult:                 &model.Transaction{},
-				parseTransactionError:                  nil,
-				getReceiptKeyError:                     nil,
-				validateMempoolError:                   nil,
-				generateBatchReceiptWithReminderResult: &model.BatchReceipt{},
-				generateBatchReceiptWithReminderError:  nil,
+			fields: fields{
+				QueryExecutor:      &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilSuccess{},
+				ReceiptService:     &mockReceiptServiceSucces{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
+			args: args{},
 			want: want{
 				batchReceipt: &model.BatchReceipt{},
 				transaction:  &model.Transaction{},
 			},
+			wantErr: false,
 		},
 		{
 			name: "Success:duplicate_mempool_and_sender_has_not_got_received_for_this_data",
-			conditions: conditions{
-				parseTransactionResult:                 &model.Transaction{},
-				parseTransactionError:                  nil,
-				getReceiptKeyError:                     nil,
-				kvdbGetResult:                          nil,
-				kvdbGetError:                           badger.ErrKeyNotFound,
-				validateMempoolError:                   blocker.NewBlocker(blocker.DuplicateMempoolErr, ""),
-				generateBatchReceiptWithReminderResult: &model.BatchReceipt{},
-				generateBatchReceiptWithReminderError:  nil,
+			fields: fields{
+				QueryExecutor:      &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilErrorDuplicate{},
+				ReceiptService:     &mockReceiptServiceSucces{},
+				KVExecutor:         &mockKvExecutorErrKeyNotFound{},
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
+			args: args{},
 			want: want{
 				batchReceipt: &model.BatchReceipt{},
 				transaction:  &model.Transaction{},
 			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:        chainTypeUsed,
-				TransactionQuery: query.NewTransactionQuery(chainTypeUsed),
-				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				MempoolQuery:     query.NewMempoolQuery(chainTypeUsed),
-				TransactionUtil: &MockTransactionUtil{
-					ParseTransactionError:  tt.conditions.parseTransactionError,
-					ParseTransactionResult: &model.Transaction{},
-				},
-				KVExecutor: &MockKVExecutor{
-					KvdbGetResult: tt.conditions.kvdbGetResult,
-					KvdbGetError:  tt.conditions.kvdbGetError,
-				},
-				MempoolServiceUtil: &MockMempoolServiceUtil{
-					ValidatidateMempoolError: tt.conditions.validateMempoolError,
-				},
-				ReceiptUtil: &MockReceiptUtil{
-					GetReceiptKeyResult: tt.conditions.getReceiptKeyResult,
-					GetReceiptKeyError:  tt.conditions.getReceiptKeyError,
-				},
-				ReceiptService: &MockReceiptService{
-					GenerateBatchReceiptWithReminderResult: tt.conditions.generateBatchReceiptWithReminderResult,
-					GenerateBatchReceiptWithReminderError:  tt.conditions.generateBatchReceiptWithReminderError,
-				},
+				Chaintype:           tt.fields.Chaintype,
+				KVExecutor:          tt.fields.KVExecutor,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+				Logger:              tt.fields.Logger,
+				TransactionUtil:     tt.fields.TransactionUtil,
+				ReceiptUtil:         tt.fields.ReceiptUtil,
+				MempoolServiceUtil:  tt.fields.MempoolServiceUtil,
+				ReceiptService:      tt.fields.ReceiptService,
 			}
-			batchReceipt, tx, err := mps.ProcessReceivedTransaction([]byte{}, []byte{}, &model.Block{}, "")
-			if (err != nil) != tt.want.err {
+			batchReceipt, tx, err := mps.ProcessReceivedTransaction(
+				tt.args.senderPublicKey,
+				tt.args.receivedTxBytes,
+				tt.args.lastBlock,
+				tt.args.nodeSecretPhrase,
+			)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessReceivedTransaction() error = %v, wantErr %v", err, tt.want.err)
 				return
 			}
@@ -798,103 +932,121 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	}
 }
 
-func TestMempoolService_ReceivedTransaction(t *testing.T) {
-	chainTypeUsed := &chaintype.MainChain{}
-	type conditions struct {
-		validateMempoolError                   error
-		beginTxError                           error
-		parseTransactionResult                 *model.Transaction
-		parseTransactionError                  error
-		actionSwitcherGetTransactionTypeError  error
-		typeActionApplyUnconfirmedError        error
-		addMempoolTransactionError             error
-		getReceiptKeyResult                    []byte
-		getReceiptKeyError                     error
-		generateBatchReceiptWithReminderResult *model.BatchReceipt
-		generateBatchReceiptWithReminderError  error
-		commitTxError                          error
+type (
+	mockTxTypeSuccess struct {
+		transaction.TypeAction
 	}
-	type (
-		args struct {
-			mempoolTx *model.MempoolTransaction
-		}
-		want struct {
-			batchReceipt *model.BatchReceipt
-			err          bool
-		}
-	)
+	mockActionTypeSwitcherSuccess struct {
+		transaction.TypeActionSwitcher
+	}
+)
 
-	batchReceipt := &model.BatchReceipt{}
+func (*mockTxTypeSuccess) ApplyUnconfirmed() error {
+	return nil
+}
 
+func (*mockActionTypeSwitcherSuccess) GetTransactionType(*model.Transaction) (transaction.TypeAction, error) {
+	return &mockTxTypeSuccess{}, nil
+}
+
+func TestMempoolService_ReceivedTransaction(t *testing.T) {
+	type fields struct {
+		Chaintype           chaintype.ChainType
+		KVExecutor          kvdb.KVExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+		MempoolQuery        query.MempoolQueryInterface
+		MerkleTreeQuery     query.MerkleTreeQueryInterface
+		ActionTypeSwitcher  transaction.TypeActionSwitcher
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Signature           crypto.SignatureInterface
+		TransactionQuery    query.TransactionQueryInterface
+		Observer            *observer.Observer
+		Logger              *log.Logger
+		TransactionUtil     transaction.UtilInterface
+		ReceiptUtil         coreUtil.ReceiptUtilInterface
+		MempoolServiceUtil  MempoolServiceUtilInterface
+		ReceiptService      ReceiptServiceInterface
+	}
+	type args struct {
+		senderPublicKey, receivedTxBytes []byte
+		lastBlock                        *model.Block
+		nodeSecretPhrase                 string
+	}
+	type want struct {
+		batchReceipt *model.BatchReceipt
+		err          bool
+	}
 	tests := []struct {
-		name       string
-		conditions conditions
-		args       args
-		want       want
+		name    string
+		fields  fields
+		args    args
+		want    want
+		wantErr bool
 	}{
 		{
-			name: "wantSuccess",
-			conditions: conditions{
-				validateMempoolError:                   nil,
-				beginTxError:                           nil,
-				parseTransactionResult:                 &model.Transaction{},
-				parseTransactionError:                  nil,
-				typeActionApplyUnconfirmedError:        nil,
-				actionSwitcherGetTransactionTypeError:  nil,
-				addMempoolTransactionError:             nil,
-				commitTxError:                          nil,
-				generateBatchReceiptWithReminderResult: batchReceipt,
-				generateBatchReceiptWithReminderError:  nil,
+			name: "Fail:ProcessReceivedTransaction_fails",
+			fields: fields{
+				QueryExecutor:      &mockQueryExecutorSuccess{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilErrorParse{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilSuccess{},
+				ReceiptService:     &mockReceiptServiceSucces{},
+				ActionTypeSwitcher: &mockActionTypeSwitcherSuccess{},
+				Observer:           observer.NewObserver(),
 			},
-			args: args{mempoolTx: &model.MempoolTransaction{}},
+			args:    args{},
+			want:    want{},
+			wantErr: true,
+		},
+		{
+			name: "Success:No_errors",
+			fields: fields{
+				QueryExecutor:      &mockQueryExecutorSuccess{},
+				MempoolQuery:       query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:    &mockTransactionUtilSuccess{},
+				ReceiptUtil:        &mockReceiptUtilSuccess{},
+				MempoolServiceUtil: &mockMempoolServiceUtilSuccess{},
+				ReceiptService:     &mockReceiptServiceSucces{},
+				ActionTypeSwitcher: &mockActionTypeSwitcherSuccess{},
+				Observer:           observer.NewObserver(),
+			},
+			args: args{},
 			want: want{
-				batchReceipt: batchReceipt,
-				err:          false,
+				batchReceipt: &model.BatchReceipt{},
 			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:        chainTypeUsed,
-				TransactionQuery: query.NewTransactionQuery(chainTypeUsed),
-				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				MempoolQuery:     query.NewMempoolQuery(chainTypeUsed),
-				TransactionUtil: &MockTransactionUtil{
-					ParseTransactionResult: tt.conditions.parseTransactionResult,
-					ParseTransactionError:  tt.conditions.parseTransactionError,
-				},
-				KVExecutor: nil,
-				MempoolServiceUtil: &MockMempoolServiceUtil{
-					ValidatidateMempoolError:   tt.conditions.validateMempoolError,
-					AddMempoolTransactionError: tt.conditions.addMempoolTransactionError,
-				},
-				QueryExecutor: &MockQueryExecutor{
-					BeginTxError:  tt.conditions.beginTxError,
-					CommitTxError: tt.conditions.commitTxError,
-				},
-				ActionTypeSwitcher: &MockActionTypeSwitcher{
-					GetTransactionTypeResult: &MockTypeAction{
-						ApplyUnconfirmedError: tt.conditions.typeActionApplyUnconfirmedError,
-					},
-					GetTransactionTypeError: tt.conditions.actionSwitcherGetTransactionTypeError,
-				},
-				ReceiptUtil: &MockReceiptUtil{
-					GetReceiptKeyResult: tt.conditions.getReceiptKeyResult,
-					GetReceiptKeyError:  tt.conditions.getReceiptKeyError,
-				},
-				ReceiptService: &MockReceiptService{
-					GenerateBatchReceiptWithReminderResult: tt.conditions.generateBatchReceiptWithReminderResult,
-					GenerateBatchReceiptWithReminderError:  tt.conditions.generateBatchReceiptWithReminderError,
-				},
-				Observer: &observer.Observer{},
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				KVExecutor:          tt.fields.KVExecutor,
+				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Signature:           tt.fields.Signature,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				Observer:            tt.fields.Observer,
+				Logger:              tt.fields.Logger,
+				TransactionUtil:     tt.fields.TransactionUtil,
+				ReceiptUtil:         tt.fields.ReceiptUtil,
+				MempoolServiceUtil:  tt.fields.MempoolServiceUtil,
+				ReceiptService:      tt.fields.ReceiptService,
 			}
-			got, err := mps.ReceivedTransaction([]byte{}, []byte{}, &model.Block{}, "")
-			if (err != nil) != tt.want.err {
+			batchReceipt, err := mps.ReceivedTransaction(
+				tt.args.senderPublicKey,
+				tt.args.receivedTxBytes,
+				tt.args.lastBlock,
+				tt.args.nodeSecretPhrase,
+			)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("ReceivedTransaction() error = %v, wantErr %v", err, tt.want.err)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want.batchReceipt) {
+			if !reflect.DeepEqual(batchReceipt, tt.want.batchReceipt) {
 				t.Errorf("ReceivedTransaction() batchReceipt = \n%v, want \n%v", batchReceipt, tt.want.batchReceipt)
 			}
 		})

@@ -232,11 +232,6 @@ func (mps *MempoolService) ReceivedTransaction(
 	if err := mps.QueryExecutor.BeginTx(); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// Apply Unconfirmed transaction
-	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(mempoolTx.TransactionBytes, true)
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
