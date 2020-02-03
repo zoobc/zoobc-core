@@ -263,13 +263,14 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 }
 
 func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
-	unsignedTxBytes, _ := transaction.GetTransactionBytes(tx, false)
+	var transactionUtil = &transaction.Util{}
+	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	tx.Signature = signature.Sign(
 		unsignedTxBytes,
 		constant.SignatureTypeDefault,
 		senderSeed,
 	)
-	signedTxBytes, _ := transaction.GetTransactionBytes(tx, true)
+	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
 	return signedTxBytes
 }
 

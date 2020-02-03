@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -41,10 +42,13 @@ type (
 			lastBlock,
 			block *model.Block,
 			nodeSecretPhrase string,
+			peer *model.Peer,
 		) (*model.BatchReceipt, error)
 		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
+		ReceivedValidatedBlockTransactionsListener() observer.Listener
+		BlockTransactionsRequestedListener() observer.Listener
 		WillSmith(
 			blocksmith *model.Blocksmith,
 			blockchainProcessorLastBlockID int64,

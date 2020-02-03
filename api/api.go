@@ -18,6 +18,7 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc"
@@ -36,6 +37,9 @@ func startGrpcServer(
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
+	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	receiptService coreService.ReceiptServiceInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -64,6 +68,7 @@ func startGrpcServer(
 		Executor: queryExecutor,
 	}
 	mempoolService := coreService.NewMempoolService(
+		transactionUtil,
 		chainType, kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
@@ -75,6 +80,8 @@ func startGrpcServer(
 		crypto.NewSignature(),
 		observer.NewObserver(),
 		logger,
+		receiptUtil,
+		receiptService,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -96,6 +103,7 @@ func startGrpcServer(
 			actionTypeSwitcher,
 			mempoolService,
 			observer.NewObserver(),
+			transactionUtil,
 		),
 	})
 	// Set GRPC handler for Transactions requests
@@ -165,10 +173,14 @@ func Start(
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
+	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	receiptService coreService.ReceiptServiceInterface,
 ) {
 	startGrpcServer(
 		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile,
+		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile, transactionUtil,
+		receiptUtil, receiptService,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

@@ -15,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -53,6 +54,7 @@ type (
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		ReceiptUtil             coreUtil.ReceiptUtilInterface
 	}
 )
 
@@ -67,6 +69,7 @@ func NewReceiptService(
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:        nodeReceiptQuery,
@@ -79,6 +82,7 @@ func NewReceiptService(
 		NodeRegistrationService: nodeRegistrationService,
 		Signature:               signature,
 		PublishedReceiptQuery:   publishedReceiptQuery,
+		ReceiptUtil:             receiptUtil,
 	}
 }
 
@@ -158,7 +162,7 @@ func (rs *ReceiptService) SelectReceipts(
 				continue
 			}
 			var intermediateHashes [][]byte
-			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcByte := rs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 			rcHash := sha3.Sum256(rcByte)
 
 			intermediateHashesBuffer := merkle.GetIntermediateHashes(
@@ -275,7 +279,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 		for _, b := range batchReceipts {
 			// hash the receipts
-			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
+			hashedBatchReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedBatchReceiptBytes(b))
 			hashedReceipts = append(
 				hashedReceipts,
 				bytes.NewBuffer(hashedBatchReceipt[:]),
@@ -339,7 +343,7 @@ func (rs *ReceiptService) ValidateReceipt(
 		blockAtHeight model.Block
 		err           error
 	)
-	unsignedBytes := util.GetUnsignedBatchReceiptBytes(receipt)
+	unsignedBytes := rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(receipt)
 	if !rs.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		receipt.RecipientSignature,
@@ -525,7 +529,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		return nil, err
 	}
 	// generate receipt
-	batchReceipt, err = util.GenerateBatchReceipt(
+	batchReceipt, err = rs.ReceiptUtil.GenerateBatchReceipt(
 		ct,
 		lastBlock,
 		senderPublicKey,
@@ -538,7 +542,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		return nil, err
 	}
 	batchReceipt.RecipientSignature = rs.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(batchReceipt),
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash for reminder

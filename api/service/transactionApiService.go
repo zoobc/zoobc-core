@@ -32,6 +32,7 @@ type (
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
 		Observer           *observer.Observer
+		TransactionUtil    transaction.UtilInterface
 	}
 )
 
@@ -44,6 +45,7 @@ func NewTransactionService(
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	mempoolService service.MempoolServiceInterface,
 	observer *observer.Observer,
+	transactionUtil transaction.UtilInterface,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -52,6 +54,7 @@ func NewTransactionService(
 			ActionTypeSwitcher: txTypeSwitcher,
 			MempoolService:     mempoolService,
 			Observer:           observer,
+			TransactionUtil:    transactionUtil,
 		}
 	}
 	return transactionServiceInstance
@@ -220,7 +223,8 @@ func (ts *TransactionService) PostTransaction(
 		err     error
 	)
 	// get unsigned bytes
-	tx, err = transaction.ParseTransactionBytes(txBytes, true)
+
+	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

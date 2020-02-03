@@ -16,7 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-const DefaultConnectionMetadata = "requster"
+const DefaultConnectionMetadata = "requester"
 
 // NewHost to initialize new server node
 func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
@@ -42,8 +42,8 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 	}
 }
 
-// NewKnownPeer to parse address & port into Peer structur
-func NewKnownPeer(address string, port int) *model.Peer {
+// NewPeer to parse address & port into Peer structur
+func NewPeer(address string, port int) *model.Peer {
 	return &model.Peer{
 		Info: &model.Node{
 			Address: address,
@@ -52,20 +52,29 @@ func NewKnownPeer(address string, port int) *model.Peer {
 	}
 }
 
-// ParseKnownPeers to parse list of string peers into list of Peer structur
+// ParsePeer to parse an address to a peer model
+func ParsePeer(peerStr string) (*model.Peer, error) {
+	peerInfo := strings.Split(peerStr, ":")
+	peerAddress := peerInfo[0]
+	peerPort, err := strconv.Atoi(peerInfo[1])
+	if err != nil {
+		return nil, errors.New("invalid port number in the passed knownPeers list")
+	}
+	return NewPeer(peerAddress, peerPort), nil
+}
+
+// ParseKnownPeers to parse list of string peers into list of Peer structure
 func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	var (
 		knownPeers []*model.Peer
 	)
 
 	for _, peerData := range peers {
-		peerInfo := strings.Split(peerData, ":")
-		peerAddress := peerInfo[0]
-		peerPort, err := strconv.Atoi(peerInfo[1])
+		peer, err := ParsePeer(peerData)
 		if err != nil {
-			return nil, errors.New("invalid port number in the passed knownPeers list")
+			return nil, err
 		}
-		knownPeers = append(knownPeers, NewKnownPeer(peerAddress, peerPort))
+		knownPeers = append(knownPeers, peer)
 	}
 	return knownPeers, nil
 }
