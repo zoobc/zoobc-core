@@ -7,6 +7,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -78,7 +79,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if blacklistErr != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 					}
-					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer %v: %s\nwith previous: %v\n",
+						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID)
 					return err
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false)
