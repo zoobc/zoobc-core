@@ -272,3 +272,46 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	signedTxBytes, _ := transaction.GetTransactionBytes(tx, true)
 	return signedTxBytes
 }
+
+// GenerateEscrowApprovalTransaction set escrow approval body
+func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction {
+
+	var chosen model.EscrowApproval
+	switch approval {
+	case true:
+		chosen = model.EscrowApproval_Approve
+	default:
+		chosen = model.EscrowApproval_Reject
+	}
+
+	txBody := &model.ApprovalEscrowTransactionBody{
+		Approval:      chosen,
+		TransactionID: transactionID,
+	}
+	txBodyBytes := (&transaction.ApprovalEscrowTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+
+	tx.TransactionBody = txBody
+	tx.TransactionBodyBytes = txBodyBytes
+
+	return tx
+}
+
+/*
+GenerateEscrowedTransaction inject escrow. Need:
+		1. esApproverAddress
+		2. Commission
+		3. Timeout
+Invalid escrow validation when those fields has not set
+*/
+func GenerateEscrowedTransaction(
+	tx *model.Transaction,
+) *model.Transaction {
+	tx.Escrow = &model.Escrow{
+		ApproverAddress: esApproverAddress,
+		Commission:      esCommission,
+		Timeout:         esTimeout,
+	}
+	return tx
+}

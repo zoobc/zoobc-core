@@ -49,6 +49,11 @@ var (
 		Use:   "remove-account-dataset",
 		Short: "remove-account-dataset command used to generate \"remove account dataset\" transaction",
 	}
+	escrowApprovalCmd = &cobra.Command{
+		Use:   "escrow-approval",
+		Short: "transaction sub command used to generate 'escrow approval' transaction",
+		Long:  "transaction sub command used to generate 'escrow approval' transaction. required transaction id and approval = true:false",
+	}
 )
 
 func init() {
@@ -63,6 +68,12 @@ func init() {
 			"`Sender Account Address` field of the transaction")
 	txCmd.PersistentFlags().StringVar(&recipientAccountAddress, "recipient", "", "defines the recipient intended for the transaction")
 	txCmd.PersistentFlags().Int64Var(&fee, "fee", 1, "defines the fee of the transaction")
+	/*
+		Escrow var
+	*/
+	txCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
+	txCmd.Flags().StringVar(&esApproverAddress, "approver-address", "", "Escrow fields: Approver account address")
+	txCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
 
 	/*
 		SendMoney Command
@@ -109,6 +120,11 @@ func init() {
 	*/
 	removeAccountDatasetCmd.Flags().StringVar(&property, "property", "", "Property of dataset wanted to be removed")
 	removeAccountDatasetCmd.Flags().StringVar(&value, "value", "", "Value of dataset wanted to be removed")
+	/*
+		EscrowApproval Command
+	*/
+	escrowApprovalCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "escrow approval body field which is int64")
+	escrowApprovalCmd.Flags().BoolVar(&approval, "approval", false, "escrow approval body field which is bool")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -139,6 +155,9 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxSendMoney(tx, sendAmount)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
@@ -155,6 +174,9 @@ func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 			lockedBalance,
 			txg.DB,
 		)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
@@ -170,6 +192,9 @@ func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 			lockedBalance,
 			txg.DB,
 		)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
@@ -178,6 +203,9 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxRemoveNode(tx, nodeSeed)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
@@ -192,6 +220,9 @@ func (txg *TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 			recipientAccountAddress,
 			txg.DB,
 		)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
@@ -200,6 +231,9 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		senderAccountAddress := util.GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }
@@ -209,6 +243,17 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		senderAccountAddress := util.GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+	}
+}
+
+func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
+		tx = GenerateEscrowApprovalTransaction(tx)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
 	}
 }

@@ -35,4 +35,13 @@ var (
 	property   string
 	value      string
 	activeTime uint64
+	// escrowable
+	escrow            bool
+	esApproverAddress string
+	esCommission      int64
+	esTimeout         uint64
+
+	// escrowApproval
+	approval      bool
+	transactionID int64
 )

@@ -60,15 +60,19 @@ func (et *EscrowTransactionQuery) InsertEscrowTransaction(escrow *model.Escrow) 
 				"UPDATE %s IF EXISTS set latest = ? WHERE id = ?",
 				et.getTableName(),
 			),
-			[]interface{}{false, escrow.GetID()},
-			fmt.Sprintf(
-				"INSERT INTO %s (%s) VALUES(%s)",
-				et.getTableName(),
-				strings.Join(et.Fields, ","),
-				fmt.Sprintf("? %s", strings.Repeat(", ?", len(et.Fields)-1)),
-			),
-			et.ExtractModel(escrow),
+			false,
+			escrow.GetID(),
 		},
+		append(
+			[]interface{}{
+				fmt.Sprintf(
+					"INSERT INTO %s (%s) VALUES(%s)",
+					et.getTableName(),
+					strings.Join(et.Fields, ","),
+					fmt.Sprintf("? %s", strings.Repeat(", ?", len(et.Fields)-1))),
+			},
+			et.ExtractModel(escrow)...,
+		),
 	}
 }
 

@@ -232,7 +232,12 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	err = txType.Validate(false)
+	escrowable, ok := txType.Escrowable()
+	if ok {
+		err = escrowable.EscrowValidate(false)
+	} else {
+		err = txType.Validate(false)
+	}
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
@@ -471,7 +476,13 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 			}
 			return err
 		}
-		err = action.UndoApplyUnconfirmed()
+		escrowable, ok := action.Escrowable()
+		if ok {
+			err = escrowable.EscrowUndoApplyUnconfirmed()
+		} else {
+			err = action.UndoApplyUnconfirmed()
+
+		}
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())

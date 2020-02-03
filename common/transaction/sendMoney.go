@@ -44,7 +44,8 @@ If Not Genesis:
 */
 func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 	var (
-		err error
+		queries [][]interface{}
+		err     error
 	)
 
 	// insert / update recipient
@@ -55,17 +56,8 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 			"block_height":    tx.Height,
 		},
 	)
-	// update sender
-	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-(tx.Body.Amount + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-			"block_height":    tx.Height,
-		},
-	)
-	queries := append(accountBalanceRecipientQ, accountBalanceSenderQ...)
-
-	// Account Ledger Log
+	queries = append(queries, accountBalanceRecipientQ...)
+	// recipient Ledger Log
 	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.RecipientAddress,
 		BalanceChange:  tx.GetAmount(),
@@ -75,7 +67,19 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 		Timestamp:      uint64(blockTimestamp),
 	})
 	recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
+	queries = append(queries, recipientAccountLedgerArgs)
 
+	// update sender
+	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
+		-(tx.Body.Amount + tx.Fee),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+			"block_height":    tx.Height,
+		},
+	)
+	queries = append(queries, accountBalanceSenderQ...)
+
+	// sender ledger
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -tx.GetAmount() + tx.Fee,
@@ -85,8 +89,8 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 		Timestamp:      uint64(blockTimestamp),
 	})
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
 
-	queries = append(queries, recipientAccountLedgerArgs, senderAccountLedgerArgs)
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 
 	if err != nil {
@@ -243,7 +247,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow != nil {
+	if tx.Escrow.GetApproverAddress() != "" {
 		tx.Escrow = &model.Escrow{
 			ID:               tx.ID,
 			SenderAddress:    tx.SenderAddress,
@@ -411,53 +415,72 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *SendMoney) EscrowApproval(blockTimestamp int64) error {
+func (tx *SendMoney) EscrowApproval(
+	blockTimestamp int64,
+	txBody *model.ApprovalEscrowTransactionBody,
+) error {
 	var (
 		queries [][]interface{}
 		err     error
 	)
-	// insert / update recipient balance
-	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
-		tx.Body.Amount,
-		map[string]interface{}{
-			"account_address": tx.RecipientAddress,
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, accountBalanceRecipientQ...)
 
-	// recipient Account Ledger Log
-	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.RecipientAddress,
-		BalanceChange:  tx.Body.GetAmount(),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventSendMoneyTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
-	queries = append(queries, recipientAccountLedgerArgs)
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		// insert / update recipient balance
+		accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Body.Amount,
+			map[string]interface{}{
+				"account_address": tx.RecipientAddress,
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, accountBalanceRecipientQ...)
 
-	// approver balance
-	approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
-		tx.Escrow.GetCommission(),
-		map[string]interface{}{
-			"account_address": tx.Escrow.GetApproverAddress(),
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, approverBalanceQ...)
-	// approver ledger
-	approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.Escrow.GetApproverAddress(),
-		BalanceChange:  tx.Escrow.GetCommission(),
-		BlockHeight:    tx.Height,
-		TransactionID:  tx.ID,
-		Timestamp:      uint64(blockTimestamp),
-		EventType:      model.EventType_EventSendMoneyTransaction,
-	})
-	approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
-	queries = append(queries, approverAccountLedgerArgs)
+		// recipient Account Ledger Log
+		recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.RecipientAddress,
+			BalanceChange:  tx.Body.GetAmount(),
+			TransactionID:  tx.ID,
+			BlockHeight:    tx.Height,
+			EventType:      model.EventType_EventSendMoneyTransaction,
+			Timestamp:      uint64(blockTimestamp),
+		})
+		recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
+		queries = append(queries, recipientAccountLedgerArgs)
+
+		// approver balance
+		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetApproverAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, approverBalanceQ...)
+		// approver ledger
+		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetApproverAddress(),
+			BalanceChange:  tx.Escrow.GetCommission(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventSendMoneyTransaction,
+		})
+		approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
+		queries = append(queries, approverAccountLedgerArgs)
+	default:
+		tx.Escrow.Status = model.EscrowStatus_Rejected
+		// Give back sender balance
+		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetCommission()+tx.Escrow.GetAmount(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetSenderAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, senderBalanceQ...)
+	}
 
 	// Insert Escrow
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)

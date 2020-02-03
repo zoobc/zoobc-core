@@ -246,7 +246,14 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = txType.ApplyUnconfirmed()
+	// TODO: repetitive way
+	escrowable, ok := txType.Escrowable()
+	switch ok {
+	case true:
+		err = escrowable.EscrowApplyUnconfirmed()
+	default:
+		err = txType.ApplyUnconfirmed()
+	}
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {

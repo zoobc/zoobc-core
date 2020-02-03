@@ -410,9 +410,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
+		escrowable, escrowOk := txType.Escrowable()
 		if rows.Next() {
 			// undo unconfirmed
-			err = txType.UndoApplyUnconfirmed()
+			if escrowOk {
+				err = escrowable.EscrowUndoApplyUnconfirmed()
+			} else {
+				err = txType.UndoApplyUnconfirmed()
+			}
 			if err != nil {
 				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -422,8 +427,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		rows.Close()
+
 		if block.Height > 0 {
-			err = txType.Validate(true)
+			if escrowOk {
+				err = escrowable.EscrowValidate(true)
+			} else {
+				err = txType.Validate(true)
+			}
 			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
@@ -432,7 +442,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
-		err = txType.ApplyConfirmed(block.GetTimestamp())
+		if escrowOk {
+			err = escrowable.EscrowApplyConfirmed(block.GetTimestamp())
+		} else {
+			err = txType.ApplyConfirmed(block.GetTimestamp())
+
+		}
+
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -1504,7 +1520,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			return nil, err
 		}
 
-		err = txType.UndoApplyUnconfirmed()
+		escrowable, ok := txType.Escrowable()
+		if ok {
+			err = escrowable.EscrowUndoApplyUnconfirmed()
+		} else {
+			err = txType.UndoApplyUnconfirmed()
+		}
 		if err != nil {
 			return nil, err
 		}
