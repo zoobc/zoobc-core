@@ -492,7 +492,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
-	bs.BlocksmithStrategy.SortBlocksmiths(block)
+	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)

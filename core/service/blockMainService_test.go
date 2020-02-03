@@ -839,7 +839,7 @@ func (*mockBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block) map
 	}
 	return result
 }
-func (*mockBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block) {
+func (*mockBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
@@ -1615,7 +1615,7 @@ type (
 	}
 )
 
-func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block) {
+func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block, withLock bool) {
 
 }
 
