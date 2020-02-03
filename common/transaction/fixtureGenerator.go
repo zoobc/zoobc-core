@@ -211,11 +211,13 @@ func GetFixturesForRemoveAccountDataset() (
 	}
 	return txBody, ra.GetBodyBytes()
 }
+
 func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes []byte, hashed [32]byte) {
-	byteValue, _ := GetTransactionBytes(tx, sign)
+	byteValue, _ := (&Util{}).GetTransactionBytes(tx, sign)
 	transactionHash := sha3.Sum256(byteValue)
 	return byteValue, transactionHash
 }
+
 func GetFixturesForTransaction(
 	timestamp int64,
 	sender, recipient string,
@@ -253,17 +255,19 @@ func GetFixturesForTransaction(
 
 	return &tx
 }
+
 func GetFixturesForSignedMempoolTransaction(
 	id, timestamp int64,
 	sender, recipient string,
 	escrow bool,
 ) *model.MempoolTransaction {
+	transactionUtil := &Util{}
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
-	txBytes, _ := GetTransactionBytes(tx, false)
+	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
-	txBytes, _ = GetTransactionBytes(tx, true)
+	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
 		BlockHeight:             0,

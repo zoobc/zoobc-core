@@ -56,6 +56,8 @@ type (
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
+		ReceivedValidatedBlockTransactionsListener() observer.Listener
+		BlockTransactionsRequestedListener() observer.Listener
 		ScanBlockPool() error
 	}
 
@@ -71,7 +73,6 @@ type (
 		MerkleTreeQuery             query.MerkleTreeQueryInterface
 		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
 		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery         query.SpinePublicKeyQueryInterface
 		Signature                   crypto.SignatureInterface
 		MempoolService              MempoolServiceInterface
 		ReceiptService              ReceiptServiceInterface
@@ -86,6 +87,9 @@ type (
 		BlockPoolService            BlockPoolServiceInterface
 		Observer                    *observer.Observer
 		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
 	}
 )
 
@@ -99,7 +103,6 @@ func NewBlockMainService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
-	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
@@ -112,8 +115,11 @@ func NewBlockMainService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	accountLedgerQuery query.AccountLedgerQueryInterface,
-	blockPoolService BlockPoolServiceInterface,
 	blockIncompleteQueueService BlockIncompleteQueueServiceInterface,
+	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	transactionCoreService TransactionCoreServiceInterface,
+	blockPoolService BlockPoolServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -125,7 +131,6 @@ func NewBlockMainService(
 		MerkleTreeQuery:             merkleTreeQuery,
 		PublishedReceiptQuery:       publishedReceiptQuery,
 		SkippedBlocksmithQuery:      skippedBlocksmithQuery,
-		SpinePublicKeyQuery:         spinePublicKeyQuery,
 		Signature:                   signature,
 		MempoolService:              mempoolService,
 		ReceiptService:              receiptService,
@@ -138,8 +143,11 @@ func NewBlockMainService(
 		Observer:                    obsr,
 		Logger:                      logger,
 		AccountLedgerQuery:          accountLedgerQuery,
-		BlockPoolService:            blockPoolService,
 		BlockIncompleteQueueService: blockIncompleteQueueService,
+		TransactionUtil:             transactionUtil,
+		ReceiptUtil:                 receiptUtil,
+		TransactionCoreService:      transactionCoreService,
+		BlockPoolService:            blockPoolService,
 	}
 }
 
@@ -478,7 +486,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
+			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -731,7 +739,7 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 					ReceiptIndex:       0,
 				}
 				merkle := &commonUtils.MerkleRoot{}
-				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+				rcByte := bs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 				rcHash := sha3.Sum256(rcByte)
 				root, err := merkle.GetMerkleRootFromIntermediateHashes(
 					rcHash[:],
@@ -1074,7 +1082,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// select published receipts to be added to the block
 	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-		timestamp, coreUtil.GetNumberOfMaxReceipts(
+		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
@@ -1085,7 +1093,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// filter only good receipt
 	for _, br := range publishedReceipts {
-		_, err = digest.Write(util.GetSignedBatchReceiptBytes(br.BatchReceipt))
+		_, err = digest.Write(bs.ReceiptUtil.GetSignedBatchReceiptBytes(br.BatchReceipt))
 		if err != nil {
 			return nil, err
 		}
@@ -1221,6 +1229,7 @@ func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
+	peer *model.Peer,
 ) (*model.BatchReceipt, error) {
 	var err error
 	// make sure block has previous block hash
@@ -1253,7 +1262,7 @@ func (bs *BlockService) ReceiveBlock(
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 
-	isQueued, err := bs.ProcessQueueBlock(block)
+	isQueued, err := bs.ProcessQueueBlock(block, peer)
 	if err != nil {
 		return nil, err
 	}
@@ -1265,7 +1274,7 @@ func (bs *BlockService) ReceiveBlock(
 		}
 	}
 
-	receiptKey, err := commonUtils.GetReceiptKey(
+	receiptKey, err := bs.ReceiptUtil.GetReceiptKey(
 		block.GetBlockHash(), senderPublicKey,
 	)
 	if err != nil {
@@ -1382,7 +1391,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
-		coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
+		bs.ReceiptUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
 	)
 	if err != nil {
 		return nil, err
@@ -1495,7 +1504,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			tx     *model.Transaction
 			txType transaction.TypeAction
 		)
-		tx, err := transaction.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
+		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -1653,7 +1662,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 }
 
 // ProcessQueueBlock process to queue block when waiting their transactions
-func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool, err error) {
+func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) (needWaiting bool, err error) {
 	// check block having transactions or not
 	if len(block.TransactionIDs) == 0 {
 		return false, nil
@@ -1693,7 +1702,7 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool,
 		return false, err
 	}
 	for _, mempool := range mempools {
-		tx, err := transaction.ParseTransactionBytes(mempool.TransactionBytes, true)
+		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.TransactionBytes, true)
 		if err != nil {
 			continue
 		}
@@ -1712,17 +1721,71 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block) (needWaiting bool,
 	// saving temporary block
 	bs.BlockIncompleteQueueService.AddBlockQueue(block)
 	bs.BlockIncompleteQueueService.SetTransactionsRequired(block.GetID(), txRequiredByBlock)
-	bs.BlockIncompleteQueueService.RequestBlockTransactions(txRequiredByBlock)
+
+	if peer == nil {
+		bs.Logger.Errorf("Error peer is null, can not request block transactions from the Peer")
+	}
+
+	var txIds []int64
+	for txID := range txRequiredByBlock {
+		txIds = append(txIds, txID)
+	}
+
+	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, peer)
 	return true, nil
 }
 
-// ReceiveValidatedTransactionListener will receive validated transaction to completing transaction of blocks queue
-func (bs *BlockService) ReceiveValidatedTransactionListener(transaction *model.Transaction) {
-	var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(transaction)
-	for _, block := range completedBlocks {
-		err := bs.ProcessCompletedBlock(block)
-		if err != nil {
-			bs.Logger.Warn(blocker.BlockErr, err.Error())
-		}
+// ReceivedValidatedBlockTransactionsListener will receive validated transactions to complete transactions of blocks queued
+func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsInterface interface{}, args ...interface{}) {
+			transactions, ok := transactionsInterface.([]*model.Transaction)
+			if !ok {
+				bs.Logger.Fatalln("transactions casting failures in ReceivedValidatedBlockTransactionsListener")
+			}
+			for _, transaction := range transactions {
+				var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(transaction)
+				for _, block := range completedBlocks {
+					err := bs.ProcessCompletedBlock(block)
+					if err != nil {
+						bs.Logger.Warn(blocker.BlockErr, err.Error())
+					}
+				}
+			}
+		},
+	}
+}
+
+// ReceivedValidatedBlockTransactionsListener will send the transactions required by blocks
+func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {
+			bs.ChainWriteLock(constant.BlockchainSendingBlockTransactions)
+			defer bs.ChainWriteUnlock(constant.BlockchainSendingBlockTransactions)
+
+			var (
+				err            error
+				transactions   []*model.Transaction
+				transactionIds []int64
+				peer           *model.Peer
+				ok             bool
+			)
+
+			transactionIds, ok = transactionsIdsInterface.([]int64)
+			if !ok {
+				bs.Logger.Fatalln("transactionIds casting failures in BlockTransactionsRequestedListener")
+			}
+
+			peer, ok = args[1].(*model.Peer)
+			if !ok {
+				bs.Logger.Fatalln("peer casting failures in BlockTransactionsRequestedListener")
+			}
+
+			transactions, err = bs.TransactionCoreService.GetTransactionsByIds(transactionIds)
+			if err != nil {
+				return
+			}
+			bs.Observer.Notify(observer.SendBlockTransactions, transactions, bs.Chaintype, peer)
+		},
 	}
 }

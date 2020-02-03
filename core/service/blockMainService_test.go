@@ -24,6 +24,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 )
@@ -384,6 +385,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 }
 
 func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	transactionUtil := &transaction.Util{}
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
@@ -579,7 +581,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		))
 	case "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, " +
 		"sender_account_address, recipient_account_address FROM mempool WHERE id IN (?)  ":
-		txBytes, _ := transaction.GetTransactionBytes(mockTransaction, true)
+		txBytes, _ := transactionUtil.GetTransactionBytes(mockTransaction, true)
 		fmt.Println("test -->")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id", "block_height", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
@@ -1233,6 +1235,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 				BlockPoolService:        tt.fields.BlockPoolService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
@@ -1794,6 +1797,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				ReceiptService:     tt.fields.ReceiptService,
 				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				ReceiptUtil:        &coreUtil.ReceiptUtil{},
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -3069,11 +3073,13 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				Logger:                      logrus.New(),
 				NodeRegistrationService:     tt.fields.NodeRegistrationService,
 				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
+				ReceiptUtil:                 &coreUtil.ReceiptUtil{},
 				ReceiptService:              tt.fields.ReceiptService,
 				BlockPoolService:            tt.fields.BlockPoolService,
 			}
 			got, err := bs.ReceiveBlock(
-				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
+				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase, &model.Peer{},
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReceiveBlock() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
@@ -3262,6 +3268,7 @@ func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				Observer:                tt.fields.Observer,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 			}
 			got, err := bs.GetBlockExtendedInfo(tt.args.block, false)
 			if (err != nil) != tt.wantErr {
@@ -4568,6 +4575,8 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 		Block: &mockBlockWithTransactionIDs,
 	}
 
+	mockPeer := &model.Peer{}
+
 	type fields struct {
 		Chaintype                   chaintype.ChainType
 		KVExecutor                  kvdb.KVExecutorInterface
@@ -4667,7 +4676,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				MerkleTreeQuery:             tt.fields.MerkleTreeQuery,
 				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
 				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
-				SpinePublicKeyQuery:         tt.fields.SpinePublicKeyQuery,
 				Signature:                   tt.fields.Signature,
 				MempoolService:              tt.fields.MempoolService,
 				ReceiptService:              tt.fields.ReceiptService,
@@ -4681,8 +4689,9 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
 				Observer:                    tt.fields.Observer,
 				Logger:                      tt.fields.Logger,
+				TransactionUtil:             &transaction.Util{},
 			}
-			gotIsQueued, err := bs.ProcessQueueBlock(tt.args.block)
+			gotIsQueued, err := bs.ProcessQueueBlock(tt.args.block, mockPeer)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.ProcessQueueBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -4898,7 +4907,6 @@ func TestBlockService_canPersistBlock(t *testing.T) {
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
 		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
 		Signature               crypto.SignatureInterface
 		MempoolService          MempoolServiceInterface
 		ReceiptService          ReceiptServiceInterface
@@ -4998,7 +5006,6 @@ func TestBlockService_canPersistBlock(t *testing.T) {
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
 				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				SpinePublicKeyQuery:     tt.fields.SpinePublicKeyQuery,
 				Signature:               tt.fields.Signature,
 				MempoolService:          tt.fields.MempoolService,
 				ReceiptService:          tt.fields.ReceiptService,

@@ -616,6 +616,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
+	peer *model.Peer,
 ) (*model.BatchReceipt, error) {
 	var (
 		err error
@@ -875,6 +876,18 @@ func (bs *BlockSpineService) insertSpinePublicKeys(block *model.Block) error {
 		return err
 	}
 	return nil
+}
+
+func (bs *BlockSpineService) ReceivedValidatedBlockTransactionsListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsInterface interface{}, args ...interface{}) {},
+	}
+}
+
+func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {},
+	}
 }
 
 func (bs *BlockSpineService) WillSmith(
