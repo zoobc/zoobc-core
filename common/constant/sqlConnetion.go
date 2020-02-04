@@ -1,8 +1,10 @@
 package constant
 
+import "time"
+
 var (
 	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
-	SQLMaxIdleConnections = 40
-	// SQLMaxConnectionLifetime Reprensent the expiration of idle connetion, the number in minutes
-	SQLMaxConnectionLifetime = 30
+	SQLMaxIdleConnections = 0
+	// SQLMaxConnectionLifetime Reprensent the expiration of idle database connetion
+	SQLMaxConnectionLifetime = time.Microsecond
 )

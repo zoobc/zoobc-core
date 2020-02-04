@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 )
@@ -86,7 +87,7 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 		dbPath                 string
 		dbName                 string
 		maximumIdleConnections int
-		maximumOpenConnections int
+		maximumOpenConnections time.Duration
 	}
 	tests := []struct {
 		name    string
@@ -102,7 +103,7 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 				dbPath:                 "./testdata/",
 				dbName:                 "zoobc_test.db",
 				maximumIdleConnections: 10,
-				maximumOpenConnections: 10,
+				maximumOpenConnections: 10 * time.Second,
 			},
 			want:    db,
 			wantErr: false,
@@ -114,7 +115,7 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 				dbPath:                 "_",
 				dbName:                 "_",
 				maximumIdleConnections: 10,
-				maximumOpenConnections: 10,
+				maximumOpenConnections: 10 * time.Second,
 			},
 			want:    db,
 			wantErr: true,

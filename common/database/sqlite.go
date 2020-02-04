@@ -15,7 +15,7 @@ type (
 	// SqliteDBInstance as public interface that should implemented
 	SqliteDBInstance interface {
 		InitializeDB(dbPath, dbName string) error
-		OpenDB(dbPath, dbName string, maxIdleConnections, maximumLifetimeConnection int) (*sql.DB, error)
+		OpenDB(dbPath, dbName string, maxIdleConnections int, maximumLifetimeConnection time.Duration) (*sql.DB, error)
 		CloseDB() error
 	}
 	// SqliteDB must be implemented
@@ -60,7 +60,7 @@ OpenDB tries to open the db and if fails logs and exit the application
 mutate SqliteDB.Conn to opened connection if success and return nil
 return error if error occurred
 */
-func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximumLifetimeConnection int) (*sql.DB, error) {
+func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections int, maximumLifetimeConnection time.Duration) (*sql.DB, error) {
 	var (
 		err     error
 		absPath string
@@ -75,7 +75,9 @@ func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximu
 		return nil, err
 	}
 
-	conn, err = sql.Open("sqlite3", absPath)
+	// _mutex parameter for setup threading mode in mattn/go-sqlite3
+	// no = SQLITE_OPEN_NOMUTEX, full = SQLITE_OPEN_FULLMUTEX
+	conn, err = sql.Open("sqlite3", fmt.Sprintf("%s?_mutex=no", absPath))
 
 	if _, ok := err.(sqlite3.Error); ok {
 		return nil, err
@@ -83,9 +85,9 @@ func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections, maximu
 	// Higher number of idle connections in the pool will improve performance
 	// But it will takes up memory usage
 	conn.SetMaxIdleConns(maximumIdleConnections)
-	// SetConnMaxLifetime used to controlling the lifecycle of connections (duration in minute),
+	// SetConnMaxLifetime used to controlling the lifecycle of connections,
 	// Will be useful when maintaining idle connetions in low traffic
-	conn.SetConnMaxLifetime(time.Duration(maximumLifetimeConnection) * time.Minute)
+	conn.SetConnMaxLifetime(maximumLifetimeConnection)
 	return conn, nil
 }
 
