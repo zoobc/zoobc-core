@@ -16,6 +16,7 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 type (
@@ -269,7 +270,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		if lastBlock.ID == previousBlockID {
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
-				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer %v: %s\nwith previous: %v\n",
+					block.ID, p2pUtil.GetFullAddressPeer(peerUsed), err, lastBlock.ID)
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
