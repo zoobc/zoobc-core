@@ -187,6 +187,7 @@ func (*mockTransactionExecutorCommitFail) CommitTx() error {
 }
 
 func TestNewTransactionService(t *testing.T) {
+	transactionUtil := &transaction.Util{}
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error while opening database connection")
@@ -200,7 +201,8 @@ func TestNewTransactionService(t *testing.T) {
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
 			want: &TransactionService{
-				Query: query.NewQueryExecutor(db),
+				Query:           query.NewQueryExecutor(db),
+				TransactionUtil: transactionUtil,
 			},
 		},
 	}
@@ -212,6 +214,7 @@ func TestNewTransactionService(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				transactionUtil,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
@@ -504,6 +507,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
 				Observer:           tt.fields.Observer,
+				TransactionUtil:    &transaction.Util{},
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -658,6 +662,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
+				TransactionUtil:    &transaction.Util{},
 			}
 			got, err := ts.GetTransactions(tt.args.chainType, tt.args.params)
 			if (err != nil) != tt.wantErr {
@@ -807,6 +812,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
+				TransactionUtil:    &transaction.Util{},
 			}
 			got, err := ts.GetTransaction(tt.args.chainType, tt.args.params)
 			if (err != nil) != tt.wantErr {

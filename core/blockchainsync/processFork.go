@@ -32,6 +32,7 @@ type (
 		KVExecutor         kvdb.KVExecutorInterface
 		Logger             *log.Logger
 		PeerExplorer       strategy.PeerExplorerStrategyInterface
+		TransactionUtil    transaction.UtilInterface
 	}
 )
 
@@ -166,7 +167,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		if err != nil {
 			return err
 		}
-		txBytes, err = transaction.GetTransactionBytes(tx, true)
+		txBytes, err = fp.TransactionUtil.GetTransactionBytes(tx, true)
 
 		if err != nil {
 			return err
@@ -248,7 +249,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		transactionBytes = mempoolsBackupBytes[prev:][:size]
 		prev += size
 
-		tx, err = transaction.ParseTransactionBytes(transactionBytes, true)
+		tx, err = fp.TransactionUtil.ParseTransactionBytes(transactionBytes, true)
 		if err != nil {
 			return err
 		}

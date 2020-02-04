@@ -26,6 +26,7 @@ type Service struct {
 	BlockchainDownloader BlockchainDownloadInterface
 	ForkingProcessor     ForkingProcessorInterface
 	Logger               *log.Logger
+	TransactionUtil      transaction.UtilInterface
 }
 
 func NewBlockchainSyncService(
@@ -37,6 +38,7 @@ func NewBlockchainSyncService(
 	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
 	kvdb kvdb.KVExecutorInterface,
+	transactionUtil transaction.UtilInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -59,6 +61,7 @@ func NewBlockchainSyncService(
 			KVExecutor:         kvdb,
 			PeerExplorer:       peerExplorer,
 			Logger:             logger,
+			TransactionUtil:    transactionUtil,
 		},
 		Logger: logger,
 	}

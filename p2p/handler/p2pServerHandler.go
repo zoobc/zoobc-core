@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	service2 "github.com/zoobc/zoobc-core/p2p/service"
 )
 
@@ -24,11 +25,17 @@ func NewP2PServerHandler(
 
 // GetPeerInfo to return info of this host
 func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+
 	return ss.Service.GetPeerInfo(ctx, req)
 }
 
 // GetMorePeers contains info other peers
 func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetMorePeersServer)
+
 	var nodes []*model.Node
 	nodes, err := ss.Service.GetMorePeers(ctx, req)
 	if err != nil {
@@ -41,6 +48,9 @@ func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) 
 
 // SendPeers receives set of peers info from other node and put them into the unresolved peers
 func (ss *P2PServerHandler) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendPeersServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendPeersServer)
+
 	// TODO: only accept nodes that are already registered in the node registration
 	if req.Peers == nil {
 		return nil, blocker.NewBlocker(
@@ -55,11 +65,17 @@ func (ss *P2PServerHandler) SendPeers(ctx context.Context, req *model.SendPeersR
 func (ss *P2PServerHandler) GetCumulativeDifficulty(ctx context.Context,
 	req *model.GetCumulativeDifficultyRequest,
 ) (*model.GetCumulativeDifficultyResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyServer)
+
 	return ss.Service.GetCumulativeDifficulty(ctx, chaintype.GetChainType(req.ChainType))
 }
 
 func (ss *P2PServerHandler) GetCommonMilestoneBlockIDs(ctx context.Context,
 	req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsServer)
+
 	// if `lastBlockID` is supplied
 	// check it the last `lastBlockID` got matches with the host's lastBlock then return the response as is
 	chainType := chaintype.GetChainType(req.ChainType)
@@ -75,6 +91,9 @@ func (ss *P2PServerHandler) GetCommonMilestoneBlockIDs(ctx context.Context,
 }
 
 func (ss *P2PServerHandler) GetNextBlockIDs(ctx context.Context, req *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsServer)
+
 	chainType := chaintype.GetChainType(req.ChainType)
 	blockIds, err := ss.Service.GetNextBlockIDs(ctx, chainType, req.Limit, req.BlockId)
 	if err != nil {
@@ -86,6 +105,9 @@ func (ss *P2PServerHandler) GetNextBlockIDs(ctx context.Context, req *model.GetN
 }
 
 func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNextBlocksRequest) (*model.BlocksData, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlocksServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlocksServer)
+
 	// TODO: getting data from cache
 	chainType := chaintype.GetChainType(req.ChainType)
 	return ss.Service.GetNextBlocks(
@@ -98,6 +120,9 @@ func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNex
 
 // SendBlock receive block from other node and calling BlockReceived Event
 func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.SendBlockResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendBlockServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendBlockServer)
+
 	// todo: validate request
 	return ss.Service.SendBlock(
 		ctx,
@@ -112,10 +137,26 @@ func (ss *P2PServerHandler) SendTransaction(
 	ctx context.Context,
 	req *model.SendTransactionRequest,
 ) (*model.SendTransactionResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionServer)
+
 	return ss.Service.SendTransaction(
 		ctx,
 		chaintype.GetChainType(req.ChainType),
 		req.TransactionBytes,
+		req.SenderPublicKey,
+	)
+}
+
+// SendTransaction receive transaction from other node and calling TransactionReceived Event
+func (ss *P2PServerHandler) SendBlockTransactions(
+	ctx context.Context,
+	req *model.SendBlockTransactionsRequest,
+) (*model.SendBlockTransactionsResponse, error) {
+	return ss.Service.SendBlockTransactions(
+		ctx,
+		chaintype.GetChainType(req.ChainType),
+		req.TransactionsBytes,
 		req.SenderPublicKey,
 	)
 }

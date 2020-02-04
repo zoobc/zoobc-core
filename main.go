@@ -34,6 +34,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -77,6 +78,8 @@ var (
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
+	transactionUtil                               = &transaction.Util{}
+	receiptUtil                                   = &coreUtil.ReceiptUtil{}
 )
 
 func init() {
@@ -136,6 +139,7 @@ func init() {
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
+		receiptUtil,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
@@ -287,6 +291,7 @@ func initP2pInstance() {
 		peerServiceClient,
 		peerExplorer,
 		loggerP2PService,
+		transactionUtil,
 	)
 }
 
@@ -297,6 +302,9 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 	observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
+	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
+	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
+	observerInstance.AddListener(observer.SendBlockTransactions, p2pServiceInstance.SendBlockTransactionsListener())
 }
 
 func startServices() {
@@ -307,6 +315,7 @@ func startServices() {
 		queryExecutor,
 		blockServices,
 		mempoolServices,
+		observerInstance,
 	)
 	api.Start(
 		apiRPCPort,
@@ -322,6 +331,9 @@ func startServices() {
 		isDebugMode,
 		apiCertFile,
 		apiKeyFile,
+		transactionUtil,
+		receiptUtil,
+		receiptService,
 	)
 
 	if isDebugMode {
@@ -349,6 +361,7 @@ func startMainchain() {
 	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
+		transactionUtil,
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -361,6 +374,8 @@ func startMainchain() {
 		crypto.NewSignature(),
 		observerInstance,
 		loggerCoreService,
+		receiptUtil,
+		receiptService,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
@@ -389,7 +404,6 @@ func startMainchain() {
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
-		nil,
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -402,8 +416,11 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
-		mainchainBlockPool,
 		blockIncompleteQueueService,
+		transactionUtil,
+		receiptUtil,
+		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
+		mainchainBlockPool,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -462,6 +479,7 @@ func startMainchain() {
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
+		transactionUtil,
 	)
 }
 
@@ -519,6 +537,7 @@ func startSpinechain() {
 		nil, // no transaction types for spine blocks
 		loggerCoreService,
 		kvExecutor,
+		transactionUtil,
 	)
 }
 

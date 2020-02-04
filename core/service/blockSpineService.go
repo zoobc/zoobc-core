@@ -630,6 +630,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
+	peer *model.Peer,
 ) (*model.BatchReceipt, error) {
 	var (
 		err error
@@ -820,6 +821,32 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
 	return spinePublicKeys
+}
+
+// insertSpinePublicKeys insert all spine block publicKeys into spinePublicKey table
+// Note: at this stage the spine pub keys have already been parsed into their model struct
+func (bs *BlockSpineService) insertSpinePublicKeys(block *model.Block) error {
+	queries := make([][]interface{}, 0)
+	for _, spinePublicKey := range block.SpinePublicKeys {
+		insertSpkQry := bs.SpinePublicKeyQuery.InsertSpinePublicKey(spinePublicKey)
+		queries = append(queries, insertSpkQry...)
+	}
+	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (bs *BlockSpineService) ReceivedValidatedBlockTransactionsListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsInterface interface{}, args ...interface{}) {},
+	}
+}
+
+func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {},
+	}
 }
 
 func (bs *BlockSpineService) WillSmith(

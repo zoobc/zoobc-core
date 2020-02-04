@@ -2514,7 +2514,9 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
 			got, err := bs.ReceiveBlock(
-				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase)
+				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase,
+				&model.Peer{},
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReceiveBlock() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return

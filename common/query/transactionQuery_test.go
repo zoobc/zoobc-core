@@ -298,6 +298,59 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 	}
 }
 
+func TestTransactionQuery_GetTransactionsByIds(t *testing.T) {
+	var (
+		txIdsStr []string
+		txIds    = []int64{1, 2, 3, 4}
+	)
+	for _, txID := range txIds {
+		txIdsStr = append(txIdsStr, fmt.Sprintf("%d", txID))
+	}
+
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		txIds []int64
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockTransactionQuery),
+			args:   args{txIds: txIds},
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE id in (%s)",
+				strings.Join(mockTransactionQuery.Fields, ", "),
+				strings.Join(txIdsStr, ","),
+			),
+			wantArgs: []interface{}{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tq := &TransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			gotStr, gotArgs := tq.GetTransactionsByIds(tt.args.txIds)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetTransactionsByIds() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetTransactionsByIds() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
 type (
 	mockQueryExecutorBuildModel struct {
 		Executor
