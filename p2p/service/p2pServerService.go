@@ -271,7 +271,8 @@ func (ps *P2PServerService) GetNextBlocks(
 		// TODO: getting data from cache
 		var blocksMessage []*model.Block
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
-
+		blockService.ChainWriteLock(constant.BlockchainStatusSendingBlock)
+		defer blockService.ChainWriteUnlock(constant.BlockchainStatusSendingBlock)
 		block, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())

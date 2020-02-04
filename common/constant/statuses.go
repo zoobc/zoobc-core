@@ -5,4 +5,5 @@ var (
 	BlockchainStatusGeneratingBlock = 2
 	BlockchainStatusReceivingBlock  = 3
 	BlockchainStatusSyncingBlock    = 4
+	BlockchainStatusSendingBlock    = 5
 )
