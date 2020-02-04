@@ -93,7 +93,7 @@ func initialize(
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		panic(err)
 	}
-	db, err := dbInstance.OpenDB(dbPath, dbName, 10, 20)
+	db, err := dbInstance.OpenDB(dbPath, dbName, 10, 10, 20*time.Minute)
 	if err != nil {
 		panic(err)
 	}

@@ -87,6 +87,7 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 		dbPath                 string
 		dbName                 string
 		maximumIdleConnections int
+		maximumOpenConnection  int
 		maximumOpenConnections time.Duration
 	}
 	tests := []struct {
@@ -102,6 +103,7 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 			args: args{
 				dbPath:                 "./testdata/",
 				dbName:                 "zoobc_test.db",
+				maximumOpenConnection:  10,
 				maximumIdleConnections: 10,
 				maximumOpenConnections: 10 * time.Second,
 			},
@@ -114,6 +116,7 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 			args: args{
 				dbPath:                 "_",
 				dbName:                 "_",
+				maximumOpenConnection:  10,
 				maximumIdleConnections: 10,
 				maximumOpenConnections: 10 * time.Second,
 			},
@@ -124,7 +127,13 @@ func TestSqliteDB_OpenDB(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			db := &SqliteDB{}
-			got, err := db.OpenDB(tt.args.dbPath, tt.args.dbName, tt.args.maximumIdleConnections, tt.args.maximumOpenConnections)
+			got, err := db.OpenDB(
+				tt.args.dbPath,
+				tt.args.dbName,
+				tt.args.maximumOpenConnection,
+				tt.args.maximumIdleConnections,
+				tt.args.maximumOpenConnections)
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SqliteDB.OpenDB() error = %v, wantErr %v", err, tt.wantErr)
 				return

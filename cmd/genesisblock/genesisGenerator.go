@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"text/template"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -225,7 +226,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	}
 
 	dbInstance := database.NewSqliteDB()
-	db, err = dbInstance.OpenDB(dbPath, "zoobc.db", 10, 20)
+	db, err = dbInstance.OpenDB(dbPath, "zoobc.db", 10, 10, 20*time.Minute)
 	if err != nil {
 		log.Fatal(err)
 	}

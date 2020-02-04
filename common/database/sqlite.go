@@ -15,7 +15,11 @@ type (
 	// SqliteDBInstance as public interface that should implemented
 	SqliteDBInstance interface {
 		InitializeDB(dbPath, dbName string) error
-		OpenDB(dbPath, dbName string, maxIdleConnections int, maximumLifetimeConnection time.Duration) (*sql.DB, error)
+		OpenDB(
+			dbPath, dbName string,
+			maximumOpenConnection, maxIdleConnections int,
+			maximumLifetimeConnection time.Duration,
+		) (*sql.DB, error)
 		CloseDB() error
 	}
 	// SqliteDB must be implemented
@@ -60,7 +64,11 @@ OpenDB tries to open the db and if fails logs and exit the application
 mutate SqliteDB.Conn to opened connection if success and return nil
 return error if error occurred
 */
-func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections int, maximumLifetimeConnection time.Duration) (*sql.DB, error) {
+func (db *SqliteDB) OpenDB(
+	dbPath, dbName string,
+	maximumOpenConnection, maximumIdleConnections int,
+	maximumLifetimeConnection time.Duration,
+) (*sql.DB, error) {
 	var (
 		err     error
 		absPath string
@@ -88,6 +96,9 @@ func (db *SqliteDB) OpenDB(dbPath, dbName string, maximumIdleConnections int, ma
 	// SetConnMaxLifetime used to controlling the lifecycle of connections,
 	// Will be useful when maintaining idle connetions in low traffic
 	conn.SetConnMaxLifetime(maximumLifetimeConnection)
+	// SetMaxOpenConns the maximum number of open connections to the database
+	// to prevent unable open database file
+	conn.SetMaxOpenConns(maximumOpenConnection)
 	return conn, nil
 }
 
