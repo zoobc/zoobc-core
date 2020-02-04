@@ -48,41 +48,108 @@ type (
 		) (*model.Block, error)
 		GetCoinbase() int64
 		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
-		RewardBlocksmithAccountAddresses(blocksmithAccountAddresses []string, totalReward int64, height uint32) error
+		RewardBlocksmithAccountAddresses(
+			blocksmithAccountAddresses []string, totalReward, blocktimestamp int64, height uint32,
+		) error
 		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
+		ReceivedValidatedBlockTransactionsListener() observer.Listener
+		BlockTransactionsRequestedListener() observer.Listener
+		ScanBlockPool() error
 	}
 
-	//TODO: rename to BlockMainService
+	// TODO: rename to BlockMainService
 	BlockService struct {
 		sync.RWMutex
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery     query.SpinePublicKeyQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ReceiptService          ReceiptServiceInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Observer                *observer.Observer
-		Logger                  *log.Logger
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
+		Chaintype                   chaintype.ChainType
+		KVExecutor                  kvdb.KVExecutorInterface
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		MerkleTreeQuery             query.MerkleTreeQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		BlockPoolService            BlockPoolServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
 	}
 )
+
+func NewBlockMainService(
+	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	mempoolQuery query.MempoolQueryInterface,
+	transactionQuery query.TransactionQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
+	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
+	signature crypto.SignatureInterface,
+	mempoolService MempoolServiceInterface,
+	receiptService ReceiptServiceInterface,
+	nodeRegistrationService NodeRegistrationServiceInterface,
+	txTypeSwitcher transaction.TypeActionSwitcher,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
+	participationScoreQuery query.ParticipationScoreQueryInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	obsr *observer.Observer,
+	blocksmithStrategy strategy.BlocksmithStrategyInterface,
+	logger *log.Logger,
+	accountLedgerQuery query.AccountLedgerQueryInterface,
+	blockIncompleteQueueService BlockIncompleteQueueServiceInterface,
+	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	transactionCoreService TransactionCoreServiceInterface,
+	blockPoolService BlockPoolServiceInterface,
+) *BlockService {
+	return &BlockService{
+		Chaintype:                   ct,
+		KVExecutor:                  kvExecutor,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  blockQuery,
+		MempoolQuery:                mempoolQuery,
+		TransactionQuery:            transactionQuery,
+		MerkleTreeQuery:             merkleTreeQuery,
+		PublishedReceiptQuery:       publishedReceiptQuery,
+		SkippedBlocksmithQuery:      skippedBlocksmithQuery,
+		Signature:                   signature,
+		MempoolService:              mempoolService,
+		ReceiptService:              receiptService,
+		NodeRegistrationService:     nodeRegistrationService,
+		ActionTypeSwitcher:          txTypeSwitcher,
+		AccountBalanceQuery:         accountBalanceQuery,
+		ParticipationScoreQuery:     participationScoreQuery,
+		NodeRegistrationQuery:       nodeRegistrationQuery,
+		BlocksmithStrategy:          blocksmithStrategy,
+		Observer:                    obsr,
+		Logger:                      logger,
+		AccountLedgerQuery:          accountLedgerQuery,
+		BlockIncompleteQueueService: blockIncompleteQueueService,
+		TransactionUtil:             transactionUtil,
+		ReceiptUtil:                 receiptUtil,
+		TransactionCoreService:      transactionCoreService,
+		BlockPoolService:            blockPoolService,
+	}
+}
 
 // NewMainBlock generate new mainchain block
 func (bs *BlockService) NewMainBlock(
@@ -191,21 +258,32 @@ func (bs *BlockService) NewGenesisBlock(
 	return block, nil
 }
 
-// ValidateBlock validate block to be pushed into the blockchain
-func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	// todo: validate previous time
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
-	}
+// PreValidateBlock valdiate block without it's transactions
+func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) error {
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
 	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
+	// check smithtime
 	blocksmithTime := bs.BlocksmithStrategy.GetSmithTime(*blocksmithIndex, previousLastBlock)
 	if blocksmithTime > block.GetTimestamp() {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
+	}
+	return nil
+}
+
+// ValidateBlock validate block to be pushed into the blockchain
+func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	// check block timestamp
+	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
+	}
+
+	err := bs.PreValidateBlock(block, previousLastBlock)
+	if err != nil {
+		return err
 	}
 	if coreUtil.GetBlockID(block, bs.Chaintype) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
@@ -274,9 +352,10 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast bool) error {
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err error
+		blocksmithIndex *int64
+		err             error
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -284,6 +363,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
 		if blocksmithIndex == nil {
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
+		}
+		// check for duplicate in block pool
+		blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
+		if blockPool != nil && !persist {
+			return blocker.NewBlocker(
+				blocker.BlockErr, "DuplicateBlockPool",
+			)
 		}
 		blockCumulativeDifficulty, err := coreUtil.CalculateCumulativeDifficulty(
 			previousBlock, *blocksmithIndex,
@@ -306,12 +392,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		}
 		return err
 	}
+	var transactionIDs = make([]int64, len(block.GetTransactions()))
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
 		// assign block id and block height to tx
 		tx.BlockID = block.ID
 		tx.Height = block.Height
 		tx.TransactionIndex = uint32(index) + 1
+		transactionIDs[index] = tx.GetID()
 		// validate tx here
 		// check if is in mempool : if yes, undo unconfirmed
 		rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
@@ -398,7 +486,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			coreUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
+			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -462,7 +550,29 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 			return err
 		}
 	}
-
+	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
+	if !persist { // block content are validated
+		// get blocksmith index
+		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
+		blocksmithIndex = blocksmithsMap[string(block.BlocksmithPublicKey)]
+		// handle if is first index
+		if *blocksmithIndex > 0 {
+			// check if current block is in pushable window
+			if !bs.canPersistBlock(*blocksmithIndex, previousBlock) {
+				// insert into block pool
+				bs.BlockPoolService.InsertBlock(block, *blocksmithIndex)
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				if broadcast {
+					bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
+				}
+				return nil
+			}
+			// if canPersistBlock return true ignore the passed `persist` flag
+		}
+		// block is in first place continue to persist block to database ignoring the `persist` flag
+	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -470,13 +580,64 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast b
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block)
+	// clear the block poolo
+	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
-	if broadcast {
+	if broadcast && !persist && *blocksmithIndex == 0 {
+		// add transactionIDs and remove transaction before broadcast
+		block.TransactionIDs = transactionIDs
+		block.Transactions = []*model.Transaction{}
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
 	return nil
+}
+
+// ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
+func (bs *BlockService) ScanBlockPool() error {
+	previousBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	blocks := bs.BlockPoolService.GetBlocks()
+	for index, block := range blocks {
+		if bs.canPersistBlock(index, previousBlock) {
+			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+			err := bs.PushBlock(previousBlock, block, true, true)
+			bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+			if err != nil {
+				return blocker.NewBlocker(
+					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
+				)
+			}
+		}
+	}
+	return nil
+}
+
+// canPersistBlock check if the blocksmith can push the block based on previous block's blocksmiths order
+// this function must only run when receiving / generating block, not on download block since it uses the current machine
+// time as comparison
+// todo: will move this to block pool service + write the test when refactoring the block service
+func (bs *BlockService) canPersistBlock(blocksmithIndex int64, previousBlock *model.Block) bool {
+	if blocksmithIndex < 1 {
+		return true
+	}
+	var (
+		currentTime = time.Now().Unix()
+	)
+	blocksmithAllowedBeginTime := bs.BlocksmithStrategy.GetSmithTime(blocksmithIndex, previousBlock)
+	blocksmithExpiredPersistTime := blocksmithAllowedBeginTime +
+		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
+	previousBlocksmithAllowedBeginTime := blocksmithAllowedBeginTime - constant.SmithingBlocksmithTimeGap
+	blocksmithAllowedPersistTime := previousBlocksmithAllowedBeginTime +
+		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
+	// allowed time window = lastBlocksmithExpiredTime < current_time <= currentBlocksmithExpiredTime
+	if previousBlock.GetHeight() == 0 {
+		return currentTime > blocksmithAllowedPersistTime
+	}
+	return currentTime >= blocksmithAllowedPersistTime && currentTime <= blocksmithExpiredPersistTime
 }
 
 // adminNodes seelct and admit nodes from node registry
@@ -492,7 +653,6 @@ func (bs *BlockService) admitNodes(block *model.Block) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -508,7 +668,6 @@ func (bs *BlockService) expelNodes(block *model.Block) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -580,7 +739,7 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 					ReceiptIndex:       0,
 				}
 				merkle := &commonUtils.MerkleRoot{}
-				rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+				rcByte := bs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 				rcHash := sha3.Sum256(rcByte)
 				root, err := merkle.GetMerkleRootFromIntermediateHashes(
 					rcHash[:],
@@ -923,7 +1082,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// select published receipts to be added to the block
 	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-		timestamp, coreUtil.GetNumberOfMaxReceipts(
+		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
@@ -934,7 +1093,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// filter only good receipt
 	for _, br := range publishedReceipts {
-		_, err = digest.Write(util.GetSignedBatchReceiptBytes(br.BatchReceipt))
+		_, err = digest.Write(bs.ReceiptUtil.GetSignedBatchReceiptBytes(br.BatchReceipt))
 		if err != nil {
 			return nil, err
 		}
@@ -1044,7 +1203,7 @@ func (bs *BlockService) AddGenesis() error {
 	if err != nil {
 		return err
 	}
-	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false)
+	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
 		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
 	}
@@ -1070,7 +1229,9 @@ func (bs *BlockService) ReceiveBlock(
 	senderPublicKey []byte,
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
+	peer *model.Peer,
 ) (*model.BatchReceipt, error) {
+	var err error
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1078,7 +1239,42 @@ func (bs *BlockService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	receiptKey, err := commonUtils.GetReceiptKey(
+
+	// check previous block hash of new block not same with current block hash and
+	// check new block is not better than current block
+	if !bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetBlockHash()) &&
+		!(bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
+			block.Timestamp < lastBlock.Timestamp) {
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+	}
+
+	// check new block is better than current block
+	if bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
+		block.Timestamp < lastBlock.Timestamp {
+		lastBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+		if err != nil {
+			return nil, status.Error(codes.Internal, "FailGetBlock")
+		}
+	}
+
+	// pre validation block
+	if err = bs.PreValidateBlock(block, lastBlock); err != nil {
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+	}
+
+	isQueued, err := bs.ProcessQueueBlock(block, peer)
+	if err != nil {
+		return nil, err
+	}
+	// process block when block don't have transaction
+	if !isQueued {
+		err = bs.ProcessCompletedBlock(block)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	receiptKey, err := bs.ReceiptUtil.GetReceiptKey(
 		block.GetBlockHash(), senderPublicKey,
 	)
 	if err != nil {
@@ -1087,119 +1283,18 @@ func (bs *BlockService) ReceiveBlock(
 			err.Error(),
 		)
 	}
-	//  check equality last block hash with previous block hash from received block
-	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
-		// check if incoming block is of higher quality
-		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
-			block.Timestamp < lastBlock.Timestamp {
-			err := func() error {
-				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
-				if err != nil {
-					return status.Error(codes.Internal,
-						"fail to get last block",
-					)
-				}
-				if !bytes.Equal(previousBlock.GetBlockHash(), block.PreviousBlockHash) {
-					return status.Error(codes.InvalidArgument,
-						"blockchain changed, ignore the incoming block",
-					)
-				}
-				lastBlocks, err := bs.PopOffToBlock(previousBlock)
-				if err != nil {
-					return err
-				}
-				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
-				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
-					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return status.Error(codes.InvalidArgument, "InvalidBlock")
-					}
+	// check if already broadcast receipt to this node
+	_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+	if err == nil {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	}
 
-					bs.Logger.Info("pushing back popped off block")
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
-				}
-				err = bs.PushBlock(previousBlock, block, true)
-				if err != nil {
-					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false)
-					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
-						return status.Error(codes.InvalidArgument, "InvalidBlock")
-					}
-					bs.Logger.Info("pushing back popped off block")
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
-				}
-				return nil
-			}()
-			if err != nil {
-				return nil, err
-			}
-		}
-		// check if already broadcast receipt to this node
-		_, err := bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
-		if err != nil {
-			if err == badger.ErrKeyNotFound {
-				blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
-				if err != nil {
-					return nil, err
-				}
-				if !bytes.Equal(blockHash, lastBlock.GetBlockHash()) {
-					// invalid block hash don't send receipt to client
-					return nil, status.Error(codes.InvalidArgument, "InvalidBlockHash")
-				}
-				batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
-					bs.Chaintype,
-					block.GetBlockHash(),
-					lastBlock,
-					senderPublicKey,
-					nodeSecretPhrase,
-					constant.KVdbTableBlockReminderKey+string(receiptKey),
-					constant.ReceiptDatumTypeBlock,
-					bs.Signature,
-					bs.QueryExecutor,
-					bs.KVExecutor,
-				)
-				if err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
-				}
-				return batchReceipt, nil
-			}
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument,
-			"previousBlockHashDoesNotMatchWithLastBlockHash",
-		)
+	if err != badger.ErrKeyNotFound {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "failed get receipt key")
 	}
-	err = func() error {
-		// pushBlock closure to release lock as soon as block pushed
-		// Securing receive block process
-		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-		defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-		// making sure get last block after paused process
-		lastBlock, err = bs.GetLastBlock()
-		if err != nil {
-			return status.Error(codes.Internal,
-				"fail to get last block",
-			)
-		}
-		// Validate incoming block
-		err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
-		if err != nil {
-			return status.Error(codes.InvalidArgument, "InvalidBlock")
-		}
-		err = bs.PushBlock(lastBlock, block, true)
-		if err != nil {
-			return status.Error(codes.InvalidArgument, err.Error())
-		}
-		return nil
-	}()
-	if err != nil {
-		return nil, err
-	}
+
 	// generate receipt and return as response
-	batchReceipt, err := coreUtil.GenerateBatchReceiptWithReminder(
+	batchReceipt, err := bs.ReceiptService.GenerateBatchReceiptWithReminder(
 		bs.Chaintype,
 		block.GetBlockHash(),
 		lastBlock,
@@ -1207,9 +1302,6 @@ func (bs *BlockService) ReceiveBlock(
 		nodeSecretPhrase,
 		constant.KVdbTableBlockReminderKey+string(receiptKey),
 		constant.ReceiptDatumTypeBlock,
-		bs.Signature,
-		bs.QueryExecutor,
-		bs.KVExecutor,
 	)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -1299,7 +1391,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
-		coreUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
+		bs.ReceiptUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
 	)
 	if err != nil {
 		return nil, err
@@ -1412,7 +1504,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			tx     *model.Transaction
 			txType transaction.TypeAction
 		)
-		tx, err := transaction.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
+		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -1448,5 +1540,252 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 	// remove peer memoization
 	bs.NodeRegistrationService.ResetScrambledNodes()
+	// clear block pool
+	bs.BlockPoolService.ClearBlockPool()
 	return poppedBlocks, nil
+}
+
+// WillSmith check if blocksmith need to calculate their smith time or need to smith or not
+func (bs *BlockService) WillSmith(
+	blocksmith *model.Blocksmith,
+	blockchainProcessorLastBlockID int64,
+) (int64, error) {
+	var blocksmithScore int64
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+			blocker.SmithingErr, "genesis block has not been applied")
+	}
+
+	// caching: only calculate smith time once per new block
+	if lastBlock.GetID() != blockchainProcessorLastBlockID {
+		blockchainProcessorLastBlockID = lastBlock.GetID()
+		bs.BlocksmithStrategy.SortBlocksmiths(lastBlock)
+		// check if eligible to create block in this round
+		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
+			return blockchainProcessorLastBlockID,
+				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
+		}
+		// calculate blocksmith score for the block type
+		// try to get the node's participation score (ps) from node public key
+		// if node is not registered, ps will be 0 and this node won't be able to smith
+		// the default ps is 100000, smithing could be slower than when using account balances
+		// since default balance was 1000 times higher than default ps
+		blocksmithScore, err = bs.GetParticipationScore(blocksmith.NodePublicKey)
+		if blocksmithScore <= 0 {
+			bs.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
+		}
+		if err != nil || blocksmithScore < 0 {
+			// no negative scores allowed
+			blocksmithScore = 0
+			bs.Logger.Errorf("Participation score calculation: %s", err)
+		}
+		err = bs.BlocksmithStrategy.CalculateSmith(
+			lastBlock,
+			*(blocksmithsMap[string(blocksmith.NodePublicKey)]),
+			blocksmith,
+			blocksmithScore,
+		)
+		if err != nil {
+			return blockchainProcessorLastBlockID, err
+		}
+		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
+	}
+	// check for block pool duplicate
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+	blocksmithIndex := blocksmithsMap[string(blocksmith.NodePublicKey)]
+	blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
+	if blockPool != nil {
+		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+			blocker.BlockErr, "DuplicateBlockPool",
+		)
+	}
+	return blockchainProcessorLastBlockID, nil
+}
+
+// ProcessCompletedBlock to process block that already having all needed transactions
+func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	//  check equality last block hash with previous block hash from received block
+	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
+		// check if incoming block is of higher quality
+		// todo: moving this piece of code to another interface (block popper or process fork) the test will come later.
+		if bytes.Equal(lastBlock.GetPreviousBlockHash(), block.PreviousBlockHash) &&
+			block.Timestamp < lastBlock.Timestamp {
+			previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+			if err != nil {
+				return status.Error(codes.Internal,
+					"fail to get last block",
+				)
+			}
+			err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+			if err != nil {
+				return status.Error(codes.InvalidArgument, "InvalidBlock")
+			}
+			lastBlocks, err := bs.PopOffToBlock(previousBlock)
+			if err != nil {
+				return err
+			}
+
+			err = bs.PushBlock(previousBlock, block, true, true)
+			if err != nil {
+				errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
+				if errPushBlock != nil {
+					bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+					return status.Error(codes.InvalidArgument, "InvalidBlock")
+				}
+				bs.Logger.Info("pushing back popped off block")
+				return status.Error(codes.InvalidArgument, "InvalidBlock")
+			}
+			return nil
+		}
+		return status.Error(codes.InvalidArgument,
+			"previousBlockHashDoesNotMatchWithLastBlockHash",
+		)
+	}
+	// Validate incoming block
+	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+	if err != nil {
+		return status.Error(codes.InvalidArgument, "InvalidBlock")
+	}
+	err = bs.PushBlock(lastBlock, block, true, false)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
+// ProcessQueueBlock process to queue block when waiting their transactions
+func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) (needWaiting bool, err error) {
+	// check block having transactions or not
+	if len(block.TransactionIDs) == 0 {
+		return false, nil
+	}
+	// check block already queued or not
+	if bs.BlockIncompleteQueueService.GetBlockQueue(block.GetID()) != nil {
+		return true, nil
+	}
+	var (
+		txRequiredByBlock     = make(TransactionIDsMap)
+		txRequiredByBlockArgs []interface{}
+	)
+	block.Transactions = make([]*model.Transaction, len(block.GetTransactionIDs()))
+	for idx, txID := range block.TransactionIDs {
+		txRequiredByBlock[txID] = idx
+		// used as argument when quermockBlockDataying in mempool
+		txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
+	}
+
+	// find needed transactions in mempool
+	var (
+		caseQuery    = query.NewCaseQuery()
+		mempoolQuery = query.NewMempoolQuery(bs.Chaintype)
+		mempools     []*model.MempoolTransaction
+	)
+	// build query to select transaction in mempool transaction
+	caseQuery.Select(mempoolQuery.TableName, mempoolQuery.Fields...)
+	caseQuery.Where(caseQuery.In("id", txRequiredByBlockArgs...))
+	selectQuery, args := caseQuery.Build()
+	rows, err := bs.QueryExecutor.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	mempools, err = mempoolQuery.BuildModel(mempools, rows)
+	if err != nil {
+		return false, err
+	}
+	for _, mempool := range mempools {
+		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.TransactionBytes, true)
+		if err != nil {
+			continue
+		}
+		block.Transactions[txRequiredByBlock[tx.GetID()]] = tx
+		delete(txRequiredByBlock, tx.GetID())
+	}
+	// process when needed trasacntions are completed
+	if len(txRequiredByBlock) == 0 {
+		err := bs.ProcessCompletedBlock(block)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	// saving temporary block
+	bs.BlockIncompleteQueueService.AddBlockQueue(block)
+	bs.BlockIncompleteQueueService.SetTransactionsRequired(block.GetID(), txRequiredByBlock)
+
+	if peer == nil {
+		bs.Logger.Errorf("Error peer is null, can not request block transactions from the Peer")
+	}
+
+	var txIds []int64
+	for txID := range txRequiredByBlock {
+		txIds = append(txIds, txID)
+	}
+
+	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, peer)
+	return true, nil
+}
+
+// ReceivedValidatedBlockTransactionsListener will receive validated transactions to complete transactions of blocks queued
+func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsInterface interface{}, args ...interface{}) {
+			transactions, ok := transactionsInterface.([]*model.Transaction)
+			if !ok {
+				bs.Logger.Fatalln("transactions casting failures in ReceivedValidatedBlockTransactionsListener")
+			}
+			for _, transaction := range transactions {
+				var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(transaction)
+				for _, block := range completedBlocks {
+					err := bs.ProcessCompletedBlock(block)
+					if err != nil {
+						bs.Logger.Warn(blocker.BlockErr, err.Error())
+					}
+				}
+			}
+		},
+	}
+}
+
+// ReceivedValidatedBlockTransactionsListener will send the transactions required by blocks
+func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {
+			bs.ChainWriteLock(constant.BlockchainSendingBlockTransactions)
+			defer bs.ChainWriteUnlock(constant.BlockchainSendingBlockTransactions)
+
+			var (
+				err            error
+				transactions   []*model.Transaction
+				transactionIds []int64
+				peer           *model.Peer
+				ok             bool
+			)
+
+			transactionIds, ok = transactionsIdsInterface.([]int64)
+			if !ok {
+				bs.Logger.Fatalln("transactionIds casting failures in BlockTransactionsRequestedListener")
+			}
+
+			peer, ok = args[1].(*model.Peer)
+			if !ok {
+				bs.Logger.Fatalln("peer casting failures in BlockTransactionsRequestedListener")
+			}
+
+			transactions, err = bs.TransactionCoreService.GetTransactionsByIds(transactionIds)
+			if err != nil {
+				return
+			}
+			bs.Observer.Notify(observer.SendBlockTransactions, transactions, bs.Chaintype, peer)
+		},
+	}
 }

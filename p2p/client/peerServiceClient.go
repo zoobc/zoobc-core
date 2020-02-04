@@ -37,6 +37,16 @@ type (
 			transactionBytes []byte,
 			chainType chaintype.ChainType,
 		) error
+		SendBlockTransactions(
+			destPeer *model.Peer,
+			transactionsBytes [][]byte,
+			chainType chaintype.ChainType,
+		) error
+		RequestBlockTransactions(
+			destPeer *model.Peer,
+			transactonIDs []int64,
+			chainType chaintype.ChainType,
+		) error
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
 			astMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error)
@@ -175,6 +185,9 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 
 // GetPeerInfo to get Peer info
 func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+
 	// add a copy to avoid pointer delete
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -206,6 +219,9 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 
 // GetMorePeers to collect more peers available
 func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetMorePeersClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -228,6 +244,9 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 
 // SendPeers sends set of peers to other node (to populate the network)
 func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendPeersClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendPeersClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -254,6 +273,9 @@ func (psc *PeerServiceClient) SendBlock(
 	block *model.Block,
 	chainType chaintype.ChainType,
 ) error {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendBlockClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendBlockClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return err
@@ -292,6 +314,9 @@ func (psc *PeerServiceClient) SendTransaction(
 	transactionBytes []byte,
 	chainType chaintype.ChainType,
 ) error {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return err
@@ -324,11 +349,82 @@ func (psc *PeerServiceClient) SendTransaction(
 	return err
 }
 
+// SendBlockTransactions sends transactions required by a block requested by the peer
+func (psc *PeerServiceClient) SendBlockTransactions(
+	destPeer *model.Peer,
+	transactionsBytes [][]byte,
+	chainType chaintype.ChainType,
+) error {
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return err
+	}
+	var (
+		response       *model.SendBlockTransactionsResponse
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+
+	response, err = p2pClient.SendBlockTransactions(ctx, &model.SendBlockTransactionsRequest{
+		SenderPublicKey:   psc.NodePublicKey,
+		TransactionsBytes: transactionsBytes,
+		ChainType:         chainType.GetTypeInt(),
+	})
+	if err != nil {
+		return err
+	}
+	if response == nil || response.BatchReceipts == nil || len(response.BatchReceipts) == 0 {
+		return nil
+	}
+
+	for _, batchReceipt := range response.BatchReceipts {
+		// continue even though some receipts are failing
+		_ = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		_ = psc.storeReceipt(batchReceipt)
+	}
+	return err
+}
+
+func (psc *PeerServiceClient) RequestBlockTransactions(
+	destPeer *model.Peer,
+	transactonIDs []int64,
+	chainType chaintype.ChainType,
+) error {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
+
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactonsRequest{
+		TransactionIDs: transactonIDs,
+		ChainType:      chainType.GetTypeInt(),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetCumulativeDifficulty request the cumulative difficulty status of a node
 func (psc *PeerServiceClient) GetCumulativeDifficulty(
 	destPeer *model.Peer,
 	chaintype chaintype.ChainType,
 ) (*model.GetCumulativeDifficultyResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -357,6 +453,9 @@ func (psc *PeerServiceClient) GetCommonMilestoneBlockIDs(
 	chaintype chaintype.ChainType,
 	lastBlockID, lastMilestoneBlockID int64,
 ) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -388,6 +487,9 @@ func (psc *PeerServiceClient) GetNextBlockIDs(
 	blockID int64,
 	limit uint32,
 ) (*model.BlockIdsResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -419,6 +521,9 @@ func (psc *PeerServiceClient) GetNextBlocks(
 	blockIds []int64,
 	blockID int64,
 ) (*model.BlocksData, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlocksClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlocksClient)
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err

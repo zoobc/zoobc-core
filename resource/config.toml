@@ -8,7 +8,7 @@ nodeKeyFile = "node_keys.json"
 # Peer
 peerPort=8001
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=["127.0.0.1:8002:0.0.31:ZooBC-Alpha"]
 Version = "0.0.31"
 CodeName = "ZooBC-Alpha"
 

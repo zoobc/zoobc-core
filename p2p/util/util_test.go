@@ -93,10 +93,12 @@ func TestNewHost(t *testing.T) {
 	}
 }
 
-func TestNewKnownPeer(t *testing.T) {
+func TestNewPeer(t *testing.T) {
 	type args struct {
-		address string
-		port    int
+		address  string
+		port     int
+		version  string
+		codename string
 	}
 	tests := []struct {
 		name string
@@ -105,23 +107,27 @@ func TestNewKnownPeer(t *testing.T) {
 	}{
 		// TODO: Add test cases.
 		{
-			name: "NewKnownPeer:success",
+			name: "NewPeer:success",
 			args: args{
-				address: "127.0.0.1",
-				port:    8001,
+				address:  "127.0.0.1",
+				port:     8001,
+				version:  "0.0.31",
+				codename: "ZooBC-Alpha",
 			},
 			want: &model.Peer{
 				Info: &model.Node{
-					Address: "127.0.0.1",
-					Port:    8001,
+					Address:  "127.0.0.1",
+					Port:     8001,
+					Version:  "0.0.31",
+					CodeName: "ZooBC-Alpha",
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewKnownPeer(tt.args.address, tt.args.port); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewKnownPeer() = %v, want %v", got, tt.want)
+			if got := NewPeer(tt.args.address, tt.args.port, tt.args.version, tt.args.codename); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewPeer() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -173,9 +179,10 @@ func TestParseKnownPeers(t *testing.T) {
 		{
 			name: "ParseKnownPeersTest:success",
 			args: args{
-				peers: []string{"192.168.1.2:2001", "192.168.5.123:3000"},
+				peers: []string{"192.168.1.2:2001:0.0.31:ZooBC-Alpha", "192.168.5.123:3000:0.0.31:ZooBC-Alpha"},
 			},
-			want:    append([]*model.Peer{}, NewKnownPeer("192.168.1.2", 2001), NewKnownPeer("192.168.5.123", 3000)),
+			want: append([]*model.Peer{}, NewPeer("192.168.1.2", 2001, "0.0.31", "ZooBC-Alpha"),
+				NewPeer("192.168.5.123", 3000, "0.0.31", "ZooBC-Alpha")),
 			wantErr: false,
 		},
 		{

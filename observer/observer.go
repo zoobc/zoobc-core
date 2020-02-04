@@ -5,7 +5,7 @@ import "sync"
 type (
 	Event string
 
-	OnNotify func(data interface{}, args interface{})
+	OnNotify func(data interface{}, args ...interface{})
 
 	Listener struct {
 		OnNotify OnNotify
@@ -43,8 +43,8 @@ func (o *Observer) Remove(event Event) {
 }
 
 // Notify send data & arg to registered listener based on event
-func (o *Observer) Notify(event Event, data, args interface{}) {
+func (o *Observer) Notify(event Event, data interface{}, args ...interface{}) {
 	for _, listener := range o.Listeners[event] {
-		listener.OnNotify(data, args)
+		listener.OnNotify(data, args...)
 	}
 }

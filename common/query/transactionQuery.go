@@ -14,6 +14,7 @@ type (
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
 		GetTransaction(id int64) string
 		GetTransactions(limit uint32, offset uint64) string
+		GetTransactionsByIds(txIds []int64) (str string, args []interface{})
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(txs []*model.Transaction, rows *sql.Rows) ([]*model.Transaction, error)
@@ -94,6 +95,16 @@ func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string,
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? "+
 		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
+}
+
+func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, args []interface{}) {
+	var txIdsStr []string
+
+	for _, txID := range txIds {
+		txIdsStr = append(txIdsStr, fmt.Sprintf("%d", txID))
+	}
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE id in (%s)", strings.Join(tq.Fields, ", "), tq.getTableName(), strings.Join(txIdsStr, ","))
+	return query, []interface{}{}
 }
 
 // DeleteTransactions. delete some transactions according to timestamp

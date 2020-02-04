@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -13,7 +14,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 type (
@@ -55,6 +58,17 @@ type (
 			transactionBytes,
 			senderPublicKey []byte,
 		) (*model.SendTransactionResponse, error)
+		SendBlockTransactions(
+			ctx context.Context,
+			chainType chaintype.ChainType,
+			transactionsBytes [][]byte,
+			senderPublicKey []byte,
+		) (*model.SendBlockTransactionsResponse, error)
+		RequestBlockTransactions(
+			ctx context.Context,
+			chainType chaintype.ChainType,
+			transactionsIDs []int64,
+		) (*model.Empty, error)
 	}
 
 	P2PServerService struct {
@@ -62,6 +76,7 @@ type (
 		BlockServices    map[int32]coreService.BlockServiceInterface
 		MempoolServices  map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase string
+		Observer         *observer.Observer
 	}
 )
 
@@ -70,6 +85,7 @@ func NewP2PServerService(
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
+	observer *observer.Observer,
 ) *P2PServerService {
 
 	return &P2PServerService{
@@ -77,6 +93,7 @@ func NewP2PServerService(
 		BlockServices:    blockServices,
 		MempoolServices:  mempoolServices,
 		NodeSecretPhrase: nodeSecretPhrase,
+		Observer:         observer,
 	}
 }
 
@@ -314,6 +331,9 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
+		md, _ := metadata.FromIncomingContext(ctx)
+		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+		peer, _ := p2pUtil.ParsePeer(fullAddress)
 		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(
@@ -326,6 +346,7 @@ func (ps *P2PServerService) SendBlock(
 			lastBlock,
 			block,
 			ps.NodeSecretPhrase,
+			peer,
 		)
 		if err != nil {
 			return nil, err
@@ -365,6 +386,56 @@ func (ps *P2PServerService) SendTransaction(
 		return &model.SendTransactionResponse{
 			BatchReceipt: batchReceipt,
 		}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+// SendTransaction receive transaction from other node and calling TransactionReceived Event
+func (ps *P2PServerService) SendBlockTransactions(
+	ctx context.Context,
+	chainType chaintype.ChainType,
+	transactionsBytes [][]byte,
+	senderPublicKey []byte,
+) (*model.SendBlockTransactionsResponse, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		if err != nil {
+			return nil, blocker.NewBlocker(
+				blocker.BlockErr,
+				"fail to get last block",
+			)
+		}
+
+		batchReceipts, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedBlockTransactions(
+			senderPublicKey,
+			transactionsBytes,
+			lastBlock,
+			ps.NodeSecretPhrase,
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &model.SendBlockTransactionsResponse{
+			BatchReceipts: batchReceipts,
+		}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) RequestBlockTransactions(
+	ctx context.Context,
+	chainType chaintype.ChainType,
+	transactionsIDs []int64,
+) (*model.Empty, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		md, _ := metadata.FromIncomingContext(ctx)
+		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+		peer, err := p2pUtil.ParsePeer(fullAddress)
+		if err != nil {
+			_ = status.Error(codes.InvalidArgument, "Invalid requester data")
+		}
+		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, peer)
+		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

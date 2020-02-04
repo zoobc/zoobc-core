@@ -19,6 +19,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -339,9 +340,8 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
-	bs := service.NewBlockService(
+	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
-		nil,
 		nil,
 		nil,
 		nil,
@@ -360,6 +360,11 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
 		nil,
 		nil,
 	)

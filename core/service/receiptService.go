@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -13,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -30,6 +33,14 @@ type (
 		) error
 		PruningNodeReceipts() error
 		GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
+		GenerateBatchReceiptWithReminder(
+			ct chaintype.ChainType,
+			receivedDatumHash []byte,
+			lastBlock *model.Block,
+			senderPublicKey []byte,
+			nodeSecretPhrase, receiptKey string,
+			datumType uint32,
+		) (*model.BatchReceipt, error)
 	}
 
 	ReceiptService struct {
@@ -43,6 +54,7 @@ type (
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		ReceiptUtil             coreUtil.ReceiptUtilInterface
 	}
 )
 
@@ -57,6 +69,7 @@ func NewReceiptService(
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:        nodeReceiptQuery,
@@ -69,6 +82,7 @@ func NewReceiptService(
 		NodeRegistrationService: nodeRegistrationService,
 		Signature:               signature,
 		PublishedReceiptQuery:   publishedReceiptQuery,
+		ReceiptUtil:             receiptUtil,
 	}
 }
 
@@ -148,7 +162,7 @@ func (rs *ReceiptService) SelectReceipts(
 				continue
 			}
 			var intermediateHashes [][]byte
-			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcByte := rs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 			rcHash := sha3.Sum256(rcByte)
 
 			intermediateHashesBuffer := merkle.GetIntermediateHashes(
@@ -265,7 +279,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 		for _, b := range batchReceipts {
 			// hash the receipts
-			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
+			hashedBatchReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedBatchReceiptBytes(b))
 			hashedReceipts = append(
 				hashedReceipts,
 				bytes.NewBuffer(hashedBatchReceipt[:]),
@@ -329,7 +343,7 @@ func (rs *ReceiptService) ValidateReceipt(
 		blockAtHeight model.Block
 		err           error
 	)
-	unsignedBytes := util.GetUnsignedBatchReceiptBytes(receipt)
+	unsignedBytes := rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(receipt)
 	if !rs.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		receipt.RecipientSignature,
@@ -490,4 +504,51 @@ func (rs *ReceiptService) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*m
 		return publishedReceipts, err
 	}
 	return publishedReceipts, nil
+}
+
+func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
+	ct chaintype.ChainType,
+	receivedDatumHash []byte,
+	lastBlock *model.Block,
+	senderPublicKey []byte,
+	nodeSecretPhrase, receiptKey string,
+	datumType uint32,
+) (*model.BatchReceipt, error) {
+	var (
+		rmrLinked     []byte
+		batchReceipt  *model.BatchReceipt
+		err           error
+		merkleQuery   = query.NewMerkleTreeQuery()
+		nodePublicKey = util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		lastRmrQ      = merkleQuery.GetLastMerkleRoot()
+		row, _        = rs.QueryExecutor.ExecuteSelectRow(lastRmrQ, false)
+	)
+
+	rmrLinked, err = merkleQuery.ScanRoot(row)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	// generate receipt
+	batchReceipt, err = rs.ReceiptUtil.GenerateBatchReceipt(
+		ct,
+		lastBlock,
+		senderPublicKey,
+		nodePublicKey,
+		receivedDatumHash,
+		rmrLinked,
+		datumType,
+	)
+	if err != nil {
+		return nil, err
+	}
+	batchReceipt.RecipientSignature = rs.Signature.SignByNode(
+		rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(batchReceipt),
+		nodeSecretPhrase,
+	)
+	// store the generated batch receipt hash for reminder
+	err = rs.KVExecutor.Insert(receiptKey, receivedDatumHash, constant.KVdbExpiryReceiptReminder)
+	if err != nil {
+		return nil, err
+	}
+	return batchReceipt, nil
 }

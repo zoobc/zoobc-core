@@ -8,7 +8,9 @@ nodeKeyFile = "node_keys_5.json"
 # Peer
 peerPort=8005
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=["127.0.0.1:8002:0.0.31:ZooBC-Alpha"]
+Version = "0.0.31"
+CodeName = "ZooBC-Alpha"
 
 apiRPCPort=3005
 # comment out or set to 0 to disable http proxy, only enable in dev mode

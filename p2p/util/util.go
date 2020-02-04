@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-const DefaultConnectionMetadata = "requster"
+const DefaultConnectionMetadata = "requester"
 
 // NewHost to initialize new server node
 func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
@@ -44,44 +45,55 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 	}
 }
 
-// NewKnownPeer to parse address & port into Peer structur
-func NewKnownPeer(address string, port int) *model.Peer {
+// NewPeer to parse address & port into Peer structur
+func NewPeer(address string, port int, version, codename string) *model.Peer {
 	return &model.Peer{
 		Info: &model.Node{
 			Address:  address,
 			Port:     uint32(port),
-			Version:  viper.GetString("Version"),
-			CodeName: viper.GetString("CodeName"),
+			Version:  version,
+			CodeName: codename,
 		},
 	}
 }
 
-// ParseKnownPeers to parse list of string peers into list of Peer structur
+// ParsePeer to parse an address to a peer model
+func ParsePeer(peerStr string) (*model.Peer, error) {
+	peerInfo := strings.Split(peerStr, ":")
+	fmt.Printf("peer info %v\n", peerInfo)
+	peerAddress := peerInfo[0]
+	peerPort, err := strconv.Atoi(peerInfo[1])
+	peerVersion := peerInfo[2]
+	peerCodename := peerInfo[3]
+	if err != nil {
+		return nil, errors.New("invalid port number in the passed knownPeers list")
+	}
+	return NewPeer(peerAddress, peerPort, peerVersion, peerCodename), nil
+}
+
+// ParseKnownPeers to parse list of string peers into list of Peer structure
 func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	var (
 		knownPeers []*model.Peer
 	)
-
 	for _, peerData := range peers {
-		peerInfo := strings.Split(peerData, ":")
-		peerAddress := peerInfo[0]
-		peerPort, err := strconv.Atoi(peerInfo[1])
+		peer, err := ParsePeer(peerData)
 		if err != nil {
-			return nil, errors.New("invalid port number in the passed knownPeers list")
+			return nil, err
 		}
-		knownPeers = append(knownPeers, NewKnownPeer(peerAddress, peerPort))
+		knownPeers = append(knownPeers, peer)
 	}
 	return knownPeers, nil
 }
 
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
-	return peer.GetInfo().GetAddress() + ":" + strconv.Itoa(int(peer.GetInfo().GetPort()))
+	return peer.GetInfo().GetAddress() + ":" + strconv.Itoa(int(peer.GetInfo().GetPort())) + ":" + peer.GetInfo().GetVersion() + ":" + peer.GetInfo().GetCodeName()
 }
 
 // GetFullAddress to get full address of node
 func GetFullAddress(node *model.Node) string {
-	return node.GetAddress() + ":" + strconv.Itoa(int(node.GetPort()))
+	return node.GetAddress() + ":" + strconv.Itoa(int(node.GetPort())) + ":" + node.GetVersion() + ":" + node.GetCodeName()
 }
 
 func GetNodeInfo(fullAddress string) *model.Node {

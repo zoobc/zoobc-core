@@ -17,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -80,6 +81,8 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
+	transactionUtil := &transaction.Util{}
+	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
@@ -98,7 +101,21 @@ func initialize(
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
+	receiptService := service.NewReceiptService(
+		query.NewNodeReceiptQuery(),
+		nil,
+		query.NewMerkleTreeQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
+		nil,
+		queryExecutor,
+		nodeRegistrationService,
+		crypto.NewSignature(),
+		nil,
+		receiptUtil,
+	)
 	mempoolService := service.NewMempoolService(
+		transactionUtil,
 		chainType,
 		nil,
 		queryExecutor,
@@ -111,18 +128,8 @@ func initialize(
 		crypto.NewSignature(),
 		observerInstance,
 		log.New(),
-	)
-	receiptService := service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
-		nil,
-		query.NewMerkleTreeQuery(),
-		query.NewNodeRegistrationQuery(),
-		query.NewBlockQuery(chainType),
-		nil,
-		queryExecutor,
-		nodeRegistrationService,
-		crypto.NewSignature(),
-		nil,
+		receiptUtil,
+		receiptService,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -133,9 +140,9 @@ func initialize(
 		log.New(),
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), log.New(),
+		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
-	blockService = service.NewBlockService(
+	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
 		queryExecutor,
@@ -145,7 +152,6 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
-		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -158,6 +164,11 @@ func initialize(
 		blocksmithStrategy,
 		log.New(),
 		query.NewAccountLedgerQuery(),
+		service.NewBlockIncompleteQueueService(chainType, observerInstance),
+		transactionUtil,
+		receiptUtil,
+		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

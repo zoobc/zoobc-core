@@ -34,6 +34,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -57,7 +58,10 @@ var (
 	observerInstance                              *observer.Observer
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	mainchainBlockService                         *service.BlockService
+	spinechainBlockService                        *service.BlockSpineService
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
+	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
 	peerServiceClient                             client.PeerServiceClientInterface
 	p2pHost                                       *model.Host
@@ -71,6 +75,8 @@ var (
 	loggerCoreService                             *log.Logger
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
+	transactionUtil                               = &transaction.Util{}
+	receiptUtil                                   = &coreUtil.ReceiptUtil{}
 )
 
 func init() {
@@ -129,6 +135,7 @@ func init() {
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
+		receiptUtil,
 	)
 
 	// initialize Observer
@@ -240,7 +247,6 @@ func initP2pInstance() {
 	if viper.GetString("CodeName") == "" {
 		loggerCoreService.Fatal("Code Name is  need to be filled  ")
 	}
-
 	// init p2p instances
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
 	if err != nil {
@@ -275,6 +281,7 @@ func initP2pInstance() {
 		peerServiceClient,
 		peerExplorer,
 		loggerP2PService,
+		transactionUtil,
 	)
 }
 
@@ -283,6 +290,10 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
+	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
+	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
+	observerInstance.AddListener(observer.SendBlockTransactions, p2pServiceInstance.SendBlockTransactionsListener())
 }
 
 func startServices() {
@@ -293,6 +304,7 @@ func startServices() {
 		queryExecutor,
 		blockServices,
 		mempoolServices,
+		observerInstance,
 	)
 	api.Start(
 		apiRPCPort,
@@ -308,6 +320,9 @@ func startServices() {
 		isDebugMode,
 		apiCertFile,
 		apiKeyFile,
+		transactionUtil,
+		receiptUtil,
+		receiptService,
 	)
 
 	if isDebugMode {
@@ -335,6 +350,7 @@ func startMainchain() {
 	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
+		transactionUtil,
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -347,6 +363,8 @@ func startMainchain() {
 		crypto.NewSignature(),
 		observerInstance,
 		loggerCoreService,
+		receiptUtil,
+		receiptService,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
@@ -356,9 +374,16 @@ func startMainchain() {
 	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 	)
-	mainchainBlockService := service.NewBlockService(
+	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
+		mainchain,
+		observerInstance,
+	)
+	mainchainBlockPool := service.NewBlockPoolService()
+
+	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
 		queryExecutor,
@@ -368,7 +393,6 @@ func startMainchain() {
 		query.NewMerkleTreeQuery(),
 		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
-		nil,
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -381,6 +405,11 @@ func startMainchain() {
 		blocksmithStrategyMain,
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
+		blockIncompleteQueueService,
+		transactionUtil,
+		receiptUtil,
+		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
+		mainchainBlockPool,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -439,6 +468,7 @@ func startMainchain() {
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
+		transactionUtil,
 	)
 }
 
@@ -456,29 +486,19 @@ func startSpinechain() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockService := service.NewBlockService(
+	spinechainBlockPool := service.NewBlockPoolService()
+	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
 		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
-		query.NewMempoolQuery(spinechain),
-		query.NewTransactionQuery(spinechain),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
-		query.NewSkippedBlocksmithQuery(),
 		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
-		nil, // no mempool for spine blocks
-		receiptService,
-		nodeRegistrationService,
-		nil, // no transaction types for spine blocks
-		query.NewAccountBalanceQuery(),
-		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
-		nil, // no account ledger for spine blocks
+		spinechainBlockPool,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -510,6 +530,7 @@ func startSpinechain() {
 		nil, // no transaction types for spine blocks
 		loggerCoreService,
 		kvExecutor,
+		transactionUtil,
 	)
 }
 
@@ -519,21 +540,38 @@ func startScheduler() {
 		mainchain               = &chaintype.MainChain{}
 		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
 	)
+	// scheduler remove expired mempool transaction
 	if err := schedulerInstance.AddJob(
 		constant.CheckMempoolExpiration,
 		mainchainMempoolService.DeleteExpiredMempoolTransactions,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// scheduler to generate receipt markle root
 	if err := schedulerInstance.AddJob(
 		constant.ReceiptGenerateMarkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// scheduler to pruning receipts that was expired
 	if err := schedulerInstance.AddJob(
 		constant.PruningNodeReceiptPeriod,
 		receiptService.PruningNodeReceipts,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// register scan block pool for mainchain
+	if err := schedulerInstance.AddJob(
+		constant.BlockPoolScanPeriod,
+		mainchainBlockService.ScanBlockPool,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+	// scheduler to remove block uncomplete queue that already waiting transactions too long
+	if err := schedulerInstance.AddJob(
+		constant.CheckTimedOutBlock,
+		blockIncompleteQueueService.PruneTimeoutBlockQueue,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
