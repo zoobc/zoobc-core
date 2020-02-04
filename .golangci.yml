@@ -1,167 +1,170 @@
 linters-settings:
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-  govet:
-    check-shadowing: false
-    settings:
-      printf:
-        funcs:
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
-          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
-  golint:
-    min-confidence: 0.8
-  gofmt:
-    simplify: true
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 200
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: US
-    ignore-words:
-      - blocksmith
-      - smithing
-      - smith
-      - tx
-      - txs
-      - smithtime
-      - blockseed
-      - coinbase
-      - zoobc
-  lll:
-    line-length: 140
-  goimports:
-    local-prefixes: github.com/zoobc/zoobc-core
-  gocritic:
-    settings:
-      hugeParam:
-        sizeThreshold: 512
-    enabled-tags:
-      - performance
-      - style
-      - experimental
-    disabled-checks:
-      - wrapperFunc
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - exitAfterDefer
-      - importShadow
-  funlen:
-    l: 50
-    s: 55
+    errcheck:
+        check-type-assertions: false
+        check-blank: false
+    govet:
+        check-shadowing: false
+        settings:
+            printf:
+                funcs:
+                    - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+                    - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+                    - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+                    - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+    golint:
+        min-confidence: 0.8
+    gofmt:
+        simplify: true
+    maligned:
+        suggest-new: true
+    dupl:
+        threshold: 200
+    goconst:
+        min-len: 2
+        min-occurrences: 2
+    misspell:
+        locale: US
+        ignore-words:
+            - blocksmith
+            - smithing
+            - smith
+            - tx
+            - txs
+            - smithtime
+            - blockseed
+            - coinbase
+            - zoobc
+    lll:
+        line-length: 140
+    goimports:
+        local-prefixes: github.com/zoobc/zoobc-core
+    gocritic:
+        settings:
+            hugeParam:
+                sizeThreshold: 512
+        enabled-tags:
+            - performance
+            - style
+            - experimental
+        disabled-checks:
+            - wrapperFunc
+            - dupImport # https://github.com/go-critic/go-critic/issues/845
+            - exitAfterDefer
+            - importShadow
+    funlen:
+        l: 50
+        s: 55
 
 linters:
-  enable-all: true
-  disable:
-    - gocyclo
-    - maligned
-    - prealloc
-    - gochecknoglobals
-    - gochecknoinits
+    enable-all: true
+    disable:
+        - gocyclo
+        - maligned
+        - prealloc
+        - gochecknoglobals
+        - gochecknoinits
 
 run:
-  skip-dirs:
-    - vendor
-    - common/schema
-  skip-files:
-    - common/model/*.pb.*.go
-    - common/service/*.pb.*.go
+    skip-dirs:
+        - vendor
+        - common/schema
+    skip-files:
+        - common/model/*.pb.*.go
+        - common/service/*.pb.*.go
 
 issues:
-  exclude-rules:
-    - text: "mnd: Magic number"
-      linters:
-        - gomnd
-    - text: "always receives"
-      linters:
-        - unparam
-    - text: "ifElseChain: rewrite if-else to switch statement"
-      linters:
-        - gocritic
-    - text: "rangeValCopy: each iteration copies"
-      linters:
-        - gocritic
-    - text: "cuddle"
-      linters:
-        - wsl
-    - text: "block should not start with a whitespace"
-      linters:
-        - wsl
-    - text: "block should not end with a whitespace"
-      linters:
-        - wsl
-    - text: "go statements can only invoke functions assigned on line above"
-      linters:
-        - wsl
-    - text: "unnecessary trailing newline"
-      linters:
-        - whitespace
-    - text: "unnecessary leading newline"
-      linters:
-        - whitespace
-    - text: "should not use underscores in Go names"
-      linters:
-        - stylecheck
-    - text: "blank identifiers"
-      linters:
-        - dogsled
-    - text: "Line contains TODO/BUG/FIXME"
-      linters:
-        - godox
-    - text: "G202: SQL string concatenation"
-      linters:
-        - gosec
-    - text: "is too long"
-      linters:
-        - funlen
-    - text: "has too many statements"
-      linters:
-        - funlen
-    - text: "occurrences, make it a constant"
-      linters:
-        - goconst
-    - text: "G201: SQL string formatting"
-      linters:
-        - gosec
-    - path: "(.+)_test.go"
-      linters:
-        - scopelint
-        - unused
-    - path: "(.+)_test.go"
-      text: "sync.noCopy"
-      linters:
-        - govet
-    - path: "(.+)_test.go"
-      text: "copylocks: literal copies lock value"
-      linters:
-        - govet
-    - path: "(.+)_test.go"
-      text: "copylocks: range var tt copies lock:"
-      linters:
-        - govet
-    - text: "File is not `goimports`-ed"
-      linters:
-        - goimports
-    - text: "lines are duplicate of"
-      linters:
-        - dupl
-    - text: "U1000: func `TransactionBodyInterface.isTransaction_TransactionBody` is unused"
-      linters:
-        - unused
-    - text: "don't use underscores in Go names; method isTransaction_TransactionBody should be isTransactionTransactionBody"
-      linters:
-        - golint
-    - text: "exported method ParseBodyBytes returns unexported type"
-      linters:
-        - golint
+    exclude-rules:
+        - text: "rows.Err must be checked"
+          linters:
+              - rowserrcheck
+        - text: "mnd: Magic number"
+          linters:
+              - gomnd
+        - text: "always receives"
+          linters:
+              - unparam
+        - text: "ifElseChain: rewrite if-else to switch statement"
+          linters:
+              - gocritic
+        - text: "rangeValCopy: each iteration copies"
+          linters:
+              - gocritic
+        - text: "cuddle"
+          linters:
+              - wsl
+        - text: "block should not start with a whitespace"
+          linters:
+              - wsl
+        - text: "block should not end with a whitespace"
+          linters:
+              - wsl
+        - text: "go statements can only invoke functions assigned on line above"
+          linters:
+              - wsl
+        - text: "unnecessary trailing newline"
+          linters:
+              - whitespace
+        - text: "unnecessary leading newline"
+          linters:
+              - whitespace
+        - text: "should not use underscores in Go names"
+          linters:
+              - stylecheck
+        - text: "blank identifiers"
+          linters:
+              - dogsled
+        - text: "Line contains TODO/BUG/FIXME"
+          linters:
+              - godox
+        - text: "G202: SQL string concatenation"
+          linters:
+              - gosec
+        - text: "is too long"
+          linters:
+              - funlen
+        - text: "has too many statements"
+          linters:
+              - funlen
+        - text: "occurrences, make it a constant"
+          linters:
+              - goconst
+        - text: "G201: SQL string formatting"
+          linters:
+              - gosec
+        - path: "(.+)_test.go"
+          linters:
+              - scopelint
+              - unused
+        - path: "(.+)_test.go"
+          text: "sync.noCopy"
+          linters:
+              - govet
+        - path: "(.+)_test.go"
+          text: "copylocks: literal copies lock value"
+          linters:
+              - govet
+        - path: "(.+)_test.go"
+          text: "copylocks: range var tt copies lock:"
+          linters:
+              - govet
+        - text: "File is not `goimports`-ed"
+          linters:
+              - goimports
+        - text: "lines are duplicate of"
+          linters:
+              - dupl
+        - text: "U1000: func `TransactionBodyInterface.isTransaction_TransactionBody` is unused"
+          linters:
+              - unused
+        - text: "don't use underscores in Go names; method isTransaction_TransactionBody should be isTransactionTransactionBody"
+          linters:
+              - golint
+        - text: "exported method ParseBodyBytes returns unexported type"
+          linters:
+              - golint
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
 service:
-  golangci-lint-version: 1.17.x # use the fixed version to not introduce new linters unexpectedly
-  prepare:
-    - echo "here I can run custom commands, but no preparation needed for this repo"
+    golangci-lint-version: 1.17.x # use the fixed version to not introduce new linters unexpectedly
+    prepare:
+        - echo "here I can run custom commands, but no preparation needed for this repo"
