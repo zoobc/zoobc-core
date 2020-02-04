@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -68,15 +69,10 @@ func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
 	for _, nr := range nodeRegistrations {
 		bsfpk := &model.SpinePublicKey{
 			NodePublicKey:   nr.NodePublicKey,
+			PublicKeyAction: util.GetAddRemoveSpineKeyAction(nr.RegistrationStatus),
 			MainBlockHeight: nr.Height,
 			Height:          spineHeight,
 			Latest:          true,
-		}
-		switch nr.RegistrationStatus {
-		case uint32(model.NodeRegistrationState_NodeDeleted):
-			bsfpk.PublicKeyAction = model.SpinePublicKeyAction_RemoveKey
-		case uint32(model.NodeRegistrationState_NodeRegistered):
-			bsfpk.PublicKeyAction = model.SpinePublicKeyAction_AddKey
 		}
 		spinePublicKeys = append(spinePublicKeys, bsfpk)
 	}

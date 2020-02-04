@@ -25,12 +25,10 @@ type (
 		MainBlockQuery  query.BlockQueryInterface
 		Logger          *log.Logger
 		// below fields are for better code testability
-		Spinechain                    chaintype.ChainType
-		Mainchain                     chaintype.ChainType
-		SnapshotInterval              uint32
-		SnapshotGenerationTimeout     int64
-		SpineBlockManifestService     SpineBlockManifestServiceInterface
-		IsSpineBlocksDownloadFinished *bool
+		SnapshotInterval          uint32
+		SnapshotGenerationTimeout int64
+		SpineBlockManifestService SpineBlockManifestServiceInterface
+		SpineBlockDownloadService SpineBlockDownloadServiceInterface
 	}
 )
 
@@ -38,20 +36,18 @@ func NewSnapshotService(
 	queryExecutor query.ExecutorInterface,
 	mainBlockQuery, spineBlockQuery query.BlockQueryInterface,
 	spineBlockManifestService SpineBlockManifestServiceInterface,
+	spineBlockDownloadService SpineBlockDownloadServiceInterface,
 	logger *log.Logger,
-	isSpineBlocksDownloadFinished *bool,
 ) *SnapshotService {
 	return &SnapshotService{
-		QueryExecutor:                 queryExecutor,
-		SpineBlockQuery:               spineBlockQuery,
-		MainBlockQuery:                mainBlockQuery,
-		Spinechain:                    &chaintype.SpineChain{},
-		Mainchain:                     &chaintype.MainChain{},
-		SnapshotInterval:              constant.MainchainSnapshotInterval,
-		SnapshotGenerationTimeout:     constant.SnapshotGenerationTimeout,
-		SpineBlockManifestService:     spineBlockManifestService,
-		Logger:                        logger,
-		IsSpineBlocksDownloadFinished: isSpineBlocksDownloadFinished,
+		QueryExecutor:             queryExecutor,
+		SpineBlockQuery:           spineBlockQuery,
+		MainBlockQuery:            mainBlockQuery,
+		SnapshotInterval:          constant.MainchainSnapshotInterval,
+		SnapshotGenerationTimeout: constant.SnapshotGenerationTimeout,
+		SpineBlockManifestService: spineBlockManifestService,
+		Logger:                    logger,
+		SpineBlockDownloadService: spineBlockDownloadService,
 	}
 }
 
@@ -107,14 +103,21 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 // StartSnapshotListener setup listener for transaction to the list peer
 func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	return observer.Listener{
-		OnNotify: func(block interface{}, args interface{}) {
+		OnNotify: func(block interface{}, args ...interface{}) {
+			var (
+				ct chaintype.ChainType
+				ok bool
+			)
 			b := block.(*model.Block)
-			ct := args.(chaintype.ChainType)
+			ct, ok = args[0].(chaintype.ChainType)
+			if !ok {
+				ss.Logger.Fatalln("chaintype casting failures in StartSnapshotListener")
+			}
 			if ct.HasSnapshots() && ss.IsSnapshotHeight(b.Height, constant.MainchainSnapshotInterval) {
 				go func() {
 					// if spine blocks is downloading, do not generate (or download from other peers) snapshots
 					// don't generate snapshots until all spine blocks have been downloaded
-					if !*ss.IsSpineBlocksDownloadFinished {
+					if !ss.SpineBlockDownloadService.IsSpineBlocksDownloadFinished() {
 						ss.Logger.Infof("Snapshot at block "+
 							"height %d not generated because spine blocks are still downloading",
 							b.Height)
@@ -150,13 +153,14 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 
 // IsSnapshotHeight returns true if chain height passed is a snapshot height
 func (*SnapshotService) IsSnapshotHeight(height, snapshotInterval uint32) bool {
-	if snapshotInterval < constant.MinRollbackBlocks {
-		if height < constant.MinRollbackBlocks {
-			return false
-		} else if height == constant.MinRollbackBlocks {
-			return true
-		}
-		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
-	}
+	//FIXME: uncomment this when we are sure that snapshot downloads work
+	// if snapshotInterval < constant.MinRollbackBlocks {
+	// 	if height < constant.MinRollbackBlocks {
+	// 		return false
+	// 	} else if height == constant.MinRollbackBlocks {
+	// 		return true
+	// 	}
+	// 	return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	// }
 	return height%snapshotInterval == 0
 }

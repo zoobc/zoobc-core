@@ -313,8 +313,6 @@ func TestSnapshotService_IsSnapshotHeight(t *testing.T) {
 				SpineBlockQuery:           tt.fields.SpineBlockQuery,
 				MainBlockQuery:            tt.fields.MainBlockQuery,
 				Logger:                    tt.fields.Logger,
-				Spinechain:                tt.fields.Spinechain,
-				Mainchain:                 tt.fields.Mainchain,
 				SnapshotInterval:          tt.fields.SnapshotInterval,
 				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,

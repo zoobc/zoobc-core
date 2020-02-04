@@ -45,30 +45,29 @@ import (
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
 	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath string
-	dbInstance                              *database.SqliteDB
-	badgerDbInstance                        *database.BadgerDB
-	db                                      *sql.DB
-	badgerDb                                *badger.DB
-	apiRPCPort, apiHTTPPort, monitoringPort int
-	apiCertFile, apiKeyFile                 string
-	peerPort                                uint32
-	p2pServiceInstance                      p2p.Peer2PeerServiceInterface
-	queryExecutor                           *query.Executor
-	kvExecutor                              *kvdb.KVExecutor
-	observerInstance                        *observer.Observer
-	schedulerInstance                       *util.Scheduler
-	blockServices                           = make(map[int32]service.BlockServiceInterface)
-	mainchainBlockService                   *service.BlockService
-	spinechainBlockService                  *service.BlockSpineService
-	mempoolServices                         = make(map[int32]service.MempoolServiceInterface)
-	blockIncompleteQueueService             service.BlockIncompleteQueueServiceInterface
-	receiptService                          service.ReceiptServiceInterface
-	peerServiceClient                       client.PeerServiceClientInterface
-	p2pHost                                 *model.Host
-	peerExplorer                            p2pStrategy.PeerExplorerStrategyInterface
-	wellknownPeers                          []string
-	smithing, isNodePreSeed, isDebugMode,
-	isSpineBlocksDownloadFinished bool
+	dbInstance                                    *database.SqliteDB
+	badgerDbInstance                              *database.BadgerDB
+	db                                            *sql.DB
+	badgerDb                                      *badger.DB
+	apiRPCPort, apiHTTPPort, monitoringPort       int
+	apiCertFile, apiKeyFile                       string
+	peerPort                                      uint32
+	p2pServiceInstance                            p2p.Peer2PeerServiceInterface
+	queryExecutor                                 *query.Executor
+	kvExecutor                                    *kvdb.KVExecutor
+	observerInstance                              *observer.Observer
+	schedulerInstance                             *util.Scheduler
+	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	mainchainBlockService                         *service.BlockService
+	spinechainBlockService                        *service.BlockSpineService
+	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
+	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
+	receiptService                                service.ReceiptServiceInterface
+	peerServiceClient                             client.PeerServiceClientInterface
+	p2pHost                                       *model.Host
+	peerExplorer                                  p2pStrategy.PeerExplorerStrategyInterface
+	wellknownPeers                                []string
+	smithing, isNodePreSeed, isDebugMode          bool
 	nodeRegistrationService                       service.NodeRegistrationServiceInterface
 	mainchainProcessor                            smith.BlockchainProcessorInterface
 	spinechainProcessor                           smith.BlockchainProcessorInterface
@@ -77,6 +76,7 @@ var (
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
 	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
+	spineBlockDownloadService                     service.SpineBlockDownloadServiceInterface
 	snapshotService                               service.SnapshotServiceInterface
 	transactionUtil                               = &transaction.Util{}
 	receiptUtil                                   = &coreUtil.ReceiptUtil{}
@@ -89,7 +89,6 @@ func init() {
 		err           error
 	)
 
-	isSpineBlocksDownloadFinished = false
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
@@ -119,7 +118,7 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	// initialize nodeRegistration service
+	// initialize services
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -141,6 +140,7 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
+	spineBlockDownloadService = service.NewSpineBlockDownloadService()
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -152,8 +152,8 @@ func init() {
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		spineBlockManifestService,
+		spineBlockDownloadService,
 		loggerCoreService,
-		&isSpineBlocksDownloadFinished,
 	)
 
 	// initialize Observer
@@ -605,7 +605,7 @@ syncronizersLoop:
 				os.Exit(1)
 			}
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
-				isSpineBlocksDownloadFinished = true
+				spineBlockDownloadService.SetSpineBlocksDownloadFinished(true)
 				ticker.Stop()
 				// TODO: in future loop through all chain types that support snapshots and download them if we find
 				//  relative spineBlockManifest
