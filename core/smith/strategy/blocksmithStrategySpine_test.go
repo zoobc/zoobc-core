@@ -347,7 +347,7 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
 			bss.SortedBlocksmiths = make([]*model.Blocksmith, 0)
-			bss.SortBlocksmiths(tt.args.block)
+			bss.SortBlocksmiths(tt.args.block, true)
 			if len(bss.SortedBlocksmiths) > 0 && !bytes.Equal(bss.SortedBlocksmiths[0].NodePublicKey,
 				bssMockBlocksmiths[1].NodePublicKey) && !bytes.Equal(bss.SortedBlocksmiths[1].NodePublicKey,
 				bssMockBlocksmiths[0].NodePublicKey) {

@@ -138,7 +138,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	if lastBlock.GetID() != bp.LastBlockID {
 		bp.LastBlockID = lastBlock.GetID()
 		blockSmithStrategy := bp.BlockService.GetBlocksmithStrategy()
-		blockSmithStrategy.SortBlocksmiths(lastBlock)
+		blockSmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(bp.Generator.NodePublicKey)] == nil {
