@@ -20,6 +20,9 @@ type (
 		GetGenesisNodePublicKey() []byte
 		GetGenesisBlockTimestamp() int64
 		GetGenesisBlockSignature() []byte
+		// HasTransactions true if this chain type implements transactions (thus has a mempool)
 		HasTransactions() bool
+		// HasSnapshots true if this chain type implements snapshots
+		HasSnapshots() bool
 	}
 )
