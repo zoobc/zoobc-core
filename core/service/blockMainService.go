@@ -579,7 +579,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
-	bs.BlocksmithStrategy.SortBlocksmiths(block)
+	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// clear the block poolo
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
@@ -1560,7 +1560,7 @@ func (bs *BlockService) WillSmith(
 	// caching: only calculate smith time once per new block
 	if lastBlock.GetID() != blockchainProcessorLastBlockID {
 		blockchainProcessorLastBlockID = lastBlock.GetID()
-		bs.BlocksmithStrategy.SortBlocksmiths(lastBlock)
+		bs.BlocksmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {

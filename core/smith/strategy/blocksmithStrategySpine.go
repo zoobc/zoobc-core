@@ -77,12 +77,12 @@ func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model
 }
 
 func (bss *BlocksmithStrategySpine) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
-		bss.SortBlocksmiths(block)
-	}
-	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
+		bss.SortBlocksmiths(block, false)
+	}
+	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	copy(result, bss.SortedBlocksmiths)
 	return result
 }
@@ -92,18 +92,18 @@ func (bss *BlocksmithStrategySpine) GetSortedBlocksmithsMap(block *model.Block) 
 	var (
 		result = make(map[string]*int64)
 	)
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
-		bss.SortBlocksmiths(block)
-	}
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
+		bss.SortBlocksmiths(block, false)
+	}
 	for k, v := range bss.SortedBlocksmithsMap {
 		result[k] = v
 	}
 	return result
 }
 
-func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
+func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block, withLock bool) {
 	if block.ID == bss.LastSortedBlockID && block.ID != constant.SpinechainGenesisBlockID {
 		return
 	}
@@ -125,8 +125,10 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
 		return blocksmiths[i].BlockSeed < blocksmiths[j].BlockSeed
 	})
 
-	bss.SortedBlocksmithsLock.Lock()
-	defer bss.SortedBlocksmithsLock.Unlock()
+	if withLock {
+		bss.SortedBlocksmithsLock.Lock()
+		defer bss.SortedBlocksmithsLock.Unlock()
+	}
 	// copying the sorted list to map[string(publicKey)]index
 	for index, blocksmith := range blocksmiths {
 		blocksmithIndex := int64(index)
