@@ -170,7 +170,8 @@ func (mg *MempoolGetter) GetTotalMempoolTransactions() (int, error) {
 	var count int
 	sqlStr := mg.MempoolQuery.GetMempoolTransactions()
 	// note: this select is always insid a db transaction because AddMempoolTransaction is always called within a db tx
-	row, err := mg.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr), true)
+	aaa := query.GetTotalRecordOfSelect(sqlStr)
+	row, err := mg.QueryExecutor.ExecuteSelectRow(aaa, true)
 	if err != nil {
 		return count, err
 	}
