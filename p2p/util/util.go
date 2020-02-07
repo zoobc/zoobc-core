@@ -2,7 +2,6 @@ package util
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -60,7 +59,6 @@ func NewPeer(address string, port int, version, codename string) *model.Peer {
 // ParsePeer to parse an address to a peer model
 func ParsePeer(peerStr string) (*model.Peer, error) {
 	peerInfo := strings.Split(peerStr, ":")
-	fmt.Printf("peer info %v\n", peerInfo)
 	peerAddress := peerInfo[0]
 	peerPort, err := strconv.Atoi(peerInfo[1])
 	peerVersion := peerInfo[2]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -128,8 +129,8 @@ var (
 			},
 		},
 		IndexNodes: map[string]*int{
-			"127.0.0.1:8000": &indexScramble[0],
-			"127.0.0.1:3001": &indexScramble[1],
+			"127.0.0.1:8000:0.0.31:ZooBC-Alpha": &indexScramble[0],
+			"127.0.0.1:3001:0.0.31:ZooBC-Alpha": &indexScramble[1],
 		},
 	}
 
@@ -471,7 +472,6 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 							Info: &model.Node{
 								SharedAddress: "127.0.0.1",
 								Address:       "127.0.0.1",
-								Port:          3000,
 							},
 						},
 					},
@@ -483,7 +483,6 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 					Info: &model.Node{
 						SharedAddress: "127.0.0.1",
 						Address:       "127.0.0.1",
-						Port:          3000,
 					},
 				},
 			},
@@ -503,27 +502,6 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 								SharedAddress: "127.0.0.1",
 								Address:       "127.0.0.1",
 								Port:          3000,
-							},
-						},
-						"127.0.0.1:8000": {
-							Info: &model.Node{
-								SharedAddress: "127.0.0.1",
-								Address:       "127.0.0.1",
-								Port:          8000,
-							},
-						},
-						"127.0.0.1:8001": {
-							Info: &model.Node{
-								SharedAddress: "127.0.0.1",
-								Address:       "127.0.0.1",
-								Port:          8001,
-							},
-						},
-						"127.0.0.1:8002": {
-							Info: &model.Node{
-								SharedAddress: "127.0.0.1",
-								Address:       "127.0.0.1",
-								Port:          8002,
 							},
 						},
 					},
@@ -568,7 +546,10 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 				MaxUnresolvedPeers: tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:   tt.fields.MaxResolvedPeers,
 			}
-			if got := ps.GetUnresolvedPeers(); !reflect.DeepEqual(got, tt.want) {
+
+			got := ps.GetUnresolvedPeers()
+
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetUnresolvedPeers() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1118,7 +1099,9 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
-			if got := ps.GetPriorityPeers(); !reflect.DeepEqual(got, tt.want) {
+
+			got := ps.GetPriorityPeers()
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetPriorityPeers() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1194,7 +1177,11 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
-			if got := ps.ValidatePriorityPeer(tt.args.scrambledNodes, tt.args.host, tt.args.peer); got != tt.want {
+
+			got := ps.ValidatePriorityPeer(tt.args.scrambledNodes, tt.args.host, tt.args.peer)
+			fmt.Printf("got : %v\n", got)
+
+			if got != tt.want {
 				t.Errorf("PriorityStrategy.ValidatePriorityPeer() = %v, want %v", got, tt.want)
 			}
 		})
