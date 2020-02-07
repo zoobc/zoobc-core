@@ -53,3 +53,7 @@ func (*MainChain) GetGenesisBlockSignature() []byte {
 func (*MainChain) HasTransactions() bool {
 	return true
 }
+
+func (*MainChain) HasSnapshots() bool {
+	return true
+}

@@ -75,6 +75,9 @@ var (
 	loggerCoreService                             *log.Logger
 	loggerP2PService                              *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer *blockchainsync.Service
+	spineBlockManifestService                     service.SpineBlockManifestServiceInterface
+	spineBlockDownloadService                     service.SpineBlockDownloadServiceInterface
+	snapshotService                               service.SnapshotServiceInterface
 	transactionUtil                               = &transaction.Util{}
 	receiptUtil                                   = &coreUtil.ReceiptUtil{}
 )
@@ -99,7 +102,13 @@ func init() {
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	db, err = dbInstance.OpenDB(dbPath, dbName, constant.SQLMaxIdleConnections, constant.SQLMaxConnectionLifetime)
+	db, err = dbInstance.OpenDB(
+		dbPath,
+		dbName,
+		constant.SQLMaxOpenConnetion,
+		constant.SQLMaxIdleConnections,
+		constant.SQLMaxConnectionLifetime)
+
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -115,7 +124,7 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	// initialize nodeRegistration service
+	// initialize services
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -136,6 +145,21 @@ func init() {
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
+	)
+	spineBlockDownloadService = service.NewSpineBlockDownloadService()
+	spineBlockManifestService = service.NewSpineBlockManifestService(
+		queryExecutor,
+		query.NewSpineBlockManifestQuery(),
+		query.NewBlockQuery(&chaintype.SpineChain{}),
+		loggerCoreService,
+	)
+	snapshotService = service.NewSnapshotService(
+		queryExecutor,
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(&chaintype.SpineChain{}),
+		spineBlockManifestService,
+		spineBlockDownloadService,
+		loggerCoreService,
 	)
 
 	// initialize Observer
@@ -282,6 +306,7 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
+	observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
 	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
@@ -477,17 +502,13 @@ func startSpinechain() {
 	spinechain := &chaintype.SpineChain{}
 	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
 	sleepPeriod := 500
-
-	// TODO: not sure we even need this, since spine blocks are computed and created by every node
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	spinechainBlockPool := service.NewBlockPoolService()
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
-		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
 		query.NewSpinePublicKeyQuery(),
@@ -496,7 +517,7 @@ func startSpinechain() {
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
-		spinechainBlockPool,
+		query.NewSpineBlockManifestQuery(),
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
@@ -563,6 +584,13 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
+	// scheduler to remove block uncomplete queue that already waiting transactions too long
+	if err := schedulerInstance.AddJob(
+		constant.CheckTimedOutBlock,
+		blockIncompleteQueueService.PruneTimeoutBlockQueue,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
 	// register scan block pool for mainchain
 	if err := schedulerInstance.AddJob(
 		constant.BlockPoolScanPeriod,
@@ -593,7 +621,22 @@ syncronizersLoop:
 				os.Exit(1)
 			}
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
+				spineBlockDownloadService.SetSpineBlocksDownloadFinished(true)
 				ticker.Stop()
+				// TODO: in future loop through all chain types that support snapshots and download them if we find
+				//  relative spineBlockManifest
+				lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(&chaintype.MainChain{},
+					model.SpineBlockManifestType_Snapshot)
+				if err != nil {
+					loggerCoreService.Errorf("cannot get last spineBlockManifest")
+					os.Exit(1)
+				}
+				if lastSpineBlockManifest != nil {
+					loggerCoreService.Infof("found spineBlockManifest at spine height %d. snapshot taken at block height %d",
+						lastSpineBlock.Height, lastSpineBlockManifest.SpineBlockManifestHeight)
+					// TODO: snapshot download
+				}
+				// download remaining main blocks and start the mainchain synchronizer
 				go mainchainSynchronizer.Start()
 				break syncronizersLoop
 			}
@@ -601,7 +644,7 @@ syncronizersLoop:
 		// @iltoga this is mostly for debugging purposes.
 		// spine blocks shouldn't take that long to be downloaded
 		case <-timeout:
-			loggerCoreService.Info("spine blocks sync timedout...")
+			loggerCoreService.Info("spine blocks sync timed out...")
 			os.Exit(1)
 		}
 	}

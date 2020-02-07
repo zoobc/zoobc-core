@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -130,7 +131,7 @@ func getSqliteDB(dbPath, dbName string) (*sql.DB, error) {
 	if err := sqliteDbInstance.InitializeDB(dbPath, dbName); err != nil {
 		return nil, err
 	}
-	sqliteDB, err := sqliteDbInstance.OpenDB(dbPath, dbName, 10, 20)
+	sqliteDB, err := sqliteDbInstance.OpenDB(dbPath, dbName, 10, 10, 20*time.Minute)
 	if err != nil {
 		return nil, err
 	}

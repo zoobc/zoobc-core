@@ -15,7 +15,7 @@ apiHTTPPort=3033
 monitoringPort=9093
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
+ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"
 
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
