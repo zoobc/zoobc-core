@@ -4,7 +4,7 @@ import "time"
 
 var (
 	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
-	SQLMaxIdleConnections = 0
+	SQLMaxIdleConnections = 3
 	// SQLMaxConnectionLifetime Reprensent the expiration of opened database connetion
 	SQLMaxConnectionLifetime = 30 * time.Minute
 	// SQLMaxOpenConnetion represent the number of maximum open connetion to the database
