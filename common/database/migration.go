@@ -229,8 +229,8 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "spine_public_key"(
 				"node_public_key" BLOB,
-				"block_id"	INTEGER,
 				"public_key_action" INTEGER,
+				"main_block_height"	INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
 				PRIMARY KEY("node_public_key", "height")
@@ -247,6 +247,33 @@ func (m *Migration) Init() error {
 			`
 			ALTER TABLE "account_ledger"
 				ADD COLUMN "timestamp" INTEGER
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"approver_address" VARCHAR(255),
+				"amount" INTEGER,
+				"commission" INTEGER,
+				"timeout" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "spine_block_manifest" (
+				"id" INTEGER,				-- little endian of hash of all spine_block_manifest fields but itself
+				"full_file_hash" BLOB,			-- hash of the (snapshot) file content
+				"file_chunk_hashes" BLOB,		-- sorted sequence file chunks hashes referenced by the spine_block_manifest
+				"manifest_reference_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
+				"chain_type" INTEGER NOT NULL,		-- chain type this spine_block_manifest reference to
+				"manifest_type" INTEGER NOT NULL,	-- type of spine_block_manifest (as of now only snapshot)
+				"manifest_timestamp" INTEGER NOT NULL,-- timestamp that marks the end of file chunks processing 
+				PRIMARY KEY("id")
+				UNIQUE("id")
+			)
 			`,
 		}
 		return nil

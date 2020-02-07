@@ -1,6 +1,8 @@
 package util
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestMinUint32(t *testing.T) {
 	type args struct {
@@ -69,6 +71,58 @@ func TestMaxUint32(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := MaxUint32(tt.args.number1, tt.args.number2); got != tt.want {
 				t.Errorf("TestMaxUint32() = %v want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetNextStep(t *testing.T) {
+	type args struct {
+		curStep  int64
+		interval int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want int64
+	}{
+		{
+			name: "GetNextSnapshotHeight:success-{height_same_as_nextStep}",
+			args: args{
+				curStep:  74057,
+				interval: 74057,
+			},
+			want: int64(74057),
+		},
+		{
+			name: "GetNextSnapshotHeight:success-{height_lower_than_nextStep}",
+			args: args{
+				curStep:  1000,
+				interval: 74057,
+			},
+			want: int64(74057),
+		},
+		{
+			name: "GetNextSnapshotHeight:success-{height_higher_than_nextStep}",
+			args: args{
+				curStep:  84057,
+				interval: 74057,
+			},
+			want: int64(148114),
+		},
+		{
+			name: "GetNextSnapshotHeight:success-{height_more_than_double_nextStep}",
+			args: args{
+				curStep:  148115,
+				interval: 74057,
+			},
+			want: int64(222171),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetNextStep(tt.args.curStep, tt.args.interval); got != tt.want {
+				t.Errorf("GetNextStep() = %v, want %v", got, tt.want)
 			}
 		})
 	}

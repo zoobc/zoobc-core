@@ -53,21 +53,21 @@ func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
 
 	defer db.Close()
 	switch qStr {
-	case "SELECT node_public_key, block_id, public_key_action, latest, height " +
+	case "SELECT node_public_key, public_key_action, main_block_height, latest, height " +
 		"FROM spine_public_key WHERE height >= 0 AND height <= 1 AND " +
 		"public_key_action=0 AND latest=1 ORDER BY height":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			[]string{
 				"node_public_key",
-				"block_id",
 				"public_key_action",
+				"main_block_height",
 				"latest",
 				"height",
 			},
 		).AddRow(
 			bssMockBlocksmiths[0].NodePublicKey,
-			0,
 			uint32(model.SpinePublicKeyAction_AddKey),
+			1,
 			true,
 			uint32(1),
 		))
@@ -164,7 +164,7 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 					Timestamp: 0,
 				},
 			},
-			want: 30,
+			want: 60,
 		},
 		{
 			name: "GetSmithTime:1",
@@ -177,10 +177,10 @@ func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
 			args: args{
 				blocksmithIndex: 1,
 				block: &model.Block{
-					Timestamp: 120000,
+					Timestamp: 120120,
 				},
 			},
-			want: 120000 + 60,
+			want: 120000 + 240,
 		},
 	}
 	for _, tt := range tests {
@@ -347,7 +347,7 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
 			bss.SortedBlocksmiths = make([]*model.Blocksmith, 0)
-			bss.SortBlocksmiths(tt.args.block)
+			bss.SortBlocksmiths(tt.args.block, true)
 			if len(bss.SortedBlocksmiths) > 0 && !bytes.Equal(bss.SortedBlocksmiths[0].NodePublicKey,
 				bssMockBlocksmiths[1].NodePublicKey) && !bytes.Equal(bss.SortedBlocksmiths[1].NodePublicKey,
 				bssMockBlocksmiths[0].NodePublicKey) {
@@ -518,7 +518,7 @@ func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
 				NodePublicKey: bssNodePubKey1,
 				NodeID:        1,
 				Score:         big.NewInt(1000000000),
-				SmithTime:     30,
+				SmithTime:     60,
 			},
 		},
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
 
+// TODO: rename into something more specific, such as SyncService
 type Service struct {
 	// isScanningBlockchain       bool
 	ChainType            chaintype.ChainType
@@ -25,6 +26,7 @@ type Service struct {
 	BlockchainDownloader BlockchainDownloadInterface
 	ForkingProcessor     ForkingProcessorInterface
 	Logger               *log.Logger
+	TransactionUtil      transaction.UtilInterface
 }
 
 func NewBlockchainSyncService(
@@ -36,6 +38,7 @@ func NewBlockchainSyncService(
 	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
 	kvdb kvdb.KVExecutorInterface,
+	transactionUtil transaction.UtilInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
@@ -58,6 +61,7 @@ func NewBlockchainSyncService(
 			KVExecutor:         kvdb,
 			PeerExplorer:       peerExplorer,
 			Logger:             logger,
+			TransactionUtil:    transactionUtil,
 		},
 		Logger: logger,
 	}
@@ -70,11 +74,12 @@ func (bss *Service) Start() {
 	if bss.PeerServiceClient == nil || bss.PeerExplorer == nil {
 		bss.Logger.Fatal("no p2p service defined")
 	}
+	// Give node time to connect to some peers
+	time.Sleep(constant.BlockchainsyncWaitingTime * time.Second)
 	bss.GetMoreBlocksThread()
 }
 
 func (bss *Service) GetMoreBlocksThread() {
-
 	defer func() {
 		bss.Logger.Info("getMoreBlocksThread stopped")
 	}()

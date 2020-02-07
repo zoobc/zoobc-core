@@ -8,6 +8,6 @@ func GetChainType(ctNum int32) ChainType {
 	case 1:
 		return &SpineChain{}
 	default:
-		return &MainChain{}
+		return nil
 	}
 }

@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -18,26 +19,31 @@ import (
 
 type (
 	BlocksmithStrategyMain struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockID     int64
-		SortedBlocksmithsLock sync.RWMutex
-		SortedBlocksmithsMap  map[string]*int64
+		QueryExecutor                          query.ExecutorInterface
+		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
+		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
+		Logger                                 *log.Logger
+		SortedBlocksmiths                      []*model.Blocksmith
+		LastSortedBlockID                      int64
+		LastEstimatedBlockPersistedTimestamp   int64
+		LastEstimatedPersistedTimestampBlockID int64
+		SortedBlocksmithsLock                  sync.RWMutex
+		SortedBlocksmithsMap                   map[string]*int64
 	}
 )
 
 func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	logger *log.Logger,
 ) *BlocksmithStrategyMain {
 	return &BlocksmithStrategyMain{
-		QueryExecutor:         queryExecutor,
-		NodeRegistrationQuery: nodeRegistrationQuery,
-		Logger:                logger,
-		SortedBlocksmithsMap:  make(map[string]*int64),
+		QueryExecutor:          queryExecutor,
+		NodeRegistrationQuery:  nodeRegistrationQuery,
+		SkippedBlocksmithQuery: skippedBlocksmithQuery,
+		Logger:                 logger,
+		SortedBlocksmithsMap:   make(map[string]*int64),
 	}
 }
 
@@ -72,12 +78,12 @@ func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.
 }
 
 func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
-		bss.SortBlocksmiths(block)
-	}
-	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
+		bss.SortBlocksmiths(block, false)
+	}
+	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	copy(result, bss.SortedBlocksmiths)
 	return result
 }
@@ -87,18 +93,18 @@ func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) m
 	var (
 		result = make(map[string]*int64)
 	)
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
-		bss.SortBlocksmiths(block)
-	}
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
+		bss.SortBlocksmiths(block, false)
+	}
 	for k, v := range bss.SortedBlocksmithsMap {
 		result[k] = v
 	}
 	return result
 }
 
-func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block) {
+func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock bool) {
 	if block.ID == bss.LastSortedBlockID && block.ID != constant.MainchainGenesisBlockID {
 		return
 	}
@@ -119,8 +125,11 @@ func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block) {
 		// ascending sort
 		return blocksmiths[i].BlockSeed < blocksmiths[j].BlockSeed
 	})
-	bss.SortedBlocksmithsLock.Lock()
-	defer bss.SortedBlocksmithsLock.Unlock()
+
+	if withLock {
+		bss.SortedBlocksmithsLock.Lock()
+		defer bss.SortedBlocksmithsLock.Unlock()
+	}
 	// copying the sorted list to map[string(publicKey)]index
 	for index, blocksmith := range blocksmiths {
 		blocksmithIndex := int64(index)
@@ -143,9 +152,40 @@ func (bss *BlocksmithStrategyMain) CalculateSmith(
 	return nil
 }
 
-// GetSmithTime calculate smith time of a blocksmith
-func (bss *BlocksmithStrategyMain) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+// GetSmithTime calculate smith time of a blocksmith for the new block by providing the blocksmith index and previous block
+func (bss *BlocksmithStrategyMain) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+	var (
+		elapsedFromLastBlock int64
+		skippedBlocksmiths   []*model.SkippedBlocksmith
+	)
 	ct := &chaintype.MainChain{}
-	elapsedFromLastBlock := (blocksmithIndex + 1) * ct.GetSmithingPeriod()
-	return block.GetTimestamp() + elapsedFromLastBlock
+	if blocksmithIndex < 1 {
+		elapsedFromLastBlock = ct.GetSmithingPeriod()
+	} else {
+		elapsedFromLastBlock = blocksmithIndex*constant.SmithingBlocksmithTimeGap + ct.GetSmithingPeriod()
+	}
+	if bss.LastEstimatedPersistedTimestampBlockID != previousBlock.ID {
+		skippedBlocksmithsQ := bss.SkippedBlocksmithQuery.GetSkippedBlocksmithsByBlockHeight(previousBlock.Height)
+		skippedBlocksmithsRows, err := bss.QueryExecutor.ExecuteSelect(skippedBlocksmithsQ, false)
+		if err != nil {
+			bss.Logger.Error("GetSmithTimeError: ", err)
+			return math.MaxInt64 // todo: how to return the error
+		}
+		defer skippedBlocksmithsRows.Close()
+		skippedBlocksmiths, err = bss.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
+		if err != nil {
+			bss.Logger.Error("GetSmithTimeError: ", err)
+			return math.MaxInt64 // todo: how to return the error
+		}
+		if len(skippedBlocksmiths) > 0 {
+			previousBlocksmithTime := previousBlock.Timestamp - constant.SmithingBlocksmithTimeGap
+			estimatedPreviousBlockPersistTime := previousBlocksmithTime + constant.SmithingBlockCreationTime +
+				constant.SmithingNetworkTolerance
+			bss.LastEstimatedBlockPersistedTimestamp = estimatedPreviousBlockPersistTime
+		} else {
+			bss.LastEstimatedBlockPersistedTimestamp = previousBlock.GetTimestamp()
+		}
+		bss.LastEstimatedPersistedTimestampBlockID = previousBlock.ID
+	}
+	return bss.LastEstimatedBlockPersistedTimestamp + elapsedFromLastBlock
 }

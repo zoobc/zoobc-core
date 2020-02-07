@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"time"
 
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 
@@ -32,6 +34,7 @@ type (
 		KVExecutor         kvdb.KVExecutorInterface
 		Logger             *log.Logger
 		PeerExplorer       strategy.PeerExplorerStrategyInterface
+		TransactionUtil    transaction.UtilInterface
 	}
 )
 
@@ -74,18 +77,19 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 				if err != nil {
-					err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-					if err != nil {
-						fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
+					blacklistErr := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+					if blacklistErr != nil {
+						fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 					}
-					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer %v: %s\nwith previous: %v\n",
+						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID)
+					break
 				}
-				err = fp.BlockService.PushBlock(lastBlock, block, false)
+				err = fp.BlockService.PushBlock(lastBlock, block, false, true)
 				if err != nil {
-
-					errBlackList := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-					if errBlackList != nil {
-						fp.Logger.Errorf("Failed to add blacklist: %v\n", errBlackList)
+					blacklistErr := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+					if blacklistErr != nil {
+						fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 					}
 					fp.Logger.Warnf("\n\nPushBlock err %v\n\n", err)
 					break
@@ -127,14 +131,14 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			}
 			err = fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
-				err := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-				if err != nil {
-					fp.Logger.Errorf("Failed to add blacklist: %v\n", err)
+				blacklistErr := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				if blacklistErr != nil {
+					fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
 				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
-			err = fp.BlockService.PushBlock(lastBlock, block, false)
+			err = fp.BlockService.PushBlock(lastBlock, block, false, true)
 			if err != nil {
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
@@ -145,10 +149,12 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	}
 
-	// start restoring mempool from badgerDB
-	err = fp.restoreMempoolsBackup()
-	if err != nil {
-		fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
+	if fp.ChainType.HasTransactions() {
+		// start restoring mempool from badgerDB
+		err = fp.restoreMempoolsBackup()
+		if err != nil {
+			fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
+		}
 	}
 	return nil
 }
@@ -165,7 +171,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		if err != nil {
 			return err
 		}
-		txBytes, err = transaction.GetTransactionBytes(tx, true)
+		txBytes, err = fp.TransactionUtil.GetTransactionBytes(tx, true)
 
 		if err != nil {
 			return err
@@ -227,7 +233,8 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		err                 error
 	)
 
-	mempoolsBackupBytes, err = fp.KVExecutor.Get(constant.KVDBMempoolsBackup)
+	kvdbMempoolsBackupKey := commonUtil.GetKvDbMempoolDBKey(fp.ChainType)
+	mempoolsBackupBytes, err = fp.KVExecutor.Get(kvdbMempoolsBackupKey)
 	if err != nil {
 		return err
 	}
@@ -246,7 +253,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		transactionBytes = mempoolsBackupBytes[prev:][:size]
 		prev += size
 
-		tx, err = transaction.ParseTransactionBytes(transactionBytes, true)
+		tx, err = fp.TransactionUtil.ParseTransactionBytes(transactionBytes, true)
 		if err != nil {
 			return err
 		}
@@ -274,18 +281,19 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}
 		err = txType.ApplyUnconfirmed()
 		if err != nil {
-			err = fp.QueryExecutor.RollbackTx()
-			if err != nil {
-				return err
+			rollbackErr := fp.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
 			}
 			return err
 		}
 		err = fp.MempoolService.AddMempoolTransaction(mempoolTX)
 		if err != nil {
-			err = fp.QueryExecutor.RollbackTx()
-			if err != nil {
-				return err
+			rollbackErr := fp.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
 			}
+			return err
 		}
 		err = fp.QueryExecutor.CommitTx()
 		if err != nil {

@@ -13,10 +13,11 @@ import (
 
 type SetupAccountDataset struct {
 	ID                  int64
-	Body                *model.SetupAccountDatasetTransactionBody
 	Fee                 int64
 	SenderAddress       string
 	Height              uint32
+	Body                *model.SetupAccountDatasetTransactionBody
+	Escrow              *model.Escrow
 	AccountBalanceQuery query.AccountBalanceQueryInterface
 	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface

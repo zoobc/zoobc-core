@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"text/template"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -19,6 +20,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -224,7 +226,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	}
 
 	dbInstance := database.NewSqliteDB()
-	db, err = dbInstance.OpenDB(dbPath, "zoobc.db", 10, 20)
+	db, err = dbInstance.OpenDB(dbPath, "zoobc.db", 10, 10, 20*time.Minute)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -339,9 +341,8 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
-	bs := service.NewBlockService(
+	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
-		nil,
 		nil,
 		nil,
 		nil,
@@ -360,6 +361,11 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
 		nil,
 		nil,
 	)

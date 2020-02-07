@@ -12,6 +12,8 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+var transactionUtil = &transaction.Util{}
+
 // GetGenesisTransactions return list of genesis transaction to be executed in the
 // very beginning of running the blockchain
 func GetGenesisTransactions(
@@ -41,13 +43,13 @@ func GetGenesisTransactions(
 				Signature:            constant.MainchainGenesisTransactionSignature,
 			}
 
-			transactionBytes, err := transaction.GetTransactionBytes(genesisTx, true)
+			transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
 			if err != nil {
 				return nil, err
 			}
 			transactionHash := sha3.Sum256(transactionBytes)
 			genesisTx.TransactionHash = transactionHash[:]
-			genesisTx.ID, err = transaction.GetTransactionID(transactionHash[:])
+			genesisTx.ID, err = transactionUtil.GetTransactionID(transactionHash[:])
 			if err != nil {
 				return nil, err
 			}
@@ -119,13 +121,13 @@ func GetGenesisNodeRegistrationTx(
 		Signature:            constant.MainchainGenesisTransactionSignature,
 	}
 
-	transactionBytes, err := transaction.GetTransactionBytes(genesisTx, true)
+	transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
 	if err != nil {
 		return nil, err
 	}
 	transactionHash := sha3.Sum256(transactionBytes)
 	genesisTx.TransactionHash = transactionHash[:]
-	genesisTx.ID, err = transaction.GetTransactionID(transactionHash[:])
+	genesisTx.ID, err = transactionUtil.GetTransactionID(transactionHash[:])
 	if err != nil {
 		return nil, err
 	}

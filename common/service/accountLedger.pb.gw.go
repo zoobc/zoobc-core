@@ -37,7 +37,10 @@ func request_AccountLedgerService_GetAccountLedgers_0(ctx context.Context, marsh
 	var protoReq model.GetAccountLedgersRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_AccountLedgerService_GetAccountLedgers_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_AccountLedgerService_GetAccountLedgers_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -108,7 +111,7 @@ func RegisterAccountLedgerServiceHandlerClient(ctx context.Context, mux *runtime
 }
 
 var (
-	pattern_AccountLedgerService_GetAccountLedgers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "account-ledger", "GetAccountLedgers"}, ""))
+	pattern_AccountLedgerService_GetAccountLedgers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "account-ledger", "GetAccountLedgers"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
