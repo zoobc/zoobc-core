@@ -70,13 +70,13 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 			},
 			want: [][]interface{}{
 				{
-					"UPDATE  IF EXISTS set latest = ? WHERE id = ?",
+					"UPDATE escrow_transaction set latest = ? WHERE id = ?",
 					false,
 					int64(0),
 				},
 				{
-					"INSERT INTO  (id,sender_address,recipient_address,approver_address,amount,commission,timeout,status,block_height,latest) " +
-						"VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					"INSERT INTO escrow_transaction (id,sender_address,recipient_address,approver_address,amount,commission,timeout,status," +
+						"block_height,latest) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					int64(0),
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
@@ -124,7 +124,7 @@ func TestEscrowTransactionQuery_GetLatestEscrowTransactionByID(t *testing.T) {
 			fields: fields(*mockEscrowQuery),
 			args:   args{id: 1},
 			wantQStr: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, " +
-				"status, block_height, latest FROM  WHERE id = ? AND latest = ?",
+				"status, block_height, latest FROM escrow_transaction WHERE id = ? AND latest = ?",
 			wantArgs: []interface{}{int64(1), true},
 		},
 	}

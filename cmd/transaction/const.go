@@ -11,6 +11,7 @@ var (
 		"claimNodeRegistration":  {2, 3, 0, 0},
 		"setupAccountDataset":    {3, 0, 0, 0},
 		"removeAccountDataset":   {3, 1, 0, 0},
+		"approvalEscrow":         {4, 0, 0, 0},
 	}
 	signature = &crypto.Signature{}
 

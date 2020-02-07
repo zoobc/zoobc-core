@@ -20,12 +20,13 @@ type (
 		Height              uint32
 		Body                *model.ApprovalEscrowTransactionBody
 		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		BlockQuery          query.BlockQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
+		QueryExecutor       query.ExecutorInterface
 		TransactionQuery    query.TransactionQueryInterface
-		TypeSwitcher        TypeSwitcher
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		TypeActionSwitcher  TypeActionSwitcher
 	}
 	// EscrowTypeAction is escrow transaction type methods collection
 	EscrowTypeAction interface {
@@ -75,22 +76,26 @@ func (tx *ApprovalEscrowTransaction) ParseBodyBytes(
 	bodyBytes []byte,
 ) (model.TransactionBodyInterface, error) {
 	var (
-		err      error
-		approval model.EscrowApproval
-		id       int64
+		buffer  = bytes.NewBuffer(bodyBytes)
+		chunked []byte
+		err     error
 	)
-	_, err = util.ReadTransactionBytes(bytes.NewBuffer(bodyBytes), int(tx.GetSize()))
-	if err != nil {
-		return nil, err
-	}
 
-	approval, id, err = ParseEscrowApprovalBytes(bodyBytes)
+	chunked, err = util.ReadTransactionBytes(buffer, int(constant.EscrowApproval))
 	if err != nil {
 		return nil, err
 	}
+	approvalInt := util.ConvertBytesToUint32(chunked)
+
+	chunked, err = util.ReadTransactionBytes(buffer, int(constant.EscrowID))
+	if err != nil {
+		return nil, err
+	}
+	escrowID := util.ConvertBytesToUint64(chunked)
+
 	return &model.ApprovalEscrowTransactionBody{
-		Approval:      approval,
-		TransactionID: id,
+		Approval:      model.EscrowApproval(approvalInt),
+		TransactionID: int64(escrowID),
 	}, nil
 }
 
@@ -108,7 +113,7 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 		err            error
 	)
 
-	escrowQ, escrowArgs := tx.EscrowQuery.GetLatestEscrowTransactionByID(tx.Escrow.GetID())
+	escrowQ, escrowArgs := tx.EscrowQuery.GetLatestEscrowTransactionByID(tx.Body.GetTransactionID())
 	row, err = tx.QueryExecutor.ExecuteSelectRow(escrowQ, dbTx, escrowArgs...)
 	if err != nil {
 		return err
@@ -127,6 +132,7 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 	if latestEscrow.GetStatus() != model.EscrowStatus_Pending {
 		return blocker.NewBlocker(blocker.ValidationErr, "EscrowTargetNotValidByStatus")
 	}
+
 	// Check sender, should be approver address
 	if latestEscrow.GetApproverAddress() != tx.SenderAddress {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSenderAddress")
@@ -196,9 +202,9 @@ func (tx *ApprovalEscrowTransaction) UndoApplyUnconfirmed() error {
 
 /*
 ApplyConfirmed func that for applying Transaction SendMoney type.
-		- If Genesis perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
-		- If Not Genesis, perhaps sender and recipient is exists, so update `account_balance`, `recipient.balance` = current + amount and
-		`sender.balance` = current - amount
+If Genesis perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
+If Not Genesis, perhaps sender and recipient is exists, so update `account_balance`, `recipient.balance` = current + amount and
+`sender.balance` = current - amount
 */
 func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error {
 	var (
@@ -216,6 +222,7 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	if err != nil {
 		return err
 	}
+
 	err = tx.EscrowQuery.Scan(&latestEscrow, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -240,11 +247,12 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	}
 	transaction.Escrow = &latestEscrow
 
-	txType, err = tx.TypeSwitcher.GetTransactionType(&transaction)
+	txType, err = tx.TypeActionSwitcher.GetTransactionType(&transaction)
 	if err != nil {
 		return err
 	}
 
+	// now only send money has EscrowApproval method
 	escrowable, ok := txType.Escrowable()
 	if !ok {
 		return blocker.NewBlocker(blocker.AppErr, "ExpectEscrowableTransaction")
@@ -289,5 +297,56 @@ Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
 
+	if tx.Escrow.GetApproverAddress() != "" {
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
+}
+
+/**
+Escrow Part
+1. ApplyUnconfirmed
+2. UndoApplyUnconfirmed
+3. ApplyConfirmed
+4. Validate
+*/
+
+// EscrowValidate special validation for escrow's transaction
+func (tx *ApprovalEscrowTransaction) EscrowValidate(dbTx bool) error {
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
+similar with ApplyUnconfirmed and Escrow.Commission
+*/
+func (tx *ApprovalEscrowTransaction) EscrowApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *ApprovalEscrowTransaction) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowApplyConfirmed func that for applying Transaction SendMoney type.
+*/
+func (tx *ApprovalEscrowTransaction) EscrowApplyConfirmed(int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *ApprovalEscrowTransaction) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+	return nil
 }

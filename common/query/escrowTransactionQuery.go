@@ -40,6 +40,7 @@ func NewEscrowTransactionQuery() *EscrowTransactionQuery {
 			"block_height",
 			"latest",
 		},
+		TableName: "escrow_transaction",
 	}
 }
 
@@ -57,7 +58,7 @@ func (et *EscrowTransactionQuery) InsertEscrowTransaction(escrow *model.Escrow) 
 	return [][]interface{}{
 		{
 			fmt.Sprintf(
-				"UPDATE %s IF EXISTS set latest = ? WHERE id = ?",
+				"UPDATE %s set latest = ? WHERE id = ?",
 				et.getTableName(),
 			),
 			false,
@@ -145,4 +146,14 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 		&escrow.BlockHeight,
 		&escrow.Latest,
 	)
+}
+
+// Rollback delete records `WHERE height > "height"
+func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", et.getTableName()),
+			height,
+		},
+	}
 }

@@ -250,6 +250,7 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	// TODO: repetitive way
 	escrowable, ok := txType.Escrowable()
 	switch ok {

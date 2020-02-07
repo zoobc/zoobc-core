@@ -582,7 +582,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	case "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, " +
 		"sender_account_address, recipient_account_address FROM mempool WHERE id IN (?)  ":
 		txBytes, _ := transactionUtil.GetTransactionBytes(mockTransaction, true)
-		fmt.Println("test -->")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id", "block_height", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
 			"sender_account_address", "recipient_account_address",

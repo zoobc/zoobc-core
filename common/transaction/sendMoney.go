@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -26,6 +27,7 @@ type (
 		QueryExecutor       query.ExecutorInterface
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
+		BlockQuery          query.BlockQueryInterface
 	}
 )
 
@@ -278,6 +280,7 @@ Escrow Part
 func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
+		block          *model.Block
 		err            error
 		row            *sql.Row
 	)
@@ -291,8 +294,16 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetApproverAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
-	if tx.RecipientAddress == "" {
+	if tx.Escrow.GetRecipientAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
+	}
+
+	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+	if uint64(block.GetHeight()) >= tx.Escrow.GetTimeout() {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidTimout")
 	}
 
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
@@ -374,6 +385,7 @@ account ledger, and escrow
 func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	var (
 		queries [][]interface{}
+		block   *model.Block
 		err     error
 	)
 
@@ -400,11 +412,19 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	queries = append(queries, senderAccountLedgerArgs)
 
 	// Insert Escrow
+	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+	tx.Escrow.Timeout += uint64(block.GetHeight())
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
 	queries = append(queries, escrowArgs...)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
-
+	if err != nil {
+		fmt.Println(queries)
+		fmt.Printf("SendMoney: %s", err.Error())
+	}
 	if err != nil {
 		return err
 	}
@@ -423,6 +443,7 @@ func (tx *SendMoney) EscrowApproval(
 		queries [][]interface{}
 		err     error
 	)
+	fmt.Printf("EscrowApproval")
 
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:
@@ -431,7 +452,7 @@ func (tx *SendMoney) EscrowApproval(
 		accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
 			tx.Body.Amount,
 			map[string]interface{}{
-				"account_address": tx.RecipientAddress,
+				"account_address": tx.Escrow.GetRecipientAddress(),
 				"block_height":    tx.Height,
 			},
 		)
@@ -439,7 +460,7 @@ func (tx *SendMoney) EscrowApproval(
 
 		// recipient Account Ledger Log
 		recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.RecipientAddress,
+			AccountAddress: tx.Escrow.GetRecipientAddress(),
 			BalanceChange:  tx.Body.GetAmount(),
 			TransactionID:  tx.ID,
 			BlockHeight:    tx.Height,
@@ -465,7 +486,7 @@ func (tx *SendMoney) EscrowApproval(
 			BlockHeight:    tx.Height,
 			TransactionID:  tx.ID,
 			Timestamp:      uint64(blockTimestamp),
-			EventType:      model.EventType_EventSendMoneyTransaction,
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
 		})
 		approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
 		queries = append(queries, approverAccountLedgerArgs)
@@ -485,10 +506,10 @@ func (tx *SendMoney) EscrowApproval(
 	// Insert Escrow
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
 	queries = append(queries, escrowArgs...)
-
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 
 	if err != nil {
+		fmt.Printf("EscrowApproval: %v", err)
 		return err
 	}
 	return nil

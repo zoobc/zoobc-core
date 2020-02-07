@@ -42,10 +42,11 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	buffer.Write([]byte(transaction.SenderAccountAddress))
 
 	// Address format: [len][address]
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
-	if transaction.RecipientAccountAddress == "" {
-		buffer.Write(make([]byte, constant.AccountAddress)) // if no recipient pad with 44 (zoobc address length)
+	if transaction.GetRecipientAccountAddress() == "" {
+		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
+		buffer.Write(make([]byte, constant.AccountAddressEmptyLength)) // if no recipient pad with 44 (zoobc address length)
 	} else {
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
 		buffer.Write([]byte(transaction.RecipientAccountAddress))
 	}
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Fee)))
@@ -61,11 +62,13 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	if transaction.GetEscrow() != nil {
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetApproverAddress()))
+
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
 		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
 	} else {
 		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
 		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
+
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
 	}
@@ -111,13 +114,21 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	if err != nil {
 		return nil, err
 	}
-	transaction.SenderAccountAddress = string(tu.ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+	senderAddress, errSender := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if errSender != nil {
+		return nil, errSender
+	}
+	transaction.SenderAccountAddress = string(senderAddress)
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	transaction.RecipientAccountAddress = string(tu.ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+	recipient, errRecipient := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if errRecipient != nil {
+		return nil, errRecipient
+	}
+	transaction.RecipientAccountAddress = string(recipient)
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
@@ -288,22 +299,4 @@ func (tu *Util) ValidateTransaction(
 	}
 
 	return nil
-}
-
-// ESCROW PART
-
-// ParseEscrowApprovalBytes read bytes to separated approval and transactionID
-func ParseEscrowApprovalBytes(escrowApprovalBytes []byte) (approval model.EscrowApproval, id int64, err error) {
-	var (
-		chunkedBytes []byte
-		buffer       = bytes.NewBuffer(escrowApprovalBytes)
-	)
-
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionType))
-	if err != nil {
-		return approval, 0, err
-	}
-	approval = model.EscrowApproval(int32(util.ConvertBytesToUint32(chunkedBytes)))
-	return approval, int64(util.ConvertBytesToUint64(buffer.Bytes())), nil
-
 }

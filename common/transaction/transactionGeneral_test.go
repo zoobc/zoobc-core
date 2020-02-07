@@ -116,11 +116,10 @@ func TestGetTransactionBytes(t *testing.T) {
 				sign: false,
 			},
 			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97,
-				122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71,
-				69, 65, 85, 67, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57,
+				97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56,
+				71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			},
 			wantErr: false,
 		},
@@ -190,6 +189,54 @@ func TestGetTransactionBytes(t *testing.T) {
 				117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0,
 			},
 		},
+		{
+			name: "EscrowApproval",
+			args: args{
+				transaction: &model.Transaction{
+					Version:                 1,
+					ID:                      1,
+					BlockID:                 1,
+					Height:                  1,
+					SenderAccountAddress:    "GHI",
+					RecipientAccountAddress: "",
+					TransactionType:         4,
+					Fee:                     1,
+					Timestamp:               1562806389280,
+					TransactionHash:         nil,
+					TransactionBodyLength:   12,
+					TransactionBodyBytes:    []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					TransactionIndex:        0,
+					Signature:               nil,
+					Escrow:                  nil,
+				},
+			},
+			want: []byte{4, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 3, 0, 0, 0, 71, 72, 73, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 12,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			name: "EscrowApproval:Signed",
+			args: args{
+				transaction: &model.Transaction{
+					Version:                 1,
+					ID:                      1,
+					BlockID:                 1,
+					Height:                  1,
+					SenderAccountAddress:    "GHI",
+					RecipientAccountAddress: "",
+					TransactionType:         4,
+					Fee:                     1,
+					Timestamp:               1562806389280,
+					TransactionHash:         nil,
+					TransactionBodyLength:   12,
+					TransactionBodyBytes:    []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					TransactionIndex:        0,
+					Signature:               nil,
+					Escrow:                  nil,
+				},
+			},
+			want: []byte{4, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 3, 0, 0, 0, 71, 72, 73, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 12,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -238,6 +285,21 @@ func TestParseTransactionBytes(t *testing.T) {
 			Timeout:         100,
 		},
 	}, true)
+	approvalTX, approvalTXBytes := GetFixtureForSpecificTransaction(
+		-7888701729843637530,
+		12345678,
+		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		"",
+		constant.EscrowApprovalBytesLength,
+		model.TransactionType_ApprovalEscrowTransaction,
+		&model.ApprovalEscrowTransactionBody{
+			Approval:      model.EscrowApproval_Approve,
+			TransactionID: 0,
+		},
+		false,
+		true,
+	)
+
 	successWithoutSig, successWithoutSigHashed := GetFixturesForTransactionBytes(&model.Transaction{
 		ID:                      670925173877174625,
 		Version:                 1,
@@ -331,6 +393,14 @@ func TestParseTransactionBytes(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "Ups",
+			args: args{
+				transactionBytes: approvalTXBytes,
+				sign:             true,
+			},
+			want: approvalTX,
 		},
 		{
 			name: "ParseTransactionBytes:fail",

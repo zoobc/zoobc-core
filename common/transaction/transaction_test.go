@@ -65,6 +65,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 		},
 		{
@@ -314,12 +315,19 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &ApprovalEscrowTransaction{
+				ID:                  0,
+				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
 				Body:                approvalEscrowBody,
-				Height:              0,
+				Height:              5,
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				TypeActionSwitcher: &TypeSwitcher{
+					Executor: &query.Executor{},
+				},
 			},
 		},
 	}

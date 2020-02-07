@@ -145,6 +145,8 @@ func Commands(sqliteDB *sql.DB) *cobra.Command {
 	txCmd.AddCommand(setupAccountDatasetCmd)
 	removeAccountDatasetCmd.Run = txGeneratorCommandsInstance.RemoveAccountDatasetProcess()
 	txCmd.AddCommand(removeAccountDatasetCmd)
+	escrowApprovalCmd.Run = txGeneratorCommandsInstance.EscrowApprovalProcess()
+	txCmd.AddCommand(escrowApprovalCmd)
 	return txCmd
 }
 

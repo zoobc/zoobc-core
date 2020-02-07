@@ -21,6 +21,10 @@ Command line interface to as a utility tools to develop the zoobc system.
 ```
 go run main.go generate transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --amount 5000000000
 ```
+#### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout` and `--commission`
+```bash
+--escrow true --approver-address BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN --timeout 10 --commission 1000
+```
 
 ### Transaction Register Node
 
@@ -56,6 +60,11 @@ go run main.go generate transaction set-account-dataset --timestamp 1257894000 -
 
 ```
 go run main.go generate transaction remove-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --property "Member" --value "Good Boy"
+```
+
+### Transaction Escrow Approval
+```bash
+go run main.go generate transaction escrow-approval --transaction-id -209324512209946230 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 1
 ```
 
 ### Block Generating Fake Blocks

@@ -23,8 +23,10 @@ type (
 	}
 )
 
-func NewTransactionCoreService(transactionQuery query.TransactionQueryInterface,
-	queryExecutor query.ExecutorInterface) TransactionCoreServiceInterface {
+func NewTransactionCoreService(
+	transactionQuery query.TransactionQueryInterface,
+	queryExecutor query.ExecutorInterface,
+) TransactionCoreServiceInterface {
 	return &TransactionCoreService{
 		TransactionQuery: transactionQuery,
 		QueryExecutor:    queryExecutor,
@@ -68,9 +70,11 @@ func (tg *TransactionCoreService) ApplyUnconfirmedTransaction(txAction transacti
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:
-		return escrowAction.EscrowApplyUnconfirmed()
+		err := escrowAction.EscrowApplyUnconfirmed()
+		return err
 	default:
-		return txAction.ApplyUnconfirmed()
+		err := txAction.ApplyUnconfirmed()
+		return err
 	}
 }
 
@@ -79,20 +83,23 @@ func (tg *TransactionCoreService) UndoApplyUnconfirmedTransaction(txAction trans
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:
-		return escrowAction.EscrowUndoApplyUnconfirmed()
+		err := escrowAction.EscrowUndoApplyUnconfirmed()
+		return err
 	default:
-		return txAction.UndoApplyUnconfirmed()
+		err := txAction.UndoApplyUnconfirmed()
+		return err
 	}
-
 }
+
 func (tg *TransactionCoreService) ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error {
 
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:
-		return escrowAction.EscrowApplyConfirmed(blockTimestamp)
+		err := escrowAction.EscrowApplyConfirmed(blockTimestamp)
+		return err
 	default:
-		return txAction.ApplyConfirmed(blockTimestamp)
+		err := txAction.ApplyConfirmed(blockTimestamp)
+		return err
 	}
-
 }

@@ -244,6 +244,11 @@ func GenerateBasicTransaction(senderSeed string,
 		SenderAccountAddress:    senderAccountAddress,
 		RecipientAccountAddress: recipientAccountAddress,
 		Fee:                     fee,
+		Escrow: &model.Escrow{
+			ApproverAddress: "",
+			Commission:      0,
+			Timeout:         0,
+		},
 	}
 }
 
@@ -295,6 +300,8 @@ func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction
 
 	tx.TransactionBody = txBody
 	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = constant.EscrowApprovalBytesLength
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["approvalEscrow"])
 
 	return tx
 }

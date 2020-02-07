@@ -64,6 +64,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 			}, nil
 		default:
 			return nil, nil
@@ -199,12 +200,19 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ApprovalEscrowTransaction{
+				ID:                  tx.GetID(),
 				Body:                approvalEscrowTransactionBody.(*model.ApprovalEscrowTransactionBody),
+				Fee:                 tx.GetFee(),
+				SenderAddress:       tx.GetSenderAccountAddress(),
+				Height:              tx.GetHeight(),
 				Escrow:              tx.GetEscrow(),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				TypeActionSwitcher:  ts,
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 			}, nil
 		default:
 			return nil, nil

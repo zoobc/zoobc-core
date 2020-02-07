@@ -341,7 +341,27 @@ func startMainchain() {
 	)
 	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
-	mempoolService := service.NewMempoolService(transactionUtil, mainchain, kvExecutor, queryExecutor, query.NewMempoolQuery(mainchain), query.NewMerkleTreeQuery(), &transaction.TypeSwitcher{Executor: queryExecutor}, query.NewAccountBalanceQuery(), query.NewBlockQuery(mainchain), query.NewTransactionQuery(mainchain), crypto.NewSignature(), observerInstance, loggerCoreService, receiptUtil, receiptService, nil)
+	mempoolService := service.NewMempoolService(
+		transactionUtil,
+		mainchain,
+		kvExecutor,
+		queryExecutor,
+		query.NewMempoolQuery(mainchain),
+		query.NewMerkleTreeQuery(),
+		&transaction.TypeSwitcher{Executor: queryExecutor},
+		query.NewAccountBalanceQuery(),
+		query.NewBlockQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
+		observerInstance,
+		loggerCoreService,
+		receiptUtil,
+		receiptService,
+		service.NewTransactionCoreService(
+			query.NewTransactionQuery(&chaintype.MainChain{}),
+			queryExecutor,
+		),
+	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
 	actionSwitcher := &transaction.TypeSwitcher{
