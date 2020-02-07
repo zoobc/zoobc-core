@@ -2,7 +2,7 @@
 package constant
 
 const (
-	SpinechainGenesisBlockID int64 = 5917966774627743573
+	SpinechainGenesisBlockID int64 = -8639022385196584670
 )
 
 var (
