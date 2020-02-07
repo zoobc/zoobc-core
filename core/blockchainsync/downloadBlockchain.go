@@ -270,18 +270,17 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
-				err := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-				if err != nil {
-					bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
+				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				if blacklistErr != nil {
+					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
-
 				break
 			}
 			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
 			if err != nil {
-				err := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-				if err != nil {
-					bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
+				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				if blacklistErr != nil {
+					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
 				bd.Logger.Info("failed to push block from peer:", err)
 				break

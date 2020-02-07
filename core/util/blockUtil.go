@@ -93,3 +93,15 @@ func CalculateNodeOrder(score *big.Int, blockSeed, nodeID int64) *big.Int {
 func IsGenesis(previousBlockID int64, block *model.Block) bool {
 	return previousBlockID == -1 && block.CumulativeDifficulty != ""
 }
+
+// GetAddRemoveSpineKeyAction transcode nodeRegistrationStatus into relative spinekeypublickey acion
+// eg. if node is deleted, the action for this spine public key is "RemoveKey", if registered "AddKey"
+func GetAddRemoveSpineKeyAction(nodeRegistrationStatus uint32) (publicKeyAction model.SpinePublicKeyAction) {
+	switch nodeRegistrationStatus {
+	case uint32(model.NodeRegistrationState_NodeDeleted):
+		publicKeyAction = model.SpinePublicKeyAction_RemoveKey
+	case uint32(model.NodeRegistrationState_NodeRegistered):
+		publicKeyAction = model.SpinePublicKeyAction_AddKey
+	}
+	return publicKeyAction
+}

@@ -17,6 +17,7 @@ type (
 		BuildModel(spinePublicKeys []*model.SpinePublicKey, rows *sql.Rows) ([]*model.SpinePublicKey, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		Scan(spk *model.SpinePublicKey, row *sql.Row) error
+		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 
 	SpinePublicKeyQuery struct {
