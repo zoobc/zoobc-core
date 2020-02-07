@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -7076496018264627573
+	MainchainGenesisBlockID int64 = 2457061118624360262
 )
 
 type (
@@ -48,10 +48,10 @@ var (
 			ParticipationScore: DefaultParticipationScore,
 		},
 		{
-			AccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-			AccountBalance: 0,
-			NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211, 123, 72, 52,
-				221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
+			AccountAddress: "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
+			AccountBalance: 100000000000,
+			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
+				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
 			NodeAddress:        "85.90.246.90:8080",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
