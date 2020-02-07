@@ -114,7 +114,24 @@ func initialize(
 		nil,
 		receiptUtil,
 	)
-	mempoolService := service.NewMempoolService(transactionUtil, chainType, nil, queryExecutor, query.NewMempoolQuery(chainType), query.NewMerkleTreeQuery(), actionSwitcher, query.NewAccountBalanceQuery(), query.NewBlockQuery(chainType), query.NewTransactionQuery(chainType), crypto.NewSignature(), observerInstance, log.New(), receiptUtil, receiptService, nil)
+	mempoolService := service.NewMempoolService(
+		transactionUtil,
+		chainType,
+		nil,
+		queryExecutor,
+		query.NewMempoolQuery(chainType),
+		query.NewMerkleTreeQuery(),
+		actionSwitcher,
+		query.NewAccountBalanceQuery(),
+		query.NewBlockQuery(chainType),
+		query.NewTransactionQuery(chainType),
+		crypto.NewSignature(),
+		observerInstance,
+		log.New(),
+		receiptUtil,
+		receiptService,
+		nil,
+	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
