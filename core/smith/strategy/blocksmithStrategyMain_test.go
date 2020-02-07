@@ -358,7 +358,7 @@ func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
 				LastSortedBlockID:     tt.fields.LastSortedBlockID,
 			}
-			bss.SortBlocksmiths(tt.args.block)
+			bss.SortBlocksmiths(tt.args.block, true)
 			if bss.SortedBlocksmiths[0].NodeID != bssMockBlocksmiths[0].NodeID &&
 				bss.SortedBlocksmiths[1].NodeID != bssMockBlocksmiths[1].NodeID {
 				t.Errorf("sorting fail")

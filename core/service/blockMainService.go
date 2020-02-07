@@ -579,7 +579,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
-	bs.BlocksmithStrategy.SortBlocksmiths(block)
+	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// clear the block poolo
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
@@ -723,53 +723,51 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 		linkedCount int
 		err         error
 	)
-	if len(block.GetPublishedReceipts()) > 0 {
-		for index, rc := range block.GetPublishedReceipts() {
-			// validate sender and recipient of receipt
-			err = bs.ReceiptService.ValidateReceipt(rc.BatchReceipt)
-			if err != nil {
-				return 0, err
+	for index, rc := range block.GetPublishedReceipts() {
+		// validate sender and recipient of receipt
+		err = bs.ReceiptService.ValidateReceipt(rc.BatchReceipt)
+		if err != nil {
+			return 0, err
+		}
+		// check if linked
+		if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
+			var publishedReceipt = &model.PublishedReceipt{
+				BatchReceipt:       &model.BatchReceipt{},
+				IntermediateHashes: nil,
+				BlockHeight:        0,
+				ReceiptIndex:       0,
 			}
-			// check if linked
-			if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
-				var publishedReceipt = &model.PublishedReceipt{
-					BatchReceipt:       &model.BatchReceipt{},
-					IntermediateHashes: nil,
-					BlockHeight:        0,
-					ReceiptIndex:       0,
-				}
-				merkle := &commonUtils.MerkleRoot{}
-				rcByte := bs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
-				rcHash := sha3.Sum256(rcByte)
-				root, err := merkle.GetMerkleRootFromIntermediateHashes(
-					rcHash[:],
-					rc.ReceiptIndex,
-					merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
-				)
-				if err != nil {
-					return 0, err
-				}
-				// look up root in published_receipt table
-				rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
-				row, _ := bs.QueryExecutor.ExecuteSelectRow(rcQ, false, rcArgs...)
-				err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
-				if err != nil {
-					return 0, err
-				}
-				// add to linked receipt count for calculation later
-				linkedCount++
-			}
-			// store in database
-			// assign index and height, index is the order of the receipt in the block,
-			// it's different with receiptIndex which is used to validate merkle root.
-			rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
-			insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
-				rc,
+			merkle := &commonUtils.MerkleRoot{}
+			rcByte := bs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcHash := sha3.Sum256(rcByte)
+			root, err := merkle.GetMerkleRootFromIntermediateHashes(
+				rcHash[:],
+				rc.ReceiptIndex,
+				merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
 			)
-			err := bs.QueryExecutor.ExecuteTransaction(insertPublishedReceiptQ, insertPublishedReceiptArgs...)
 			if err != nil {
 				return 0, err
 			}
+			// look up root in published_receipt table
+			rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
+			row, _ := bs.QueryExecutor.ExecuteSelectRow(rcQ, false, rcArgs...)
+			err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
+			if err != nil {
+				return 0, err
+			}
+			// add to linked receipt count for calculation later
+			linkedCount++
+		}
+		// store in database
+		// assign index and height, index is the order of the receipt in the block,
+		// it's different with receiptIndex which is used to validate merkle root.
+		rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
+		insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
+			rc,
+		)
+		err := bs.QueryExecutor.ExecuteTransaction(insertPublishedReceiptQ, insertPublishedReceiptArgs...)
+		if err != nil {
+			return 0, err
 		}
 	}
 	return linkedCount, nil
@@ -1560,7 +1558,7 @@ func (bs *BlockService) WillSmith(
 	// caching: only calculate smith time once per new block
 	if lastBlock.GetID() != blockchainProcessorLastBlockID {
 		blockchainProcessorLastBlockID = lastBlock.GetID()
-		bs.BlocksmithStrategy.SortBlocksmiths(lastBlock)
+		bs.BlocksmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
