@@ -13,7 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -28,70 +27,53 @@ import (
 )
 
 type (
-	BlockServiceSpineInterface interface {
-		NewSpineBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
-			previousBlockHeight uint32, timestamp int64, blockSpinePublicKeys []*model.SpinePublicKey,
-			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
-		BuildSpinePublicKeysFromNodeRegistry(
-			fromTimestamp,
-			toTimestamp int64,
-			spineBlockHeight uint32,
-		) (spinePublicKeys []*model.SpinePublicKey, err error)
-		GetSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error)
-	}
-
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype     chaintype.ChainType
-		KVExecutor    kvdb.KVExecutorInterface
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		// MempoolQuery           query.MempoolQueryInterface
-		// TransactionQuery       query.TransactionQueryInterface
-		// MerkleTreeQuery        query.MerkleTreeQueryInterface
-		// PublishedReceiptQuery  query.PublishedReceiptQueryInterface
-		// SkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
-		SpinePublicKeyQuery query.SpinePublicKeyQueryInterface
-		Signature           crypto.SignatureInterface
-		// MempoolService         MempoolServiceInterface
-		// ReceiptService         ReceiptServiceInterface
-		// NodeRegistrationService NodeRegistrationServiceInterface
-		// ActionTypeSwitcher      transaction.TypeActionSwitcher
-		// AccountBalanceQuery     query.AccountBalanceQueryInterface
-		// ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlocksmithStrategy    strategy.BlocksmithStrategyInterface
-		Observer              *observer.Observer
-		Logger                *log.Logger
-		BlockPoolService      BlockPoolServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		Signature                 crypto.SignatureInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		Observer                  *observer.Observer
+		Logger                    *log.Logger
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
 )
 
 func NewBlockSpineService(
 	ct chaintype.ChainType,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface,
+	spineBlockQuery query.BlockQueryInterface,
 	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	signature crypto.SignatureInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
-	blockPoolService BlockPoolServiceInterface,
+	megablockQuery query.SpineBlockManifestQueryInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype:             ct,
-		KVExecutor:            kvExecutor,
-		QueryExecutor:         queryExecutor,
-		BlockQuery:            blockQuery,
-		SpinePublicKeyQuery:   spinePublicKeyQuery,
-		Signature:             signature,
-		NodeRegistrationQuery: nodeRegistrationQuery,
-		BlocksmithStrategy:    blocksmithStrategy,
-		Observer:              obsr,
-		Logger:                logger,
-		BlockPoolService:      blockPoolService,
+		Chaintype:          ct,
+		QueryExecutor:      queryExecutor,
+		BlockQuery:         spineBlockQuery,
+		Signature:          signature,
+		BlocksmithStrategy: blocksmithStrategy,
+		Observer:           obsr,
+		Logger:             logger,
+		SpinePublicKeyService: &BlockSpinePublicKeyService{
+			Logger:                logger,
+			NodeRegistrationQuery: nodeRegistrationQuery,
+			QueryExecutor:         queryExecutor,
+			Signature:             signature,
+			SpinePublicKeyQuery:   spinePublicKeyQuery,
+		},
+		SpineBlockManifestService: NewSpineBlockManifestService(
+			queryExecutor,
+			megablockQuery,
+			spineBlockQuery,
+			logger,
+		),
 	}
 }
 
@@ -102,10 +84,11 @@ func (bs *BlockSpineService) NewSpineBlock(
 	blockSeed, blockSmithPublicKey []byte,
 	previousBlockHeight uint32,
 	timestamp int64,
-	spinePublicKeys []*model.SpinePublicKey,
 	payloadHash []byte,
 	payloadLength uint32,
 	secretPhrase string,
+	spinePublicKeys []*model.SpinePublicKey,
+	spineBlockManifests []*model.SpineBlockManifest,
 ) (*model.Block, error) {
 	block := &model.Block{
 		Version:             version,
@@ -114,9 +97,10 @@ func (bs *BlockSpineService) NewSpineBlock(
 		BlocksmithPublicKey: blockSmithPublicKey,
 		Height:              previousBlockHeight,
 		Timestamp:           timestamp,
-		SpinePublicKeys:     spinePublicKeys,
 		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
+		SpinePublicKeys:     spinePublicKeys,
+		SpineBlockManifests: spineBlockManifests,
 	}
 	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
@@ -196,6 +180,9 @@ func (bs *BlockSpineService) NewGenesisBlock(
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	// TODO: should we validate the received spineblcokManifests against the one that have been generated locally?
+	//		 what if they have been deleted?
+
 	// todo: validate previous time
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
@@ -311,7 +298,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	}
 
 	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
-	if err := bs.insertSpinePublicKeys(block); err != nil {
+	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
 		bs.Logger.Error(err.Error())
 		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
@@ -354,11 +341,10 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 
 	if block.ID != 0 {
 		if withAttachedData {
-			spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(block.Height)
+			err := bs.PopulateBlockData(&block)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
-			block.SpinePublicKeys = spinePublicKeys
 		}
 		return &block, nil
 	}
@@ -389,21 +375,19 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(lastBlock.Height)
+	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	lastBlock.SpinePublicKeys = spinePublicKeys
 	return lastBlock, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
 func (bs *BlockSpineService) GetBlockHash(block *model.Block) ([]byte, error) {
-	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(block.Height)
+	err := bs.PopulateBlockData(block)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	block.SpinePublicKeys = spinePublicKeys
 	return commonUtils.GetBlockHash(block, bs.GetChainType())
 
 }
@@ -414,30 +398,28 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-
-	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(block.Height)
+	err = bs.PopulateBlockData(block)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	block.SpinePublicKeys = spinePublicKeys
-
 	return block, nil
 }
 
-// GetGenesis return the last pushed block
+// GetGenesis return the genesis block
 func (bs *BlockSpineService) GetGenesisBlock() (*model.Block, error) {
 	var (
-		lastBlock model.Block
-		row, _    = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock(), false)
+		genesisBlock model.Block
+		row, _       = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetGenesisBlock(), false)
 	)
 	if row == nil {
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
 	}
-	err := bs.BlockQuery.Scan(&lastBlock, row)
+	err := bs.BlockQuery.Scan(&genesisBlock, row)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "genesis block is not found")
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "cannot parse genesis block db entity")
 	}
-	return &lastBlock, nil
+	genesisBlock.SpineBlockManifests = make([]*model.SpineBlockManifest, 0)
+	return &genesisBlock, nil
 }
 
 // GetBlocks return all pushed blocks
@@ -459,12 +441,18 @@ func (bs *BlockSpineService) GetBlocks() ([]*model.Block, error) {
 
 // PopulateBlockData add spine public keys to model.Block instance
 func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
-	spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(block.Height)
+	spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.Height)
 	if err != nil {
 		bs.Logger.Errorln(err)
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
 	}
 	block.SpinePublicKeys = spinePublicKeys
+	spineBlockManifests, err := bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(block.Height, block.Timestamp)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, "error getting block spineBlockManifests")
+	}
+	block.SpineBlockManifests = spineBlockManifests
+
 	return nil
 }
 
@@ -482,23 +470,37 @@ func (bs *BlockSpineService) GenerateBlock(
 		digest                    = sha3.New256()
 		blockSmithPublicKey       = util.GetPublicKeyFromSeed(secretPhrase)
 		fromTimestamp             = previousBlock.Timestamp
+		spineBlockManifests       []*model.SpineBlockManifest
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// compute spine pub keys from mainchain node registrations
 	// Note: since spine blocks are not in sync with main blocks and they are unaware of the height (on mainchain) where to retrieve
 	// node registration's public keys, we use timestamps for now
-	// TODO: when megablocks are implemented (and so we have a reference of a mainblock in every spineblock, use mainblock's height instead)
 	if fromTimestamp == bs.GetChainType().GetGenesisBlockTimestamp() {
 		fromTimestamp++
 	}
-	spinePublicKeys, err = bs.BuildSpinePublicKeysFromNodeRegistry(fromTimestamp, timestamp, newBlockHeight)
+	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(fromTimestamp, timestamp, newBlockHeight)
 	for _, spinePubKey := range spinePublicKeys {
 		payloadBytes = append(payloadBytes, commonUtils.GetSpinePublicKeyBytes(spinePubKey)...)
-		if _, err := digest.Write(payloadBytes); err != nil {
-			return nil, err
-		}
 	}
 	if err != nil {
+		return nil, err
+	}
+
+	// retrieve all spineBlockManifests at current spine height (complete with file chunks entities)
+	spineBlockManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(newBlockHeight, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	// compute the block payload length and hash by parsing all file chunks db entities into their bytes representation
+	if len(spineBlockManifests) > 0 {
+		for _, spineBlockManifest := range spineBlockManifests {
+			megablockBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
+			payloadBytes = append(payloadBytes, megablockBytes...)
+		}
+	}
+
+	if _, err := digest.Write(payloadBytes); err != nil {
 		return nil, err
 	}
 	payloadHash = digest.Sum([]byte{})
@@ -524,10 +526,11 @@ func (bs *BlockSpineService) GenerateBlock(
 		blockSmithPublicKey,
 		newBlockHeight,
 		timestamp,
-		spinePublicKeys,
 		payloadHash,
 		payloadLength,
 		secretPhrase,
+		spinePublicKeys,
+		spineBlockManifests,
 	)
 	if err != nil {
 		return nil, err
@@ -636,7 +639,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 			err := func() error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
+				previousBlock, err := bs.GetBlockByHeight(lastBlock.Height - 1)
 				if err != nil {
 					return status.Error(codes.Internal,
 						"fail to get last block",
@@ -779,59 +782,12 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	return poppedBlocks, nil
 }
 
-func (bs *BlockSpineService) GetSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error) {
-	rows, err := bs.QueryExecutor.ExecuteSelect(bs.SpinePublicKeyQuery.GetSpinePublicKeysByBlockHeight(height), false)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+func (bs *BlockSpineService) getGenesisSpinePayloadBytes(spinePublicKeys []*model.SpinePublicKey) (spinePublicKeysBytes []byte) {
+	spinePublicKeysBytes = make([]byte, 0)
+	for _, spinePublicKey := range spinePublicKeys {
+		spinePublicKeysBytes = append(spinePublicKeysBytes, util.GetSpinePublicKeyBytes(spinePublicKey)...)
 	}
-
-	spinePublicKeys, err = bs.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	return spinePublicKeys, nil
-}
-
-// GetSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
-func (bs *BlockSpineService) BuildSpinePublicKeysFromNodeRegistry(
-	fromTimestamp,
-	toTimestamp int64,
-	spineHeight uint32,
-) (spinePublicKeys []*model.SpinePublicKey, err error) {
-	var (
-		nodeRegistrations []*model.NodeRegistration
-	)
-	qry := bs.NodeRegistrationQuery.GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp)
-	rows, err := bs.QueryExecutor.ExecuteSelect(
-		qry,
-		false,
-	)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	nodeRegistrations, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	spinePublicKeys = make([]*model.SpinePublicKey, 0)
-	for _, nr := range nodeRegistrations {
-		bspk := &model.SpinePublicKey{
-			NodePublicKey:   nr.NodePublicKey,
-			MainBlockHeight: nr.Height,
-			Height:          spineHeight,
-			Latest:          true,
-		}
-		switch nr.RegistrationStatus {
-		case uint32(model.NodeRegistrationState_NodeDeleted):
-			bspk.PublicKeyAction = model.SpinePublicKeyAction_RemoveKey
-		case uint32(model.NodeRegistrationState_NodeRegistered):
-			bspk.PublicKeyAction = model.SpinePublicKeyAction_AddKey
-		}
-		spinePublicKeys = append(spinePublicKeys, bspk)
-	}
-	return spinePublicKeys, nil
+	return spinePublicKeysBytes
 }
 
 // getGenesisSpinePublicKeys returns spine block's genesis payload, as an array of model.SpinePublicKey and in bytes,
@@ -854,28 +810,6 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
 	return spinePublicKeys
-}
-
-func (bs *BlockSpineService) getGenesisSpinePayloadBytes(spinePublicKeys []*model.SpinePublicKey) (spinePublicKeysBytes []byte) {
-	spinePublicKeysBytes = make([]byte, 0)
-	for _, spinePublicKey := range spinePublicKeys {
-		spinePublicKeysBytes = append(spinePublicKeysBytes, util.GetSpinePublicKeyBytes(spinePublicKey)...)
-	}
-	return spinePublicKeysBytes
-}
-
-// insertSpinePublicKeys insert all spine block publicKeys into spinePublicKey table
-// Note: at this stage the spine pub keys have already been parsed into their model struct
-func (bs *BlockSpineService) insertSpinePublicKeys(block *model.Block) error {
-	queries := make([][]interface{}, 0)
-	for _, spinePublicKey := range block.SpinePublicKeys {
-		insertSpkQry := bs.SpinePublicKeyQuery.InsertSpinePublicKey(spinePublicKey)
-		queries = append(queries, insertSpkQry...)
-	}
-	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (bs *BlockSpineService) ReceivedValidatedBlockTransactionsListener() observer.Listener {

@@ -21,7 +21,7 @@ func (*SpineChain) GetChainSmithingDelayTime() int64 {
 }
 
 func (*SpineChain) GetSmithingPeriod() int64 {
-	return 30
+	return 60
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node
@@ -51,5 +51,9 @@ func (*SpineChain) GetGenesisBlockSignature() []byte {
 }
 
 func (*SpineChain) HasTransactions() bool {
+	return false
+}
+
+func (*SpineChain) HasSnapshots() bool {
 	return false
 }
