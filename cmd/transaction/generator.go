@@ -320,6 +320,7 @@ func GenerateEscrowedTransaction(
 		ApproverAddress: esApproverAddress,
 		Commission:      esCommission,
 		Timeout:         esTimeout,
+		Instruction:     esInstruction,
 	}
 	return tx
 }

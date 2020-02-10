@@ -77,6 +77,7 @@ func init() {
 	sendMoneyCmd.Flags().StringVar(&esApproverAddress, "approver-address", "", "Escrow fields: Approver account address")
 	sendMoneyCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
+	sendMoneyCmd.Flags().StringVar(&esInstruction, "instruction", "", "Escrow fields: Instruction")
 
 	/*
 		RegisterNode Command

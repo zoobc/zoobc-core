@@ -941,6 +941,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		BlockPoolService        BlockPoolServiceInterface
+		TransactionCoreService  TransactionCoreServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1022,6 +1023,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1074,6 +1080,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1126,6 +1137,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                observer.NewObserver(),
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1178,6 +1194,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                observer.NewObserver(),
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1236,6 +1257,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 				BlockPoolService:        tt.fields.BlockPoolService,
+				TransactionCoreService:  tt.fields.TransactionCoreService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1883,8 +1905,9 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
 				TransactionCoreService: NewTransactionCoreService(
-					query.NewTransactionQuery(&chaintype.MainChain{}),
 					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 				),
 			},
 			wantErr: false,

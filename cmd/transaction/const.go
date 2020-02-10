@@ -41,6 +41,7 @@ var (
 	esApproverAddress string
 	esCommission      int64
 	esTimeout         uint64
+	esInstruction     string
 
 	// escrowApproval
 	approval      bool

@@ -83,7 +83,11 @@ func startGrpcServer(
 		logger,
 		receiptUtil,
 		receiptService,
-		coreService.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
+		coreService.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(chainType),
+			query.NewEscrowTransactionQuery(),
+		),
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {

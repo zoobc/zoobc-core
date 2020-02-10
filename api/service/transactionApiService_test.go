@@ -224,27 +224,21 @@ func TestNewTransactionService(t *testing.T) {
 }
 
 func TestTransactionService_PostTransaction(t *testing.T) {
-	transactionBytes, transactionHashed := transaction.GetFixturesForTransactionBytes(&model.Transaction{
-		ID:                      9132391972059444517,
-		Version:                 1,
-		TransactionType:         2,
-		BlockID:                 0,
-		Height:                  0,
-		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Fee:                     1000000,
-		TransactionHash: []byte{
-			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
-			187, 45, 245, 113, 210, 87, 23, 67, 157, 117, 41, 143,
+
+	txTypeSuccess, transactionHashed := transaction.GetFixtureForSpecificTransaction(
+		-6039856766804960022,
+		1562806389280,
+		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		8,
+		model.TransactionType_SendMoneyTransaction,
+		&model.SendMoneyTransactionBody{
+			Amount: 10,
 		},
-		TransactionBodyLength: 8,
-		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Signature: []byte{
-			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
-			68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-			77, 80, 80, 39, 254, 173, 28, 169,
-		}}, true)
+		false,
+		true,
+	)
+
 	type fields struct {
 		Query              query.ExecutorInterface
 		Signature          crypto.SignatureInterface
@@ -465,38 +459,11 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: transactionBytes,
+					TransactionBytes: transactionHashed,
 				},
 			},
 			wantErr: false,
-			want: &model.Transaction{
-				ID:                      9132391972059444517,
-				Version:                 1,
-				TransactionType:         2,
-				BlockID:                 0,
-				Height:                  0,
-				Timestamp:               1562806389280,
-				SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				Fee:                     1000000,
-				TransactionHash:         transactionHashed[:],
-				TransactionBodyLength:   8,
-				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-				Signature: []byte{
-					0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
-					68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-					77, 80, 80, 39, 254, 173, 28, 169,
-				},
-				Escrow: &model.Escrow{
-					ID:               0,
-					SenderAddress:    "",
-					RecipientAddress: "",
-					ApproverAddress:  "",
-					Amount:           0,
-					Commission:       0,
-					Timeout:          0,
-				},
-			},
+			want:    txTypeSuccess,
 		},
 	}
 	for _, tt := range tests {

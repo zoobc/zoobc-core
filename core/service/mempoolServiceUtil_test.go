@@ -258,8 +258,9 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: NewTransactionCoreService(
-					query.NewTransactionQuery(&chaintype.MainChain{}),
 					&mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 				),
 			},
 			args: args{

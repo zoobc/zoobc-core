@@ -540,8 +540,9 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 					Executor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
 				},
 				TransactionCoreService: NewTransactionCoreService(
-					query.NewTransactionQuery(&chaintype.MainChain{}),
 					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 				),
 			},
 			wantErr: false,
@@ -1048,8 +1049,9 @@ func TestMempoolService_ReceivedTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockActionTypeSwitcherSuccess{},
 				Observer:           observer.NewObserver(),
 				TransactionCoreService: NewTransactionCoreService(
-					query.NewTransactionQuery(&chaintype.MainChain{}),
 					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 				),
 			},
 			args: args{},

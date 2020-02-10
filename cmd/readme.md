@@ -21,9 +21,9 @@ Command line interface to as a utility tools to develop the zoobc system.
 ```
 go run main.go generate transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --amount 5000000000
 ```
-#### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout` and `--commission`
+#### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
 ```bash
---escrow true --approver-address BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN --timeout 10 --commission 1000
+go run main.go generate transaction send-money --escrow true --approver-address BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd
 ```
 
 ### Transaction Register Node
@@ -64,7 +64,7 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
 
 ### Transaction Escrow Approval
 ```bash
-go run main.go generate transaction escrow-approval --transaction-id -209324512209946230 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 1
+ go run main.go generate transaction escrow-approval --transaction-id -2546596465476625657 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 111
 ```
 
 ### Block Generating Fake Blocks

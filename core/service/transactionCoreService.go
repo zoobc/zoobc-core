@@ -15,21 +15,25 @@ type (
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
+		ExpiringEscrowTransactions(blockHeight uint32) error
 	}
 
 	TransactionCoreService struct {
-		TransactionQuery query.TransactionQueryInterface
-		QueryExecutor    query.ExecutorInterface
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
 	}
 )
 
 func NewTransactionCoreService(
-	transactionQuery query.TransactionQueryInterface,
 	queryExecutor query.ExecutorInterface,
+	transactionQuery query.TransactionQueryInterface,
+	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 ) TransactionCoreServiceInterface {
 	return &TransactionCoreService{
-		TransactionQuery: transactionQuery,
-		QueryExecutor:    queryExecutor,
+		TransactionQuery:       transactionQuery,
+		EscrowTransactionQuery: escrowTransactionQuery,
+		QueryExecutor:          queryExecutor,
 	}
 }
 
@@ -52,6 +56,12 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 	}
 
 	return transactions, nil
+}
+
+func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32) error {
+
+	escrowQ, escrowArgs := tg.EscrowTransactionQuery.ExpiringEscrowTransactions(blockHeight)
+	return tg.QueryExecutor.ExecuteTransaction(escrowQ, escrowArgs...)
 }
 
 func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {

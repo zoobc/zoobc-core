@@ -170,6 +170,7 @@ func (*mockQueryExecutorValidate) ExecuteSelectRow(qStr string, tx bool, args ..
 		0,
 		1,
 		true,
+		"",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	mockedRow := db.QueryRow("")

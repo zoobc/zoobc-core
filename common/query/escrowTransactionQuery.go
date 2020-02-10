@@ -19,6 +19,7 @@ type (
 	EscrowTransactionQueryInterface interface {
 		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
+		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
@@ -39,6 +40,7 @@ func NewEscrowTransactionQuery() *EscrowTransactionQuery {
 			"status",
 			"block_height",
 			"latest",
+			"instruction",
 		},
 		TableName: "escrow_transaction",
 	}
@@ -87,6 +89,19 @@ func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr
 		[]interface{}{id, true}
 }
 
+// ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
+func (et *EscrowTransactionQuery) ExpiringEscrowTransactions(blockHeight uint32) (qStr string, args []interface{}) {
+	return fmt.Sprintf(
+			"UPDATE %s set latest = ? status = ? WHERE timeout < ? AND status = 0",
+			et.getTableName(),
+		),
+		[]interface{}{
+			1,
+			model.EscrowStatus_Expired,
+			blockHeight,
+		}
+}
+
 // ExtractModel will extract values of escrow as []interface{}
 func (et *EscrowTransactionQuery) ExtractModel(escrow *model.Escrow) []interface{} {
 	return []interface{}{
@@ -100,6 +115,7 @@ func (et *EscrowTransactionQuery) ExtractModel(escrow *model.Escrow) []interface
 		escrow.GetStatus(),
 		escrow.GetBlockHeight(),
 		escrow.GetLatest(),
+		escrow.GetInstruction(),
 	}
 }
 
@@ -123,6 +139,7 @@ func (et *EscrowTransactionQuery) BuildModels(rows *sql.Rows) ([]*model.Escrow, 
 			&escrow.Status,
 			&escrow.BlockHeight,
 			&escrow.Latest,
+			&escrow.Instruction,
 		)
 		if err != nil {
 			return nil, err
@@ -145,6 +162,7 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 		&escrow.Status,
 		&escrow.BlockHeight,
 		&escrow.Latest,
+		&escrow.Instruction,
 	)
 }
 

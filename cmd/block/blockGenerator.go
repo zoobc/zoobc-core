@@ -168,7 +168,11 @@ func initialize(
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 		transactionUtil,
 		receiptUtil,
-		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
+		service.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(chainType),
+			nil,
+		),
 		nil,
 	)
 

@@ -65,12 +65,18 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
 		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
+
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetInstruction())))))
+		buffer.Write([]byte(transaction.GetEscrow().GetInstruction()))
 	} else {
 		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
 		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
 
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
+
+		buffer.Write(make([]byte, 0))
+		buffer.Write(make([]byte, 0))
 	}
 
 	if sign {
@@ -173,6 +179,16 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 		return nil, err
 	}
 	escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowInstructionLength))
+	if err != nil {
+		return nil, err
+	}
+	instruction, err := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if err != nil {
+		return nil, err
+	}
+	escrow.Instruction = string(instruction)
 
 	transaction.Escrow = &escrow
 

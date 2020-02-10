@@ -383,8 +383,9 @@ func startMainchain() {
 		receiptUtil,
 		receiptService,
 		service.NewTransactionCoreService(
-			query.NewTransactionQuery(&chaintype.MainChain{}),
 			queryExecutor,
+			query.NewTransactionQuery(&chaintype.MainChain{}),
+			query.NewEscrowTransactionQuery(),
 		),
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
@@ -429,7 +430,11 @@ func startMainchain() {
 		blockIncompleteQueueService,
 		transactionUtil,
 		receiptUtil,
-		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
+		service.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(mainchain),
+			query.NewEscrowTransactionQuery(),
+		),
 		mainchainBlockPool,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -489,8 +494,9 @@ func startMainchain() {
 		kvExecutor,
 		transactionUtil,
 		service.NewTransactionCoreService(
-			query.NewTransactionQuery(mainchain),
 			queryExecutor,
+			query.NewTransactionQuery(mainchain),
+			query.NewEscrowTransactionQuery(),
 		),
 	)
 }
@@ -551,8 +557,9 @@ func startSpinechain() {
 		kvExecutor,
 		transactionUtil,
 		service.NewTransactionCoreService(
-			query.NewTransactionQuery(spinechain),
 			queryExecutor,
+			query.NewTransactionQuery(spinechain),
+			query.NewEscrowTransactionQuery(),
 		),
 	)
 }

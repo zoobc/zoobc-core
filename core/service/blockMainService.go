@@ -459,11 +459,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 	if block.Height != 0 {
-		if err := bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+		if errRemoveMempool := bs.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
-			return err
+			return errRemoveMempool
+		}
+		if errExpiringEscrows := bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight()); errExpiringEscrows != nil {
+			return errExpiringEscrows
 		}
 	}
 	linkedCount, err := bs.processPublishedReceipts(block)

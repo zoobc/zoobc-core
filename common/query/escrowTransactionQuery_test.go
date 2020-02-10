@@ -34,6 +34,7 @@ var (
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
+		"",
 	}
 )
 
@@ -76,7 +77,7 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 				},
 				{
 					"INSERT INTO escrow_transaction (id,sender_address,recipient_address,approver_address,amount,commission,timeout,status," +
-						"block_height,latest) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+						"block_height,latest,instruction) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					int64(0),
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
@@ -87,6 +88,7 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 					model.EscrowStatus_Approved,
 					uint32(0),
 					true,
+					"",
 				},
 			},
 		},
@@ -124,7 +126,7 @@ func TestEscrowTransactionQuery_GetLatestEscrowTransactionByID(t *testing.T) {
 			fields: fields(*mockEscrowQuery),
 			args:   args{id: 1},
 			wantQStr: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, " +
-				"status, block_height, latest FROM escrow_transaction WHERE id = ? AND latest = ?",
+				"status, block_height, latest, instruction FROM escrow_transaction WHERE id = ? AND latest = ?",
 			wantArgs: []interface{}{int64(1), true},
 		},
 	}
@@ -194,6 +196,7 @@ func TestEscrowTransactionQuery_BuildModels(t *testing.T) {
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
+		"",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	mockedRow, _ := db.Query("")
@@ -253,6 +256,7 @@ func TestEscrowTransactionQuery_Scan(t *testing.T) {
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
+		"",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	mockedRow := db.QueryRow("")

@@ -322,6 +322,7 @@ func GetFixtureForSpecificTransaction(
 			ApproverAddress: "",
 			Commission:      0,
 			Timeout:         0,
+			Instruction:     "",
 		},
 	}
 
@@ -330,6 +331,7 @@ func GetFixtureForSpecificTransaction(
 			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 			Commission:      1,
 			Timeout:         100,
+			Instruction:     "",
 		}
 	}
 
