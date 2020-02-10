@@ -2,10 +2,12 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -15,7 +17,7 @@ type (
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
-		ExpiringEscrowTransactions(blockHeight uint32) error
+		ExpiringEscrowListener() observer.Listener
 	}
 
 	TransactionCoreService struct {
@@ -58,10 +60,19 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 	return transactions, nil
 }
 
-func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32) error {
-
-	escrowQ, escrowArgs := tg.EscrowTransactionQuery.ExpiringEscrowTransactions(blockHeight)
-	return tg.QueryExecutor.ExecuteTransaction(escrowQ, escrowArgs...)
+// ExpiringEscrowListener push an observer event that is ExpiringEscrowTransactions,
+// will set status to be expired caused by current block height
+func (tg *TransactionCoreService) ExpiringEscrowListener() observer.Listener {
+	return observer.Listener{
+		OnNotify: func(data interface{}, args ...interface{}) {
+			blockHeight := data.(uint32)
+			escrowQ, escrowArgs := tg.EscrowTransactionQuery.ExpiringEscrowTransactions(blockHeight)
+			err := tg.QueryExecutor.ExecuteTransaction(escrowQ, escrowArgs...)
+			if err != nil {
+				fmt.Println(err)
+			}
+		},
+	}
 }
 
 func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {

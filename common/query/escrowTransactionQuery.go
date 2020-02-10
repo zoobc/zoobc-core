@@ -92,7 +92,7 @@ func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr
 // ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
 func (et *EscrowTransactionQuery) ExpiringEscrowTransactions(blockHeight uint32) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
-			"UPDATE %s set latest = ? status = ? WHERE timeout < ? AND status = 0",
+			"UPDATE %s SET latest = ?, status = ? WHERE timeout < ? AND status = 0",
 			et.getTableName(),
 		),
 		[]interface{}{

@@ -360,7 +360,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 		sortedBlocksmithMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
+		blocksmithIndex = sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
 		if blocksmithIndex == nil {
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
 		}
@@ -465,9 +465,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return errRemoveMempool
 		}
-		if errExpiringEscrows := bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight()); errExpiringEscrows != nil {
-			return errExpiringEscrows
-		}
+		bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
 	}
 	linkedCount, err := bs.processPublishedReceipts(block)
 	if err != nil {
@@ -584,7 +582,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
-	// clear the block poolo
+	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
 	if broadcast && !persist && *blocksmithIndex == 0 {
@@ -594,6 +592,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
 	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
 	return nil
 }

@@ -293,3 +293,85 @@ func TestEscrowTransactionQuery_Scan(t *testing.T) {
 		})
 	}
 }
+
+func TestEscrowTransactionQuery_ExpiringEscrowTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		blockHeight uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantQStr string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*mockEscrowQuery),
+			args: args{
+				blockHeight: 1,
+			},
+			wantQStr: "UPDATE escrow_transaction SET latest = ?, status = ? WHERE timeout < ? AND status = 0",
+			wantArgs: []interface{}{1, model.EscrowStatus_Expired, uint32(1)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotQStr, gotArgs := et.ExpiringEscrowTransactions(tt.args.blockHeight)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("ExpiringEscrowTransactions() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("ExpiringEscrowTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestEscrowTransactionQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*mockEscrowQuery),
+			args:   args{height: 1},
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM escrow_transaction WHERE block_height > ?",
+					uint32(1),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if gotMultiQueries := et.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
+				t.Errorf("Rollback() = \n%v, want \n%v", gotMultiQueries, tt.wantMultiQueries)
+			}
+		})
+	}
+}
