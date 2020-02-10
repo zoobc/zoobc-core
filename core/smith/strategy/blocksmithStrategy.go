@@ -7,7 +7,7 @@ import (
 type (
 	BlocksmithStrategyInterface interface {
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
-		SortBlocksmiths(block *model.Block)
+		SortBlocksmiths(block *model.Block, withLock bool)
 		GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith
 		GetSortedBlocksmithsMap(block *model.Block) map[string]*int64
 		CalculateSmith(lastBlock *model.Block, blocksmithIndex int64, generator *model.Blocksmith, score int64) error

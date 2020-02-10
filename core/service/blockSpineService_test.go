@@ -797,7 +797,7 @@ func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block
 	}
 	return result
 }
-func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block) {
+func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 func (*mockSpineBlocksmithServicePushBlock) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
 	return 0
@@ -1528,7 +1528,7 @@ type (
 	}
 )
 
-func (*mockSpineBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block) {
+func (*mockSpineBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block, withLock bool) {
 
 }
 
