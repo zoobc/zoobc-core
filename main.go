@@ -494,7 +494,11 @@ func startMainchain() {
 		loggerCoreService,
 		kvExecutor,
 		transactionUtil,
-		transactionCoreServiceIns,
+		service.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(&chaintype.MainChain{}),
+			query.NewEscrowTransactionQuery(),
+		),
 	)
 }
 

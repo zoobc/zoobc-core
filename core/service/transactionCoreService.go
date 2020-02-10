@@ -65,11 +65,27 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 func (tg *TransactionCoreService) ExpiringEscrowListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(data interface{}, args ...interface{}) {
+			var (
+				err error
+			)
+
 			blockHeight := data.(uint32)
 			escrowQ, escrowArgs := tg.EscrowTransactionQuery.ExpiringEscrowTransactions(blockHeight)
-			err := tg.QueryExecutor.ExecuteTransaction(escrowQ, escrowArgs...)
+			err = tg.QueryExecutor.BeginTx()
 			if err != nil {
 				fmt.Println(err)
+			}
+			err = tg.QueryExecutor.ExecuteTransaction(escrowQ, escrowArgs...)
+			if err != nil {
+				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
+					fmt.Println(err)
+				}
+			}
+			err = tg.QueryExecutor.CommitTx()
+			if err != nil {
+				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
+					fmt.Println(err)
+				}
 			}
 		},
 	}

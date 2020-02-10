@@ -465,7 +465,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return errRemoveMempool
 		}
-		bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
 	}
 	linkedCount, err := bs.processPublishedReceipts(block)
 	if err != nil {

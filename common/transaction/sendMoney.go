@@ -261,6 +261,7 @@ func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
 			Status:           tx.Escrow.GetStatus(),
 			BlockHeight:      tx.Height,
 			Latest:           true,
+			Instruction:      tx.Escrow.GetInstruction(),
 		}
 
 		return EscrowTypeAction(tx), true
@@ -421,10 +422,6 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	queries = append(queries, escrowArgs...)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
-	if err != nil {
-		fmt.Println(queries)
-		fmt.Printf("SendMoney: %s", err.Error())
-	}
 	if err != nil {
 		return err
 	}

@@ -236,11 +236,11 @@ func (ts *TransactionService) PostTransaction(
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
 		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
-		ID:                      tx.ID,
+		ID:                      tx.GetID(),
 		TransactionBytes:        txBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    tx.SenderAccountAddress,
-		RecipientAccountAddress: tx.RecipientAccountAddress,
+		SenderAccountAddress:    tx.GetSenderAccountAddress(),
+		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
 	}
 	if err = ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
