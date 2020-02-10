@@ -169,6 +169,8 @@ func initialize(
 		receiptUtil,
 		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
 		nil,
+		nil,
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

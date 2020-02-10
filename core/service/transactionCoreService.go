@@ -3,6 +3,8 @@ package service
 import (
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -11,6 +13,7 @@ import (
 type (
 	TransactionCoreServiceInterface interface {
 		GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error)
+		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 	}
 
 	TransactionCoreService struct {
@@ -46,4 +49,20 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 	}
 
 	return transactions, nil
+}
+
+// GetTransactionsByBlockID get transactions of the block
+func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
+	var transactions []*model.Transaction
+
+	// get transaction of the block
+	transactionQ, transactionArg := tg.TransactionQuery.GetTransactionsByBlockID(blockID)
+	rows, err := tg.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	return tg.TransactionQuery.BuildModel(transactions, rows)
 }

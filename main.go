@@ -399,7 +399,16 @@ func startMainchain() {
 		observerInstance,
 	)
 	mainchainBlockPool := service.NewBlockPoolService()
-
+	mainchainBlocksmithService := service.NewBlocksmithService(
+		query.NewAccountBalanceQuery(),
+		query.NewAccountLedgerQuery(),
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+	)
+	mainchainCoinbaseService := service.NewCoinbaseService(
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+	)
 	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
@@ -427,6 +436,8 @@ func startMainchain() {
 		receiptUtil,
 		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
 		mainchainBlockPool,
+		mainchainBlocksmithService,
+		mainchainCoinbaseService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 

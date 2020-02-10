@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -46,14 +45,7 @@ type (
 			payloadLength uint32,
 			secretPhrase string,
 		) (*model.Block, error)
-		GetCoinbase() int64
-		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
-		RewardBlocksmithAccountAddresses(
-			blocksmithAccountAddresses []string, totalReward, blocktimestamp int64, height uint32,
-		) error
-		GetBlocksmithAccountAddress(block *model.Block) (string, error)
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
-		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
@@ -77,6 +69,7 @@ type (
 		MempoolService              MempoolServiceInterface
 		ReceiptService              ReceiptServiceInterface
 		NodeRegistrationService     NodeRegistrationServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
 		ActionTypeSwitcher          transaction.TypeActionSwitcher
 		AccountBalanceQuery         query.AccountBalanceQueryInterface
 		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
@@ -90,6 +83,7 @@ type (
 		TransactionUtil             transaction.UtilInterface
 		ReceiptUtil                 coreUtil.ReceiptUtilInterface
 		TransactionCoreService      TransactionCoreServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
 	}
 )
 
@@ -120,6 +114,8 @@ func NewBlockMainService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	transactionCoreService TransactionCoreServiceInterface,
 	blockPoolService BlockPoolServiceInterface,
+	blocksmithService BlocksmithServiceInterface,
+	coinbaseService CoinbaseServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -148,6 +144,8 @@ func NewBlockMainService(
 		ReceiptUtil:                 receiptUtil,
 		TransactionCoreService:      transactionCoreService,
 		BlockPoolService:            blockPoolService,
+		BlocksmithService:           blocksmithService,
+		CoinbaseService:             coinbaseService,
 	}
 }
 
@@ -504,14 +502,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
-		lotteryAccounts, err := bs.CoinbaseLotteryWinners(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))
+		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
+			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
+		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
-		if err := bs.RewardBlocksmithAccountAddresses(
+		if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
 			lotteryAccounts,
 			totalReward,
 			block.GetTimestamp(),
@@ -773,88 +773,6 @@ func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error
 	return linkedCount, nil
 }
 
-// CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
-// and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
-// are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
-	var (
-		selectedAccounts []string
-	)
-	// copy the pointer array to not change original order
-
-	// sort blocksmiths by NodeOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.NodeOrder.Cmp(bj.NodeOrder)
-		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
-		}
-		// ascending sort
-		return res < 0
-	})
-
-	for idx, sortedBlockSmith := range blocksmiths {
-		if idx > constant.MaxNumBlocksmithRewards-1 {
-			break
-		}
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, args := bs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
-		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		nr, err := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if (err != nil) || len(nr) == 0 {
-			rows.Close()
-			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
-		}
-		selectedAccounts = append(selectedAccounts, nr[0].AccountAddress)
-		rows.Close()
-	}
-	return selectedAccounts, nil
-}
-
-// RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
-func (bs *BlockService) RewardBlocksmithAccountAddresses(
-	blocksmithAccountAddresses []string,
-	totalReward, blockTimestamp int64,
-	height uint32,
-) error {
-	queries := make([][]interface{}, 0)
-	if len(blocksmithAccountAddresses) == 0 {
-		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
-	}
-	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
-	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
-		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
-			blocksmithReward,
-			map[string]interface{}{
-				"account_address": blocksmithAccountAddress,
-				"block_height":    height,
-			},
-		)
-		queries = append(queries, accountBalanceRecipientQ...)
-
-		accountLedgerQ, accountLedgerArgs := bs.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: blocksmithAccountAddress,
-			BalanceChange:  blocksmithReward,
-			BlockHeight:    height,
-			EventType:      model.EventType_EventReward,
-			Timestamp:      uint64(blockTimestamp),
-		})
-
-		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
-		queries = append(queries, accountLedgerArgs)
-	}
-	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
@@ -874,7 +792,7 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 
 	if block.ID != 0 {
 		if withAttachedData {
-			transactions, err := bs.GetTransactionsByBlockID(block.ID)
+			transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
@@ -908,8 +826,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-
-	transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
+	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -919,29 +836,13 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 
 // GetBlockHash return block's hash (makes sure always include transactions)
 func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
-	transactions, err := bs.GetTransactionsByBlockID(block.ID)
+	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	block.Transactions = transactions
 	return commonUtils.GetBlockHash(block, bs.GetChainType())
 
-}
-
-// GetTransactionsByBlockID get transactions of the block
-func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
-	var transactions []*model.Transaction
-
-	// get transaction of the block
-	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
-	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
-
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	return bs.TransactionQuery.BuildModel(transactions, rows)
 }
 
 func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
@@ -968,7 +869,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	transactions, err := bs.GetTransactionsByBlockID(block.ID)
+	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1012,7 +913,7 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 
 // PopulateBlockData add transactions and published receipts to model.Block instance
 func (bs *BlockService) PopulateBlockData(block *model.Block) error {
-	txs, err := bs.GetTransactionsByBlockID(block.ID)
+	txs, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		bs.Logger.Errorln(err)
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block transactions")
@@ -1060,7 +961,7 @@ func (bs *BlockService) GenerateBlock(
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block
-	totalCoinbase = bs.GetCoinbase()
+	totalCoinbase = bs.CoinbaseService.GetCoinbase()
 	sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 	if err != nil {
 		return nil, errors.New("MempoolReadError")
@@ -1340,7 +1241,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.Block = block
 	// block extra (computed) info
 	if block.Height > 0 {
-		blExt.BlocksmithAccountAddress, err = bs.GetBlocksmithAccountAddress(block)
+		blExt.BlocksmithAccountAddress, err = bs.BlocksmithService.GetBlocksmithAccountAddress(block)
 		if err != nil {
 			return nil, err
 		}
@@ -1400,29 +1301,6 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	}
 
 	return blExt, nil
-}
-
-func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
-	var (
-		nr []*model.NodeRegistration
-	)
-	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
-	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-	if err != nil {
-		return "", blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	nr, err = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if (err != nil) || len(nr) == 0 {
-		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
-	}
-	return nr[0].AccountAddress, nil
-}
-
-func (*BlockService) GetCoinbase() int64 {
-	return 50 * constant.OneZBC
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
