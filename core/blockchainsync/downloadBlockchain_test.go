@@ -306,6 +306,8 @@ func TestGetNextBlocks(t *testing.T) {
 		&coreUtil.ReceiptUtil{},
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:      blockService,
