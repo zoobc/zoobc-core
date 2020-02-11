@@ -360,7 +360,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 		sortedBlocksmithMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
+		blocksmithIndex = sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
 		if blocksmithIndex == nil {
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
 		}
@@ -418,9 +418,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
+
 		if rows.Next() {
-			// undo unconfirmed
-			err = txType.UndoApplyUnconfirmed()
+			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
 				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -430,8 +430,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		rows.Close()
+
 		if block.Height > 0 {
-			err = txType.Validate(true)
+			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
@@ -440,7 +441,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
-		err = txType.ApplyConfirmed(block.GetTimestamp())
+		err = bs.TransactionCoreService.ApplyConfirmedTransaction(txType, block.GetTimestamp())
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -458,11 +459,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 	if block.Height != 0 {
-		if err := bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+		if errRemoveMempool := bs.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
-			return err
+			return errRemoveMempool
 		}
 	}
 	linkedCount, err := bs.processPublishedReceipts(block)
@@ -580,7 +581,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
-	// clear the block poolo
+	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
 	if broadcast && !persist && *blocksmithIndex == 0 {
@@ -590,6 +591,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
 	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
 	return nil
 }
@@ -1511,7 +1513,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			return nil, err
 		}
 
-		err = txType.UndoApplyUnconfirmed()
+		err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			return nil, err
 		}

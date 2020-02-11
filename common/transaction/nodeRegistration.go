@@ -28,6 +28,7 @@ type NodeRegistration struct {
 	QueryExecutor           query.ExecutorInterface
 	AuthPoown               auth.ProofOfOwnershipValidationInterface
 	AccountLedgerQuery      query.AccountLedgerQueryInterface
+	EscrowQuery             query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -396,4 +397,61 @@ func (tx *NodeRegistration) getDefaultParticipationScore() int64 {
 		}
 	}
 	return constant.DefaultParticipationScore
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
+
+	return nil, false
+}
+
+/**
+Escrow Part
+1. ApplyUnconfirmed
+2. UndoApplyUnconfirmed
+3. ApplyConfirmed
+4. Validate
+*/
+
+// EscrowValidate special validation for escrow's transaction
+func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
+similar with ApplyUnconfirmed and Escrow.Commission
+*/
+func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowApplyConfirmed func that for applying Transaction SendMoney type.
+*/
+func (tx *NodeRegistration) EscrowApplyConfirmed(int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *NodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+	return nil
 }
