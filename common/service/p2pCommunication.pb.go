@@ -6,10 +6,13 @@ package service
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
 	model "github.com/zoobc/zoobc-core/common/model"
 	grpc "google.golang.org/grpc"
-	math "math"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -202,6 +205,44 @@ type P2PCommunicationServer interface {
 	GetCommonMilestoneBlockIDs(context.Context, *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error)
 	GetNextBlockIDs(context.Context, *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error)
 	GetNextBlocks(context.Context, *model.GetNextBlocksRequest) (*model.BlocksData, error)
+}
+
+// UnimplementedP2PCommunicationServer can be embedded to have forward compatible implementations.
+type UnimplementedP2PCommunicationServer struct {
+}
+
+func (*UnimplementedP2PCommunicationServer) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPeerInfo not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMorePeers not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendPeers not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.SendBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendBlock not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendTransaction(ctx context.Context, req *model.SendTransactionRequest) (*model.SendTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendTransaction not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) SendBlockTransactions(ctx context.Context, req *model.SendBlockTransactionsRequest) (*model.SendBlockTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendBlockTransactions not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) RequestBlockTransactions(ctx context.Context, req *model.RequestBlockTransactionsRequest) (*model.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestBlockTransactions not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetCumulativeDifficulty(ctx context.Context, req *model.GetCumulativeDifficultyRequest) (*model.GetCumulativeDifficultyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCumulativeDifficulty not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetCommonMilestoneBlockIDs(ctx context.Context, req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCommonMilestoneBlockIDs not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetNextBlockIDs(ctx context.Context, req *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNextBlockIDs not implemented")
+}
+func (*UnimplementedP2PCommunicationServer) GetNextBlocks(ctx context.Context, req *model.GetNextBlocksRequest) (*model.BlocksData, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetNextBlocks not implemented")
 }
 
 func RegisterP2PCommunicationServer(s *grpc.Server, srv P2PCommunicationServer) {

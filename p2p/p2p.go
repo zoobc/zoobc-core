@@ -195,20 +195,33 @@ func (s *Peer2PeerService) RequestBlockTransactionsListener() observer.Listener 
 				txIDs     = transactionIDs.([]int64)
 				peer      *model.Peer
 				chainType chaintype.ChainType
+				blockID   int64
 				ok        bool
 			)
-			chainType, ok = args[0].(chaintype.ChainType)
+
+			// check number of arguments before casting the argument type
+			if len(args) < 3 {
+				s.Logger.Fatalln("number of needed arguments too few in RequestBlockTransactionsListener")
+				return
+			}
+
+			blockID, ok = args[0].(int64)
+			if !ok {
+				s.Logger.Fatalln("blockID casting failures in RequestBlockTransactionsListener")
+			}
+
+			chainType, ok = args[1].(chaintype.ChainType)
 			if !ok {
 				s.Logger.Fatalln("chainType casting failures in RequestBlockTransactionsListener")
 			}
 
-			peer, ok = args[1].(*model.Peer)
+			peer, ok = args[2].(*model.Peer)
 			if !ok {
 				s.Logger.Fatalln("peer casting failures in RequestBlockTransactionsListener")
 			}
 
 			go func(p *model.Peer) {
-				_ = s.PeerServiceClient.RequestBlockTransactions(p, txIDs, chainType)
+				_ = s.PeerServiceClient.RequestBlockTransactions(p, txIDs, chainType, blockID)
 			}(peer)
 		},
 	}

@@ -566,6 +566,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				if broadcast {
+					// add transactionIDs and remove transaction before broadcast
+					block.TransactionIDs = transactionIDs
+					block.Transactions = []*model.Transaction{}
 					bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 				}
 				return nil
@@ -1731,7 +1734,7 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 		txIds = append(txIds, txID)
 	}
 
-	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, peer)
+	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)
 	return true, nil
 }
 
@@ -1764,26 +1767,79 @@ func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 			defer bs.ChainWriteUnlock(constant.BlockchainSendingBlockTransactions)
 
 			var (
-				err            error
 				transactions   []*model.Transaction
 				transactionIds []int64
 				peer           *model.Peer
+				chainType      chaintype.ChainType
+				blockID        int64
 				ok             bool
 			)
+
+			// check number of arguments before casting the argument type
+			if len(args) < 3 {
+				bs.Logger.Fatalln("number of needed arguments too few in BlockTransactionsRequestedListener")
+				return
+			}
+			chainType, ok = args[0].(*chaintype.MainChain)
+			if !ok {
+				bs.Logger.Fatalln("chaintype casting failures in BlockTransactionsRequestedListener")
+			}
+
+			// check chaintype
+			if chainType.GetTypeInt() != bs.Chaintype.GetTypeInt() {
+				bs.Logger.Warnf("chaintype is not macth, current chain is %s the incoming chain is %s",
+					bs.Chaintype.GetName(), chainType.GetName())
+				return
+			}
+
+			blockID, ok = args[1].(int64)
+			if !ok {
+				bs.Logger.Fatalln("blockID casting failures in BlockTransactionsRequestedListener")
+			}
+
+			peer, ok = args[2].(*model.Peer)
+			if !ok {
+				bs.Logger.Fatalln("peer casting failures in BlockTransactionsRequestedListener")
+			}
 
 			transactionIds, ok = transactionsIdsInterface.([]int64)
 			if !ok {
 				bs.Logger.Fatalln("transactionIds casting failures in BlockTransactionsRequestedListener")
 			}
 
-			peer, ok = args[1].(*model.Peer)
-			if !ok {
-				bs.Logger.Fatalln("peer casting failures in BlockTransactionsRequestedListener")
+			var (
+				remainingTxIDs []int64
+				block          = bs.BlockPoolService.GetBlock(blockID)
+			)
+			// get transaction from block pool
+			if block != nil {
+				var (
+					blockPoolTxs = block.GetTransactions()
+					txMap        = make(map[int64]*model.Transaction)
+				)
+				for _, tx := range blockPoolTxs {
+					txMap[tx.GetID()] = tx
+				}
+
+				for _, txID := range transactionIds {
+					if txMap[txID] != nil {
+						transactions = append(transactions, txMap[txID])
+						continue
+					}
+					remainingTxIDs = append(remainingTxIDs, txID)
+				}
 			}
 
-			transactions, err = bs.TransactionCoreService.GetTransactionsByIds(transactionIds)
-			if err != nil {
-				return
+			// get remaining transactions from DB transaction if needed
+			if len(transactions) < len(transactionIds) {
+				if len(transactions) == 0 {
+					remainingTxIDs = transactionIds
+				}
+				var remainingTxs, err = bs.TransactionCoreService.GetTransactionsByIds(remainingTxIDs)
+				if err != nil {
+					return
+				}
+				transactions = append(transactions, remainingTxs...)
 			}
 			bs.Observer.Notify(observer.SendBlockTransactions, transactions, bs.Chaintype, peer)
 		},

@@ -169,6 +169,7 @@ func (ss *P2PServerHandler) RequestBlockTransactions(
 	return ss.Service.RequestBlockTransactions(
 		ctx,
 		chaintype.GetChainType(req.ChainType),
-		req.TransactionIDs,
+		req.GetBlockID(),
+		req.GetTransactionIDs(),
 	)
 }

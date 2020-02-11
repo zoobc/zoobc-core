@@ -66,6 +66,7 @@ type (
 		RequestBlockTransactions(
 			ctx context.Context,
 			chainType chaintype.ChainType,
+			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
 	}
@@ -415,6 +416,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 func (ps *P2PServerService) RequestBlockTransactions(
 	ctx context.Context,
 	chainType chaintype.ChainType,
+	blockID int64,
 	transactionsIDs []int64,
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
@@ -424,7 +426,7 @@ func (ps *P2PServerService) RequestBlockTransactions(
 		if err != nil {
 			_ = status.Error(codes.InvalidArgument, "Invalid requester data")
 		}
-		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, peer)
+		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
 		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
