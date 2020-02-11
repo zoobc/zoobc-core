@@ -562,7 +562,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	case "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, " +
 		"sender_account_address, recipient_account_address FROM mempool WHERE id IN (?)  ":
 		txBytes, _ := transactionUtil.GetTransactionBytes(mockTransaction, true)
-		fmt.Println("test -->")
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id", "block_height", "fee_per_byte", "arrival_timestamp", "transaction_bytes",
 			"sender_account_address", "recipient_account_address",
@@ -945,6 +944,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		BlockPoolService        BlockPoolServiceInterface
 		CoinbaseService         CoinbaseServiceInterface
 		BlocksmithService       BlocksmithServiceInterface
+		TransactionCoreService  TransactionCoreServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1030,6 +1030,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1084,6 +1089,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1138,6 +1148,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1192,6 +1207,11 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					query.NewEscrowTransactionQuery(),
+				),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1252,6 +1272,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockPoolService:        tt.fields.BlockPoolService,
 				CoinbaseService:         tt.fields.CoinbaseService,
 				BlocksmithService:       tt.fields.BlocksmithService,
+				TransactionCoreService:  tt.fields.TransactionCoreService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1812,6 +1833,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		BlockPoolService        BlockPoolServiceInterface
 		Logger                  *logrus.Logger
+		TransactionCoreService  TransactionCoreServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1835,6 +1857,11 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlocksmithStrategy:      &mockBlocksmithServiceAddGenesisSuccess{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
+				TransactionCoreService: NewTransactionCoreService(
+					&mockQueryExecutorSuccess{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
+				),
 			},
 			wantErr: false,
 		},
@@ -1856,6 +1883,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				BlockPoolService:        tt.fields.BlockPoolService,
 				Logger:                  tt.fields.Logger,
+				TransactionCoreService:  tt.fields.TransactionCoreService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -3425,7 +3453,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    -3830150316165229566,
+			want:    263934091258032500,
 		},
 	}
 	for _, tt := range tests {
