@@ -1772,6 +1772,12 @@ func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 				blockID        int64
 				ok             bool
 			)
+
+			// check number of arguments before casting the type of arguments
+			if len(args) < 3 {
+				bs.Logger.Fatalln("number of needed arguments too few in BlockTransactionsRequestedListener")
+				return
+			}
 			chainType, ok = args[0].(*chaintype.MainChain)
 			if !ok {
 				bs.Logger.Fatalln("chaintype casting failures in BlockTransactionsRequestedListener")
