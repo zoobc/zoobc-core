@@ -349,6 +349,7 @@ func startServices() {
 		transactionUtil,
 		receiptUtil,
 		receiptService,
+		transactionCoreServiceIns,
 	)
 
 	if isDebugMode {

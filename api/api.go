@@ -40,6 +40,7 @@ func startGrpcServer(
 	transactionUtil transaction.UtilInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService coreService.ReceiptServiceInterface,
+	transactionCoreService coreService.TransactionCoreServiceInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -83,11 +84,7 @@ func startGrpcServer(
 		logger,
 		receiptUtil,
 		receiptService,
-		coreService.NewTransactionCoreService(
-			queryExecutor,
-			query.NewTransactionQuery(chainType),
-			query.NewEscrowTransactionQuery(),
-		),
+		transactionCoreService,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -173,11 +170,25 @@ func Start(
 	transactionUtil transaction.UtilInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService coreService.ReceiptServiceInterface,
+	transactionCoreService coreService.TransactionCoreServiceInterface,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile, transactionUtil,
-		receiptUtil, receiptService,
+		grpcPort,
+		kvExecutor,
+		queryExecutor,
+		p2pHostService,
+		blockServices,
+		nodeRegistrationService,
+		ownerAccountAddress,
+		nodefilePath,
+		logger,
+		isDebugMode,
+		apiCertFile,
+		apiKeyFile,
+		transactionUtil,
+		receiptUtil,
+		receiptService,
+		transactionCoreService,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
