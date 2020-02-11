@@ -281,18 +281,6 @@ EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `Set
 func (tx *SetupAccountDataset) EscrowApplyUnconfirmed() error {
 
 	// update account sender spendable balance
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		// TODO: transaction fee + (expiration time fee)
-		-(tx.Fee + tx.Escrow.GetCommission()),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

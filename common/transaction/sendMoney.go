@@ -304,7 +304,7 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 	if uint64(block.GetHeight()) >= tx.Escrow.GetTimeout() {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidTimout")
+		return blocker.NewBlocker(blocker.ValidationErr, "TransactionExpired")
 	}
 
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
