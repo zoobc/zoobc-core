@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 3638197708165910115
+	MainchainGenesisBlockID int64 = -8473268792655402172
 )
 
 type (
@@ -30,29 +30,11 @@ var (
 	// GenesisConfig one configuration for all block types (mainchain, spinechain), since they might share some fields
 	GenesisConfig = []GenesisConfigEntry{
 		{
-			AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			AccountBalance: 0,
-			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
-				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			NodeAddress:        "172.104.34.10:8080",
-			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
-		},
-		{
-			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
-			AccountBalance: 0,
-			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
-				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-			NodeAddress:        "45.79.39.58:8080",
-			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
-		},
-		{
 			AccountAddress: "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
 			AccountBalance: 100000000000,
 			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
-			NodeAddress:        "85.90.246.90:8080",
+			NodeAddress:        "172.104.47.168:8080",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
