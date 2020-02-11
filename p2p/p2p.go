@@ -199,6 +199,12 @@ func (s *Peer2PeerService) RequestBlockTransactionsListener() observer.Listener 
 				ok        bool
 			)
 
+			// check number of arguments before casting the argument type
+			if len(args) < 3 {
+				s.Logger.Fatalln("number of needed arguments too few in RequestBlockTransactionsListener")
+				return
+			}
+
 			blockID, ok = args[0].(int64)
 			if !ok {
 				s.Logger.Fatalln("blockID casting failures in RequestBlockTransactionsListener")

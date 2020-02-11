@@ -1773,7 +1773,7 @@ func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 				ok             bool
 			)
 
-			// check number of arguments before casting the type of arguments
+			// check number of arguments before casting the argument type
 			if len(args) < 3 {
 				bs.Logger.Fatalln("number of needed arguments too few in BlockTransactionsRequestedListener")
 				return
