@@ -11,6 +11,7 @@ var (
 		"claimNodeRegistration":  {2, 3, 0, 0},
 		"setupAccountDataset":    {3, 0, 0, 0},
 		"removeAccountDataset":   {3, 1, 0, 0},
+		"approvalEscrow":         {4, 0, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -35,4 +36,14 @@ var (
 	property   string
 	value      string
 	activeTime uint64
+	// escrowable
+	escrow            bool
+	esApproverAddress string
+	esCommission      int64
+	esTimeout         uint64
+	esInstruction     string
+
+	// escrowApproval
+	approval      bool
+	transactionID int64
 )

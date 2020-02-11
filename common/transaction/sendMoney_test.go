@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -741,6 +742,674 @@ func TestSendMoney_GetTransactionBody(t *testing.T) {
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			tx.GetTransactionBody(tt.args.transaction)
+		})
+	}
+}
+
+func TestSendMoney_Escrowable(t *testing.T) {
+	type fields struct {
+		ID                  int64
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		Body                *model.SendMoneyTransactionBody
+		Escrow              *model.Escrow
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		EscrowQuery         query.EscrowTransactionQueryInterface
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   EscrowTypeAction
+		want1  bool
+	}{
+		{
+			name: "wantNonEscrow",
+			fields: fields{
+				ID:               0,
+				Fee:              0,
+				SenderAddress:    "",
+				RecipientAddress: "",
+				Height:           0,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+				AccountLedgerQuery:  nil,
+				EscrowQuery:         nil,
+			},
+			want:  nil,
+			want1: false,
+		},
+		{
+			name: "wantEscrow",
+			fields: fields{
+				ID:               1,
+				Fee:              1,
+				SenderAddress:    "BCZ_SenderAddress-LK=",
+				RecipientAddress: "BCZ_Recipient-ADDress",
+				Height:           0,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					SenderAddress:    "BCZ_SenderAddress-LK=",
+					RecipientAddress: "BCZ_Recipient-ADDress",
+					ApproverAddress:  "BCZ-asdk_asdjahksdasd",
+					Commission:       10,
+					Timeout:          1,
+				},
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+				AccountLedgerQuery:  nil,
+				EscrowQuery:         nil,
+			},
+			want: EscrowTypeAction(&SendMoney{
+				ID:               1,
+				Fee:              1,
+				SenderAddress:    "BCZ_SenderAddress-LK=",
+				RecipientAddress: "BCZ_Recipient-ADDress",
+				Height:           0,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					ID:               1,
+					Amount:           1,
+					SenderAddress:    "BCZ_SenderAddress-LK=",
+					RecipientAddress: "BCZ_Recipient-ADDress",
+					ApproverAddress:  "BCZ-asdk_asdjahksdasd",
+					Commission:       10,
+					Timeout:          1,
+					Latest:           true,
+				},
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+				AccountLedgerQuery:  nil,
+				EscrowQuery:         nil,
+			}),
+			want1: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				ID:                  tt.fields.ID,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				Body:                tt.fields.Body,
+				Escrow:              tt.fields.Escrow,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				EscrowQuery:         tt.fields.EscrowQuery,
+			}
+			got, got1 := tx.Escrowable()
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Escrowable() got = \n%v, want \n%v", got, tt.want)
+				return
+			}
+			if got1 != tt.want1 {
+				t.Errorf("Escrowable() got1 = \n%v, want \n%v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+type (
+	mockExecutorEscrowValidateValid struct {
+		query.Executor
+	}
+	mockBlockQueryValidBlockHeight struct {
+		query.BlockQuery
+	}
+	mockExecutorEscrowValidateInvalidBlockHeight struct {
+		query.Executor
+	}
+	mockBlockQueryInvalidBlockHeight struct {
+		query.BlockQuery
+	}
+	mockAccountBalanceQueryValid struct {
+		query.AccountBalanceQuery
+	}
+)
+
+func (*mockExecutorEscrowValidateValid) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return &sql.Row{}, nil
+}
+func (*mockBlockQueryValidBlockHeight) GetLastBlock() string {
+	return ""
+}
+
+func (*mockBlockQueryValidBlockHeight) Scan(block *model.Block, row *sql.Row) error {
+	block.Height = 1
+	return nil
+}
+func (*mockExecutorEscrowValidateInvalidBlockHeight) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return &sql.Row{}, nil
+}
+func (*mockBlockQueryInvalidBlockHeight) GetLastBlock() string {
+	return ""
+}
+
+func (*mockBlockQueryInvalidBlockHeight) Scan(block *model.Block, row *sql.Row) error {
+	block.Height = 1
+	return nil
+}
+func (*mockAccountBalanceQueryValid) GetAccountBalanceByAccountAddress(senderAddress string) (q string, args []interface{}) {
+	return "", []interface{}{}
+}
+func (*mockAccountBalanceQueryValid) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
+	accountBalance.SpendableBalance = 100000000
+	return nil
+}
+
+func TestSendMoney_EscrowValidate(t *testing.T) {
+	type fields struct {
+		ID                  int64
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		Body                *model.SendMoneyTransactionBody
+		Escrow              *model.Escrow
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		EscrowQuery         query.EscrowTransactionQueryInterface
+		BlockQuery          query.BlockQueryInterface
+	}
+	type args struct {
+		dbTx bool
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "wantError:AmountNotEnough",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: -1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:CommissionNotEnough",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					Commission: -1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:ApproverAddressRequired",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					Commission: 1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:RecipientRequired",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					Commission:      1,
+					ApproverAddress: "ABC",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:InvalidTimeout",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					Commission:       1,
+					ApproverAddress:  "ABC",
+					RecipientAddress: "DEF",
+				},
+				QueryExecutor: &mockExecutorEscrowValidateInvalidBlockHeight{},
+				BlockQuery:    &mockBlockQueryInvalidBlockHeight{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:SenderAddressRequired",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				Escrow: &model.Escrow{
+					Commission:       1,
+					ApproverAddress:  "ABC",
+					RecipientAddress: "DEF",
+					Timeout:          10,
+				},
+				QueryExecutor: &mockExecutorEscrowValidateValid{},
+				BlockQuery:    &mockBlockQueryValidBlockHeight{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+				SenderAddress: "GHI",
+				Escrow: &model.Escrow{
+					Commission:       1,
+					ApproverAddress:  "ABC",
+					RecipientAddress: "DEF",
+					SenderAddress:    "GHI",
+					Timeout:          10,
+				},
+				QueryExecutor:       &mockExecutorEscrowValidateValid{},
+				BlockQuery:          &mockBlockQueryValidBlockHeight{},
+				AccountBalanceQuery: &mockAccountBalanceQueryValid{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				ID:                  tt.fields.ID,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				Body:                tt.fields.Body,
+				Escrow:              tt.fields.Escrow,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				EscrowQuery:         tt.fields.EscrowQuery,
+				BlockQuery:          tt.fields.BlockQuery,
+			}
+			if err := tx.EscrowValidate(tt.args.dbTx); (err != nil) != tt.wantErr {
+				t.Errorf("EscrowValidate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockEscrowApplyUnconfirmedOK struct {
+		query.Executor
+	}
+)
+
+func (*mockEscrowApplyUnconfirmedOK) ExecuteTransaction(string, ...interface{}) error {
+	return nil
+}
+
+func TestSendMoney_EscrowApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		ID                  int64
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		Body                *model.SendMoneyTransactionBody
+		Escrow              *model.Escrow
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		EscrowQuery         query.EscrowTransactionQueryInterface
+		BlockQuery          query.BlockQueryInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				ID:               1234567890,
+				Fee:              1,
+				SenderAddress:    "ABC",
+				RecipientAddress: "DEF",
+				Height:           1,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Escrow: &model.Escrow{
+					ID:               1234567890,
+					SenderAddress:    "ABC",
+					RecipientAddress: "DEF",
+					ApproverAddress:  "GHI",
+					BlockHeight:      1,
+				},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       &mockEscrowApplyUnconfirmedOK{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				ID:                  tt.fields.ID,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				Body:                tt.fields.Body,
+				Escrow:              tt.fields.Escrow,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				EscrowQuery:         tt.fields.EscrowQuery,
+				BlockQuery:          tt.fields.BlockQuery,
+			}
+			if err := tx.EscrowApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("EscrowApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSendMoney_EscrowUndoApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		ID                  int64
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		Body                *model.SendMoneyTransactionBody
+		Escrow              *model.Escrow
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		EscrowQuery         query.EscrowTransactionQueryInterface
+		BlockQuery          query.BlockQueryInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				ID:               1234567890,
+				Fee:              1,
+				SenderAddress:    "ABC",
+				RecipientAddress: "DEF",
+				Height:           1,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Escrow: &model.Escrow{
+					ID:               1234567890,
+					SenderAddress:    "ABC",
+					RecipientAddress: "DEF",
+					ApproverAddress:  "GHI",
+					BlockHeight:      1,
+				},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       &mockEscrowApplyUnconfirmedOK{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				ID:                  tt.fields.ID,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				Body:                tt.fields.Body,
+				Escrow:              tt.fields.Escrow,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				EscrowQuery:         tt.fields.EscrowQuery,
+				BlockQuery:          tt.fields.BlockQuery,
+			}
+			if err := tx.EscrowUndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("EscrowUndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockBlockQueryApplyConfirmedOK struct {
+		query.BlockQuery
+	}
+	mockQueryExecutorApplyConfirmedOK struct {
+		query.Executor
+	}
+)
+
+func (*mockBlockQueryApplyConfirmedOK) GetLastBlock() string {
+	return ""
+}
+func (*mockBlockQueryApplyConfirmedOK) Scan(block *model.Block, row *sql.Row) error {
+	block.Height = 100
+	return nil
+}
+
+func (*mockQueryExecutorApplyConfirmedOK) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return &sql.Row{}, nil
+}
+func (*mockQueryExecutorApplyConfirmedOK) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func TestSendMoney_EscrowApplyConfirmed(t *testing.T) {
+	type fields struct {
+		ID                  int64
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		Body                *model.SendMoneyTransactionBody
+		Escrow              *model.Escrow
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		EscrowQuery         query.EscrowTransactionQueryInterface
+		BlockQuery          query.BlockQueryInterface
+	}
+	type args struct {
+		blockTimestamp int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				ID:               1234567890,
+				Fee:              1,
+				SenderAddress:    "ABC",
+				RecipientAddress: "DEF",
+				Height:           1,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Escrow: &model.Escrow{
+					ID:               1234567890,
+					SenderAddress:    "ABC",
+					RecipientAddress: "DEF",
+					ApproverAddress:  "GHI",
+					BlockHeight:      1,
+				},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          &mockBlockQueryApplyConfirmedOK{},
+				QueryExecutor:       &mockQueryExecutorApplyConfirmedOK{},
+			},
+			args: args{blockTimestamp: 123456789},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				ID:                  tt.fields.ID,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				Body:                tt.fields.Body,
+				Escrow:              tt.fields.Escrow,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				EscrowQuery:         tt.fields.EscrowQuery,
+				BlockQuery:          tt.fields.BlockQuery,
+			}
+			if err := tx.EscrowApplyConfirmed(tt.args.blockTimestamp); (err != nil) != tt.wantErr {
+				t.Errorf("EscrowApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockQueryEscrowApprovalOK struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryEscrowApprovalOK) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+func TestSendMoney_EscrowApproval(t *testing.T) {
+	type fields struct {
+		ID                  int64
+		Fee                 int64
+		SenderAddress       string
+		RecipientAddress    string
+		Height              uint32
+		Body                *model.SendMoneyTransactionBody
+		Escrow              *model.Escrow
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		EscrowQuery         query.EscrowTransactionQueryInterface
+		BlockQuery          query.BlockQueryInterface
+	}
+	type args struct {
+		blockTimestamp int64
+		txBody         *model.ApprovalEscrowTransactionBody
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess:Approvec",
+			fields: fields{
+				ID:               1234567890,
+				Fee:              1,
+				SenderAddress:    "ABC",
+				RecipientAddress: "DEF",
+				Height:           1,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Escrow: &model.Escrow{
+					ID:               1234567890,
+					SenderAddress:    "ABC",
+					RecipientAddress: "DEF",
+					ApproverAddress:  "GHI",
+					BlockHeight:      1,
+				},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				QueryExecutor:       &mockQueryEscrowApprovalOK{},
+			},
+			args: args{
+				blockTimestamp: 100,
+				txBody: &model.ApprovalEscrowTransactionBody{
+					Approval:      0,
+					TransactionID: 1234567890,
+				}},
+		},
+		{
+			name: "wantSuccess:Rejected",
+			fields: fields{
+				ID:               1234567890,
+				Fee:              1,
+				SenderAddress:    "ABC",
+				RecipientAddress: "DEF",
+				Height:           1,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Escrow: &model.Escrow{
+					ID:               1234567890,
+					SenderAddress:    "ABC",
+					RecipientAddress: "DEF",
+					ApproverAddress:  "GHI",
+					BlockHeight:      1,
+				},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				QueryExecutor:       &mockQueryEscrowApprovalOK{},
+			},
+			args: args{
+				blockTimestamp: 100,
+				txBody: &model.ApprovalEscrowTransactionBody{
+					Approval:      1,
+					TransactionID: 1234567890,
+				}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SendMoney{
+				ID:                  tt.fields.ID,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
+				Height:              tt.fields.Height,
+				Body:                tt.fields.Body,
+				Escrow:              tt.fields.Escrow,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				EscrowQuery:         tt.fields.EscrowQuery,
+				BlockQuery:          tt.fields.BlockQuery,
+			}
+			if err := tx.EscrowApproval(tt.args.blockTimestamp, tt.args.txBody); (err != nil) != tt.wantErr {
+				t.Errorf("EscrowApproval() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }

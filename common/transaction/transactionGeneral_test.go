@@ -53,9 +53,9 @@ func TestGetTransactionBytes(t *testing.T) {
 				76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44, 0, 0,
 				0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66,
 				57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77,
-				137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124,
-				51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
+				4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9,
+				76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119,
+				124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
 			},
 			wantErr: false,
 		},
@@ -75,11 +75,13 @@ func TestGetTransactionBytes(t *testing.T) {
 				sign: false,
 			},
 			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105,
-				73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44,
-				0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86,
-				80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2,
-				3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79,
+				50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114,
+				110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85,
+				89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57,
+				106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0,
+				0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0,
 			},
 			wantErr: false,
 		},
@@ -116,11 +118,11 @@ func TestGetTransactionBytes(t *testing.T) {
 				sign: false,
 			},
 			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97,
-				122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71,
-				69, 65, 85, 67, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102,
+				79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80,
+				79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0,
+				0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0,
 			},
 			wantErr: false,
 		},
@@ -153,9 +155,9 @@ func TestGetTransactionBytes(t *testing.T) {
 				75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106,
 				102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 44, 0, 0, 0, 66, 67, 90, 68,
 				95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-				57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106,
-				21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119,
-				124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
+				57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63,
+				155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88,
+				220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
 			},
 		},
 		{
@@ -184,11 +186,61 @@ func TestGetTransactionBytes(t *testing.T) {
 			want: []byte{
 				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51,
 				99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44, 0, 0, 0, 66, 67, 90,
-				75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73,
-				106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 44, 0, 0, 0, 66, 67,
-				90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88,
-				117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0,
+				75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106,
+				102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 44, 0, 0, 0, 66, 67, 90, 68,
+				95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
+				57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			},
+		},
+		{
+			name: "EscrowApproval",
+			args: args{
+				transaction: &model.Transaction{
+					Version:                 1,
+					ID:                      1,
+					BlockID:                 1,
+					Height:                  1,
+					SenderAccountAddress:    "GHI",
+					RecipientAccountAddress: "",
+					TransactionType:         4,
+					Fee:                     1,
+					Timestamp:               1562806389280,
+					TransactionHash:         nil,
+					TransactionBodyLength:   12,
+					TransactionBodyBytes:    []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					TransactionIndex:        0,
+					Signature:               nil,
+					Escrow:                  nil,
+				},
+			},
+			want: []byte{4, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 3, 0, 0, 0, 71, 72, 73, 0, 0, 0, 0, 1, 0, 0,
+				0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
+		{
+			name: "EscrowApproval:Signed",
+			args: args{
+				transaction: &model.Transaction{
+					Version:                 1,
+					ID:                      1,
+					BlockID:                 1,
+					Height:                  1,
+					SenderAccountAddress:    "GHI",
+					RecipientAccountAddress: "",
+					TransactionType:         4,
+					Fee:                     1,
+					Timestamp:               1562806389280,
+					TransactionHash:         nil,
+					TransactionBodyLength:   12,
+					TransactionBodyBytes:    []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					TransactionIndex:        0,
+					Signature:               nil,
+					Escrow:                  nil,
+				},
+			},
+			want: []byte{4, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 3, 0, 0, 0, 71, 72, 73, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		},
 	}
 	for _, tt := range tests {
@@ -238,6 +290,21 @@ func TestParseTransactionBytes(t *testing.T) {
 			Timeout:         100,
 		},
 	}, true)
+	approvalTX, approvalTXBytes := GetFixtureForSpecificTransaction(
+		-5003742102621241788,
+		12345678,
+		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		"",
+		constant.EscrowApprovalBytesLength,
+		model.TransactionType_ApprovalEscrowTransaction,
+		&model.ApprovalEscrowTransactionBody{
+			Approval:      model.EscrowApproval_Approve,
+			TransactionID: 0,
+		},
+		false,
+		true,
+	)
+
 	successWithoutSig, successWithoutSigHashed := GetFixturesForTransactionBytes(&model.Transaction{
 		ID:                      670925173877174625,
 		Version:                 1,
@@ -282,7 +349,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				sign:             true,
 			},
 			want: &model.Transaction{
-				ID:                      670925173877174625,
+				ID:                      8974217473277679238,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -312,7 +379,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				sign:             false,
 			},
 			want: &model.Transaction{
-				ID:                      388553830245344829,
+				ID:                      4956766951297472907,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -331,6 +398,14 @@ func TestParseTransactionBytes(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "Ups",
+			args: args{
+				transactionBytes: approvalTXBytes,
+				sign:             true,
+			},
+			want: approvalTX,
 		},
 		{
 			name: "ParseTransactionBytes:fail",
@@ -450,23 +525,15 @@ type mockQueryExecutorSuccess struct {
 	query.Executor
 }
 
-func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-
-	getAccountBalanceByAccountID := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
-		"FROM account_balance WHERE account_address = ? AND latest = 1"
-	defer db.Close()
-	switch qe {
-	case getAccountBalanceByAccountID:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"account_address", "block_height", "spendable_balance", "balance", "pop_revenue", "latest"},
-		).AddRow("BCZ", 1, 10000, 10000, 0, 1))
-	default:
-		return nil, nil
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
+	mockRow := mock.NewRows(query.NewAccountBalanceQuery().Fields)
+	mockRow.AddRow(
+		"BCZ", 1, 10000, 10000, 0, 1,
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
+	row := db.QueryRow(qStr)
+	return row, nil
 }
 
 func TestValidateTransaction(t *testing.T) {
@@ -561,8 +628,12 @@ func TestValidateTransaction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := transactionUtil.ValidateTransaction(tt.args.tx, tt.args.queryExecutor, tt.args.accountBalanceQuery,
-				tt.args.verifySignature); (err != nil) != tt.wantErr {
+			if err := transactionUtil.ValidateTransaction(
+				tt.args.tx,
+				tt.args.queryExecutor,
+				tt.args.accountBalanceQuery,
+				tt.args.verifySignature,
+			); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

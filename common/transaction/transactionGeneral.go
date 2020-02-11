@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -41,10 +42,11 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	buffer.Write([]byte(transaction.SenderAccountAddress))
 
 	// Address format: [len][address]
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
-	if transaction.RecipientAccountAddress == "" {
-		buffer.Write(make([]byte, constant.AccountAddress)) // if no recipient pad with 44 (zoobc address length)
+	if transaction.GetRecipientAccountAddress() == "" {
+		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
+		buffer.Write(make([]byte, constant.AccountAddressEmptyLength)) // if no recipient pad with 44 (zoobc address length)
 	} else {
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
 		buffer.Write([]byte(transaction.RecipientAccountAddress))
 	}
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Fee)))
@@ -60,13 +62,21 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	if transaction.GetEscrow() != nil {
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetApproverAddress()))
+
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
 		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
+
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetInstruction())))))
+		buffer.Write([]byte(transaction.GetEscrow().GetInstruction()))
 	} else {
-		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
+		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressLength))
 		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
+
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
+
+		buffer.Write(make([]byte, constant.EscrowInstructionLength))
+		buffer.Write(make([]byte, 0))
 	}
 
 	if sign {
@@ -110,13 +120,21 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	if err != nil {
 		return nil, err
 	}
-	transaction.SenderAccountAddress = string(tu.ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+	senderAddress, errSender := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if errSender != nil {
+		return nil, errSender
+	}
+	transaction.SenderAccountAddress = string(senderAddress)
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
 	}
-	transaction.RecipientAccountAddress = string(tu.ReadAccountAddress(util.ConvertBytesToUint32(chunkedBytes), buffer))
+	recipient, errRecipient := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if errRecipient != nil {
+		return nil, errRecipient
+	}
+	transaction.RecipientAccountAddress = string(recipient)
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
@@ -161,6 +179,16 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 		return nil, err
 	}
 	escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
+
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowInstructionLength))
+	if err != nil {
+		return nil, err
+	}
+	instruction, err := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	if err != nil {
+		return nil, err
+	}
+	escrow.Instruction = string(instruction)
 
 	transaction.Escrow = &escrow
 
@@ -215,6 +243,12 @@ func (tu *Util) ValidateTransaction(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	verifySignature bool,
 ) error {
+	var (
+		senderAccountBalance model.AccountBalance
+		row                  *sql.Row
+		err                  error
+	)
+
 	if tx.Fee <= 0 {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -238,21 +272,19 @@ func (tu *Util) ValidateTransaction(
 
 	// validate sender account
 	qry, args := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	rows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+	row, err = queryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
 
-	res, err := accountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
-	if err != nil || len(res) == 0 {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"TxSenderNotFound",
-		)
+	err = accountBalanceQuery.Scan(&senderAccountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
 
-	senderAccountBalance := res[0]
 	if senderAccountBalance.SpendableBalance < tx.Fee {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
