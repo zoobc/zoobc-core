@@ -174,6 +174,8 @@ func initialize(
 			nil,
 		),
 		nil,
+		nil,
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

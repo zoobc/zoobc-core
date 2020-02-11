@@ -368,6 +368,8 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		&coreUtil.ReceiptUtil{},
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {

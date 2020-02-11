@@ -2,6 +2,9 @@ package service
 
 import (
 	"database/sql"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -13,6 +16,7 @@ import (
 type (
 	TransactionCoreServiceInterface interface {
 		GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error)
+		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		ValidateTransaction(txAction transaction.TypeAction, useTX bool) error
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
@@ -58,6 +62,22 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 	}
 
 	return transactions, nil
+}
+
+// GetTransactionsByBlockID get transactions of the block
+func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
+	var transactions []*model.Transaction
+
+	// get transaction of the block
+	transactionQ, transactionArg := tg.TransactionQuery.GetTransactionsByBlockID(blockID)
+	rows, err := tg.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+
+	return tg.TransactionQuery.BuildModel(transactions, rows)
 }
 
 // ExpiringEscrowListener push an observer event that is ExpiringEscrowTransactions,
