@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"math/big"
 	"reflect"
 	"regexp"
@@ -38,6 +39,30 @@ func (*mockQueryGetBlocksmithsSpineFail) ExecuteSelect(
 	qStr string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
 	return nil, errors.New("mockError")
+}
+
+func (*mockQueryGetBlocksmithsSpineFail) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+			mockBlock.GetID(),
+			mockBlock.GetBlockHash(),
+			mockBlock.GetPreviousBlockHash(),
+			mockBlock.GetHeight(),
+			mockBlock.GetTimestamp(),
+			mockBlock.GetBlockSeed(),
+			mockBlock.GetBlockSignature(),
+			mockBlock.GetCumulativeDifficulty(),
+			mockBlock.GetPayloadLength(),
+			mockBlock.GetPayloadHash(),
+			mockBlock.GetBlocksmithPublicKey(),
+			mockBlock.GetTotalAmount(),
+			mockBlock.GetTotalFee(),
+			mockBlock.GetTotalCoinBase(),
+			mockBlock.GetVersion(),
+		))
+	return db.QueryRow(qStr), nil
 }
 
 func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
@@ -114,6 +139,30 @@ func (*mockQuerySortBlocksmithSpineSuccessWithBlocksmiths) ExecuteSelect(
 	return rows, nil
 }
 
+func (*mockQuerySortBlocksmithSpineSuccessWithBlocksmiths) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+			mockBlock.GetID(),
+			mockBlock.GetBlockHash(),
+			mockBlock.GetPreviousBlockHash(),
+			mockBlock.GetHeight(),
+			mockBlock.GetTimestamp(),
+			mockBlock.GetBlockSeed(),
+			mockBlock.GetBlockSignature(),
+			mockBlock.GetCumulativeDifficulty(),
+			mockBlock.GetPayloadLength(),
+			mockBlock.GetPayloadHash(),
+			mockBlock.GetBlocksmithPublicKey(),
+			mockBlock.GetTotalAmount(),
+			mockBlock.GetTotalFee(),
+			mockBlock.GetTotalCoinBase(),
+			mockBlock.GetVersion(),
+		))
+	return db.QueryRow(qStr), nil
+}
+
 func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelect(
 	qStr string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
@@ -129,6 +178,30 @@ func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelect(
 	))
 	rows, _ := db.Query("A")
 	return rows, nil
+}
+
+func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+			mockBlock.GetID(),
+			mockBlock.GetBlockHash(),
+			mockBlock.GetPreviousBlockHash(),
+			mockBlock.GetHeight(),
+			mockBlock.GetTimestamp(),
+			mockBlock.GetBlockSeed(),
+			mockBlock.GetBlockSignature(),
+			mockBlock.GetCumulativeDifficulty(),
+			mockBlock.GetPayloadLength(),
+			mockBlock.GetPayloadHash(),
+			mockBlock.GetBlocksmithPublicKey(),
+			mockBlock.GetTotalAmount(),
+			mockBlock.GetTotalFee(),
+			mockBlock.GetTotalCoinBase(),
+			mockBlock.GetVersion(),
+		))
+	return db.QueryRow(qStr), nil
 }
 
 func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
@@ -300,6 +373,7 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 		SortedBlocksmiths    []*model.Blocksmith
 		LastSortedBlockID    int64
 		SortedBlocksmithsMap map[string]*int64
+		SpineBlockQuery      query.BlockQueryInterface
 	}
 	type args struct {
 		block *model.Block
@@ -318,6 +392,7 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmiths:    nil,
 				SortedBlocksmithsMap: make(map[string]*int64),
 				LastSortedBlockID:    1,
+				SpineBlockQuery:      query.NewBlockQuery(&chaintype.SpineChain{}),
 			},
 			args: args{
 				block: mockBlock,
@@ -332,6 +407,7 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmiths:    nil,
 				SortedBlocksmithsMap: make(map[string]*int64),
 				LastSortedBlockID:    1,
+				SpineBlockQuery:      query.NewBlockQuery(&chaintype.SpineChain{}),
 			},
 			args: args{mockBlock},
 		},
@@ -345,6 +421,7 @@ func TestBlocksmithStrategySpine_SortBlocksmiths(t *testing.T) {
 				SortedBlocksmiths:    tt.fields.SortedBlocksmiths,
 				LastSortedBlockID:    tt.fields.LastSortedBlockID,
 				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
+				SpineBlockQuery:      tt.fields.SpineBlockQuery,
 			}
 			bss.SortedBlocksmiths = make([]*model.Blocksmith, 0)
 			bss.SortBlocksmiths(tt.args.block, true)
@@ -371,6 +448,7 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 		LastSortedBlockID     int64
 		SortedBlocksmithsLock sync.RWMutex
 		SortedBlocksmithsMap  map[string]*int64
+		SpineBlockQuery       query.BlockQueryInterface
 	}
 	type args struct {
 		block *model.Block
@@ -392,6 +470,7 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 				Logger:               log.New(),
 				SortedBlocksmiths:    bssMockBlocksmiths,
 				SortedBlocksmithsMap: mockBlocksmithMap,
+				SpineBlockQuery:      query.NewBlockQuery(&chaintype.SpineChain{}),
 			},
 			want: mockBlocksmithMap,
 		},
@@ -406,6 +485,7 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 				Logger:               log.New(),
 				SortedBlocksmiths:    bssMockBlocksmiths,
 				SortedBlocksmithsMap: mockBlocksmithMap,
+				SpineBlockQuery:      query.NewBlockQuery(&chaintype.SpineChain{}),
 			},
 			want: mockBlocksmithMap,
 		},
@@ -420,6 +500,7 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmithsMap(t *testing.T) {
 				LastSortedBlockID:     tt.fields.LastSortedBlockID,
 				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsLock,
 				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SpineBlockQuery:       tt.fields.SpineBlockQuery,
 			}
 			if got := bss.GetSortedBlocksmithsMap(tt.args.block); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlocksmithStrategySpine.GetSortedBlocksmithsMap() = %v, want %v", got, tt.want)
@@ -550,6 +631,7 @@ func TestNewBlocksmithStrategySpine(t *testing.T) {
 		queryExecutor       query.ExecutorInterface
 		spinePublicKeyQuery query.SpinePublicKeyQueryInterface
 		logger              *log.Logger
+		spineBlockQuery     query.BlockQueryInterface
 	}
 	tests := []struct {
 		name string
@@ -561,13 +643,13 @@ func TestNewBlocksmithStrategySpine(t *testing.T) {
 			args: args{
 				logger: nil,
 			},
-			want: NewBlocksmithStrategySpine(nil, nil, nil),
+			want: NewBlocksmithStrategySpine(nil, nil, nil, nil),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlocksmithStrategySpine(tt.args.queryExecutor, tt.args.spinePublicKeyQuery,
-				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+				tt.args.logger, tt.args.spineBlockQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategySpine() = %v, want %v", got, tt.want)
 			}
 		})
