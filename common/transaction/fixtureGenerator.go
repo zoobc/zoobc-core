@@ -278,3 +278,76 @@ func GetFixturesForSignedMempoolTransaction(
 		RecipientAccountAddress: recipient,
 	}
 }
+func GetFixturesForApprovalEscrowTransaction() (
+	txBody *model.ApprovalEscrowTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.ApprovalEscrowTransactionBody{
+		Approval:      model.EscrowApproval_Approve,
+		TransactionID: 100,
+	}
+
+	sa := ApprovalEscrowTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixtureForSpecificTransaction(
+	id, timestamp int64,
+	sender, recipient string,
+	bodyLength uint32,
+	transactionType model.TransactionType,
+	transactionBody model.TransactionBodyInterface,
+	escrow, sign bool,
+) (tx *model.Transaction, txBytes []byte) {
+	var (
+		transactionBytes []byte
+	)
+
+	tx = &model.Transaction{
+		Version:                 1,
+		ID:                      id,
+		SenderAccountAddress:    sender,
+		RecipientAccountAddress: recipient,
+		TransactionType:         uint32(transactionType),
+		Fee:                     1,
+		Timestamp:               timestamp,
+		TransactionBodyLength:   bodyLength,
+		TransactionBodyBytes:    make([]byte, bodyLength),
+		TransactionIndex:        0,
+		TransactionBody:         transactionBody,
+		Signature:               nil,
+		Escrow: &model.Escrow{
+			ApproverAddress: "",
+			Commission:      0,
+			Timeout:         0,
+			Instruction:     "",
+		},
+	}
+
+	if escrow {
+		tx.Escrow = &model.Escrow{
+			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			Commission:      1,
+			Timeout:         100,
+			Instruction:     "",
+		}
+	}
+
+	var transactionUtil = &Util{}
+	transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, false)
+	if sign {
+		tx.Signature = (&crypto.Signature{}).Sign(
+			transactionBytes,
+			constant.SignatureTypeDefault,
+			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+		)
+		transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
+		hashed := sha3.Sum256(transactionBytes)
+		tx.TransactionHash = hashed[:]
+
+	}
+	tx.TransactionBody = nil
+	return tx, transactionBytes
+}

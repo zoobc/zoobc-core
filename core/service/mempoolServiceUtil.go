@@ -17,14 +17,15 @@ type (
 	}
 
 	MempoolServiceUtil struct {
-		MempoolGetter       MempoolGetterInterface
-		TransactionUtil     transaction.UtilInterface
-		TransactionQuery    query.TransactionQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		BlockQuery          query.BlockQueryInterface
+		MempoolGetter          MempoolGetterInterface
+		TransactionUtil        transaction.UtilInterface
+		TransactionQuery       query.TransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+		MempoolQuery           query.MempoolQueryInterface
+		ActionTypeSwitcher     transaction.TypeActionSwitcher
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		BlockQuery             query.BlockQueryInterface
+		TransactionCoreService TransactionCoreServiceInterface
 	}
 )
 
@@ -36,29 +37,38 @@ func NewMempoolServiceUtil(
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	mempoolGetter MempoolGetterInterface) MempoolServiceUtilInterface {
+	mempoolGetter MempoolGetterInterface,
+	transactionCoreService TransactionCoreServiceInterface,
+) MempoolServiceUtilInterface {
 	return &MempoolServiceUtil{
-		TransactionUtil:     transactionUtil,
-		TransactionQuery:    transactionQuery,
-		QueryExecutor:       queryExecutor,
-		MempoolQuery:        mempoolQuery,
-		ActionTypeSwitcher:  actionTypeSwitcher,
-		AccountBalanceQuery: accountBalanceQuery,
-		BlockQuery:          blockQuery,
-		MempoolGetter:       mempoolGetter,
+		TransactionUtil:        transactionUtil,
+		TransactionQuery:       transactionQuery,
+		QueryExecutor:          queryExecutor,
+		MempoolQuery:           mempoolQuery,
+		ActionTypeSwitcher:     actionTypeSwitcher,
+		AccountBalanceQuery:    accountBalanceQuery,
+		BlockQuery:             blockQuery,
+		MempoolGetter:          mempoolGetter,
+		TransactionCoreService: transactionCoreService,
 	}
 }
 
 func (mpsu *MempoolServiceUtil) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
 	var (
-		tx        model.Transaction
 		mempoolTx model.MempoolTransaction
 		parsedTx  *model.Transaction
+		tx        model.Transaction
 		err       error
+		row       *sql.Row
+		txType    transaction.TypeAction
 	)
 	// check for duplication in transaction table
 	transactionQ := mpsu.TransactionQuery.GetTransaction(mpTx.ID)
-	row, _ := mpsu.QueryExecutor.ExecuteSelectRow(transactionQ, false)
+	row, err = mpsu.QueryExecutor.ExecuteSelectRow(transactionQ, false)
+	if err != nil {
+		return err
+	}
+
 	err = mpsu.TransactionQuery.Scan(&tx, row)
 	if err != nil && err != sql.ErrNoRows {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -87,15 +97,15 @@ func (mpsu *MempoolServiceUtil) ValidateMempoolTransaction(mpTx *model.MempoolTr
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	if err := mpsu.TransactionUtil.ValidateTransaction(parsedTx, mpsu.QueryExecutor, mpsu.AccountBalanceQuery, true); err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	if errVal := mpsu.TransactionUtil.ValidateTransaction(parsedTx, mpsu.QueryExecutor, mpsu.AccountBalanceQuery, true); errVal != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, errVal.Error())
 	}
-	txType, err := mpsu.ActionTypeSwitcher.GetTransactionType(parsedTx)
+	txType, err = mpsu.ActionTypeSwitcher.GetTransactionType(parsedTx)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	err = txType.Validate(false)
+	err = mpsu.TransactionCoreService.ValidateTransaction(txType, false)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
@@ -169,9 +179,8 @@ func NewMempoolGetter(queryExecutor query.ExecutorInterface, mempoolQuery query.
 func (mg *MempoolGetter) GetTotalMempoolTransactions() (int, error) {
 	var count int
 	sqlStr := mg.MempoolQuery.GetMempoolTransactions()
-	// note: this select is always insid a db transaction because AddMempoolTransaction is always called within a db tx
-	aaa := query.GetTotalRecordOfSelect(sqlStr)
-	row, err := mg.QueryExecutor.ExecuteSelectRow(aaa, true)
+	// note: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
+	row, err := mg.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr), true)
 	if err != nil {
 		return count, err
 	}

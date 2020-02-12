@@ -40,6 +40,7 @@ func startGrpcServer(
 	transactionUtil transaction.UtilInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService coreService.ReceiptServiceInterface,
+	transactionCoreService coreService.TransactionCoreServiceInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -69,7 +70,8 @@ func startGrpcServer(
 	}
 	mempoolService := coreService.NewMempoolService(
 		transactionUtil,
-		chainType, kvExecutor,
+		chainType,
+		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -82,6 +84,7 @@ func startGrpcServer(
 		logger,
 		receiptUtil,
 		receiptService,
+		transactionCoreService,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -142,6 +145,7 @@ func startGrpcServer(
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
 		Service: service.NewAccountLedgerService(queryExecutor),
 	})
+
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -166,11 +170,25 @@ func Start(
 	transactionUtil transaction.UtilInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService coreService.ReceiptServiceInterface,
+	transactionCoreService coreService.TransactionCoreServiceInterface,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile, transactionUtil,
-		receiptUtil, receiptService,
+		grpcPort,
+		kvExecutor,
+		queryExecutor,
+		p2pHostService,
+		blockServices,
+		nodeRegistrationService,
+		ownerAccountAddress,
+		nodefilePath,
+		logger,
+		isDebugMode,
+		apiCertFile,
+		apiKeyFile,
+		transactionUtil,
+		receiptUtil,
+		receiptService,
+		transactionCoreService,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
@@ -201,6 +219,5 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

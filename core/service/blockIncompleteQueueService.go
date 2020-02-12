@@ -16,7 +16,7 @@ type (
 		AddBlockQueue(block *model.Block)
 		SetTransactionsRequired(blockIDs int64, requiredTxIDs TransactionIDsMap)
 		AddTransaction(transaction *model.Transaction) []*model.Block
-		RequestBlockTransactions(txIds []int64, peer *model.Peer)
+		RequestBlockTransactions(txIds []int64, blockID int64, peer *model.Peer)
 		PruneTimeoutBlockQueue()
 	}
 
@@ -91,9 +91,9 @@ func (buqs *BlockIncompleteQueueService) SetTransactionsRequired(blockIDs int64,
 }
 
 // RequestBlockTransactions request transactons to the peers
-func (buqs *BlockIncompleteQueueService) RequestBlockTransactions(txIds []int64, peer *model.Peer) {
+func (buqs *BlockIncompleteQueueService) RequestBlockTransactions(txIds []int64, blockID int64, peer *model.Peer) {
 	// TODO: chunks requested transaction
-	buqs.Observer.Notify(observer.BlockRequestTransactions, txIds, buqs.Chaintype, peer)
+	buqs.Observer.Notify(observer.BlockRequestTransactions, txIds, blockID, buqs.Chaintype, peer)
 }
 
 // AddTransaction will add validated transaction for queue block and return completed block
