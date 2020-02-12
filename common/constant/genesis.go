@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -2420265292279479001
+	MainchainGenesisBlockID int64 = -8326328795935705618
 )
 
 type (
