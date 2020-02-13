@@ -93,7 +93,7 @@ func initialize(
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
 		panic(err)
 	}
-	db, err := dbInstance.OpenDB(dbPath, dbName, 10, 20)
+	db, err := dbInstance.OpenDB(dbPath, dbName, 10, 10, 20*time.Minute)
 	if err != nil {
 		panic(err)
 	}
@@ -130,6 +130,7 @@ func initialize(
 		log.New(),
 		receiptUtil,
 		receiptService,
+		nil,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -167,7 +168,13 @@ func initialize(
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 		transactionUtil,
 		receiptUtil,
-		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
+		service.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(chainType),
+			nil,
+		),
+		nil,
+		nil,
 		nil,
 	)
 

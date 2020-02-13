@@ -164,11 +164,12 @@ func (ss *P2PServerHandler) SendBlockTransactions(
 // RequestBlockTransactions receive requested transaction from another node
 func (ss *P2PServerHandler) RequestBlockTransactions(
 	ctx context.Context,
-	req *model.RequestBlockTransactonsRequest,
+	req *model.RequestBlockTransactionsRequest,
 ) (*model.Empty, error) {
 	return ss.Service.RequestBlockTransactions(
 		ctx,
 		chaintype.GetChainType(req.ChainType),
-		req.TransactionIDs,
+		req.GetBlockID(),
+		req.GetTransactionIDs(),
 	)
 }

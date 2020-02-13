@@ -27,17 +27,6 @@ import (
 )
 
 type (
-	BlockServiceSpineInterface interface {
-		NewSpineBlock(version uint32, previousBlockHash []byte, blockSeed, blockSmithPublicKey []byte,
-			previousBlockHeight uint32, timestamp int64, blockSpinePublicKeys []*model.SpinePublicKey,
-			payloadHash []byte, payloadLength uint32, secretPhrase string) (*model.Block, error)
-		BuildSpinePublicKeysFromNodeRegistry(
-			fromTimestamp,
-			toTimestamp int64,
-			spineBlockHeight uint32,
-		) (spinePublicKeys []*model.SpinePublicKey, err error)
-		GetSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error)
-	}
 	BlockSpineService struct {
 		sync.RWMutex
 		Chaintype                 chaintype.ChainType
@@ -323,7 +312,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
-	bs.BlocksmithStrategy.SortBlocksmiths(block)
+	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
@@ -848,7 +837,7 @@ func (bs *BlockSpineService) WillSmith(
 	if lastBlock.GetID() != blockchainProcessorLastBlockID {
 		blockchainProcessorLastBlockID = lastBlock.GetID()
 		blockSmithStrategy := bs.GetBlocksmithStrategy()
-		blockSmithStrategy.SortBlocksmiths(lastBlock)
+		blockSmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {

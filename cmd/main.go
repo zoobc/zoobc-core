@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -53,7 +54,7 @@ func main() {
 	if err := sqliteDbInstance.InitializeDB(dbPath, dbName); err != nil {
 		log.Fatalln("InitializeDB err: ", err.Error())
 	}
-	sqliteDB, err := sqliteDbInstance.OpenDB(dbPath, dbName, 10, 20)
+	sqliteDB, err := sqliteDbInstance.OpenDB(dbPath, dbName, 10, 10, 20*time.Minute)
 	if err != nil {
 		log.Fatalln("OpenDB err: ", err.Error())
 	}

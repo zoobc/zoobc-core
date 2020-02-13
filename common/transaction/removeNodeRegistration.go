@@ -22,6 +22,7 @@ type RemoveNodeRegistration struct {
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
+	EscrowQuery           query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -56,6 +57,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	if err != nil {
 		return err
 	}
+	defer nodeRow.Close()
 	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	if (err != nil) || len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
@@ -156,6 +158,7 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
+	defer nodeRow.Close()
 	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	if (err != nil) || len(nodeRegistrations) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
@@ -205,4 +208,51 @@ func (tx *RemoveNodeRegistration) GetTransactionBody(transaction *model.Transact
 	transaction.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
 		RemoveNodeRegistrationTransactionBody: tx.Body,
 	}
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *RemoveNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
+
+	return nil, false
+}
+
+// EscrowValidate validate node registration transaction and tx body
+func (tx *RemoveNodeRegistration) EscrowValidate(dbTx bool) error {
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `RemoveNodeRegistration` type.
+Perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
+*/
+func (tx *RemoveNodeRegistration) EscrowApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
+*/
+func (tx *RemoveNodeRegistration) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+// EscrowApplyConfirmed method for confirmed the transaction and store into database
+func (tx *RemoveNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *RemoveNodeRegistration) EscrowApproval(blockTimestamp int64, body *model.ApprovalEscrowTransactionBody) error {
+
+	return nil
 }
