@@ -53,7 +53,14 @@ func (es *escrowTransactionService) GetEscrowTransactions(
 		caseQuery.Where(caseQuery.Equal("approver_address", params.GetApproverAddress()))
 	}
 	if len(params.GetStatuses()) > 0 {
-		caseQuery.And(caseQuery.In("status", params.GetStatuses()))
+		var statuses []interface{}
+		for _, v := range params.GetStatuses() {
+			statuses = append(statuses, int32(v))
+		}
+		caseQuery.And(caseQuery.In("status", statuses...))
+	}
+	if params.GetID() > 0 {
+		caseQuery.And(caseQuery.Equal("id", params.GetID()))
 	}
 
 	blockHeightStart := params.GetBlockHeightStart()

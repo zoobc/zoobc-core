@@ -34,6 +34,9 @@ func main() {
 
 	response, err := c.GetEscrowTransactions(context.Background(), &rpcModel.GetEscrowTransactionsRequest{
 		ApproverAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		Statuses: []rpcModel.EscrowStatus{
+			rpcModel.EscrowStatus_Approved,
+		},
 	})
 
 	if err != nil {
