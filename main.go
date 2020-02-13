@@ -541,6 +541,7 @@ func startSpinechain() {
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
+		query.NewBlockQuery(spinechain),
 	)
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
