@@ -57,3 +57,11 @@ func (*SpineChain) HasTransactions() bool {
 func (*SpineChain) HasSnapshots() bool {
 	return false
 }
+
+func (*SpineChain) GetSnapshotInterval() uint32 {
+	return 0
+}
+
+func (*SpineChain) GetSnapshotGenerationTimeout() int64 {
+	return 0
+}

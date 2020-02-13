@@ -3,6 +3,9 @@ package util
 import (
 	"bytes"
 	"errors"
+	"hash"
+	"io"
+	"os"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 )
@@ -23,4 +26,27 @@ func FeePerByteTransaction(feeTransaction int64, transactionBytes []byte) int64 
 		return (feeTransaction * constant.OneFeePerByteTransaction) / int64(len(transactionBytes))
 	}
 	return feeTransaction * constant.OneFeePerByteTransaction
+}
+
+func VerifyFileHash(filePath string, hash []byte, hasher hash.Hash) (bool, error) {
+	fc, err := ComputeFileHash(filePath, hasher)
+	if err != nil {
+		return false, err
+	}
+	if bytes.Compare(fc, hash) == 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func ComputeFileHash(filePath string, hasher hash.Hash) ([]byte, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return nil, err
+	}
+	return hasher.Sum(nil), nil
 }

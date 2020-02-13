@@ -44,7 +44,7 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath string
+	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
 	dbInstance                                    *database.SqliteDB
 	badgerDbInstance                              *database.BadgerDB
 	db                                            *sql.DB
@@ -58,8 +58,10 @@ var (
 	observerInstance                              *observer.Observer
 	schedulerInstance                             *util.Scheduler
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
+	snapshotBlockServices                         = make(map[int32]service.SnapshotBlockServiceInterface)
 	mainchainBlockService                         *service.BlockService
 	spinechainBlockService                        *service.BlockSpineService
+	fileDownloadService                           service.FileDownloaderServiceInterface
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
 	blockIncompleteQueueService                   service.BlockIncompleteQueueServiceInterface
 	receiptService                                service.ReceiptServiceInterface
@@ -88,6 +90,7 @@ func init() {
 		configPostfix string
 		configPath    string
 		err           error
+		mainchain     = &chaintype.MainChain{}
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
@@ -155,12 +158,28 @@ func init() {
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		loggerCoreService,
 	)
-	snapshotService = service.NewSnapshotService(
+	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
+		snapshotPath,
 		queryExecutor,
+		spineBlockManifestService,
+		loggerCoreService,
 		query.NewBlockQuery(&chaintype.MainChain{}),
-		query.NewBlockQuery(&chaintype.SpineChain{}),
+		query.NewAccountBalanceQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewParticipationScoreQuery(),
+		query.NewAccountDatasetsQuery(),
+		query.NewEscrowTransactionQuery(),
+	)
+
+	fileDownloadService = service.NewFileDownloaderService(
+		snapshotPath,
+		loggerP2PService,
+	)
+	snapshotService = service.NewSnapshotService(
 		spineBlockManifestService,
 		spineBlockDownloadService,
+		snapshotBlockServices,
+		fileDownloadService,
 		loggerCoreService,
 	)
 
@@ -213,6 +232,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	nodePreSeed = viper.GetString("nodeSeed")
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
+	snapshotPath = viper.GetString("apiKeyFile")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
@@ -373,8 +393,8 @@ func startMainchain() {
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
 		err                                         error
 		sleepPeriod                                 = 500
+		mainchain                                   = &chaintype.MainChain{}
 	)
-	mainchain := &chaintype.MainChain{}
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -658,8 +678,8 @@ syncronizersLoop:
 				break syncronizersLoop
 			}
 			loggerCoreService.Infof("downloading spine blocks. last height is %d", lastSpineBlock.Height)
-		// @iltoga this is mostly for debugging purposes.
-		// spine blocks shouldn't take that long to be downloaded
+		// spine blocks shouldn't take that long to be downloaded. shutdown the node
+		// TODO: add push notification to node owner that the node has shutdown because of network issues
 		case <-timeout:
 			loggerCoreService.Info("spine blocks sync timed out...")
 			os.Exit(1)

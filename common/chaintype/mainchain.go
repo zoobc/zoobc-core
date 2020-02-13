@@ -57,3 +57,11 @@ func (*MainChain) HasTransactions() bool {
 func (*MainChain) HasSnapshots() bool {
 	return true
 }
+
+func (*MainChain) GetSnapshotInterval() uint32 {
+	return constant.MainchainSnapshotInterval
+}
+
+func (*MainChain) GetSnapshotGenerationTimeout() int64 {
+	return constant.MainchainSnapshotGenerationTimeout
+}
