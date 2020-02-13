@@ -146,6 +146,11 @@ func startGrpcServer(
 		Service: service.NewAccountLedgerService(queryExecutor),
 	})
 
+	// Set GRPC handler for escrow transaction request
+	rpcService.RegisterEscrowTransactionServiceServer(grpcServer, &handler.EscrowTransactionHandler{
+		Service: service.NewEscrowTransactionService(queryExecutor),
+	})
+
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -219,5 +224,6 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }
