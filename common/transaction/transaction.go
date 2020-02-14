@@ -3,6 +3,8 @@ package transaction
 import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -16,6 +18,7 @@ type (
 		UndoApplyUnconfirmed() error
 		// Validate dbTx specify whether validation should read from transaction state or db state
 		Validate(dbTx bool) error
+		GetMinimumFee() (int64, error)
 		GetAmount() int64
 		GetSize() uint32
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
@@ -65,6 +68,10 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Escrow:              tx.GetEscrow(),
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, constant.OneZBC/100,
+				),
+				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
 			}, nil
 		default:
 			return nil, nil
