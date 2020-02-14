@@ -440,6 +440,21 @@ func startMainchain() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 	)
+	mainchainParticipationScoreService := service.NewParticipationScoreService(
+		query.NewParticipationScoreQuery(),
+		queryExecutor,
+	)
+	mainchainPublishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
+		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
+	mainchainPublishedReceiptService := service.NewPublishedReceiptService(
+		query.NewPublishedReceiptQuery(),
+		receiptUtil,
+		mainchainPublishedReceiptUtil,
+		receiptService,
+		queryExecutor,
+	)
 	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
@@ -447,8 +462,6 @@ func startMainchain() {
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
@@ -465,10 +478,13 @@ func startMainchain() {
 		blockIncompleteQueueService,
 		transactionUtil,
 		receiptUtil,
+		mainchainPublishedReceiptUtil,
 		transactionCoreServiceIns,
 		mainchainBlockPool,
 		mainchainBlocksmithService,
 		mainchainCoinbaseService,
+		mainchainParticipationScoreService,
+		mainchainPublishedReceiptService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
