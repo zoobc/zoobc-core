@@ -314,7 +314,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 	lastBlockID := lastBlock.ID
 	for {
 		if trialCounter >= constant.MaxCommonMilestoneRequestTrial {
-			_ = bd.PeerExplorer.PeerBlacklist(peer, "different blockchain fork")
+			err = bd.PeerExplorer.PeerBlacklist(peer, "different blockchain fork")
 			if err != nil {
 				bd.Logger.Errorf("Failed to add blacklist: %v\n", err)
 			}
