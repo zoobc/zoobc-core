@@ -3,15 +3,12 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
-	"testing"
-
 	"github.com/DATA-DOG/go-sqlmock"
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"regexp"
 )
 
 type (
@@ -210,116 +207,3 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 // 		})
 // 	}
 // }
-
-func TestSnapshotService_IsSnapshotHeight(t *testing.T) {
-	type fields struct {
-		QueryExecutor             query.ExecutorInterface
-		SpineBlockQuery           query.BlockQueryInterface
-		MainBlockQuery            query.BlockQueryInterface
-		Logger                    *log.Logger
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          uint32
-		SnapshotGenerationTimeout int64
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-	}
-	type args struct {
-		height           uint32
-		snapshotInterval uint32
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_1}:",
-			args: args{
-				height:           1,
-				snapshotInterval: 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_2}:",
-			args: args{
-				height:           constant.MinRollbackBlocks,
-				snapshotInterval: 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_3}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 9,
-				snapshotInterval: 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_4}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 10,
-				snapshotInterval: 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_5}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 20,
-				snapshotInterval: 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_1}:",
-			args: args{
-				height:           10,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_2}:",
-			args: args{
-				height:           constant.MinRollbackBlocks,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_3}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 10,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_4}:",
-			args: args{
-				height:           2 * (constant.MinRollbackBlocks + 10),
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &SnapshotService{
-				QueryExecutor:             tt.fields.QueryExecutor,
-				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-				MainBlockQuery:            tt.fields.MainBlockQuery,
-				Logger:                    tt.fields.Logger,
-				SnapshotInterval:          tt.fields.SnapshotInterval,
-				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
-				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
-			}
-			if got := s.IsSnapshotHeight(tt.args.height, tt.args.snapshotInterval); got != tt.want {
-				t.Errorf("SnapshotService.IsSnapshotHeight() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}

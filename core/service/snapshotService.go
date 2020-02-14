@@ -65,43 +65,45 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 			if !ok {
 				ss.Logger.Fatalln("chaintype casting failures in StartSnapshotListener")
 			}
-			snapshotBlockService, ok := ss.SnapshotBlockServices[ct.GetTypeInt()]
-			if !ok {
-				ss.Logger.Fatalf("snapshots for chaintype %s not implemented", ct.GetName())
-			}
-			if ct.HasSnapshots() && snapshotBlockService.IsSnapshotHeight(b.Height) {
-				go func() {
-					// if spine blocks is downloading, do not generate (or download from other peers) snapshots
-					// don't generate snapshots until all spine blocks have been downloaded
-					if !ss.SpineBlockDownloadService.IsSpineBlocksDownloadFinished() {
-						ss.Logger.Infof("Snapshot at block "+
-							"height %d not generated because spine blocks are still downloading",
-							b.Height)
-						return
-					}
-					// TODO: implement some sort of process management,
-					//  such as controlling if there is another snapshot running before starting to compute a new one (
-					//  or compute the new one and kill the one already running...)
-					snapshotInfo, err := ss.GenerateSnapshot(b, ct, constant.SnapshotChunkLengthBytes)
-					if err != nil {
-						ss.Logger.Errorf("Snapshot at block "+
-							"height %d terminated with errors %s", b.Height, err)
-					}
-					_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
-						snapshotInfo.SnapshotFileHash,
-						snapshotInfo.Height,
-						snapshotInfo.ProcessExpirationTimestamp,
-						snapshotInfo.FileChunksHashes,
-						ct,
-						model.SpineBlockManifestType_Snapshot,
-					)
-					if err != nil {
-						ss.Logger.Errorf("Cannot create spineBlockManifest at block "+
-							"height %d. Error %s", b.Height, err)
-					}
-					ss.Logger.Infof("Snapshot at main block "+
-						"height %d terminated successfully", b.Height)
-				}()
+			if ct.HasSnapshots() {
+				snapshotBlockService, ok := ss.SnapshotBlockServices[ct.GetTypeInt()]
+				if !ok {
+					ss.Logger.Fatalf("snapshots for chaintype %s not implemented", ct.GetName())
+				}
+				if snapshotBlockService.IsSnapshotHeight(b.Height) {
+					go func() {
+						// if spine blocks is downloading, do not generate (or download from other peers) snapshots
+						// don't generate snapshots until all spine blocks have been downloaded
+						if !ss.SpineBlockDownloadService.IsSpineBlocksDownloadFinished() {
+							ss.Logger.Infof("Snapshot at block "+
+								"height %d not generated because spine blocks are still downloading",
+								b.Height)
+							return
+						}
+						// TODO: implement some sort of process management,
+						//  such as controlling if there is another snapshot running before starting to compute a new one (
+						//  or compute the new one and kill the one already running...)
+						snapshotInfo, err := ss.GenerateSnapshot(b, ct, constant.SnapshotChunkLengthBytes)
+						if err != nil {
+							ss.Logger.Errorf("Snapshot at block "+
+								"height %d terminated with errors %s", b.Height, err)
+						}
+						_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
+							snapshotInfo.SnapshotFileHash,
+							snapshotInfo.Height,
+							snapshotInfo.ProcessExpirationTimestamp,
+							snapshotInfo.FileChunksHashes,
+							ct,
+							model.SpineBlockManifestType_Snapshot,
+						)
+						if err != nil {
+							ss.Logger.Errorf("Cannot create spineBlockManifest at block "+
+								"height %d. Error %s", b.Height, err)
+						}
+						ss.Logger.Infof("Snapshot at main block "+
+							"height %d terminated successfully", b.Height)
+					}()
+				}
 			}
 		},
 	}
