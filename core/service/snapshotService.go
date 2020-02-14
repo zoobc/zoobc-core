@@ -9,12 +9,15 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
 	"os"
+	"time"
 )
 
 type (
 	// SnapshotServiceInterface snapshot logic shared across block types
 	SnapshotServiceInterface interface {
 		GenerateSnapshot(block *model.Block, ct chaintype.ChainType, chunkSizeBytes int64) (*model.SnapshotFileInfo, error)
+		IsSnapshotProcessing(ct chaintype.ChainType) bool
+		StopSnapshotGeneration(ct chaintype.ChainType) error
 		DownloadSnapshot(*model.SnapshotFileInfo) error
 		ValidateSnapshotFile(file *os.File, hash []byte) bool
 		StartSnapshotListener() observer.Listener
@@ -25,8 +28,16 @@ type (
 		SpineBlockDownloadService SpineBlockDownloadServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface // map key = chaintype number (eg. mainchain = 0)
 		FileDownloaderService     FileDownloaderServiceInterface
+		FileService               FileServiceInterface
 		Logger                    *log.Logger
 	}
+)
+
+var (
+	// this map holds boolean channels to all block types that support snapshots
+	stopSnapshotGeneration map[int32]chan bool
+	// this map holds boolean values to all block types that support snapshots
+	generatingSnapshot map[int32]bool
 )
 
 func NewSnapshotService(
@@ -34,6 +45,7 @@ func NewSnapshotService(
 	spineBlockDownloadService SpineBlockDownloadServiceInterface,
 	snapshotBlockServices map[int32]SnapshotBlockServiceInterface,
 	fileDownloaderService FileDownloaderServiceInterface,
+	fileService FileServiceInterface,
 	logger *log.Logger,
 ) *SnapshotService {
 	return &SnapshotService{
@@ -41,6 +53,7 @@ func NewSnapshotService(
 		SpineBlockDownloadService: spineBlockDownloadService,
 		SnapshotBlockServices:     snapshotBlockServices,
 		FileDownloaderService:     fileDownloaderService,
+		FileService:               fileService,
 		Logger:                    logger,
 	}
 }
@@ -48,12 +61,39 @@ func NewSnapshotService(
 // GenerateSnapshot compute and persist a snapshot to file
 func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.ChainType,
 	snapshotChunkBytesLength int64) (*model.SnapshotFileInfo, error) {
-
-	snapshotBlockService, ok := ss.SnapshotBlockServices[ct.GetTypeInt()]
-	if !ok {
-		return nil, fmt.Errorf("snapshots for chaintype %s not implemented", ct.GetName())
+	stopSnapshotGeneration[ct.GetTypeInt()] = make(chan bool)
+	for {
+		select {
+		case <-stopSnapshotGeneration[ct.GetTypeInt()]:
+			ss.Logger.Infof("Snapshot generation for block type %s at height %d has been stopped",
+				ct.GetName(), block.GetHeight())
+			break
+		default:
+			snapshotBlockService, ok := ss.SnapshotBlockServices[ct.GetTypeInt()]
+			if !ok {
+				return nil, fmt.Errorf("snapshots for chaintype %s not implemented", ct.GetName())
+			}
+			generatingSnapshot[ct.GetTypeInt()] = true
+			snapshotInfo, err := snapshotBlockService.NewSnapshotFile(block, snapshotChunkBytesLength)
+			generatingSnapshot[ct.GetTypeInt()] = false
+			return snapshotInfo, err
+		}
 	}
-	return snapshotBlockService.NewSnapshotFile(block, snapshotChunkBytesLength)
+}
+
+// StopSnapshotGeneration stops current snapshot generation
+func (ss *SnapshotService) StopSnapshotGeneration(ct chaintype.ChainType) error {
+	if !ss.IsSnapshotProcessing(ct) {
+		return blocker.NewBlocker(blocker.AppErr, "No snapshots running: nothing to stop")
+	}
+	stopSnapshotGeneration[ct.GetTypeInt()] <- true
+	// TODO implement error handling for abrupt snapshot termination. for now we just wait a few seconds and return
+	time.Sleep(2 * time.Second)
+	return nil
+}
+
+func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
+	return generatingSnapshot[ct.GetTypeInt()]
 }
 
 // StartSnapshotListener setup listener for snapshots generation
@@ -80,9 +120,12 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 								b.Height)
 							return
 						}
-						// TODO: implement some sort of process management,
-						//  such as controlling if there is another snapshot running before starting to compute a new one (
-						//  or compute the new one and kill the one already running...)
+						// if there is another snapshot running before this, kill the one already running
+						if ss.IsSnapshotProcessing(ct) {
+							if err := ss.StopSnapshotGeneration(ct); err != nil {
+								ss.Logger.Infoln(err)
+							}
+						}
 						snapshotInfo, err := ss.GenerateSnapshot(b, ct, constant.SnapshotChunkLengthBytes)
 						if err != nil {
 							ss.Logger.Errorf("Snapshot at block "+
@@ -119,7 +162,7 @@ func (ss *SnapshotService) DownloadSnapshot(snapshotFileInfo *model.SnapshotFile
 		failedDownloadChunkNames []string = make([]string, 0)
 	)
 	for _, fileChunkHash := range snapshotFileInfo.GetFileChunksHashes() {
-		fileName, err := ss.FileDownloaderService.GetFileNameFromHash(fileChunkHash)
+		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
 		if err != nil {
 			return err
 		}

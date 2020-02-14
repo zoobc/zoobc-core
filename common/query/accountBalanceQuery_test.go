@@ -280,3 +280,15 @@ func TestAccountBalanceQuery_GetAccountBalances(t *testing.T) {
 		}
 	})
 }
+
+func TestAccountBalanceQuery_GetAccountBalancesForSnapshot(t *testing.T) {
+	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
+		strQry := mockAccountBalanceQuery.GetAccountBalancesForSnapshot(0, 1)
+		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue," +
+			"latest FROM account_balance WHERE latest = 1 AND block_height >= 0 AND block_height <= 1"
+		if strQry != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", strQry, want)
+		}
+
+	})
+}

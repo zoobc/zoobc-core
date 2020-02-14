@@ -1,18 +1,31 @@
 package service
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
+	"path/filepath"
 )
 
 type (
 	SnapshotMainBlockService struct {
-		chainType                 chaintype.ChainType
-		SnapshotPath              string
+		SnapshotPath string
+		chainType    chaintype.ChainType
+		Logger       *log.Logger
+		QueryService SnapshotMainBlockQueryServiceInterface
+		FileService  FileServiceInterface
+	}
+
+	SnapshotMainBlockQueryServiceInterface interface {
+		GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error)
+	}
+
+	SnapshotMainBlockQueryService struct {
 		QueryExecutor             query.ExecutorInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		Logger                    *log.Logger
@@ -38,18 +51,39 @@ func NewSnapshotMainBlockService(
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
-		chainType:                 &chaintype.MainChain{},
-		SnapshotPath:              snapshotPath,
-		QueryExecutor:             queryExecutor,
-		SpineBlockManifestService: spineBlockManifestService,
-		Logger:                    logger,
-		MainBlockQuery:            mainBlockQuery,
-		AccountBalanceQuery:       accountBalanceQuery,
-		NodeRegistrationQuery:     nodeRegistrationQuery,
-		AccountDatasetQuery:       accountDatasetQuery,
-		EscrowTransactionQuery:    escrowTransactionQuery,
-		ParticipationScoreQuery:   participationScoreQuery,
+		SnapshotPath: snapshotPath,
+		chainType:    &chaintype.MainChain{},
+		Logger:       logger,
+		QueryService: &SnapshotMainBlockQueryService{
+			QueryExecutor:             queryExecutor,
+			SpineBlockManifestService: spineBlockManifestService,
+			MainBlockQuery:            mainBlockQuery,
+			AccountBalanceQuery:       accountBalanceQuery,
+			NodeRegistrationQuery:     nodeRegistrationQuery,
+			AccountDatasetQuery:       accountDatasetQuery,
+			EscrowTransactionQuery:    escrowTransactionQuery,
+			ParticipationScoreQuery:   participationScoreQuery,
+		},
+		FileService: &FileService{
+			Logger: logger,
+		},
 	}
+}
+
+// GetAccountBalances get account balances for snapshot (wrapper function around account balance query)
+func (smbq *SnapshotMainBlockQueryService) GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error) {
+	qry := smbq.AccountBalanceQuery.GetAccountBalancesForSnapshot(fromHeight, toHeight)
+	balanceRows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer balanceRows.Close()
+	accountBalances, err := smbq.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, balanceRows)
+	if err != nil {
+		return nil, err
+	}
+	return accountBalances, nil
+
 }
 
 // NewSnapshotFile creates a new snapshot file (or multiple file chunks) and return the snapshotFileInfo
@@ -58,20 +92,36 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		snapshotFullHash            []byte
 		fileChunkHashes             = make([][]byte, 0)
 		snapshotExpirationTimestamp int64
+		enc                         *codec.Encoder
+		h                           codec.Handle = new(codec.CborHandle)
+		b                           []byte
+		fileName                    string
 	)
+	enc = codec.NewEncoderBytes(&b, h)
 
 	snapshotExpirationTimestamp = block.Timestamp + ss.chainType.GetSnapshotGenerationTimeout()
 
-	// FIXME: call here the function that compute the snapshot and returns:
+	// AccountBalance processing
+	accountBalances, err := ss.QueryService.GetAccountBalances(0, block.Height)
+	if err != nil {
+		return nil, err
+	}
+	err = enc.Encode(accountBalances)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: STEF test only
+	fmt.Printf("%v\n", b)
+
 	//  the snapshot chunks' hashes
 	//  the snapshot full hash
 	// FIXME: below logic is only for live testing without real snapshots
 	digest := sha3.New256()
-	_, err := digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp)))
+	_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp)))
 	if err != nil {
 		return nil, err
 	}
-	hash1 := digest.Sum([]byte{})
+	hash1 := ss.FileService.HashPayload(b)
 	fileChunkHashes = append(fileChunkHashes, hash1)
 
 	digest.Reset()
@@ -79,7 +129,18 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 	if err != nil {
 		return nil, err
 	}
-	snapshotFullHash = digest.Sum([]byte{})
+
+	snapshotFullHash = ss.FileService.HashPayload(b)
+	fileName, err = ss.FileService.GetFileNameFromHash(snapshotFullHash)
+	if err != nil {
+		return nil, err
+	}
+	filePath := filepath.Join(ss.SnapshotPath, fileName)
+	_, err = ss.FileService.SaveBytesToFile(filePath, b)
+	if err != nil {
+		return nil, err
+	}
+
 	return &model.SnapshotFileInfo{
 		SnapshotFileHash:           snapshotFullHash,
 		FileChunksHashes:           fileChunkHashes,

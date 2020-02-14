@@ -4,9 +4,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
@@ -22,17 +20,7 @@ func (mct *mockChainType) GetSnapshotInterval() uint32 {
 
 func TestSnapshotMainBlockService_IsSnapshotHeight(t *testing.T) {
 	type fields struct {
-		chainType                 chaintype.ChainType
-		SnapshotPath              string
-		QueryExecutor             query.ExecutorInterface
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		Logger                    *log.Logger
-		MainBlockQuery            query.BlockQueryInterface
-		AccountBalanceQuery       query.AccountBalanceQueryInterface
-		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
-		AccountDatasetQuery       query.AccountDatasetsQueryInterface
-		EscrowTransactionQuery    query.EscrowTransactionQueryInterface
+		chainType chaintype.ChainType
 	}
 	type args struct {
 		height uint32
@@ -155,17 +143,7 @@ func TestSnapshotMainBlockService_IsSnapshotHeight(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotMainBlockService{
-				chainType:                 tt.fields.chainType,
-				SnapshotPath:              tt.fields.SnapshotPath,
-				QueryExecutor:             tt.fields.QueryExecutor,
-				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
-				Logger:                    tt.fields.Logger,
-				MainBlockQuery:            tt.fields.MainBlockQuery,
-				AccountBalanceQuery:       tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:     tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:   tt.fields.ParticipationScoreQuery,
-				AccountDatasetQuery:       tt.fields.AccountDatasetQuery,
-				EscrowTransactionQuery:    tt.fields.EscrowTransactionQuery,
+				chainType: tt.fields.chainType,
 			}
 			if got := ss.IsSnapshotHeight(tt.args.height); got != tt.want {
 				t.Errorf("SnapshotMainBlockService.IsSnapshotHeight() = %v, want %v", got, tt.want)

@@ -83,6 +83,7 @@ var (
 	transactionUtil                               = &transaction.Util{}
 	receiptUtil                                   = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                     service.TransactionCoreServiceInterface
+	fileService                                   service.FileServiceInterface
 )
 
 func init() {
@@ -171,8 +172,12 @@ func init() {
 		query.NewEscrowTransactionQuery(),
 	)
 
+	fileService = &service.FileService{
+		Logger: loggerCoreService,
+	}
 	fileDownloadService = service.NewFileDownloaderService(
 		snapshotPath,
+		fileService,
 		loggerP2PService,
 	)
 	snapshotService = service.NewSnapshotService(
@@ -180,6 +185,7 @@ func init() {
 		spineBlockDownloadService,
 		snapshotBlockServices,
 		fileDownloadService,
+		fileService,
 		loggerCoreService,
 	)
 

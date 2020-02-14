@@ -2,58 +2,31 @@ package service
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
 	// FileDownloaderServiceInterface snapshot logic shared across block types
 	FileDownloaderServiceInterface interface {
 		DownloadFileByName(fileName string, fileHash []byte) error
-		GetFileNameFromHash(fileHash []byte) (string, error)
-		GetHashFromFileName(fileName string) ([]byte, error)
 	}
 
 	FileDownloaderService struct {
 		DownloadPath string
+		FileService  FileServiceInterface
 		Logger       *log.Logger
 	}
 )
 
 func NewFileDownloaderService(
 	downloadPath string,
+	fileService FileServiceInterface,
 	logger *log.Logger,
 ) *FileDownloaderService {
 	return &FileDownloaderService{
 		DownloadPath: downloadPath,
+		FileService:  fileService,
 		Logger:       logger,
 	}
-}
-
-// GetFileNameFromHash file hash to fileName conversion
-// TODO: refactor GetAddressFromPublicKey name as it can be applied to other use cases, such as this one
-func (*FileDownloaderService) GetFileNameFromHash(fileHash []byte) (string, error) {
-	fileName, err := util.GetAddressFromPublicKey(fileHash)
-	if err != nil {
-		return "", blocker.NewBlocker(
-			blocker.ServerError,
-			"invalid file hash length",
-		)
-	}
-	return fileName, nil
-}
-
-// GetHashFromFileName file name to hash conversion
-// TODO: refactor GetPublicKeyFromAddress name as it can be applied to other use cases, such as this one
-func (*FileDownloaderService) GetHashFromFileName(fileName string) ([]byte, error) {
-	hash, err := util.GetPublicKeyFromAddress(fileName)
-	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.AppErr,
-			"invalid file name",
-		)
-	}
-	return hash, nil
 }
 
 // DownloadSnapshotChunk TODO: implement logic to download a file from a random peer
