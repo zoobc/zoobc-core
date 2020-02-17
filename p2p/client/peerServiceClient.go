@@ -197,6 +197,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, er
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
@@ -227,6 +228,7 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
@@ -252,6 +254,7 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
@@ -281,6 +284,7 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
+	defer connection.Close()
 	var (
 		response       *model.SendBlockResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
@@ -322,6 +326,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
+	defer connection.Close()
 	var (
 		response       *model.SendTransactionResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
@@ -360,6 +365,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 	if err != nil {
 		return err
 	}
+	defer connection.Close()
 	var (
 		response       *model.SendBlockTransactionsResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
@@ -402,6 +408,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 	if err != nil {
 		return err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
@@ -432,6 +439,7 @@ func (psc *PeerServiceClient) GetCumulativeDifficulty(
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
@@ -463,6 +471,7 @@ func (psc *PeerServiceClient) GetCommonMilestoneBlockIDs(
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
@@ -497,6 +506,7 @@ func (psc *PeerServiceClient) GetNextBlockIDs(
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
@@ -531,6 +541,7 @@ func (psc *PeerServiceClient) GetNextBlocks(
 	if err != nil {
 		return nil, err
 	}
+	defer connection.Close()
 
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
