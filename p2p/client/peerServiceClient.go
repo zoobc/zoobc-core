@@ -126,7 +126,7 @@ func (psc *PeerServiceClient) saveNewConnection(destPeer *model.Peer) (*grpc.Cli
 	if err != nil {
 		return nil, err
 	}
-	psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)] = connection
+	// psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)] = connection
 	return connection, nil
 }
 
@@ -151,14 +151,18 @@ func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientC
 		exist *grpc.ClientConn
 		err   error
 	)
-	psc.PeerConnectionsLock.RLock()
-	exist = psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
-	psc.PeerConnectionsLock.RUnlock()
-	if exist == nil {
-		exist, err = psc.saveNewConnection(destPeer)
-		if err != nil {
-			return nil, err
-		}
+	// psc.PeerConnectionsLock.RLock()
+	// exist = psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
+	// psc.PeerConnectionsLock.RUnlock()
+	// if exist == nil {
+	// 	exist, err = psc.saveNewConnection(destPeer)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+	exist, err = psc.saveNewConnection(destPeer)
+	if err != nil {
+		return nil, err
 	}
 	// add a copy to avoid pointer delete
 	return exist, nil
