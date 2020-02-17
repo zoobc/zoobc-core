@@ -193,6 +193,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		peersSlice           []*model.Peer
 		forkBlocks           []*model.Block
 	)
+	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 2)
 	segSize := constant.BlockDownloadSegSize
 
 	stop := uint32(len(chainBlockIds))
@@ -211,6 +212,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	blocksSegments := [][]*model.Block{}
 
 	for start := uint32(0); start < stop; {
+		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 3)
 		if start != uint32(0) {
 			peerUsed = peersSlice[nextPeerIdx]
 			nextPeerIdx++
@@ -257,6 +259,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	}
 
 	for idx, block := range blocksToBeProcessed {
+		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 4)
 		if block.Height == 0 {
 			continue
 		}
@@ -278,6 +281,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				}
 				break
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 5)
 			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
 			if err != nil {
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())

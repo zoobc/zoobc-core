@@ -148,7 +148,7 @@ func (bss *Service) getMoreBlocks() {
 			var confirmations int32
 			// counting the confirmations of the common block received with other peers he knows
 			for _, peerToCheck := range bss.PeerExplorer.GetResolvedPeers() {
-				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 3)
+				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 7)
 				if confirmations >= constant.DefaultNumberOfForkConfirmations {
 					break
 				}
@@ -165,6 +165,7 @@ func (bss *Service) getMoreBlocks() {
 				default:
 					confirmations++
 				}
+				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 8)
 			}
 
 			newLastBlock, err = bss.BlockService.GetLastBlock()
@@ -177,6 +178,7 @@ func (bss *Service) getMoreBlocks() {
 				bss.Logger.Info("Did not accept peers's blocks, back to our own fork")
 				break
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 9)
 		}
 
 		if bss.BlockchainDownloader.IsDownloadFinish(lastBlock) {

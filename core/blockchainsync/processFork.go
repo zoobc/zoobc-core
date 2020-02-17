@@ -46,7 +46,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		pushedForkBlocks                                    int
 		err                                                 error
 	)
-	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 2)
+	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 6)
 
 	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock()
 	if err != nil {
