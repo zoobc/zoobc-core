@@ -275,10 +275,10 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
-				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
-				if blacklistErr != nil {
-					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
-				}
+				// blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
+				// if blacklistErr != nil {
+				// 	bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
+				// }
 				break
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 5)
