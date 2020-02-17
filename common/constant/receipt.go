@@ -17,5 +17,5 @@ const (
 	ReceiptGenerateMarkleRootPeriod = 20 * time.Second
 	// number of blocks to lookup for receipts before current height (
 	// this is also the number of blocks to consider when selecting receipts to be included in a snapshot)
-	LinkedReceiptBlocksLimit = 720
+	LinkedReceiptBlocksLimit = uint32(720)
 )

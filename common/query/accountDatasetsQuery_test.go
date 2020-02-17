@@ -467,3 +467,41 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountDatasetsQuery_GetAccountDatasetsForSnapshot(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			args: args{
+				fromHeight: 0,
+				toHeight:   1,
+			},
+			want: "SELECT  FROM  WHERE height >= 0 AND height <= = 1 AND latest = 1 ORDER BY height",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			if got := adq.GetAccountDatasetsForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("AccountDatasetsQuery.GetAccountDatasetsForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

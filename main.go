@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ugorji/go/codec"
 	"net/http"
 	"os"
 	"os/signal"
@@ -159,22 +160,25 @@ func init() {
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		loggerCoreService,
 	)
+	fileService = service.NewFileService(
+		loggerCoreService,
+		new(codec.CborHandle),
+	)
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
 		snapshotPath,
 		queryExecutor,
 		spineBlockManifestService,
 		loggerCoreService,
+		fileService,
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewAccountDatasetsQuery(),
 		query.NewEscrowTransactionQuery(),
+		query.NewPublishedReceiptQuery(),
 	)
 
-	fileService = &service.FileService{
-		Logger: loggerCoreService,
-	}
 	fileDownloadService = service.NewFileDownloaderService(
 		snapshotPath,
 		fileService,

@@ -72,6 +72,17 @@ func TestParticipationScoreQuery_GetParticipationScoreByNodePublicKey(t *testing
 	})
 }
 
+func TestParticipationScoreQuery_GetParticipationScoresForSnapshot(t *testing.T) {
+	t.Run("UpdateParticipationScore", func(t *testing.T) {
+		res := mockParticipationScoreQuery.GetParticipationScoresForSnapshot(0, 1)
+		want := "SELECT node_id, score, latest, " +
+			"height FROM participation_score WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER by height"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}
+
 func TestParticipationScoreQuery_UpdateParticipationScore(t *testing.T) {
 	t.Run("UpdateParticipationScore", func(t *testing.T) {
 		res := mockParticipationScoreQuery.UpdateParticipationScore(int64(1111), int64(10), uint32(1))

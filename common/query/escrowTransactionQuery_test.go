@@ -375,3 +375,46 @@ func TestEscrowTransactionQuery_Rollback(t *testing.T) {
 		})
 	}
 }
+
+func TestEscrowTransactionQuery_GetEscrowTransactionsForSnapshot(t *testing.T) {
+	qry := NewEscrowTransactionQuery()
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			args: args{
+				fromHeight: 0,
+				toHeight:   1,
+			},
+			fields: fields{
+				Fields:    qry.Fields,
+				TableName: qry.TableName,
+			},
+			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, " +
+				"block_height, latest, instruction FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 1" +
+				" AND latest = ? ORDER BY block_height",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := et.GetEscrowTransactionsForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("EscrowTransactionQuery.GetEscrowTransactionsForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

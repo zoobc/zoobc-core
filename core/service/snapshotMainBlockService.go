@@ -1,10 +1,9 @@
 package service
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
-	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -23,6 +22,11 @@ type (
 
 	SnapshotMainBlockQueryServiceInterface interface {
 		GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error)
+		GetNodeRegistrations(fromHeight, toHeight uint32) ([]*model.NodeRegistration, error)
+		GetAccountDatasets(fromHeight, toHeight uint32) ([]*model.AccountDataset, error)
+		GetParticipationScores(fromHeight, toHeight uint32) ([]*model.ParticipationScore, error)
+		GetPublishedReceipts(fromHeight, toHeight, limit uint32) ([]*model.PublishedReceipt, error)
+		GetEscrowTransactions(fromHeight, toHeight uint32) ([]*model.Escrow, error)
 	}
 
 	SnapshotMainBlockQueryService struct {
@@ -35,6 +39,16 @@ type (
 		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
 		AccountDatasetQuery       query.AccountDatasetsQueryInterface
 		EscrowTransactionQuery    query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery     query.PublishedReceiptQueryInterface
+	}
+
+	SnapshotPayload struct {
+		AccountBalances     []*model.AccountBalance
+		NodeRegistrations   []*model.NodeRegistration
+		AccountDatasets     []*model.AccountDataset
+		ParticipationScores []*model.ParticipationScore
+		PublishedReceipts   []*model.PublishedReceipt
+		EscrowTransactions  []*model.Escrow
 	}
 )
 
@@ -43,12 +57,14 @@ func NewSnapshotMainBlockService(
 	queryExecutor query.ExecutorInterface,
 	spineBlockManifestService SpineBlockManifestServiceInterface,
 	logger *log.Logger,
+	fileService FileServiceInterface,
 	mainBlockQuery query.BlockQueryInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	accountDatasetQuery query.AccountDatasetsQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
+	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath: snapshotPath,
@@ -61,77 +77,158 @@ func NewSnapshotMainBlockService(
 			AccountBalanceQuery:       accountBalanceQuery,
 			NodeRegistrationQuery:     nodeRegistrationQuery,
 			AccountDatasetQuery:       accountDatasetQuery,
-			EscrowTransactionQuery:    escrowTransactionQuery,
 			ParticipationScoreQuery:   participationScoreQuery,
+			EscrowTransactionQuery:    escrowTransactionQuery,
+			PublishedReceiptQuery:     publishedReceiptQuery,
 		},
-		FileService: &FileService{
-			Logger: logger,
-		},
+		FileService: fileService,
 	}
 }
 
 // GetAccountBalances get account balances for snapshot (wrapper function around account balance query)
 func (smbq *SnapshotMainBlockQueryService) GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error) {
 	qry := smbq.AccountBalanceQuery.GetAccountBalancesForSnapshot(fromHeight, toHeight)
-	balanceRows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
-	defer balanceRows.Close()
-	accountBalances, err := smbq.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, balanceRows)
+	defer rows.Close()
+	res, err := smbq.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 	if err != nil {
 		return nil, err
 	}
-	return accountBalances, nil
+	return res, nil
+}
 
+// GetNodeRegistrations get node registrations for snapshot (wrapper function around node registration query)
+func (smbq *SnapshotMainBlockQueryService) GetNodeRegistrations(fromHeight, toHeight uint32) ([]*model.NodeRegistration, error) {
+	qry := smbq.NodeRegistrationQuery.GetNodeRegistrationsForSnapshot(fromHeight, toHeight)
+	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res, err := smbq.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetAccountDatasets get account datasets  for snapshot (wrapper function around account dataset query)
+func (smbq *SnapshotMainBlockQueryService) GetAccountDatasets(fromHeight, toHeight uint32) ([]*model.AccountDataset, error) {
+	qry := smbq.AccountDatasetQuery.GetAccountDatasetsForSnapshot(fromHeight, toHeight)
+	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res, err := smbq.AccountDatasetQuery.BuildModel([]*model.AccountDataset{}, rows)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// ParticipationScores get participation scores  for snapshot (wrapper function around participationscore query)
+func (smbq *SnapshotMainBlockQueryService) GetParticipationScores(fromHeight, toHeight uint32) ([]*model.ParticipationScore, error) {
+	qry := smbq.ParticipationScoreQuery.GetParticipationScoresForSnapshot(fromHeight, toHeight)
+	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res, err := smbq.ParticipationScoreQuery.BuildModel([]*model.ParticipationScore{}, rows)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetPublishedReceipts get published Receipts for snapshot (wrapper function around published receipts query)
+func (smbq *SnapshotMainBlockQueryService) GetPublishedReceipts(fromHeight, toHeight, limit uint32) ([]*model.PublishedReceipt, error) {
+	// limit number of blocks to scan for receipts
+	if toHeight-fromHeight > limit {
+		fromHeight = toHeight - limit
+	}
+	qry := smbq.PublishedReceiptQuery.GetPublishedReceiptsForSnapshot(fromHeight, toHeight)
+	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res, err := smbq.PublishedReceiptQuery.BuildModel([]*model.PublishedReceipt{}, rows)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// GetEscrowTransactions get escrowtransactions for snapshot (wrapper function around escrow transaction query)
+func (smbq *SnapshotMainBlockQueryService) GetEscrowTransactions(fromHeight, toHeight uint32) ([]*model.Escrow, error) {
+	qry := smbq.EscrowTransactionQuery.GetEscrowTransactionsForSnapshot(fromHeight, toHeight)
+	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	res, err := smbq.EscrowTransactionQuery.BuildModels(rows)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // NewSnapshotFile creates a new snapshot file (or multiple file chunks) and return the snapshotFileInfo
 func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSizeBytes int64) (*model.SnapshotFileInfo, error) {
 	var (
-		snapshotFullHash            []byte
-		fileChunkHashes             = make([][]byte, 0)
-		snapshotExpirationTimestamp int64
-		enc                         *codec.Encoder
-		h                           codec.Handle = new(codec.CborHandle)
-		b                           []byte
-		fileName                    string
+		fileChunkHashes = make([][]byte, 0)
+		snapshotPayload = new(SnapshotPayload)
+		err             error
 	)
-	enc = codec.NewEncoderBytes(&b, h)
+	snapshotExpirationTimestamp := block.Timestamp + ss.chainType.GetSnapshotGenerationTimeout()
 
-	snapshotExpirationTimestamp = block.Timestamp + ss.chainType.GetSnapshotGenerationTimeout()
-
-	// AccountBalance processing
-	accountBalances, err := ss.QueryService.GetAccountBalances(0, block.Height)
+	snapshotPayload.AccountBalances, err = ss.QueryService.GetAccountBalances(0, block.Height)
 	if err != nil {
 		return nil, err
 	}
-	err = enc.Encode(accountBalances)
+	snapshotPayload.NodeRegistrations, err = ss.QueryService.GetNodeRegistrations(0, block.Height)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: STEF test only
-	fmt.Printf("%v\n", b)
+	snapshotPayload.AccountDatasets, err = ss.QueryService.GetAccountDatasets(0, block.Height)
+	if err != nil {
+		return nil, err
+	}
+	snapshotPayload.ParticipationScores, err = ss.QueryService.GetParticipationScores(0, block.Height)
+	if err != nil {
+		return nil, err
+	}
+	snapshotPayload.PublishedReceipts, err = ss.QueryService.GetPublishedReceipts(0, block.Height, constant.LinkedReceiptBlocksLimit)
+	if err != nil {
+		return nil, err
+	}
+	snapshotPayload.EscrowTransactions, err = ss.QueryService.GetEscrowTransactions(0, block.Height)
+	if err != nil {
+		return nil, err
+	}
 
-	//  the snapshot chunks' hashes
+	// encode the snapshot payload
+	b, err := ss.FileService.EncodePayload(snapshotPayload)
+	if err != nil {
+		return nil, err
+	}
+
 	//  the snapshot full hash
-	// FIXME: below logic is only for live testing without real snapshots
 	digest := sha3.New256()
 	_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp)))
 	if err != nil {
 		return nil, err
 	}
-	hash1 := ss.FileService.HashPayload(b)
-	fileChunkHashes = append(fileChunkHashes, hash1)
-
 	digest.Reset()
-	_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp + 1)))
-	if err != nil {
-		return nil, err
-	}
 
-	snapshotFullHash = ss.FileService.HashPayload(b)
-	fileName, err = ss.FileService.GetFileNameFromHash(snapshotFullHash)
+	snapshotFullHash := ss.FileService.HashPayload(b)
+	fileName, err := ss.FileService.GetFileNameFromHash(snapshotFullHash)
 	if err != nil {
 		return nil, err
 	}
@@ -140,6 +237,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 	if err != nil {
 		return nil, err
 	}
+	// TODO: for now only whole snapshot is one file chunk
+	fileChunkHashes = append(fileChunkHashes, snapshotFullHash)
 
 	return &model.SnapshotFileInfo{
 		SnapshotFileHash:           snapshotFullHash,

@@ -11,6 +11,7 @@ import (
 type (
 	PublishedReceiptQueryInterface interface {
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
+		GetPublishedReceiptsForSnapshot(fromHeight, toHeight uint32) string
 		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
@@ -59,12 +60,19 @@ func (prq *PublishedReceiptQuery) InsertPublishedReceipt(publishedReceipt *model
 	), prq.ExtractModel(publishedReceipt)
 }
 
+func (prq *PublishedReceiptQuery) GetPublishedReceiptsForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
+		strings.Join(prq.Fields, ", "),
+		prq.getTableName(), fromHeight, toHeight)
+}
+
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked = ?", strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{
 		root,
 	}
 }
+
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = ? ORDER BY published_index ASC",
 		strings.Join(prq.Fields, ", "), prq.getTableName())
