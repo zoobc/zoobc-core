@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -97,6 +98,7 @@ func (bss *Service) getMoreBlocks() {
 	bss.BlockService.ChainWriteLock(constant.BlockchainStatusSyncingBlock)
 	defer bss.BlockService.ChainWriteUnlock(constant.BlockchainStatusSyncingBlock)
 	bss.Logger.Info("Get more blocks...")
+	monitoring.ResetMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt())
 
 	var (
 		peerBlockchainInfo     *PeerBlockchainInfo
@@ -116,6 +118,7 @@ func (bss *Service) getMoreBlocks() {
 
 	// Blockchain download
 	for {
+		monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 0)
 		// break
 		needDownloadBlock := true
 		peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
@@ -134,7 +137,6 @@ func (bss *Service) getMoreBlocks() {
 			}
 
 			if len(peerForkInfo.ForkBlocks) > 0 {
-
 				err := bss.ForkingProcessor.ProcessFork(peerForkInfo.ForkBlocks, peerBlockchainInfo.CommonBlock, peerForkInfo.FeederPeer)
 				if err != nil {
 					bss.Logger.Warnf("\nfailed to ProcessFork: %v\n\n", err)
@@ -146,6 +148,7 @@ func (bss *Service) getMoreBlocks() {
 			var confirmations int32
 			// counting the confirmations of the common block received with other peers he knows
 			for _, peerToCheck := range bss.PeerExplorer.GetResolvedPeers() {
+				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 3)
 				if confirmations >= constant.DefaultNumberOfForkConfirmations {
 					break
 				}

@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -70,6 +71,7 @@ func (bd *BlockchainDownloader) SetIsDownloading(newValue bool) {
 }
 
 func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, error) {
+	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 1)
 	var (
 		err                              error
 		peerCumulativeDifficultyResponse *model.GetCumulativeDifficultyResponse

@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
@@ -39,13 +40,13 @@ type (
 
 // ProcessFork processes the forked blocks
 func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *model.Block, feederPeer *model.Peer) error {
-
 	var (
 		lastBlockBeforeProcess, lastBlock, currentLastBlock *model.Block
 		myPoppedOffBlocks, peerPoppedOffBlocks              []*model.Block
 		pushedForkBlocks                                    int
 		err                                                 error
 	)
+	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 2)
 
 	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock()
 	if err != nil {
