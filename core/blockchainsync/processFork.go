@@ -46,7 +46,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		pushedForkBlocks                                    int
 		err                                                 error
 	)
-	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 6)
+	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 50)
 
 	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock()
 	if err != nil {
@@ -54,6 +54,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	}
 	beforeApplyCumulativeDifficulty := lastBlockBeforeProcess.CumulativeDifficulty
 	myPoppedOffBlocks, err = fp.BlockService.PopOffToBlock(commonBlock)
+	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 51)
 	if err != nil {
 		return err
 	}
@@ -75,7 +76,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				return err
 			}
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
+				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 52)
 				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 53)
 				if err != nil {
 					blacklistErr := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 					if blacklistErr != nil {
@@ -85,7 +88,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID)
 					break
 				}
+				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 54)
 				err = fp.BlockService.PushBlock(lastBlock, block, false, true)
+				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 55)
 				if err != nil {
 					blacklistErr := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 					if blacklistErr != nil {
@@ -96,10 +101,12 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				}
 
 				pushedForkBlocks++
+				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 56)
 			}
 		}
 	}
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 57)
 	currentLastBlock, err = fp.BlockService.GetLastBlock()
 	if err != nil {
 		return err
@@ -110,6 +117,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	// if after applying the fork blocks the cumulative difficulty is still less than current one
 	// only take the transactions to be processed, but later will get back to our own fork
 	if pushedForkBlocks > 0 && currentCumulativeDifficulty.Cmp(cumulativeDifficultyOriginalBefore) < 0 {
+		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 58)
+		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 59)
 		peerPoppedOffBlocks, err = fp.BlockService.PopOffToBlock(commonBlock)
 		if err != nil {
 			return err
@@ -123,13 +132,18 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	// if no fork blocks successfully applied, go back to our fork
 	// other wise, just take the transactions of our popped blocks to be processed later
 	if pushedForkBlocks == 0 {
+		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 60)
 		fp.Logger.Println("Did not accept any blocks from peer, pushing back my blocks")
 		for _, block := range myPoppedOffBlocks {
+			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 61)
 			lastBlock, err = fp.BlockService.GetLastBlock()
+			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 62)
 			if err != nil {
 				return err
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 63)
 			err = fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 64)
 			if err != nil {
 				blacklistErr := fp.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
@@ -138,24 +152,29 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
 				return err
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 65)
 			err = fp.BlockService.PushBlock(lastBlock, block, false, true)
+			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 66)
 			if err != nil {
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
 		}
 	} else {
+		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 67)
 		for _, block := range myPoppedOffBlocks {
 			_ = fp.ProcessLater(block.Transactions)
 		}
 	}
 
 	if fp.ChainType.HasTransactions() {
+		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 68)
 		// start restoring mempool from badgerDB
 		err = fp.restoreMempoolsBackup()
 		if err != nil {
 			fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
 		}
 	}
+	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType.GetTypeInt(), 69)
 	return nil
 }
 

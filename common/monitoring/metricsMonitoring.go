@@ -59,7 +59,7 @@ var (
 	goRoutineActivityCounters     = make(map[string]prometheus.Gauge)
 	goRoutineActivityCountersSync sync.Mutex
 
-	downloadCycleDebugger     = make(map[int]prometheus.Gauge)
+	downloadCycleDebugger     = make(map[int32]prometheus.Gauge)
 	downloadCycleDebuggerSync sync.Mutex
 )
 
@@ -411,32 +411,25 @@ func DecrementGoRoutineActivity(activityName string) {
 }
 
 func IncrementMainchainDownloadCycleDebugger(chainType int32, cycleMarker int) {
-	if !isMonitoringActive || chainType != 0 {
-		return
-	}
 
 	downloadCycleDebuggerSync.Lock()
 	defer downloadCycleDebuggerSync.Unlock()
 
-	if downloadCycleDebugger[cycleMarker] == nil {
-		downloadCycleDebugger[cycleMarker] = prometheus.NewGauge(prometheus.GaugeOpts{
-			Name: fmt.Sprintf("zoobc_download_cycle_debugger_%d", cycleMarker),
-			Help: fmt.Sprintf("download cycle debugger for mainchain cycle number %d", cycleMarker),
+	if downloadCycleDebugger[chainType] == nil {
+		downloadCycleDebugger[chainType] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: fmt.Sprintf("zoobc_download_cycle_debugger_%d", chainType),
+			Help: fmt.Sprintf("download cycle debugger for chain %d", chainType),
 		})
-		prometheus.MustRegister(downloadCycleDebugger[cycleMarker])
+		prometheus.MustRegister(downloadCycleDebugger[chainType])
 	}
-	downloadCycleDebugger[cycleMarker].Inc()
+	downloadCycleDebugger[chainType].Set(float64(cycleMarker))
 }
 
 func ResetMainchainDownloadCycleDebugger(chainType int32) {
-	if chainType != 0 {
-		return
-	}
-
 	downloadCycleDebuggerSync.Lock()
 	defer downloadCycleDebuggerSync.Unlock()
 
-	for _, counter := range downloadCycleDebugger {
-		counter.Set(0)
+	if downloadCycleDebugger[chainType] != nil {
+		downloadCycleDebugger[chainType].Set(0)
 	}
 }

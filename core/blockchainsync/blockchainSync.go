@@ -122,6 +122,7 @@ func (bss *Service) getMoreBlocks() {
 		// break
 		needDownloadBlock := true
 		peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
+		monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 1)
 		if err != nil {
 			bss.Logger.Infof("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
 			needDownloadBlock = false
@@ -129,12 +130,14 @@ func (bss *Service) getMoreBlocks() {
 
 		newLastBlock = nil
 		if needDownloadBlock {
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 2)
 			peerForkInfo, err = bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
 				peerBlockchainInfo.CommonBlock)
 			if err != nil {
 				bss.Logger.Warnf("\nfailed to DownloadFromPeer: %v\n\n", err)
 				break
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 3)
 
 			if len(peerForkInfo.ForkBlocks) > 0 {
 				err := bss.ForkingProcessor.ProcessFork(peerForkInfo.ForkBlocks, peerBlockchainInfo.CommonBlock, peerForkInfo.FeederPeer)
@@ -143,12 +146,13 @@ func (bss *Service) getMoreBlocks() {
 					break
 				}
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 4)
 
 			// confirming the node's blockchain state with other nodes
 			var confirmations int32
 			// counting the confirmations of the common block received with other peers he knows
 			for _, peerToCheck := range bss.PeerExplorer.GetResolvedPeers() {
-				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 7)
+				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 5)
 				if confirmations >= constant.DefaultNumberOfForkConfirmations {
 					break
 				}
@@ -165,9 +169,10 @@ func (bss *Service) getMoreBlocks() {
 				default:
 					confirmations++
 				}
-				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 8)
+				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 6)
 			}
 
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 7)
 			newLastBlock, err = bss.BlockService.GetLastBlock()
 			if err != nil {
 				bss.Logger.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)
@@ -178,14 +183,17 @@ func (bss *Service) getMoreBlocks() {
 				bss.Logger.Info("Did not accept peers's blocks, back to our own fork")
 				break
 			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 9)
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 8)
 		}
 
+		monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 9)
 		if bss.BlockchainDownloader.IsDownloadFinish(lastBlock) {
+			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 10)
 			bss.BlockchainDownloader.SetIsDownloading(false)
 			bss.Logger.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), lastBlock.Height-initialHeight)
 			break
 		}
+		monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType.GetTypeInt(), 11)
 
 		if newLastBlock == nil {
 			break

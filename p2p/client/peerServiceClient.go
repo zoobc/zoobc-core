@@ -132,17 +132,17 @@ func (psc *PeerServiceClient) saveNewConnection(destPeer *model.Peer) (*grpc.Cli
 
 // DeleteConnection delete the cached connection in psc.PeerConnections
 func (psc *PeerServiceClient) DeleteConnection(destPeer *model.Peer) error {
-	psc.PeerConnectionsLock.Lock()
-	defer psc.PeerConnectionsLock.Unlock()
-	connection := psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
-	if connection == nil {
-		return nil
-	}
-	err := connection.Close()
-	if err != nil {
-		return err
-	}
-	delete(psc.PeerConnections, p2pUtil.GetFullAddressPeer(destPeer))
+	// psc.PeerConnectionsLock.Lock()
+	// defer psc.PeerConnectionsLock.Unlock()
+	// connection := psc.PeerConnections[p2pUtil.GetFullAddressPeer(destPeer)]
+	// if connection == nil {
+	// 	return nil
+	// }
+	// err := connection.Close()
+	// if err != nil {
+	// 	return err
+	// }
+	// delete(psc.PeerConnections, p2pUtil.GetFullAddressPeer(destPeer))
 	return nil
 }
 
