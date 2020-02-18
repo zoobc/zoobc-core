@@ -6,13 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
-
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 

@@ -46,6 +46,7 @@ type (
 			destPeer *model.Peer,
 			transactonIDs []int64,
 			chainType chaintype.ChainType,
+			blockID int64,
 		) error
 		GetCumulativeDifficulty(*model.Peer, chaintype.ChainType) (*model.GetCumulativeDifficultyResponse, error)
 		GetCommonMilestoneBlockIDs(destPeer *model.Peer, chaintype chaintype.ChainType, lastBlockID,
@@ -392,6 +393,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 	destPeer *model.Peer,
 	transactonIDs []int64,
 	chainType chaintype.ChainType,
+	blockID int64,
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
@@ -407,9 +409,10 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 	defer func() {
 		cancelReq()
 	}()
-	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactonsRequest{
+	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactionsRequest{
 		TransactionIDs: transactonIDs,
 		ChainType:      chainType.GetTypeInt(),
+		BlockID:        blockID,
 	})
 	if err != nil {
 		return err

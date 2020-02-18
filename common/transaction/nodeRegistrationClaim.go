@@ -25,6 +25,7 @@ type ClaimNodeRegistration struct {
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.ProofOfOwnershipValidationInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
+	EscrowQuery           query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -220,4 +221,43 @@ func (tx *ClaimNodeRegistration) GetTransactionBody(transaction *model.Transacti
 	transaction.TransactionBody = &model.Transaction_ClaimNodeRegistrationTransactionBody{
 		ClaimNodeRegistrationTransactionBody: tx.Body,
 	}
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *ClaimNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
+
+	return nil, false
+}
+
+// EscrowValidate validate node registration transaction and tx body
+func (tx *ClaimNodeRegistration) EscrowValidate(bool) error {
+
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
+*/
+func (tx *ClaimNodeRegistration) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowApplyConfirmed func that for applying pending escrow transaction.
+*/
+func (tx *ClaimNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *ClaimNodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 )
 
 type (
+	// TypeAction is transaction methods collection
 	TypeAction interface {
 		ApplyConfirmed(blockTimestamp int64) error
 		ApplyUnconfirmed() error
@@ -21,15 +22,19 @@ type (
 		GetBodyBytes() []byte
 		GetTransactionBody(transaction *model.Transaction)
 		SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error)
+		Escrowable() (EscrowTypeAction, bool)
 	}
+	// TypeActionSwitcher assert transaction to TypeAction / EscrowTyepAction
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) (TypeAction, error)
 	}
+	// TypeSwitcher is TypeActionSwitcher shell
 	TypeSwitcher struct {
 		Executor query.ExecutorInterface
 	}
 )
 
+// GetTransactionType assert transaction to TypeAction
 func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
 	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
 	switch buf[0] {
@@ -58,6 +63,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 			}, nil
 		default:
 			return nil, nil
@@ -185,6 +192,32 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	case 4:
+		switch buf[1] {
+		case 0:
+			approvalEscrowTransactionBody, err := new(ApprovalEscrowTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &ApprovalEscrowTransaction{
+				ID:                  tx.GetID(),
+				Body:                approvalEscrowTransactionBody.(*model.ApprovalEscrowTransactionBody),
+				Fee:                 tx.GetFee(),
+				SenderAddress:       tx.GetSenderAccountAddress(),
+				Height:              tx.GetHeight(),
+				Escrow:              tx.GetEscrow(),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       ts.Executor,
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				TypeActionSwitcher:  ts,
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+			}, nil
+		default:
+			return nil, nil
+		}
+
 	default:
 		return nil, nil
 	}

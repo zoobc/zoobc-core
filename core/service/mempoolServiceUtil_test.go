@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -179,9 +180,23 @@ func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr stri
 
 func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
-		sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields),
-	)
+	switch strings.Contains(qStr, "FROM account_balance") {
+	case true:
+		mockedRow := mock.NewRows(query.NewAccountBalanceQuery().Fields)
+		mockedRow.AddRow(
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			1,
+			100,
+			10,
+			0,
+			true,
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRow)
+	default:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields),
+		)
+	}
 	return db.QueryRow(qStr), nil
 }
 func (*mockExecutorValidateMempoolTransactionSuccessNoRow) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -215,13 +230,14 @@ func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(query string, t
 
 func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	type fields struct {
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Observer            *observer.Observer
+		Chaintype              chaintype.ChainType
+		QueryExecutor          query.ExecutorInterface
+		MempoolQuery           query.MempoolQueryInterface
+		ActionTypeSwitcher     transaction.TypeActionSwitcher
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		TransactionQuery       query.TransactionQueryInterface
+		Observer               *observer.Observer
+		TransactionCoreService TransactionCoreServiceInterface
 	}
 	type args struct {
 		mpTx *model.MempoolTransaction
@@ -241,11 +257,20 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				TransactionCoreService: NewTransactionCoreService(
+					&mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
+				),
 			},
 			args: args{
-				mpTx: transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
 					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false),
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: false,
 		},
@@ -259,8 +284,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				TransactionQuery:   query.NewTransactionQuery(&chaintype.MainChain{}),
 			},
 			args: args{
-				mpTx: transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: true,
 		},
@@ -274,8 +304,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
 			},
 			args: args{
-				mpTx: transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false),
+				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
+					3,
+					1562893302,
+					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					false,
+				),
 			},
 			wantErr: true,
 		},
@@ -299,12 +334,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolServiceUtil{
-				QueryExecutor:       tt.fields.QueryExecutor,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TransactionUtil:     &transaction.Util{},
+				QueryExecutor:          tt.fields.QueryExecutor,
+				MempoolQuery:           tt.fields.MempoolQuery,
+				ActionTypeSwitcher:     tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				TransactionQuery:       tt.fields.TransactionQuery,
+				TransactionUtil:        &transaction.Util{},
+				TransactionCoreService: tt.fields.TransactionCoreService,
 			}
 			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolServiceUtil.ValidateMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)

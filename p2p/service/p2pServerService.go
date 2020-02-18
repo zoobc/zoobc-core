@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,6 +13,9 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -67,6 +66,7 @@ type (
 		RequestBlockTransactions(
 			ctx context.Context,
 			chainType chaintype.ChainType,
+			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
 	}
@@ -426,6 +426,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 func (ps *P2PServerService) RequestBlockTransactions(
 	ctx context.Context,
 	chainType chaintype.ChainType,
+	blockID int64,
 	transactionsIDs []int64,
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
@@ -435,7 +436,7 @@ func (ps *P2PServerService) RequestBlockTransactions(
 		if err != nil {
 			_ = status.Error(codes.InvalidArgument, "Invalid requester data")
 		}
-		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, peer)
+		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
 		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")

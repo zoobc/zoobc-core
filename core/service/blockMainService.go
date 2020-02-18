@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -46,15 +45,6 @@ type (
 			payloadLength uint32,
 			secretPhrase string,
 		) (*model.Block, error)
-		GetCoinbase() int64
-		CoinbaseLotteryWinners(sortedBlocksmith []*model.Blocksmith) ([]string, error)
-		RewardBlocksmithAccountAddresses(
-			blocksmithAccountAddresses []string, totalReward, blocktimestamp int64, height uint32,
-		) error
-		GetBlocksmithAccountAddress(block *model.Block) (string, error)
-		GetParticipationScore(nodePublicKey []byte) (int64, error)
-		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
-		GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
 		BlockTransactionsRequestedListener() observer.Listener
@@ -70,13 +60,13 @@ type (
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
 		TransactionQuery            query.TransactionQueryInterface
-		MerkleTreeQuery             query.MerkleTreeQueryInterface
 		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
 		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
 		Signature                   crypto.SignatureInterface
 		MempoolService              MempoolServiceInterface
 		ReceiptService              ReceiptServiceInterface
 		NodeRegistrationService     NodeRegistrationServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
 		ActionTypeSwitcher          transaction.TypeActionSwitcher
 		AccountBalanceQuery         query.AccountBalanceQueryInterface
 		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
@@ -89,7 +79,11 @@ type (
 		Logger                      *log.Logger
 		TransactionUtil             transaction.UtilInterface
 		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
 		TransactionCoreService      TransactionCoreServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
+		ParticipationScoreService   ParticipationScoreServiceInterface
+		PublishedReceiptService     PublishedReceiptServiceInterface
 	}
 )
 
@@ -100,8 +94,6 @@ func NewBlockMainService(
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
-	merkleTreeQuery query.MerkleTreeQueryInterface,
-	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	mempoolService MempoolServiceInterface,
@@ -118,8 +110,13 @@ func NewBlockMainService(
 	blockIncompleteQueueService BlockIncompleteQueueServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
+	publishedReceiptUtil coreUtil.PublishedReceiptUtilInterface,
 	transactionCoreService TransactionCoreServiceInterface,
 	blockPoolService BlockPoolServiceInterface,
+	blocksmithService BlocksmithServiceInterface,
+	coinbaseService CoinbaseServiceInterface,
+	participationScoreService ParticipationScoreServiceInterface,
+	publishedReceiptService PublishedReceiptServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -128,8 +125,6 @@ func NewBlockMainService(
 		BlockQuery:                  blockQuery,
 		MempoolQuery:                mempoolQuery,
 		TransactionQuery:            transactionQuery,
-		MerkleTreeQuery:             merkleTreeQuery,
-		PublishedReceiptQuery:       publishedReceiptQuery,
 		SkippedBlocksmithQuery:      skippedBlocksmithQuery,
 		Signature:                   signature,
 		MempoolService:              mempoolService,
@@ -146,8 +141,13 @@ func NewBlockMainService(
 		BlockIncompleteQueueService: blockIncompleteQueueService,
 		TransactionUtil:             transactionUtil,
 		ReceiptUtil:                 receiptUtil,
+		PublishedReceiptUtil:        publishedReceiptUtil,
 		TransactionCoreService:      transactionCoreService,
 		BlockPoolService:            blockPoolService,
+		BlocksmithService:           blocksmithService,
+		CoinbaseService:             coinbaseService,
+		ParticipationScoreService:   participationScoreService,
+		PublishedReceiptService:     publishedReceiptService,
 	}
 }
 
@@ -360,7 +360,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 		sortedBlocksmithMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
+		blocksmithIndex = sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
 		if blocksmithIndex == nil {
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
 		}
@@ -418,9 +418,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
+
 		if rows.Next() {
-			// undo unconfirmed
-			err = txType.UndoApplyUnconfirmed()
+			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
 				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -430,8 +430,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		rows.Close()
+
 		if block.Height > 0 {
-			err = txType.Validate(true)
+			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
@@ -440,7 +441,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
-		err = txType.ApplyConfirmed(block.GetTimestamp())
+		err = bs.TransactionCoreService.ApplyConfirmedTransaction(txType, block.GetTimestamp())
 		if err == nil {
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
@@ -458,14 +459,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 	if block.Height != 0 {
-		if err := bs.RemoveMempoolTransactions(block.GetTransactions()); err != nil {
+		if errRemoveMempool := bs.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
-			return err
+			return errRemoveMempool
 		}
 	}
-	linkedCount, err := bs.processPublishedReceipts(block)
+	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 	if err != nil {
 		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
@@ -504,14 +505,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
-		lotteryAccounts, err := bs.CoinbaseLotteryWinners(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))
+		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
+			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
+		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
-		if err := bs.RewardBlocksmithAccountAddresses(
+		if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
 			lotteryAccounts,
 			totalReward,
 			block.GetTimestamp(),
@@ -565,6 +568,9 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				if broadcast {
+					// add transactionIDs and remove transaction before broadcast
+					block.TransactionIDs = transactionIDs
+					block.Transactions = []*model.Transaction{}
 					bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 				}
 				return nil
@@ -580,7 +586,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
-	// clear the block poolo
+	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
 	if broadcast && !persist && *blocksmithIndex == 0 {
@@ -590,6 +596,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+	bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
 	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
 	return nil
 }
@@ -716,145 +723,6 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 	return nil
 }
 
-// processPublishedReceipts process the receipt received in a block
-// todo: this should be moved to PublishedReceiptService
-func (bs *BlockService) processPublishedReceipts(block *model.Block) (int, error) {
-	var (
-		linkedCount int
-		err         error
-	)
-	for index, rc := range block.GetPublishedReceipts() {
-		// validate sender and recipient of receipt
-		err = bs.ReceiptService.ValidateReceipt(rc.BatchReceipt)
-		if err != nil {
-			return 0, err
-		}
-		// check if linked
-		if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
-			var publishedReceipt = &model.PublishedReceipt{
-				BatchReceipt:       &model.BatchReceipt{},
-				IntermediateHashes: nil,
-				BlockHeight:        0,
-				ReceiptIndex:       0,
-			}
-			merkle := &commonUtils.MerkleRoot{}
-			rcByte := bs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
-			rcHash := sha3.Sum256(rcByte)
-			root, err := merkle.GetMerkleRootFromIntermediateHashes(
-				rcHash[:],
-				rc.ReceiptIndex,
-				merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
-			)
-			if err != nil {
-				return 0, err
-			}
-			// look up root in published_receipt table
-			rcQ, rcArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByLinkedRMR(root)
-			row, _ := bs.QueryExecutor.ExecuteSelectRow(rcQ, false, rcArgs...)
-			err = bs.PublishedReceiptQuery.Scan(publishedReceipt, row)
-			if err != nil {
-				return 0, err
-			}
-			// add to linked receipt count for calculation later
-			linkedCount++
-		}
-		// store in database
-		// assign index and height, index is the order of the receipt in the block,
-		// it's different with receiptIndex which is used to validate merkle root.
-		rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
-		insertPublishedReceiptQ, insertPublishedReceiptArgs := bs.PublishedReceiptQuery.InsertPublishedReceipt(
-			rc,
-		)
-		err := bs.QueryExecutor.ExecuteTransaction(insertPublishedReceiptQ, insertPublishedReceiptArgs...)
-		if err != nil {
-			return 0, err
-		}
-	}
-	return linkedCount, nil
-}
-
-// CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
-// and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
-// are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (bs *BlockService) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
-	var (
-		selectedAccounts []string
-	)
-	// copy the pointer array to not change original order
-
-	// sort blocksmiths by NodeOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.NodeOrder.Cmp(bj.NodeOrder)
-		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
-		}
-		// ascending sort
-		return res < 0
-	})
-
-	for idx, sortedBlockSmith := range blocksmiths {
-		if idx > constant.MaxNumBlocksmithRewards-1 {
-			break
-		}
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, args := bs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
-		rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		nr, err := bs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if (err != nil) || len(nr) == 0 {
-			rows.Close()
-			return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
-		}
-		selectedAccounts = append(selectedAccounts, nr[0].AccountAddress)
-		rows.Close()
-	}
-	return selectedAccounts, nil
-}
-
-// RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
-func (bs *BlockService) RewardBlocksmithAccountAddresses(
-	blocksmithAccountAddresses []string,
-	totalReward, blockTimestamp int64,
-	height uint32,
-) error {
-	queries := make([][]interface{}, 0)
-	if len(blocksmithAccountAddresses) == 0 {
-		return blocker.NewBlocker(blocker.AppErr, "NoAccountToBeRewarded")
-	}
-	blocksmithReward := totalReward / int64(len(blocksmithAccountAddresses))
-	for _, blocksmithAccountAddress := range blocksmithAccountAddresses {
-		accountBalanceRecipientQ := bs.AccountBalanceQuery.AddAccountBalance(
-			blocksmithReward,
-			map[string]interface{}{
-				"account_address": blocksmithAccountAddress,
-				"block_height":    height,
-			},
-		)
-		queries = append(queries, accountBalanceRecipientQ...)
-
-		accountLedgerQ, accountLedgerArgs := bs.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: blocksmithAccountAddress,
-			BalanceChange:  blocksmithReward,
-			BlockHeight:    height,
-			EventType:      model.EventType_EventReward,
-			Timestamp:      uint64(blockTimestamp),
-		})
-
-		accountLedgerArgs = append([]interface{}{accountLedgerQ}, accountLedgerArgs...)
-		queries = append(queries, accountLedgerArgs)
-	}
-	if err := bs.QueryExecutor.ExecuteTransactions(queries); err != nil {
-		return err
-	}
-	return nil
-}
-
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
@@ -874,7 +742,7 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 
 	if block.ID != 0 {
 		if withAttachedData {
-			transactions, err := bs.GetTransactionsByBlockID(block.ID)
+			transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 			if err != nil {
 				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
@@ -908,8 +776,7 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-
-	transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
+	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -919,46 +786,13 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 
 // GetBlockHash return block's hash (makes sure always include transactions)
 func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
-	transactions, err := bs.GetTransactionsByBlockID(block.ID)
+	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	block.Transactions = transactions
 	return commonUtils.GetBlockHash(block, bs.GetChainType())
 
-}
-
-// GetTransactionsByBlockID get transactions of the block
-func (bs *BlockService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
-	var transactions []*model.Transaction
-
-	// get transaction of the block
-	transactionQ, transactionArg := bs.TransactionQuery.GetTransactionsByBlockID(blockID)
-	rows, err := bs.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
-
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	return bs.TransactionQuery.BuildModel(transactions, rows)
-}
-
-func (bs *BlockService) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
-	var publishedReceipts []*model.PublishedReceipt
-
-	// get published receipts of the block
-	publishedReceiptQ, publishedReceiptArg := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(blockHeight)
-	rows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArg...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, rows)
-	if err != nil {
-		return nil, err
-	}
-	return publishedReceipts, nil
 }
 
 // GetLastBlock return the last pushed block
@@ -968,7 +802,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	transactions, err := bs.GetTransactionsByBlockID(block.ID)
+	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1012,12 +846,12 @@ func (bs *BlockService) GetBlocks() ([]*model.Block, error) {
 
 // PopulateBlockData add transactions and published receipts to model.Block instance
 func (bs *BlockService) PopulateBlockData(block *model.Block) error {
-	txs, err := bs.GetTransactionsByBlockID(block.ID)
+	txs, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		bs.Logger.Errorln(err)
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block transactions")
 	}
-	prs, err := bs.GetPublishedReceiptsByBlockHeight(block.Height)
+	prs, err := bs.PublishedReceiptUtil.GetPublishedReceiptsByBlockHeight(block.Height)
 	if err != nil {
 		bs.Logger.Errorln(err)
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block published receipts")
@@ -1060,7 +894,7 @@ func (bs *BlockService) GenerateBlock(
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block
-	totalCoinbase = bs.GetCoinbase()
+	totalCoinbase = bs.CoinbaseService.GetCoinbase()
 	sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 	if err != nil {
 		return nil, errors.New("MempoolReadError")
@@ -1308,25 +1142,6 @@ func (bs *BlockService) ReceiveBlock(
 }
 
 // GetParticipationScore handle received block from another node
-func (bs *BlockService) GetParticipationScore(nodePublicKey []byte) (int64, error) {
-	var (
-		participationScores []*model.ParticipationScore
-	)
-	participationScoreQ, args := bs.ParticipationScoreQuery.GetParticipationScoreByNodePublicKey(nodePublicKey)
-	rows, err := bs.QueryExecutor.ExecuteSelect(participationScoreQ, false, args...)
-	if err != nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-	participationScores, err = bs.ParticipationScoreQuery.BuildModel(participationScores, rows)
-	// if there aren't participation scores for this address/node, return 0
-	if (err != nil) || len(participationScores) == 0 {
-		return 0, nil
-	}
-	return participationScores[0].Score, nil
-}
-
-// GetParticipationScore handle received block from another node
 func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
 	var (
 		blExt                         = &model.BlockExtendedInfo{}
@@ -1340,7 +1155,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	blExt.Block = block
 	// block extra (computed) info
 	if block.Height > 0 {
-		blExt.BlocksmithAccountAddress, err = bs.GetBlocksmithAccountAddress(block)
+		blExt.BlocksmithAccountAddress, err = bs.BlocksmithService.GetBlocksmithAccountAddress(block)
 		if err != nil {
 			return nil, err
 		}
@@ -1357,13 +1172,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	if err != nil {
 		return nil, err
 	}
-	publishedReceiptQ, publishedReceiptArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
-	publishedReceiptRows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArgs...)
-	if err != nil {
-		return nil, err
-	}
-	defer publishedReceiptRows.Close()
-	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
+	publishedReceipts, err = bs.PublishedReceiptUtil.GetPublishedReceiptsByBlockHeight(block.GetHeight())
 	if err != nil {
 		return nil, err
 	}
@@ -1400,29 +1209,6 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	}
 
 	return blExt, nil
-}
-
-func (bs *BlockService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
-	var (
-		nr []*model.NodeRegistration
-	)
-	// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
-	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
-	if err != nil {
-		return "", blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	nr, err = bs.NodeRegistrationQuery.BuildModel(nr, rows)
-	if (err != nil) || len(nr) == 0 {
-		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
-	}
-	return nr[0].AccountAddress, nil
-}
-
-func (*BlockService) GetCoinbase() int64 {
-	return 50 * constant.OneZBC
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
@@ -1511,7 +1297,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			return nil, err
 		}
 
-		err = txType.UndoApplyUnconfirmed()
+		err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			return nil, err
 		}
@@ -1570,7 +1356,7 @@ func (bs *BlockService) WillSmith(
 		// if node is not registered, ps will be 0 and this node won't be able to smith
 		// the default ps is 100000, smithing could be slower than when using account balances
 		// since default balance was 1000 times higher than default ps
-		blocksmithScore, err = bs.GetParticipationScore(blocksmith.NodePublicKey)
+		blocksmithScore, err = bs.ParticipationScoreService.GetParticipationScore(blocksmith.NodePublicKey)
 		if blocksmithScore <= 0 {
 			bs.Logger.Info("Node has participation score <= 0. Either is not registered or has been expelled from node registry")
 		}
@@ -1729,7 +1515,7 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 		txIds = append(txIds, txID)
 	}
 
-	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, peer)
+	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)
 	return true, nil
 }
 
@@ -1762,26 +1548,79 @@ func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 			defer bs.ChainWriteUnlock(constant.BlockchainSendingBlockTransactions)
 
 			var (
-				err            error
 				transactions   []*model.Transaction
 				transactionIds []int64
 				peer           *model.Peer
+				chainType      chaintype.ChainType
+				blockID        int64
 				ok             bool
 			)
+
+			// check number of arguments before casting the argument type
+			if len(args) < 3 {
+				bs.Logger.Fatalln("number of needed arguments too few in BlockTransactionsRequestedListener")
+				return
+			}
+			chainType, ok = args[0].(*chaintype.MainChain)
+			if !ok {
+				bs.Logger.Fatalln("chaintype casting failures in BlockTransactionsRequestedListener")
+			}
+
+			// check chaintype
+			if chainType.GetTypeInt() != bs.Chaintype.GetTypeInt() {
+				bs.Logger.Warnf("chaintype is not macth, current chain is %s the incoming chain is %s",
+					bs.Chaintype.GetName(), chainType.GetName())
+				return
+			}
+
+			blockID, ok = args[1].(int64)
+			if !ok {
+				bs.Logger.Fatalln("blockID casting failures in BlockTransactionsRequestedListener")
+			}
+
+			peer, ok = args[2].(*model.Peer)
+			if !ok {
+				bs.Logger.Fatalln("peer casting failures in BlockTransactionsRequestedListener")
+			}
 
 			transactionIds, ok = transactionsIdsInterface.([]int64)
 			if !ok {
 				bs.Logger.Fatalln("transactionIds casting failures in BlockTransactionsRequestedListener")
 			}
 
-			peer, ok = args[1].(*model.Peer)
-			if !ok {
-				bs.Logger.Fatalln("peer casting failures in BlockTransactionsRequestedListener")
+			var (
+				remainingTxIDs []int64
+				block          = bs.BlockPoolService.GetBlock(blockID)
+			)
+			// get transaction from block pool
+			if block != nil {
+				var (
+					blockPoolTxs = block.GetTransactions()
+					txMap        = make(map[int64]*model.Transaction)
+				)
+				for _, tx := range blockPoolTxs {
+					txMap[tx.GetID()] = tx
+				}
+
+				for _, txID := range transactionIds {
+					if txMap[txID] != nil {
+						transactions = append(transactions, txMap[txID])
+						continue
+					}
+					remainingTxIDs = append(remainingTxIDs, txID)
+				}
 			}
 
-			transactions, err = bs.TransactionCoreService.GetTransactionsByIds(transactionIds)
-			if err != nil {
-				return
+			// get remaining transactions from DB transaction if needed
+			if len(transactions) < len(transactionIds) {
+				if len(transactions) == 0 {
+					remainingTxIDs = transactionIds
+				}
+				var remainingTxs, err = bs.TransactionCoreService.GetTransactionsByIds(remainingTxIDs)
+				if err != nil {
+					return
+				}
+				transactions = append(transactions, remainingTxs...)
 			}
 			bs.Observer.Notify(observer.SendBlockTransactions, transactions, bs.Chaintype, peer)
 		},

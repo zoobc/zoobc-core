@@ -80,6 +80,7 @@ var (
 	snapshotService                               service.SnapshotServiceInterface
 	transactionUtil                               = &transaction.Util{}
 	receiptUtil                                   = &coreUtil.ReceiptUtil{}
+	transactionCoreServiceIns                     service.TransactionCoreServiceInterface
 )
 
 func init() {
@@ -107,7 +108,8 @@ func init() {
 		dbName,
 		constant.SQLMaxOpenConnetion,
 		constant.SQLMaxIdleConnections,
-		constant.SQLMaxConnectionLifetime)
+		constant.SQLMaxConnectionLifetime,
+	)
 
 	if err != nil {
 		loggerCoreService.Fatal(err)
@@ -160,6 +162,12 @@ func init() {
 		spineBlockManifestService,
 		spineBlockDownloadService,
 		loggerCoreService,
+	)
+
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		queryExecutor,
+		query.NewTransactionQuery(&chaintype.MainChain{}),
+		query.NewEscrowTransactionQuery(),
 	)
 
 	// initialize Observer
@@ -319,6 +327,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
 	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
 	observerInstance.AddListener(observer.SendBlockTransactions, p2pServiceInstance.SendBlockTransactionsListener())
+	observerInstance.AddListener(observer.ExpiringEscrowTransactions, transactionCoreServiceIns.ExpiringEscrowListener())
 }
 
 func startServices() {
@@ -348,6 +357,7 @@ func startServices() {
 		transactionUtil,
 		receiptUtil,
 		receiptService,
+		transactionCoreServiceIns,
 	)
 
 	if isDebugMode {
@@ -390,6 +400,7 @@ func startMainchain() {
 		loggerCoreService,
 		receiptUtil,
 		receiptService,
+		transactionCoreServiceIns,
 	)
 	mempoolServices[mainchain.GetTypeInt()] = mempoolService
 
@@ -407,7 +418,31 @@ func startMainchain() {
 		observerInstance,
 	)
 	mainchainBlockPool := service.NewBlockPoolService()
-
+	mainchainBlocksmithService := service.NewBlocksmithService(
+		query.NewAccountBalanceQuery(),
+		query.NewAccountLedgerQuery(),
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+	)
+	mainchainCoinbaseService := service.NewCoinbaseService(
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+	)
+	mainchainParticipationScoreService := service.NewParticipationScoreService(
+		query.NewParticipationScoreQuery(),
+		queryExecutor,
+	)
+	mainchainPublishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
+		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
+	mainchainPublishedReceiptService := service.NewPublishedReceiptService(
+		query.NewPublishedReceiptQuery(),
+		receiptUtil,
+		mainchainPublishedReceiptUtil,
+		receiptService,
+		queryExecutor,
+	)
 	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
@@ -415,8 +450,6 @@ func startMainchain() {
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
@@ -433,8 +466,13 @@ func startMainchain() {
 		blockIncompleteQueueService,
 		transactionUtil,
 		receiptUtil,
-		service.NewTransactionCoreService(query.NewTransactionQuery(mainchain), queryExecutor),
+		mainchainPublishedReceiptUtil,
+		transactionCoreServiceIns,
 		mainchainBlockPool,
+		mainchainBlocksmithService,
+		mainchainCoinbaseService,
+		mainchainParticipationScoreService,
+		mainchainPublishedReceiptService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -486,14 +524,17 @@ func startMainchain() {
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		mainchainBlockService,
-		peerServiceClient,
-		peerExplorer,
-		queryExecutor,
-		mempoolService,
+		peerServiceClient, peerExplorer,
+		queryExecutor, mempoolService,
 		actionSwitcher,
 		loggerCoreService,
 		kvExecutor,
 		transactionUtil,
+		service.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(&chaintype.MainChain{}),
+			query.NewEscrowTransactionQuery(),
+		),
 	)
 }
 
@@ -508,6 +549,7 @@ func startSpinechain() {
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
+		query.NewBlockQuery(spinechain),
 	)
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
@@ -552,6 +594,7 @@ func startSpinechain() {
 		loggerCoreService,
 		kvExecutor,
 		transactionUtil,
+		transactionCoreServiceIns,
 	)
 }
 

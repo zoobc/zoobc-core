@@ -130,6 +130,7 @@ func initialize(
 		log.New(),
 		receiptUtil,
 		receiptService,
+		nil,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -142,6 +143,10 @@ func initialize(
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
+		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
 	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
@@ -149,8 +154,6 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
@@ -167,7 +170,16 @@ func initialize(
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 		transactionUtil,
 		receiptUtil,
-		service.NewTransactionCoreService(query.NewTransactionQuery(chainType), queryExecutor),
+		publishedReceiptUtil,
+		service.NewTransactionCoreService(
+			queryExecutor,
+			query.NewTransactionQuery(chainType),
+			nil,
+		),
+		nil,
+		nil,
+		nil,
+		nil,
 		nil,
 	)
 

@@ -31,4 +31,8 @@ var (
 	EscrowApproverAddressLength uint32 = 4
 	EscrowCommissionLength      uint32 = 8
 	EscrowTimeoutLength         uint32 = 8
+	EscrowApproval              uint32 = 4
+	EscrowID                    uint32 = 8
+	EscrowApprovalBytesLength          = EscrowApproval + EscrowID
+	EscrowInstructionLength     uint32 = 4
 )
