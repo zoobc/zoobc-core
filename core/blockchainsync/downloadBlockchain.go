@@ -270,17 +270,18 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		}
 		lastBlock, err := bd.BlockService.GetLastBlock()
 		if err != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 36)
 			return nil, err
 		}
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 36)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 37)
 		if block.ID == lastBlock.ID && block.Height == lastBlock.Height {
 			continue
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
 		if lastBlock.ID == previousBlockID {
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 37)
-			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 38)
+			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 39)
 			if err != nil {
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
@@ -289,9 +290,9 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				}
 				break
 			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 39)
-			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 40)
+			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
+			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 41)
 			if err != nil {
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
@@ -300,15 +301,15 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				bd.Logger.Info("failed to push block from peer:", err)
 				break
 			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 41)
-		} else {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 42)
+		} else {
+			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 43)
 			forkBlocks = blocksToBeProcessed[idx:]
 			break
 		}
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 43)
+	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType.GetTypeInt(), 44)
 	return &PeerForkInfo{
 		ForkBlocks: forkBlocks,
 		FeederPeer: feederPeer,

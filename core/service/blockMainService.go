@@ -827,15 +827,18 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype.GetTypeInt(), 80)
 	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype.GetTypeInt(), 81)
 	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	lastBlock.Transactions = transactions
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype.GetTypeInt(), 82)
 	return lastBlock, nil
 }
 
