@@ -71,14 +71,13 @@ func (th *TransactionHandler) GetTransactionMinimumFee(
 	req *model.GetTransactionMinimumFeeRequest,
 ) (*model.GetTransactionMinimumFeeResponse, error) {
 	var (
-		transaction *model.GetTransactionMinimumFeeResponse
-		err         error
+		transactionFee *model.GetTransactionMinimumFeeResponse
+		err            error
 	)
-	chainType := chaintype.GetChainType(0)
-	transactionFee, err = th.Service.GetTransactionMinimumFee(chainType, req)
+	transactionFee, err = th.Service.GetTransactionMinimumFee(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return transaction, nil
+	return transactionFee, nil
 }
