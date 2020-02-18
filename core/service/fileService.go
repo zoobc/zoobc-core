@@ -6,34 +6,45 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
+	"hash"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
 type (
 	FileServiceInterface interface {
-		SaveBytesToFile(filePath string, b []byte) (*os.File, error)
+		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
 		GetHashFromFileName(fileName string) ([]byte, error)
+		VerifyFileHash(filePath string, hash []byte) (bool, error)
 		HashPayload(b []byte) []byte
 		EncodePayload(v interface{}) (b []byte, err error)
-		DecodePayload(b []byte) (v interface{}, err error)
+		DecodePayload(b []byte, v interface{}) error
 		GetEncoderHandler() codec.Handle
 	}
 
 	FileService struct {
 		Logger *log.Logger
 		h      codec.Handle
+		hasher hash.Hash
 	}
 )
 
 func NewFileService(
 	logger *log.Logger,
 	encoderHandler codec.Handle,
+	fileHasher hash.Hash,
 ) FileServiceInterface {
 	return &FileService{
 		Logger: logger,
 		h:      encoderHandler, // this variable is only set when constructing the service and never mutated
+		hasher: fileHasher,
 	}
+}
+
+func (fs *FileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
+	return util.VerifyFileHash(filePath, hash, fs.hasher)
 }
 
 func (fs *FileService) GetEncoderHandler() codec.Handle {
@@ -55,28 +66,27 @@ func (fs *FileService) EncodePayload(v interface{}) (b []byte, err error) {
 }
 
 // DecodePayload decodes a byte slice encoded using service's encoder handler (default should be CBOR) into a model.
-func (fs *FileService) DecodePayload(b []byte) (v interface{}, err error) {
+func (fs *FileService) DecodePayload(b []byte, v interface{}) error {
 	var (
 		dec *codec.Decoder
 	)
 	dec = codec.NewDecoderBytes(b, fs.h)
-	err = dec.Decode(&v)
-	return v, err
+	err := dec.Decode(&v)
+	return err
 }
 
-func (fs *FileService) SaveBytesToFile(filePath string, b []byte) (*os.File, error) {
-	// TODO: implement real method
-	f, err := os.Create(filePath)
-	if err != nil {
-		return nil, err
+func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
+	// try to create folder if doesn't exist
+	if _, err := os.Stat(fileBasePath); os.IsNotExist(err) {
+		os.MkdirAll(fileBasePath, os.ModePerm)
 	}
-	defer f.Close()
-	n2, err := f.Write(b)
+
+	filePath := filepath.Join(fileBasePath, fileName)
+	err := ioutil.WriteFile(filePath, b, 0644)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	fs.Logger.Debugf("wrote %d bytes to %s", n2, filePath)
-	return f, nil
+	return nil
 }
 
 func (fs *FileService) HashPayload(b []byte) []byte {

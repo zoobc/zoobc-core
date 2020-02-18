@@ -54,7 +54,7 @@ func (q *AccountBalanceQuery) GetAccountBalances() string {
 }
 
 func (q *AccountBalanceQuery) GetAccountBalancesForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height`,
 		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight)
 }
 

@@ -196,7 +196,6 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
@@ -250,8 +249,8 @@ func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(q
 		return db.Query("A")
 	}
 
-	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = ? AND latest = 1" {
+	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,"+
+		"latest FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountAddress",
 			"BlockHeight",
@@ -364,7 +363,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(q
 	defer db.Close()
 
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest "+
-		"FROM account_balance WHERE account_address = ? AND latest = 1" {
+		"FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountID",
 			"BlockHeight",
@@ -435,7 +434,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = ? AND latest = 1" {
+		"account_address = ? AND latest = 1 ORDER BY block_height" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountAddress",
 			"BlockHeight",

@@ -403,7 +403,7 @@ func TestEscrowTransactionQuery_GetEscrowTransactionsForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, " +
 				"block_height, latest, instruction FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 1" +
-				" AND latest = ? ORDER BY block_height",
+				" AND latest = 1 ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {

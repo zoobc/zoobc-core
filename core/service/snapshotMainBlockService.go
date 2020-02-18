@@ -1,13 +1,18 @@
 package service
 
 import (
+	"bytes"
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 )
 
@@ -27,6 +32,7 @@ type (
 		GetParticipationScores(fromHeight, toHeight uint32) ([]*model.ParticipationScore, error)
 		GetPublishedReceipts(fromHeight, toHeight, limit uint32) ([]*model.PublishedReceipt, error)
 		GetEscrowTransactions(fromHeight, toHeight uint32) ([]*model.Escrow, error)
+		InsertSnapshotPayloadToDb(payload SnapshotPayload) error
 	}
 
 	SnapshotMainBlockQueryService struct {
@@ -179,6 +185,75 @@ func (smbq *SnapshotMainBlockQueryService) GetEscrowTransactions(fromHeight, toH
 	return res, nil
 }
 
+// InsertSnapshotPayloadToDb insert snapshot data to db
+func (smbq *SnapshotMainBlockQueryService) InsertSnapshotPayloadToDb(payload SnapshotPayload) error {
+	var (
+		queries [][]interface{}
+	)
+
+	err := smbq.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+
+	for _, rec := range payload.AccountBalances {
+		qry, args := smbq.AccountBalanceQuery.InsertAccountBalance(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+
+	}
+
+	for _, rec := range payload.NodeRegistrations {
+		qry, args := smbq.NodeRegistrationQuery.InsertNodeRegistration(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+	}
+
+	for _, rec := range payload.PublishedReceipts {
+		qry, args := smbq.PublishedReceiptQuery.InsertPublishedReceipt(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+	}
+
+	for _, rec := range payload.ParticipationScores {
+		qry, args := smbq.ParticipationScoreQuery.InsertParticipationScore(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+	}
+
+	for _, rec := range payload.EscrowTransactions {
+		qryArgs := smbq.EscrowTransactionQuery.InsertEscrowTransaction(rec)
+		queries = append(queries, qryArgs...)
+	}
+
+	for _, rec := range payload.AccountDatasets {
+		qryArgs := smbq.AccountDatasetQuery.AddDataset(rec)
+		queries = append(queries, qryArgs...)
+	}
+
+	err = smbq.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		rollbackErr := smbq.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			smbq.Logger.Error(rollbackErr.Error())
+		}
+		return blocker.NewBlocker(blocker.AppErr, "fail to insert snapshot into db")
+	}
+	err = smbq.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // NewSnapshotFile creates a new snapshot file (or multiple file chunks) and return the snapshotFileInfo
 func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSizeBytes int64) (*model.SnapshotFileInfo, error) {
 	var (
@@ -232,9 +307,16 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 	if err != nil {
 		return nil, err
 	}
-	filePath := filepath.Join(ss.SnapshotPath, fileName)
-	_, err = ss.FileService.SaveBytesToFile(filePath, b)
+	err = ss.FileService.SaveBytesToFile(ss.SnapshotPath, fileName, b)
 	if err != nil {
+		return nil, err
+	}
+	// make extra sure that the file created is not corrupted
+	filePath := filepath.Join(ss.SnapshotPath, fileName)
+	match, err := ss.FileService.VerifyFileHash(filePath, snapshotFullHash)
+	if err != nil || !match {
+		// try remove saved file if file validation fails
+		_ = os.Remove(filePath)
 		return nil, err
 	}
 	// TODO: for now only whole snapshot is one file chunk
@@ -248,6 +330,48 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		ProcessExpirationTimestamp: snapshotExpirationTimestamp,
 		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 	}, nil
+}
+
+// ImportSnapshotFile parses a downloaded snapshot file into db
+func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error {
+	var (
+		snapshotPayload    SnapshotPayload
+		err                error
+		fileName, filePath string
+		b                  []byte
+	)
+
+	fileName, err = ss.FileService.GetFileNameFromHash(snapshotFileInfo.SnapshotFileHash)
+	filePath = filepath.Join(ss.SnapshotPath, fileName)
+	// first verify that the downloaded file's hash matches with the one in db
+	// if match, err := ss.FileService.VerifyFileHash(filePath, snapshotFileInfo.SnapshotFileHash); !match || err != nil {
+	// 	return blocker.NewBlocker(blocker.ValidationErr,
+	// 		fmt.Sprintf("Snapshot File Hash doesn't match with the one in database: %v", err))
+	// }
+
+	b, err = ioutil.ReadFile(filePath)
+	if err != nil {
+		return blocker.NewBlocker(blocker.AppErr,
+			fmt.Sprintf("Cannot read snapshot file from disk: %v", err))
+	}
+
+	payloadHash := sha3.Sum256(b)
+	if !bytes.Equal(payloadHash[:], snapshotFileInfo.SnapshotFileHash) {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"Snapshot File Hash doesn't match with the one in database")
+	}
+	// decode the snapshot payload
+	err = ss.FileService.DecodePayload(b, &snapshotPayload)
+	if err != nil {
+		return err
+	}
+
+	err = ss.QueryService.InsertSnapshotPayloadToDb(snapshotPayload)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // IsSnapshotHeight returns true if chain height passed is a snapshot height

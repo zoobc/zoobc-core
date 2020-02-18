@@ -1,16 +1,18 @@
 package service
 
 import (
-	"github.com/pkg/errors"
-	"github.com/ugorji/go/codec"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -165,6 +167,7 @@ type (
 		successEncode              bool
 		successGetFileNameFromHash bool
 		successSaveBytesToFile     bool
+		successVerifyFileHash      bool
 	}
 	mockSnapshotQueryService struct {
 		SnapshotMainBlockQueryService
@@ -174,6 +177,7 @@ type (
 		successParticipationScores bool
 		successPublishedReceipts   bool
 		successEscrowTransactions  bool
+		successInsertPayloadToDb   bool
 	}
 )
 
@@ -262,8 +266,8 @@ var (
 		Timestamp: 15875392,
 	}
 	snapshotFullHash = []byte{
-		189, 123, 189, 67, 77, 99, 212, 229, 139, 70, 138, 166, 32, 117, 190, 42, 156, 137, 6, 216, 156, 116, 20, 182, 211, 178,
-		224, 220, 235, 28, 62, 12,
+		83, 224, 188, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
+		188, 144, 9, 73, 75, 6, 44, 214, 40,
 	}
 )
 
@@ -298,11 +302,19 @@ func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) (string, error)
 	}
 	return "", errors.New("GetFileNameFromHashFail")
 }
-func (mfs *mockFileService) SaveBytesToFile(filePath string, b []byte) (*os.File, error) {
-	if mfs.successSaveBytesToFile {
-		return nil, nil
+
+func (mfs *mockFileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
+	if mfs.successVerifyFileHash {
+		return true, nil
 	}
-	return nil, errors.New("SaveBytesToFileFail")
+	return false, errors.New("VerifyFileHashFail")
+}
+
+func (mfs *mockFileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
+	if mfs.successSaveBytesToFile {
+		return nil
+	}
+	return errors.New("SaveBytesToFileFail")
 }
 
 func (msqs *mockSnapshotQueryService) GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error) {
@@ -396,6 +408,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					successEncode:              true,
 					successGetFileNameFromHash: true,
 					successSaveBytesToFile:     true,
+					successVerifyFileHash:      true,
 				},
 				Logger:       log.New(),
 				SnapshotPath: "testdata/snapshots",
@@ -581,6 +594,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					FileService: FileService{
 						Logger: log.New(),
 						h:      new(codec.CborHandle),
+						hasher: sha3.New256(),
 					},
 					successEncode:              true,
 					successGetFileNameFromHash: false,
@@ -611,6 +625,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					FileService: FileService{
 						Logger: log.New(),
 						h:      new(codec.CborHandle),
+						hasher: sha3.New256(),
 					},
 					successEncode:              true,
 					successGetFileNameFromHash: true,
@@ -631,6 +646,40 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 			errMsg:  "SaveBytesToFileFail",
+		},
+		{
+			name: "NewSnapshotFile:fail-{VerifyFileHash}",
+			fields: fields{
+				SnapshotPath: "testdata/snapshots",
+				chainType: &mockChainType{
+					SnapshotGenerationTimeout: 1,
+				},
+				FileService: &mockFileService{
+					FileService: FileService{
+						Logger: log.New(),
+						h:      new(codec.CborHandle),
+						hasher: sha3.New256(),
+					},
+					successEncode:              true,
+					successGetFileNameFromHash: true,
+					successSaveBytesToFile:     true,
+					successVerifyFileHash:      false,
+				},
+				QueryService: &mockSnapshotQueryService{
+					successAccountBalances:     true,
+					successNodeRegistrations:   true,
+					successAccountDatasets:     true,
+					successParticipationScores: true,
+					successPublishedReceipts:   true,
+					successEscrowTransactions:  true,
+				},
+			},
+			args: args{
+				block: blockForSnapshot1,
+			},
+			want:    nil,
+			wantErr: true,
+			errMsg:  "VerifyFileHashFail",
 		},
 	}
 	for _, tt := range tests {
@@ -658,6 +707,206 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+// TestSnapshotMainBlockService_Integration_NewSnapshotFile this test will generate a snapshot based on mocked data and write the file to
+// disk. Then will check the file hash against the generated file and delete it.
+// TODO: complete the test by decoding the encoded file into []*SnapshotPayload array before deleting it
+func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
+	type fields struct {
+		SnapshotPath string
+		chainType    chaintype.ChainType
+		Logger       *log.Logger
+		QueryService SnapshotMainBlockQueryServiceInterface
+		FileService  FileServiceInterface
+	}
+	type args struct {
+		block          *model.Block
+		chunkSizeBytes int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []byte // the snapshot file hash
+	}{
+		{
+			name: "NewSnapshotFile-IntegrationTest:success",
+			fields: fields{
+				FileService: NewFileService(
+					log.New(),
+					new(codec.CborHandle),
+					sha3.New256(),
+				),
+				Logger:       log.New(),
+				SnapshotPath: "testdata/snapshots",
+				chainType: &mockChainType{
+					SnapshotGenerationTimeout: 10,
+				},
+				QueryService: &mockSnapshotQueryService{
+					successAccountBalances:     true,
+					successNodeRegistrations:   true,
+					successAccountDatasets:     true,
+					successParticipationScores: true,
+					successPublishedReceipts:   true,
+					successEscrowTransactions:  true,
+				},
+			},
+			args: args{
+				block: blockForSnapshot1,
+			},
+			want: snapshotFullHash,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &SnapshotMainBlockService{
+				SnapshotPath: tt.fields.SnapshotPath,
+				chainType:    tt.fields.chainType,
+				Logger:       tt.fields.Logger,
+				QueryService: tt.fields.QueryService,
+				FileService:  tt.fields.FileService,
+			}
+			got, err := ss.NewSnapshotFile(tt.args.block, tt.args.chunkSizeBytes)
+			if err != nil {
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() error = %v", err)
+				return
+			}
+			// this is the hash of encoded bynary data
+			if !reflect.DeepEqual(got.SnapshotFileHash, tt.want) {
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
+			}
+			// remove temporary generated file
+			fName, err := tt.fields.FileService.GetFileNameFromHash(got.SnapshotFileHash)
+			if err != nil {
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() error = %v. can't get filename from hash", err)
+				return
+			}
+			fPath := filepath.Join(tt.fields.SnapshotPath, fName)
+			err = os.Remove(fPath)
+			if err != nil {
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() snapshot file not saved. Error is: %v", err)
+				return
+			}
+		})
+	}
+}
+
+func (msqs *mockSnapshotQueryService) InsertSnapshotPayloadToDb(payload SnapshotPayload) error {
+	if msqs.successInsertPayloadToDb {
+		return nil
+	}
+	return errors.New("InsertSnapshotPayloadToDbFail")
+}
+
+func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
+	type fields struct {
+		SnapshotPath string
+		chainType    chaintype.ChainType
+		Logger       *log.Logger
+		QueryService SnapshotMainBlockQueryServiceInterface
+		FileService  FileServiceInterface
+	}
+	type args struct {
+		snapshotFileInfo *model.SnapshotFileInfo
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "ParseSnapshotFile_IntegrationTest:success",
+			fields: fields{
+				FileService: NewFileService(
+					log.New(),
+					new(codec.CborHandle),
+					sha3.New256(),
+				),
+				Logger:       log.New(),
+				SnapshotPath: "testdata/snapshots",
+				chainType: &mockChainType{
+					SnapshotGenerationTimeout: 10,
+				},
+				QueryService: &mockSnapshotQueryService{
+					successAccountBalances:     true,
+					successNodeRegistrations:   true,
+					successAccountDatasets:     true,
+					successParticipationScores: true,
+					successPublishedReceipts:   true,
+					successEscrowTransactions:  true,
+					successInsertPayloadToDb:   true,
+				},
+			},
+		},
+		{
+			name: "ParseSnapshotFile_IntegrationTest:fail-{insertpayload}",
+			fields: fields{
+				FileService: NewFileService(
+					log.New(),
+					new(codec.CborHandle),
+					sha3.New256(),
+				),
+				Logger:       log.New(),
+				SnapshotPath: "testdata/snapshots",
+				chainType: &mockChainType{
+					SnapshotGenerationTimeout: 10,
+				},
+				QueryService: &mockSnapshotQueryService{
+					successAccountBalances:     true,
+					successNodeRegistrations:   true,
+					successAccountDatasets:     true,
+					successParticipationScores: true,
+					successPublishedReceipts:   true,
+					successEscrowTransactions:  true,
+					successInsertPayloadToDb:   false,
+				},
+			},
+			wantErr: true,
+			errMsg:  "InsertPayloadFail",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &SnapshotMainBlockService{
+				SnapshotPath: tt.fields.SnapshotPath,
+				chainType:    tt.fields.chainType,
+				Logger:       tt.fields.Logger,
+				QueryService: tt.fields.QueryService,
+				FileService:  tt.fields.FileService,
+			}
+			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1, 0)
+			if err != nil {
+				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error creating snapshots: %v", err)
+				return
+			}
+			if err := ss.ImportSnapshotFile(snapshotFileInfo); (err != nil) != tt.wantErr {
+				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				if tt.wantErr {
+					if tt.errMsg != err.Error() {
+						t.Errorf("error differs from what expected. wrong test exit line. gotErr %s, wantErr %s",
+							err.Error(),
+							tt.errMsg)
+					}
+					return
+				}
+				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			fName, err := tt.fields.FileService.GetFileNameFromHash(snapshotFileInfo.SnapshotFileHash)
+			if err != nil {
+				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error = %v. can't get filename from hash", err)
+				return
+			}
+			fPath := filepath.Join(tt.fields.SnapshotPath, fName)
+			_ = os.Remove(fPath)
 		})
 	}
 }

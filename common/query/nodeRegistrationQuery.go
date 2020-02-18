@@ -13,6 +13,7 @@ import (
 
 type (
 	NodeRegistrationQueryInterface interface {
+		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
@@ -59,6 +60,16 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 
 func (nrq *NodeRegistrationQuery) getTableName() string {
 	return nrq.TableName
+}
+
+// InsertNodeRegistration inserts a new node registration into DB
+func (nrq *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		nrq.getTableName(),
+		strings.Join(nrq.Fields, ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(nrq.Fields)-1)),
+	), nrq.ExtractModel(nodeRegistration)
 }
 
 // UpdateNodeRegistration returns a slice of two queries.

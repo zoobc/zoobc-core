@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ugorji/go/codec"
+	"golang.org/x/crypto/sha3"
 	"net/http"
 	"os"
 	"os/signal"
@@ -163,6 +164,7 @@ func init() {
 	fileService = service.NewFileService(
 		loggerCoreService,
 		new(codec.CborHandle),
+		sha3.New256(),
 	)
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
 		snapshotPath,
@@ -242,7 +244,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	nodePreSeed = viper.GetString("nodeSeed")
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
-	snapshotPath = viper.GetString("apiKeyFile")
+	snapshotPath = viper.GetString("snapshotPath")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)

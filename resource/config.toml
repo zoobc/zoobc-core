@@ -4,7 +4,7 @@ badgerDbPath="./resource"
 badgerDbName="zoobc_1_kv/"
 configPath = "./resource/"
 nodeKeyFile = "node_keys.json"
-snapshotPath = "./resource/"
+snapshotPath = "./resource/snapshots"
 
 # Peer
 peerPort=8001

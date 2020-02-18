@@ -437,3 +437,14 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsForSnapshot(t *testing.T) {
 		}
 	})
 }
+
+func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
+	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
+		qry, _ := mockNodeRegistrationQuery.InsertNodeRegistration(&model.NodeRegistration{})
+		want := "INSERT INTO node_registry (id, node_public_key, account_address, registration_height, node_address, " +
+			"locked_balance, registration_status, latest, height) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? )"
+		if qry != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", qry, want)
+		}
+	})
+}

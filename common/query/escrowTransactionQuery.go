@@ -93,7 +93,7 @@ func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr
 // GetEscrowTransactionsForSnapshot retrieve all (latest) escrow tx within a block height interval
 func (et *EscrowTransactionQuery) GetEscrowTransactionsForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
-		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND latest = ? ORDER BY block_height",
+		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND latest = 1 ORDER BY block_height",
 		strings.Join(et.Fields, ", "),
 		et.getTableName(),
 		fromHeight,

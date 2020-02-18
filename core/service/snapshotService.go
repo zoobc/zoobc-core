@@ -35,9 +35,9 @@ type (
 
 var (
 	// this map holds boolean channels to all block types that support snapshots
-	stopSnapshotGeneration map[int32]chan bool
+	stopSnapshotGeneration = make(map[int32]chan bool)
 	// this map holds boolean values to all block types that support snapshots
-	generatingSnapshot map[int32]bool
+	generatingSnapshot = make(map[int32]bool)
 )
 
 func NewSnapshotService(

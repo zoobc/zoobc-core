@@ -55,7 +55,7 @@ func (adq *AccountDatasetsQuery) GetDatasetsByRecipientAccountAddress(accountRec
 }
 
 func (adq *AccountDatasetsQuery) GetAccountDatasetsForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= = %d AND latest = 1 ORDER BY height",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER BY height",
 		strings.Join(adq.GetFields(), ","),
 		adq.TableName,
 		fromHeight,

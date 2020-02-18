@@ -489,7 +489,7 @@ func TestAccountDatasetsQuery_GetAccountDatasetsForSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   1,
 			},
-			want: "SELECT  FROM  WHERE height >= 0 AND height <= = 1 AND latest = 1 ORDER BY height",
+			want: "SELECT  FROM  WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER BY height",
 		},
 	}
 	for _, tt := range tests {
