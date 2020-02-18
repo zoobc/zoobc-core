@@ -228,10 +228,14 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 
 // ValidateRequest , to validate incoming request based on metadata in context and Priority strategy
 func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
+
 	if ctx != nil {
+
 		md, _ := metadata.FromIncomingContext(ctx)
+
 		// Check have default context
 		if len(md.Get(p2pUtil.DefaultConnectionMetadata)) != 0 {
+
 			// get scramble node
 			lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
 			if err != nil {
@@ -244,6 +248,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				ps.Logger.Errorf("FailGetScrambleNodesByHeight: %v", err)
 				return false
 			}
+
 			// Check host in scramble nodes
 			if ps.ValidateScrambleNode(scrambledNodes, ps.Host.GetInfo()) {
 				var (
@@ -256,10 +261,12 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				)
 
 				if unresolvedPeers[fullAddress] == nil && blacklistedPeers[fullAddress] == nil {
+
 					for _, peer := range unresolvedPeers {
 						// add peer requester into unresolved and remove the old one in unresolved peers
 						// removing one of unresolved peers will do when already stayed more than max stayed
 						// and not priority peers
+
 						if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
 							!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
 							var err error
@@ -274,6 +281,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 						}
 					}
 				}
+
 				// Check host is in priority peer list of requester
 				// Or requester is in priority peers of host
 				// Or requester is in resolved peers of host
@@ -285,6 +293,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 					(unresolvedPeers[fullAddress] != nil) ||
 					isAddedToUnresolved
 			}
+
 			return true
 		}
 	}

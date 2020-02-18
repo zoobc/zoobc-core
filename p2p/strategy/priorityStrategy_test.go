@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
@@ -21,7 +21,6 @@ import (
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"google.golang.org/grpc/metadata"
 )
 
 func changeMaxUnresolvedPeers(hostServiceInstance *PriorityStrategy, newValue int32) {
@@ -129,8 +128,8 @@ var (
 			},
 		},
 		IndexNodes: map[string]*int{
-			"127.0.0.1:8000:0.0.31:ZooBC-Alpha": &indexScramble[0],
-			"127.0.0.1:3001:0.0.31:ZooBC-Alpha": &indexScramble[1],
+			"127.0.0.1:8000": &indexScramble[0],
+			"127.0.0.1:3001": &indexScramble[1],
 		},
 	}
 
@@ -1087,7 +1086,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 				},
 			},
 			want: map[string]*model.Peer{
-				"127.0.0.1:3001:0.0.31:ZooBC-Alpha": mockPeer,
+				"127.0.0.1:3001": mockPeer,
 			},
 		},
 	}
@@ -1179,8 +1178,6 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 			}
 
 			got := ps.ValidatePriorityPeer(tt.args.scrambledNodes, tt.args.host, tt.args.peer)
-			fmt.Printf("got : %v\n", got)
-
 			if got != tt.want {
 				t.Errorf("PriorityStrategy.ValidatePriorityPeer() = %v, want %v", got, tt.want)
 			}
@@ -1339,9 +1336,11 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
+
 			if got := ps.ValidateRequest(tt.args.ctx); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidateRequest() = %v, want %v", got, tt.want)
 			}
+
 		})
 	}
 }

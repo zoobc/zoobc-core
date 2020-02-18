@@ -572,32 +572,42 @@ func (*mockNodeRegistrationSelectReceiptSuccess) GetScrambleNodesByHeight(
 		AddressNodes: []*model.Peer{
 			{
 				Info: &model.Node{
-					Address: "0.0.0.0",
-					Port:    8001,
+					Address:  "0.0.0.0",
+					Port:     8001,
+					Version:  "0.0.31",
+					CodeName: "ZooBC-Alpha",
 				},
 			},
 			{
 				Info: &model.Node{
-					Address: "0.0.0.0",
-					Port:    8002,
+					Address:  "0.0.0.0",
+					Port:     8002,
+					Version:  "0.0.31",
+					CodeName: "ZooBC-Alpha",
 				},
 			},
 			{
 				Info: &model.Node{
-					Address: "0.0.0.0",
-					Port:    8003,
+					Address:  "0.0.0.0",
+					Port:     8003,
+					Version:  "0.0.31",
+					CodeName: "ZooBC-Alpha",
 				},
 			},
 			{
 				Info: &model.Node{
-					Address: "0.0.0.0",
-					Port:    8004,
+					Address:  "0.0.0.0",
+					Port:     8004,
+					Version:  "0.0.31",
+					CodeName: "ZooBC-Alpha",
 				},
 			},
 			{
 				Info: &model.Node{
-					Address: "0.0.0.0",
-					Port:    8005,
+					Address:  "0.0.0.0",
+					Port:     8005,
+					Version:  "0.0.31",
+					CodeName: "ZooBC-Alpha",
 				},
 			},
 		},

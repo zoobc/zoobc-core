@@ -87,13 +87,13 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 // GetFullAddressPeer to get full address of peers
 func GetFullAddressPeer(peer *model.Peer) string {
 	return peer.GetInfo().GetAddress() + ":" + strconv.Itoa(
-		int(peer.GetInfo().GetPort())) + ":" + peer.GetInfo().GetVersion() + ":" + peer.GetInfo().GetCodeName()
+		int(peer.GetInfo().GetPort()))
 
 }
 
 // GetFullAddress to get full address of node
 func GetFullAddress(node *model.Node) string {
-	return node.GetAddress() + ":" + strconv.Itoa(int(node.GetPort())) + ":" + node.GetVersion() + ":" + node.GetCodeName()
+	return node.GetAddress() + ":" + strconv.Itoa(int(node.GetPort()))
 }
 
 func GetNodeInfo(fullAddress string) *model.Node {
