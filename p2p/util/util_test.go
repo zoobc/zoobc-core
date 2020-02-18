@@ -107,10 +107,8 @@ func TestNewHost(t *testing.T) {
 
 func TestNewPeer(t *testing.T) {
 	type args struct {
-		address  string
-		port     int
-		version  string
-		codename string
+		address string
+		port    int
 	}
 	tests := []struct {
 		name string
