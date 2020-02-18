@@ -335,20 +335,15 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 // ImportSnapshotFile parses a downloaded snapshot file into db
 func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error {
 	var (
-		snapshotPayload    SnapshotPayload
-		err                error
-		fileName, filePath string
-		b                  []byte
+		snapshotPayload SnapshotPayload
+		b               []byte
 	)
 
-	fileName, err = ss.FileService.GetFileNameFromHash(snapshotFileInfo.SnapshotFileHash)
-	filePath = filepath.Join(ss.SnapshotPath, fileName)
-	// first verify that the downloaded file's hash matches with the one in db
-	// if match, err := ss.FileService.VerifyFileHash(filePath, snapshotFileInfo.SnapshotFileHash); !match || err != nil {
-	// 	return blocker.NewBlocker(blocker.ValidationErr,
-	// 		fmt.Sprintf("Snapshot File Hash doesn't match with the one in database: %v", err))
-	// }
-
+	fileName, err := ss.FileService.GetFileNameFromHash(snapshotFileInfo.SnapshotFileHash)
+	if err != nil {
+		return err
+	}
+	filePath := filepath.Join(ss.SnapshotPath, fileName)
 	b, err = ioutil.ReadFile(filePath)
 	if err != nil {
 		return blocker.NewBlocker(blocker.AppErr,

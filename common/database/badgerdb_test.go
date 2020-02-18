@@ -174,7 +174,7 @@ func ExampleEncoder() {
 	var b []byte = make([]byte, 0, 64)
 	var h codec.Handle = new(codec.JsonHandle)
 	var enc *codec.Encoder = codec.NewEncoderBytes(&b, h)
-	var err error = enc.Encode(v1) //any of v1 ... v8
+	var err error = enc.Encode(v1) // any of v1 ... v8
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -182,7 +182,7 @@ func ExampleEncoder() {
 
 	// ... assume b contains the bytes to decode from
 	var dec *codec.Decoder = codec.NewDecoderBytes(b, h)
-	err = dec.Decode(&v2) //v2 or v8, or a pointer to v1, v3, v4, v5, v6, v7
+	err = dec.Decode(&v2) // v2 or v8, or a pointer to v1, v3, v4, v5, v6, v7
 	if err != nil {
 		fmt.Println(err.Error())
 	}

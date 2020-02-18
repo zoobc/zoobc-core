@@ -809,13 +809,9 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 		QueryService SnapshotMainBlockQueryServiceInterface
 		FileService  FileServiceInterface
 	}
-	type args struct {
-		snapshotFileInfo *model.SnapshotFileInfo
-	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		wantErr bool
 		errMsg  string
 	}{

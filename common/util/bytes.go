@@ -33,7 +33,7 @@ func VerifyFileHash(filePath string, hash []byte, hasher hash.Hash) (bool, error
 	if err != nil {
 		return false, err
 	}
-	if bytes.Compare(fc, hash) == 0 {
+	if bytes.Equal(fc, hash) {
 		return true, nil
 	}
 	return false, nil

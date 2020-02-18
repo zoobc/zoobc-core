@@ -57,20 +57,14 @@ func (fs *FileService) SetEncoder(hh codec.Handle) {
 
 // EncodePayload encodes a generic interface (eg. any model) using service's encoder handler (default should be CBOR)
 func (fs *FileService) EncodePayload(v interface{}) (b []byte, err error) {
-	var (
-		enc *codec.Encoder
-	)
-	enc = codec.NewEncoderBytes(&b, fs.h)
+	enc := codec.NewEncoderBytes(&b, fs.h)
 	err = enc.Encode(v)
 	return b, err
 }
 
 // DecodePayload decodes a byte slice encoded using service's encoder handler (default should be CBOR) into a model.
 func (fs *FileService) DecodePayload(b []byte, v interface{}) error {
-	var (
-		dec *codec.Decoder
-	)
-	dec = codec.NewDecoderBytes(b, fs.h)
+	dec := codec.NewDecoderBytes(b, fs.h)
 	err := dec.Decode(&v)
 	return err
 }
@@ -78,7 +72,7 @@ func (fs *FileService) DecodePayload(b []byte, v interface{}) error {
 func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
 	// try to create folder if doesn't exist
 	if _, err := os.Stat(fileBasePath); os.IsNotExist(err) {
-		os.MkdirAll(fileBasePath, os.ModePerm)
+		_ = os.MkdirAll(fileBasePath, os.ModePerm)
 	}
 
 	filePath := filepath.Join(fileBasePath, fileName)
