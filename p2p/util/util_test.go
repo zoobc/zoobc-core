@@ -53,7 +53,7 @@ func TestNewHost(t *testing.T) {
 					Port:    3000,
 				},
 				KnownPeers: map[string]*model.Peer{
-					"127.0.0.1:3001:0.0.31:ZooBC-Alpha": {
+					"127.0.0.1:3001": {
 						Info: &model.Node{
 							SharedAddress: "127.0.0.1",
 							Address:       "127.0.0.1",
@@ -62,7 +62,7 @@ func TestNewHost(t *testing.T) {
 							CodeName:      "ZooBC-Alpha",
 						},
 					},
-					"192.168.5.1:3002:0.0.31:ZooBC-Alpha": {
+					"192.168.5.1:3002": {
 						Info: &model.Node{
 							SharedAddress: "192.168.5.1",
 							Address:       "192.168.5.1",
@@ -73,7 +73,7 @@ func TestNewHost(t *testing.T) {
 					},
 				},
 				UnresolvedPeers: map[string]*model.Peer{
-					"127.0.0.1:3001:0.0.31:ZooBC-Alpha": {
+					"127.0.0.1:3001": {
 						Info: &model.Node{
 							SharedAddress: "127.0.0.1",
 							Address:       "127.0.0.1",
@@ -82,7 +82,7 @@ func TestNewHost(t *testing.T) {
 							CodeName:      "ZooBC-Alpha",
 						},
 					},
-					"192.168.5.1:3002:0.0.31:ZooBC-Alpha": {
+					"192.168.5.1:3002": {
 						Info: &model.Node{
 							SharedAddress: "192.168.5.1",
 							Address:       "192.168.5.1",
@@ -121,24 +121,20 @@ func TestNewPeer(t *testing.T) {
 		{
 			name: "NewPeer:success",
 			args: args{
-				address:  "127.0.0.1",
-				port:     8001,
-				version:  "0.0.31",
-				codename: "ZooBC-Alpha",
+				address: "127.0.0.1",
+				port:    8001,
 			},
 			want: &model.Peer{
 				Info: &model.Node{
-					Address:  "127.0.0.1",
-					Port:     8001,
-					Version:  "0.0.31",
-					CodeName: "ZooBC-Alpha",
+					Address: "127.0.0.1",
+					Port:    8001,
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewPeer(tt.args.address, tt.args.port, tt.args.version, tt.args.codename); !reflect.DeepEqual(got, tt.want) {
+			if got := NewPeer(tt.args.address, tt.args.port); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPeer() = %v, want %v", got, tt.want)
 			}
 		})
@@ -167,7 +163,7 @@ func TestGetFullAddressPeer(t *testing.T) {
 					},
 				},
 			},
-			want: "127.0.0.1:8001:0.0.31:ZooBC-Alpha",
+			want: "127.0.0.1:8001",
 		},
 	}
 	for _, tt := range tests {
@@ -193,16 +189,16 @@ func TestParseKnownPeers(t *testing.T) {
 		{
 			name: "ParseKnownPeersTest:success",
 			args: args{
-				peers: []string{"192.168.1.2:2001:0.0.31:ZooBC-Alpha", "192.168.5.123:3000:0.0.31:ZooBC-Alpha"},
+				peers: []string{"192.168.1.2:2001", "192.168.5.123:3000"},
 			},
-			want: append([]*model.Peer{}, NewPeer("192.168.1.2", 2001, "0.0.31", "ZooBC-Alpha"),
-				NewPeer("192.168.5.123", 3000, "0.0.31", "ZooBC-Alpha")),
+			want: append([]*model.Peer{}, NewPeer("192.168.1.2", 2001),
+				NewPeer("192.168.5.123", 3000)),
 			wantErr: false,
 		},
 		{
 			name: "ParseKnownPeersTest:true",
 			args: args{
-				peers: []string{"192.168.1.2:2001xa:0.0.31:ZooBC-Alpha", "192.168.5.123:3000a:0.0.31:ZooBC-Alpha"},
+				peers: []string{"192.168.1.2:2001xa", "192.168.5.123:3000a"},
 			},
 			want:    nil,
 			wantErr: true,

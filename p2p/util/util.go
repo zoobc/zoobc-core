@@ -42,13 +42,11 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 }
 
 // NewPeer to parse address & port into Peer structur
-func NewPeer(address string, port int, version, codename string) *model.Peer {
+func NewPeer(address string, port int) *model.Peer {
 	return &model.Peer{
 		Info: &model.Node{
-			Address:  address,
-			Port:     uint32(port),
-			Version:  version,
-			CodeName: codename,
+			Address: address,
+			Port:    uint32(port),
 		},
 	}
 }
@@ -58,12 +56,10 @@ func ParsePeer(peerStr string) (*model.Peer, error) {
 	peerInfo := strings.Split(peerStr, ":")
 	peerAddress := peerInfo[0]
 	peerPort, err := strconv.Atoi(peerInfo[1])
-	peerVersion := peerInfo[2]
-	peerCodename := peerInfo[3]
 	if err != nil {
 		return nil, errors.New("invalid port number in the passed knownPeers list")
 	}
-	return NewPeer(peerAddress, peerPort, peerVersion, peerCodename), nil
+	return NewPeer(peerAddress, peerPort), nil
 }
 
 // ParseKnownPeers to parse list of string peers into list of Peer structure
