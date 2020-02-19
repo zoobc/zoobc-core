@@ -28,11 +28,18 @@ var (
 	// DatasetValueLength is max length of string property value in dataset
 	DatasetValueLength uint32 = 4
 
-	EscrowApproverAddressLength uint32 = 4
-	EscrowCommissionLength      uint32 = 8
-	EscrowTimeoutLength         uint32 = 8
-	EscrowApproval              uint32 = 4
-	EscrowID                    uint32 = 8
-	EscrowApprovalBytesLength          = EscrowApproval + EscrowID
-	EscrowInstructionLength     uint32 = 4
+	EscrowApproverAddressLength   uint32 = 4
+	EscrowCommissionLength        uint32 = 8
+	EscrowTimeoutLength           uint32 = 8
+	EscrowApproval                uint32 = 4
+	EscrowID                      uint32 = 8
+	EscrowApprovalBytesLength            = EscrowApproval + EscrowID
+	EscrowInstructionLength       uint32 = 4
+	MultiSigAddressLength         uint32 = 4
+	MultiSigSignatureLength       uint32 = 4
+	MultiSigNumberOfAddress       uint32 = 4
+	MultiSigNumberOfSignatures    uint32 = 4
+	MultiSigUnsignedTxBytesLength uint32 = 4
+	MultiSigInfoNonce             uint32 = 8
+	MultiSigInfoMinSignature      uint32 = 4
 )
