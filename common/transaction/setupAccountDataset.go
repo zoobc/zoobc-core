@@ -169,6 +169,10 @@ func (tx *SetupAccountDataset) GetAmount() int64 {
 	return tx.Fee
 }
 
+func (*SetupAccountDataset) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 // GetSize is size of transaction body
 func (tx *SetupAccountDataset) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))

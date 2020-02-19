@@ -178,6 +178,10 @@ func (tx *RemoveNodeRegistration) GetAmount() int64 {
 	return 0
 }
 
+func (*RemoveNodeRegistration) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func (tx *RemoveNodeRegistration) GetSize() uint32 {
 	return constant.NodePublicKey
 }

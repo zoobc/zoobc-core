@@ -183,6 +183,10 @@ func (tx *ClaimNodeRegistration) GetAmount() int64 {
 	return 0
 }
 
+func (*ClaimNodeRegistration) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func (*ClaimNodeRegistration) GetSize() uint32 {
 	// ProofOfOwnership (message + signature)
 	poown := util.GetProofOfOwnershipSize(true)
