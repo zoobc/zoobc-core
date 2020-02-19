@@ -309,6 +309,10 @@ func (tx *UpdateNodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
 }
 
+func (*UpdateNodeRegistration) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func (tx *UpdateNodeRegistration) GetSize() uint32 {
 	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
 	// (necessary to parse the bytes into tx body struct)

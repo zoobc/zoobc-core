@@ -255,6 +255,27 @@ func (tu *Util) ValidateTransaction(
 			"TxFeeZero",
 		)
 	}
+
+	txAction, err := (&TypeSwitcher{Executor: queryExecutor}).GetTransactionType(tx)
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.AppErr,
+			"FailToGetTxType",
+		)
+	}
+	minFee, err := txAction.GetMinimumFee()
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.AppErr,
+			"FailToGetTxMinFee",
+		)
+	}
+	if tx.Fee < minFee {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxFeeLessThanMinimumRequiredFee",
+		)
+	}
 	if tx.SenderAccountAddress == "" {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,

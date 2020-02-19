@@ -30,6 +30,11 @@ func (tx *TXEmpty) UndoApplyUnconfirmed() error {
 func (tx *TXEmpty) Validate(bool) error {
 	return nil
 }
+
+func (*TXEmpty) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func (*TXEmpty) GetAmount() int64 {
 	return 0
 }

@@ -143,6 +143,8 @@ issues:
           text: "copylocks: literal copies lock value"
           linters:
               - govet
+        - path: "(.+).go"
+          text: "type name will be used as"
         - path: "(.+)_test.go"
           text: "copylocks: range var tt copies lock:"
           linters:

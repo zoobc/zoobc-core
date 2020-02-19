@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -28,6 +30,8 @@ type (
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
 		BlockQuery          query.BlockQueryInterface
+		NormalFee           fee.FeeModelInterface
+		EscrowFee           fee.FeeModelInterface
 	}
 )
 
@@ -207,6 +211,13 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 // GetAmount return Amount from TransactionBody
 func (tx *SendMoney) GetAmount() int64 {
 	return tx.Body.Amount
+}
+
+func (tx *SendMoney) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize send money Amount should be 8
