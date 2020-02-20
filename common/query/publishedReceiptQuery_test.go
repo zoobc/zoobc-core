@@ -354,8 +354,8 @@ func TestPublishedReceiptQuery_GetPublishedReceiptsForSnapshot(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := prq.GetPublishedReceiptsForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-				t.Errorf("PublishedReceiptQuery.GetPublishedReceiptsForSnapshot() = %v, want %v", got, tt.want)
+			if got := prq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PublishedReceiptQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

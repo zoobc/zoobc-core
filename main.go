@@ -674,8 +674,8 @@ func startScheduler() {
 
 func startBlockchainSyncronizers() {
 	go spinechainSynchronizer.Start()
-	ticker := time.NewTicker(constant.BlockchainsyncSpineCheckInterval * time.Second)
-	timeout := time.After(constant.BlockchainsyncSpineTimeout * time.Second)
+	ticker := time.NewTicker(constant.BlockchainsyncSpineCheckInterval)
+	timeout := time.After(constant.BlockchainsyncSpineTimeout)
 syncronizersLoop:
 	for {
 		select {

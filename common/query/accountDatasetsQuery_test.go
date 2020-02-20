@@ -499,8 +499,8 @@ func TestAccountDatasetsQuery_GetAccountDatasetsForSnapshot(t *testing.T) {
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,
 			}
-			if got := adq.GetAccountDatasetsForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-				t.Errorf("AccountDatasetsQuery.GetAccountDatasetsForSnapshot() = %v, want %v", got, tt.want)
+			if got := adq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("AccountDatasetsQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

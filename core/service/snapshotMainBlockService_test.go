@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -19,7 +20,7 @@ type (
 	mockChainType struct {
 		chaintype.MainChain
 		SnapshotInterval          uint32
-		SnapshotGenerationTimeout int64
+		SnapshotGenerationTimeout time.Duration
 	}
 )
 
@@ -373,7 +374,7 @@ func (msqs *mockSnapshotQueryService) GetEscrowTransactions(fromHeight, toHeight
 	return nil, errors.New("GetEscrowTransactionsFail")
 }
 
-func (mct *mockChainType) GetSnapshotGenerationTimeout() int64 {
+func (mct *mockChainType) GetSnapshotGenerationTimeout() time.Duration {
 	return mct.SnapshotGenerationTimeout
 }
 
@@ -413,7 +414,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				Logger:       log.New(),
 				SnapshotPath: "testdata/snapshots",
 				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
+					SnapshotGenerationTimeout: 1 * time.Second,
 				},
 				QueryService: &mockSnapshotQueryService{
 					successAccountBalances:     true,

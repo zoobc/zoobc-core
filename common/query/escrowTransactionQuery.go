@@ -17,7 +17,6 @@ type (
 
 	// EscrowTransactionQueryInterface methods must have
 	EscrowTransactionQueryInterface interface {
-		GetEscrowTransactionsForSnapshot(fromHeight, toHeight uint32) string
 		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
@@ -88,17 +87,6 @@ func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr
 			et.getTableName(),
 		),
 		[]interface{}{id, true}
-}
-
-// GetEscrowTransactionsForSnapshot retrieve all (latest) escrow tx within a block height interval
-func (et *EscrowTransactionQuery) GetEscrowTransactionsForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(
-		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND latest = 1 ORDER BY block_height",
-		strings.Join(et.Fields, ", "),
-		et.getTableName(),
-		fromHeight,
-		toHeight,
-	)
 }
 
 // ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
@@ -186,4 +174,14 @@ func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]inte
 			height,
 		},
 	}
+}
+
+func (et *EscrowTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND latest = 1 ORDER BY block_height",
+		strings.Join(et.Fields, ", "),
+		et.getTableName(),
+		fromHeight,
+		toHeight,
+	)
 }

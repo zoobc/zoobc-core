@@ -18,7 +18,6 @@ type (
 	AccountBalanceQueryInterface interface {
 		GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetAccountBalances() string
-		GetAccountBalancesForSnapshot(fromHeight, toHeight uint32) string
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
@@ -51,11 +50,6 @@ func (q *AccountBalanceQuery) GetAccountBalanceByAccountAddress(accountAddress s
 func (q *AccountBalanceQuery) GetAccountBalances() string {
 	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1`,
 		strings.Join(q.Fields, ","), q.TableName)
-}
-
-func (q *AccountBalanceQuery) GetAccountBalancesForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height`,
-		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight)
 }
 
 func (q *AccountBalanceQuery) AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{} {
@@ -183,4 +177,9 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 			0,
 		},
 	}
+}
+
+func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height`,
+		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight)
 }

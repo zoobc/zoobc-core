@@ -18,7 +18,6 @@ type (
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp int64) string
-		GetNodeRegistrationsForSnapshot(fromHeight, toHeight uint32) string
 		GetActiveNodeRegistrationsByHeight(height uint32) string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
@@ -124,13 +123,6 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByBlockTimestampInterval(f
 		"height <= (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp < %d) AND "+
 		"registration_status != %d AND latest=1 ORDER BY height",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromTimestamp, toTimestamp, uint32(model.NodeRegistrationState_NodeQueued))
-}
-
-// GetNodeRegistrationsForSnapshot returns query string to get multiple node registrations
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE "+
-		"height >= %d AND height <= %d AND latest=1 ORDER BY height",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight)
 }
 
 func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsByHeight(height uint32) string {
@@ -373,4 +365,10 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 	nodeAddress := nrq.BuildNodeAddress(stringAddress)
 	nr.NodeAddress = nodeAddress
 	return nil
+}
+
+func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE "+
+		"height >= %d AND height <= %d AND latest=1 ORDER BY height",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight)
 }

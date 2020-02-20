@@ -1,6 +1,9 @@
 package chaintype
 
-import "github.com/zoobc/zoobc-core/common/constant"
+import (
+	"github.com/zoobc/zoobc-core/common/constant"
+	"time"
+)
 
 // MainChain is struct should has methods in below
 type MainChain struct{}
@@ -62,6 +65,6 @@ func (*MainChain) GetSnapshotInterval() uint32 {
 	return constant.MainchainSnapshotInterval
 }
 
-func (*MainChain) GetSnapshotGenerationTimeout() int64 {
+func (*MainChain) GetSnapshotGenerationTimeout() time.Duration {
 	return constant.MainchainSnapshotGenerationTimeout
 }

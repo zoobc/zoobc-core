@@ -412,8 +412,8 @@ func TestEscrowTransactionQuery_GetEscrowTransactionsForSnapshot(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := et.GetEscrowTransactionsForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-				t.Errorf("EscrowTransactionQuery.GetEscrowTransactionsForSnapshot() = %v, want %v", got, tt.want)
+			if got := et.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("EscrowTransactionQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

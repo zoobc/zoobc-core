@@ -93,7 +93,7 @@ func NewSnapshotMainBlockService(
 
 // GetAccountBalances get account balances for snapshot (wrapper function around account balance query)
 func (smbq *SnapshotMainBlockQueryService) GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error) {
-	qry := smbq.AccountBalanceQuery.GetAccountBalancesForSnapshot(fromHeight, toHeight)
+	qry := query.GetSnapshotQuery(&chaintype.MainChain{})["accountBalance"].SelectDataForSnapshot(fromHeight, toHeight)
 	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func (smbq *SnapshotMainBlockQueryService) GetAccountBalances(fromHeight, toHeig
 
 // GetNodeRegistrations get node registrations for snapshot (wrapper function around node registration query)
 func (smbq *SnapshotMainBlockQueryService) GetNodeRegistrations(fromHeight, toHeight uint32) ([]*model.NodeRegistration, error) {
-	qry := smbq.NodeRegistrationQuery.GetNodeRegistrationsForSnapshot(fromHeight, toHeight)
+	qry := query.GetSnapshotQuery(&chaintype.MainChain{})["nodeRegistration"].SelectDataForSnapshot(fromHeight, toHeight)
 	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (smbq *SnapshotMainBlockQueryService) GetNodeRegistrations(fromHeight, toHe
 
 // GetAccountDatasets get account datasets  for snapshot (wrapper function around account dataset query)
 func (smbq *SnapshotMainBlockQueryService) GetAccountDatasets(fromHeight, toHeight uint32) ([]*model.AccountDataset, error) {
-	qry := smbq.AccountDatasetQuery.GetAccountDatasetsForSnapshot(fromHeight, toHeight)
+	qry := query.GetSnapshotQuery(&chaintype.MainChain{})["accountDataset"].SelectDataForSnapshot(fromHeight, toHeight)
 	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (smbq *SnapshotMainBlockQueryService) GetAccountDatasets(fromHeight, toHeig
 
 // ParticipationScores get participation scores  for snapshot (wrapper function around participationscore query)
 func (smbq *SnapshotMainBlockQueryService) GetParticipationScores(fromHeight, toHeight uint32) ([]*model.ParticipationScore, error) {
-	qry := smbq.ParticipationScoreQuery.GetParticipationScoresForSnapshot(fromHeight, toHeight)
+	qry := query.GetSnapshotQuery(&chaintype.MainChain{})["participationScore"].SelectDataForSnapshot(fromHeight, toHeight)
 	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -157,7 +157,7 @@ func (smbq *SnapshotMainBlockQueryService) GetPublishedReceipts(fromHeight, toHe
 	if toHeight-fromHeight > limit {
 		fromHeight = toHeight - limit
 	}
-	qry := smbq.PublishedReceiptQuery.GetPublishedReceiptsForSnapshot(fromHeight, toHeight)
+	qry := query.GetSnapshotQuery(&chaintype.MainChain{})["publishedReceipt"].SelectDataForSnapshot(fromHeight, toHeight)
 	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (smbq *SnapshotMainBlockQueryService) GetPublishedReceipts(fromHeight, toHe
 
 // GetEscrowTransactions get escrowtransactions for snapshot (wrapper function around escrow transaction query)
 func (smbq *SnapshotMainBlockQueryService) GetEscrowTransactions(fromHeight, toHeight uint32) ([]*model.Escrow, error) {
-	qry := smbq.EscrowTransactionQuery.GetEscrowTransactionsForSnapshot(fromHeight, toHeight)
+	qry := query.GetSnapshotQuery(&chaintype.MainChain{})["escrowTransaction"].SelectDataForSnapshot(fromHeight, toHeight)
 	rows, err := smbq.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -260,7 +260,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		fileChunkHashes             = make([][]byte, 0)
 		snapshotPayload             = new(SnapshotPayload)
 		err                         error
-		snapshotExpirationTimestamp = block.Timestamp + ss.chainType.GetSnapshotGenerationTimeout()
+		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
 		snapshotPayloadHeight = block.Height - constant.MinRollbackBlocks
 	)

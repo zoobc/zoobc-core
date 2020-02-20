@@ -10,7 +10,6 @@ import (
 
 type (
 	ParticipationScoreQueryInterface interface {
-		GetParticipationScoresForSnapshot(fromHeight, toHeight uint32) string
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
 		UpdateParticipationScore(
 			nodeID, score int64,
@@ -86,12 +85,6 @@ func (ps *ParticipationScoreQuery) UpdateParticipationScore(
 		)
 	}
 	return queries
-}
-
-//
-func (ps *ParticipationScoreQuery) GetParticipationScoresForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER by height",
-		strings.Join(ps.Fields, ", "), ps.getTableName(), fromHeight, toHeight)
 }
 
 // GetParticipationScoreByNodeID returns query string to get participation score by node id
@@ -208,4 +201,9 @@ func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row)
 		&ps.Height,
 	)
 	return err
+}
+
+func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER by height",
+		strings.Join(ps.Fields, ", "), ps.getTableName(), fromHeight, toHeight)
 }

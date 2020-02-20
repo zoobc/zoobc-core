@@ -16,7 +16,6 @@ type (
 	}
 
 	AccountDatasetsQueryInterface interface {
-		GetAccountDatasetsForSnapshot(fromHeight, toHeight uint32) string
 		GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{})
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
@@ -52,15 +51,6 @@ func (adq *AccountDatasetsQuery) GetDatasetsByRecipientAccountAddress(accountRec
 			adq.TableName,
 		),
 		accountRecipient
-}
-
-func (adq *AccountDatasetsQuery) GetAccountDatasetsForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER BY height",
-		strings.Join(adq.GetFields(), ","),
-		adq.TableName,
-		fromHeight,
-		toHeight,
-	)
 }
 
 func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{}) {
@@ -296,4 +286,13 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 			1, 0,
 		},
 	}
+}
+
+func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER BY height",
+		strings.Join(adq.GetFields(), ","),
+		adq.TableName,
+		fromHeight,
+		toHeight,
+	)
 }

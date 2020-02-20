@@ -11,7 +11,6 @@ import (
 type (
 	PublishedReceiptQueryInterface interface {
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
-		GetPublishedReceiptsForSnapshot(fromHeight, toHeight uint32) string
 		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
@@ -58,12 +57,6 @@ func (prq *PublishedReceiptQuery) InsertPublishedReceipt(publishedReceipt *model
 		strings.Join(prq.Fields, ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(prq.Fields)-1)),
 	), prq.ExtractModel(publishedReceipt)
-}
-
-func (prq *PublishedReceiptQuery) GetPublishedReceiptsForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
-		strings.Join(prq.Fields, ", "),
-		prq.getTableName(), fromHeight, toHeight)
 }
 
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {
@@ -154,4 +147,10 @@ func (prq *PublishedReceiptQuery) Rollback(height uint32) (multiQueries [][]inte
 			height,
 		},
 	}
+}
+
+func (prq *PublishedReceiptQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
+		strings.Join(prq.Fields, ", "),
+		prq.getTableName(), fromHeight, toHeight)
 }

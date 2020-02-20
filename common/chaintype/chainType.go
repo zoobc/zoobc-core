@@ -1,5 +1,7 @@
 package chaintype
 
+import "time"
+
 // ChainType interface define the different behavior of each chain
 type (
 	ChainType interface {
@@ -30,6 +32,6 @@ type (
 		// If HasSnapshot is true, this returns the seconds to pass, from the snapshot's process start (a block's timestamp),
 		// before considering the snapshot's expired (= snapshot's process timeout)
 		// If HasSnapshot is false, this will return zero
-		GetSnapshotGenerationTimeout() int64
+		GetSnapshotGenerationTimeout() time.Duration
 	}
 )
