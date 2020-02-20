@@ -379,15 +379,14 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 // IsSnapshotHeight returns true if chain height passed is a snapshot height
 func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 	snapshotInterval := ss.chainType.GetSnapshotInterval()
-	//FIXME: uncomment this when we are sure that snapshot downloads work
-	// if snapshotInterval < constant.MinRollbackBlocks {
-	// 	if height < constant.MinRollbackBlocks {
-	// 		return false
-	// 	} else if height == constant.MinRollbackBlocks {
-	// 		return true
-	// 	}
-	// 	return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
-	// }
+	if snapshotInterval < constant.MinRollbackBlocks {
+		if height < constant.MinRollbackBlocks {
+			return false
+		} else if height == constant.MinRollbackBlocks {
+			return true
+		}
+		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	}
 	return height%snapshotInterval == 0
 
 }
