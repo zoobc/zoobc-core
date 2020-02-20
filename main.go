@@ -688,21 +688,36 @@ syncronizersLoop:
 			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
 				spineBlockDownloadService.SetSpineBlocksDownloadFinished(true)
 				ticker.Stop()
-				// TODO: in future loop through all chain types that support snapshots and download them if we find
-				//  relative spineBlockManifest
-				lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(&chaintype.MainChain{},
-					model.SpineBlockManifestType_Snapshot)
-				if err != nil {
-					loggerCoreService.Errorf("cannot get last spineBlockManifest")
-					os.Exit(1)
+				// loop through all chain types that support snapshots and download them if we find relative
+				// spineBlockManifest
+				for i := 0; i < chaintype.GetChainTypeCount(); i++ {
+					ct := chaintype.GetChainType(int32(i))
+					lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(ct,
+						model.SpineBlockManifestType_Snapshot)
+					if err != nil {
+						loggerCoreService.Errorf("db error: cannot get last spineBlockManifest for chaintype %s",
+							ct.GetName())
+						break
+					}
+					if lastSpineBlockManifest != nil {
+						loggerCoreService.Infof("found spineBlockManifest for chaintype %s at spine height %d. "+
+							"snapshot taken at block height %d", ct.GetName(), lastSpineBlock.Height,
+							lastSpineBlockManifest.SpineBlockManifestHeight)
+						// snapshot download
+						if err := snapshotService.DownloadSnapshot(lastSpineBlockManifest); err != nil {
+							loggerCoreService.Info(err)
+						}
+					}
+					// download remaining main blocks and start the mainchain synchronizer
+					// TODO: generalise this so that we can just inject the chaintype and will start the correct
+					//  syncronizer
+					switch ct.(type) {
+					case *chaintype.MainChain:
+						go mainchainSynchronizer.Start()
+					default:
+						loggerCoreService.Errorf("invalid chaintype %s", ct.GetName())
+					}
 				}
-				if lastSpineBlockManifest != nil {
-					loggerCoreService.Infof("found spineBlockManifest at spine height %d. snapshot taken at block height %d",
-						lastSpineBlock.Height, lastSpineBlockManifest.SpineBlockManifestHeight)
-					// TODO: snapshot download
-				}
-				// download remaining main blocks and start the mainchain synchronizer
-				go mainchainSynchronizer.Start()
 				break syncronizersLoop
 			}
 			loggerCoreService.Infof("downloading spine blocks. last height is %d", lastSpineBlock.Height)

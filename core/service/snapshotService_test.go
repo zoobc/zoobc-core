@@ -2,13 +2,17 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"regexp"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"regexp"
 )
 
 type (
@@ -207,3 +211,106 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 // 		})
 // 	}
 // }
+
+type (
+	mockFileDownloaderService struct {
+		FileDownloaderService
+		success bool
+	}
+)
+
+func (mfdf *mockFileDownloaderService) DownloadFileByName(fileName string, fileHash []byte) error {
+	if mfdf.success {
+		return nil
+	}
+	return errors.New("DownloadFileByNameFail")
+}
+
+func TestSnapshotService_DownloadSnapshot(t *testing.T) {
+	type fields struct {
+		SpineBlockManifestService SpineBlockManifestServiceInterface
+		SpineBlockDownloadService SpineBlockDownloadServiceInterface
+		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
+		FileDownloaderService     FileDownloaderServiceInterface
+		FileService               FileServiceInterface
+		Logger                    *log.Logger
+	}
+	type args struct {
+		spineBlockManifest *model.SpineBlockManifest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "DownloadSnapshot:fail-{zerolength}",
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: make([]byte, 0),
+				},
+			},
+			wantErr: true,
+			errMsg:  "ValidationErr: invalid file chunks hashes length",
+		},
+		{
+			name: "DownloadSnapshot:fail-{DownloadFailed}",
+			fields: fields{
+				FileDownloaderService: &mockFileDownloaderService{
+					success: false,
+				},
+				FileService: &mockFileService{
+					successGetFileNameFromHash: true,
+				},
+				Logger: log.New(),
+			},
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: make([]byte, 64),
+				},
+			},
+			wantErr: true,
+			errMsg: "AppErr: One or more snapshot chunks failed to download [vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO" +
+				" vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO]",
+		},
+		{
+			name: "DownloadSnapshot:success",
+			fields: fields{
+				FileDownloaderService: &mockFileDownloaderService{
+					success: true,
+				},
+				FileService: &mockFileService{
+					successGetFileNameFromHash: true,
+				},
+				Logger: log.New(),
+			},
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: make([]byte, 64),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &SnapshotService{
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				SpineBlockDownloadService: tt.fields.SpineBlockDownloadService,
+				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
+				FileDownloaderService:     tt.fields.FileDownloaderService,
+				FileService:               tt.fields.FileService,
+				Logger:                    tt.fields.Logger,
+			}
+			if err := ss.DownloadSnapshot(tt.args.spineBlockManifest); err != nil {
+				if !tt.wantErr {
+					t.Errorf("SnapshotService.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				if tt.errMsg != err.Error() {
+					t.Errorf("SnapshotService.DownloadSnapshot() error wrong test exit point: %v", err)
+				}
+			}
+		})
+	}
+}

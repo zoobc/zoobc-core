@@ -171,7 +171,7 @@ func ExampleEncoder() {
 			CumulativeDifficulty: "539405843078458937593857",
 		},
 	}
-	var b []byte = make([]byte, 0, 64)
+	var b = make([]byte, 0, 64)
 	var h codec.Handle = new(codec.JsonHandle)
 	var enc *codec.Encoder = codec.NewEncoderBytes(&b, h)
 	var err error = enc.Encode(v1) // any of v1 ... v8

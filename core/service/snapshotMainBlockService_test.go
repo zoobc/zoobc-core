@@ -262,7 +262,7 @@ var (
 		Value:                   "testVal",
 	}
 	blockForSnapshot1 = &model.Block{
-		Height:    720,
+		Height:    1440,
 		Timestamp: 15875392,
 	}
 	snapshotFullHash = []byte{
@@ -863,7 +863,7 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "InsertPayloadFail",
+			errMsg:  "InsertSnapshotPayloadToDbFail",
 		},
 	}
 	for _, tt := range tests {
@@ -880,10 +880,7 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error creating snapshots: %v", err)
 				return
 			}
-			if err := ss.ImportSnapshotFile(snapshotFileInfo); (err != nil) != tt.wantErr {
-				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if err != nil {
+			if err := ss.ImportSnapshotFile(snapshotFileInfo); err != nil {
 				if tt.wantErr {
 					if tt.errMsg != err.Error() {
 						t.Errorf("error differs from what expected. wrong test exit line. gotErr %s, wantErr %s",

@@ -8,7 +8,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
-	"os"
+	"golang.org/x/crypto/sha3"
+	"math"
 	"time"
 )
 
@@ -18,8 +19,7 @@ type (
 		GenerateSnapshot(block *model.Block, ct chaintype.ChainType, chunkSizeBytes int64) (*model.SnapshotFileInfo, error)
 		IsSnapshotProcessing(ct chaintype.ChainType) bool
 		StopSnapshotGeneration(ct chaintype.ChainType) error
-		DownloadSnapshot(*model.SnapshotFileInfo) error
-		ValidateSnapshotFile(file *os.File, hash []byte) bool
+		DownloadSnapshot(spineBlockManifest *model.SpineBlockManifest) error
 		StartSnapshotListener() observer.Listener
 	}
 
@@ -99,8 +99,8 @@ func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
 // StartSnapshotListener setup listener for snapshots generation
 func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	return observer.Listener{
-		OnNotify: func(block interface{}, args ...interface{}) {
-			b := block.(*model.Block)
+		OnNotify: func(blockI interface{}, args ...interface{}) {
+			block := blockI.(*model.Block)
 			ct, ok := args[0].(chaintype.ChainType)
 			if !ok {
 				ss.Logger.Fatalln("chaintype casting failures in StartSnapshotListener")
@@ -110,14 +110,14 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 				if !ok {
 					ss.Logger.Fatalf("snapshots for chaintype %s not implemented", ct.GetName())
 				}
-				if snapshotBlockService.IsSnapshotHeight(b.Height) {
+				if snapshotBlockService.IsSnapshotHeight(block.Height) {
 					go func() {
 						// if spine blocks is downloading, do not generate (or download from other peers) snapshots
 						// don't generate snapshots until all spine blocks have been downloaded
 						if !ss.SpineBlockDownloadService.IsSpineBlocksDownloadFinished() {
 							ss.Logger.Infof("Snapshot at block "+
 								"height %d not generated because spine blocks are still downloading",
-								b.Height)
+								block.Height)
 							return
 						}
 						// if there is another snapshot running before this, kill the one already running
@@ -126,10 +126,10 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 								ss.Logger.Infoln(err)
 							}
 						}
-						snapshotInfo, err := ss.GenerateSnapshot(b, ct, constant.SnapshotChunkLengthBytes)
+						snapshotInfo, err := ss.GenerateSnapshot(block, ct, constant.SnapshotChunkLengthBytes)
 						if err != nil {
 							ss.Logger.Errorf("Snapshot at block "+
-								"height %d terminated with errors %s", b.Height, err)
+								"height %d terminated with errors %s", block.Height, err)
 						}
 						_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
 							snapshotInfo.SnapshotFileHash,
@@ -141,10 +141,10 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 						)
 						if err != nil {
 							ss.Logger.Errorf("Cannot create spineBlockManifest at block "+
-								"height %d. Error %s", b.Height, err)
+								"height %d. Error %s", block.Height, err)
 						}
 						ss.Logger.Infof("Snapshot at main block "+
-							"height %d terminated successfully", b.Height)
+							"height %d terminated successfully", block.Height)
 					}()
 				}
 			}
@@ -152,28 +152,41 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	}
 }
 
-// ValidateSnapshotFile TODO: implement logic
-func (*SnapshotService) ValidateSnapshotFile(file *os.File, hash []byte) bool {
-	return true
-}
-
-func (ss *SnapshotService) DownloadSnapshot(snapshotFileInfo *model.SnapshotFileInfo) error {
+func (ss *SnapshotService) DownloadSnapshot(spineBlockManifest *model.SpineBlockManifest) error {
 	var (
 		failedDownloadChunkNames []string = make([]string, 0)
+		hashSize                          = sha3.New256().Size()
 	)
-	for _, fileChunkHash := range snapshotFileInfo.GetFileChunksHashes() {
+	fileChunkHashes, err := ss.parseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
+	if err != nil {
+		return err
+	}
+	for _, fileChunkHash := range fileChunkHashes {
 		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
 		if err != nil {
 			return err
 		}
 		if err := ss.FileDownloaderService.DownloadFileByName(fileName, fileChunkHash); err != nil {
-			ss.Logger.Errorf("Error Downloading snapshot file chunk. name: %s hash: %v", fileName, fileChunkHash)
+			ss.Logger.Infof("Error Downloading snapshot file chunk. name: %s hash: %v", fileName, fileChunkHash)
 			failedDownloadChunkNames = append(failedDownloadChunkNames, fileName)
 		}
 	}
+	// TODO: implement retry on failed snapshot chunks (from a different peer)
 	if len(failedDownloadChunkNames) > 0 {
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("One or more snapshot chunks failed to download %v",
 			failedDownloadChunkNames))
 	}
 	return nil
+}
+
+func (ss *SnapshotService) parseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error) {
+	// math.Mod returns the reminder of len(fileHashes)/hashLength
+	// we use it to check if the length of fileHashes is a multiple of the single hash's length (32 bytes for sha256)
+	if len(fileHashes) < hashLength || math.Mod(float64(len(fileHashes)), float64(hashLength)) > 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid file chunks hashes length")
+	}
+	for i := 0; i < len(fileHashes); i = i + hashLength {
+		fileHashesAry = append(fileHashesAry, fileHashes[i:i+hashLength])
+	}
+	return fileHashesAry, nil
 }

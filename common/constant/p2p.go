@@ -28,7 +28,7 @@ const (
 	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
 	BlockchainsyncWaitingTime = 3
 	// BlockchainsyncSpineCheckInterval time, in seconds, between checks if spine blocks have finished to be downloaded
-	BlockchainsyncSpineCheckInterval = 5
+	BlockchainsyncSpineCheckInterval = 3
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
 	// FIXME: this is for debugging purposes only and must higher on production,
 	//  where downloading the spine blocks could take longer than 30 minutes

@@ -11,3 +11,8 @@ func GetChainType(ctNum int32) ChainType {
 		return nil
 	}
 }
+
+// GetChainTypeCount util function to get the number of chain type (useful when looping through chain types)
+func GetChainTypeCount() int {
+	return 2
+}
