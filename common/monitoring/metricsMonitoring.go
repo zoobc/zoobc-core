@@ -430,6 +430,6 @@ func ResetMainchainDownloadCycleDebugger(chainType int32) {
 	defer downloadCycleDebuggerSync.Unlock()
 
 	if downloadCycleDebugger[chainType] != nil {
-		downloadCycleDebugger[chainType].Set(0)
+		downloadCycleDebugger[chainType].Set(float64(-1))
 	}
 }

@@ -19,7 +19,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -332,25 +331,25 @@ func startServices() {
 		mempoolServices,
 		observerInstance,
 	)
-	api.Start(
-		apiRPCPort,
-		apiHTTPPort,
-		kvExecutor,
-		queryExecutor,
-		p2pServiceInstance,
-		blockServices,
-		nodeRegistrationService,
-		ownerAccountAddress,
-		nodeKeyFilePath,
-		loggerAPIService,
-		isDebugMode,
-		apiCertFile,
-		apiKeyFile,
-		transactionUtil,
-		receiptUtil,
-		receiptService,
-		transactionCoreServiceIns,
-	)
+	// api.Start(
+	// 	apiRPCPort,
+	// 	apiHTTPPort,
+	// 	kvExecutor,
+	// 	queryExecutor,
+	// 	p2pServiceInstance,
+	// 	blockServices,
+	// 	nodeRegistrationService,
+	// 	ownerAccountAddress,
+	// 	nodeKeyFilePath,
+	// 	loggerAPIService,
+	// 	isDebugMode,
+	// 	apiCertFile,
+	// 	apiKeyFile,
+	// 	transactionUtil,
+	// 	receiptUtil,
+	// 	receiptService,
+	// 	transactionCoreServiceIns,
+	// )
 
 	if isDebugMode {
 		go startNodeMonitoring()
