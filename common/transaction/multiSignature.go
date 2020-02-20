@@ -32,8 +32,6 @@ func (*MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 
 // Validate dbTx specify whether validation should read from transaction state or db state
 func (*MultiSignatureTransaction) Validate(dbTx bool) error {
-	// make sure at least one of 3 optional body field is filled (multisig-info, tx-bytes, signature)
-	// if signature exist, make sure tx-bytes exist
 	return nil
 }
 
@@ -57,12 +55,16 @@ func (tx *MultiSignatureTransaction) GetSize() uint32 {
 	multisigInfo := tx.Body.GetMultiSignatureInfo()
 	multisigInfoSize += constant.MultiSigInfoMinSignature
 	multisigInfoSize += constant.MultiSigInfoNonce
+	multisigInfoSize += constant.MultiSigNumberOfAddress
 	for _, v := range multisigInfo.GetAddresses() {
+		multisigInfoSize += constant.MultiSigAddressLength
 		multisigInfoSize += uint32(len([]byte(v)))
 	}
 
-	txByteSize = uint32(len(tx.Body.GetUnsignedTransactionBytes()))
+	txByteSize = constant.MultiSigUnsignedTxBytesLength + uint32(len(tx.Body.GetUnsignedTransactionBytes()))
+	signaturesSize += constant.MultiSigNumberOfSignatures
 	for _, v := range tx.Body.GetSignatures() {
+		signaturesSize += constant.MultiSigSignatureLength
 		signaturesSize += uint32(len(v))
 	}
 	return txByteSize + signaturesSize + multisigInfoSize
@@ -90,7 +92,7 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 		Nonce:             int64(nonce),
 		Addresses:         addresses,
 	}
-	unsignedTxLength := util.ConvertUint32ToBytes(tx.Body.GetMultiSignatureInfo().GetMinimumSignatures())
+	unsignedTxLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigUnsignedTxBytesLength)))
 	unsignedTx, err := util.ReadTransactionBytes(bufferBytes, int(unsignedTxLength))
 	if err != nil {
 		return nil, err

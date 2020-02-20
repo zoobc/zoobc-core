@@ -147,7 +147,6 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 		return nil, err
 	}
 	transaction.TransactionBodyLength = util.ConvertBytesToUint32(chunkedBytes)
-
 	transaction.TransactionBodyBytes, err = util.ReadTransactionBytes(buffer, int(transaction.TransactionBodyLength))
 	if err != nil {
 		return nil, err
