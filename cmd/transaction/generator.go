@@ -276,6 +276,7 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
+	fmt.Printf("signedBytes: %v\n", len(signedTxBytes))
 	return signedTxBytes
 }
 
@@ -322,5 +323,54 @@ func GenerateEscrowedTransaction(
 		Timeout:         esTimeout,
 		Instruction:     esInstruction,
 	}
+	return tx
+}
+
+/*
+GeneratedMultiSignatureTransaction inject escrow. Need:
+		1. unsignedTxHex
+		2. signatures
+		3. multisigInfo:
+			- minSignature
+			- nonce
+			- addresses
+Invalid escrow validation when those fields has not set
+*/
+func GeneratedMultiSignatureTransaction(
+	tx *model.Transaction,
+	minSignature uint32,
+	nonce int64,
+	unsignedTxHex string,
+	signatureHexes, addresses []string,
+) *model.Transaction {
+	var (
+		signatures [][]byte
+	)
+	unsignedTx, err := hex.DecodeString(unsignedTxHex)
+	if err != nil {
+		return nil
+	}
+	for _, v := range signatureHexes {
+		signature, err := hex.DecodeString(v)
+		if err != nil {
+			return nil
+		}
+		signatures = append(signatures, signature)
+	}
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
+	txBody := &model.MultiSignatureTransactionBody{
+		MultiSignatureInfo: &model.MultiSignatureInfo{
+			MinimumSignatures: minSignature,
+			Nonce:             nonce,
+			Addresses:         addresses,
+		},
+		UnsignedTransactionBytes: unsignedTx,
+		Signatures:               signatures,
+	}
+	tx.TransactionBodyBytes = (&transaction.MultiSignatureTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
+	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
 	return tx
 }

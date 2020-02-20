@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zoobc/zoobc-core/cmd/parser"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/cmd/account"
@@ -48,6 +50,10 @@ func main() {
 			Use:   "generate",
 			Short: "generate command is a parent command for generating stuffs",
 		}
+		parserCmd = &cobra.Command{
+			Use:   "parser",
+			Short: "parse transaction by providing the transaction bytes",
+		}
 	)
 
 	sqliteDbInstance = database.NewSqliteDB()
@@ -67,9 +73,11 @@ func main() {
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(genesisblock.Commands())
 	rootCmd.AddCommand(rollback.Commands(sqliteDB))
+	rootCmd.AddCommand(parserCmd)
 	generateCmd.AddCommand(account.Commands())
 	generateCmd.AddCommand(transaction.Commands(sqliteDB))
 	generateCmd.AddCommand(block.Commands())
+	parserCmd.AddCommand(parser.Commands())
 	_ = rootCmd.Execute()
 
 }
