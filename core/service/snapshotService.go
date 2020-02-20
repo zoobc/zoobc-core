@@ -154,8 +154,8 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 
 func (ss *SnapshotService) DownloadSnapshot(spineBlockManifest *model.SpineBlockManifest) error {
 	var (
-		failedDownloadChunkNames []string = make([]string, 0)
-		hashSize                          = sha3.New256().Size()
+		failedDownloadChunkNames = make([]string, 0)
+		hashSize                 = sha3.New256().Size()
 	)
 	fileChunkHashes, err := ss.parseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
 	if err != nil {
@@ -185,7 +185,7 @@ func (ss *SnapshotService) parseFileChunkHashes(fileHashes []byte, hashLength in
 	if len(fileHashes) < hashLength || math.Mod(float64(len(fileHashes)), float64(hashLength)) > 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid file chunks hashes length")
 	}
-	for i := 0; i < len(fileHashes); i = i + hashLength {
+	for i := 0; i < len(fileHashes); i += hashLength {
 		fileHashesAry = append(fileHashesAry, fileHashes[i:i+hashLength])
 	}
 	return fileHashesAry, nil
