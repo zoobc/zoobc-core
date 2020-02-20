@@ -262,7 +262,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		err                         error
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
-		snapshotPayloadHeight = block.Height - constant.MinRollbackBlocks
+		snapshotPayloadHeight int = int(block.Height) - int(constant.MinRollbackBlocks)
 	)
 
 	if snapshotPayloadHeight <= 0 {
@@ -270,27 +270,28 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 			fmt.Sprintf("invalid snapshot height: %d", snapshotPayloadHeight))
 	}
 
-	snapshotPayload.AccountBalances, err = ss.QueryService.GetAccountBalances(0, snapshotPayloadHeight)
+	snapshotPayload.AccountBalances, err = ss.QueryService.GetAccountBalances(0, uint32(snapshotPayloadHeight))
 	if err != nil {
 		return nil, err
 	}
-	snapshotPayload.NodeRegistrations, err = ss.QueryService.GetNodeRegistrations(0, snapshotPayloadHeight)
+	snapshotPayload.NodeRegistrations, err = ss.QueryService.GetNodeRegistrations(0, uint32(snapshotPayloadHeight))
 	if err != nil {
 		return nil, err
 	}
-	snapshotPayload.AccountDatasets, err = ss.QueryService.GetAccountDatasets(0, snapshotPayloadHeight)
+	snapshotPayload.AccountDatasets, err = ss.QueryService.GetAccountDatasets(0, uint32(snapshotPayloadHeight))
 	if err != nil {
 		return nil, err
 	}
-	snapshotPayload.ParticipationScores, err = ss.QueryService.GetParticipationScores(0, snapshotPayloadHeight)
+	snapshotPayload.ParticipationScores, err = ss.QueryService.GetParticipationScores(0, uint32(snapshotPayloadHeight))
 	if err != nil {
 		return nil, err
 	}
-	snapshotPayload.PublishedReceipts, err = ss.QueryService.GetPublishedReceipts(0, snapshotPayloadHeight, constant.LinkedReceiptBlocksLimit)
+	snapshotPayload.PublishedReceipts, err = ss.QueryService.GetPublishedReceipts(0, uint32(snapshotPayloadHeight),
+		constant.LinkedReceiptBlocksLimit)
 	if err != nil {
 		return nil, err
 	}
-	snapshotPayload.EscrowTransactions, err = ss.QueryService.GetEscrowTransactions(0, snapshotPayloadHeight)
+	snapshotPayload.EscrowTransactions, err = ss.QueryService.GetEscrowTransactions(0, uint32(snapshotPayloadHeight))
 	if err != nil {
 		return nil, err
 	}
