@@ -31,7 +31,7 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 						Addresses:         nil,
 					},
 					UnsignedTransactionBytes: nil,
-					Signatures:               nil,
+					SignatureInfo:            nil,
 				},
 				NormalFee: nil,
 			},
@@ -50,7 +50,7 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 						},
 					},
 					UnsignedTransactionBytes: nil,
-					Signatures:               nil,
+					SignatureInfo:            nil,
 				},
 				NormalFee: nil,
 			},
@@ -70,8 +70,11 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 						},
 					},
 					UnsignedTransactionBytes: nil,
-					Signatures: [][]byte{
-						make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						TransactionHash: make([]byte, constant.MultiSigTransactionHash),
+						Signatures: map[string][]byte{
+							"A": make([]byte, 64),
+						},
 					},
 				},
 				NormalFee: nil,
@@ -93,8 +96,11 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 						},
 					},
 					UnsignedTransactionBytes: make([]byte, 120),
-					Signatures: [][]byte{
-						make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						TransactionHash: make([]byte, constant.MultiSigTransactionHash),
+						Signatures: map[string][]byte{
+							"A": make([]byte, 64),
+						},
 					},
 				},
 				NormalFee: nil,
@@ -132,25 +138,22 @@ var (
 			},
 		},
 		UnsignedTransactionBytes: make([]byte, 120),
-		Signatures: [][]byte{
-			make([]byte, 64),
-			make([]byte, 64),
-			make([]byte, 64),
+		SignatureInfo: &model.SignatureInfo{
+			TransactionHash: make([]byte, constant.MultiSigTransactionHash),
+			Signatures: map[string][]byte{
+				"A": make([]byte, 64),
+			},
 		},
 	}
 	mockMultipleSignatureBodyBytes = []byte{
-		2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 65, 1, 0, 0, 0, 66, 1, 0, 0, 0, 67,
-		120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0,
-		64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
+		1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 65, 1, 0, 0, 0, 66, 1, 0, 0, 0,
+		67, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 65, 64, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	}
 	// mock for GetBodyBytes & ParseBodyBytes
 )
@@ -171,7 +174,7 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				Body:      nil,
 				NormalFee: nil,
 			},
-			want: make([]byte, 24),
+			want: make([]byte, 12),
 		},
 		{
 			name: "GetBodyBytes-Success-Complete",
