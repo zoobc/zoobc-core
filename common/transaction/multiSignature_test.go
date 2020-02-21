@@ -35,8 +35,8 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				},
 				NormalFee: nil,
 			},
-			want: constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce + constant.MultiSigNumberOfAddress +
-				constant.MultiSigUnsignedTxBytesLength + constant.MultiSigNumberOfSignatures,
+			want: constant.MultisigFieldLength + constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce +
+				constant.MultiSigNumberOfAddress + constant.MultiSigUnsignedTxBytesLength + constant.MultisigFieldLength,
 		},
 		{
 			name: "GetSize-Success-with_addresses-no_signatures-no_transactionBytes",
@@ -54,8 +54,8 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				},
 				NormalFee: nil,
 			},
-			want: constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce + constant.MultiSigNumberOfAddress +
-				constant.MultiSigUnsignedTxBytesLength + constant.MultiSigNumberOfSignatures +
+			want: constant.MultisigFieldLength + constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce +
+				constant.MultiSigNumberOfAddress + constant.MultiSigUnsignedTxBytesLength + constant.MultisigFieldLength +
 				constant.MultiSigAddressLength + uint32(len([]byte("A"))),
 		},
 		{
@@ -79,9 +79,10 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				},
 				NormalFee: nil,
 			},
-			want: constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce + constant.MultiSigNumberOfAddress +
-				constant.MultiSigUnsignedTxBytesLength + constant.MultiSigNumberOfSignatures +
-				constant.MultiSigAddressLength + uint32(len([]byte("A"))) +
+			want: constant.MultisigFieldLength + constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce +
+				constant.MultiSigNumberOfAddress + constant.MultiSigAddressLength + uint32(len([]byte("A"))) +
+				constant.MultiSigUnsignedTxBytesLength + constant.MultisigFieldLength + constant.MultiSigTransactionHash +
+				constant.MultiSigNumberOfSignatures + constant.MultiSigAddressLength + uint32(len([]byte("A"))) +
 				constant.MultiSigSignatureLength + 64,
 		},
 		{
@@ -105,8 +106,9 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				},
 				NormalFee: nil,
 			},
-			want: constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce + constant.MultiSigNumberOfAddress +
-				constant.MultiSigNumberOfSignatures +
+			want: constant.MultisigFieldLength + constant.MultiSigInfoMinSignature + constant.MultiSigInfoNonce +
+				constant.MultiSigNumberOfAddress + constant.MultiSigAddressLength + uint32(len([]byte("A"))) +
+				constant.MultisigFieldLength + constant.MultiSigTransactionHash + constant.MultiSigNumberOfSignatures +
 				constant.MultiSigAddressLength + uint32(len([]byte("A"))) +
 				constant.MultiSigSignatureLength + 64 +
 				constant.MultiSigUnsignedTxBytesLength + 120,

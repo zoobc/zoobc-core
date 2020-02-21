@@ -37,7 +37,7 @@ var (
 	EscrowInstructionLength     uint32 = 4
 	MultisigFieldLength         uint32 = 4
 	// MultiSigFieldMissing indicate fields is missing, no need to read the bytes
-	MultiSigFieldMissing uint32 = 0
+	MultiSigFieldMissing uint32
 	// MultiSigFieldPresent indicate fields is present, parse the byte accordingly
 	MultiSigFieldPresent           uint32 = 1
 	MultiSigAddressLength          uint32 = 4
