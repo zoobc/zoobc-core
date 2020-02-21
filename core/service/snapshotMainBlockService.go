@@ -88,13 +88,13 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 			fmt.Sprintf("invalid snapshot height: %d", snapshotPayloadHeight))
 	}
 
-	for key, snapshotQuery := range ss.SnapshotQueries {
+	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
 			var (
 				fromHeight uint32
 				rows       *sql.Rows
 			)
-			if key == "publishedReceipt" {
+			if qryRepoName == "publishedReceipt" {
 				if uint32(snapshotPayloadHeight) > constant.LinkedReceiptBlocksLimit {
 					fromHeight = uint32(snapshotPayloadHeight) - constant.LinkedReceiptBlocksLimit
 				}
@@ -105,7 +105,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 				return
 			}
 			defer rows.Close()
-			switch key {
+			switch qryRepoName {
 			case "accountBalance":
 				snapshotPayload.AccountBalances, err = ss.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 			case "nodeRegistration":
@@ -121,8 +121,9 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 					PublishedReceipt{}, rows)
 			case "escrowTransaction":
 				snapshotPayload.EscrowTransactions, err = ss.EscrowTransactionQuery.BuildModels(rows)
+			default:
+				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
-			return
 		}()
 		if err != nil {
 			return nil, err
