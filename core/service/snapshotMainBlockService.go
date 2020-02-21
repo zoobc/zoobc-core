@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -21,10 +22,8 @@ type (
 		SnapshotPath            string
 		chainType               chaintype.ChainType
 		Logger                  *log.Logger
-		QueryService            SnapshotMainBlockQueryServiceInterface
 		FileService             FileServiceInterface
 		QueryExecutor           query.ExecutorInterface
-		MainBlockQuery          query.BlockQueryInterface
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -49,7 +48,6 @@ func NewSnapshotMainBlockService(
 	queryExecutor query.ExecutorInterface,
 	logger *log.Logger,
 	fileService FileServiceInterface,
-	mainBlockQuery query.BlockQueryInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -59,23 +57,11 @@ func NewSnapshotMainBlockService(
 	snapshotQueries map[string]query.SnapshotQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
-		SnapshotPath: snapshotPath,
-		chainType:    &chaintype.MainChain{},
-		Logger:       logger,
-		QueryService: &SnapshotMainBlockQueryService{
-			QueryExecutor:           queryExecutor,
-			MainBlockQuery:          mainBlockQuery,
-			AccountBalanceQuery:     accountBalanceQuery,
-			NodeRegistrationQuery:   nodeRegistrationQuery,
-			AccountDatasetQuery:     accountDatasetQuery,
-			ParticipationScoreQuery: participationScoreQuery,
-			EscrowTransactionQuery:  escrowTransactionQuery,
-			PublishedReceiptQuery:   publishedReceiptQuery,
-			SnapshotQueries:         snapshotQueries,
-		},
+		SnapshotPath:            snapshotPath,
+		chainType:               &chaintype.MainChain{},
+		Logger:                  logger,
 		FileService:             fileService,
 		QueryExecutor:           queryExecutor,
-		MainBlockQuery:          mainBlockQuery,
 		AccountBalanceQuery:     accountBalanceQuery,
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		AccountDatasetQuery:     accountDatasetQuery,
@@ -102,10 +88,11 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 			fmt.Sprintf("invalid snapshot height: %d", snapshotPayloadHeight))
 	}
 
-	for key, snapshotQuery := range query.GetSnapshotQuery(ss.chainType) {
+	for key, snapshotQuery := range ss.SnapshotQueries {
 		func() {
 			var (
 				fromHeight uint32
+				rows       *sql.Rows
 			)
 			if key == "publishedReceipt" {
 				if uint32(snapshotPayloadHeight) > constant.LinkedReceiptBlocksLimit {
@@ -113,7 +100,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 				}
 			}
 			qry := snapshotQuery.SelectDataForSnapshot(fromHeight, uint32(snapshotPayloadHeight))
-			rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
+			rows, err = ss.QueryExecutor.ExecuteSelect(qry, false)
 			if err != nil {
 				return
 			}
@@ -215,7 +202,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 		return err
 	}
 
-	err = ss.QueryService.InsertSnapshotPayloadToDb(snapshotPayload)
+	err = ss.InsertSnapshotPayloadToDb(snapshotPayload)
 	if err != nil {
 		return err
 	}
@@ -234,4 +221,73 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 	}
 	return height%snapshotInterval == 0
 
+}
+
+// InsertSnapshotPayloadToDb insert snapshot data to db
+func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload SnapshotPayload) error {
+	var (
+		queries [][]interface{}
+	)
+
+	err := ss.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+
+	for _, rec := range payload.AccountBalances {
+		qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+
+	}
+
+	for _, rec := range payload.NodeRegistrations {
+		qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+	}
+
+	for _, rec := range payload.PublishedReceipts {
+		qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+	}
+
+	for _, rec := range payload.ParticipationScores {
+		qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
+		queries = append(queries,
+			append(
+				[]interface{}{qry}, args...),
+		)
+	}
+
+	for _, rec := range payload.EscrowTransactions {
+		qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
+		queries = append(queries, qryArgs...)
+	}
+
+	for _, rec := range payload.AccountDatasets {
+		qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
+		queries = append(queries, qryArgs...)
+	}
+
+	err = ss.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		rollbackErr := ss.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			ss.Logger.Error(rollbackErr.Error())
+		}
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
+	}
+	err = ss.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }

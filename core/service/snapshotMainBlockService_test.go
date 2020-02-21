@@ -1,6 +1,9 @@
 package service
 
 import (
+	"database/sql"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/query"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -170,15 +173,33 @@ type (
 		successSaveBytesToFile     bool
 		successVerifyFileHash      bool
 	}
-	mockSnapshotQueryService struct {
-		SnapshotMainBlockQueryService
-		successAccountBalances     bool
-		successNodeRegistrations   bool
-		successAccountDatasets     bool
-		successParticipationScores bool
-		successPublishedReceipts   bool
-		successEscrowTransactions  bool
-		successInsertPayloadToDb   bool
+	mockSnapshotQueryExecutor struct {
+		query.Executor
+		success bool
+	}
+	mockSnapshotAccountBalanceQuery struct {
+		query.AccountBalanceQueryInterface
+		success bool
+	}
+	mockSnapshotNodeRegistrationQuery struct {
+		query.NodeRegistrationQueryInterface
+		success bool
+	}
+	mockSnapshotAccountDatasetQuery struct {
+		query.AccountDatasetsQueryInterface
+		success bool
+	}
+	mockSnapshotParticipationScoreQuery struct {
+		query.ParticipationScoreQueryInterface
+		success bool
+	}
+	mockSnapshotPublishedReceiptQuery struct {
+		query.PublishedReceiptQueryInterface
+		success bool
+	}
+	mockSnapshotEscrowTransactionQuery struct {
+		query.EscrowTransactionQueryInterface
+		success bool
 	}
 )
 
@@ -318,73 +339,82 @@ func (mfs *mockFileService) SaveBytesToFile(fileBasePath, fileName string, b []b
 	return errors.New("SaveBytesToFileFail")
 }
 
-func (msqs *mockSnapshotQueryService) GetAccountBalances(fromHeight, toHeight uint32) ([]*model.AccountBalance, error) {
-	if msqs.successAccountBalances {
-		return []*model.AccountBalance{
-			accBal1,
-			accBal2,
-		}, nil
+func (mkQry *mockSnapshotAccountBalanceQuery) BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance,
+	error) {
+	if !mkQry.success {
+		return nil, errors.New("AccountBalanceQueryFailed")
 	}
-	return nil, errors.New("GetAccountBalancesFail")
+	return []*model.AccountBalance{
+		accBal1,
+		accBal2,
+	}, nil
 }
 
-func (msqs *mockSnapshotQueryService) GetNodeRegistrations(fromHeight, toHeight uint32) ([]*model.NodeRegistration, error) {
-	if msqs.successNodeRegistrations {
-		return []*model.NodeRegistration{
-			nr1,
-			nr2,
-		}, nil
-	}
-	return nil, errors.New("GetNodeRegistrationsFail")
+func (*mockSnapshotNodeRegistrationQuery) BuildModel(noderegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration,
+	error) {
+	return []*model.NodeRegistration{
+		nr1,
+		nr2,
+	}, nil
 }
 
-func (msqs *mockSnapshotQueryService) GetAccountDatasets(fromHeight, toHeight uint32) ([]*model.AccountDataset, error) {
-	if msqs.successAccountDatasets {
-		return []*model.AccountDataset{
-			accDataSet1,
-		}, nil
-	}
-	return nil, errors.New("GetAccountDatasetsFail")
+func (*mockSnapshotAccountDatasetQuery) BuildModel(accountDatasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset,
+	error) {
+	return []*model.AccountDataset{
+		accDataSet1,
+	}, nil
 }
 
-func (msqs *mockSnapshotQueryService) GetParticipationScores(fromHeight, toHeight uint32) ([]*model.ParticipationScore, error) {
-	if msqs.successParticipationScores {
-		return []*model.ParticipationScore{
-			ps1,
-		}, nil
-	}
-	return nil, errors.New("GetParticipationScoresFail")
+func (*mockSnapshotParticipationScoreQuery) BuildModel(participationScores []*model.ParticipationScore,
+	rows *sql.Rows) ([]*model.ParticipationScore,
+	error) {
+	return []*model.ParticipationScore{
+		ps1,
+	}, nil
 }
 
-func (msqs *mockSnapshotQueryService) GetPublishedReceipts(fromHeight, toHeight, limit uint32) ([]*model.PublishedReceipt, error) {
-	if msqs.successPublishedReceipts {
-		return []*model.PublishedReceipt{
-			pr1,
-		}, nil
-	}
-	return nil, errors.New("GetPublishedReceiptsFail")
+func (*mockSnapshotPublishedReceiptQuery) BuildModel(publishedReceipts []*model.PublishedReceipt,
+	rows *sql.Rows) ([]*model.PublishedReceipt,
+	error) {
+	return []*model.PublishedReceipt{
+		pr1,
+	}, nil
 }
 
-func (msqs *mockSnapshotQueryService) GetEscrowTransactions(fromHeight, toHeight uint32) ([]*model.Escrow, error) {
-	if msqs.successEscrowTransactions {
-		return []*model.Escrow{
-			escrowTx1,
-		}, nil
-	}
-	return nil, errors.New("GetEscrowTransactionsFail")
+func (*mockSnapshotEscrowTransactionQuery) BuildModels(*sql.Rows) ([]*model.Escrow, error) {
+	return []*model.Escrow{
+		escrowTx1,
+	}, nil
 }
 
 func (mct *mockChainType) GetSnapshotGenerationTimeout() time.Duration {
 	return mct.SnapshotGenerationTimeout
 }
 
+func (*mockSnapshotQueryExecutor) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		return nil, err
+	}
+	mock.ExpectQuery("").
+		WillReturnRows(sqlmock.NewRows([]string{"ID"}))
+	return db.Query("")
+}
+
 func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 	type fields struct {
-		SnapshotPath string
-		chainType    chaintype.ChainType
-		Logger       *log.Logger
-		QueryService SnapshotMainBlockQueryServiceInterface
-		FileService  FileServiceInterface
+		SnapshotPath            string
+		chainType               chaintype.ChainType
+		Logger                  *log.Logger
+		FileService             FileServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		AccountDatasetQuery     query.AccountDatasetsQueryInterface
+		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SnapshotQueries         map[string]query.SnapshotQuery
 	}
 	type args struct {
 		block          *model.Block
@@ -416,14 +446,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				chainType: &mockChainType{
 					SnapshotGenerationTimeout: 1 * time.Second,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -445,115 +475,21 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				chainType: &mockChainType{
 					SnapshotGenerationTimeout: 1,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances: false,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: false},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
 			},
 			want:    nil,
 			wantErr: true,
-			errMsg:  "GetAccountBalancesFail",
-		},
-		{
-			name: "NewSnapshotFile:fail-{GetNodeRegistrations}",
-			fields: fields{
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
-				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:   true,
-					successNodeRegistrations: false,
-				},
-			},
-			args: args{
-				block: blockForSnapshot1,
-			},
-			want:    nil,
-			wantErr: true,
-			errMsg:  "GetNodeRegistrationsFail",
-		},
-		{
-			name: "NewSnapshotFile:fail-{GetAccountDatasets}",
-			fields: fields{
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
-				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:   true,
-					successNodeRegistrations: true,
-					successAccountDatasets:   false},
-			},
-			args: args{
-				block: blockForSnapshot1,
-			},
-			want:    nil,
-			wantErr: true,
-			errMsg:  "GetAccountDatasetsFail",
-		},
-		{
-			name: "NewSnapshotFile:fail-{GetParticipationScores}",
-			fields: fields{
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
-				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: false,
-				},
-			},
-			args: args{
-				block: blockForSnapshot1,
-			},
-			want:    nil,
-			wantErr: true,
-			errMsg:  "GetParticipationScoresFail",
-		},
-		{
-			name: "NewSnapshotFile:fail-{GetPublishedRecepits}",
-			fields: fields{
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
-				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   false,
-				},
-			},
-			args: args{
-				block: blockForSnapshot1,
-			},
-			want:    nil,
-			wantErr: true,
-			errMsg:  "GetPublishedReceiptsFail",
-		},
-		{
-			name: "NewSnapshotFile:fail-{GetEscrowTransactions}",
-			fields: fields{
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
-				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  false,
-				},
-			},
-			args: args{
-				block: blockForSnapshot1,
-			},
-			want:    nil,
-			wantErr: true,
-			errMsg:  "GetEscrowTransactionsFail",
+			errMsg:  "AccountBalanceQueryFailed",
 		},
 		{
 			name: "NewSnapshotFile:fail-{EncodedPayload}",
@@ -569,14 +505,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					successEncode:              false,
 					successGetFileNameFromHash: true,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -600,14 +536,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					successEncode:              true,
 					successGetFileNameFromHash: false,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -632,14 +568,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					successGetFileNameFromHash: true,
 					successSaveBytesToFile:     false,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -666,14 +602,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					successSaveBytesToFile:     true,
 					successVerifyFileHash:      false,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -686,11 +622,18 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotMainBlockService{
-				SnapshotPath: tt.fields.SnapshotPath,
-				chainType:    tt.fields.chainType,
-				Logger:       tt.fields.Logger,
-				QueryService: tt.fields.QueryService,
-				FileService:  tt.fields.FileService,
+				SnapshotPath:            tt.fields.SnapshotPath,
+				chainType:               tt.fields.chainType,
+				Logger:                  tt.fields.Logger,
+				FileService:             tt.fields.FileService,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				AccountDatasetQuery:     tt.fields.AccountDatasetQuery,
+				EscrowTransactionQuery:  tt.fields.EscrowTransactionQuery,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SnapshotQueries:         tt.fields.SnapshotQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block, tt.args.chunkSizeBytes)
 			if err != nil {
@@ -717,11 +660,18 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 // TODO: complete the test by decoding the encoded file into []*SnapshotPayload array before deleting it
 func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 	type fields struct {
-		SnapshotPath string
-		chainType    chaintype.ChainType
-		Logger       *log.Logger
-		QueryService SnapshotMainBlockQueryServiceInterface
-		FileService  FileServiceInterface
+		SnapshotPath            string
+		chainType               chaintype.ChainType
+		Logger                  *log.Logger
+		FileService             FileServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		AccountDatasetQuery     query.AccountDatasetsQueryInterface
+		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SnapshotQueries         map[string]query.SnapshotQuery
 	}
 	type args struct {
 		block          *model.Block
@@ -746,14 +696,14 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				chainType: &mockChainType{
 					SnapshotGenerationTimeout: 10,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -764,11 +714,18 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotMainBlockService{
-				SnapshotPath: tt.fields.SnapshotPath,
-				chainType:    tt.fields.chainType,
-				Logger:       tt.fields.Logger,
-				QueryService: tt.fields.QueryService,
-				FileService:  tt.fields.FileService,
+				SnapshotPath:            tt.fields.SnapshotPath,
+				chainType:               tt.fields.chainType,
+				Logger:                  tt.fields.Logger,
+				FileService:             tt.fields.FileService,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				AccountDatasetQuery:     tt.fields.AccountDatasetQuery,
+				EscrowTransactionQuery:  tt.fields.EscrowTransactionQuery,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SnapshotQueries:         tt.fields.SnapshotQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block, tt.args.chunkSizeBytes)
 			if err != nil {
@@ -795,20 +752,32 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 	}
 }
 
-func (msqs *mockSnapshotQueryService) InsertSnapshotPayloadToDb(payload SnapshotPayload) error {
-	if msqs.successInsertPayloadToDb {
-		return nil
-	}
-	return errors.New("InsertSnapshotPayloadToDbFail")
+func (*mockSnapshotQueryExecutor) BeginTx() error {
+	return nil
+}
+
+func (*mockSnapshotQueryExecutor) CommitTx() error {
+	return nil
+}
+
+func (*mockSnapshotQueryExecutor) ExecuteTransaction(query string, args ...interface{}) error {
+	return nil
 }
 
 func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 	type fields struct {
-		SnapshotPath string
-		chainType    chaintype.ChainType
-		Logger       *log.Logger
-		QueryService SnapshotMainBlockQueryServiceInterface
-		FileService  FileServiceInterface
+		SnapshotPath            string
+		chainType               chaintype.ChainType
+		Logger                  *log.Logger
+		FileService             FileServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		AccountDatasetQuery     query.AccountDatasetsQueryInterface
+		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SnapshotQueries         map[string]query.SnapshotQuery
 	}
 	tests := []struct {
 		name    string
@@ -829,52 +798,32 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 				chainType: &mockChainType{
 					SnapshotGenerationTimeout: 10,
 				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-					successInsertPayloadToDb:   true,
-				},
+				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				AccountDatasetQuery:     query.NewAccountDatasetsQuery(),
+				EscrowTransactionQuery:  query.NewEscrowTransactionQuery(),
+				PublishedReceiptQuery:   query.NewPublishedReceiptQuery(),
+				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
-		},
-		{
-			name: "ParseSnapshotFile_IntegrationTest:fail-{insertpayload}",
-			fields: fields{
-				FileService: NewFileService(
-					log.New(),
-					new(codec.CborHandle),
-					sha3.New256(),
-				),
-				Logger:       log.New(),
-				SnapshotPath: "testdata/snapshots",
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 10,
-				},
-				QueryService: &mockSnapshotQueryService{
-					successAccountBalances:     true,
-					successNodeRegistrations:   true,
-					successAccountDatasets:     true,
-					successParticipationScores: true,
-					successPublishedReceipts:   true,
-					successEscrowTransactions:  true,
-					successInsertPayloadToDb:   false,
-				},
-			},
-			wantErr: true,
-			errMsg:  "InsertSnapshotPayloadToDbFail",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotMainBlockService{
-				SnapshotPath: tt.fields.SnapshotPath,
-				chainType:    tt.fields.chainType,
-				Logger:       tt.fields.Logger,
-				QueryService: tt.fields.QueryService,
-				FileService:  tt.fields.FileService,
+				SnapshotPath:            tt.fields.SnapshotPath,
+				chainType:               tt.fields.chainType,
+				Logger:                  tt.fields.Logger,
+				FileService:             tt.fields.FileService,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				AccountDatasetQuery:     tt.fields.AccountDatasetQuery,
+				EscrowTransactionQuery:  tt.fields.EscrowTransactionQuery,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				SnapshotQueries:         tt.fields.SnapshotQueries,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1, 0)
 			if err != nil {

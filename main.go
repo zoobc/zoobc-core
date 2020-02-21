@@ -171,7 +171,6 @@ func init() {
 		queryExecutor,
 		loggerCoreService,
 		fileService,
-		query.NewBlockQuery(chainTypes[0]),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
