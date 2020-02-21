@@ -369,6 +369,6 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE "+
-		"height >= %d AND height <= %d AND latest=1 ORDER BY height",
+		"height >= %d AND height <= %d AND latest=1 ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight)
 }

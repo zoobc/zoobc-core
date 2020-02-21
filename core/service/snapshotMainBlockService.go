@@ -245,7 +245,7 @@ func (smbq *SnapshotMainBlockQueryService) InsertSnapshotPayloadToDb(payload Sna
 		if rollbackErr != nil {
 			smbq.Logger.Error(rollbackErr.Error())
 		}
-		return blocker.NewBlocker(blocker.AppErr, "fail to insert snapshot into db")
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
 	}
 	err = smbq.QueryExecutor.CommitTx()
 	if err != nil {
@@ -383,8 +383,6 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 	if snapshotInterval < constant.MinRollbackBlocks {
 		if height < constant.MinRollbackBlocks {
 			return false
-		} else if height == constant.MinRollbackBlocks {
-			return true
 		}
 		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
 	}

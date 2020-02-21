@@ -468,7 +468,7 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 	}
 }
 
-func TestAccountDatasetsQuery_GetAccountDatasetsForSnapshot(t *testing.T) {
+func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 	type fields struct {
 		PrimaryFields  []string
 		OrdinaryFields []string
@@ -489,7 +489,7 @@ func TestAccountDatasetsQuery_GetAccountDatasetsForSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   1,
 			},
-			want: "SELECT  FROM  WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER BY height",
+			want: "SELECT  FROM  WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER BY height DESC",
 		},
 	}
 	for _, tt := range tests {

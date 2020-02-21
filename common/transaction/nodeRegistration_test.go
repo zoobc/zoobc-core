@@ -250,7 +250,7 @@ func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(q
 	}
 
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,"+
-		"latest FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height" {
+		"latest FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height DESC" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountAddress",
 			"BlockHeight",
@@ -363,7 +363,7 @@ func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(q
 	defer db.Close()
 
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest "+
-		"FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height" {
+		"FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height DESC" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountID",
 			"BlockHeight",
@@ -434,7 +434,7 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = ? AND latest = 1 ORDER BY block_height" {
+		"account_address = ? AND latest = 1 ORDER BY block_height DESC" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"AccountAddress",
 			"BlockHeight",

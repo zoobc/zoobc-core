@@ -1,9 +1,6 @@
 package database
 
 import (
-	"fmt"
-	"github.com/ugorji/go/codec"
-	"github.com/zoobc/zoobc-core/common/model"
 	"os"
 	"reflect"
 	"testing"
@@ -135,56 +132,4 @@ func TestNewBadgerDB(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestBytesWrite(t *testing.T) {
-	ExampleEncoder()
-}
-
-func ExampleEncoder() {
-	var v2 []*model.Block
-	v1 := []*model.Block{
-		{
-			Height:               10,
-			Timestamp:            123464884,
-			ID:                   -1,
-			Version:              1,
-			TotalCoinBase:        100,
-			TotalFee:             1000,
-			TotalAmount:          100000000,
-			BlocksmithPublicKey:  make([]byte, 32),
-			PayloadHash:          make([]byte, 64),
-			PayloadLength:        1,
-			CumulativeDifficulty: "23423897509472358325780",
-		},
-		{
-			Height:               11,
-			Timestamp:            46456466435645,
-			ID:                   -1000,
-			Version:              1,
-			TotalCoinBase:        100,
-			TotalFee:             1000,
-			TotalAmount:          100000000,
-			BlocksmithPublicKey:  make([]byte, 32),
-			PayloadHash:          make([]byte, 64),
-			PayloadLength:        1,
-			CumulativeDifficulty: "539405843078458937593857",
-		},
-	}
-	var b = make([]byte, 0, 64)
-	var h codec.Handle = new(codec.JsonHandle)
-	var enc *codec.Encoder = codec.NewEncoderBytes(&b, h)
-	var err error = enc.Encode(v1) // any of v1 ... v8
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	fmt.Printf("%v\n", b)
-
-	// ... assume b contains the bytes to decode from
-	var dec *codec.Decoder = codec.NewDecoderBytes(b, h)
-	err = dec.Decode(&v2) // v2 or v8, or a pointer to v1, v3, v4, v5, v6, v7
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	fmt.Printf("%v\n", v2)
 }

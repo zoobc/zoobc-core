@@ -59,7 +59,7 @@ func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
 		res, args := mockAccountBalanceQuery.GetAccountBalanceByAccountAddress("BCZ")
 		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
-			"FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height"
+			"FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height DESC"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -285,7 +285,7 @@ func TestAccountBalanceQuery_GetAccountBalancesForSnapshot(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
 		strQry := mockAccountBalanceQuery.SelectDataForSnapshot(0, 1)
 		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue," +
-			"latest FROM account_balance WHERE latest = 1 AND block_height >= 0 AND block_height <= 1 ORDER BY block_height"
+			"latest FROM account_balance WHERE latest = 1 AND block_height >= 0 AND block_height <= 1 ORDER BY block_height DESC"
 		if strQry != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", strQry, want)
 		}

@@ -86,6 +86,7 @@ var (
 	receiptUtil                                   = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                     service.TransactionCoreServiceInterface
 	fileService                                   service.FileServiceInterface
+	chainTypes                                    = chaintype.GetChainTypes()
 )
 
 func init() {
@@ -93,7 +94,6 @@ func init() {
 		configPostfix string
 		configPath    string
 		err           error
-		mainchain     = &chaintype.MainChain{}
 	)
 
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
@@ -138,7 +138,7 @@ func init() {
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(chainTypes[0]),
 		loggerCoreService,
 	)
 	receiptService = service.NewReceiptService(
@@ -146,7 +146,7 @@ func init() {
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(chainTypes[0]),
 		kvExecutor,
 		queryExecutor,
 		nodeRegistrationService,
@@ -158,7 +158,7 @@ func init() {
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
-		query.NewBlockQuery(&chaintype.SpineChain{}),
+		query.NewBlockQuery(chainTypes[1]),
 		loggerCoreService,
 	)
 	fileService = service.NewFileService(
@@ -166,13 +166,13 @@ func init() {
 		new(codec.CborHandle),
 		sha3.New256(),
 	)
-	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
+	snapshotBlockServices[chainTypes[0].GetTypeInt()] = service.NewSnapshotMainBlockService(
 		snapshotPath,
 		queryExecutor,
 		spineBlockManifestService,
 		loggerCoreService,
 		fileService,
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(chainTypes[0]),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
@@ -197,7 +197,7 @@ func init() {
 
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		queryExecutor,
-		query.NewTransactionQuery(&chaintype.MainChain{}),
+		query.NewTransactionQuery(chainTypes[0]),
 		query.NewEscrowTransactionQuery(),
 	)
 
@@ -329,7 +329,7 @@ func initP2pInstance() {
 		peerServiceClient,
 		nodeRegistrationService,
 		queryExecutor,
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		query.NewBlockQuery(chainTypes[0]),
 		loggerP2PService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
@@ -405,20 +405,19 @@ func startMainchain() {
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
 		err                                         error
 		sleepPeriod                                 = 500
-		mainchain                                   = &chaintype.MainChain{}
 	)
-	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(chainTypes[0].GetTypeInt(), constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
-		mainchain,
+		chainTypes[0],
 		kvExecutor,
 		queryExecutor,
-		query.NewMempoolQuery(mainchain),
+		query.NewMempoolQuery(chainTypes[0]),
 		query.NewMerkleTreeQuery(),
 		&transaction.TypeSwitcher{Executor: queryExecutor},
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(mainchain),
-		query.NewTransactionQuery(mainchain),
+		query.NewBlockQuery(chainTypes[0]),
+		query.NewTransactionQuery(chainTypes[0]),
 		crypto.NewSignature(),
 		observerInstance,
 		loggerCoreService,
@@ -426,7 +425,7 @@ func startMainchain() {
 		receiptService,
 		transactionCoreServiceIns,
 	)
-	mempoolServices[mainchain.GetTypeInt()] = mempoolService
+	mempoolServices[chainTypes[0].GetTypeInt()] = mempoolService
 
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
@@ -438,7 +437,7 @@ func startMainchain() {
 		loggerCoreService,
 	)
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
-		mainchain,
+		chainTypes[0],
 		observerInstance,
 	)
 	mainchainBlockPool := service.NewBlockPoolService()
@@ -468,12 +467,12 @@ func startMainchain() {
 		queryExecutor,
 	)
 	mainchainBlockService = service.NewBlockMainService(
-		mainchain,
+		chainTypes[0],
 		kvExecutor,
 		queryExecutor,
-		query.NewBlockQuery(mainchain),
-		query.NewMempoolQuery(mainchain),
-		query.NewTransactionQuery(mainchain),
+		query.NewBlockQuery(chainTypes[0]),
+		query.NewMempoolQuery(chainTypes[0]),
+		query.NewTransactionQuery(chainTypes[0]),
 		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
@@ -498,7 +497,7 @@ func startMainchain() {
 		mainchainParticipationScoreService,
 		mainchainPublishedReceiptService,
 	)
-	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+	blockServices[chainTypes[0].GetTypeInt()] = mainchainBlockService
 
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
@@ -556,7 +555,7 @@ func startMainchain() {
 		transactionUtil,
 		service.NewTransactionCoreService(
 			queryExecutor,
-			query.NewTransactionQuery(&chaintype.MainChain{}),
+			query.NewTransactionQuery(chainTypes[0]),
 			query.NewEscrowTransactionQuery(),
 		),
 	)
@@ -566,19 +565,18 @@ func startSpinechain() {
 	var (
 		nodeID int64
 	)
-	spinechain := &chaintype.SpineChain{}
-	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(chainTypes[1].GetTypeInt(), constant.BlockchainStatusIdle)
 	sleepPeriod := 500
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
-		query.NewBlockQuery(spinechain),
+		query.NewBlockQuery(chainTypes[1]),
 	)
 	spinechainBlockService = service.NewBlockSpineService(
-		spinechain,
+		chainTypes[1],
 		queryExecutor,
-		query.NewBlockQuery(spinechain),
+		query.NewBlockQuery(chainTypes[1]),
 		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
 		query.NewNodeRegistrationQuery(),
@@ -587,7 +585,7 @@ func startSpinechain() {
 		loggerCoreService,
 		query.NewSpineBlockManifestQuery(),
 	)
-	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
+	blockServices[chainTypes[1].GetTypeInt()] = spinechainBlockService
 
 	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
 		if err := spinechainBlockService.AddGenesis(); err != nil {
@@ -625,8 +623,7 @@ func startSpinechain() {
 // Scheduler Init
 func startScheduler() {
 	var (
-		mainchain               = &chaintype.MainChain{}
-		mainchainMempoolService = mempoolServices[mainchain.GetTypeInt()]
+		mainchainMempoolService = mempoolServices[chainTypes[0].GetTypeInt()]
 	)
 	// scheduler remove expired mempool transaction
 	if err := schedulerInstance.AddJob(
@@ -656,7 +653,7 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
-	// register scan block pool for mainchain
+	// register scan block pool for chainTypes[0]
 	if err := schedulerInstance.AddJob(
 		constant.BlockPoolScanPeriod,
 		mainchainBlockService.ScanBlockPool,
@@ -690,7 +687,7 @@ syncronizersLoop:
 				ticker.Stop()
 				// loop through all chain types that support snapshots and download them if we find relative
 				// spineBlockManifest
-				for i := 0; i < chaintype.GetChainTypeCount(); i++ {
+				for i := 0; i < len(chainTypes); i++ {
 					ct := chaintype.GetChainType(int32(i))
 					lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(ct,
 						model.SpineBlockManifestType_Snapshot)
@@ -708,7 +705,7 @@ syncronizersLoop:
 							loggerCoreService.Info(err)
 						}
 					}
-					// download remaining main blocks and start the mainchain synchronizer
+					// download remaining main blocks and start the chainTypes[0] synchronizer
 					// TODO: generalise this so that we can just inject the chaintype and will start the correct
 					//  syncronizer
 					switch ct.(type) {

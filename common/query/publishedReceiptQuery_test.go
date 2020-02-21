@@ -318,7 +318,7 @@ func TestPublishedReceiptQuery_getTableName(t *testing.T) {
 	}
 }
 
-func TestPublishedReceiptQuery_GetPublishedReceiptsForSnapshot(t *testing.T) {
+func TestPublishedReceiptQuery_SelectDataForSnapshot(t *testing.T) {
 	prQry := NewPublishedReceiptQuery()
 	type fields struct {
 		Fields    []string
@@ -345,7 +345,8 @@ func TestPublishedReceiptQuery_GetPublishedReceiptsForSnapshot(t *testing.T) {
 			},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
-				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 ORDER BY block_height",
+				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 ORDER BY block_height" +
+				" DESC",
 		},
 	}
 	for _, tt := range tests {

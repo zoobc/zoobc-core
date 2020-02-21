@@ -12,7 +12,14 @@ func GetChainType(ctNum int32) ChainType {
 	}
 }
 
-// GetChainTypeCount util function to get the number of chain type (useful when looping through chain types)
-func GetChainTypeCount() int {
-	return 2
+// GetChainTypes returns all chainType (useful for loops)
+func GetChainTypes() map[int32]ChainType {
+	var (
+		mainchain  = &MainChain{}
+		spinechain = &SpineChain{}
+	)
+	return map[int32]ChainType{
+		mainchain.GetTypeInt():  mainchain,
+		spinechain.GetTypeInt(): spinechain,
+	}
 }

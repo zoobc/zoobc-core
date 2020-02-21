@@ -150,7 +150,7 @@ func (prq *PublishedReceiptQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (prq *PublishedReceiptQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height DESC",
 		strings.Join(prq.Fields, ", "),
 		prq.getTableName(), fromHeight, toHeight)
 }

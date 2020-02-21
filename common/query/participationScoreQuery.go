@@ -204,6 +204,6 @@ func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row)
 }
 
 func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER by height",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER by height DESC",
 		strings.Join(ps.Fields, ", "), ps.getTableName(), fromHeight, toHeight)
 }
