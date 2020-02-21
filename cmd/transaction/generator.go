@@ -340,32 +340,57 @@ func GeneratedMultiSignatureTransaction(
 	tx *model.Transaction,
 	minSignature uint32,
 	nonce int64,
-	unsignedTxHex string,
-	signatureHexes, addresses []string,
+	unsignedTxHex, txHash string,
+	addressSignatures, addresses []string,
 ) *model.Transaction {
 	var (
-		signatures [][]byte
+		signatures    = make(map[string][]byte)
+		signatureInfo *model.SignatureInfo
+		unsignedTx    []byte
+		multiSigInfo  *model.MultiSignatureInfo
+		err           error
 	)
-	unsignedTx, err := hex.DecodeString(unsignedTxHex)
-	if err != nil {
-		return nil
-	}
-	for _, v := range signatureHexes {
-		signature, err := hex.DecodeString(v)
-		if err != nil {
-			return nil
-		}
-		signatures = append(signatures, signature)
-	}
-	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
-	txBody := &model.MultiSignatureTransactionBody{
-		MultiSignatureInfo: &model.MultiSignatureInfo{
+	if minSignature > 0 && len(addresses) > 0 {
+		multiSigInfo = &model.MultiSignatureInfo{
 			MinimumSignatures: minSignature,
 			Nonce:             nonce,
 			Addresses:         addresses,
-		},
+		}
+	}
+	if unsignedTxHex != "" {
+		unsignedTx, err = hex.DecodeString(unsignedTxHex)
+		if err != nil {
+			return nil
+		}
+	}
+
+	if txHash != "" {
+		transactionHash, err := hex.DecodeString(txHash)
+		if err != nil {
+			return nil
+		}
+		for _, v := range addressSignatures {
+			asig := strings.Split(v, "-")
+			if len(asig) < 2 {
+				return nil
+			}
+			signature, err := hex.DecodeString(asig[1])
+			if err != nil {
+				return nil
+			}
+			signatures[asig[0]] = signature
+		}
+		signatureInfo = &model.SignatureInfo{
+			TransactionHash: transactionHash,
+			Signatures:      signatures,
+		}
+	}
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
+	txBody := &model.MultiSignatureTransactionBody{
+		MultiSignatureInfo:       multiSigInfo,
 		UnsignedTransactionBytes: unsignedTx,
-		Signatures:               signatures,
+		SignatureInfo:            signatureInfo,
 	}
 	tx.TransactionBodyBytes = (&transaction.MultiSignatureTransaction{
 		Body: txBody,

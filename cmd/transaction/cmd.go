@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -139,8 +140,9 @@ func init() {
 	multiSigCmd.Flags().Uint32Var(&minSignature, "min-signature", 0, "minimum number of signature required for the transaction "+
 		"to be valid")
 	multiSigCmd.Flags().StringVar(&unsignedTxHex, "unsigned-transaction", "", "hex string of the unsigned transaction bytes")
-	multiSigCmd.Flags().StringSliceVar(&signaturesHex, "signatures", []string{}, "hex string signatures supplied in form of "+
-		"--signatures='signature1,signature2'")
+	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
+	multiSigCmd.Flags().StringSliceVar(&addressSignatures, "address-signatures", []string{}, "address-signature list "+
+		"--address-signatures='address1-signature1,address2-signature2'")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -282,7 +284,11 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
-		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, signaturesHex, addresses)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addresses)
+		if tx == nil {
+			fmt.Printf("fail to generate transaction, please check the provided parameter")
+		} else {
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		}
 	}
 }

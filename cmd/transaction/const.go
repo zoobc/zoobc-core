@@ -49,9 +49,10 @@ var (
 	transactionID int64
 
 	// multiSignature
-	unsignedTxHex string
-	signaturesHex []string
-	addresses     []string
-	nonce         int64
-	minSignature  uint32
+	unsignedTxHex     string
+	addressSignatures []string
+	txHash            string
+	addresses         []string
+	nonce             int64
+	minSignature      uint32
 )
