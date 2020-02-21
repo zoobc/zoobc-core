@@ -18,11 +18,20 @@ import (
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath string
-		chainType    chaintype.ChainType
-		Logger       *log.Logger
-		QueryService SnapshotMainBlockQueryServiceInterface
-		FileService  FileServiceInterface
+		SnapshotPath            string
+		chainType               chaintype.ChainType
+		Logger                  *log.Logger
+		QueryService            SnapshotMainBlockQueryServiceInterface
+		FileService             FileServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		MainBlockQuery          query.BlockQueryInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		AccountDatasetQuery     query.AccountDatasetsQueryInterface
+		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SnapshotQueries         map[string]query.SnapshotQuery
 	}
 
 	SnapshotPayload struct {
@@ -38,7 +47,6 @@ type (
 func NewSnapshotMainBlockService(
 	snapshotPath string,
 	queryExecutor query.ExecutorInterface,
-	spineBlockManifestService SpineBlockManifestServiceInterface,
 	logger *log.Logger,
 	fileService FileServiceInterface,
 	mainBlockQuery query.BlockQueryInterface,
@@ -55,27 +63,35 @@ func NewSnapshotMainBlockService(
 		chainType:    &chaintype.MainChain{},
 		Logger:       logger,
 		QueryService: &SnapshotMainBlockQueryService{
-			QueryExecutor:             queryExecutor,
-			SpineBlockManifestService: spineBlockManifestService,
-			MainBlockQuery:            mainBlockQuery,
-			AccountBalanceQuery:       accountBalanceQuery,
-			NodeRegistrationQuery:     nodeRegistrationQuery,
-			AccountDatasetQuery:       accountDatasetQuery,
-			ParticipationScoreQuery:   participationScoreQuery,
-			EscrowTransactionQuery:    escrowTransactionQuery,
-			PublishedReceiptQuery:     publishedReceiptQuery,
-			SnapshotQueries:           snapshotQueries,
+			QueryExecutor:           queryExecutor,
+			MainBlockQuery:          mainBlockQuery,
+			AccountBalanceQuery:     accountBalanceQuery,
+			NodeRegistrationQuery:   nodeRegistrationQuery,
+			AccountDatasetQuery:     accountDatasetQuery,
+			ParticipationScoreQuery: participationScoreQuery,
+			EscrowTransactionQuery:  escrowTransactionQuery,
+			PublishedReceiptQuery:   publishedReceiptQuery,
+			SnapshotQueries:         snapshotQueries,
 		},
-		FileService: fileService,
+		FileService:             fileService,
+		QueryExecutor:           queryExecutor,
+		MainBlockQuery:          mainBlockQuery,
+		AccountBalanceQuery:     accountBalanceQuery,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
+		AccountDatasetQuery:     accountDatasetQuery,
+		ParticipationScoreQuery: participationScoreQuery,
+		EscrowTransactionQuery:  escrowTransactionQuery,
+		PublishedReceiptQuery:   publishedReceiptQuery,
+		SnapshotQueries:         snapshotQueries,
 	}
 }
 
 // NewSnapshotFile creates a new snapshot file (or multiple file chunks) and return the snapshotFileInfo
-func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSizeBytes int64) (*model.SnapshotFileInfo, error) {
+func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSizeBytes int64) (snapshotFileInfo *model.SnapshotFileInfo,
+	err error) {
 	var (
 		fileChunkHashes             = make([][]byte, 0)
 		snapshotPayload             = new(SnapshotPayload)
-		err                         error
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
 		snapshotPayloadHeight int = int(block.Height) - int(constant.MinRollbackBlocks)
@@ -86,30 +102,36 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 			fmt.Sprintf("invalid snapshot height: %d", snapshotPayloadHeight))
 	}
 
-	snapshotPayload.AccountBalances, err = ss.QueryService.GetAccountBalances(0, uint32(snapshotPayloadHeight))
-	if err != nil {
-		return nil, err
-	}
-	snapshotPayload.NodeRegistrations, err = ss.QueryService.GetNodeRegistrations(0, uint32(snapshotPayloadHeight))
-	if err != nil {
-		return nil, err
-	}
-	snapshotPayload.AccountDatasets, err = ss.QueryService.GetAccountDatasets(0, uint32(snapshotPayloadHeight))
-	if err != nil {
-		return nil, err
-	}
-	snapshotPayload.ParticipationScores, err = ss.QueryService.GetParticipationScores(0, uint32(snapshotPayloadHeight))
-	if err != nil {
-		return nil, err
-	}
-	snapshotPayload.PublishedReceipts, err = ss.QueryService.GetPublishedReceipts(0, uint32(snapshotPayloadHeight),
-		constant.LinkedReceiptBlocksLimit)
-	if err != nil {
-		return nil, err
-	}
-	snapshotPayload.EscrowTransactions, err = ss.QueryService.GetEscrowTransactions(0, uint32(snapshotPayloadHeight))
-	if err != nil {
-		return nil, err
+	for key, snapshotQuery := range query.GetSnapshotQuery(ss.chainType) {
+		func() {
+			qry := snapshotQuery.SelectDataForSnapshot(0, uint32(snapshotPayloadHeight))
+			rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
+			if err != nil {
+				return
+			}
+			defer rows.Close()
+			switch key {
+			case "accountBalance":
+				snapshotPayload.AccountBalances, err = ss.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+			case "nodeRegistration":
+				snapshotPayload.NodeRegistrations, err = ss.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{},
+					rows)
+			case "accountDataset":
+				snapshotPayload.AccountDatasets, err = ss.AccountDatasetQuery.BuildModel([]*model.AccountDataset{}, rows)
+			case "participationScore":
+				snapshotPayload.ParticipationScores, err = ss.ParticipationScoreQuery.BuildModel([]*model.
+					ParticipationScore{}, rows)
+			case "publishedReceipt":
+				snapshotPayload.PublishedReceipts, err = ss.PublishedReceiptQuery.BuildModel([]*model.
+					PublishedReceipt{}, rows)
+			case "escrowTransaction":
+				snapshotPayload.EscrowTransactions, err = ss.EscrowTransactionQuery.BuildModels(rows)
+			}
+			return
+		}()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// encode the snapshot payload

@@ -20,17 +20,16 @@ type (
 	}
 
 	SnapshotMainBlockQueryService struct {
-		QueryExecutor             query.ExecutorInterface
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		Logger                    *log.Logger
-		MainBlockQuery            query.BlockQueryInterface
-		AccountBalanceQuery       query.AccountBalanceQueryInterface
-		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
-		AccountDatasetQuery       query.AccountDatasetsQueryInterface
-		EscrowTransactionQuery    query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery     query.PublishedReceiptQueryInterface
-		SnapshotQueries           map[string]query.SnapshotQuery
+		QueryExecutor           query.ExecutorInterface
+		Logger                  *log.Logger
+		MainBlockQuery          query.BlockQueryInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		AccountDatasetQuery     query.AccountDatasetsQueryInterface
+		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		SnapshotQueries         map[string]query.SnapshotQuery
 	}
 )
 

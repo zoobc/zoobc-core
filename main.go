@@ -169,7 +169,6 @@ func init() {
 	snapshotBlockServices[chainTypes[0].GetTypeInt()] = service.NewSnapshotMainBlockService(
 		snapshotPath,
 		queryExecutor,
-		spineBlockManifestService,
 		loggerCoreService,
 		fileService,
 		query.NewBlockQuery(chainTypes[0]),
