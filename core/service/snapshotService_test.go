@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"testing"
@@ -211,114 +212,104 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 // 	}
 // }
 
-func TestSnapshotService_IsSnapshotHeight(t *testing.T) {
+type (
+	mockFileDownloaderService struct {
+		FileDownloaderService
+		success bool
+	}
+)
+
+func (mfdf *mockFileDownloaderService) DownloadFileByName(fileName string, fileHash []byte) error {
+	if mfdf.success {
+		return nil
+	}
+	return errors.New("DownloadFileByNameFail")
+}
+
+func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 	type fields struct {
-		QueryExecutor             query.ExecutorInterface
-		SpineBlockQuery           query.BlockQueryInterface
-		MainBlockQuery            query.BlockQueryInterface
-		Logger                    *log.Logger
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          uint32
-		SnapshotGenerationTimeout int64
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		SpineBlockDownloadService SpineBlockDownloadServiceInterface
+		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
+		FileDownloaderService     FileDownloaderServiceInterface
+		FileService               FileServiceInterface
+		Logger                    *log.Logger
 	}
 	type args struct {
-		height           uint32
-		snapshotInterval uint32
+		spineBlockManifest *model.SpineBlockManifest
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		errMsg  string
 	}{
 		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_1}:",
+			name: "DownloadSnapshot:fail-{zerolength}",
 			args: args{
-				height:           1,
-				snapshotInterval: 10,
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: make([]byte, 0),
+				},
 			},
-			want: false,
+			wantErr: true,
+			errMsg:  "ValidationErr: invalid file chunks hashes length",
 		},
 		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_2}:",
-			args: args{
-				height:           constant.MinRollbackBlocks,
-				snapshotInterval: 10,
+			name: "DownloadSnapshot:fail-{DownloadFailed}",
+			fields: fields{
+				FileDownloaderService: &mockFileDownloaderService{
+					success: false,
+				},
+				FileService: &mockFileService{
+					successGetFileNameFromHash: true,
+				},
+				Logger: log.New(),
 			},
-			want: true,
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: make([]byte, 64),
+				},
+			},
+			wantErr: true,
+			errMsg: "AppErr: One or more snapshot chunks failed to download [vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO" +
+				" vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO]",
 		},
 		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_3}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 9,
-				snapshotInterval: 10,
+			name: "DownloadSnapshot:success",
+			fields: fields{
+				FileDownloaderService: &mockFileDownloaderService{
+					success: true,
+				},
+				FileService: &mockFileService{
+					successGetFileNameFromHash: true,
+				},
+				Logger: log.New(),
 			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_4}:",
 			args: args{
-				height:           constant.MinRollbackBlocks + 10,
-				snapshotInterval: 10,
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: make([]byte, 64),
+				},
 			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_5}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 20,
-				snapshotInterval: 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_1}:",
-			args: args{
-				height:           10,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_2}:",
-			args: args{
-				height:           constant.MinRollbackBlocks,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_3}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 10,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_4}:",
-			args: args{
-				height:           2 * (constant.MinRollbackBlocks + 10),
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SnapshotService{
-				QueryExecutor:             tt.fields.QueryExecutor,
-				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-				MainBlockQuery:            tt.fields.MainBlockQuery,
-				Logger:                    tt.fields.Logger,
-				SnapshotInterval:          tt.fields.SnapshotInterval,
-				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
+			ss := &SnapshotService{
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				SpineBlockDownloadService: tt.fields.SpineBlockDownloadService,
+				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
+				FileDownloaderService:     tt.fields.FileDownloaderService,
+				FileService:               tt.fields.FileService,
+				Logger:                    tt.fields.Logger,
 			}
-			if got := s.IsSnapshotHeight(tt.args.height, tt.args.snapshotInterval); got != tt.want {
-				t.Errorf("SnapshotService.IsSnapshotHeight() = %v, want %v", got, tt.want)
+			if err := ss.DownloadSnapshot(tt.args.spineBlockManifest); err != nil {
+				if !tt.wantErr {
+					t.Errorf("SnapshotService.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				if tt.errMsg != err.Error() {
+					t.Errorf("SnapshotService.DownloadSnapshot() error wrong test exit point: %v", err)
+				}
 			}
 		})
 	}

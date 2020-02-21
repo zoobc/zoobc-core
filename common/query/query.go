@@ -8,6 +8,9 @@ type (
 		// Rollback return query string to rollback table to `height`
 		Rollback(height uint32) (multiQueries [][]interface{})
 	}
+	SnapshotQuery interface {
+		SelectDataForSnapshot(fromHeight, toHeight uint32) string
+	}
 )
 
 // GetDerivedQuery func to get the whole queries has has rollback method
@@ -27,6 +30,7 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewParticipationScoreQuery(),
 			NewPublishedReceiptQuery(),
 			NewAccountLedgerQuery(),
+			NewEscrowTransactionQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
@@ -36,4 +40,22 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 		derivedQuery = append(derivedQuery, spinechainDerivedQuery...)
 	}
 	return derivedQuery
+}
+
+// GetSnapshotQuery func to get all query repos that have a SelectDataForSnapshot method
+func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]SnapshotQuery) {
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		snapshotQuery = map[string]SnapshotQuery{
+			"accountBalance":     NewAccountBalanceQuery(),
+			"nodeRegistration":   NewNodeRegistrationQuery(),
+			"accountDataset":     NewAccountDatasetsQuery(),
+			"participationScore": NewParticipationScoreQuery(),
+			"publishedReceipt":   NewPublishedReceiptQuery(),
+			"escrowTransaction":  NewEscrowTransactionQuery(),
+		}
+	default:
+		snapshotQuery = map[string]SnapshotQuery{}
+	}
+	return snapshotQuery
 }

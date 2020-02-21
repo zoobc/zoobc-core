@@ -77,7 +77,7 @@ func (bss *Service) Start() {
 		bss.Logger.Fatal("no p2p service defined")
 	}
 	// Give node time to connect to some peers
-	time.Sleep(constant.BlockchainsyncWaitingTime * time.Second)
+	time.Sleep(constant.BlockchainsyncWaitingTime)
 	bss.GetMoreBlocksThread()
 }
 
