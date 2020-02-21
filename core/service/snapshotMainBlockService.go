@@ -104,7 +104,15 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 
 	for key, snapshotQuery := range query.GetSnapshotQuery(ss.chainType) {
 		func() {
-			qry := snapshotQuery.SelectDataForSnapshot(0, uint32(snapshotPayloadHeight))
+			var (
+				fromHeight uint32
+			)
+			if key == "publishedReceipt" {
+				if uint32(snapshotPayloadHeight) > constant.LinkedReceiptBlocksLimit {
+					fromHeight = uint32(snapshotPayloadHeight) - constant.LinkedReceiptBlocksLimit
+				}
+			}
+			qry := snapshotQuery.SelectDataForSnapshot(fromHeight, uint32(snapshotPayloadHeight))
 			rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
 			if err != nil {
 				return
