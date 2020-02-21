@@ -350,8 +350,8 @@ func (mkQry *mockSnapshotAccountBalanceQuery) BuildModel(accountBalances []*mode
 	}, nil
 }
 
-func (*mockSnapshotNodeRegistrationQuery) BuildModel(noderegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration,
-	error) {
+func (*mockSnapshotNodeRegistrationQuery) BuildModel(noderegistrations []*model.NodeRegistration,
+	rows *sql.Rows) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		nr1,
 		nr2,
