@@ -179,6 +179,7 @@ func init() {
 		query.NewAccountDatasetsQuery(),
 		query.NewEscrowTransactionQuery(),
 		query.NewPublishedReceiptQuery(),
+		query.GetSnapshotQuery(chainTypes[0]),
 	)
 
 	fileDownloadService = service.NewFileDownloaderService(
