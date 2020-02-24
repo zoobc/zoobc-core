@@ -6,7 +6,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
-	"hash"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 
 type (
 	FileServiceInterface interface {
+		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
 		GetHashFromFileName(fileName string) ([]byte, error)
@@ -27,24 +27,21 @@ type (
 	FileService struct {
 		Logger *log.Logger
 		h      codec.Handle
-		hasher hash.Hash
 	}
 )
 
 func NewFileService(
 	logger *log.Logger,
 	encoderHandler codec.Handle,
-	fileHasher hash.Hash,
 ) FileServiceInterface {
 	return &FileService{
 		Logger: logger,
 		h:      encoderHandler, // this variable is only set when constructing the service and never mutated
-		hasher: fileHasher,
 	}
 }
 
 func (fs *FileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
-	return util.VerifyFileHash(filePath, hash, fs.hasher)
+	return util.VerifyFileHash(filePath, hash, sha3.New256())
 }
 
 func (fs *FileService) GetEncoderHandler() codec.Handle {
@@ -84,8 +81,9 @@ func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) 
 }
 
 func (fs *FileService) HashPayload(b []byte) []byte {
-	h := sha3.Sum256(b)
-	return h[:]
+	hasher := sha3.New256()
+	hasher.Write(b)
+	return hasher.Sum([]byte{})
 }
 
 // GetHashFromFileName file name to hash conversion
@@ -112,4 +110,19 @@ func (*FileService) GetFileNameFromHash(fileHash []byte) (string, error) {
 		)
 	}
 	return fileName, nil
+}
+
+// DeleteFilesByHash remove a list of files by their hash/names
+func (fs *FileService) DeleteFilesByHash(filePath string, fileHashes [][]byte) error {
+	for _, fileChunkHash := range fileHashes {
+		fileName, err := fs.GetFileNameFromHash(fileChunkHash)
+		if err != nil {
+			return err
+		}
+		filePathName := filepath.Join(filePath, fileName)
+		if err := os.Remove(filePathName); err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -37,7 +37,10 @@ func request_EscrowTransactionService_GetEscrowTransactions_0(ctx context.Contex
 	var protoReq model.GetEscrowTransactionsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_EscrowTransactionService_GetEscrowTransactions_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_EscrowTransactionService_GetEscrowTransactions_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -108,7 +111,7 @@ func RegisterEscrowTransactionServiceHandlerClient(ctx context.Context, mux *run
 }
 
 var (
-	pattern_EscrowTransactionService_GetEscrowTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "escrow", "GetEscrowTransactionsRequest"}, ""))
+	pattern_EscrowTransactionService_GetEscrowTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "escrow", "GetEscrowTransactionsRequest"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (

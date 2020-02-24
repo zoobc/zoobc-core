@@ -6,7 +6,7 @@ import (
 
 type (
 	SnapshotBlockServiceInterface interface {
-		NewSnapshotFile(block *model.Block, chunkSizeBytes int64) (*model.SnapshotFileInfo, error)
+		NewSnapshotFile(block *model.Block, chunkSizeBytes int) (*model.SnapshotFileInfo, error)
 		ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error
 		IsSnapshotHeight(height uint32) bool
 	}
