@@ -224,7 +224,20 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-
+	case 5:
+		switch buf[1] {
+		case 0:
+			multiSigTransactionBody, err := new(MultiSignatureTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &MultiSignatureTransaction{
+				Body:      multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
+				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
+			}, nil
+		default:
+			return nil, nil
+		}
 	default:
 		return nil, nil
 	}
