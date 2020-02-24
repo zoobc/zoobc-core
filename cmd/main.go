@@ -52,7 +52,7 @@ func main() {
 		}
 		parserCmd = &cobra.Command{
 			Use:   "parser",
-			Short: "parse transaction by providing the transaction bytes",
+			Short: "parse data to understandable struct",
 		}
 	)
 

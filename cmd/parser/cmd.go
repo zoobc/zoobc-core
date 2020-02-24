@@ -17,7 +17,7 @@ var (
 	txParserCmd = &cobra.Command{
 		Use:   "tx",
 		Short: "parse transaction from its hex representation",
-		Long:  "transaction parser to check the content of you transaction hex",
+		Long:  "transaction parser to check the content of your transaction hex",
 	}
 )
 
