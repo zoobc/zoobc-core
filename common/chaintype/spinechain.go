@@ -1,6 +1,9 @@
 package chaintype
 
-import "github.com/zoobc/zoobc-core/common/constant"
+import (
+	"github.com/zoobc/zoobc-core/common/constant"
+	"time"
+)
 
 // SpineChain is struct should has methods in below
 type SpineChain struct{}
@@ -56,4 +59,12 @@ func (*SpineChain) HasTransactions() bool {
 
 func (*SpineChain) HasSnapshots() bool {
 	return false
+}
+
+func (*SpineChain) GetSnapshotInterval() uint32 {
+	return 0
+}
+
+func (*SpineChain) GetSnapshotGenerationTimeout() time.Duration {
+	return 0
 }

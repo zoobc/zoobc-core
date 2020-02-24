@@ -40,6 +40,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.4.0
 	github.com/tyler-smith/go-bip39 v0.0.0-20190808214741-c55f737395bc
+	github.com/ugorji/go/codec v1.1.7
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/net v0.0.0-20191021144547-ec77196f6094
 	golang.org/x/sys v0.0.0-20191025021431-6c3a3bfe00ae
