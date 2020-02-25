@@ -64,3 +64,20 @@ func (th *TransactionHandler) PostTransaction(
 		Transaction: transaction,
 	}, nil
 }
+
+// GetTransactionMinimumFee handles request to get transaction's minimum fee
+func (th *TransactionHandler) GetTransactionMinimumFee(
+	ctx context.Context,
+	req *model.GetTransactionMinimumFeeRequest,
+) (*model.GetTransactionMinimumFeeResponse, error) {
+	var (
+		transactionFee *model.GetTransactionMinimumFeeResponse
+		err            error
+	)
+	transactionFee, err = th.Service.GetTransactionMinimumFee(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return transactionFee, nil
+}

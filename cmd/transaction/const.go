@@ -12,6 +12,7 @@ var (
 		"setupAccountDataset":    {3, 0, 0, 0},
 		"removeAccountDataset":   {3, 1, 0, 0},
 		"approvalEscrow":         {4, 0, 0, 0},
+		"multiSignature":         {5, 0, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -46,4 +47,12 @@ var (
 	// escrowApproval
 	approval      bool
 	transactionID int64
+
+	// multiSignature
+	unsignedTxHex     string
+	addressSignatures []string
+	txHash            string
+	addresses         []string
+	nonce             int64
+	minSignature      uint32
 )

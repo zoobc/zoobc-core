@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -53,6 +54,12 @@ var (
 		Use:   "escrow-approval",
 		Short: "transaction sub command used to generate 'escrow approval' transaction",
 		Long:  "transaction sub command used to generate 'escrow approval' transaction. required transaction id and approval = true:false",
+	}
+	multiSigCmd = &cobra.Command{
+		Use:   "multi-signature",
+		Short: "transaction sub command used to generate 'multi signature' transaction",
+		Long: "transaction sub command used to generate 'multi signature' transaction that require multiple account to submit their signature " +
+			"before it is valid to be executed",
 	}
 )
 
@@ -124,6 +131,18 @@ func init() {
 	*/
 	escrowApprovalCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "escrow approval body field which is int64")
 	escrowApprovalCmd.Flags().BoolVar(&approval, "approval", false, "escrow approval body field which is bool")
+	/*
+		MultiSig Command
+	*/
+	multiSigCmd.Flags().StringSliceVar(&addresses, "addresses", []string{}, "list of participants "+
+		"--addresses='address1,address2'")
+	multiSigCmd.Flags().Int64Var(&nonce, "nonce", 0, "random number / access code for the multisig info")
+	multiSigCmd.Flags().Uint32Var(&minSignature, "min-signature", 0, "minimum number of signature required for the transaction "+
+		"to be valid")
+	multiSigCmd.Flags().StringVar(&unsignedTxHex, "unsigned-transaction", "", "hex string of the unsigned transaction bytes")
+	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
+	multiSigCmd.Flags().StringSliceVar(&addressSignatures, "address-signatures", []string{}, "address-signature list "+
+		"--address-signatures='address1-signature1,address2-signature2'")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -148,6 +167,8 @@ func Commands(sqliteDB *sql.DB) *cobra.Command {
 	txCmd.AddCommand(removeAccountDatasetCmd)
 	escrowApprovalCmd.Run = txGeneratorCommandsInstance.EscrowApprovalProcess()
 	txCmd.AddCommand(escrowApprovalCmd)
+	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
+	txCmd.AddCommand(multiSigCmd)
 	return txCmd
 }
 
@@ -256,5 +277,18 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateEscrowApprovalTransaction(tx)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+	}
+}
+
+// MultiSignatureProcess for generate TX MultiSignature type
+func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
+		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addresses)
+		if tx == nil {
+			fmt.Printf("fail to generate transaction, please check the provided parameter")
+		} else {
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		}
 	}
 }

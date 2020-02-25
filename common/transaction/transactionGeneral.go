@@ -147,7 +147,6 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 		return nil, err
 	}
 	transaction.TransactionBodyLength = util.ConvertBytesToUint32(chunkedBytes)
-
 	transaction.TransactionBodyBytes, err = util.ReadTransactionBytes(buffer, int(transaction.TransactionBodyLength))
 	if err != nil {
 		return nil, err
@@ -253,6 +252,27 @@ func (tu *Util) ValidateTransaction(
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeZero",
+		)
+	}
+
+	txAction, err := (&TypeSwitcher{Executor: queryExecutor}).GetTransactionType(tx)
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.AppErr,
+			"FailToGetTxType",
+		)
+	}
+	minFee, err := txAction.GetMinimumFee()
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.AppErr,
+			"FailToGetTxMinFee",
+		)
+	}
+	if tx.Fee < minFee {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxFeeLessThanMinimumRequiredFee",
 		)
 	}
 	if tx.SenderAccountAddress == "" {

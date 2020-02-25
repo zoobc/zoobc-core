@@ -380,6 +380,14 @@
   revision = "c55f737395bc849274c1d1a35ca6f29a4e568092"
 
 [[projects]]
+  digest = "1:5a1cf4e370bc86137b58da2ae065e76526d32b11f62a7665f36dbd5f41fa95ff"
+  name = "github.com/ugorji/go"
+  packages = ["codec"]
+  pruneopts = "UT"
+  revision = "23ab95ef5dc3b70286760af84ce2327a2b64ed62"
+  version = "v1.1.7"
+
+[[projects]]
   branch = "master"
   digest = "1:85d4421f1e4b71165fb2843c5ad105554bfb39d1543a925664cb4e1c1d399661"
   name = "golang.org/x/crypto"
@@ -532,6 +540,7 @@
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
     "github.com/dgraph-io/badger",
+    "github.com/dgraph-io/badger/options",
     "github.com/golang/mock/gomock",
     "github.com/golang/protobuf/proto",
     "github.com/google/go-cmp/cmp",
@@ -548,11 +557,13 @@
     "github.com/spf13/cobra",
     "github.com/spf13/viper",
     "github.com/tyler-smith/go-bip39",
+    "github.com/ugorji/go/codec",
     "golang.org/x/crypto/ed25519",
     "golang.org/x/crypto/sha3",
     "google.golang.org/genproto/googleapis/api/annotations",
     "google.golang.org/grpc",
     "google.golang.org/grpc/codes",
+    "google.golang.org/grpc/credentials",
     "google.golang.org/grpc/grpclog",
     "google.golang.org/grpc/metadata",
     "google.golang.org/grpc/status",

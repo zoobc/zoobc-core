@@ -276,6 +276,7 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
+	fmt.Printf("signedBytes: %v\n", len(signedTxBytes))
 	return signedTxBytes
 }
 
@@ -322,5 +323,79 @@ func GenerateEscrowedTransaction(
 		Timeout:         esTimeout,
 		Instruction:     esInstruction,
 	}
+	return tx
+}
+
+/*
+GeneratedMultiSignatureTransaction inject escrow. Need:
+		1. unsignedTxHex
+		2. signatures
+		3. multisigInfo:
+			- minSignature
+			- nonce
+			- addresses
+Invalid escrow validation when those fields has not set
+*/
+func GeneratedMultiSignatureTransaction(
+	tx *model.Transaction,
+	minSignature uint32,
+	nonce int64,
+	unsignedTxHex, txHash string,
+	addressSignatures, addresses []string,
+) *model.Transaction {
+	var (
+		signatures    = make(map[string][]byte)
+		signatureInfo *model.SignatureInfo
+		unsignedTx    []byte
+		multiSigInfo  *model.MultiSignatureInfo
+		err           error
+	)
+	if minSignature > 0 && len(addresses) > 0 {
+		multiSigInfo = &model.MultiSignatureInfo{
+			MinimumSignatures: minSignature,
+			Nonce:             nonce,
+			Addresses:         addresses,
+		}
+	}
+	if unsignedTxHex != "" {
+		unsignedTx, err = hex.DecodeString(unsignedTxHex)
+		if err != nil {
+			return nil
+		}
+	}
+
+	if txHash != "" {
+		transactionHash, err := hex.DecodeString(txHash)
+		if err != nil {
+			return nil
+		}
+		for _, v := range addressSignatures {
+			asig := strings.Split(v, "-")
+			if len(asig) < 2 {
+				return nil
+			}
+			signature, err := hex.DecodeString(asig[1])
+			if err != nil {
+				return nil
+			}
+			signatures[asig[0]] = signature
+		}
+		signatureInfo = &model.SignatureInfo{
+			TransactionHash: transactionHash,
+			Signatures:      signatures,
+		}
+	}
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
+	txBody := &model.MultiSignatureTransactionBody{
+		MultiSignatureInfo:       multiSigInfo,
+		UnsignedTransactionBytes: unsignedTx,
+		SignatureInfo:            signatureInfo,
+	}
+	tx.TransactionBodyBytes = (&transaction.MultiSignatureTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
+	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
 	return tx
 }
