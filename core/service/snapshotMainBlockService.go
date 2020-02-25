@@ -62,7 +62,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 	err error) {
 	var (
 		snapshotFileHash            []byte
-		fileChunkHashes             = make([][]byte, 0)
+		fileChunkHashes             [][]byte
 		snapshotPayload             = new(model.SnapshotPayload)
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
@@ -135,6 +135,9 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error {
 	snapshotPayload, err := ss.SnapshotBasicChunkStrategy.BuildSnapshotFromChunks(snapshotFileInfo.GetSnapshotFileHash(),
 		snapshotFileInfo.GetFileChunksHashes(), ss.SnapshotPath)
+	if err != nil {
+		return err
+	}
 	err = ss.InsertSnapshotPayloadToDb(snapshotPayload)
 	if err != nil {
 		return err

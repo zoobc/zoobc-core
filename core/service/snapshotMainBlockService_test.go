@@ -171,10 +171,7 @@ type (
 	}
 	mockFileService struct {
 		FileService
-		successEncode              bool
 		successGetFileNameFromHash bool
-		successSaveBytesToFile     bool
-		successVerifyFileHash      bool
 	}
 	mockSnapshotQueryExecutor struct {
 		query.Executor
@@ -262,6 +259,7 @@ var (
 		IntermediateHashes: make([]byte, 32),
 		PublishedIndex:     100,
 		ReceiptIndex:       10,
+		BatchReceipt:       &model.BatchReceipt{},
 	}
 	escrowTx1 = &model.Escrow{
 		BlockHeight:      1,
@@ -291,8 +289,8 @@ var (
 		Timestamp: 15875392,
 	}
 	snapshotFullHash = []byte{
-		83, 224, 188, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
-		188, 144, 9, 73, 75, 6, 44, 214, 40,
+		35, 247, 199, 251, 175, 178, 67, 125, 232, 88, 96, 242, 1, 221, 39, 114, 236, 24, 1, 74, 8, 217, 208, 166, 36, 145, 70, 40,
+		100, 40, 97, 164,
 	}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
@@ -377,6 +375,33 @@ func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotP
 		snapshotChunk2Hash,
 	}
 	return snapshotFullHash, fileChunkHashes, nil
+}
+
+func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte,
+	filePath string) (*model.SnapshotPayload, error) {
+	if !mocksbcs.success {
+		return nil, errors.New("BuildSnapshotFromChunksFailed")
+	}
+	return &model.SnapshotPayload{
+		AccountBalances: []*model.AccountBalance{
+			accBal1,
+		},
+		EscrowTransactions: []*model.Escrow{
+			escrowTx1,
+		},
+		PublishedReceipts: []*model.PublishedReceipt{
+			pr1,
+		},
+		ParticipationScores: []*model.ParticipationScore{
+			ps1,
+		},
+		AccountDatasets: []*model.AccountDataset{
+			accDataSet1,
+		},
+		NodeRegistrations: []*model.NodeRegistration{
+			nr1,
+		},
+	}, nil
 }
 
 func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
@@ -612,9 +637,9 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
 			}
 			// remove generated files
-			s1 := "U-C8-ZFH8VjQBFCEWCu9XRNo_z2xsd-8kAlJSwYs1ihf"
+			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0Z"
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s1))
-			s2 := "a8B2DmoAwywFcmrNF5oN3VMlh2-Afe9nurGKc3Yyu_TR"
+			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaRg"
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s2))
 			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T_7"
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s3))
@@ -634,13 +659,16 @@ func (*mockSnapshotQueryExecutor) ExecuteTransaction(query string, args ...inter
 	return nil
 }
 
-func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
+func (*mockSnapshotQueryExecutor) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 	type fields struct {
 		SnapshotPath               string
 		chainType                  chaintype.ChainType
 		Logger                     *log.Logger
 		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
-		FileService                FileServiceInterface
 		QueryExecutor              query.ExecutorInterface
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -659,10 +687,9 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 		{
 			name: "ParseSnapshotFile_IntegrationTest:success",
 			fields: fields{
-				FileService: NewFileService(
-					log.New(),
-					new(codec.CborHandle),
-				),
+				SnapshotBasicChunkStrategy: &mockSnapshotBasicChunkStrategy{
+					success: true,
+				},
 				Logger:       log.New(),
 				SnapshotPath: "testdata/snapshots",
 				chainType: &mockChainType{
@@ -695,7 +722,7 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
-			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1, 0)
+			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1, 10000000)
 			if err != nil {
 				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error creating snapshots: %v", err)
 				return
@@ -712,14 +739,6 @@ func TestSnapshotMainBlockService_Integration_ParseSnapshotFile(t *testing.T) {
 				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
-			fName, err := tt.fields.FileService.GetFileNameFromHash(snapshotFileInfo.SnapshotFileHash)
-			if err != nil {
-				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error = %v. can't get filename from hash", err)
-				return
-			}
-			fPath := filepath.Join(tt.fields.SnapshotPath, fName)
-			_ = os.Remove(fPath)
 		})
 	}
 }

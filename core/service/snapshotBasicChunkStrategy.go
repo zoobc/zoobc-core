@@ -36,11 +36,17 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *mo
 	}
 
 	//  snapshot payload full hash (will be used to verify data integrity when assembling downloaded snapshot chunks)
-	fullHash = ss.FileService.HashPayload(b)
+	fullHash, err = ss.FileService.HashPayload(b)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	fileChunks := util.SplitByteSliceByChunkSize(b, ss.ChunkSize)
 	for _, fileChunk := range fileChunks {
-		fileChunkHash := ss.FileService.HashPayload(fileChunk)
+		fileChunkHash, err := ss.FileService.HashPayload(fileChunk)
+		if err != nil {
+			return nil, nil, err
+		}
 
 		fileChunkHashes = append(fileChunkHashes, fileChunkHash)
 

@@ -67,8 +67,8 @@ type (
 	}
 )
 
-func (*bcsMockFileService) HashPayload(b []byte) []byte {
-	return bcsSnapshotFullHash
+func (*bcsMockFileService) HashPayload(b []byte) ([]byte, error) {
+	return bcsSnapshotFullHash, nil
 }
 
 func (mfs *bcsMockFileService) EncodePayload(v interface{}) (b []byte, err error) {
@@ -221,10 +221,12 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(gotFullHash, tt.wantFullHash) {
-				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFullHash = %v, want %v", gotFullHash, tt.wantFullHash)
+				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFullHash = %v, want %v", gotFullHash,
+					tt.wantFullHash)
 			}
 			if !reflect.DeepEqual(gotFileChunkHashes, tt.wantFileChunkHashes) {
-				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFileChunkHashes = %v, want %v", gotFileChunkHashes, tt.wantFileChunkHashes)
+				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFileChunkHashes = %v, want %v",
+					gotFileChunkHashes, tt.wantFileChunkHashes)
 			}
 		})
 	}

@@ -20,7 +20,7 @@ type (
 		GetFileNameFromHash(fileHash []byte) (string, error)
 		GetHashFromFileName(fileName string) ([]byte, error)
 		VerifyFileHash(filePath string, hash []byte) (bool, error)
-		HashPayload(b []byte) []byte
+		HashPayload(b []byte) ([]byte, error)
 		EncodePayload(v interface{}) (b []byte, err error)
 		DecodePayload(b []byte, v interface{}) error
 		GetEncoderHandler() codec.Handle
@@ -96,10 +96,13 @@ func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) 
 	return nil
 }
 
-func (fs *FileService) HashPayload(b []byte) []byte {
+func (fs *FileService) HashPayload(b []byte) ([]byte, error) {
 	hasher := sha3.New256()
-	hasher.Write(b)
-	return hasher.Sum([]byte{})
+	_, err := hasher.Write(b)
+	if err != nil {
+		return nil, err
+	}
+	return hasher.Sum([]byte{}), nil
 }
 
 // GetHashFromFileName file name to hash conversion

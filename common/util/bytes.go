@@ -43,7 +43,10 @@ func ComputeFileHash(filePath string, hasher hash.Hash) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	hasher.Write(b)
+	_, err = hasher.Write(b)
+	if err != nil {
+		return nil, err
+	}
 	return hasher.Sum([]byte{}), nil
 }
 
