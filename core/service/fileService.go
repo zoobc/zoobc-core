@@ -1,12 +1,12 @@
 package service
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
-	"hash"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,11 +14,13 @@ import (
 
 type (
 	FileServiceInterface interface {
+		ReadFileByHash(filePath string, fileHash []byte) ([]byte, error)
+		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
 		GetHashFromFileName(fileName string) ([]byte, error)
 		VerifyFileHash(filePath string, hash []byte) (bool, error)
-		HashPayload(b []byte) []byte
+		HashPayload(b []byte) ([]byte, error)
 		EncodePayload(v interface{}) (b []byte, err error)
 		DecodePayload(b []byte, v interface{}) error
 		GetEncoderHandler() codec.Handle
@@ -27,24 +29,35 @@ type (
 	FileService struct {
 		Logger *log.Logger
 		h      codec.Handle
-		hasher hash.Hash
 	}
 )
 
 func NewFileService(
 	logger *log.Logger,
 	encoderHandler codec.Handle,
-	fileHasher hash.Hash,
 ) FileServiceInterface {
 	return &FileService{
 		Logger: logger,
 		h:      encoderHandler, // this variable is only set when constructing the service and never mutated
-		hasher: fileHasher,
 	}
 }
 
 func (fs *FileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
-	return util.VerifyFileHash(filePath, hash, fs.hasher)
+	return util.VerifyFileHash(filePath, hash, sha3.New256())
+}
+
+func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte, error) {
+	fileName, err := fs.GetFileNameFromHash(fileHash)
+	if err != nil {
+		return nil, err
+	}
+	filePathName := filepath.Join(filePath, fileName)
+	chunkBytes, err := ioutil.ReadFile(filePathName)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.AppErr,
+			fmt.Sprintf("Cannot read file from storage. file : %s Error: %v", filePathName, err))
+	}
+	return chunkBytes, nil
 }
 
 func (fs *FileService) GetEncoderHandler() codec.Handle {
@@ -83,9 +96,13 @@ func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) 
 	return nil
 }
 
-func (fs *FileService) HashPayload(b []byte) []byte {
-	h := sha3.Sum256(b)
-	return h[:]
+func (fs *FileService) HashPayload(b []byte) ([]byte, error) {
+	hasher := sha3.New256()
+	_, err := hasher.Write(b)
+	if err != nil {
+		return nil, err
+	}
+	return hasher.Sum([]byte{}), nil
 }
 
 // GetHashFromFileName file name to hash conversion
@@ -112,4 +129,19 @@ func (*FileService) GetFileNameFromHash(fileHash []byte) (string, error) {
 		)
 	}
 	return fileName, nil
+}
+
+// DeleteFilesByHash remove a list of files by their hash/names
+func (fs *FileService) DeleteFilesByHash(filePath string, fileHashes [][]byte) error {
+	for _, fileChunkHash := range fileHashes {
+		fileName, err := fs.GetFileNameFromHash(fileChunkHash)
+		if err != nil {
+			return err
+		}
+		filePathName := filepath.Join(filePath, fileName)
+		if err := os.Remove(filePathName); err != nil {
+			return err
+		}
+	}
+	return nil
 }
