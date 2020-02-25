@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ugorji/go/codec"
-	"golang.org/x/crypto/sha3"
 	"net/http"
 	"os"
 	"os/signal"
@@ -62,6 +61,7 @@ var (
 	blockServices                                 = make(map[int32]service.BlockServiceInterface)
 	snapshotBlockServices                         = make(map[int32]service.SnapshotBlockServiceInterface)
 	mainchainBlockService                         *service.BlockService
+	mainBlockSnapshotChunkStrategy                service.SnapshotChunkStrategyInterface
 	spinechainBlockService                        *service.BlockSpineService
 	fileDownloadService                           service.FileDownloaderServiceInterface
 	mempoolServices                               = make(map[int32]service.MempoolServiceInterface)
@@ -167,13 +167,16 @@ func init() {
 	fileService = service.NewFileService(
 		loggerCoreService,
 		new(codec.CborHandle),
-		sha3.New256(),
+	)
+	mainBlockSnapshotChunkStrategy = service.NewSnapshotBasicChunkStrategy(
+		constant.SnapshotChunkSize,
+		fileService,
 	)
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
 		snapshotPath,
 		queryExecutor,
 		loggerCoreService,
-		fileService,
+		mainBlockSnapshotChunkStrategy,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),

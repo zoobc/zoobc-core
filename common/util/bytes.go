@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"hash"
-	"io"
-	"os"
+	"io/ioutil"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 )
@@ -40,13 +39,26 @@ func VerifyFileHash(filePath string, hash []byte, hasher hash.Hash) (bool, error
 }
 
 func ComputeFileHash(filePath string, hasher hash.Hash) ([]byte, error) {
-	f, err := os.Open(filePath)
+	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	if _, err := io.Copy(hasher, f); err != nil {
+	_, err = hasher.Write(b)
+	if err != nil {
 		return nil, err
 	}
-	return hasher.Sum(nil), nil
+	return hasher.Sum([]byte{}), nil
+}
+
+// SplitByteSliceByChunkSize split a byte slice into multiple chunks of equal size,
+// beside the last chunk which could be shorter than the others, if the original slice's length is not multiple of chunkSize
+func SplitByteSliceByChunkSize(b []byte, chunkSize int) (splitSlice [][]byte) {
+	for i := 0; i < len(b); i += chunkSize {
+		end := i + chunkSize
+		if end > len(b) {
+			end = len(b)
+		}
+		splitSlice = append(splitSlice, b[i:end])
+	}
+	return splitSlice
 }

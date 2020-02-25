@@ -275,8 +275,8 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				ct: &chaintype.MainChain{},
 			},
 			wantErr: true,
-			errMsg: "AppErr: One or more snapshot chunks failed to download [vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO" +
-				" vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO]",
+			errMsg: "AppErr: One or more snapshot chunks failed to download [AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+				" AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
 		},
 		{
 			name: "DownloadSnapshot:success",
