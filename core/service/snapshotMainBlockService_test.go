@@ -420,8 +420,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 	type args struct {
-		block          *model.Block
-		chunkSizeBytes int
+		block *model.Block
 	}
 	tests := []struct {
 		name    string
@@ -505,7 +504,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
-			got, err := ss.NewSnapshotFile(tt.args.block, tt.args.chunkSizeBytes)
+			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
 				if tt.wantErr {
 					if tt.errMsg != err.Error() {
@@ -543,8 +542,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 	type args struct {
-		block          *model.Block
-		chunkSizeBytes int
+		block *model.Block
 	}
 	tests := []struct {
 		name   string
@@ -627,7 +625,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
-			got, err := ss.NewSnapshotFile(tt.args.block, tt.args.chunkSizeBytes)
+			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
 				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() error = %v", err)
 				return
@@ -722,7 +720,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
-			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1, 10000000)
+			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {
 				t.Errorf("SnapshotMainBlockService.ImportSnapshotFile() error creating snapshots: %v", err)
 				return

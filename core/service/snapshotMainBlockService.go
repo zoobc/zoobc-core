@@ -58,7 +58,7 @@ func NewSnapshotMainBlockService(
 }
 
 // NewSnapshotFile creates a new snapshot file (or multiple file chunks) and return the snapshotFileInfo
-func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSizeBytes int) (snapshotFileInfo *model.SnapshotFileInfo,
+func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapshotFileInfo *model.SnapshotFileInfo,
 	err error) {
 	var (
 		snapshotFileHash            []byte

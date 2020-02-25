@@ -74,7 +74,7 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 				return nil, fmt.Errorf("snapshots for chaintype %s not implemented", ct.GetName())
 			}
 			generatingSnapshot[ct.GetTypeInt()] = true
-			snapshotInfo, err := snapshotBlockService.NewSnapshotFile(block, snapshotChunkBytesLength)
+			snapshotInfo, err := snapshotBlockService.NewSnapshotFile(block)
 			generatingSnapshot[ct.GetTypeInt()] = false
 			return snapshotInfo, err
 		}
