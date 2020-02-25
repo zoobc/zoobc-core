@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -12,9 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 type (
@@ -80,7 +81,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		snapshotPayload             = new(SnapshotPayload)
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
-		snapshotPayloadHeight int = int(block.Height) - int(constant.MinRollbackBlocks)
+		snapshotPayloadHeight = int(block.Height) - int(constant.MinRollbackBlocks)
 	)
 
 	if snapshotPayloadHeight <= 0 {
