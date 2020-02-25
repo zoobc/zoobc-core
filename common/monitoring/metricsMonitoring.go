@@ -107,7 +107,7 @@ func SetMonitoringActive(isActive bool) {
 	statusLockGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_status_lock",
 		Help: "Status lock counter",
-	}, []string{"blocker_type"})
+	}, []string{"chaintype", "status_lock_type"})
 	prometheus.MustRegister(statusLockGaugeVector)
 
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -235,20 +235,20 @@ func IncrementBlockerMetrics(typeBlocker string) {
 	blockerCounterVector.WithLabelValues(typeBlocker).Inc()
 }
 
-func IncrementStatusLockCounter(typeStatusLock int) {
+func IncrementStatusLockCounter(chainType chaintype.ChainType, typeStatusLock int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	statusLockGaugeVector.WithLabelValues(fmt.Sprintf("%d", typeStatusLock)).Inc()
+	statusLockGaugeVector.WithLabelValues(chainType.GetName(), fmt.Sprintf("%d", typeStatusLock)).Inc()
 }
 
-func DecrementStatusLockCounter(typeStatusLock int) {
+func DecrementStatusLockCounter(chainType chaintype.ChainType, typeStatusLock int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	statusLockGaugeVector.WithLabelValues(fmt.Sprintf("%d", typeStatusLock)).Dec()
+	statusLockGaugeVector.WithLabelValues(chainType.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
 }
 
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {
