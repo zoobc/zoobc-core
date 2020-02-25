@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -13,6 +14,7 @@ import (
 
 type (
 	FileServiceInterface interface {
+		ReadFileByHash(filePath string, fileHash []byte) ([]byte, error)
 		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
@@ -42,6 +44,20 @@ func NewFileService(
 
 func (fs *FileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
 	return util.VerifyFileHash(filePath, hash, sha3.New256())
+}
+
+func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte, error) {
+	fileName, err := fs.GetFileNameFromHash(fileHash)
+	if err != nil {
+		return nil, err
+	}
+	filePathName := filepath.Join(filePath, fileName)
+	chunkBytes, err := ioutil.ReadFile(filePathName)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.AppErr,
+			fmt.Sprintf("Cannot read file from storage. file : %s Error: %v", filePathName, err))
+	}
+	return chunkBytes, nil
 }
 
 func (fs *FileService) GetEncoderHandler() codec.Handle {

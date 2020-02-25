@@ -2,12 +2,10 @@ package service
 
 import (
 	"bytes"
-	"fmt"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
-	"io/ioutil"
 	"path/filepath"
 )
 
@@ -81,15 +79,9 @@ func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, f
 	)
 
 	for _, fileChunkHash := range fileChunkHashes {
-		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
+		chunkBytes, err := ss.FileService.ReadFileByHash(filePath, fileChunkHash)
 		if err != nil {
 			return nil, err
-		}
-		filePathName := filepath.Join(filePath, fileName)
-		chunkBytes, err := ioutil.ReadFile(filePathName)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.AppErr,
-				fmt.Sprintf("Cannot read snapshot file chunk from disk: %v", err))
 		}
 		buffer.Write(chunkBytes)
 	}
@@ -97,7 +89,7 @@ func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, f
 	payloadHash := sha3.Sum256(b)
 	if !bytes.Equal(payloadHash[:], fullHash) {
 		return nil, blocker.NewBlocker(blocker.ValidationErr,
-			"Snapshot's file payload hash doesn't match with the one in database")
+			"Snapshot file payload hash different from the one in database")
 	}
 	// decode the snapshot payload
 	err := ss.FileService.DecodePayload(b, &snapshotPayload)
