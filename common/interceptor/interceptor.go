@@ -3,8 +3,14 @@ package interceptor
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/signal"
 	"runtime"
+	"sync"
+	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -15,6 +21,70 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+type simpleRateLimiter struct {
+	numberOfAllowedRequest int32
+	numberOfRequest        int32
+	sync.Mutex
+}
+
+func (rl *simpleRateLimiter) isAllowed() bool {
+	rl.Lock()
+	defer rl.Unlock()
+	if rl.numberOfRequest >= rl.numberOfAllowedRequest {
+		return false
+	}
+	rl.numberOfRequest++
+	return true
+}
+
+func (rl *simpleRateLimiter) requestFinished() {
+	rl.Lock()
+	defer rl.Unlock()
+	rl.numberOfRequest--
+}
+
+func (rl *simpleRateLimiter) start() {
+	ticker := time.NewTicker(time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		select {
+		case <-ticker.C:
+			func() {
+				rl.Lock()
+				defer rl.Unlock()
+				rl.numberOfRequest = 0
+			}()
+		case <-sigs:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+/*
+NewServerRateLimiterInterceptor function can used to add rate limit to the server call
+*/
+
+func NewServerRateLimiterInterceptor(requestLimitPerSecond int32) grpc.UnaryServerInterceptor {
+	rateLimiter := &simpleRateLimiter{
+		numberOfAllowedRequest: requestLimitPerSecond,
+	}
+	go rateLimiter.start()
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		if !rateLimiter.isAllowed() {
+			return nil, status.Error(codes.ResourceExhausted, "requests are limited")
+		}
+		defer rateLimiter.requestFinished()
+		return handler(ctx, req)
+	}
+}
 
 /*
 NewServerInterceptor function can use to inject middleware like:
@@ -41,6 +111,8 @@ func NewServerInterceptor(
 			fields                    logrus.Fields
 		)
 
+		monitoring.IncrementRunningAPIHandling(info.FullMethod)
+
 		fields = logrus.Fields{
 			"method": info.FullMethod,
 			"time":   start.String(),
@@ -49,10 +121,13 @@ func NewServerInterceptor(
 
 		defer func() {
 			var (
-				err = recover()
+				err     = recover()
+				latency = time.Since(start)
 			)
 
-			fields["latency"] = fmt.Sprintf("%d ns", time.Since(start).Nanoseconds())
+			fields["latency"] = fmt.Sprintf("%d ns", latency.Nanoseconds())
+			monitoring.SetAPIResponseTime(info.FullMethod, latency.Seconds())
+			monitoring.DecrementRunningAPIHandling(info.FullMethod)
 			if err != nil {
 				// get stack after panic called and perhaps its first error
 				_, file, line, _ := runtime.Caller(4)
