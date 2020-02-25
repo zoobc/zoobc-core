@@ -80,7 +80,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		snapshotPayload             = new(SnapshotPayload)
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
-		snapshotPayloadHeight int = int(block.Height) - int(constant.MinRollbackBlocks)
+		snapshotPayloadHeight = int(block.Height) - int(constant.MinRollbackBlocks)
 	)
 
 	if snapshotPayloadHeight <= 0 {

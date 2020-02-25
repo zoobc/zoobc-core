@@ -21,6 +21,15 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 )
 
+type (
+	mockMainBlockCainStatusService struct {
+		service.MainBlockStatusService
+	}
+	mockSpineBlockCainStatusService struct {
+		service.SpineBlockStatusService
+	}
+)
+
 var (
 	blocksmith              *model.Blocksmith
 	chainType               chaintype.ChainType
@@ -50,7 +59,16 @@ var (
 			generateBlocks(numberOfBlocks, blocksmithSecretPhrase, outputPath)
 		},
 	}
+	mockBlockCainStatusServices map[int32]service.BlockStatusServiceInterface
 )
+
+func (*mockMainBlockCainStatusService) IsFirstDownloadFinished() bool {
+	return true
+}
+
+func (*mockSpineBlockCainStatusService) IsFirstDownloadFinished() bool {
+	return true
+}
 
 func init() {
 	fakeBlockCmd.Flags().IntVar(
@@ -81,6 +99,8 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
+	mockBlockCainStatusServices[0] = &mockMainBlockCainStatusService{}
+	mockBlockCainStatusServices[1] = &mockSpineBlockCainStatusService{}
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
@@ -194,6 +214,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blocksmith,
 		blockService,
 		log.New(),
+		mockBlockCainStatusServices,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

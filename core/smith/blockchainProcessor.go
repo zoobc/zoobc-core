@@ -1,6 +1,7 @@
 package smith
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -22,12 +23,13 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		Generator    *model.Blocksmith
-		BlockService service.BlockServiceInterface
-		LastBlockID  int64
-		Logger       *log.Logger
-		isSmithing   bool
-		smithError   error
+		Generator           *model.Blocksmith
+		BlockService        service.BlockServiceInterface
+		LastBlockID         int64
+		Logger              *log.Logger
+		isSmithing          bool
+		smithError          error
+		BlockStatusServices map[int32]service.BlockStatusServiceInterface
 	}
 )
 
@@ -40,11 +42,13 @@ func NewBlockchainProcessor(
 	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
 	logger *log.Logger,
+	blockStatusServices map[int32]service.BlockStatusServiceInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		Generator:    blocksmith,
-		BlockService: blockService,
-		Logger:       logger,
+		Generator:           blocksmith,
+		BlockService:        blockService,
+		Logger:              logger,
+		BlockStatusServices: blockStatusServices,
 	}
 }
 
@@ -162,6 +166,9 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 
 // Start starts the blockchainProcessor
 func (bp *BlockchainProcessor) Start(sleepPeriod int) {
+	var (
+		mainchain = &chaintype.MainChain{}
+	)
 	ticker := time.NewTicker(time.Duration(sleepPeriod) * time.Millisecond)
 	stopSmith = make(chan bool)
 	go func() {
@@ -174,14 +181,17 @@ func (bp *BlockchainProcessor) Start(sleepPeriod int) {
 				bp.smithError = nil
 				return
 			case <-ticker.C:
-				err := bp.StartSmithing()
-				if err != nil {
-					bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
-					bp.isSmithing = false
-					bp.smithError = err
+				// when starting a node, do not start smithing until the main blocks have been fully downloaded
+				if bp.BlockStatusServices[mainchain.GetTypeInt()].IsFirstDownloadFinished() {
+					err := bp.StartSmithing()
+					if err != nil {
+						bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
+						bp.isSmithing = false
+						bp.smithError = err
+					}
+					bp.isSmithing = true
+					bp.smithError = nil
 				}
-				bp.isSmithing = true
-				bp.smithError = nil
 			}
 		}
 	}()

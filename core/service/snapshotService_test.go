@@ -229,7 +229,7 @@ func (mfdf *mockFileDownloaderService) DownloadFileByName(fileName string, fileH
 func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 	type fields struct {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		SpineBlockDownloadService SpineBlockDownloadServiceInterface
+		BlockStatusServices       map[int32]BlockStatusServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
 		FileDownloaderService     FileDownloaderServiceInterface
 		FileService               FileServiceInterface
@@ -237,6 +237,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 	}
 	type args struct {
 		spineBlockManifest *model.SpineBlockManifest
+		ct                 chaintype.ChainType
 	}
 	tests := []struct {
 		name    string
@@ -251,6 +252,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				spineBlockManifest: &model.SpineBlockManifest{
 					FileChunkHashes: make([]byte, 0),
 				},
+				ct: &chaintype.MainChain{},
 			},
 			wantErr: true,
 			errMsg:  "ValidationErr: invalid file chunks hashes length",
@@ -270,6 +272,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				spineBlockManifest: &model.SpineBlockManifest{
 					FileChunkHashes: make([]byte, 64),
 				},
+				ct: &chaintype.MainChain{},
 			},
 			wantErr: true,
 			errMsg: "AppErr: One or more snapshot chunks failed to download [vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO" +
@@ -290,6 +293,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				spineBlockManifest: &model.SpineBlockManifest{
 					FileChunkHashes: make([]byte, 64),
 				},
+				ct: &chaintype.MainChain{},
 			},
 		},
 	}
@@ -297,13 +301,13 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotService{
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
-				SpineBlockDownloadService: tt.fields.SpineBlockDownloadService,
+				BlockStatusServices:       tt.fields.BlockStatusServices,
 				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
 				FileDownloaderService:     tt.fields.FileDownloaderService,
 				FileService:               tt.fields.FileService,
 				Logger:                    tt.fields.Logger,
 			}
-			if err := ss.DownloadSnapshot(tt.args.spineBlockManifest); err != nil {
+			if err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); err != nil {
 				if !tt.wantErr {
 					t.Errorf("SnapshotService.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
 				}

@@ -13,9 +13,10 @@ import (
 
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
-		blocksmith   *model.Blocksmith
-		blockService service.BlockServiceInterface
-		logger       *log.Logger
+		blocksmith          *model.Blocksmith
+		blockService        service.BlockServiceInterface
+		logger              *log.Logger
+		blockStatusServices map[int32]service.BlockStatusServiceInterface
 	}
 	tests := []struct {
 		name string
@@ -25,12 +26,14 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				blocksmith:   &model.Blocksmith{},
-				blockService: &service.BlockService{},
+				blocksmith:          &model.Blocksmith{},
+				blockService:        &service.BlockService{},
+				blockStatusServices: make(map[int32]service.BlockStatusServiceInterface),
 			},
 			want: &BlockchainProcessor{
-				BlockService: &service.BlockService{},
-				Generator:    &model.Blocksmith{},
+				BlockService:        &service.BlockService{},
+				Generator:           &model.Blocksmith{},
+				BlockStatusServices: make(map[int32]service.BlockStatusServiceInterface),
 			},
 		},
 	}
@@ -40,6 +43,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				tt.args.blocksmith,
 				tt.args.blockService,
 				tt.args.logger,
+				tt.args.blockStatusServices,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}
