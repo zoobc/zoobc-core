@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -331,29 +332,25 @@ func startServices() {
 		mempoolServices,
 		observerInstance,
 	)
-	// api.Start(
-	// 	apiRPCPort,
-	// 	apiHTTPPort,
-	// 	kvExecutor,
-	// 	queryExecutor,
-	// 	p2pServiceInstance,
-	// 	blockServices,
-	// 	nodeRegistrationService,
-	// 	ownerAccountAddress,
-	// 	nodeKeyFilePath,
-	// 	loggerAPIService,
-	// 	isDebugMode,
-	// 	apiCertFile,
-	// 	apiKeyFile,
-	// 	transactionUtil,
-	// 	receiptUtil,
-	// 	receiptService,
-	// 	transactionCoreServiceIns,
-	// )
-
-	if isDebugMode {
-		go startNodeMonitoring()
-	}
+	api.Start(
+		apiRPCPort,
+		apiHTTPPort,
+		kvExecutor,
+		queryExecutor,
+		p2pServiceInstance,
+		blockServices,
+		nodeRegistrationService,
+		ownerAccountAddress,
+		nodeKeyFilePath,
+		loggerAPIService,
+		isDebugMode,
+		apiCertFile,
+		apiKeyFile,
+		transactionUtil,
+		receiptUtil,
+		receiptService,
+		transactionCoreServiceIns,
+	)
 }
 
 func startNodeMonitoring() {
@@ -361,10 +358,12 @@ func startNodeMonitoring() {
 	monitoring.SetMonitoringActive(true)
 	monitoring.SetNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
 	http.Handle("/metrics", promhttp.Handler())
-	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to start monitoring service: %s", err))
-	}
+	go func() {
+		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+		if err != nil {
+			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
+		}
+	}()
 }
 
 func startMainchain() {
@@ -374,7 +373,7 @@ func startMainchain() {
 		sleepPeriod                                 = 500
 	)
 	mainchain := &chaintype.MainChain{}
-	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		mainchain,
@@ -518,7 +517,7 @@ func startSpinechain() {
 		nodeID int64
 	)
 	spinechain := &chaintype.SpineChain{}
-	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 	sleepPeriod := 500
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
@@ -674,6 +673,10 @@ func main() {
 
 	if err := migration.Apply(); err != nil {
 		loggerCoreService.Fatal(err)
+	}
+
+	if isDebugMode {
+		startNodeMonitoring()
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)
