@@ -48,7 +48,6 @@ private key both in bytes and hex representation + the secret phrase
 		Long: "multisig allow to generate multi sig account address" +
 			"provides account addresses, nonce, and minimum assignment",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(multisigAddresses)
 			info := &model.MultiSignatureInfo{
 				MinimumSignatures: multisigMinimSigs,
 				Nonce:             multiSigNonce,
