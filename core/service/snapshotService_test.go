@@ -131,87 +131,6 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 	return 15
 }
 
-// FIXME: uncomment and fix the test once this method is completed
-// func TestSnapshotService_GenerateSnapshot(t *testing.T) {
-// 	type fields struct {
-// 		QueryExecutor             query.ExecutorInterface
-// 		SpineBlockManifestQuery            query.SpineBlockManifestQueryInterface
-// 		SpineBlockQuery           query.BlockQueryInterface
-// 		MainBlockQuery            query.BlockQueryInterface
-// 		FileChunkQuery        query.FileChunkQueryInterface
-// 		Logger                    *log.Logger
-// 		Spinechain                chaintype.ChainType
-// 		Mainchain                 chaintype.ChainType
-// 		MainchainSnapshotInterval          int64
-// 		SnapshotGenerationTimeout int64
-// 	}
-// 	type args struct {
-// 		mainHeight uint32
-// 		ct         chaintype.ChainType
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		args    args
-// 		want    *model.SpineBlockManifest
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "GenerateSnapshot:success",
-// 			fields: fields{
-// 				QueryExecutor: &mockSnapshotServiceQueryExecutor{
-// 					testName: "GenerateSnapshot:success",
-// 				},
-// 				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
-// 				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
-// 				SpineBlockManifestQuery:            query.NewSpineBlockManifestQuery(),
-// 				FileChunkQuery:        query.NewFileChunkQuery(),
-// 				Logger:                    log.New(),
-// 				Spinechain:                &mockSpinechain{},
-// 				Mainchain:                 &mockMainchain{},
-// 				MainchainSnapshotInterval:          ssSnapshotInterval,
-// 				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-// 			},
-// 			args: args{
-// 				mainHeight: ssMockMainBlock.Height,
-// 				ct:         &chaintype.MainChain{},
-// 			},
-// 			wantErr: false,
-// 			want: &model.SpineBlockManifest{
-// 				ID: int64(1919891213155270003),
-// 				FullFileHash:     make([]byte, 64),
-// 				SpineBlockManifestHeight:  ssMockMainBlock.Height,
-// 				SpineBlockHeight: uint32(419),
-// 				FileChunks:   make([]*model.FileChunk, 0),
-// 			},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			ss := &SnapshotService{
-// 				QueryExecutor:             tt.fields.QueryExecutor,
-// 				SpineBlockManifestQuery:            tt.fields.SpineBlockManifestQuery,
-// 				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-// 				MainBlockQuery:            tt.fields.MainBlockQuery,
-// 				FileChunkQuery:        tt.fields.FileChunkQuery,
-// 				Logger:                    tt.fields.Logger,
-// 				Spinechain:                tt.fields.Spinechain,
-// 				Mainchain:                 tt.fields.Mainchain,
-// 				MainchainSnapshotInterval:          tt.fields.MainchainSnapshotInterval,
-// 				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
-// 			}
-// 			got, err := ss.GenerateSnapshot(tt.args.mainHeight, tt.args.ct)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("SnapshotService.GenerateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("SnapshotService.GenerateSnapshot() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
-
 type (
 	mockFileDownloaderService struct {
 		FileDownloaderService
@@ -229,7 +148,7 @@ func (mfdf *mockFileDownloaderService) DownloadFileByName(fileName string, fileH
 func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 	type fields struct {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		SpineBlockDownloadService SpineBlockDownloadServiceInterface
+		BlockTypeStatusService    BlockTypeStatusServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
 		FileDownloaderService     FileDownloaderServiceInterface
 		FileService               FileServiceInterface
@@ -237,6 +156,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 	}
 	type args struct {
 		spineBlockManifest *model.SpineBlockManifest
+		ct                 chaintype.ChainType
 	}
 	tests := []struct {
 		name    string
@@ -251,6 +171,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				spineBlockManifest: &model.SpineBlockManifest{
 					FileChunkHashes: make([]byte, 0),
 				},
+				ct: &chaintype.MainChain{},
 			},
 			wantErr: true,
 			errMsg:  "ValidationErr: invalid file chunks hashes length",
@@ -270,6 +191,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				spineBlockManifest: &model.SpineBlockManifest{
 					FileChunkHashes: make([]byte, 64),
 				},
+				ct: &chaintype.MainChain{},
 			},
 			wantErr: true,
 			errMsg: "AppErr: One or more snapshot chunks failed to download [AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
@@ -290,6 +212,7 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 				spineBlockManifest: &model.SpineBlockManifest{
 					FileChunkHashes: make([]byte, 64),
 				},
+				ct: &chaintype.MainChain{},
 			},
 		},
 	}
@@ -297,13 +220,13 @@ func TestSnapshotService_DownloadSnapshot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotService{
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
-				SpineBlockDownloadService: tt.fields.SpineBlockDownloadService,
+				BlockTypeStatusService:    tt.fields.BlockTypeStatusService,
 				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
 				FileDownloaderService:     tt.fields.FileDownloaderService,
 				FileService:               tt.fields.FileService,
 				Logger:                    tt.fields.Logger,
 			}
-			if err := ss.DownloadSnapshot(tt.args.spineBlockManifest); err != nil {
+			if err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); err != nil {
 				if !tt.wantErr {
 					t.Errorf("SnapshotService.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
 				}
