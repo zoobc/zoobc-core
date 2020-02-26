@@ -25,7 +25,7 @@ type (
 
 	SnapshotService struct {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlockStatusServices       map[int32]BlockStatusServiceInterface
+		BlockTypeStatusService    BlockTypeStatusServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface // map key = chaintype number (eg. mainchain = 0)
 		FileDownloaderService     FileDownloaderServiceInterface
 		FileService               FileServiceInterface
@@ -42,7 +42,7 @@ var (
 
 func NewSnapshotService(
 	spineBlockManifestService SpineBlockManifestServiceInterface,
-	blockStatusServices map[int32]BlockStatusServiceInterface,
+	blockTypeStatusService BlockTypeStatusServiceInterface,
 	snapshotBlockServices map[int32]SnapshotBlockServiceInterface,
 	fileDownloaderService FileDownloaderServiceInterface,
 	fileService FileServiceInterface,
@@ -50,7 +50,7 @@ func NewSnapshotService(
 ) *SnapshotService {
 	return &SnapshotService{
 		SpineBlockManifestService: spineBlockManifestService,
-		BlockStatusServices:       blockStatusServices,
+		BlockTypeStatusService:    blockTypeStatusService,
 		SnapshotBlockServices:     snapshotBlockServices,
 		FileDownloaderService:     fileDownloaderService,
 		FileService:               fileService,
@@ -114,8 +114,8 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 					go func() {
 						// if spine and main blocks are still downloading, after the node has started,
 						// do not generate (or download from other peers) snapshots
-						if !ss.BlockStatusServices[0].IsFirstDownloadFinished() && !ss.BlockStatusServices[1].
-							IsFirstDownloadFinished() {
+						if !ss.BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) && !ss.
+							BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.SpineChain{}) {
 							ss.Logger.Infof("Snapshot at block "+
 								"height %d not generated because spine blocks are still downloading",
 								block.Height)

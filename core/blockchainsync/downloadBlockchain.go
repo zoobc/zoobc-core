@@ -26,13 +26,13 @@ type (
 		ConfirmWithPeer(peerToCheck *model.Peer, commonMilestoneBlockID int64) ([]int64, error)
 	}
 	BlockchainDownloader struct {
-		PeerHasMore         bool
-		ChainType           chaintype.ChainType
-		BlockService        service.BlockServiceInterface
-		PeerServiceClient   client.PeerServiceClientInterface
-		PeerExplorer        strategy.PeerExplorerStrategyInterface
-		Logger              *log.Logger
-		BlockStatusServices map[int32]service.BlockStatusServiceInterface
+		PeerHasMore            bool
+		ChainType              chaintype.ChainType
+		BlockService           service.BlockServiceInterface
+		PeerServiceClient      client.PeerServiceClientInterface
+		PeerExplorer           strategy.PeerExplorerStrategyInterface
+		Logger                 *log.Logger
+		BlockTypeStatusService service.BlockTypeStatusServiceInterface
 	}
 
 	PeerBlockchainInfo struct {
@@ -53,15 +53,15 @@ func NewBlockchainDownloader(
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	logger *log.Logger,
-	blockStatusServices map[int32]service.BlockStatusServiceInterface,
+	blockTypeStatusService service.BlockTypeStatusServiceInterface,
 ) *BlockchainDownloader {
 	return &BlockchainDownloader{
-		ChainType:           blockService.GetChainType(),
-		BlockService:        blockService,
-		PeerServiceClient:   peerServiceClient,
-		PeerExplorer:        peerExplorer,
-		Logger:              logger,
-		BlockStatusServices: blockStatusServices,
+		ChainType:              blockService.GetChainType(),
+		BlockService:           blockService,
+		PeerServiceClient:      peerServiceClient,
+		PeerExplorer:           peerExplorer,
+		Logger:                 logger,
+		BlockTypeStatusService: blockTypeStatusService,
 	}
 }
 
@@ -77,7 +77,7 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
 	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
 		// we only initialize this flag (to false) in main, so once is set to true, it will always be true
-		bd.BlockStatusServices[bd.ChainType.GetTypeInt()].SetFirstDownloadFinished(true)
+		bd.BlockTypeStatusService.SetFirstDownloadFinished(bd.ChainType, true)
 		return true
 	}
 	return false
@@ -156,9 +156,9 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 		}, blocker.NewBlocker(blocker.ChainValidationErr, "invalid common block")
 	}
 
-	if !bd.BlockStatusServices[bd.ChainType.GetTypeInt()].IsDownloading() && peerHeight-commonBlock.GetHeight() > 10 {
+	if !bd.BlockTypeStatusService.IsDownloading(bd.ChainType) && peerHeight-commonBlock.GetHeight() > 10 {
 		bd.Logger.Info("Blockchain download in progress")
-		bd.BlockStatusServices[bd.ChainType.GetTypeInt()].SetIsDownloading(true)
+		bd.BlockTypeStatusService.SetIsDownloading(bd.ChainType, true)
 	}
 
 	return &PeerBlockchainInfo{

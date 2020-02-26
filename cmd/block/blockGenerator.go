@@ -22,11 +22,8 @@ import (
 )
 
 type (
-	mockMainBlockStatusService struct {
-		service.MainBlockStatusService
-	}
-	mockSpineBlockStatusService struct {
-		service.SpineBlockStatusService
+	mockBlockTypeStatusService struct {
+		service.BlockTypeStatusService
 	}
 )
 
@@ -59,14 +56,13 @@ var (
 			generateBlocks(numberOfBlocks, blocksmithSecretPhrase, outputPath)
 		},
 	}
-	mockBlockStatusServices map[int32]service.BlockStatusServiceInterface
 )
 
-func (*mockMainBlockStatusService) IsFirstDownloadFinished() bool {
+func (*mockBlockTypeStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
 	return true
 }
 
-func (*mockSpineBlockStatusService) IsFirstDownloadFinished() bool {
+func (*mockBlockTypeStatusService) IsDownloading(ct chaintype.ChainType) bool {
 	return true
 }
 
@@ -99,8 +95,6 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
-	mockBlockStatusServices[0] = &mockMainBlockStatusService{}
-	mockBlockStatusServices[1] = &mockSpineBlockStatusService{}
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
@@ -214,7 +208,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blocksmith,
 		blockService,
 		log.New(),
-		mockBlockStatusServices,
+		&mockBlockTypeStatusService{},
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

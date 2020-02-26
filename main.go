@@ -88,7 +88,7 @@ var (
 	chainTypes                                    = chaintype.GetChainTypes()
 	mainchain                                     = &chaintype.MainChain{}
 	spinechain                                    = &chaintype.SpineChain{}
-	blockStatusServices                           = make(map[int32]service.BlockStatusServiceInterface)
+	blockTypeStatusService                        service.BlockTypeStatusServiceInterface
 )
 
 func init() {
@@ -156,8 +156,7 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
-	blockStatusServices[spinechain.GetTypeInt()] = service.NewSpineBlockStatusService()
-	blockStatusServices[mainchain.GetTypeInt()] = service.NewMainBlockStatusService()
+	blockTypeStatusService = service.NewBlockTypeStatusService()
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -193,7 +192,7 @@ func init() {
 	)
 	snapshotService = service.NewSnapshotService(
 		spineBlockManifestService,
-		blockStatusServices,
+		blockTypeStatusService,
 		snapshotBlockServices,
 		fileDownloadService,
 		fileService,
@@ -546,7 +545,7 @@ func startMainchain() {
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
 				loggerCoreService,
-				blockStatusServices,
+				blockTypeStatusService,
 			)
 			mainchainProcessor.Start(sleepPeriod)
 		}
@@ -564,7 +563,7 @@ func startMainchain() {
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 		),
-		blockStatusServices,
+		blockTypeStatusService,
 	)
 }
 
@@ -610,7 +609,7 @@ func startSpinechain() {
 			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
 			loggerCoreService,
-			blockStatusServices,
+			blockTypeStatusService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}
@@ -625,7 +624,7 @@ func startSpinechain() {
 		kvExecutor,
 		transactionUtil,
 		transactionCoreServiceIns,
-		blockStatusServices,
+		blockTypeStatusService,
 	)
 }
 
@@ -691,7 +690,7 @@ syncronizersLoop:
 				loggerCoreService.Errorf("cannot get last spine block")
 				os.Exit(1)
 			}
-			if blockStatusServices[spinechain.GetTypeInt()].IsFirstDownloadFinished() {
+			if blockTypeStatusService.IsFirstDownloadFinished(spinechain) {
 				ticker.Stop()
 				// loop through all chain types that support snapshots and download them if we find relative
 				// spineBlockManifest
@@ -732,6 +731,8 @@ syncronizersLoop:
 					switch ct.(type) {
 					case *chaintype.MainChain:
 						go mainchainSynchronizer.Start()
+					default:
+						loggerCoreService.Debug("invalid chaintype for snapshot")
 					}
 				}
 				break syncronizersLoop
