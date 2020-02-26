@@ -27,6 +27,7 @@ type Service struct {
 	ForkingProcessor     ForkingProcessorInterface
 	Logger               *log.Logger
 	TransactionUtil      transaction.UtilInterface
+	BlockStatusServices  map[int32]service.BlockStatusServiceInterface
 }
 
 func NewBlockchainSyncService(
@@ -40,19 +41,20 @@ func NewBlockchainSyncService(
 	kvdb kvdb.KVExecutorInterface,
 	transactionUtil transaction.UtilInterface,
 	transactionCoreService service.TransactionCoreServiceInterface,
+	blockStatusServices map[int32]service.BlockStatusServiceInterface,
 ) *Service {
 	return &Service{
 		ChainType:         blockService.GetChainType(),
 		BlockService:      blockService,
 		PeerServiceClient: peerServiceClient,
 		PeerExplorer:      peerExplorer,
-		BlockchainDownloader: &BlockchainDownloader{
-			ChainType:         blockService.GetChainType(),
-			BlockService:      blockService,
-			PeerServiceClient: peerServiceClient,
-			PeerExplorer:      peerExplorer,
-			Logger:            logger,
-		},
+		BlockchainDownloader: NewBlockchainDownloader(
+			blockService,
+			peerServiceClient,
+			peerExplorer,
+			logger,
+			blockStatusServices,
+		),
 		ForkingProcessor: &ForkingProcessor{
 			ChainType:             blockService.GetChainType(),
 			BlockService:          blockService,
@@ -65,7 +67,8 @@ func NewBlockchainSyncService(
 			TransactionUtil:       transactionUtil,
 			TransactionCorService: transactionCoreService,
 		},
-		Logger: logger,
+		Logger:              logger,
+		BlockStatusServices: blockStatusServices,
 	}
 }
 
@@ -177,7 +180,7 @@ func (bss *Service) getMoreBlocks() {
 		}
 
 		if bss.BlockchainDownloader.IsDownloadFinish(lastBlock) {
-			bss.BlockchainDownloader.SetIsDownloading(false)
+			bss.BlockStatusServices[bss.ChainType.GetTypeInt()].SetIsDownloading(false)
 			bss.Logger.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), lastBlock.Height-initialHeight)
 			break
 		}

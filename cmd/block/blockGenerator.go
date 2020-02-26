@@ -22,10 +22,10 @@ import (
 )
 
 type (
-	mockMainBlockCainStatusService struct {
+	mockMainBlockStatusService struct {
 		service.MainBlockStatusService
 	}
-	mockSpineBlockCainStatusService struct {
+	mockSpineBlockStatusService struct {
 		service.SpineBlockStatusService
 	}
 )
@@ -59,14 +59,14 @@ var (
 			generateBlocks(numberOfBlocks, blocksmithSecretPhrase, outputPath)
 		},
 	}
-	mockBlockCainStatusServices map[int32]service.BlockStatusServiceInterface
+	mockBlockStatusServices map[int32]service.BlockStatusServiceInterface
 )
 
-func (*mockMainBlockCainStatusService) IsFirstDownloadFinished() bool {
+func (*mockMainBlockStatusService) IsFirstDownloadFinished() bool {
 	return true
 }
 
-func (*mockSpineBlockCainStatusService) IsFirstDownloadFinished() bool {
+func (*mockSpineBlockStatusService) IsFirstDownloadFinished() bool {
 	return true
 }
 
@@ -99,8 +99,8 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
-	mockBlockCainStatusServices[0] = &mockMainBlockCainStatusService{}
-	mockBlockCainStatusServices[1] = &mockSpineBlockCainStatusService{}
+	mockBlockStatusServices[0] = &mockMainBlockStatusService{}
+	mockBlockStatusServices[1] = &mockSpineBlockStatusService{}
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
@@ -214,7 +214,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blocksmith,
 		blockService,
 		log.New(),
-		mockBlockCainStatusServices,
+		mockBlockStatusServices,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

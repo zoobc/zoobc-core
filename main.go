@@ -564,6 +564,7 @@ func startMainchain() {
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 		),
+		blockStatusServices,
 	)
 }
 
@@ -624,6 +625,7 @@ func startSpinechain() {
 		kvExecutor,
 		transactionUtil,
 		transactionCoreServiceIns,
+		blockStatusServices,
 	)
 }
 
@@ -689,8 +691,7 @@ syncronizersLoop:
 				loggerCoreService.Errorf("cannot get last spine block")
 				os.Exit(1)
 			}
-			if spinechainSynchronizer.BlockchainDownloader.IsDownloadFinish(lastSpineBlock) {
-				blockStatusServices[spinechain.GetTypeInt()].SetFirstDownloadFinished(true)
+			if blockStatusServices[spinechain.GetTypeInt()].IsFirstDownloadFinished() {
 				ticker.Stop()
 				// loop through all chain types that support snapshots and download them if we find relative
 				// spineBlockManifest
@@ -731,24 +732,6 @@ syncronizersLoop:
 					switch ct.(type) {
 					case *chaintype.MainChain:
 						go mainchainSynchronizer.Start()
-						// periodically check if first main blocks download has finished and set the
-						// 'FirstDownloadFinished' variable (used to 'unlock' spinechain smithing)
-						go func() {
-							for {
-								time.Sleep(constant.BlockchainsyncCheckInterval)
-								lastMainBlock, err := mainchainSynchronizer.BlockService.GetLastBlock()
-								if err != nil {
-									loggerCoreService.Errorf("cannot get last main block")
-									os.Exit(1)
-								}
-								if mainchainSynchronizer.BlockchainDownloader.IsDownloadFinish(
-									lastMainBlock) {
-									blockStatusServices[mainchain.GetTypeInt()].SetFirstDownloadFinished(
-										true)
-									return
-								}
-							}
-						}()
 					}
 				}
 				break syncronizersLoop
