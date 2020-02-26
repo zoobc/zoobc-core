@@ -65,14 +65,14 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		fileChunkHashes             [][]byte
 		snapshotPayload             = new(model.SnapshotPayload)
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
-		// (safe) height to get snapshot's data from
-		snapshotPayloadHeight = block.Height - constant.MinRollbackBlocks
 	)
 
-	if snapshotPayloadHeight <= 0 {
+	if block.Height <= constant.MinRollbackBlocks {
 		return nil, blocker.NewBlocker(blocker.ValidationErr,
-			fmt.Sprintf("invalid snapshot height: %d", snapshotPayloadHeight))
+			fmt.Sprintf("invalid snapshot height: %d", block.Height))
 	}
+	// (safe) height to get snapshot's data from
+	snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
