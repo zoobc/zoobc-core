@@ -2,6 +2,7 @@ package blockchainsync
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -123,8 +124,25 @@ func (bss *Service) getMoreBlocks() {
 		needDownloadBlock := true
 		peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
 		if err != nil {
-			bss.Logger.Infof("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
 			needDownloadBlock = false
+			errCasted := err.(blocker.Blocker)
+			switch errCasted.Type {
+			case blocker.P2PNetworkConnectionErr:
+				// this will allow the node to start smithing if it fails to connect to the p2p network,
+				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
+				bss.BlockStatusServices[bss.ChainType.GetTypeInt()].SetFirstDownloadFinished(true)
+				bss.Logger.Info(errCasted.Message)
+			case blocker.ChainValidationErr:
+				bss.Logger.Infof("peer %s:%d: %s",
+					peerBlockchainInfo.Peer.GetInfo().Address,
+					peerBlockchainInfo.Peer.GetInfo().Port,
+					errCasted.Message)
+			default:
+				bss.Logger.Infof("failed to getPeerBlockchainInfo: %v", err)
+
+			}
+			if errCasted.Type != blocker.P2PNetworkConnectionErr {
+			}
 		}
 
 		newLastBlock = nil
