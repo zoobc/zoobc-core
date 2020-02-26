@@ -226,10 +226,8 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
-/*
-Basic Func
-*/
-func GenerateBasicTransaction(senderSeed string,
+func GenerateBasicTransaction(
+	senderSeed string,
 	version uint32,
 	timestamp, fee int64,
 	recipientAccountAddress string,
@@ -268,7 +266,14 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 }
 
 func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
-	var transactionUtil = &transaction.Util{}
+	var (
+		transactionUtil = &transaction.Util{}
+		txType          transaction.TypeAction
+	)
+	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	minimumFee, _ := txType.GetMinimumFee()
+	tx.Fee += minimumFee
+
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	tx.Signature = signature.Sign(
 		unsignedTxBytes,
@@ -276,7 +281,6 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
-	fmt.Printf("signedBytes: %v\n", len(signedTxBytes))
 	return signedTxBytes
 }
 
