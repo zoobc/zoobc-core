@@ -6,12 +6,12 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 var (
-	seed string
-
 	accountCmd = &cobra.Command{
 		Use:   "account",
 		Short: "account is a developer cli tools to generate account.",
@@ -39,6 +39,30 @@ private key both in bytes and hex representation + the secret phrase
 			generateAccountFromSeed(seed)
 		},
 	}
+
+	multiSigCmd = &cobra.Command{
+		Use:        "multisig",
+		Aliases:    []string{"musig", "ms"},
+		SuggestFor: []string{"mul", "multisignature", "multi-signature"},
+		Short:      "multisig allow to generate multi sig account",
+		Long: "multisig allow to generate multi sig account address" +
+			"provides account addresses, nonce, and minimum assignment",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(multisigAddresses)
+			info := &model.MultiSignatureInfo{
+				MinimumSignatures: multisigMinimSigs,
+				Nonce:             multiSigNonce,
+				Addresses:         multisigAddresses,
+			}
+			address, err := (&transaction.Util{}).GenerateMultiSigAddress(info)
+			if err != nil {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Println(address)
+			}
+
+		},
+	}
 )
 
 func init() {
@@ -46,6 +70,12 @@ func init() {
 
 	fromSeedCmd.Flags().StringVar(&seed, "seed", "", "Seed that is used to generate the account")
 	accountCmd.AddCommand(fromSeedCmd)
+
+	// multisig
+	multiSigCmd.Flags().StringSliceVar(&multisigAddresses, "addresses", []string{}, "addresses that provides")
+	multiSigCmd.Flags().Uint32Var(&multisigMinimSigs, "min-sigs", 0, "min-sigs that provide minimum signs")
+	multiSigCmd.Flags().Int64Var(&multiSigNonce, "nonce", 0, "nonce that provides")
+	accountCmd.AddCommand(multiSigCmd)
 }
 
 func Commands() *cobra.Command {
@@ -53,7 +83,7 @@ func Commands() *cobra.Command {
 }
 
 func generateRandomAccount() {
-	seed := util.GetSecureRandomSeed()
+	seed = util.GetSecureRandomSeed()
 	generateAccountFromSeed(seed)
 }
 
