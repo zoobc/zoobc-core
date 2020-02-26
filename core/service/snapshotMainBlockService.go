@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -10,36 +9,22 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath            string
-		chainType               chaintype.ChainType
-		Logger                  *log.Logger
-		FileService             FileServiceInterface
-		QueryExecutor           query.ExecutorInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		AccountDatasetQuery     query.AccountDatasetsQueryInterface
-		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SnapshotQueries         map[string]query.SnapshotQuery
-	}
-
-	SnapshotPayload struct {
-		AccountBalances     []*model.AccountBalance
-		NodeRegistrations   []*model.NodeRegistration
-		AccountDatasets     []*model.AccountDataset
-		ParticipationScores []*model.ParticipationScore
-		PublishedReceipts   []*model.PublishedReceipt
-		EscrowTransactions  []*model.Escrow
+		SnapshotPath               string
+		chainType                  chaintype.ChainType
+		Logger                     *log.Logger
+		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
+		QueryExecutor              query.ExecutorInterface
+		AccountBalanceQuery        query.AccountBalanceQueryInterface
+		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
+		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 )
 
@@ -47,7 +32,7 @@ func NewSnapshotMainBlockService(
 	snapshotPath string,
 	queryExecutor query.ExecutorInterface,
 	logger *log.Logger,
-	fileService FileServiceInterface,
+	snapshotChunkStrategy SnapshotChunkStrategyInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -57,27 +42,28 @@ func NewSnapshotMainBlockService(
 	snapshotQueries map[string]query.SnapshotQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
-		SnapshotPath:            snapshotPath,
-		chainType:               &chaintype.MainChain{},
-		Logger:                  logger,
-		FileService:             fileService,
-		QueryExecutor:           queryExecutor,
-		AccountBalanceQuery:     accountBalanceQuery,
-		NodeRegistrationQuery:   nodeRegistrationQuery,
-		AccountDatasetQuery:     accountDatasetQuery,
-		ParticipationScoreQuery: participationScoreQuery,
-		EscrowTransactionQuery:  escrowTransactionQuery,
-		PublishedReceiptQuery:   publishedReceiptQuery,
-		SnapshotQueries:         snapshotQueries,
+		SnapshotPath:               snapshotPath,
+		chainType:                  &chaintype.MainChain{},
+		Logger:                     logger,
+		SnapshotBasicChunkStrategy: snapshotChunkStrategy,
+		QueryExecutor:              queryExecutor,
+		AccountBalanceQuery:        accountBalanceQuery,
+		NodeRegistrationQuery:      nodeRegistrationQuery,
+		AccountDatasetQuery:        accountDatasetQuery,
+		ParticipationScoreQuery:    participationScoreQuery,
+		EscrowTransactionQuery:     escrowTransactionQuery,
+		PublishedReceiptQuery:      publishedReceiptQuery,
+		SnapshotQueries:            snapshotQueries,
 	}
 }
 
 // NewSnapshotFile creates a new snapshot file (or multiple file chunks) and return the snapshotFileInfo
-func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSizeBytes int64) (snapshotFileInfo *model.SnapshotFileInfo,
+func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapshotFileInfo *model.SnapshotFileInfo,
 	err error) {
 	var (
-		fileChunkHashes             = make([][]byte, 0)
-		snapshotPayload             = new(SnapshotPayload)
+		snapshotFileHash            []byte
+		fileChunkHashes             [][]byte
+		snapshotPayload             = new(model.SnapshotPayload)
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
 		snapshotPayloadHeight int = int(block.Height) - int(constant.MinRollbackBlocks)
@@ -130,42 +116,13 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 		}
 	}
 
-	// encode the snapshot payload
-	b, err := ss.FileService.EncodePayload(snapshotPayload)
+	// encode and save snapshot payload to file/s
+	snapshotFileHash, fileChunkHashes, err = ss.SnapshotBasicChunkStrategy.GenerateSnapshotChunks(snapshotPayload, ss.SnapshotPath)
 	if err != nil {
 		return nil, err
 	}
-
-	//  the snapshot full hash
-	digest := sha3.New256()
-	_, err = digest.Write(util.ConvertUint64ToBytes(uint64(snapshotExpirationTimestamp)))
-	if err != nil {
-		return nil, err
-	}
-	digest.Reset()
-
-	snapshotFullHash := ss.FileService.HashPayload(b)
-	fileName, err := ss.FileService.GetFileNameFromHash(snapshotFullHash)
-	if err != nil {
-		return nil, err
-	}
-	err = ss.FileService.SaveBytesToFile(ss.SnapshotPath, fileName, b)
-	if err != nil {
-		return nil, err
-	}
-	// make extra sure that the file created is not corrupted
-	filePath := filepath.Join(ss.SnapshotPath, fileName)
-	match, err := ss.FileService.VerifyFileHash(filePath, snapshotFullHash)
-	if err != nil || !match {
-		// try remove saved file if file validation fails
-		_ = os.Remove(filePath)
-		return nil, err
-	}
-	// TODO: for now only whole snapshot is one file chunk
-	fileChunkHashes = append(fileChunkHashes, snapshotFullHash)
-
 	return &model.SnapshotFileInfo{
-		SnapshotFileHash:           snapshotFullHash,
+		SnapshotFileHash:           snapshotFileHash,
 		FileChunksHashes:           fileChunkHashes,
 		ChainType:                  ss.chainType.GetTypeInt(),
 		Height:                     block.Height,
@@ -176,33 +133,11 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block, chunkSiz
 
 // ImportSnapshotFile parses a downloaded snapshot file into db
 func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error {
-	var (
-		snapshotPayload SnapshotPayload
-		b               []byte
-	)
-
-	fileName, err := ss.FileService.GetFileNameFromHash(snapshotFileInfo.SnapshotFileHash)
+	snapshotPayload, err := ss.SnapshotBasicChunkStrategy.BuildSnapshotFromChunks(snapshotFileInfo.GetSnapshotFileHash(),
+		snapshotFileInfo.GetFileChunksHashes(), ss.SnapshotPath)
 	if err != nil {
 		return err
 	}
-	filePath := filepath.Join(ss.SnapshotPath, fileName)
-	b, err = ioutil.ReadFile(filePath)
-	if err != nil {
-		return blocker.NewBlocker(blocker.AppErr,
-			fmt.Sprintf("Cannot read snapshot file from disk: %v", err))
-	}
-
-	payloadHash := sha3.Sum256(b)
-	if !bytes.Equal(payloadHash[:], snapshotFileInfo.SnapshotFileHash) {
-		return blocker.NewBlocker(blocker.ValidationErr,
-			"Snapshot File Hash doesn't match with the one in database")
-	}
-	// decode the snapshot payload
-	err = ss.FileService.DecodePayload(b, &snapshotPayload)
-	if err != nil {
-		return err
-	}
-
 	err = ss.InsertSnapshotPayloadToDb(snapshotPayload)
 	if err != nil {
 		return err
@@ -225,7 +160,7 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 }
 
 // InsertSnapshotPayloadToDb insert snapshot data to db
-func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload SnapshotPayload) error {
+func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.SnapshotPayload) error {
 	var (
 		queries [][]interface{}
 	)
