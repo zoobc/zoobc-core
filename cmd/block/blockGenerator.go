@@ -21,6 +21,12 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 )
 
+type (
+	mockBlockTypeStatusService struct {
+		service.BlockTypeStatusService
+	}
+)
+
 var (
 	blocksmith              *model.Blocksmith
 	chainType               chaintype.ChainType
@@ -51,6 +57,14 @@ var (
 		},
 	}
 )
+
+func (*mockBlockTypeStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
+	return true
+}
+
+func (*mockBlockTypeStatusService) IsDownloading(ct chaintype.ChainType) bool {
+	return true
+}
 
 func init() {
 	fakeBlockCmd.Flags().IntVar(
@@ -194,6 +208,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blocksmith,
 		blockService,
 		log.New(),
+		&mockBlockTypeStatusService{},
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)
