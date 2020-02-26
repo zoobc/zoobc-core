@@ -33,6 +33,9 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewPublishedReceiptQuery(),
 				NewAccountLedgerQuery(),
 				NewEscrowTransactionQuery(),
+				NewPendingTransactionQuery(),
+				NewPendingSignatureQuery(),
+				NewMultisignatureInfoQuery(),
 			},
 		},
 		{
