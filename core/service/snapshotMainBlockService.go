@@ -66,7 +66,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		snapshotPayload             = new(model.SnapshotPayload)
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 		// (safe) height to get snapshot's data from
-		snapshotPayloadHeight = int(block.Height) - int(constant.MinRollbackBlocks)
+		snapshotPayloadHeight = block.Height - constant.MinRollbackBlocks
 	)
 
 	if snapshotPayloadHeight <= 0 {
@@ -81,11 +81,11 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				rows       *sql.Rows
 			)
 			if qryRepoName == "publishedReceipt" {
-				if uint32(snapshotPayloadHeight) > constant.LinkedReceiptBlocksLimit {
-					fromHeight = uint32(snapshotPayloadHeight) - constant.LinkedReceiptBlocksLimit
+				if snapshotPayloadHeight > constant.LinkedReceiptBlocksLimit {
+					fromHeight = snapshotPayloadHeight - constant.LinkedReceiptBlocksLimit
 				}
 			}
-			qry := snapshotQuery.SelectDataForSnapshot(fromHeight, uint32(snapshotPayloadHeight))
+			qry := snapshotQuery.SelectDataForSnapshot(fromHeight, snapshotPayloadHeight)
 			rows, err = ss.QueryExecutor.ExecuteSelect(qry, false)
 			if err != nil {
 				return
