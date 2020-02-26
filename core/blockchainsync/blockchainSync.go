@@ -8,9 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -35,39 +33,18 @@ func NewBlockchainSyncService(
 	blockService service.BlockServiceInterface,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
-	queryExecutor query.ExecutorInterface,
-	mempoolService service.MempoolServiceInterface,
-	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
-	kvdb kvdb.KVExecutorInterface,
-	transactionUtil transaction.UtilInterface,
-	transactionCoreService service.TransactionCoreServiceInterface,
 	blockTypeStatusService service.BlockTypeStatusServiceInterface,
+	blockchainDownloader BlockchainDownloadInterface,
+	forkingProcessor ForkingProcessorInterface,
 ) *Service {
 	return &Service{
-		ChainType:         blockService.GetChainType(),
-		BlockService:      blockService,
-		PeerServiceClient: peerServiceClient,
-		PeerExplorer:      peerExplorer,
-		BlockchainDownloader: NewBlockchainDownloader(
-			blockService,
-			peerServiceClient,
-			peerExplorer,
-			logger,
-			blockTypeStatusService,
-		),
-		ForkingProcessor: &ForkingProcessor{
-			ChainType:             blockService.GetChainType(),
-			BlockService:          blockService,
-			QueryExecutor:         queryExecutor,
-			ActionTypeSwitcher:    txActionSwitcher,
-			MempoolService:        mempoolService,
-			KVExecutor:            kvdb,
-			PeerExplorer:          peerExplorer,
-			Logger:                logger,
-			TransactionUtil:       transactionUtil,
-			TransactionCorService: transactionCoreService,
-		},
+		ChainType:              blockService.GetChainType(),
+		BlockService:           blockService,
+		PeerServiceClient:      peerServiceClient,
+		PeerExplorer:           peerExplorer,
+		BlockchainDownloader:   blockchainDownloader,
+		ForkingProcessor:       forkingProcessor,
 		Logger:                 logger,
 		BlockTypeStatusService: blockTypeStatusService,
 	}
