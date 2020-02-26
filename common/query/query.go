@@ -31,6 +31,9 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewPublishedReceiptQuery(),
 			NewAccountLedgerQuery(),
 			NewEscrowTransactionQuery(),
+			NewPendingTransactionQuery(),
+			NewPendingSignatureQuery(),
+			NewMultisignatureInfoQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
