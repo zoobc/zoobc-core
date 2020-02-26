@@ -639,3 +639,42 @@ func TestValidateTransaction(t *testing.T) {
 		})
 	}
 }
+
+func TestUtil_GenerateMultiSigAddress(t *testing.T) {
+	type args struct {
+		info *model.MultiSignatureInfo
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			args: args{info: &model.MultiSignatureInfo{
+				MinimumSignatures: 2,
+				Nonce:             12,
+				Addresses: []string{
+					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+					"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				},
+			}},
+			want: "N8IH3smVnNkUwRwJj2ZnRjyS1_2n15lK9GfqhWcApHWa",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tu := &Util{}
+			got, err := tu.GenerateMultiSigAddress(tt.args.info)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GenerateMultiSigAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GenerateMultiSigAddress() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

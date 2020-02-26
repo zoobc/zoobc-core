@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -21,8 +22,13 @@ type (
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
 		ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte
 		GetTransactionID(transactionHash []byte) (int64, error)
-		ValidateTransaction(tx *model.Transaction, queryExecutor query.ExecutorInterface,
-			accountBalanceQuery query.AccountBalanceQueryInterface, verifySignature bool) error
+		ValidateTransaction(
+			tx *model.Transaction,
+			queryExecutor query.ExecutorInterface,
+			accountBalanceQuery query.AccountBalanceQueryInterface,
+			verifySignature bool,
+		) error
+		GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error)
 	}
 
 	Util struct{}
@@ -335,4 +341,25 @@ func (tu *Util) ValidateTransaction(
 	}
 
 	return nil
+}
+
+// GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
+// that is multi signature account address
+func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
+	var (
+		buff = bytes.NewBuffer([]byte{})
+	)
+	if info == nil {
+		return "", fmt.Errorf("params cannot be nil")
+	}
+	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
+	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
+	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
+	for _, address := range info.GetAddresses() {
+		buff.Write(util.ConvertUint32ToBytes(uint32(len(address))))
+		buff.WriteString(address)
+	}
+	hashed := sha3.Sum256(buff.Bytes())
+	return util.GetAddressFromPublicKey(hashed[:])
+
 }

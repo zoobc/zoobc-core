@@ -7,13 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/cmd/parser"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/cmd/account"
 	"github.com/zoobc/zoobc-core/cmd/block"
 	"github.com/zoobc/zoobc-core/cmd/genesisblock"
+	"github.com/zoobc/zoobc-core/cmd/parser"
 	"github.com/zoobc/zoobc-core/cmd/rollback"
 	"github.com/zoobc/zoobc-core/cmd/transaction"
 	"github.com/zoobc/zoobc-core/common/database"

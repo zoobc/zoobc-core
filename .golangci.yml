@@ -34,6 +34,7 @@ linters-settings:
             - blockseed
             - coinbase
             - zoobc
+            - multisig
     lll:
         line-length: 140
     goimports:
@@ -63,7 +64,8 @@ linters:
         - prealloc
         - gochecknoglobals
         - gochecknoinits
-
+        - gocognit
+    fast: false
 run:
     skip-dirs:
         - vendor
