@@ -292,7 +292,6 @@ Escrow Part
 func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
-		block          *model.Block
 		err            error
 		row            *sql.Row
 	)
@@ -308,14 +307,6 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	}
 	if tx.Escrow.GetRecipientAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
-	}
-
-	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	if uint64(block.GetHeight()) >= tx.Escrow.GetTimeout() {
-		return blocker.NewBlocker(blocker.ValidationErr, "TransactionExpired")
 	}
 
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
