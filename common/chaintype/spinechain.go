@@ -18,13 +18,8 @@ func (*SpineChain) GetTablePrefix() string {
 	return "spine"
 }
 
-// GetChainSmithingDelayTime return the value of chain smithing delay in second
-func (*SpineChain) GetChainSmithingDelayTime() int64 {
-	return 20
-}
-
 func (*SpineChain) GetSmithingPeriod() int64 {
-	return 60
+	return constant.SpineChainSmithingPeriod
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node
