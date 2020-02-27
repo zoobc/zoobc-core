@@ -23,6 +23,8 @@ var (
 	senderSeed              string
 	recipientAccountAddress string
 	fee                     int64
+	post                    bool
+	postHost                string
 
 	// Send money transaction
 	sendAmount int64
