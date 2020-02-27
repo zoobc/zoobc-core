@@ -1,11 +1,17 @@
 package transaction
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
+
+	rpc_model "github.com/zoobc/zoobc-core/common/model"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"google.golang.org/grpc"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -262,7 +268,26 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 		}
 		resultStr = strings.Join(byteStrArr, ", ")
 	}
-	fmt.Println(resultStr)
+	if post {
+		conn, err := grpc.Dial(postHost, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("did not connect: %s", err)
+		}
+		defer conn.Close()
+
+		c := rpc_service.NewTransactionServiceClient(conn)
+
+		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+			TransactionBytes: signedTxBytes,
+		})
+		if err != nil {
+			fmt.Printf("post failed: %v\n", err)
+		} else {
+			fmt.Printf("\n\nresult: %v\n", response)
+		}
+	} else {
+		fmt.Println(resultStr)
+	}
 }
 
 func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {

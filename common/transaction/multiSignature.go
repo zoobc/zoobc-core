@@ -3,6 +3,10 @@ package transaction
 import (
 	"bytes"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -13,8 +17,11 @@ type (
 	// MultiSignatureTransaction represent wrapper transaction type that require multiple signer to approve the transcaction
 	// wrapped
 	MultiSignatureTransaction struct {
-		Body      *model.MultiSignatureTransactionBody
-		NormalFee fee.FeeModelInterface
+		Body            *model.MultiSignatureTransactionBody
+		NormalFee       fee.FeeModelInterface
+		TransactionUtil UtilInterface
+		TypeSwitcher    TypeActionSwitcher
+		Signature       crypto.SignatureInterface
 	}
 )
 
@@ -31,7 +38,79 @@ func (*MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 }
 
 // Validate dbTx specify whether validation should read from transaction state or db state
-func (*MultiSignatureTransaction) Validate(dbTx bool) error {
+func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
+	body := tx.Body
+	if body.MultiSignatureInfo == nil && body.SignatureInfo == nil && body.UnsignedTransactionBytes == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastTxBytesSignatureInfoOrMultisignatureInfoMustBe"+
+			"Provided")
+	}
+	if body.MultiSignatureInfo != nil {
+		if len(body.MultiSignatureInfo.Addresses) < 2 {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"AtLeastTwoParticipantRequiredForMultisig",
+			)
+		}
+		if body.MultiSignatureInfo.MinimumSignatures < 1 {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"AtLeastOneSignatureRequiredNeedToBeSet",
+			)
+		}
+	}
+	if len(body.UnsignedTransactionBytes) > 0 {
+		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToParseTransactionBytes",
+			)
+		}
+		innerTa, err := tx.TypeSwitcher.GetTransactionType(innerTx)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToCastInnerTransaction",
+			)
+		}
+		err = innerTa.Validate(dbTx)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToValidateInnerTa",
+			)
+		}
+
+	}
+	if body.SignatureInfo != nil {
+		if body.SignatureInfo.TransactionHash == nil { // transaction hash has to come with at least one signature
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"TransactionHashRequiredInSignatureInfo",
+			)
+		}
+		if len(body.SignatureInfo.Signatures) < 1 {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"MinimumOneSignatureRequiredInSignatureInfo",
+			)
+		}
+		for addr, sig := range body.SignatureInfo.Signatures {
+			if sig == nil {
+				return blocker.NewBlocker(
+					blocker.ValidationErr,
+					"SignatureMissing",
+				)
+			}
+			res := tx.Signature.VerifySignature(body.SignatureInfo.TransactionHash, sig, addr)
+			if !res {
+				return blocker.NewBlocker(
+					blocker.ValidationErr,
+					"InvalidSignature",
+				)
+			}
+		}
+	}
 	return nil
 }
 

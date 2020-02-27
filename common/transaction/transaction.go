@@ -4,6 +4,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -232,8 +233,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &MultiSignatureTransaction{
-				Body:      multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
-				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
+				Body:            multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
+				NormalFee:       fee.NewConstantFeeModel(constant.OneZBC / 100),
+				TransactionUtil: &Util{},
+				TypeSwitcher: &TypeSwitcher{
+					Executor: ts.Executor,
+				},
+				Signature: &crypto.Signature{},
 			}, nil
 		default:
 			return nil, nil
