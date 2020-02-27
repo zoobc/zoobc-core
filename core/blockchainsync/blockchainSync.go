@@ -107,9 +107,12 @@ func (bss *Service) getMoreBlocks() {
 			case blocker.P2PNetworkConnectionErr:
 				// this will allow the node to start smithing if it fails to connect to the p2p network,
 				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
-				bss.BlockTypeStatusService.SetFirstDownloadFinished(bss.ChainType, true)
+				bss.BlockTypeStatusService.SetIsSmithingLocked(false)
 				bss.Logger.Info(errCasted.Message)
 			case blocker.ChainValidationErr:
+				// this will allow the node to start smithing if it fails to connect to the p2p network,
+				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
+				bss.BlockTypeStatusService.SetIsSmithingLocked(false)
 				bss.Logger.Infof("peer %s:%d: %s",
 					peerBlockchainInfo.Peer.GetInfo().Address,
 					peerBlockchainInfo.Peer.GetInfo().Port,

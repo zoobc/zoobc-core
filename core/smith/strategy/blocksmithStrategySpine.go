@@ -180,7 +180,14 @@ func (bss *BlocksmithStrategySpine) CalculateSmith(
 
 // GetSmithTime calculate smith time of a blocksmith
 func (bss *BlocksmithStrategySpine) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	var (
+		elapsedFromLastBlock int64
+	)
 	ct := &chaintype.SpineChain{}
-	elapsedFromLastBlock := (blocksmithIndex + 1) * ct.GetSmithingPeriod()
+	if blocksmithIndex < 1 {
+		elapsedFromLastBlock = ct.GetSmithingPeriod()
+	} else {
+		elapsedFromLastBlock = blocksmithIndex*constant.SmithingBlocksmithTimeGap + ct.GetSmithingPeriod()
+	}
 	return block.GetTimestamp() + elapsedFromLastBlock
 }
