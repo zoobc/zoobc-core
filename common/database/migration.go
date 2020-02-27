@@ -271,10 +271,47 @@ func (m *Migration) Init() error {
 				"manifest_reference_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
 				"chain_type" INTEGER NOT NULL,		-- chain type this spine_block_manifest reference to
 				"manifest_type" INTEGER NOT NULL,	-- type of spine_block_manifest (as of now only snapshot)
-				"manifest_timestamp" INTEGER NOT NULL,-- timestamp that marks the end of file chunks processing 
+				"manifest_timestamp" INTEGER NOT NULL,	-- timestamp that marks the end of file chunks processing 
 				PRIMARY KEY("id")
 				UNIQUE("id")
 			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "pending_transaction" (
+				"transaction_hash" BLOB,		-- transaction hash of pending transaction
+				"transaction_bytes" BLOB,		-- full transaction bytes of the pending transaction
+				"status" INTEGER,			-- execution status of the pending transaction
+				"block_height" INTEGER,			-- height when pending transaction inserted/updated
+				PRIMARY KEY("transaction_hash", "block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "pending_signature" (
+				"transaction_hash" INTEGER,		-- transaction hash of pending transaction being signed
+				"account_address" TEXT,			-- account address of the respective signature
+				"signature" BLOB,			-- full transaction bytes of the pending transaction
+				"block_height" INTEGER,			-- height when pending signature inserted/updated
+				PRIMARY KEY("account_address", "transaction_hash")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "multisignature_info" (
+				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info 
+				"minimum_signatures" INTEGER,		-- account address of the respective signature 
+				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
+				"addresses" TEXT,			-- list of addresses / participants of the multisig account
+				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
+				PRIMARY KEY("multisig_address", "block_height")
+			)
+			`,
+			`
+			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
+			`,
+			`
+			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height")
+			`,
+			`
+			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height")
 			`,
 		}
 		return nil
@@ -313,12 +350,14 @@ func (m *Migration) Apply() error {
 			return err
 		}
 		if m.CurrentVersion != nil {
+			*m.CurrentVersion++
 			err = m.Query.ExecuteTransaction(`UPDATE "migration"
-				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion+1)
+				SET "version" = ?, "created_date" = datetime('now');`, m.CurrentVersion)
 			if err != nil {
 				return err
 			}
 		} else {
+			m.CurrentVersion = &version // should 0 value not nil anymore
 			err = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
 					"version",
@@ -334,7 +373,6 @@ func (m *Migration) Apply() error {
 			}
 		}
 
-		m.CurrentVersion = &version
 		err = m.Query.CommitTx()
 		if err != nil {
 			return err

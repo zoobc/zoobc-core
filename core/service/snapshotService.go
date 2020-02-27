@@ -16,16 +16,16 @@ import (
 type (
 	// SnapshotServiceInterface snapshot logic shared across block types
 	SnapshotServiceInterface interface {
-		GenerateSnapshot(block *model.Block, ct chaintype.ChainType, chunkSizeBytes int64) (*model.SnapshotFileInfo, error)
+		GenerateSnapshot(block *model.Block, ct chaintype.ChainType, chunkSizeBytes int) (*model.SnapshotFileInfo, error)
 		IsSnapshotProcessing(ct chaintype.ChainType) bool
 		StopSnapshotGeneration(ct chaintype.ChainType) error
-		DownloadSnapshot(spineBlockManifest *model.SpineBlockManifest) error
+		DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error
 		StartSnapshotListener() observer.Listener
 	}
 
 	SnapshotService struct {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		SpineBlockDownloadService SpineBlockDownloadServiceInterface
+		BlockTypeStatusService    BlockTypeStatusServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface // map key = chaintype number (eg. mainchain = 0)
 		FileDownloaderService     FileDownloaderServiceInterface
 		FileService               FileServiceInterface
@@ -42,7 +42,7 @@ var (
 
 func NewSnapshotService(
 	spineBlockManifestService SpineBlockManifestServiceInterface,
-	spineBlockDownloadService SpineBlockDownloadServiceInterface,
+	blockTypeStatusService BlockTypeStatusServiceInterface,
 	snapshotBlockServices map[int32]SnapshotBlockServiceInterface,
 	fileDownloaderService FileDownloaderServiceInterface,
 	fileService FileServiceInterface,
@@ -50,7 +50,7 @@ func NewSnapshotService(
 ) *SnapshotService {
 	return &SnapshotService{
 		SpineBlockManifestService: spineBlockManifestService,
-		SpineBlockDownloadService: spineBlockDownloadService,
+		BlockTypeStatusService:    blockTypeStatusService,
 		SnapshotBlockServices:     snapshotBlockServices,
 		FileDownloaderService:     fileDownloaderService,
 		FileService:               fileService,
@@ -60,7 +60,7 @@ func NewSnapshotService(
 
 // GenerateSnapshot compute and persist a snapshot to file
 func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.ChainType,
-	snapshotChunkBytesLength int64) (*model.SnapshotFileInfo, error) {
+	snapshotChunkBytesLength int) (*model.SnapshotFileInfo, error) {
 	stopSnapshotGeneration[ct.GetTypeInt()] = make(chan bool)
 	for {
 		select {
@@ -74,7 +74,7 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 				return nil, fmt.Errorf("snapshots for chaintype %s not implemented", ct.GetName())
 			}
 			generatingSnapshot[ct.GetTypeInt()] = true
-			snapshotInfo, err := snapshotBlockService.NewSnapshotFile(block, snapshotChunkBytesLength)
+			snapshotInfo, err := snapshotBlockService.NewSnapshotFile(block)
 			generatingSnapshot[ct.GetTypeInt()] = false
 			return snapshotInfo, err
 		}
@@ -112,9 +112,10 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 				}
 				if snapshotBlockService.IsSnapshotHeight(block.Height) {
 					go func() {
-						// if spine blocks is downloading, do not generate (or download from other peers) snapshots
-						// don't generate snapshots until all spine blocks have been downloaded
-						if !ss.SpineBlockDownloadService.IsSpineBlocksDownloadFinished() {
+						// if spine and main blocks are still downloading, after the node has started,
+						// do not generate (or download from other peers) snapshots
+						if !ss.BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) && !ss.
+							BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.SpineChain{}) {
 							ss.Logger.Infof("Snapshot at block "+
 								"height %d not generated because spine blocks are still downloading",
 								block.Height)
@@ -126,7 +127,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 								ss.Logger.Infoln(err)
 							}
 						}
-						snapshotInfo, err := ss.GenerateSnapshot(block, ct, constant.SnapshotChunkLengthBytes)
+						snapshotInfo, err := ss.GenerateSnapshot(block, ct, constant.SnapshotChunkSize)
 						if err != nil {
 							ss.Logger.Errorf("Snapshot at block "+
 								"height %d terminated with errors %s", block.Height, err)
@@ -152,7 +153,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	}
 }
 
-func (ss *SnapshotService) DownloadSnapshot(spineBlockManifest *model.SpineBlockManifest) error {
+func (ss *SnapshotService) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error {
 	var (
 		failedDownloadChunkNames = make([]string, 0)
 		hashSize                 = sha3.New256().Size()
