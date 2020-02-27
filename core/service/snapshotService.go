@@ -108,14 +108,14 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 			if ct.HasSnapshots() {
 				snapshotBlockService, ok := ss.SnapshotBlockServices[ct.GetTypeInt()]
 				if !ok {
-					ss.Logger.Fatalf("snapshots for chaintype %s not implemented", ct.GetName())
+					ss.Logger.Errorf("snapshots for chaintype %s not implemented", ct.GetName())
+					return
 				}
 				if snapshotBlockService.IsSnapshotHeight(block.Height) {
 					go func() {
 						// if spine and main blocks are still downloading, after the node has started,
 						// do not generate (or download from other peers) snapshots
-						if !ss.BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) && !ss.
-							BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.SpineChain{}) {
+						if !ss.BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
 							ss.Logger.Infof("Snapshot at block "+
 								"height %d not generated because spine blocks are still downloading",
 								block.Height)
@@ -131,6 +131,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 						if err != nil {
 							ss.Logger.Errorf("Snapshot at block "+
 								"height %d terminated with errors %s", block.Height, err)
+							return
 						}
 						_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
 							snapshotInfo.SnapshotFileHash,
