@@ -374,7 +374,6 @@ func (m *Migration) Apply() error {
 		}
 
 		err = m.Query.CommitTx()
-		fmt.Println(*m.CurrentVersion)
 		if err != nil {
 			return err
 		}
