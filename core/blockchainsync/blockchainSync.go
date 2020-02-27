@@ -2,14 +2,13 @@ package blockchainsync
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -19,53 +18,35 @@ import (
 // TODO: rename into something more specific, such as SyncService
 type Service struct {
 	// isScanningBlockchain       bool
-	ChainType            chaintype.ChainType
-	PeerServiceClient    client.PeerServiceClientInterface
-	PeerExplorer         strategy.PeerExplorerStrategyInterface
-	BlockService         service.BlockServiceInterface
-	BlockchainDownloader BlockchainDownloadInterface
-	ForkingProcessor     ForkingProcessorInterface
-	Logger               *log.Logger
-	TransactionUtil      transaction.UtilInterface
+	ChainType              chaintype.ChainType
+	PeerServiceClient      client.PeerServiceClientInterface
+	PeerExplorer           strategy.PeerExplorerStrategyInterface
+	BlockService           service.BlockServiceInterface
+	BlockchainDownloader   BlockchainDownloadInterface
+	ForkingProcessor       ForkingProcessorInterface
+	Logger                 *log.Logger
+	TransactionUtil        transaction.UtilInterface
+	BlockTypeStatusService service.BlockTypeStatusServiceInterface
 }
 
 func NewBlockchainSyncService(
 	blockService service.BlockServiceInterface,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
-	queryExecutor query.ExecutorInterface,
-	mempoolService service.MempoolServiceInterface,
-	txActionSwitcher transaction.TypeActionSwitcher,
 	logger *log.Logger,
-	kvdb kvdb.KVExecutorInterface,
-	transactionUtil transaction.UtilInterface,
-	transactionCoreService service.TransactionCoreServiceInterface,
+	blockTypeStatusService service.BlockTypeStatusServiceInterface,
+	blockchainDownloader BlockchainDownloadInterface,
+	forkingProcessor ForkingProcessorInterface,
 ) *Service {
 	return &Service{
-		ChainType:         blockService.GetChainType(),
-		BlockService:      blockService,
-		PeerServiceClient: peerServiceClient,
-		PeerExplorer:      peerExplorer,
-		BlockchainDownloader: &BlockchainDownloader{
-			ChainType:         blockService.GetChainType(),
-			BlockService:      blockService,
-			PeerServiceClient: peerServiceClient,
-			PeerExplorer:      peerExplorer,
-			Logger:            logger,
-		},
-		ForkingProcessor: &ForkingProcessor{
-			ChainType:             blockService.GetChainType(),
-			BlockService:          blockService,
-			QueryExecutor:         queryExecutor,
-			ActionTypeSwitcher:    txActionSwitcher,
-			MempoolService:        mempoolService,
-			KVExecutor:            kvdb,
-			PeerExplorer:          peerExplorer,
-			Logger:                logger,
-			TransactionUtil:       transactionUtil,
-			TransactionCorService: transactionCoreService,
-		},
-		Logger: logger,
+		ChainType:              blockService.GetChainType(),
+		BlockService:           blockService,
+		PeerServiceClient:      peerServiceClient,
+		PeerExplorer:           peerExplorer,
+		BlockchainDownloader:   blockchainDownloader,
+		ForkingProcessor:       forkingProcessor,
+		Logger:                 logger,
+		BlockTypeStatusService: blockTypeStatusService,
 	}
 }
 
@@ -120,8 +101,26 @@ func (bss *Service) getMoreBlocks() {
 		needDownloadBlock := true
 		peerBlockchainInfo, err = bss.BlockchainDownloader.GetPeerBlockchainInfo()
 		if err != nil {
-			bss.Logger.Infof("\nfailed to getPeerBlockchainInfo: %v\n\n", err)
 			needDownloadBlock = false
+			errCasted := err.(blocker.Blocker)
+			switch errCasted.Type {
+			case blocker.P2PNetworkConnectionErr:
+				// this will allow the node to start smithing if it fails to connect to the p2p network,
+				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
+				bss.BlockTypeStatusService.SetIsSmithingLocked(false)
+				bss.Logger.Info(errCasted.Message)
+			case blocker.ChainValidationErr:
+				// this will allow the node to start smithing if it fails to connect to the p2p network,
+				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
+				bss.BlockTypeStatusService.SetIsSmithingLocked(false)
+				bss.Logger.Infof("peer %s:%d: %s",
+					peerBlockchainInfo.Peer.GetInfo().Address,
+					peerBlockchainInfo.Peer.GetInfo().Port,
+					errCasted.Message)
+			default:
+				bss.Logger.Infof("failed to getPeerBlockchainInfo: %v", err)
+
+			}
 		}
 
 		newLastBlock = nil
@@ -177,7 +176,7 @@ func (bss *Service) getMoreBlocks() {
 		}
 
 		if bss.BlockchainDownloader.IsDownloadFinish(lastBlock) {
-			bss.BlockchainDownloader.SetIsDownloading(false)
+			bss.BlockTypeStatusService.SetIsDownloading(bss.ChainType, false)
 			bss.Logger.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), lastBlock.Height-initialHeight)
 			break
 		}

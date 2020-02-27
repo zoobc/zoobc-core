@@ -20,20 +20,19 @@ import (
 
 type (
 	BlockchainDownloadInterface interface {
-		SetIsDownloading(newValue bool)
 		IsDownloadFinish(currentLastBlock *model.Block) bool
 		GetPeerBlockchainInfo() (*PeerBlockchainInfo, error)
 		DownloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64, commonBlock *model.Block) (*PeerForkInfo, error)
 		ConfirmWithPeer(peerToCheck *model.Peer, commonMilestoneBlockID int64) ([]int64, error)
 	}
 	BlockchainDownloader struct {
-		IsDownloading     bool // only for status
-		PeerHasMore       bool
-		ChainType         chaintype.ChainType
-		BlockService      service.BlockServiceInterface
-		PeerServiceClient client.PeerServiceClientInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		Logger            *log.Logger
+		PeerHasMore            bool
+		ChainType              chaintype.ChainType
+		BlockService           service.BlockServiceInterface
+		PeerServiceClient      client.PeerServiceClientInterface
+		PeerExplorer           strategy.PeerExplorerStrategyInterface
+		Logger                 *log.Logger
+		BlockTypeStatusService service.BlockTypeStatusServiceInterface
 	}
 
 	PeerBlockchainInfo struct {
@@ -49,6 +48,23 @@ type (
 	}
 )
 
+func NewBlockchainDownloader(
+	blockService service.BlockServiceInterface,
+	peerServiceClient client.PeerServiceClientInterface,
+	peerExplorer strategy.PeerExplorerStrategyInterface,
+	logger *log.Logger,
+	blockTypeStatusService service.BlockTypeStatusServiceInterface,
+) *BlockchainDownloader {
+	return &BlockchainDownloader{
+		ChainType:              blockService.GetChainType(),
+		BlockService:           blockService,
+		PeerServiceClient:      peerServiceClient,
+		PeerExplorer:           peerExplorer,
+		Logger:                 logger,
+		BlockTypeStatusService: blockTypeStatusService,
+	}
+}
+
 func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) bool {
 	currentHeight := currentLastBlock.Height
 	currentCumulativeDifficulty := currentLastBlock.CumulativeDifficulty
@@ -60,13 +76,11 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	heightAfterDownload := afterDownloadLastBlock.Height
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
 	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+		// we only initialize this flag (to false) in main, so once is set to true, it will always be true
+		bd.BlockTypeStatusService.SetFirstDownloadFinished(bd.ChainType, true)
 		return true
 	}
 	return false
-}
-
-func (bd *BlockchainDownloader) SetIsDownloading(newValue bool) {
-	bd.IsDownloading = newValue
 }
 
 func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, error) {
@@ -79,11 +93,15 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	bd.PeerHasMore = true
 	peer := bd.PeerExplorer.GetAnyResolvedPeer()
 	if peer == nil {
-		return nil, errors.New("no connected peer can be found")
+		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no connected peer can be found")
 	}
 	peerCumulativeDifficultyResponse, err = bd.PeerServiceClient.GetCumulativeDifficulty(peer, bd.ChainType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err)
+		return &PeerBlockchainInfo{
+				Peer:        peer,
+				CommonBlock: commonBlock,
+			}, blocker.NewBlocker(blocker.AppErr,
+				fmt.Sprintf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err))
 	}
 
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
@@ -91,7 +109,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 
 	lastBlock, err = bd.BlockService.GetLastBlock()
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	lastBlockCumulativeDifficulty, _ := new(big.Int).SetString(lastBlock.CumulativeDifficulty, 10)
 	lastBlockHeight := lastBlock.Height
@@ -99,8 +117,11 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 
 	if peerCumulativeDifficulty == nil || lastBlockCumulativeDifficulty == nil ||
 		peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
-		return nil, fmt.Errorf("peer's cumulative difficulty %s:%v is lower/same with the current node's",
-			peer.GetInfo().Address, peer.GetInfo().Port)
+		return &PeerBlockchainInfo{
+				Peer:        peer,
+				CommonBlock: commonBlock,
+			}, blocker.NewBlocker(blocker.ChainValidationErr,
+				"cumulative difficulty is lower/same with the current node's")
 	}
 
 	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
@@ -113,22 +134,31 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 
 	chainBlockIds := bd.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
 	if len(chainBlockIds) < 2 || !bd.PeerHasMore {
-		return nil, errors.New("the peer does not have more updated chain")
+		return &PeerBlockchainInfo{
+			Peer:        peer,
+			CommonBlock: commonBlock,
+		}, blocker.NewBlocker(blocker.ChainValidationErr, "the peer does not have more updated chain")
 	}
 
 	commonBlockID := chainBlockIds[0]
 	commonBlock, err = bd.BlockService.GetBlockByID(commonBlockID, false)
 	if err != nil {
-		bd.Logger.Infof("common block %v not found, milestone block id: %v", commonBlockID, commonMilestoneBlockID)
-		return nil, err
+		return &PeerBlockchainInfo{
+				Peer:        peer,
+				CommonBlock: commonBlock,
+			}, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("common block %v not found, milestone block id: %v",
+				commonBlockID, commonMilestoneBlockID))
 	}
 	if commonBlock == nil || lastBlockHeight-commonBlock.GetHeight() >= constant.MinRollbackBlocks {
-		return nil, errors.New("invalid common block")
+		return &PeerBlockchainInfo{
+			Peer:        peer,
+			CommonBlock: commonBlock,
+		}, blocker.NewBlocker(blocker.AppErr, "invalid common block")
 	}
 
-	if !bd.IsDownloading && peerHeight-commonBlock.GetHeight() > 10 {
+	if !bd.BlockTypeStatusService.IsDownloading(bd.ChainType) && peerHeight-commonBlock.GetHeight() > 10 {
 		bd.Logger.Info("Blockchain download in progress")
-		bd.IsDownloading = true
+		bd.BlockTypeStatusService.SetIsDownloading(bd.ChainType, true)
 	}
 
 	return &PeerBlockchainInfo{
