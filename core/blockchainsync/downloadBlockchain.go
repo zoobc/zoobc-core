@@ -100,7 +100,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 		return &PeerBlockchainInfo{
 				Peer:        peer,
 				CommonBlock: commonBlock,
-			}, blocker.NewBlocker(blocker.ChainValidationErr,
+			}, blocker.NewBlocker(blocker.AppErr,
 				fmt.Sprintf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err))
 	}
 
@@ -146,14 +146,14 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 		return &PeerBlockchainInfo{
 				Peer:        peer,
 				CommonBlock: commonBlock,
-			}, blocker.NewBlocker(blocker.ChainValidationErr, fmt.Sprintf("common block %v not found, milestone block id: %v",
+			}, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("common block %v not found, milestone block id: %v",
 				commonBlockID, commonMilestoneBlockID))
 	}
 	if commonBlock == nil || lastBlockHeight-commonBlock.GetHeight() >= constant.MinRollbackBlocks {
 		return &PeerBlockchainInfo{
 			Peer:        peer,
 			CommonBlock: commonBlock,
-		}, blocker.NewBlocker(blocker.ChainValidationErr, "invalid common block")
+		}, blocker.NewBlocker(blocker.AppErr, "invalid common block")
 	}
 
 	if !bd.BlockTypeStatusService.IsDownloading(bd.ChainType) && peerHeight-commonBlock.GetHeight() > 10 {

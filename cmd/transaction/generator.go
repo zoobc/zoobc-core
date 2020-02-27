@@ -1,11 +1,17 @@
 package transaction
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
+
+	rpc_model "github.com/zoobc/zoobc-core/common/model"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"google.golang.org/grpc"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -226,10 +232,8 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
-/*
-Basic Func
-*/
-func GenerateBasicTransaction(senderSeed string,
+func GenerateBasicTransaction(
+	senderSeed string,
 	version uint32,
 	timestamp, fee int64,
 	recipientAccountAddress string,
@@ -264,11 +268,37 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 		}
 		resultStr = strings.Join(byteStrArr, ", ")
 	}
-	fmt.Println(resultStr)
+	if post {
+		conn, err := grpc.Dial(postHost, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("did not connect: %s", err)
+		}
+		defer conn.Close()
+
+		c := rpc_service.NewTransactionServiceClient(conn)
+
+		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+			TransactionBytes: signedTxBytes,
+		})
+		if err != nil {
+			fmt.Printf("post failed: %v\n", err)
+		} else {
+			fmt.Printf("\n\nresult: %v\n", response)
+		}
+	} else {
+		fmt.Println(resultStr)
+	}
 }
 
 func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
-	var transactionUtil = &transaction.Util{}
+	var (
+		transactionUtil = &transaction.Util{}
+		txType          transaction.TypeAction
+	)
+	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	minimumFee, _ := txType.GetMinimumFee()
+	tx.Fee += minimumFee
+
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	tx.Signature = signature.Sign(
 		unsignedTxBytes,
@@ -276,7 +306,6 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
-	fmt.Printf("signedBytes: %v\n", len(signedTxBytes))
 	return signedTxBytes
 }
 

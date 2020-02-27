@@ -158,7 +158,7 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
-	blockTypeStatusService = service.NewBlockTypeStatusService()
+	blockTypeStatusService = service.NewBlockTypeStatusService(true)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -410,7 +410,7 @@ func startMainchain() {
 	var (
 		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
 		err                                         error
-		sleepPeriod                                 = 500
+		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
@@ -544,6 +544,7 @@ func startMainchain() {
 		}
 		if node != nil {
 			mainchainProcessor = smith.NewBlockchainProcessor(
+				mainchainBlockService.GetChainType(),
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
 				loggerCoreService,
@@ -587,10 +588,10 @@ func startMainchain() {
 
 func startSpinechain() {
 	var (
-		nodeID int64
+		nodeID      int64
+		sleepPeriod = constant.SpineChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
-	sleepPeriod := 500
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
@@ -624,6 +625,7 @@ func startSpinechain() {
 		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
 		nodeID = int64(binary.LittleEndian.Uint64(nodePublicKey))
 		spinechainProcessor = smith.NewBlockchainProcessor(
+			spinechainBlockService.GetChainType(),
 			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
 			loggerCoreService,
@@ -728,6 +730,8 @@ syncronizersLoop:
 				os.Exit(1)
 			}
 			if blockTypeStatusService.IsFirstDownloadFinished(spinechain) {
+				// unlock smithing process after main blocks have finished downloading
+				blockTypeStatusService.SetIsSmithingLocked(false)
 				ticker.Stop()
 				// loop through all chain types that support snapshots and download them if we find relative
 				// spineBlockManifest
