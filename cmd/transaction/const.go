@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
@@ -18,7 +17,7 @@ var (
 		"multiSignature":         {5, 0, 0, 0},
 	}
 	signature     = &crypto.Signature{}
-	signatureType model.SignatureType
+	signatureType int32
 
 	// Basic transaction data
 	outputType              string
