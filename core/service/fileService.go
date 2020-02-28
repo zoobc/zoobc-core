@@ -1,25 +1,30 @@
 package service
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"math"
+	"os"
+	"path/filepath"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 type (
 	FileServiceInterface interface {
+		GetDownloadPath() string
+		ParseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error)
 		ReadFileByHash(filePath string, fileHash []byte) ([]byte, error)
 		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
 		GetHashFromFileName(fileName string) ([]byte, error)
-		VerifyFileHash(filePath string, hash []byte) (bool, error)
+		VerifyFileChecksum(fileBytes, hash []byte) bool
 		HashPayload(b []byte) ([]byte, error)
 		EncodePayload(v interface{}) (b []byte, err error)
 		DecodePayload(b []byte, v interface{}) error
@@ -27,23 +32,43 @@ type (
 	}
 
 	FileService struct {
-		Logger *log.Logger
-		h      codec.Handle
+		Logger       *log.Logger
+		h            codec.Handle
+		snapshotPath string
 	}
 )
 
 func NewFileService(
 	logger *log.Logger,
 	encoderHandler codec.Handle,
+	snapshotPath string,
 ) FileServiceInterface {
 	return &FileService{
-		Logger: logger,
-		h:      encoderHandler, // this variable is only set when constructing the service and never mutated
+		Logger:       logger,
+		h:            encoderHandler, // this variable is only set when constructing the service and never mutated
+		snapshotPath: snapshotPath,
 	}
 }
 
-func (fs *FileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
-	return util.VerifyFileHash(filePath, hash, sha3.New256())
+func (fs *FileService) GetDownloadPath() string {
+	return fs.snapshotPath
+}
+
+func (fs *FileService) ParseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error) {
+	// math.Mod returns the reminder of len(fileHashes)/hashLength
+	// we use it to check if the length of fileHashes is a multiple of the single hash's length (32 bytes for sha256)
+	if len(fileHashes) < hashLength || math.Mod(float64(len(fileHashes)), float64(hashLength)) > 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid file chunks hashes length")
+	}
+	for i := 0; i < len(fileHashes); i += hashLength {
+		fileHashesAry = append(fileHashesAry, fileHashes[i:i+hashLength])
+	}
+	return fileHashesAry, nil
+}
+
+func (fs *FileService) VerifyFileChecksum(fileBytes, hash []byte) bool {
+	computed := sha3.New256().Sum(fileBytes)
+	return bytes.Equal(computed, hash)
 }
 
 func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte, error) {

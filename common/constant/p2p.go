@@ -32,7 +32,6 @@ const (
 	// BlockchainsyncCheckInterval time, in seconds, between checks if spine blocks have finished to be downloaded
 	BlockchainsyncCheckInterval time.Duration = 10 * time.Second
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
-	// FIXME: this is for debugging purposes only and must higher on production,
-	//  where downloading the spine blocks could take longer than 30 minutes
-	BlockchainsyncSpineTimeout time.Duration = 1800 * time.Second
+	// download spine blocks and snapshot (if present) timeout
+	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second
 )

@@ -8,8 +8,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
-	"golang.org/x/crypto/sha3"
-	"math"
 	"time"
 )
 
@@ -19,16 +17,13 @@ type (
 		GenerateSnapshot(block *model.Block, ct chaintype.ChainType, chunkSizeBytes int) (*model.SnapshotFileInfo, error)
 		IsSnapshotProcessing(ct chaintype.ChainType) bool
 		StopSnapshotGeneration(ct chaintype.ChainType) error
-		DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error
 		StartSnapshotListener() observer.Listener
 	}
 
 	SnapshotService struct {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlockTypeStatusService    BlockTypeStatusServiceInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface // map key = chaintype number (eg. mainchain = 0)
-		FileDownloaderService     FileDownloaderServiceInterface
-		FileService               FileServiceInterface
 		Logger                    *log.Logger
 	}
 )
@@ -42,18 +37,14 @@ var (
 
 func NewSnapshotService(
 	spineBlockManifestService SpineBlockManifestServiceInterface,
-	blockTypeStatusService BlockTypeStatusServiceInterface,
+	blockchainStatusService BlockchainStatusServiceInterface,
 	snapshotBlockServices map[int32]SnapshotBlockServiceInterface,
-	fileDownloaderService FileDownloaderServiceInterface,
-	fileService FileServiceInterface,
 	logger *log.Logger,
 ) *SnapshotService {
 	return &SnapshotService{
 		SpineBlockManifestService: spineBlockManifestService,
-		BlockTypeStatusService:    blockTypeStatusService,
+		BlockchainStatusService:   blockchainStatusService,
 		SnapshotBlockServices:     snapshotBlockServices,
-		FileDownloaderService:     fileDownloaderService,
-		FileService:               fileService,
 		Logger:                    logger,
 	}
 }
@@ -115,7 +106,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 					go func() {
 						// if spine and main blocks are still downloading, after the node has started,
 						// do not generate (or download from other peers) snapshots
-						if !ss.BlockTypeStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
+						if !ss.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
 							ss.Logger.Infof("Snapshot at block "+
 								"height %d not generated because spine blocks are still downloading",
 								block.Height)
@@ -152,43 +143,4 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 			}
 		},
 	}
-}
-
-func (ss *SnapshotService) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error {
-	var (
-		failedDownloadChunkNames = make([]string, 0)
-		hashSize                 = sha3.New256().Size()
-	)
-	fileChunkHashes, err := ss.parseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
-	if err != nil {
-		return err
-	}
-	for _, fileChunkHash := range fileChunkHashes {
-		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
-		if err != nil {
-			return err
-		}
-		if err := ss.FileDownloaderService.DownloadFileByName(fileName, fileChunkHash); err != nil {
-			ss.Logger.Infof("Error Downloading snapshot file chunk. name: %s hash: %v", fileName, fileChunkHash)
-			failedDownloadChunkNames = append(failedDownloadChunkNames, fileName)
-		}
-	}
-	// TODO: implement retry on failed snapshot chunks (from a different peer)
-	if len(failedDownloadChunkNames) > 0 {
-		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("One or more snapshot chunks failed to download %v",
-			failedDownloadChunkNames))
-	}
-	return nil
-}
-
-func (ss *SnapshotService) parseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error) {
-	// math.Mod returns the reminder of len(fileHashes)/hashLength
-	// we use it to check if the length of fileHashes is a multiple of the single hash's length (32 bytes for sha256)
-	if len(fileHashes) < hashLength || math.Mod(float64(len(fileHashes)), float64(hashLength)) > 0 {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid file chunks hashes length")
-	}
-	for i := 0; i < len(fileHashes); i += hashLength {
-		fileHashesAry = append(fileHashesAry, fileHashes[i:i+hashLength])
-	}
-	return fileHashesAry, nil
 }

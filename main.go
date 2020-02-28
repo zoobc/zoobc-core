@@ -63,7 +63,7 @@ var (
 	mainchainBlockService                           *service.BlockService
 	mainBlockSnapshotChunkStrategy                  service.SnapshotChunkStrategyInterface
 	spinechainBlockService                          *service.BlockSpineService
-	fileDownloadService                             service.FileDownloaderServiceInterface
+	fileDownloader                                  p2p.FileDownloaderInterface
 	mempoolServices                                 = make(map[int32]service.MempoolServiceInterface)
 	blockIncompleteQueueService                     service.BlockIncompleteQueueServiceInterface
 	receiptService                                  service.ReceiptServiceInterface
@@ -88,7 +88,7 @@ var (
 	chainTypes                                      = chaintype.GetChainTypes()
 	mainchain                                       = &chaintype.MainChain{}
 	spinechain                                      = &chaintype.SpineChain{}
-	blockTypeStatusService                          service.BlockTypeStatusServiceInterface
+	blockchainStatusService                         service.BlockchainStatusServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 )
@@ -158,7 +158,7 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
-	blockTypeStatusService = service.NewBlockTypeStatusService(true)
+	blockchainStatusService = service.NewBlockchainStatusService(true)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -168,6 +168,7 @@ func init() {
 	fileService = service.NewFileService(
 		loggerCoreService,
 		new(codec.CborHandle),
+		snapshotPath,
 	)
 	mainBlockSnapshotChunkStrategy = service.NewSnapshotBasicChunkStrategy(
 		constant.SnapshotChunkSize,
@@ -187,17 +188,10 @@ func init() {
 		query.GetSnapshotQuery(mainchain),
 	)
 
-	fileDownloadService = service.NewFileDownloaderService(
-		snapshotPath,
-		fileService,
-		loggerP2PService,
-	)
 	snapshotService = service.NewSnapshotService(
 		spineBlockManifestService,
-		blockTypeStatusService,
+		blockchainStatusService,
 		snapshotBlockServices,
-		fileDownloadService,
-		fileService,
 		loggerCoreService,
 	)
 
@@ -344,6 +338,13 @@ func initP2pInstance() {
 		peerExplorer,
 		loggerP2PService,
 		transactionUtil,
+		fileService,
+	)
+	fileDownloader = p2p.NewFileDownloader(
+		p2pServiceInstance,
+		fileService,
+		loggerP2PService,
+		blockchainStatusService,
 	)
 }
 
@@ -368,6 +369,7 @@ func startServices() {
 		queryExecutor,
 		blockServices,
 		mempoolServices,
+		fileService,
 		observerInstance,
 	)
 	api.Start(
@@ -548,7 +550,7 @@ func startMainchain() {
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
 				mainchainBlockService,
 				loggerCoreService,
-				blockTypeStatusService,
+				blockchainStatusService,
 			)
 			mainchainProcessor.Start(sleepPeriod)
 		}
@@ -558,7 +560,7 @@ func startMainchain() {
 		peerServiceClient,
 		peerExplorer,
 		loggerCoreService,
-		blockTypeStatusService,
+		blockchainStatusService,
 	)
 	mainchainForkProcessor = &blockchainsync.ForkingProcessor{
 		ChainType:          mainchainBlockService.GetChainType(),
@@ -580,7 +582,7 @@ func startMainchain() {
 		mainchainBlockService,
 		peerServiceClient, peerExplorer,
 		loggerCoreService,
-		blockTypeStatusService,
+		blockchainStatusService,
 		mainchainDownloader,
 		mainchainForkProcessor,
 	)
@@ -629,7 +631,7 @@ func startSpinechain() {
 			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
 			spinechainBlockService,
 			loggerCoreService,
-			blockTypeStatusService,
+			blockchainStatusService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}
@@ -638,7 +640,7 @@ func startSpinechain() {
 		peerServiceClient,
 		peerExplorer,
 		loggerCoreService,
-		blockTypeStatusService,
+		blockchainStatusService,
 	)
 	spinechainForkProcessor = &blockchainsync.ForkingProcessor{
 		ChainType:          spinechainBlockService.GetChainType(),
@@ -661,7 +663,7 @@ func startSpinechain() {
 		peerServiceClient,
 		peerExplorer,
 		loggerCoreService,
-		blockTypeStatusService,
+		blockchainStatusService,
 		spinechainDownloader,
 		spinechainForkProcessor,
 	)
@@ -729,10 +731,10 @@ syncronizersLoop:
 				loggerCoreService.Errorf("cannot get last spine block")
 				os.Exit(1)
 			}
-			if blockTypeStatusService.IsFirstDownloadFinished(spinechain) {
-				// unlock smithing process after main blocks have finished downloading
-				blockTypeStatusService.SetIsSmithingLocked(false)
+			if blockchainStatusService.IsFirstDownloadFinished(spinechain) {
 				ticker.Stop()
+				// unlock smithing process after main blocks have finished downloading
+				blockchainStatusService.SetIsSmithingLocked(false)
 				// loop through all chain types that support snapshots and download them if we find relative
 				// spineBlockManifest
 				for i := 0; i < len(chainTypes); i++ {
@@ -761,7 +763,7 @@ syncronizersLoop:
 							loggerCoreService.Infof("found spineBlockManifest for chaintype %s at spine height %d. "+
 								"snapshot taken at block height %d", ct.GetName(), lastSpineBlock.Height,
 								lastSpineBlockManifest.SpineBlockManifestHeight)
-							if err := snapshotService.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
+							if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
 								loggerCoreService.Info(err)
 							}
 						}

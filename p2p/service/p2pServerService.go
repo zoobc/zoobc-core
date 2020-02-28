@@ -69,9 +69,14 @@ type (
 			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
+		RequestDownloadFile(
+			ctx context.Context,
+			fileChunkNames []string,
+		) (*model.FileDownloadResponse, error)
 	}
 
 	P2PServerService struct {
+		FileService      coreService.FileServiceInterface
 		PeerExplorer     strategy.PeerExplorerStrategyInterface
 		BlockServices    map[int32]coreService.BlockServiceInterface
 		MempoolServices  map[int32]coreService.MempoolServiceInterface
@@ -84,11 +89,13 @@ func NewP2PServerService(
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
+	fileService coreService.FileServiceInterface,
 	nodeSecretPhrase string,
 	observer *observer.Observer,
 ) *P2PServerService {
 
 	return &P2PServerService{
+		FileService:      fileService,
 		PeerExplorer:     peerExplorer,
 		BlockServices:    blockServices,
 		MempoolServices:  mempoolServices,
@@ -429,5 +436,31 @@ func (ps *P2PServerService) RequestBlockTransactions(
 		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
 		return &model.Empty{}, nil
 	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) RequestDownloadFile(
+	ctx context.Context,
+	fileChunkNames []string,
+) (*model.FileDownloadResponse, error) {
+	//STEFFFFF
+	// if ps.PeerExplorer.ValidateRequest(ctx) {
+	// 	for _, fileName := range fileChunkNames {
+	// 		ps.FileService.ReadFileByHash()
+	// 	}
+	// 	return ps.PeerExplorer.GetHostInfo(), nil
+	// }
+	// return nil, status.Error(codes.Unauthenticated, "Rejected request")
+	//
+	// if ps.PeerExplorer.ValidateRequest(ctx) {
+	// 	md, _ := metadata.FromIncomingContext(ctx)
+	// 	fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+	// 	peer, err := p2pUtil.ParsePeer(fullAddress)
+	// 	if err != nil {
+	// 		_ = status.Error(codes.InvalidArgument, "Invalid requester data")
+	// 	}
+	// 	ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
+	// 	return &model.Empty{}, nil
+	// }
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

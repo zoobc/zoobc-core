@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -29,6 +31,7 @@ type (
 			queryExecutor query.ExecutorInterface,
 			blockServices map[int32]coreService.BlockServiceInterface,
 			mempoolServices map[int32]coreService.MempoolServiceInterface,
+			fileService coreService.FileServiceInterface,
 			observer *observer.Observer,
 		)
 		// exposed api list
@@ -42,6 +45,7 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
+		DownloadFilesFromPeer(fileChunksNames []string) (failed []string, err error)
 	}
 	Peer2PeerService struct {
 		Host              *model.Host
@@ -49,6 +53,7 @@ type (
 		PeerServiceClient client.PeerServiceClientInterface
 		Logger            *log.Logger
 		TransactionUtil   transaction.UtilInterface
+		FileService       coreService.FileServiceInterface
 	}
 )
 
@@ -59,12 +64,15 @@ func NewP2PService(
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	logger *log.Logger,
 	transactionUtil transaction.UtilInterface,
+	fileService coreService.FileServiceInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		Host:              host,
 		PeerServiceClient: peerServiceClient,
+		Logger:            logger,
 		PeerExplorer:      peerExplorer,
 		TransactionUtil:   transactionUtil,
+		FileService:       fileService,
 	}, nil
 }
 
@@ -76,6 +84,7 @@ func (s *Peer2PeerService) StartP2P(
 	queryExecutor query.ExecutorInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
+	fileService coreService.FileServiceInterface,
 	observer *observer.Observer,
 ) {
 	// peer to peer service layer | under p2p handler
@@ -83,6 +92,7 @@ func (s *Peer2PeerService) StartP2P(
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,
+		fileService,
 		nodeSecretPhrase,
 		observer,
 	)
@@ -265,4 +275,48 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 			}(peer)
 		},
 	}
+}
+
+// DownloadFilesFromPeer download a file from a random peer
+func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string) (failed []string, err error) {
+	var (
+		fileChunkNames []string
+	)
+	failed = make([]string, 0)
+	peer := s.PeerExplorer.GetAnyResolvedPeer()
+	if peer == nil {
+		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no connected peer can be found")
+	}
+	fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunkNames)
+	if err != nil {
+		return nil, err
+	}
+	if fileDownloadResponse.FileChunks == nil {
+		return nil, blocker.NewBlocker(blocker.AppErr, "peer returned empty file chunks")
+	}
+	for _, fileChunk := range fileDownloadResponse.FileChunks {
+		fileChunkComputedName, err := s.FileService.GetFileNameFromHash(fileChunk)
+		if err != nil {
+			failed = append(failed, fileChunkComputedName)
+			continue
+		}
+
+		// convert the slice to a map to make it easier to find elements in it
+		elementMap := make(map[string]string)
+		for _, s := range fileChunksNames {
+			elementMap[s] = s
+		}
+		if _, ok := elementMap[fileChunkComputedName]; !ok {
+			err = blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("peer returned an invalid file chunk: %s",
+				fileChunkComputedName))
+			failed = append(failed, fileChunkComputedName)
+			continue
+		}
+		err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
+		if err != nil {
+			failed = append(failed, fileChunkComputedName)
+			continue
+		}
+	}
+	return failed, nil
 }

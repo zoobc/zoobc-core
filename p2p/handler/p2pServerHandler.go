@@ -173,3 +173,19 @@ func (ss *P2PServerHandler) RequestBlockTransactions(
 		req.GetTransactionIDs(),
 	)
 }
+
+// RequestDownloadFile receives an array of file names and return corresponding files.
+func (ss *P2PServerHandler) RequestFileDownload(
+	ctx context.Context,
+	req *model.FileDownloadRequest,
+) (*model.FileDownloadResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadServer)
+	if req.FileChunkNames == nil {
+		return nil, blocker.NewBlocker(
+			blocker.RequestParameterErr,
+			"request does not contain any file name",
+		)
+	}
+	return ss.Service.RequestDownloadFile(ctx, req.GetFileChunkNames())
+}

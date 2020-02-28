@@ -14,11 +14,11 @@ import (
 
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
-		ct                     chaintype.ChainType
-		blocksmith             *model.Blocksmith
-		blockService           service.BlockServiceInterface
-		logger                 *log.Logger
-		blockTypeStatusService service.BlockTypeStatusServiceInterface
+		ct                      chaintype.ChainType
+		blocksmith              *model.Blocksmith
+		blockService            service.BlockServiceInterface
+		logger                  *log.Logger
+		blockchainStatusService service.BlockchainStatusServiceInterface
 	}
 	tests := []struct {
 		name string
@@ -28,16 +28,16 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				ct:                     &chaintype.MainChain{},
-				blocksmith:             &model.Blocksmith{},
-				blockService:           &service.BlockService{},
-				blockTypeStatusService: service.NewBlockTypeStatusService(false),
+				ct:                      &chaintype.MainChain{},
+				blocksmith:              &model.Blocksmith{},
+				blockService:            &service.BlockService{},
+				blockchainStatusService: service.NewBlockchainStatusService(false),
 			},
 			want: &BlockchainProcessor{
-				ChainType:              &chaintype.MainChain{},
-				BlockService:           &service.BlockService{},
-				Generator:              &model.Blocksmith{},
-				BlockTypeStatusService: service.NewBlockTypeStatusService(false),
+				ChainType:               &chaintype.MainChain{},
+				BlockService:            &service.BlockService{},
+				Generator:               &model.Blocksmith{},
+				BlockchainStatusService: service.NewBlockchainStatusService(false),
 			},
 		},
 	}
@@ -48,7 +48,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				tt.args.blocksmith,
 				tt.args.blockService,
 				tt.args.logger,
-				tt.args.blockTypeStatusService,
+				tt.args.blockchainStatusService,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}

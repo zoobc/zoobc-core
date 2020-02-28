@@ -169,10 +169,6 @@ type (
 		SnapshotBasicChunkStrategy
 		success bool
 	}
-	mockFileService struct {
-		FileService
-		successGetFileNameFromHash bool
-	}
 	mockSnapshotQueryExecutor struct {
 		query.Executor
 		success bool
@@ -558,6 +554,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 					NewFileService(
 						log.New(),
 						new(codec.CborHandle),
+						"testdata/snapshots",
 					),
 				),
 				Logger:       log.New(),
@@ -587,6 +584,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 					NewFileService(
 						log.New(),
 						new(codec.CborHandle),
+						"testdata/snapshots",
 					),
 				),
 				Logger:       log.New(),

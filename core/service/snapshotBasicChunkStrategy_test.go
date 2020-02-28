@@ -119,6 +119,7 @@ func (mfs *bcsMockFileService) DecodePayload(b []byte, v interface{}) error {
 		realFs := NewFileService(
 			log.New(),
 			new(codec.CborHandle),
+			"testdata/snapshots",
 		)
 		return realFs.DecodePayload(b, new(interface{}))
 	}
