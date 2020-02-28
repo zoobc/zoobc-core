@@ -304,6 +304,10 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("multisig_address", "block_height")
 			)
 			`,
+			`
+			ALTER TABLE "pending_transaction"
+				ADD COLUMN "sender_address" TEXT, 
+			`,
 		}
 		return nil
 	}
