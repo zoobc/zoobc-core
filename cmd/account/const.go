@@ -5,4 +5,5 @@ var (
 	multisigAddresses []string
 	multisigMinimSigs uint32
 	multiSigNonce     int64
+	signatureType     int32
 )

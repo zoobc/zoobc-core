@@ -1,6 +1,9 @@
 package transaction
 
-import "github.com/zoobc/zoobc-core/common/crypto"
+import (
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/model"
+)
 
 var (
 	txTypeMap = map[string][]byte{
@@ -15,7 +18,7 @@ var (
 		"multiSignature":         {5, 0, 0, 0},
 	}
 	signature     = &crypto.Signature{}
-	signatureType uint32
+	signatureType model.SignatureType
 
 	// Basic transaction data
 	outputType              string

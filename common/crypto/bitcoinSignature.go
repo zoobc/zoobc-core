@@ -1,8 +1,6 @@
 package crypto
 
 import (
-	"errors"
-
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
@@ -31,7 +29,7 @@ func DefaultBitcoinCurve() *btcec.KoblitzCurve {
 	return btcec.S256()
 }
 
-// DefaultBitcoinPublicKeyFormat return recomended public key format
+// DefaultBitcoinPublicKeyFormat return recommended public key format
 func DefaultBitcoinPublicKeyFormat() btcutil.PubKeyFormat {
 	// https://bitcoin.org/en/glossary/compressed-public-key
 	return btcutil.PKFCompressed
@@ -63,7 +61,7 @@ func (b *BitcoinSignature) Verify(
 	return signature.Verify(payload, publicKey)
 }
 
-// GetNetworkParams to bitcoin network paramters
+// GetNetworkParams to bitcoin network parameters
 func (b *BitcoinSignature) GetNetworkParams() *chaincfg.Params {
 	return b.NetworkParams
 }
@@ -98,9 +96,6 @@ func (b *BitcoinSignature) GetPublicKeyFromSeed(seed string, format btcutil.PubK
 
 // GetAddressPublicKey to get address public key from seed
 func (b *BitcoinSignature) GetAddressPublicKey(publicKey []byte) (string, error) {
-	if publicKey != nil {
-		return "", errors.New("Invalid Public Key")
-	}
 	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
 	if err != nil {
 		return "", err

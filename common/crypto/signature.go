@@ -89,7 +89,6 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 			ed25519Signature      = NewEd25519Signature()
 			accountPublicKey, err = ed25519Signature.GetPublicKeyFromAddress(accountAddress)
 		)
-		// fmt.Println(ed25519Signature.Sign())
 		if err != nil {
 			// TODO: need catch err into log
 			return false
