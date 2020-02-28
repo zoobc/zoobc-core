@@ -136,3 +136,43 @@ func TestSplitByteSliceByChunkSize(t *testing.T) {
 		})
 	}
 }
+
+func TestGetChecksumByte(t *testing.T) {
+	type args struct {
+		bytes []byte
+	}
+	tests := []struct {
+		name string
+		args args
+		want byte
+	}{
+		{
+			name: "GetChecksumByte:success",
+			args: args{
+				bytes: []byte{1, 2, 3},
+			},
+			want: 6,
+		},
+		{
+			name: "GetChecksumByte:zeroValue",
+			args: args{
+				bytes: []byte{254, 1, 1},
+			},
+			want: 0,
+		},
+		{
+			name: "GetChecksumByte:overFlow",
+			args: args{
+				bytes: []byte{254, 1, 1, 5},
+			},
+			want: 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetChecksumByte(tt.args.bytes); got != tt.want {
+				t.Errorf("GetChecksumByte() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

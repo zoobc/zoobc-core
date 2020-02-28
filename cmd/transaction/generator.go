@@ -50,7 +50,7 @@ func GenerateTxRegisterNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
 	txBody := &model.NodeRegistrationTransactionBody{
@@ -95,7 +95,7 @@ func GenerateTxUpdateNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -126,7 +126,7 @@ func GenerateTxUpdateNode(
 }
 
 func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
@@ -159,7 +159,7 @@ func GenerateTxClaimNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -238,7 +238,7 @@ func GenerateBasicTransaction(
 	timestamp, fee int64,
 	recipientAccountAddress string,
 ) *model.Transaction {
-	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+	senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
@@ -302,7 +302,7 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	tx.Signature = signature.Sign(
 		unsignedTxBytes,
-		constant.SignatureTypeDefault,
+		model.SignatureType_DefaultSignature,
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)

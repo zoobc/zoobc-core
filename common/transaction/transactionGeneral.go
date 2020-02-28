@@ -346,12 +346,13 @@ func (tu *Util) ValidateTransaction(
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
 func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
-	var (
-		buff = bytes.NewBuffer([]byte{})
-	)
 	if info == nil {
 		return "", fmt.Errorf("params cannot be nil")
 	}
+	var (
+		buff = bytes.NewBuffer([]byte{})
+		sig  = crypto.NewEd25519Signature()
+	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
@@ -360,6 +361,6 @@ func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string,
 		buff.WriteString(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return util.GetAddressFromPublicKey(hashed[:])
+	return sig.GetAddressFromPublicKey(hashed[:])
 
 }

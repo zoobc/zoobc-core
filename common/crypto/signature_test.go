@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestNewSignature(t *testing.T) {
@@ -29,7 +29,7 @@ func TestNewSignature(t *testing.T) {
 func TestSignature_Sign(t *testing.T) {
 	type args struct {
 		payload       []byte
-		signatureType uint32
+		signatureType model.SignatureType
 		seed          string
 	}
 	tests := []struct {
@@ -41,7 +41,7 @@ func TestSignature_Sign(t *testing.T) {
 			name: "Sign:valid",
 			args: args{
 				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				signatureType: constant.SignatureTypeDefault,
+				signatureType: model.SignatureType_DefaultSignature,
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			want: []byte{0, 0, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,

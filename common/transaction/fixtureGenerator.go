@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -264,7 +263,7 @@ func GetFixturesForSignedMempoolTransaction(
 	transactionUtil := &Util{}
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
 	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
+	signature := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
 	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
@@ -340,7 +339,7 @@ func GetFixtureForSpecificTransaction(
 	if sign {
 		tx.Signature = (&crypto.Signature{}).Sign(
 			transactionBytes,
-			constant.SignatureTypeDefault,
+			model.SignatureType_DefaultSignature,
 			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 		)
 		transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, true)

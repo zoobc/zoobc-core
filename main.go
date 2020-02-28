@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/ugorji/go/codec"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -91,6 +91,7 @@ var (
 	blockTypeStatusService                          service.BlockTypeStatusServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
+	defaultSignatureType                            *crypto.Ed25519Signature
 )
 
 func init() {
@@ -207,6 +208,8 @@ func init() {
 		query.NewEscrowTransactionQuery(),
 	)
 
+	defaultSignatureType = crypto.NewEd25519Signature()
+
 	// initialize Observer
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler()
@@ -317,7 +320,7 @@ func initP2pInstance() {
 	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
 
 	// initialize peer client service
-	nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+	nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
 	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
 		query.NewNodeReceiptQuery(),
@@ -398,7 +401,7 @@ func startServices() {
 func startNodeMonitoring() {
 	log.Infof("starting node monitoring at port:%d...", monitoringPort)
 	monitoring.SetMonitoringActive(true)
-	monitoring.SetNodePublicKey(util.GetPublicKeyFromSeed(nodeSecretPhrase))
+	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
 	http.Handle("/metrics", promhttp.Handler())
 	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
 	if err != nil {
@@ -534,7 +537,7 @@ func startMainchain() {
 	}
 
 	if len(nodeSecretPhrase) > 0 && smithing {
-		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 		if err != nil {
 			// no nodes registered with current node public key
@@ -621,7 +624,7 @@ func startSpinechain() {
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(nodeSecretPhrase) > 0 && smithing {
-		nodePublicKey := util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
 		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
 		nodeID = int64(binary.LittleEndian.Uint64(nodePublicKey))
 		spinechainProcessor = smith.NewBlockchainProcessor(

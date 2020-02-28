@@ -468,7 +468,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		payloadBytes, payloadHash []byte
 		err                       error
 		digest                    = sha3.New256()
-		blockSmithPublicKey       = util.GetPublicKeyFromSeed(secretPhrase)
+		blockSmithPublicKey       = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		fromTimestamp             = previousBlock.Timestamp
 		spineBlockManifests       []*model.SpineBlockManifest
 	)

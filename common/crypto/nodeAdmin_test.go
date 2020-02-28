@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -36,7 +35,7 @@ func setupVerifyAuthAPI() {
 	bufferInvalidTimestamp.Write(util.ConvertUint32ToBytes(0))
 	validSignature := (&Signature{}).Sign(
 		bufferValid.Bytes(),
-		constant.SignatureTypeDefault,
+		model.SignatureType_DefaultSignature,
 		mockOwnerSeed,
 	)
 	bufferValid.Write(validSignature)

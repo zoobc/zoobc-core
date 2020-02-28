@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -47,7 +46,7 @@ func (*mockServerStreamSuccess) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		constant.SignatureTypeDefault,
+		rpcModel.SignatureType_DefaultSignature,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)
@@ -79,7 +78,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		constant.SignatureTypeDefault,
+		rpcModel.SignatureType_DefaultSignature,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)

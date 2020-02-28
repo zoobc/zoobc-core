@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -47,7 +45,7 @@ func main() {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GeneratetNodeKey)))
 	sig := signature.Sign(
 		buffer.Bytes(),
-		constant.SignatureTypeDefault,
+		rpcModel.SignatureType_DefaultSignature,
 		accountSeed,
 	)
 	buffer.Write(sig)

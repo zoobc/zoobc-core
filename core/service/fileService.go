@@ -2,14 +2,16 @@ package service
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"github.com/ugorji/go/codec"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/ugorji/go/codec"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -108,7 +110,7 @@ func (fs *FileService) HashPayload(b []byte) ([]byte, error) {
 // GetHashFromFileName file name to hash conversion
 // TODO: refactor GetPublicKeyFromAddress name as it can be applied to other use cases, such as this one
 func (*FileService) GetHashFromFileName(fileName string) ([]byte, error) {
-	hash, err := util.GetPublicKeyFromAddress(fileName)
+	hash, err := crypto.NewEd25519Signature().GetPublicKeyFromAddress(fileName)
 	if err != nil {
 		return nil, blocker.NewBlocker(
 			blocker.AppErr,
@@ -121,7 +123,7 @@ func (*FileService) GetHashFromFileName(fileName string) ([]byte, error) {
 // GetFileNameFromHash file hash to fileName conversion
 // TODO: refactor GetAddressFromPublicKey name as it can be applied to other use cases, such as this one
 func (*FileService) GetFileNameFromHash(fileHash []byte) (string, error) {
-	fileName, err := util.GetAddressFromPublicKey(fileHash)
+	fileName, err := crypto.NewEd25519Signature().GetAddressFromPublicKey(fileHash)
 	if err != nil {
 		return "", blocker.NewBlocker(
 			blocker.ServerError,

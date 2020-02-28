@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -77,6 +78,7 @@ func init() {
 	accountCmd.AddCommand(multiSigCmd)
 }
 
+// Commands will return the main generate account cmd
 func Commands() *cobra.Command {
 	return accountCmd
 }
@@ -88,9 +90,10 @@ func generateRandomAccount() {
 
 func generateAccountFromSeed(seed string) {
 	var (
-		privateKey, _ = util.GetPrivateKeyFromSeed(seed)
-		publicKey     = privateKey[32:]
-		address, _    = util.GetAddressFromPublicKey(publicKey)
+		ed25519Signature = crypto.NewEd25519Signature()
+		privateKey       = ed25519Signature.GetPrivateKeyFromSeed(seed)
+		publicKey        = privateKey[32:]
+		address, _       = ed25519Signature.GetAddressFromPublicKey(publicKey)
 	)
 	fmt.Printf("seed: %s\n", seed)
 	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))

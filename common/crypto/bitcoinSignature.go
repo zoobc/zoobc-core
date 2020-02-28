@@ -25,14 +25,14 @@ func DefaultBitcoinNetworkParams() *chaincfg.Params {
 	return &chaincfg.MainNetParams
 }
 
-// DefaultCurve to return used bitcoin curve
-func DefaultCurve() *btcec.KoblitzCurve {
+// DefaultBitcoinCurve to return used bitcoin curve
+func DefaultBitcoinCurve() *btcec.KoblitzCurve {
 	// Bitcoin use a specific Koblitz curve secp256k1
 	return btcec.S256()
 }
 
-// DefaultPublicKeyFormat return recomended public key format
-func DefaultPublicKeyFormat() btcutil.PubKeyFormat {
+// DefaultBitcoinPublicKeyFormat return recomended public key format
+func DefaultBitcoinPublicKeyFormat() btcutil.PubKeyFormat {
 	// https://bitcoin.org/en/glossary/compressed-public-key
 	return btcutil.PKFCompressed
 }
@@ -60,7 +60,6 @@ func (b *BitcoinSignature) Verify(
 	signature *btcec.Signature,
 	publicKey *btcec.PublicKey,
 ) bool {
-
 	return signature.Verify(payload, publicKey)
 }
 
@@ -98,9 +97,7 @@ func (b *BitcoinSignature) GetPublicKeyFromSeed(seed string, format btcutil.PubK
 }
 
 // GetAddressPublicKey to get address public key from seed
-func (b *BitcoinSignature) GetAddressPublicKey(
-	publicKey []byte,
-) (string, error) {
+func (b *BitcoinSignature) GetAddressPublicKey(publicKey []byte) (string, error) {
 	if publicKey != nil {
 		return "", errors.New("Invalid Public Key")
 	}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/common/crypto"
 )
 
 type (
@@ -252,7 +252,7 @@ func (txg *TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 }
 func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
 		if escrow {
@@ -264,7 +264,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 
 func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
 		if escrow {

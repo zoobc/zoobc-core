@@ -14,7 +14,8 @@ var (
 		"approvalEscrow":         {4, 0, 0, 0},
 		"multiSignature":         {5, 0, 0, 0},
 	}
-	signature = &crypto.Signature{}
+	signature     = &crypto.Signature{}
+	signatureType uint32
 
 	// Basic transaction data
 	outputType              string

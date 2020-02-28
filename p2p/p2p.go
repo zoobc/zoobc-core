@@ -3,12 +3,12 @@ package p2p
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -88,18 +88,21 @@ func (s *Peer2PeerService) StartP2P(
 	)
 	// start listening on peer port
 	go func() { // register handlers and listening to incoming p2p request
-		ownerAddress := util.GetAddressFromSeed(nodeSecretPhrase)
-		grpcServer := grpc.NewServer(
-			grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
-				s.Logger,
-				ownerAddress,
-				map[codes.Code]string{
-					codes.Unavailable:     "indicates the destination service is currently unavailable",
-					codes.InvalidArgument: "indicates the argument request is invalid",
-					codes.Unauthenticated: "indicates the request is unauthenticated",
-				},
-			)),
+		var (
+			ownerAddress = crypto.NewEd25519Signature().GetAddressFromSeed(nodeSecretPhrase)
+			grpcServer   = grpc.NewServer(
+				grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
+					s.Logger,
+					ownerAddress,
+					map[codes.Code]string{
+						codes.Unavailable:     "indicates the destination service is currently unavailable",
+						codes.InvalidArgument: "indicates the argument request is invalid",
+						codes.Unauthenticated: "indicates the request is unauthenticated",
+					},
+				)),
+			)
 		)
+
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,
 		))
