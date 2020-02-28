@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/core/service"
 )
 
 type (
@@ -228,6 +229,22 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 5:
 		switch buf[1] {
 		case 0:
+			// initialize service for pending_tx, pending_sig and multisig_info
+			pendingTransactionService := service.NewPendingTransactionService(
+				query.NewPendingTransactionQuery(),
+				ts.Executor,
+			)
+			pendingSignatureService := service.NewPendingSignatureService(
+				query.NewPendingSignatureQuery(),
+				ts.Executor,
+			)
+			multisigInfoService := service.NewMultisigInfoService(
+				query.NewMultisignatureInfoQuery(),
+				ts.Executor,
+			)
+			multisigUtil := util.NewMultisigTransactionUtil(
+				pendingTransactionService, pendingSignatureService, multisigInfoService, &Util{},
+			)
 			multiSigTransactionBody, err := new(MultiSignatureTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
@@ -239,7 +256,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				TypeSwitcher: &TypeSwitcher{
 					Executor: ts.Executor,
 				},
-				Signature: &crypto.Signature{},
+				Signature:                 &crypto.Signature{},
+				Height:                    tx.Height,
+				MultisigUtil:              multisigUtil,
+				PendingTransactionService: pendingTransactionService,
+				PendingSignatureService:   pendingSignatureService,
+				MultisigInfoService:       multisigInfoService,
 			}, nil
 		default:
 			return nil, nil
