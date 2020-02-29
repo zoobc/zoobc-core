@@ -141,21 +141,27 @@ func (ts *TransactionService) GetTransactions(
 	}
 	selectQuery, args = caseQuery.Build()
 
-	// count first
-	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&totalRecords,
-		)
+	err = func() error {
+		// count first
+		countQuery := query.GetTotalRecordOfSelect(selectQuery)
+		rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
 		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
+		defer rows.Close()
+
+		if rows.Next() {
+			err = rows.Scan(
+				&totalRecords,
+			)
+			if err != nil {
+				return status.Error(codes.Internal, err.Error())
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 
 	// Get Transactions with Pagination
@@ -167,42 +173,48 @@ func (ts *TransactionService) GetTransactions(
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 	selectQuery, args = caseQuery.Build()
 
-	rows2, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows2.Close()
+	err = func() error {
+		rows2, err = ts.Query.ExecuteSelect(selectQuery, false, args...)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		defer rows2.Close()
 
-	for rows2.Next() {
-		var tx model.Transaction
-		err = rows2.Scan(
-			&tx.ID,
-			&tx.BlockID,
-			&tx.Height,
-			&tx.SenderAccountAddress,
-			&tx.RecipientAccountAddress,
-			&tx.TransactionType,
-			&tx.Fee,
-			&tx.Timestamp,
-			&tx.TransactionHash,
-			&tx.TransactionBodyLength,
-			&tx.TransactionBodyBytes,
-			&tx.Signature,
-			&tx.Version,
-			&tx.TransactionIndex,
-		)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return nil, status.Error(codes.Internal, err.Error())
+		for rows2.Next() {
+			var tx model.Transaction
+			err = rows2.Scan(
+				&tx.ID,
+				&tx.BlockID,
+				&tx.Height,
+				&tx.SenderAccountAddress,
+				&tx.RecipientAccountAddress,
+				&tx.TransactionType,
+				&tx.Fee,
+				&tx.Timestamp,
+				&tx.TransactionHash,
+				&tx.TransactionBodyLength,
+				&tx.TransactionBodyBytes,
+				&tx.Signature,
+				&tx.Version,
+				&tx.TransactionIndex,
+			)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					return status.Error(codes.Internal, err.Error())
+				}
+				return status.Error(codes.Internal, err.Error())
 			}
-			return nil, status.Error(codes.Internal, err.Error())
+			txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
+			if err != nil {
+				return status.Error(codes.Internal, err.Error())
+			}
+			txType.GetTransactionBody(&tx)
+			txs = append(txs, &tx)
 		}
-		txType, err := ts.ActionTypeSwitcher.GetTransactionType(&tx)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		txType.GetTransactionBody(&tx)
-		txs = append(txs, &tx)
+		return nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 
 	return &model.GetTransactionsResponse{

@@ -1253,26 +1253,34 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	} else {
 		blExt.BlocksmithAccountAddress = constant.MainchainGenesisAccountAddress
 	}
-	skippedBlocksmithsQuery := bs.SkippedBlocksmithQuery.GetSkippedBlocksmithsByBlockHeight(block.Height)
-	skippedBlocksmithsRows, err := bs.QueryExecutor.ExecuteSelect(skippedBlocksmithsQuery, false)
+	err = func() error {
+		skippedBlocksmithsQuery := bs.SkippedBlocksmithQuery.GetSkippedBlocksmithsByBlockHeight(block.Height)
+		skippedBlocksmithsRows, err := bs.QueryExecutor.ExecuteSelect(skippedBlocksmithsQuery, false)
+		if err != nil {
+			return err
+		}
+		defer skippedBlocksmithsRows.Close()
+		blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
+		return err
+	}()
 	if err != nil {
 		return nil, err
 	}
-	defer skippedBlocksmithsRows.Close()
-	blExt.SkippedBlocksmiths, err = bs.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
+
+	err = func() error {
+		publishedReceiptQ, publishedReceiptArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
+		publishedReceiptRows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArgs...)
+		if err != nil {
+			return err
+		}
+		defer publishedReceiptRows.Close()
+		publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
+		return err
+	}()
 	if err != nil {
 		return nil, err
 	}
-	publishedReceiptQ, publishedReceiptArgs := bs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
-	publishedReceiptRows, err := bs.QueryExecutor.ExecuteSelect(publishedReceiptQ, false, publishedReceiptArgs...)
-	if err != nil {
-		return nil, err
-	}
-	defer publishedReceiptRows.Close()
-	publishedReceipts, err = bs.PublishedReceiptQuery.BuildModel(publishedReceipts, publishedReceiptRows)
-	if err != nil {
-		return nil, err
-	}
+
 	blExt.TotalReceipts = int64(len(publishedReceipts))
 	for _, pr := range publishedReceipts {
 		if pr.IntermediateHashes != nil {
@@ -1281,16 +1289,21 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 			unLinkedPublishedReceiptCount++
 		}
 	}
-	nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.Height)
-	nodeRegistryAtHeightRows, err := bs.QueryExecutor.ExecuteSelect(nodeRegistryAtHeightQ, false)
+
+	err = func() error {
+		nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.Height)
+		nodeRegistryAtHeightRows, err := bs.QueryExecutor.ExecuteSelect(nodeRegistryAtHeightQ, false)
+		if err != nil {
+			return err
+		}
+		defer nodeRegistryAtHeightRows.Close()
+		nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
+		return err
+	}()
 	if err != nil {
 		return nil, err
 	}
-	defer nodeRegistryAtHeightRows.Close()
-	nodeRegistryAtHeight, err = bs.NodeRegistrationQuery.BuildModel(nodeRegistryAtHeight, nodeRegistryAtHeightRows)
-	if err != nil {
-		return nil, err
-	}
+
 	blExt.ReceiptValue = commonUtils.GetReceiptValue(linkedPublishedReceiptCount, unLinkedPublishedReceiptCount)
 	blExt.PopChange, err = util.CalculateParticipationScore(
 		linkedPublishedReceiptCount,

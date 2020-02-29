@@ -209,10 +209,10 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 
 // Validate validate node registration transaction and tx body
 func (tx *NodeRegistration) Validate(dbTx bool) error {
-
 	var (
 		accountBalance                        model.AccountBalance
 		nodeRegistrations, nodeRegistrations2 []*model.NodeRegistration
+		err                                   error
 	)
 
 	// no need to validate node registration transaction for genesis block
@@ -233,58 +233,72 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	// check balance
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-	if rows.Next() {
-		err = rows.Scan(
-			&accountBalance.AccountAddress,
-			&accountBalance.BlockHeight,
-			&accountBalance.SpendableBalance,
-			&accountBalance.Balance,
-			&accountBalance.PopRevenue,
-			&accountBalance.Latest,
-		)
+	err = func() error {
+		// check balance
+		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
+		defer rows.Close()
+		if rows.Next() {
+			err = rows.Scan(
+				&accountBalance.AccountAddress,
+				&accountBalance.BlockHeight,
+				&accountBalance.SpendableBalance,
+				&accountBalance.Balance,
+				&accountBalance.PopRevenue,
+				&accountBalance.Latest,
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
 		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
-	// check for public key duplication
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
-		dbTx, tx.Body.NodePublicKey)
+	err = func() error {
+		// check for public key duplication
+		nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+			dbTx, tx.Body.NodePublicKey)
+		if err != nil {
+			return err
+		}
+		defer nodeRow.Close()
+		nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+		return err
+	}()
 	if err != nil {
 		return err
 	}
-	defer nodeRow.Close()
-	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	if err != nil {
-		return err
-	}
+
 	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
 	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 
-	// check for account address duplication (accounts can register one node at the time)
-	qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx, args...)
+	err = func() error {
+		// check for account address duplication (accounts can register one node at the time)
+		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+		nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx, args...)
+		if err != nil {
+			return err
+		}
+		defer nodeRow2.Close()
+		nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
+		return err
+	}()
 	if err != nil {
 		return err
 	}
-	defer nodeRow2.Close()
-	nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
-	if err != nil {
-		return err
-	}
+
 	// in case a node with same account address, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
 	if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {

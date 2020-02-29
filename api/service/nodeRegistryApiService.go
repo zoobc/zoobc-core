@@ -56,20 +56,26 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	// count first
 	selectQuery, args = caseQuery.Build()
-	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ns.Query.ExecuteSelect(countQuery, false, args...)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&totalRecords,
-		)
+	err = func() error {
+		countQuery := query.GetTotalRecordOfSelect(selectQuery)
+		rows, err = ns.Query.ExecuteSelect(countQuery, false, args...)
 		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
+		defer rows.Close()
+
+		if rows.Next() {
+			err = rows.Scan(
+				&totalRecords,
+			)
+			if err != nil {
+				return status.Error(codes.Internal, err.Error())
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 
 	if page.GetOrderField() == "" {
@@ -80,16 +86,22 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 	selectQuery, args = caseQuery.Build()
 
-	// Get list of node registry
-	rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows2.Close()
+	err = func() error {
+		// Get list of node registry
+		rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		defer rows2.Close()
 
-	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+		nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		return nil
+	}()
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
 	return &model.GetNodeRegistrationsResponse{

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -75,6 +76,7 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHe
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	spineBlockManifests, err = ss.SpineBlockManifestQuery.BuildModel(spineBlockManifests, rows)
 	if err != nil {
 		if err != sql.ErrNoRows {

@@ -101,19 +101,25 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 
 	// count first
 	selectQuery, args = caseQuery.Build()
-	countQuery = query.GetTotalRecordOfSelect(selectQuery)
+	err = func() error {
+		countQuery = query.GetTotalRecordOfSelect(selectQuery)
 
-	rows, err = ut.Query.ExecuteSelect(countQuery, false, args...)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(&count)
+		rows, err = ut.Query.ExecuteSelect(countQuery, false, args...)
 		if err != nil {
-			return response, status.Error(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
+		defer rows.Close()
+
+		if rows.Next() {
+			err = rows.Scan(&count)
+			if err != nil {
+				return status.Error(codes.Internal, err.Error())
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return nil, err
 	}
 
 	// select records
@@ -126,15 +132,22 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	caseQuery.Paginate(page.GetLimit(), page.GetPage())
 
 	selectQuery, args = caseQuery.Build()
-	rows2, err = ut.Query.ExecuteSelect(selectQuery, false, args...)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows2.Close()
 
-	txs, err = txQuery.BuildModel(txs, rows2)
+	err = func() error {
+		rows2, err = ut.Query.ExecuteSelect(selectQuery, false, args...)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		defer rows2.Close()
+
+		txs, err = txQuery.BuildModel(txs, rows2)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		return nil
+	}()
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
 	response = &model.GetMempoolTransactionsResponse{
