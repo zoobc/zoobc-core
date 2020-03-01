@@ -189,7 +189,7 @@ func SetUnresolvedPriorityPeersCount(count int) {
 	if unresolvedPriorityPeersCounter == nil {
 		unresolvedPriorityPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: fmt.Sprintf("zoobc_unresolved_priority_peers"),
-			Help: fmt.Sprintf("priority resolvedPeers counter"),
+			Help: fmt.Sprintf("priority unresolvedPeers counter"),
 		})
 		prometheus.MustRegister(unresolvedPriorityPeersCounter)
 	}
