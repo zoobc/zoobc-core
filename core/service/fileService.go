@@ -20,6 +20,7 @@ type (
 		GetDownloadPath() string
 		ParseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error)
 		ReadFileByHash(filePath string, fileHash []byte) ([]byte, error)
+		ReadFileByName(filePath string, fileName string) ([]byte, error)
 		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
@@ -76,6 +77,10 @@ func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte,
 	if err != nil {
 		return nil, err
 	}
+	return fs.ReadFileByName(filePath, fileName)
+}
+
+func (fs *FileService) ReadFileByName(filePath string, fileName string) ([]byte, error) {
 	filePathName := filepath.Join(filePath, fileName)
 	chunkBytes, err := ioutil.ReadFile(filePathName)
 	if err != nil {

@@ -443,24 +443,21 @@ func (ps *P2PServerService) RequestDownloadFile(
 	ctx context.Context,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
-	//STEFFFFF
-	// if ps.PeerExplorer.ValidateRequest(ctx) {
-	// 	for _, fileName := range fileChunkNames {
-	// 		ps.FileService.ReadFileByHash()
-	// 	}
-	// 	return ps.PeerExplorer.GetHostInfo(), nil
-	// }
-	// return nil, status.Error(codes.Unauthenticated, "Rejected request")
-	//
-	// if ps.PeerExplorer.ValidateRequest(ctx) {
-	// 	md, _ := metadata.FromIncomingContext(ctx)
-	// 	fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-	// 	peer, err := p2pUtil.ParsePeer(fullAddress)
-	// 	if err != nil {
-	// 		_ = status.Error(codes.InvalidArgument, "Invalid requester data")
-	// 	}
-	// 	ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
-	// 	return &model.Empty{}, nil
-	// }
+	var (
+		fileChunks = make([][]byte, 0)
+	)
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		for _, fileName := range fileChunkNames {
+			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
+			if err != nil {
+				return nil, status.Error(codes.Internal, "File Not Found")
+			}
+			fileChunks = append(fileChunks, chunkBytes)
+		}
+		res := &model.FileDownloadResponse{
+			FileChunks: fileChunks,
+		}
+		return res, nil
+	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

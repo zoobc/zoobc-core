@@ -58,14 +58,19 @@ var (
 
 	goRoutineActivityCounters     = make(map[string]prometheus.Gauge)
 	goRoutineActivityCountersSync sync.Mutex
+
+	snapshotDownloadRequestCounter       prometheus.Counter
+	snapshotDownloadRequestFailedCounter prometheus.Counter
+	snapshotDownloadRequestCounterSync   sync.Mutex
 )
 
 const (
-	P2pGetPeerInfoServer                = "P2pGetPeerInfoServer"
-	P2pGetMorePeersServer               = "P2pGetMorePeersServer"
-	P2pSendPeersServer                  = "P2pSendPeersServer"
-	P2pSendBlockServer                  = "P2pSendBlockServer"
-	P2pSendTransactionServer            = "P2pSendTransactionServer"
+	P2pGetPeerInfoServer     = "P2pGetPeerInfoServer"
+	P2pGetMorePeersServer    = "P2pGetMorePeersServer"
+	P2pSendPeersServer       = "P2pSendPeersServer"
+	P2pSendBlockServer       = "P2pSendBlockServer"
+	P2pSendTransactionServer = "P2pSendTransactionServer"
+	// @iltoga for @ali this is unused. can we delete it?
 	P2pRequestBlockTransactionsServer   = "P2pRequestBlockTransactionsServer"
 	P2pRequestFileDownloadServer        = "P2pRequestFileDownloadServer"
 	P2pGetCumulativeDifficultyServer    = "P2pGetCumulativeDifficultyServer"
@@ -407,4 +412,34 @@ func DecrementGoRoutineActivity(activityName string) {
 		return
 	}
 	goRoutineActivityCounters[activityName].Dec()
+}
+
+func IncrementSnapshotDownloadCounter(success bool) {
+	if !isMonitoringActive {
+		return
+	}
+
+	snapshotDownloadRequestCounterSync.Lock()
+	defer snapshotDownloadRequestCounterSync.Unlock()
+	if success {
+		if snapshotDownloadRequestCounter == nil {
+			snapshotDownloadRequestCounter = prometheus.NewCounter(prometheus.CounterOpts{
+				Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads"),
+				Help: fmt.Sprintf("snapshot file chunks succeeded to download"),
+			})
+			prometheus.MustRegister(snapshotDownloadRequestCounter)
+		}
+
+		snapshotDownloadRequestCounter.Inc()
+	} else {
+		if snapshotDownloadRequestFailedCounter == nil {
+			snapshotDownloadRequestFailedCounter = prometheus.NewCounter(prometheus.CounterOpts{
+				Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads_failed"),
+				Help: fmt.Sprintf("snapshot file chunks failed to download"),
+			})
+			prometheus.MustRegister(snapshotDownloadRequestFailedCounter)
+		}
+
+		snapshotDownloadRequestFailedCounter.Inc()
+	}
 }
