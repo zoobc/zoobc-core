@@ -67,8 +67,8 @@ func (fs *FileService) ParseFileChunkHashes(fileHashes []byte, hashLength int) (
 }
 
 func (fs *FileService) VerifyFileChecksum(fileBytes, hash []byte) bool {
-	computed := sha3.New256().Sum(fileBytes)
-	return bytes.Equal(computed, hash)
+	computed := sha3.Sum256(fileBytes)
+	return bytes.Equal(computed[:], hash)
 }
 
 func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte, error) {

@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
+	"io/ioutil"
 	"path/filepath"
 )
 
@@ -67,16 +68,17 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *mo
 
 		// make extra sure that the file created is not corrupted
 		filePathName := filepath.Join(filePath, fileName)
-		fileBytes, err := util.ComputeFileHash(filePathName, sha3.New256())
+		fileBytes, err := ioutil.ReadFile(filePathName)
 		if err != nil {
 			return nil, nil, err
 		}
 		if !ss.FileService.VerifyFileChecksum(fileBytes, fileChunkHash) {
 			// try remove saved files if file chunk validation fails
-			if err1 := ss.FileService.DeleteFilesByHash(filePath, fileChunkHashes); err1 != nil {
-				return nil, nil, err1
+			err = ss.FileService.DeleteFilesByHash(filePath, fileChunkHashes)
+			if err != nil {
+				return nil, nil, err
 			}
-			return nil, nil, err
+			return nil, nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidFileHash")
 		}
 	}
 	return fullHash, fileChunkHashes, nil

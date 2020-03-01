@@ -62,7 +62,7 @@ type (
 		successEncode              bool
 		successGetFileNameFromHash bool
 		successSaveBytesToFile     bool
-		successVerifyFileHash      bool
+		successVerifyFileChecksum  bool
 		integrationTest            bool
 	}
 )
@@ -84,13 +84,6 @@ func (mfs *bcsMockFileService) GetFileNameFromHash(fileHash []byte) (string, err
 		return "vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO", nil
 	}
 	return "", errors.New("GetFileNameFromHashFail")
-}
-
-func (mfs *bcsMockFileService) VerifyFileHash(filePath string, hash []byte) (bool, error) {
-	if mfs.successVerifyFileHash {
-		return true, nil
-	}
-	return false, errors.New("VerifyFileHashFail")
 }
 
 func (mfs *bcsMockFileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
@@ -126,6 +119,13 @@ func (mfs *bcsMockFileService) DecodePayload(b []byte, v interface{}) error {
 	return nil
 }
 
+func (mfs *bcsMockFileService) VerifyFileChecksum(fileBytes, hash []byte) bool {
+	if mfs.successVerifyFileChecksum {
+		return true
+	}
+	return false
+}
+
 func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 	type fields struct {
 		ChunkSize   int
@@ -155,7 +155,7 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 					successEncode:              true,
 					successGetFileNameFromHash: true,
 					successSaveBytesToFile:     true,
-					successVerifyFileHash:      true,
+					successVerifyFileChecksum:  true,
 				},
 			},
 			args: args{
@@ -179,7 +179,7 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 					successEncode:              true,
 					successGetFileNameFromHash: true,
 					successSaveBytesToFile:     false,
-					successVerifyFileHash:      true,
+					successVerifyFileChecksum:  true,
 				},
 			},
 			args: args{
@@ -200,7 +200,7 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 					successEncode:              true,
 					successGetFileNameFromHash: true,
 					successSaveBytesToFile:     true,
-					successVerifyFileHash:      false,
+					successVerifyFileChecksum:  false,
 				},
 			},
 			args: args{
