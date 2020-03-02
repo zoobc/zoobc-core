@@ -1,6 +1,7 @@
 package smith
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"reflect"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
+		ct                     chaintype.ChainType
 		blocksmith             *model.Blocksmith
 		blockService           service.BlockServiceInterface
 		logger                 *log.Logger
@@ -26,20 +28,23 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
+				ct:                     &chaintype.MainChain{},
 				blocksmith:             &model.Blocksmith{},
 				blockService:           &service.BlockService{},
-				blockTypeStatusService: service.NewBlockTypeStatusService(),
+				blockTypeStatusService: service.NewBlockTypeStatusService(false),
 			},
 			want: &BlockchainProcessor{
+				ChainType:              &chaintype.MainChain{},
 				BlockService:           &service.BlockService{},
 				Generator:              &model.Blocksmith{},
-				BlockTypeStatusService: service.NewBlockTypeStatusService(),
+				BlockTypeStatusService: service.NewBlockTypeStatusService(false),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockchainProcessor(
+				tt.args.ct,
 				tt.args.blocksmith,
 				tt.args.blockService,
 				tt.args.logger,

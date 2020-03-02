@@ -32,14 +32,12 @@ var (
 	ssSpinechain    = &chaintype.SpineChain{}
 	ssMainchain     = &chaintype.MainChain{}
 	ssMockMainBlock = &model.Block{
-		Height: 720,
-		Timestamp: constant.MainchainGenesisBlockTimestamp + ssMainchain.GetSmithingPeriod() + ssMainchain.
-			GetChainSmithingDelayTime(),
+		Height:    720,
+		Timestamp: constant.MainchainGenesisBlockTimestamp + ssMainchain.GetSmithingPeriod(),
 	}
 	ssMockSpineBlock = &model.Block{
-		Height: 10,
-		Timestamp: constant.SpinechainGenesisBlockTimestamp + ssSpinechain.GetSmithingPeriod() + ssSpinechain.
-			GetChainSmithingDelayTime(),
+		Height:    10,
+		Timestamp: constant.SpinechainGenesisBlockTimestamp + ssSpinechain.GetSmithingPeriod(),
 	}
 	// ssSnapshotInterval          = uint32(1440 * 60 * 30) // 30 days
 	// ssSnapshotGenerationTimeout = int64(1440 * 60 * 3)   // 3 days

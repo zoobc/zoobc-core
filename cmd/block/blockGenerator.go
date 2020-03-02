@@ -205,6 +205,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 	initialize(blocksmithSecretPhrase, outputPath)
 	fmt.Println("done initializing database")
 	blockProcessor = smith.NewBlockchainProcessor(
+		blockService.GetChainType(),
 		blocksmith,
 		blockService,
 		log.New(),
