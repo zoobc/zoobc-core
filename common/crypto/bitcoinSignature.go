@@ -95,6 +95,7 @@ func (b *BitcoinSignature) GetPublicKeyFromSeed(seed string, format btcutil.PubK
 }
 
 // GetAddressPublicKey to get address public key from seed
+// NOTE: Currently the address is the  hex-encoded  from serialized public key (pay-to-pubkey)
 func (b *BitcoinSignature) GetAddressPublicKey(publicKey []byte) (string, error) {
 	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
 	if err != nil {
