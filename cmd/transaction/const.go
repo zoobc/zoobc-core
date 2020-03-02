@@ -16,8 +16,7 @@ var (
 		"approvalEscrow":         {4, 0, 0, 0},
 		"multiSignature":         {5, 0, 0, 0},
 	}
-	signature     = &crypto.Signature{}
-	signatureType int32
+	signature = &crypto.Signature{}
 
 	// Basic transaction data
 	outputType              string
@@ -28,6 +27,7 @@ var (
 	fee                     int64
 	post                    bool
 	postHost                string
+	senderSignatureType     int32
 
 	// Send money transaction
 	sendAmount int64

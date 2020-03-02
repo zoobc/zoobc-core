@@ -234,11 +234,29 @@ func GenerateTxRemoveAccountDataset(
 
 func GenerateBasicTransaction(
 	senderSeed string,
+	senderSignatureType int32,
 	version uint32,
 	timestamp, fee int64,
 	recipientAccountAddress string,
 ) *model.Transaction {
-	senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+	var senderAccountAddress string
+	switch model.SignatureType(senderSignatureType) {
+	case model.SignatureType_DefaultSignature:
+		senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+	case model.SignatureType_BitcoinSignature:
+		var (
+			bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
+			err        error
+		)
+		senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
+		if err != nil {
+			fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+		}
+	default:
+		fmt.Println("GenerateBasicTransaction-Invalid Signature Type")
+	}
+
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
