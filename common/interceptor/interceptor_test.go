@@ -44,7 +44,7 @@ func (*mockServerStreamSuccess) Context() context.Context {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
-	sig := (crypto.NewSignature()).Sign(
+	sig, _ := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
 		rpcModel.SignatureType_DefaultSignature,
 		mockOwnerSeed,
@@ -76,7 +76,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(1435)))
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
-	sig := (crypto.NewSignature()).Sign(
+	sig, _ := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
 		rpcModel.SignatureType_DefaultSignature,
 		mockOwnerSeed,

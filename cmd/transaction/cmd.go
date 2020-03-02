@@ -189,7 +189,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -209,7 +209,7 @@ func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -228,7 +228,7 @@ func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -240,7 +240,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -258,7 +258,7 @@ func (txg *TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -271,7 +271,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -284,7 +284,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -293,7 +293,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(senderSeed, version, timestamp, fee, recipientAccountAddress)
 		tx = GenerateEscrowApprovalTransaction(tx)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 	}
 }
 
@@ -305,7 +305,7 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			PrintTx(GenerateSignedTxBytes(tx, senderSeed), outputType)
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, signatureType), outputType)
 		}
 	}
 }

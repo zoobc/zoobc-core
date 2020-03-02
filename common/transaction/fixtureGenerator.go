@@ -263,7 +263,7 @@ func GetFixturesForSignedMempoolTransaction(
 	transactionUtil := &Util{}
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
 	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
+	signature, _ := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
 	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
@@ -337,7 +337,7 @@ func GetFixtureForSpecificTransaction(
 	var transactionUtil = &Util{}
 	transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, false)
 	if sign {
-		tx.Signature = (&crypto.Signature{}).Sign(
+		tx.Signature, _ = (&crypto.Signature{}).Sign(
 			transactionBytes,
 			model.SignatureType_DefaultSignature,
 			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",

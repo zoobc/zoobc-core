@@ -45,11 +45,14 @@ func main() {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
-	sig := signature.Sign(
+	sig, err := signature.Sign(
 		buffer.Bytes(),
 		rpcModel.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 	)
+	if err != nil {
+		log.Fatalf("error signing payload: %s", err)
+	}
 	buffer.Write(sig)
 
 	ctx := context.Background()

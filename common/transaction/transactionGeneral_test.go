@@ -551,7 +551,7 @@ func TestValidateTransaction(t *testing.T) {
 		true,
 	)
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txEscrowValidate, false)
-	signatureEscrow := (&crypto.Signature{}).Sign(txBytesEscrow, model.SignatureType_DefaultSignature,
+	signatureEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrow, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txEscrowValidate.Signature = signatureEscrow
 
@@ -562,7 +562,7 @@ func TestValidateTransaction(t *testing.T) {
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(txValidate, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
+	signature, _ := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txValidate.Signature = signature
 

@@ -290,7 +290,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 	}
 }
 
-func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
+func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureType int32) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
 		txType          transaction.TypeAction
@@ -300,9 +300,9 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
-	tx.Signature = signature.Sign(
+	tx.Signature, _ = signature.Sign(
 		unsignedTxBytes,
-		model.SignatureType_DefaultSignature,
+		model.SignatureType(signatureType),
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)

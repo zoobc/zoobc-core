@@ -43,11 +43,14 @@ func main() {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GeneratetNodeKey)))
-	sig := signature.Sign(
+	sig, err := signature.Sign(
 		buffer.Bytes(),
 		rpcModel.SignatureType_DefaultSignature,
 		accountSeed,
 	)
+	if err != nil {
+		log.Fatalf("error signing payload: %s", err)
+	}
 	buffer.Write(sig)
 	ctx := context.Background()
 	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))

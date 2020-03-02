@@ -45,13 +45,13 @@ func VerifyAuthAPI(
 			"timestamp is in the past",
 		)
 	}
-	signatureValid := signature.VerifySignature(
+	err = signature.VerifySignature(
 		authBytes[:constant.AuthRequestType+constant.AuthTimestamp],
 		authBytes[constant.AuthRequestType+constant.AuthTimestamp:],
 		ownerAddress,
 	)
-	if !signatureValid {
-		return blocker.NewBlocker(blocker.ValidationErr, "request signature invalid")
+	if err != nil {
+		return err
 	}
 	// if signature valid, update last request timestamp
 	LastRequestTimestamp = authTimestamp

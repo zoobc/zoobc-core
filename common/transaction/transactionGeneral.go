@@ -332,11 +332,9 @@ func (tu *Util) ValidateTransaction(
 	}
 	// verify the signature of the transaction
 	if verifySignature {
-		if !crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress) {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"TxInvalidSignature",
-			)
+		err = crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress)
+		if err != nil {
+			return err
 		}
 	}
 
