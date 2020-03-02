@@ -95,48 +95,39 @@ func generateRandomAccount() {
 }
 
 func generateAccountFromSeed(signatureType int32, seed string) {
+	var (
+		privateKey, publicKey                    []byte
+		publickKeyString, address, signatureName string
+		err                                      error
+	)
+
 	switch model.SignatureType(signatureType) {
+	case model.SignatureType_DefaultSignature:
+		var ed25519Signature = crypto.NewEd25519Signature()
+		signatureName = model.SignatureType_name[int32(model.SignatureType_DefaultSignature)]
+		privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+		publicKey = privateKey[32:]
+		publickKeyString = base64.StdEncoding.EncodeToString(publicKey)
+		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
 	case model.SignatureType_BitcoinSignature:
-		generateBitcoinAccount(seed)
+		var bitcoinSignature = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+		signatureName = model.SignatureType_name[int32(model.SignatureType_BitcoinSignature)]
+		privateKey = bitcoinSignature.GetPrivateKeyFromSeed(seed).Serialize()
+		publicKey = bitcoinSignature.GetPublicKeyFromSeed(seed, crypto.DefaultBitcoinPublicKeyFormat())
+		address, err = bitcoinSignature.GetAddressPublicKey(publicKey)
 	default:
-		generateDefaultAccount(seed)
+		fmt.Println("Invalid Signature Type")
 	}
-}
-
-func generateDefaultAccount(seed string) {
-	var (
-		ed25519Signature = crypto.NewEd25519Signature()
-		privateKey       = ed25519Signature.GetPrivateKeyFromSeed(seed)
-		publicKey        = privateKey[32:]
-		address, _       = ed25519Signature.GetAddressFromPublicKey(publicKey)
-	)
-	fmt.Println("account type: Default account type")
-	fmt.Printf("seed: %s\n", seed)
-	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
-	fmt.Printf("public key bytes: %v\n", publicKey)
-	fmt.Printf("public key string : %v\n", base64.StdEncoding.EncodeToString(publicKey))
-	fmt.Printf("private key bytes: %v\n", privateKey)
-	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey))
-	fmt.Printf("address: %s\n", address)
-}
-
-func generateBitcoinAccount(seed string) {
-	var (
-		bitcoinSignature = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-		privateKey       = bitcoinSignature.GetPrivateKeyFromSeed(seed)
-		publicKey        = privateKey.PubKey().SerializeCompressed()
-		address, err     = bitcoinSignature.GetAddressPublicKey(publicKey)
-	)
 
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	fmt.Println("account type: Bitcoin account type")
+	fmt.Printf("signature type: %s\n", signatureName)
 	fmt.Printf("seed: %s\n", seed)
 	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
 	fmt.Printf("public key bytes: %v\n", publicKey)
-	fmt.Printf("private key bytes: %v\n", privateKey.Serialize())
-	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey.Serialize()))
+	fmt.Printf("public key string : %v\n", publickKeyString)
+	fmt.Printf("private key bytes: %v\n", privateKey)
+	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey))
 	fmt.Printf("address: %s\n", address)
 }
