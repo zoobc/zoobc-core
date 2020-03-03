@@ -254,7 +254,7 @@ func GenerateBasicTransaction(
 			fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
 		}
 	default:
-		fmt.Println("GenerateBasicTransaction-Invalid Signature Type")
+		panic("GenerateBasicTransaction-Invalid Signature Type")
 	}
 
 	if timestamp <= 0 {

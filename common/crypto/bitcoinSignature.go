@@ -104,7 +104,7 @@ func (b *BitcoinSignature) GetAddressPublicKey(publicKey []byte) (string, error)
 	return address.String(), nil
 }
 
-// GetBytesAddressPublicKey Get row bytes of address
+// GetBytesAddressPublicKey Get raw bytes of address
 func (b *BitcoinSignature) GetBytesAddressPublicKey(address string) ([]byte, error) {
 	var decodedAddress, err = btcutil.DecodeAddress(address, b.GetNetworkParams())
 	if err != nil {
@@ -126,7 +126,7 @@ func (b *BitcoinSignature) GetPublicKeyFromAddress(address string) (*btcec.Publi
 	return publicKey, nil
 }
 
-// GetSignatureFromBytes to get signature type from signature row bytes
+// GetSignatureFromBytes to get signature type from signature raw bytes
 func (b *BitcoinSignature) GetSignatureFromBytes(signatureBytes []byte) (*btcec.Signature, error) {
 	var signature, err = btcec.ParseSignature(signatureBytes, b.Curve)
 	if err != nil {

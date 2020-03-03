@@ -116,7 +116,7 @@ func generateAccountFromSeed(signatureType int32, seed string) {
 		publicKey = bitcoinSignature.GetPublicKeyFromSeed(seed, crypto.DefaultBitcoinPublicKeyFormat())
 		address, err = bitcoinSignature.GetAddressPublicKey(publicKey)
 	default:
-		fmt.Println("Invalid Signature Type")
+		panic("Invalid Signature Type")
 	}
 
 	if err != nil {
