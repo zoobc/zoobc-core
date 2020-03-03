@@ -23,4 +23,4 @@ smithing=true
 proofOfOwnershipReqTimeoutSec = 2
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-logLevels=["fatal", "error", "panic"]
+logLevels=["fatal", "error", "panic","info"]
