@@ -772,14 +772,22 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model
 
 // GetLastBlock return the last pushed block
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
-	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	var (
+		transactions []*model.Transaction
+		lastBlock    *model.Block
+		err          error
+	)
+
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
+
+	transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+
 	lastBlock.Transactions = transactions
 	return lastBlock, nil
 }
@@ -795,14 +803,20 @@ func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
 
 }
 
-// GetLastBlock return the last pushed block
+// GetBlockByHeight return the last pushed block
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
-	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
+	var (
+		transactions []*model.Transaction
+		block        *model.Block
+		err          error
+	)
+
+	block, err = commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
+	transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -811,7 +825,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	return block, nil
 }
 
-// GetGenesis return the last pushed block
+// GetGenesisBlock return the last pushed block
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	var (
 		lastBlock model.Block
@@ -901,11 +915,11 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// select transactions from mempool to be added to the block
 	for _, tx := range sortedTransactions {
-		if _, err := digest.Write(tx.TransactionHash); err != nil {
+		if _, err = digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}
-		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
+		txType, errType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if errType != nil {
 			return nil, err
 		}
 		totalAmount += txType.GetAmount()
@@ -934,7 +948,7 @@ func (bs *BlockService) GenerateBlock(
 	payloadHash = digest.Sum([]byte{})
 	// loop through transaction to build block hash
 	digest.Reset() // reset the digest
-	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
+	if _, err = digest.Write(previousBlock.GetBlockSeed()); err != nil {
 		return nil, err
 	}
 
