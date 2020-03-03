@@ -77,10 +77,9 @@ func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 // then verify the signature + public key against the payload based on the
 func (*Signature) VerifySignature(payload, signature []byte, accountAddress string) error {
 	var (
-		signatureType      = util.ConvertBytesToUint32(signature[:4])
-		signatureTypeInt32 = util.ConvertUint32ToInt32(signatureType)
+		signatureType = util.ConvertBytesToUint32(signature[:4])
 	)
-	switch model.SignatureType(signatureTypeInt32) {
+	switch model.SignatureType(signatureType) {
 	case model.SignatureType_DefaultSignature: // zoobc
 		var (
 			ed25519Signature      = NewEd25519Signature()

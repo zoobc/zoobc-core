@@ -3,7 +3,6 @@ package util
 import (
 	"bytes"
 	"encoding/binary"
-	"math"
 )
 
 // ConvertBytesToUint64 takes array of bytes and return the uint64 representation of the given bytes
@@ -55,12 +54,4 @@ func ConvertStringToBytes(str string) []byte {
 	buffer.Write(ConvertUint32ToBytes(uint32(len(str))))
 	buffer.Write(bytes.NewBufferString(str).Bytes())
 	return buffer.Bytes()
-}
-
-// ConvertUint32ToInt32 takes the uint32 and return int32 representation of the given uint32 number
-func ConvertUint32ToInt32(number uint32) int32 {
-	if number > math.MaxInt32 {
-		return int32(number - math.MaxUint32 - 1)
-	}
-	return int32(number)
 }

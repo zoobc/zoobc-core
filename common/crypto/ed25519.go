@@ -19,17 +19,17 @@ func NewEd25519Signature() *Ed25519Signature {
 }
 
 // Sign to generates an ed25519 signature for the provided payload
-func (es *Ed25519Signature) Sign(accountPrivateKey, payload []byte) []byte {
+func (*Ed25519Signature) Sign(accountPrivateKey, payload []byte) []byte {
 	return ed25519.Sign(accountPrivateKey, payload)
 }
 
 // Verify to verify the signature of payload using provided account public key
-func (es *Ed25519Signature) Verify(accountPublicKey, payload, signature []byte) bool {
+func (*Ed25519Signature) Verify(accountPublicKey, payload, signature []byte) bool {
 	return ed25519.Verify(accountPublicKey, payload, signature)
 }
 
 // GetPrivateKeyFromSeed to get private key form seed
-func (es *Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
+func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 	// Convert seed (secret phrase) to byte array
 	seedBuffer := []byte(seed)
 	// Compute SHA3-256 hash of seed (secret phrase)
@@ -53,7 +53,7 @@ func (es *Ed25519Signature) GetAddressFromSeed(seed string) string {
 }
 
 // GetPublicKeyFromAddress Get the raw public key from a formatted address
-func (es *Ed25519Signature) GetPublicKeyFromAddress(address string) ([]byte, error) {
+func (*Ed25519Signature) GetPublicKeyFromAddress(address string) ([]byte, error) {
 	// decode base64 back to byte
 	publicKey, err := base64.URLEncoding.DecodeString(address)
 	if err != nil {
@@ -67,7 +67,7 @@ func (es *Ed25519Signature) GetPublicKeyFromAddress(address string) ([]byte, err
 }
 
 // GetAddressFromPublicKey Get the formatted address from a raw public key
-func (es *Ed25519Signature) GetAddressFromPublicKey(publicKey []byte) (string, error) {
+func (*Ed25519Signature) GetAddressFromPublicKey(publicKey []byte) (string, error) {
 	// public key should be 32 long
 	if len(publicKey) != 32 {
 		return "", blocker.NewBlocker(

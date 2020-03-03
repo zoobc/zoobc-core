@@ -44,7 +44,7 @@ func NewBitcoinSignature(netParams *chaincfg.Params, curve *btcec.KoblitzCurve) 
 }
 
 // Sign to generates an ECDSA signature for the provided payload
-func (b *BitcoinSignature) Sign(privateKey *btcec.PrivateKey, payload []byte) ([]byte, error) {
+func (*BitcoinSignature) Sign(privateKey *btcec.PrivateKey, payload []byte) ([]byte, error) {
 	var sig, err = privateKey.Sign(payload)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (b *BitcoinSignature) Sign(privateKey *btcec.PrivateKey, payload []byte) ([
 }
 
 // Verify to verify the signature of payload using provided public key
-func (b *BitcoinSignature) Verify(
+func (*BitcoinSignature) Verify(
 	payload []byte,
 	signature *btcec.Signature,
 	publicKey *btcec.PublicKey,
