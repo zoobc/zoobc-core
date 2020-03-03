@@ -1,7 +1,6 @@
 package account
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 
@@ -96,33 +95,13 @@ func generateRandomAccount() {
 
 func generateAccountFromSeed(signatureType int32, seed string) {
 	var (
-		privateKey, publicKey                    []byte
-		publickKeyString, address, signatureName string
-		err                                      error
+		signature                                             = crypto.Signature{}
+		privateKey, publicKey, publickKeyString, address, err = signature.GenerateAccountFromSeed(signatureType, seed)
 	)
-
-	switch model.SignatureType(signatureType) {
-	case model.SignatureType_DefaultSignature:
-		var ed25519Signature = crypto.NewEd25519Signature()
-		signatureName = model.SignatureType_name[int32(model.SignatureType_DefaultSignature)]
-		privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
-		publicKey = privateKey[32:]
-		publickKeyString = base64.StdEncoding.EncodeToString(publicKey)
-		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
-	case model.SignatureType_BitcoinSignature:
-		var bitcoinSignature = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-		signatureName = model.SignatureType_name[int32(model.SignatureType_BitcoinSignature)]
-		privateKey = bitcoinSignature.GetPrivateKeyFromSeed(seed).Serialize()
-		publicKey = bitcoinSignature.GetPublicKeyFromSeed(seed, crypto.DefaultBitcoinPublicKeyFormat())
-		address, err = bitcoinSignature.GetAddressPublicKey(publicKey)
-	default:
-		panic("Invalid Signature Type")
-	}
-
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
-	fmt.Printf("signature type: %s\n", signatureName)
+	fmt.Printf("signature type: %s\n", model.SignatureType_name[signatureType])
 	fmt.Printf("seed: %s\n", seed)
 	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
 	fmt.Printf("public key bytes: %v\n", publicKey)

@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"encoding/base64"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -16,6 +17,11 @@ type (
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
+		GenerateAccountFromSeed(signatureType int32, seed string) (
+			privateKey, publicKey []byte,
+			publickKeyString, address string,
+			err error,
+		)
 	}
 
 	// Signature object handle signing and verifying different signature
@@ -30,7 +36,7 @@ func NewSignature() *Signature {
 
 // Sign accept account ID and payload to be signed then return the signature byte based on the
 // signature method associated with account.Type
-func (sig *Signature) Sign(payload []byte, signatureType model.SignatureType, seed string) ([]byte, error) {
+func (*Signature) Sign(payload []byte, signatureType model.SignatureType, seed string) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(signatureType)))
 	switch signatureType {
@@ -136,4 +142,39 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
 	var result = NewEd25519Signature().Verify(nodePublicKey, payload, signature)
 	return result
+}
+
+// GenerateAccountFromSeed to generate account based on provided seed
+func (*Signature) GenerateAccountFromSeed(signatureType int32, seed string) (
+	privateKey, publicKey []byte,
+	publickKeyString, address string,
+	err error,
+) {
+	switch model.SignatureType(signatureType) {
+	case model.SignatureType_DefaultSignature:
+		var ed25519Signature = NewEd25519Signature()
+		privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+		publicKey = privateKey[32:]
+		publickKeyString = base64.StdEncoding.EncodeToString(publicKey)
+		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+		return privateKey, privateKey, publickKeyString, address, nil
+	case model.SignatureType_BitcoinSignature:
+		var bitcoinSignature = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
+
+		privateKey = bitcoinSignature.GetPrivateKeyFromSeed(seed).Serialize()
+		publicKey = bitcoinSignature.GetPublicKeyFromSeed(seed, DefaultBitcoinPublicKeyFormat())
+		address, err = bitcoinSignature.GetAddressPublicKey(publicKey)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+		return privateKey, privateKey, publickKeyString, address, nil
+	default:
+		return nil, nil, "", "", blocker.NewBlocker(
+			blocker.AppErr,
+			"InvalidSignatureType",
+		)
+	}
 }
