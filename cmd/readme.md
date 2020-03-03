@@ -16,6 +16,18 @@ Command line interface to as a utility tools to develop the zoobc system.
 
 - example: `go run main.go account generate` will generate account to use.
 
+### Transaction general flag 
+  - `--output` to provide generated ouput type. Example: `--ouput bytes`
+  - `--version` to provide version of transaction. Example: `--version 1`
+  - `--timestamp` to provide timestamp of trasaction. Example: `--timestamp 1234567`
+  - `--sender-seed` to provide the seed of sender transaction. Example: `--sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"`
+  - `--recipient` provide recepient transaction. Example `--recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM`
+  - `--fee` to provide fee transaction, Example `--fee 1`
+  - `--post` to define automate post transaction or not. Example: `-post true`
+  - `--post-host` to provide where the transaction will post. Example: `--post-host "127.0.0.1:7000"`
+  - `--sender-signature-type` to provide type of transaction signature and effected to the type of the sender account. Example: `--sender-signature-type 1`
+
+
 ### Transaction Send Money
 
 ```
