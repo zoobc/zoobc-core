@@ -755,7 +755,7 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (transactions, receipts)
-func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
+func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {

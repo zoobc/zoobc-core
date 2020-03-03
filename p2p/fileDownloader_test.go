@@ -41,7 +41,8 @@ func TestNewFileDownloader(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewFileDownloader(tt.args.p2pService, tt.args.fileService, tt.args.logger, tt.args.blockchainStatusService); !reflect.DeepEqual(got, tt.want) {
+			if got := NewFileDownloader(tt.args.p2pService, tt.args.fileService, tt.args.logger,
+				tt.args.blockchainStatusService); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewFileDownloader() = %v, want %v", got, tt.want)
 			}
 		})
@@ -127,7 +128,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
-				BlockchainStatusService: service.NewBlockchainStatusService(false),
+				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
 			},
 		},
 		{
@@ -144,7 +145,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
-				BlockchainStatusService: service.NewBlockchainStatusService(false),
+				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
 			},
 			wantErr: true,
 		},
@@ -163,7 +164,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 					success: false,
 				},
 				Logger:                  log.New(),
-				BlockchainStatusService: service.NewBlockchainStatusService(false),
+				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
 			},
 			wantErr: true,
 		},

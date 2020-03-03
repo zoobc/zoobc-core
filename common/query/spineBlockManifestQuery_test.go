@@ -36,7 +36,8 @@ func TestSpineBlockManifestQuery_InsertSpineBlockManifest(t *testing.T) {
 			args: args{
 				spineBlockManifest: mb1,
 			},
-			want: "INSERT INTO spine_block_manifest (id,full_file_hash,file_chunk_hashes,manifest_reference_height,chain_type,manifest_type," +
+			want: "INSERT OR REPLACE INTO spine_block_manifest (id,full_file_hash,file_chunk_hashes,manifest_reference_height," +
+				"chain_type,manifest_type," +
 				"manifest_timestamp) VALUES(? , ?, ?, ?, ?, ?, ?)",
 		},
 	}

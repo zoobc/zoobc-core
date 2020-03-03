@@ -8,6 +8,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
+	"sync"
 	"time"
 )
 
@@ -32,7 +33,7 @@ var (
 	// this map holds boolean channels to all block types that support snapshots
 	stopSnapshotGeneration = make(map[int32]chan bool)
 	// this map holds boolean values to all block types that support snapshots
-	generatingSnapshot = make(map[int32]bool)
+	generatingSnapshot sync.Map
 )
 
 func NewSnapshotService(
@@ -64,9 +65,9 @@ func (ss *SnapshotService) GenerateSnapshot(block *model.Block, ct chaintype.Cha
 			if !ok {
 				return nil, fmt.Errorf("snapshots for chaintype %s not implemented", ct.GetName())
 			}
-			generatingSnapshot[ct.GetTypeInt()] = true
+			generatingSnapshot.Store(ct.GetTypeInt(), true)
 			snapshotInfo, err := snapshotBlockService.NewSnapshotFile(block)
-			generatingSnapshot[ct.GetTypeInt()] = false
+			generatingSnapshot.Store(ct.GetTypeInt(), false)
 			return snapshotInfo, err
 		}
 	}
@@ -84,7 +85,10 @@ func (ss *SnapshotService) StopSnapshotGeneration(ct chaintype.ChainType) error 
 }
 
 func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
-	return generatingSnapshot[ct.GetTypeInt()]
+	if res, ok := generatingSnapshot.Load(ct.GetTypeInt()); ok {
+		return res.(bool)
+	}
+	return false
 }
 
 // StartSnapshotListener setup listener for snapshots generation
@@ -106,9 +110,9 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 					go func() {
 						// if spine and main blocks are still downloading, after the node has started,
 						// do not generate (or download from other peers) snapshots
-						if !ss.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
+						if !ss.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
 							ss.Logger.Infof("Snapshot at block "+
-								"height %d not generated because spine blocks are still downloading",
+								"height %d not generated because blockchain is still downloading",
 								block.Height)
 							return
 						}
@@ -136,8 +140,8 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 							ss.Logger.Errorf("Cannot create spineBlockManifest at block "+
 								"height %d. Error %s", block.Height, err)
 						}
-						ss.Logger.Infof("Snapshot at main block "+
-							"height %d terminated successfully", block.Height)
+						ss.Logger.Infof("Generated Snapshot at main block "+
+							"height %d", block.Height)
 					}()
 				}
 			}

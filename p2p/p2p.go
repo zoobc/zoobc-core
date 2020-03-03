@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -89,10 +88,10 @@ func (s *Peer2PeerService) StartP2P(
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
+		fileService,
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,
-		fileService,
 		nodeSecretPhrase,
 		observer,
 	)
@@ -282,19 +281,19 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string) (fail
 	var (
 		fileChunkNames []string
 	)
-	failed = make([]string, 0)
 	peer := s.PeerExplorer.GetAnyResolvedPeer()
 	if peer == nil {
 		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no connected peer can be found")
 	}
 	fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunkNames)
+	failed = fileDownloadResponse.GetFailed()
 	if err != nil {
 		return nil, err
 	}
-	if fileDownloadResponse.FileChunks == nil {
+	if fileDownloadResponse.GetFileChunks() == nil {
 		return nil, blocker.NewBlocker(blocker.AppErr, "peer returned empty file chunks")
 	}
-	for _, fileChunk := range fileDownloadResponse.FileChunks {
+	for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
 		fileChunkComputedName, err := s.FileService.GetFileNameFromHash(fileChunk)
 		if err != nil {
 			failed = append(failed, fileChunkComputedName)
@@ -307,13 +306,12 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string) (fail
 			elementMap[s] = s
 		}
 		if _, ok := elementMap[fileChunkComputedName]; !ok {
-			err = blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("peer returned an invalid file chunk: %s",
-				fileChunkComputedName))
-			failed = append(failed, fileChunkComputedName)
+			s.Logger.Errorf("peer returned an invalid file chunk: %s", fileChunkComputedName)
 			continue
 		}
 		err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
 		if err != nil {
+			s.Logger.Errorf("failed saving file to storage: %s", err)
 			failed = append(failed, fileChunkComputedName)
 			continue
 		}

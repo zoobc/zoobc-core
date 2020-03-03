@@ -45,12 +45,15 @@ func (mbl *SpineBlockManifestQuery) getTableName() string {
 	return mbl.TableName
 }
 
-// InsertSpineBlockManifest
+// InsertSpineBlockManifest insert new spine block manifest
+// Note: a new one with same id will replace a previous one, if present.
+// this is to allow blocks downloaded from peers to override spine block manifests created locally and insure that the correct
+// snapshot is downloaded by the node when first joins the network
 func (mbl *SpineBlockManifestQuery) InsertSpineBlockManifest(
 	spineBlockManifest *model.SpineBlockManifest,
 ) (str string, args []interface{}) {
 	qryInsert := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		mbl.getTableName(),
 		strings.Join(mbl.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(mbl.Fields)-1)),

@@ -1,6 +1,10 @@
 package service
 
-import "github.com/zoobc/zoobc-core/common/chaintype"
+import (
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"sync"
+)
 
 type (
 	BlockchainStatusServiceInterface interface {
@@ -19,71 +23,101 @@ type (
 
 type (
 	BlockchainStatusService struct {
-		isFirstDownloadFinished map[int32]bool
-		isDownloading           map[int32]bool
-		isDownloadingSnapshot   map[int32]bool
-		isSmithing              map[int32]bool
-		isSmithingLocked        bool
+		Logger *log.Logger
 	}
+)
+
+var (
+	isFirstDownloadFinished sync.Map
+	isDownloading           sync.Map
+	isDownloadingSnapshot   sync.Map
+	isSmithing              sync.Map
+	isSmithingLocked        bool
 )
 
 func NewBlockchainStatusService(
 	lockSmithing bool,
+	logger *log.Logger,
 ) *BlockchainStatusService {
 	// init variables for all block types
 	var btss = &BlockchainStatusService{
-		isDownloading:           make(map[int32]bool),
-		isDownloadingSnapshot:   make(map[int32]bool),
-		isFirstDownloadFinished: make(map[int32]bool),
-		isSmithing:              make(map[int32]bool),
+		Logger: logger,
 	}
-	for _, ct := range chaintype.GetChainTypes() {
-		btss.isDownloading[ct.GetTypeInt()] = false
-		btss.isFirstDownloadFinished[ct.GetTypeInt()] = false
-	}
-	btss.isSmithingLocked = lockSmithing
+	btss.SetIsSmithingLocked(lockSmithing)
 	return btss
 }
 
 func (btss *BlockchainStatusService) SetFirstDownloadFinished(ct chaintype.ChainType, finished bool) {
-	btss.isFirstDownloadFinished[ct.GetTypeInt()] = finished
+	// set it only once, when the node starts
+	if res, ok := isFirstDownloadFinished.Load(ct.GetTypeInt()); ok && res == true {
+		return
+	}
+	isFirstDownloadFinished.Store(ct.GetTypeInt(), finished)
+	if finished {
+		btss.Logger.Errorf("%s first download finished", ct.GetName())
+	}
 }
 
 func (btss *BlockchainStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
-	return btss.isFirstDownloadFinished[ct.GetTypeInt()]
+	if res, ok := isFirstDownloadFinished.Load(ct.GetTypeInt()); ok {
+		return res.(bool)
+	}
+	return false
 }
 
-func (btss *BlockchainStatusService) SetIsDownloading(ct chaintype.ChainType, newValue bool) {
-	btss.isDownloading[ct.GetTypeInt()] = newValue
+func (btss *BlockchainStatusService) SetIsDownloading(ct chaintype.ChainType, downloading bool) {
+	isDownloading.Store(ct.GetTypeInt(), downloading)
 }
 
 func (btss *BlockchainStatusService) IsDownloading(ct chaintype.ChainType) bool {
-	return btss.isDownloading[ct.GetTypeInt()]
+	if res, ok := isDownloading.Load(ct.GetTypeInt()); ok {
+		return res.(bool)
+	}
+	return false
 }
 
-func (btss *BlockchainStatusService) SetIsSmithingLocked(isSmithingLocked bool) {
-	btss.isSmithingLocked = isSmithingLocked
+func (btss *BlockchainStatusService) SetIsSmithingLocked(smithingLocked bool) {
+	var (
+		lockedStr string
+	)
+	isSmithingLocked = smithingLocked
+	if isSmithingLocked {
+		lockedStr = "locked"
+	} else {
+		lockedStr = "unlocked"
+	}
+	btss.Logger.Errorf("smithing process %s...", lockedStr)
 }
 
 func (btss *BlockchainStatusService) IsSmithingLocked() bool {
-	return btss.isSmithingLocked
+	return isSmithingLocked
 }
 
-func (btss *BlockchainStatusService) SetIsSmithing(ct chaintype.ChainType, isSmithing bool) {
-	btss.isSmithing[ct.GetTypeInt()] = isSmithing
+func (btss *BlockchainStatusService) SetIsSmithing(ct chaintype.ChainType, smithing bool) {
+	isSmithing.Store(ct.GetTypeInt(), smithing)
 }
 
 func (btss *BlockchainStatusService) IsSmithing(ct chaintype.ChainType) bool {
-	return btss.isSmithing[ct.GetTypeInt()]
+	if res, ok := isSmithing.Load(ct.GetTypeInt()); ok {
+		return res.(bool)
+	}
+	return false
 }
 
-func (btss *BlockchainStatusService) SetIsDownloadingSnapshot(ct chaintype.ChainType, isDownloadingSnapshot bool) {
-	btss.isDownloadingSnapshot[ct.GetTypeInt()] = isDownloadingSnapshot
+func (btss *BlockchainStatusService) SetIsDownloadingSnapshot(ct chaintype.ChainType, downloadingSnapshot bool) {
+	isDownloadingSnapshot.Store(ct.GetTypeInt(), downloadingSnapshot)
+	if downloadingSnapshot {
+		btss.Logger.Errorf("Downloading snapshot for %s...", ct.GetName())
+	}
+
 }
 
 func (btss *BlockchainStatusService) IsDownloadingSnapshot(ct chaintype.ChainType) bool {
 	if !ct.HasSnapshots() {
 		return false
 	}
-	return btss.isDownloadingSnapshot[ct.GetTypeInt()]
+	if res, ok := isDownloadingSnapshot.Load(ct.GetTypeInt()); ok {
+		return res.(bool)
+	}
+	return false
 }

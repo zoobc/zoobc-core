@@ -76,8 +76,6 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	heightAfterDownload := afterDownloadLastBlock.Height
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
 	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
-		// we only initialize this flag (to false) in main, so once is set to true, it will always be true
-		bd.BlockchainStatusService.SetFirstDownloadFinished(bd.ChainType, true)
 		return true
 	}
 	return false

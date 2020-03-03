@@ -414,14 +414,14 @@ func DecrementGoRoutineActivity(activityName string) {
 	goRoutineActivityCounters[activityName].Dec()
 }
 
-func IncrementSnapshotDownloadCounter(success bool) {
+func IncrementSnapshotDownloadCounter(succeeded, failed int32) {
 	if !isMonitoringActive {
 		return
 	}
 
 	snapshotDownloadRequestCounterSync.Lock()
 	defer snapshotDownloadRequestCounterSync.Unlock()
-	if success {
+	if succeeded > 0 {
 		if snapshotDownloadRequestCounter == nil {
 			snapshotDownloadRequestCounter = prometheus.NewCounter(prometheus.CounterOpts{
 				Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads"),
@@ -430,8 +430,9 @@ func IncrementSnapshotDownloadCounter(success bool) {
 			prometheus.MustRegister(snapshotDownloadRequestCounter)
 		}
 
-		snapshotDownloadRequestCounter.Inc()
-	} else {
+		snapshotDownloadRequestCounter.Add(float64(succeeded))
+	}
+	if failed > 0 {
 		if snapshotDownloadRequestFailedCounter == nil {
 			snapshotDownloadRequestFailedCounter = prometheus.NewCounter(prometheus.CounterOpts{
 				Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads_failed"),
@@ -440,6 +441,6 @@ func IncrementSnapshotDownloadCounter(success bool) {
 			prometheus.MustRegister(snapshotDownloadRequestFailedCounter)
 		}
 
-		snapshotDownloadRequestFailedCounter.Inc()
+		snapshotDownloadRequestFailedCounter.Add(float64(failed))
 	}
 }

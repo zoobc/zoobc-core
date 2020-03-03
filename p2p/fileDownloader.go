@@ -61,17 +61,20 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 			wg.Done()
 			continue
 		}
-		go func(fileName string, fileChunkHash []byte) {
+		go func(fileName string) {
 			defer wg.Done()
 			// TODO: for now download just one chunk per peer,
 			//  but in future we could download multiple chunks at once from one peer
 			failed, err := ss.P2pService.DownloadFilesFromPeer([]string{fileName})
-			if err != nil && failed != nil {
+			if err != nil {
+				ss.Logger.Error(err)
+			}
+			if failed != nil {
 				failedDownloadChunkNames = append(failedDownloadChunkNames, failed...)
 				// TODO: implement retry on failed snapshot chunks (eg. try download from a different peer)
 				return
 			}
-		}(fileName, fileChunkHash)
+		}(fileName)
 	}
 	wg.Wait()
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, false)

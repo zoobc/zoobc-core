@@ -31,13 +31,13 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				ct:                      &chaintype.MainChain{},
 				blocksmith:              &model.Blocksmith{},
 				blockService:            &service.BlockService{},
-				blockchainStatusService: service.NewBlockchainStatusService(false),
+				blockchainStatusService: &service.BlockchainStatusService{},
 			},
 			want: &BlockchainProcessor{
 				ChainType:               &chaintype.MainChain{},
-				BlockService:            &service.BlockService{},
 				Generator:               &model.Blocksmith{},
-				BlockchainStatusService: service.NewBlockchainStatusService(false),
+				BlockService:            &service.BlockService{},
+				BlockchainStatusService: &service.BlockchainStatusService{},
 			},
 		},
 	}

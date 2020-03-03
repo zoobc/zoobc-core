@@ -30,7 +30,7 @@ const (
 	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
 	BlockchainsyncWaitingTime time.Duration = 5 * time.Second
 	// BlockchainsyncCheckInterval time, in seconds, between checks if spine blocks have finished to be downloaded
-	BlockchainsyncCheckInterval time.Duration = 10 * time.Second
+	BlockchainsyncCheckInterval time.Duration = 3 * time.Second
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
 	// download spine blocks and snapshot (if present) timeout
 	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second

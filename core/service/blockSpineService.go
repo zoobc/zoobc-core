@@ -306,6 +306,17 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		return err
 	}
 
+	// if present, add new spine block manifests into spineBlockManifest table
+	for _, spineBlockManifest := range block.SpineBlockManifests {
+		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -353,7 +364,7 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (spinePublicKeys)
-func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
+func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -363,6 +374,14 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32) ([]*
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+	if withAttachedData {
+		for _, block := range blocks {
+			err := bs.PopulateBlockData(block)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			}
+		}
 	}
 
 	return blocks, nil

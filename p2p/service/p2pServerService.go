@@ -86,10 +86,10 @@ type (
 )
 
 func NewP2PServerService(
+	fileService coreService.FileServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
-	fileService coreService.FileServiceInterface,
 	nodeSecretPhrase string,
 	observer *observer.Observer,
 ) *P2PServerService {
@@ -263,7 +263,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit)
+		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit, false)
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
@@ -300,7 +300,7 @@ func (ps *P2PServerService) GetNextBlocks(
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)))
+		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -445,17 +445,20 @@ func (ps *P2PServerService) RequestDownloadFile(
 ) (*model.FileDownloadResponse, error) {
 	var (
 		fileChunks = make([][]byte, 0)
+		failed     []string
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		for _, fileName := range fileChunkNames {
 			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
 			if err != nil {
-				return nil, status.Error(codes.Internal, "File Not Found")
+				failed = append(failed, fileName)
+			} else {
+				fileChunks = append(fileChunks, chunkBytes)
 			}
-			fileChunks = append(fileChunks, chunkBytes)
 		}
 		res := &model.FileDownloadResponse{
 			FileChunks: fileChunks,
+			Failed:     failed,
 		}
 		return res, nil
 	}

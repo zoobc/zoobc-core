@@ -120,10 +120,7 @@ func (mfs *bcsMockFileService) DecodePayload(b []byte, v interface{}) error {
 }
 
 func (mfs *bcsMockFileService) VerifyFileChecksum(fileBytes, hash []byte) bool {
-	if mfs.successVerifyFileChecksum {
-		return true
-	}
-	return false
+	return mfs.successVerifyFileChecksum
 }
 
 func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {

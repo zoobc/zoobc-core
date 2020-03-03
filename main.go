@@ -158,7 +158,7 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
-	blockchainStatusService = service.NewBlockchainStatusService(true)
+	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -719,75 +719,115 @@ func startScheduler() {
 }
 
 func startBlockchainSyncronizers() {
+	var (
+		spineBlocksDownloadFinished = make(chan bool, 1)
+		mainBlocksDownloadFinished  = make(chan bool, 1)
+	)
 	go spinechainSynchronizer.Start()
-	ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
-	timeout := time.After(constant.BlockchainsyncSpineTimeout)
-syncronizersLoop:
-	for {
-		select {
-		case <-ticker.C:
-			lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock()
-			if err != nil {
-				loggerCoreService.Errorf("cannot get last spine block")
-				os.Exit(1)
-			}
-			if blockchainStatusService.IsFirstDownloadFinished(spinechain) {
-				ticker.Stop()
-				// unlock smithing process after main blocks have finished downloading
-				blockchainStatusService.SetIsSmithingLocked(false)
-				// loop through all chain types that support snapshots and download them if we find relative
-				// spineBlockManifest
-				for i := 0; i < len(chainTypes); i++ {
-					ct := chaintype.GetChainType(int32(i))
-					// exclude spinechain
-					if i == int(spinechain.GetTypeInt()) {
-						continue
-					}
-
-					lastMainBlock, err := mainchainSynchronizer.BlockService.GetLastBlock()
-					if err != nil {
-						loggerCoreService.Errorf("cannot get last main block")
-						os.Exit(1)
-					}
-					// only download/apply snapshots first time a node joins the network (for now)
-					if lastMainBlock.Height == 0 {
-						// snapshot download
-						lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(ct,
-							model.SpineBlockManifestType_Snapshot)
-						if err != nil {
-							loggerCoreService.Errorf("db error: cannot get last spineBlockManifest for chaintype %s",
-								ct.GetName())
-							break
-						}
-						if lastSpineBlockManifest != nil {
-							loggerCoreService.Infof("found spineBlockManifest for chaintype %s at spine height %d. "+
-								"snapshot taken at block height %d", ct.GetName(), lastSpineBlock.Height,
-								lastSpineBlockManifest.SpineBlockManifestHeight)
-							if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
-								loggerCoreService.Info(err)
-							}
-						}
-					}
-					// download remaining main blocks and start the mainchain synchronizer
-					// TODO: generalise this so that we can just inject the chaintype and will start the correct
-					//  syncronizer
-					switch ct.(type) {
-					case *chaintype.MainChain:
-						go mainchainSynchronizer.Start()
-					default:
-						loggerCoreService.Debug("invalid chaintype for snapshot")
-					}
+	go func() {
+		ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
+		tickerLog := time.NewTicker(2 * time.Second)
+		timeout := time.After(constant.BlockchainsyncSpineTimeout)
+		for {
+			select {
+			case <-tickerLog.C:
+				loggerCoreService.Errorf("downloading spine blocks...")
+			case <-ticker.C:
+				if blockchainStatusService.IsFirstDownloadFinished(spinechain) {
+					spineBlocksDownloadFinished <- true
+					ticker.Stop()
+					tickerLog.Stop()
+					return
 				}
-				break syncronizersLoop
+			// spine blocks shouldn't take that long to be downloaded. shutdown the node
+			// TODO: add push notification to node owner that the node has shutdown because of network issues
+			case <-timeout:
+				loggerCoreService.Fatal("spine blocks sync timed out...")
 			}
-			loggerCoreService.Infof("downloading spine blocks. last height is %d", lastSpineBlock.Height)
-		// spine blocks shouldn't take that long to be downloaded. shutdown the node
-		// TODO: add push notification to node owner that the node has shutdown because of network issues
-		case <-timeout:
-			loggerCoreService.Info("spine blocks sync timed out...")
-			os.Exit(1)
+		}
+	}()
+
+	// wait downloading snapshot and main blocks until node has finished downloading spine blocks
+	<-spineBlocksDownloadFinished
+	lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Errorf("cannot get last spine block")
+		os.Exit(1)
+	}
+	loggerCoreService.Errorf("finished downloading spine blocks. last height is %d", lastSpineBlock.Height)
+	go func() {
+		ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
+		tickerLog := time.NewTicker(2 * time.Second)
+		for {
+			select {
+			case <-tickerLog.C:
+				loggerCoreService.Errorf("downloading main blocks...")
+			case <-ticker.C:
+				if blockchainStatusService.IsFirstDownloadFinished(mainchain) {
+					mainBlocksDownloadFinished <- true
+					ticker.Stop()
+					tickerLog.Stop()
+					return
+				}
+			}
+		}
+	}()
+	loggerCoreService.Error("done downloading spine blocks. searching for snapshots...")
+	// loop through all chain types that support snapshots and download them if we find relative
+	// spineBlockManifest
+	lastMainBlock, err := mainchainSynchronizer.BlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal("cannot get last main block")
+	}
+	for i := 0; i < len(chainTypes); i++ {
+		ct := chaintype.GetChainType(int32(i))
+		// exclude spinechain
+		if i == int(spinechain.GetTypeInt()) {
+			continue
+		}
+
+		// only download/apply snapshots first time a node joins the network (for now)
+		if lastMainBlock.Height == 0 && ct.HasSnapshots() {
+			// snapshot download
+			lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(ct,
+				model.SpineBlockManifestType_Snapshot)
+			if err != nil {
+				loggerCoreService.Errorf("db error: cannot get last spineBlockManifest for chaintype %s",
+					ct.GetName())
+				break
+			}
+			if lastSpineBlockManifest != nil {
+				loggerCoreService.Errorf("found a Snapshot Spine Block Manifest for chaintype %s, "+
+					"at height is %d. Start downloading...", ct.GetName(),
+					lastSpineBlockManifest.SpineBlockManifestHeight)
+				// STEF comment out for testing locally
+				if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
+					loggerCoreService.Info(err)
+				}
+			}
+		}
+		// download remaining main blocks and start the mainchain synchronizer
+		// TODO: generalise this so that we can just inject the chaintype and will start the correct
+		//  syncronizer
+		switch ct.(type) {
+		case *chaintype.MainChain:
+			loggerCoreService.Info("start downloading main blocks...")
+			go mainchainSynchronizer.Start()
+
+		default:
+			loggerCoreService.Debug("invalid chaintype for snapshot")
 		}
 	}
+	// unlock smithing process after main blocks have finished downloading
+	<-mainBlocksDownloadFinished
+	lastMainBlock, err = mainchainSynchronizer.BlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal("cannot get last main block")
+	}
+	loggerCoreService.Errorf("finished downloading main blocks. last height is %d",
+		lastMainBlock.Height)
+	loggerCoreService.Error("blockchain sync completed. unlocking smithing process...")
+	blockchainStatusService.SetIsSmithingLocked(false)
 }
 
 func main() {
@@ -834,15 +874,15 @@ func main() {
 				scSmithing, _ = spinechainProcessor.GetBlockChainprocessorStatus()
 			}
 			if !mcSmithing && !scSmithing {
-				ticker.Stop()
-				shutdownCompleted <- true
 				loggerCoreService.Info("All smith processors have stopped")
+				shutdownCompleted <- true
 			}
 		case <-timeout:
 			loggerCoreService.Info("ZOOBC Shutdown timedout...")
 			os.Exit(1)
 		case <-shutdownCompleted:
 			loggerCoreService.Info("ZOOBC Shutdown complete")
+			ticker.Stop()
 			os.Exit(0)
 		}
 	}
