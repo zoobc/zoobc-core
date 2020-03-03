@@ -135,8 +135,8 @@ func (m *Migration) Init() error {
 				"latest" INTEGER,
 				PRIMARY KEY("setter_account_address","recipient_account_address", "property", "height")
 			);`,
-			`CREATE INDEX "idx_recepient_account_dataset" 
-			ON "account_dataset" ("recepient_account_address");`,
+			`CREATE INDEX "idx_recipient_account_dataset" 
+			ON "account_dataset" ("recipient_account_address");`,
 			`CREATE INDEX "idx_property_account_dataset" 
 			ON "account_dataset" ("property");`,
 			`CREATE INDEX "idx_height_account_dataset" 
