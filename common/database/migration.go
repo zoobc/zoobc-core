@@ -71,8 +71,12 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("id")
 			);`,
 
+			`CREATE INDEX "idx_id_transaction" 
+			ON "transaction" ("id");`,
 			`CREATE INDEX "idx_blockid_transaction" 
 			ON "transaction" ("block_id");`,
+			`CREATE INDEX "idx_blockheight_transaction" 
+			ON "transaction" ("block_height");`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_balance" (
 				"account_address"	VARCHAR(255),
@@ -259,10 +263,13 @@ func (m *Migration) Init() error {
 				"main_block_height"	INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
-				PRIMARY KEY("node_public_key", "height")
+				PRIMARY KEY("node_public_key")
 			);`,
 			`CREATE INDEX "idx_nodepubkey_spine_pubkey" 
 			ON "spine_public_key" ("node_public_key");
+			`,
+			`CREATE INDEX "idx_height_spine_pubkey" 
+			ON "spine_public_key" ("height");
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_ledger" (
@@ -270,12 +277,12 @@ func (m *Migration) Init() error {
 				"balance_change" INTEGER,
 				"block_height" INTEGER,
 				"transaction_id" INTEGER NULL,
-				"event_type" INTEGER
+				"event_type" INTEGER,
+				"timestamp" INTEGER
 			)
 			`,
-			`
-			ALTER TABLE "account_ledger"
-				ADD COLUMN "timestamp" INTEGER
+			`CREATE INDEX "idx_accaddr_account_ledger" 
+			ON "account_ledger" ("account_address");
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
@@ -289,8 +296,15 @@ func (m *Migration) Init() error {
 				"status" INTEGER,
 				"block_height" INTEGER,
 				"latest" INTEGER,
-				"instruction" TEXT
+				"instruction" TEXT,
+				PRIMARY KEY("id")
 			)
+			`,
+			`CREATE INDEX "idx_id_escrow_transaction" 
+			ON "escrow_transaction" ("id");
+			`,
+			`CREATE INDEX "idx_sender_escrow_transaction" 
+			ON "escrow_transaction" ("sender_address");
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "spine_block_manifest" (
@@ -305,6 +319,9 @@ func (m *Migration) Init() error {
 				UNIQUE("id")
 			)
 			`,
+			`CREATE INDEX "idx_id_spine_block_manifest" 
+			ON "spine_block_manifest" ("id");
+			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_transaction" (
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction
@@ -313,6 +330,9 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,			-- height when pending transaction inserted/updated
 				PRIMARY KEY("transaction_hash", "block_height")
 			)
+			`,
+			`CREATE INDEX "idx_id_pending_transaction" 
+			ON "pending_transaction" ("transaction_hash");
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_signature" (
@@ -323,6 +343,12 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("account_address", "transaction_hash")
 			)
 			`,
+			`CREATE INDEX "idx_id_pending_signature" 
+			ON "pending_signature" ("transaction_hash");
+			`,
+			`CREATE INDEX "idx_height_pending_signature" 
+			ON "pending_signature" ("height");
+			`,
 			`
 			CREATE TABLE IF NOT EXISTS "multisignature_info" (
 				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info 
@@ -332,6 +358,12 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
 				PRIMARY KEY("multisig_address", "block_height")
 			)
+			`,
+			`CREATE INDEX "idx_msgaddr_multisignature_info" 
+			ON "multisignature_info" ("multisig_address");
+			`,
+			`CREATE INDEX "idx_blockheight_multisignature_info" 
+			ON "multisignature_info" ("block_height");
 			`,
 			`
 			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
