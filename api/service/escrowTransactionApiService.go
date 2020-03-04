@@ -14,6 +14,7 @@ type (
 	// EscrowTransactionServiceInterface interface that contain methods of escrow transaction
 	EscrowTransactionServiceInterface interface {
 		GetEscrowTransactions(request *model.GetEscrowTransactionsRequest) (*model.GetEscrowTransactionsResponse, error)
+		GetEscrowTransaction(request *model.GetEscrowTransactionRequest) (*model.Escrow, error)
 	}
 	// EscrowTransactionService struct that contain fields that needed
 	escrowTransactionService struct {
@@ -59,7 +60,7 @@ func (es *escrowTransactionService) GetEscrowTransactions(
 		}
 		caseQuery.And(caseQuery.In("status", statuses...))
 	}
-	if params.GetID() > 0 {
+	if params.GetID() != 0 {
 		caseQuery.And(caseQuery.Equal("id", params.GetID()))
 	}
 
@@ -107,4 +108,33 @@ func (es *escrowTransactionService) GetEscrowTransactions(
 		Total:   uint64(count),
 		Escrows: escrows,
 	}, nil
+}
+
+// GetEscrowTransaction to get escrow by id and status
+func (es *escrowTransactionService) GetEscrowTransaction(
+	request *model.GetEscrowTransactionRequest,
+) (*model.Escrow, error) {
+	var (
+		escrowQuery = query.NewEscrowTransactionQuery()
+		escrow      model.Escrow
+		row         *sql.Row
+		err         error
+	)
+
+	caseQuery := query.CaseQuery{
+		Query: bytes.NewBuffer([]byte{}),
+	}
+
+	caseQuery.Select(escrowQuery.TableName, escrowQuery.Fields...)
+	caseQuery.Where(caseQuery.Equal("id", request.GetID()))
+	caseQuery.Where(caseQuery.Equal("latest", 1))
+
+	qStr, qArgs := caseQuery.Build()
+
+	row, _ = es.Query.ExecuteSelectRow(qStr, false, qArgs...)
+	err = escrowQuery.Scan(&escrow, row)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	return &escrow, nil
 }
