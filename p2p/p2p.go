@@ -19,6 +19,8 @@ import (
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"math/rand"
+	"time"
 )
 
 type (
@@ -44,7 +46,7 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
-		DownloadFilesFromPeer(fileChunksNames []string) (failed []string, err error)
+		DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error)
 	}
 	Peer2PeerService struct {
 		Host              *model.Host
@@ -277,44 +279,89 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 }
 
 // DownloadFilesFromPeer download a file from a random peer
-func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string) (failed []string, err error) {
+func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRetryCount uint32) (failed []string, err error) {
 	var (
-		fileChunkNames []string
+		peer          *model.Peer
+		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
+		peerKey       string
+		retryCount    uint32
 	)
-	peer := s.PeerExplorer.GetAnyResolvedPeer()
-	if peer == nil {
-		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no connected peer can be found")
+	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
+	if len(resolvedPeers) < 1 {
+		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no resolved peer can be found")
 	}
-	fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunkNames)
-	failed = fileDownloadResponse.GetFailed()
-	if err != nil {
-		return nil, err
-	}
-	if fileDownloadResponse.GetFileChunks() == nil {
-		return nil, blocker.NewBlocker(blocker.AppErr, "peer returned empty file chunks")
-	}
-	for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
-		fileChunkComputedName, err := s.FileService.GetFileNameFromHash(fileChunk)
+	fileChunksToDownload := fileChunksNames
+	for retryCount < maxRetryCount+1 {
+		retryCount++
+
+		// randomly select one of the resolved peers to download files from
+		// (no need for secure random here. we just want to get a quick pseudo random index)
+		r := rand.New(rand.NewSource(time.Now().Unix()))
+		randomIdx := r.Intn(len(resolvedPeers))
+		if randomIdx != 0 {
+			randomIdx %= len(resolvedPeers)
+		}
+		idx := 0
+		for peerKey, peer = range resolvedPeers {
+			if idx == randomIdx {
+				// remove selected peer from map to avoid selecting it again
+				delete(resolvedPeers, peerKey)
+				break
+			}
+			idx++
+		}
+
+		// download the files
+		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunksToDownload)
 		if err != nil {
-			failed = append(failed, fileChunkComputedName)
+			return nil, err
+		}
+
+		// check first if all chunks returned are valid
+		skipFilesFromPeer := false
+		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
+			fileChunkComputedName, err := s.FileService.GetFileNameFromBytes(fileChunk)
+			if err != nil {
+				return nil, err
+			}
+			// convert the slice to a map to make it easier to find elements in it
+			elementMap := make(map[string]string)
+			for _, s := range fileChunksNames {
+				elementMap[s] = s
+			}
+			if _, ok := elementMap[fileChunkComputedName]; !ok {
+				s.Logger.Errorf("peer returned an invalid file chunk: %s", fileChunkComputedName)
+				skipFilesFromPeer = true
+				break
+			}
+		}
+		// never trust a peer that returns wrong data, just skip all files downloaded from it
+		if skipFilesFromPeer {
 			continue
 		}
 
-		// convert the slice to a map to make it easier to find elements in it
-		elementMap := make(map[string]string)
-		for _, s := range fileChunksNames {
-			elementMap[s] = s
+		// save downloaded chunks to storage as soon as possible to avoid keeping in memory large arrays
+		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
+			// no need to check error here. already checked before
+			fileChunkComputedName, _ := s.FileService.GetFileNameFromBytes(fileChunk)
+			err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
+			if err != nil {
+				s.Logger.Errorf("failed saving file to storage: %s", err)
+				failed = append(failed, fileChunkComputedName)
+				continue
+			}
 		}
-		if _, ok := elementMap[fileChunkComputedName]; !ok {
-			s.Logger.Errorf("peer returned an invalid file chunk: %s", fileChunkComputedName)
-			continue
-		}
-		err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
-		if err != nil {
-			s.Logger.Errorf("failed saving file to storage: %s", err)
-			failed = append(failed, fileChunkComputedName)
-			continue
+
+		// set next files to download = previous files that failed to download
+		fileChunksToDownload = fileDownloadResponse.GetFailed()
+		// break download loop either if all files have been successfully downloaded or there are no more peers to connect to
+		if len(fileChunksToDownload) == 0 || len(resolvedPeers) == 0 {
+			if len(fileChunksToDownload) > 0 && len(resolvedPeers) == 0 {
+				s.Logger.Debug("no more resolved peers to download files from. Already tried them all!")
+			}
+			break
 		}
 	}
+
 	return failed, nil
 }

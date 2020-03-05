@@ -68,10 +68,10 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	)
 
 	// STEF comment out for testing locally
-	if block.Height <= constant.MinRollbackBlocks {
-		return nil, blocker.NewBlocker(blocker.ValidationErr,
-			fmt.Sprintf("invalid snapshot height: %d", block.Height))
-	}
+	// if block.Height <= constant.MinRollbackBlocks {
+	// 	return nil, blocker.NewBlocker(blocker.ValidationErr,
+	// 		fmt.Sprintf("invalid snapshot height: %d", block.Height))
+	// }
 	// (safe) height to get snapshot's data from
 	snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
 
@@ -151,12 +151,12 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 	snapshotInterval := ss.chainType.GetSnapshotInterval()
 	// STEF comment out for testing locally
-	if snapshotInterval < constant.MinRollbackBlocks {
-		if height < constant.MinRollbackBlocks {
-			return false
-		}
-		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
-	}
+	// if snapshotInterval < constant.MinRollbackBlocks {
+	// 	if height < constant.MinRollbackBlocks {
+	// 		return false
+	// 	}
+	// 	return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	// }
 	return height%snapshotInterval == 0
 
 }

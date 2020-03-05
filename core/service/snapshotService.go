@@ -92,6 +92,8 @@ func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
 }
 
 // StartSnapshotListener setup listener for snapshots generation
+// TODO: allow only active blocksmiths (registered nodes at this block height) to generate snapshots
+// 	 one way to do this is to inject the actual node public key and noderegistration service into this service
 func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(blockI interface{}, args ...interface{}) {

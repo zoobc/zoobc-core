@@ -108,6 +108,8 @@ func (btss *BlockchainStatusService) SetIsDownloadingSnapshot(ct chaintype.Chain
 	isDownloadingSnapshot.Store(ct.GetTypeInt(), downloadingSnapshot)
 	if downloadingSnapshot {
 		btss.Logger.Errorf("Downloading snapshot for %s...", ct.GetName())
+	} else {
+		btss.Logger.Errorf("Finished Downloading snapshot for %s...", ct.GetName())
 	}
 
 }

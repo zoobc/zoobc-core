@@ -54,6 +54,7 @@ type (
 		service.FileService
 		successGetFileNameFromHash  bool
 		successParseFileChunkHashes bool
+		emptyRes                    bool
 	}
 	mockP2pService struct {
 		Peer2PeerService
@@ -73,6 +74,9 @@ var (
 )
 
 func (mfs *mockFileService) ParseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error) {
+	if mfs.emptyRes {
+		return nil, nil
+	}
 	if mfs.successParseFileChunkHashes {
 		return [][]byte{
 			fdChunk1Hash,
@@ -89,7 +93,7 @@ func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) (string, error)
 	return "", errors.New("GetFileNameFromHashFailed")
 }
 
-func (mp2p *mockP2pService) DownloadFilesFromPeer(fileChunksNames []string) (failed []string, err error) {
+func (mp2p *mockP2pService) DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error) {
 	failed = make([]string, 0)
 	if mp2p.success {
 		return
@@ -132,7 +136,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 			},
 		},
 		{
-			name: "DownloadSnapshot:fail-{ParseFileChunkHashes}",
+			name: "DownloadSnapshot:fail-{ParseFileChunkHashesErr}",
 			args: args{
 				ct:                 &chaintype.MainChain{},
 				spineBlockManifest: &model.SpineBlockManifest{},
@@ -141,6 +145,25 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				FileService: &mockFileService{
 					successParseFileChunkHashes: false,
 					successGetFileNameFromHash:  true,
+				},
+				P2pService: &mockP2pService{
+					success: true,
+				},
+				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
+			},
+			wantErr: true,
+		},
+		{
+			name: "DownloadSnapshot:fail-{ParseFileChunkHashesEmptyResult}",
+			args: args{
+				ct:                 &chaintype.MainChain{},
+				spineBlockManifest: &model.SpineBlockManifest{},
+			},
+			fields: fields{
+				FileService: &mockFileService{
+					successParseFileChunkHashes: true,
+					successGetFileNameFromHash:  true,
+					emptyRes:                    true,
 				},
 				P2pService: &mockP2pService{
 					success: true,

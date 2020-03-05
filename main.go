@@ -91,6 +91,7 @@ var (
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
+	nodeKey                                         *model.NodeKey
 )
 
 func init() {
@@ -209,8 +210,7 @@ func init() {
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
 	var (
-		seed    string
-		nodeKey *model.NodeKey
+		seed string
 	)
 
 	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
@@ -353,7 +353,10 @@ func initObserverListeners() {
 	// broadcast block will be different than other listener implementation, since there are few exception condition
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
-	observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
+	// only smithing nodes generate snapshots
+	if smithing {
+		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
+	}
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
 	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
@@ -800,7 +803,6 @@ func startBlockchainSyncronizers() {
 				loggerCoreService.Errorf("found a Snapshot Spine Block Manifest for chaintype %s, "+
 					"at height is %d. Start downloading...", ct.GetName(),
 					lastSpineBlockManifest.SpineBlockManifestHeight)
-				// STEF comment out for testing locally
 				if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
 					loggerCoreService.Info(err)
 				}

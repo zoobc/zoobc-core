@@ -24,6 +24,7 @@ type (
 		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
 		GetFileNameFromHash(fileHash []byte) (string, error)
+		GetFileNameFromBytes(fileBytes []byte) (string, error)
 		GetHashFromFileName(fileName string) ([]byte, error)
 		VerifyFileChecksum(fileBytes, hash []byte) bool
 		HashPayload(b []byte) ([]byte, error)
@@ -159,6 +160,12 @@ func (*FileService) GetFileNameFromHash(fileHash []byte) (string, error) {
 		)
 	}
 	return fileName, nil
+}
+
+// GetFileNameFromBytes helper method to get a hash-name from file raw bytes
+func (fs *FileService) GetFileNameFromBytes(fileBytes []byte) (string, error) {
+	fileHash := sha3.Sum256(fileBytes)
+	return fs.GetFileNameFromHash(fileHash[:])
 }
 
 // DeleteFilesByHash remove a list of files by their hash/names
