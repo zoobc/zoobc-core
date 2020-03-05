@@ -11,6 +11,7 @@ import (
 type (
 	PendingTransactionQueryInterface interface {
 		GetPendingTransactionByHash(txHash []byte) (str string, args []interface{})
+		GetPendingTransactionsBySenderAddress(multisigAddress string) (str string, args []interface{})
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) (str string, args []interface{})
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
@@ -27,6 +28,7 @@ type (
 func NewPendingTransactionQuery() *PendingTransactionQuery {
 	return &PendingTransactionQuery{
 		Fields: []string{
+			"sender_address",
 			"transaction_hash",
 			"transaction_bytes",
 			"status",
@@ -47,6 +49,14 @@ func (ptq *PendingTransactionQuery) GetPendingTransactionByHash(txHash []byte) (
 	}
 }
 
+func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(multisigAddress string) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE sender_address = ? ORDER BY block_height ASC",
+		strings.Join(ptq.Fields, ", "), ptq.getTableName())
+	return query, []interface{}{
+		multisigAddress,
+	}
+}
+
 // InsertPendingTransaction inserts a new pending transaction into DB
 func (ptq *PendingTransactionQuery) InsertPendingTransaction(pendingTx *model.PendingTransaction) (str string, args []interface{}) {
 	return fmt.Sprintf(
@@ -59,6 +69,7 @@ func (ptq *PendingTransactionQuery) InsertPendingTransaction(pendingTx *model.Pe
 
 func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *sql.Row) error {
 	err := row.Scan(
+		&pendingTx.SenderAddress,
 		&pendingTx.TransactionHash,
 		&pendingTx.TransactionBytes,
 		&pendingTx.Status,
@@ -69,6 +80,7 @@ func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *s
 
 func (*PendingTransactionQuery) ExtractModel(pendingTx *model.PendingTransaction) []interface{} {
 	return []interface{}{
+		&pendingTx.SenderAddress,
 		&pendingTx.TransactionHash,
 		&pendingTx.TransactionBytes,
 		&pendingTx.Status,
@@ -82,6 +94,7 @@ func (ptq *PendingTransactionQuery) BuildModel(
 	for rows.Next() {
 		var pendingTx model.PendingTransaction
 		err := rows.Scan(
+			&pendingTx.SenderAddress,
 			&pendingTx.TransactionHash,
 			&pendingTx.TransactionBytes,
 			&pendingTx.Status,
