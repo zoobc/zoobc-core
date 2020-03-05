@@ -661,7 +661,7 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 					"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				},
 			}},
-			want: "N8IH3smVnNkUwRwJj2ZnRjyS1_2n15lK9GfqhWcApHWa",
+			want: "C1Jgm37Y-xW6ls1l9JW5XsRnsifX0CkWB4QTwZE9keVt",
 		},
 	}
 	for _, tt := range tests {

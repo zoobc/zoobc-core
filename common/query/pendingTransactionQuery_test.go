@@ -24,6 +24,7 @@ func TestNewPendingTransactionQuery(t *testing.T) {
 			name: "NewPendingTransactionQuery-Success",
 			want: &PendingTransactionQuery{
 				Fields: []string{
+					"sender_address",
 					"transaction_hash",
 					"transaction_bytes",
 					"status",
@@ -57,6 +58,7 @@ func getPendingTransactionQueryBuildModelSuccessRow() *sql.Rows {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockPendingTransactionQueryInstance.Fields)
 	mockRow.AddRow(
+		"",
 		make([]byte, 32),
 		make([]byte, 100),
 		model.PendingTransactionStatus_PendingTransactionExecuted,
@@ -110,6 +112,7 @@ func TestPendingTransactionQuery_BuildModel(t *testing.T) {
 			},
 			want: []*model.PendingTransaction{
 				{
+					SenderAddress:    "",
 					TransactionHash:  make([]byte, 32),
 					TransactionBytes: make([]byte, 100),
 					Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
@@ -170,6 +173,7 @@ func TestPendingTransactionQuery_ExtractModel(t *testing.T) {
 				pendingTx: mockPendingTransactionExtractModel,
 			},
 			want: []interface{}{
+				&mockPendingTransactionExtractModel.SenderAddress,
 				&mockPendingTransactionExtractModel.TransactionHash,
 				&mockPendingTransactionExtractModel.TransactionBytes,
 				&mockPendingTransactionExtractModel.Status,
@@ -214,7 +218,7 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 			args: args{
 				txHash: make([]byte, 32),
 			},
-			wantStr: "SELECT transaction_hash, transaction_bytes, status, block_height FROM pending_transaction " +
+			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height FROM pending_transaction " +
 				"WHERE transaction_hash = ?",
 			wantArgs: []interface{}{
 				make([]byte, 32),
@@ -240,6 +244,7 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 
 var (
 	mockInsertPendingTransaction = &model.PendingTransaction{
+		SenderAddress:    "",
 		TransactionHash:  make([]byte, 32),
 		TransactionBytes: make([]byte, 100),
 		Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
@@ -271,8 +276,8 @@ func TestPendingTransactionQuery_InsertPendingTransaction(t *testing.T) {
 			args: args{
 				pendingTx: mockInsertPendingTransaction,
 			},
-			wantStr: "INSERT INTO pending_transaction (transaction_hash, transaction_bytes, " +
-				"status, block_height) VALUES(? , ? , ? , ? )",
+			wantStr: "INSERT INTO pending_transaction (sender_address, transaction_hash, transaction_bytes, " +
+				"status, block_height) VALUES(? , ? , ? , ? , ? )",
 			wantArgs: mockPendingTransactionQueryInstance.ExtractModel(mockInsertPendingTransaction),
 		},
 	}
@@ -351,6 +356,7 @@ func getPendingTransactionQueryScanSuccessRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockPendingTransactionQueryInstance.Fields)
 	mockRow.AddRow(
+		"",
 		make([]byte, 32),
 		make([]byte, 100),
 		uint32(0),

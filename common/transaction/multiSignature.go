@@ -138,6 +138,10 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		if err != nil {
 			return err
 		}
+		// update pending transaction status
+
+		// insert to transaction table
+
 	}
 	return nil
 }
@@ -146,7 +150,6 @@ func (tx *MultiSignatureTransaction) ApplyUnconfirmed() error {
 	var (
 		err error
 	)
-
 	// reduce fee from sender
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
 		-(tx.Fee),
