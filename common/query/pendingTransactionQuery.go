@@ -13,6 +13,7 @@ type (
 		GetPendingTransactionByHash(txHash []byte) (str string, args []interface{})
 		GetPendingTransactionsBySenderAddress(multisigAddress string) (str string, args []interface{})
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) (str string, args []interface{})
+		UpdatePendingTransaction(pendingTx *model.PendingTransaction) [][]interface{}
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
@@ -33,6 +34,7 @@ func NewPendingTransactionQuery() *PendingTransactionQuery {
 			"transaction_bytes",
 			"status",
 			"block_height",
+			"latest",
 		},
 		TableName: "pending_transaction",
 	}
@@ -43,14 +45,14 @@ func (ptq *PendingTransactionQuery) getTableName() string {
 }
 
 func (ptq *PendingTransactionQuery) GetPendingTransactionByHash(txHash []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ?", strings.Join(ptq.Fields, ", "), ptq.getTableName())
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? AND latest = true", strings.Join(ptq.Fields, ", "), ptq.getTableName())
 	return query, []interface{}{
 		txHash,
 	}
 }
 
 func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(multisigAddress string) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE sender_address = ? ORDER BY block_height ASC",
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE sender_address = ? AND latest = true ORDER BY block_height ASC",
 		strings.Join(ptq.Fields, ", "), ptq.getTableName())
 	return query, []interface{}{
 		multisigAddress,
@@ -67,6 +69,30 @@ func (ptq *PendingTransactionQuery) InsertPendingTransaction(pendingTx *model.Pe
 	), ptq.ExtractModel(pendingTx)
 }
 
+// UpdatePendingTransaction Update status of pending transaction
+func (ptq *PendingTransactionQuery) UpdatePendingTransaction(pendingTx *model.PendingTransaction) [][]interface{} {
+	return [][]interface{}{
+		{
+			fmt.Sprintf(
+				"UPDATE %s set latest = ? WHERE transaction_hash = ?",
+				ptq.getTableName(),
+			),
+			false,
+			pendingTx.GetTransactionHash(),
+		},
+		append(
+			[]interface{}{
+				fmt.Sprintf(
+					"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
+					ptq.getTableName(),
+					strings.Join(ptq.Fields, ","),
+					fmt.Sprintf("? %s", strings.Repeat(", ?", len(ptq.Fields)-1))),
+			},
+			ptq.ExtractModel(pendingTx)...,
+		),
+	}
+}
+
 func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *sql.Row) error {
 	err := row.Scan(
 		&pendingTx.SenderAddress,
@@ -74,6 +100,7 @@ func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *s
 		&pendingTx.TransactionBytes,
 		&pendingTx.Status,
 		&pendingTx.BlockHeight,
+		&pendingTx.Latest,
 	)
 	return err
 }
@@ -85,6 +112,7 @@ func (*PendingTransactionQuery) ExtractModel(pendingTx *model.PendingTransaction
 		&pendingTx.TransactionBytes,
 		&pendingTx.Status,
 		&pendingTx.BlockHeight,
+		&pendingTx.Latest,
 	}
 }
 
@@ -99,6 +127,7 @@ func (ptq *PendingTransactionQuery) BuildModel(
 			&pendingTx.TransactionBytes,
 			&pendingTx.Status,
 			&pendingTx.BlockHeight,
+			&pendingTx.Latest,
 		)
 		if err != nil {
 			return nil, err
