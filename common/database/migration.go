@@ -287,7 +287,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_signature" (
-				"transaction_hash" INTEGER,		-- transaction hash of pending transaction being signed
+				"transaction_hash" BLOB,		-- transaction hash of pending transaction being signed
 				"account_address" TEXT,			-- account address of the respective signature
 				"signature" BLOB,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
@@ -306,7 +306,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "pending_transaction"
-				ADD COLUMN "sender_address" TEXT, 
+				ADD COLUMN "sender_address" TEXT 
 			`,
 		}
 		return nil
