@@ -73,7 +73,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	// 		fmt.Sprintf("invalid snapshot height: %d", block.Height))
 	// }
 	// (safe) height to get snapshot's data from
-	snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
+	// snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
+	snapshotPayloadHeight := block.Height
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
@@ -126,7 +127,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		SnapshotFileHash:           snapshotFileHash,
 		FileChunksHashes:           fileChunkHashes,
 		ChainType:                  ss.chainType.GetTypeInt(),
-		Height:                     block.Height,
+		Height:                     snapshotPayloadHeight,
 		ProcessExpirationTimestamp: snapshotExpirationTimestamp,
 		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 	}, nil
