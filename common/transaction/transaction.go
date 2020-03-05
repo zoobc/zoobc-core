@@ -255,6 +255,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
 				PendingTransactionQuery: query.NewPendingTransactionQuery(),
 				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 			}, nil
 		default:
 			return nil, nil

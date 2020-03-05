@@ -282,6 +282,7 @@ func (m *Migration) Init() error {
 				"transaction_bytes" BLOB,		-- full transaction bytes of the pending transaction
 				"status" INTEGER,			-- execution status of the pending transaction
 				"block_height" INTEGER,			-- height when pending transaction inserted/updated
+				"latest" INTEGER,			-- latest flag for pending transaction
 				PRIMARY KEY("transaction_hash", "block_height")
 			)
 			`,

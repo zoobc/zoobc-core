@@ -37,6 +37,7 @@ type (
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
 	}
 )
 
@@ -77,6 +78,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 			TransactionBytes: tx.Body.UnsignedTransactionBytes,
 			Status:           model.PendingTransactionStatus_PendingTransactionPending,
 			BlockHeight:      tx.Height,
+			Latest:           true,
 		})
 		err = tx.QueryExecutor.ExecuteTransaction(q, args...)
 		if err != nil {
@@ -139,8 +141,19 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 			return err
 		}
 		// update pending transaction status
-
-		// insert to transaction table
+		pendingTx := &model.PendingTransaction{
+			SenderAddress:    v.MultiSignatureInfo.MultisigAddress,
+			TransactionHash:  v.SignatureInfo.TransactionHash,
+			TransactionBytes: v.UnsignedTransactionBytes,
+			Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
+			BlockHeight:      tx.Height,
+			Latest:           true,
+		}
+		updateQueries := tx.PendingTransactionQuery.UpdatePendingTransaction(pendingTx)
+		err = tx.QueryExecutor.ExecuteTransactions(updateQueries)
+		if err != nil {
+			return err
+		}
 
 	}
 	return nil
