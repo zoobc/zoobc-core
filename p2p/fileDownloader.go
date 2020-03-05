@@ -59,21 +59,11 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 	// TODO: implement some sort of rate limiting for number of concurrent downloads (eg. by segmenting the WaitGroup)
 	wg.Add(len(fileChunkHashes))
 	for _, fileChunkHash := range fileChunkHashes {
-		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
-		if err != nil {
-			n, ok := failedDownloadChunkNames.Load(fileName)
-			nInt := 0
-			if ok {
-				nInt = n.(int) + 1
-			}
-			failedDownloadChunkNames.Store(fileName, nInt)
-			wg.Done()
-			continue
-		}
-		go func(fileName string) {
+		go func(fileChunkHash []byte) {
 			defer wg.Done()
 			// TODO: for now download just one chunk per peer,
 			//  but in future we could download multiple chunks at once from one peer
+			fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
 			failed, err := ss.P2pService.DownloadFilesFromPeer([]string{fileName}, constant.DownloadSnapshotNumberOfRetries)
 			if err != nil {
 				ss.Logger.Error(err)
@@ -87,7 +77,7 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 				failedDownloadChunkNames.Store(fileName, nInt)
 				return
 			}
-		}(fileName)
+		}(fileChunkHash)
 	}
 	wg.Wait()
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, false)

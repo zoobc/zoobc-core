@@ -181,8 +181,7 @@ func (ss *P2PServerHandler) RequestFileDownload(
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadServer)
-	if req.FileChunkNames == nil {
-		monitoring.IncrementSnapshotDownloadCounter(0, int32(len(req.FileChunkNames)))
+	if len(req.FileChunkNames) == 0 {
 		return nil, blocker.NewBlocker(
 			blocker.RequestParameterErr,
 			"request does not contain any file name",

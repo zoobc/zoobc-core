@@ -52,7 +52,6 @@ func TestNewFileDownloader(t *testing.T) {
 type (
 	mockFileService struct {
 		service.FileService
-		successGetFileNameFromHash  bool
 		successParseFileChunkHashes bool
 		emptyRes                    bool
 	}
@@ -86,11 +85,8 @@ func (mfs *mockFileService) ParseFileChunkHashes(fileHashes []byte, hashLength i
 	return nil, errors.New("ParseFileChunkHashesFailed")
 }
 
-func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) (string, error) {
-	if mfs.successGetFileNameFromHash {
-		return "testFileName", nil
-	}
-	return "", errors.New("GetFileNameFromHashFailed")
+func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) string {
+	return "testFileName"
 }
 
 func (mp2p *mockP2pService) DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error) {
@@ -127,7 +123,6 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 			fields: fields{
 				FileService: &mockFileService{
 					successParseFileChunkHashes: true,
-					successGetFileNameFromHash:  true,
 				},
 				P2pService: &mockP2pService{
 					success: true,
@@ -144,7 +139,6 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 			fields: fields{
 				FileService: &mockFileService{
 					successParseFileChunkHashes: false,
-					successGetFileNameFromHash:  true,
 				},
 				P2pService: &mockP2pService{
 					success: true,
@@ -162,7 +156,6 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 			fields: fields{
 				FileService: &mockFileService{
 					successParseFileChunkHashes: true,
-					successGetFileNameFromHash:  true,
 					emptyRes:                    true,
 				},
 				P2pService: &mockP2pService{
@@ -181,7 +174,6 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 			fields: fields{
 				FileService: &mockFileService{
 					successParseFileChunkHashes: true,
-					successGetFileNameFromHash:  true,
 				},
 				P2pService: &mockP2pService{
 					success: false,

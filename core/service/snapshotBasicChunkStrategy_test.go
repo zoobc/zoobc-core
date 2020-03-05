@@ -59,11 +59,10 @@ var (
 type (
 	bcsMockFileService struct {
 		FileService
-		successEncode              bool
-		successGetFileNameFromHash bool
-		successSaveBytesToFile     bool
-		successVerifyFileChecksum  bool
-		integrationTest            bool
+		successEncode             bool
+		successSaveBytesToFile    bool
+		successVerifyFileChecksum bool
+		integrationTest           bool
 	}
 )
 
@@ -79,11 +78,8 @@ func (mfs *bcsMockFileService) EncodePayload(v interface{}) (b []byte, err error
 	return nil, errors.New("EncodedPayloadFail")
 }
 
-func (mfs *bcsMockFileService) GetFileNameFromHash(fileHash []byte) (string, error) {
-	if mfs.successGetFileNameFromHash {
-		return "vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO", nil
-	}
-	return "", errors.New("GetFileNameFromHashFail")
+func (mfs *bcsMockFileService) GetFileNameFromHash(fileHash []byte) string {
+	return "vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO"
 }
 
 func (mfs *bcsMockFileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
@@ -149,10 +145,9 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 						Logger: log.New(),
 						h:      new(codec.CborHandle),
 					},
-					successEncode:              true,
-					successGetFileNameFromHash: true,
-					successSaveBytesToFile:     true,
-					successVerifyFileChecksum:  true,
+					successEncode:             true,
+					successSaveBytesToFile:    true,
+					successVerifyFileChecksum: true,
 				},
 			},
 			args: args{
@@ -173,10 +168,9 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 						Logger: log.New(),
 						h:      new(codec.CborHandle),
 					},
-					successEncode:              true,
-					successGetFileNameFromHash: true,
-					successSaveBytesToFile:     false,
-					successVerifyFileChecksum:  true,
+					successEncode:             true,
+					successSaveBytesToFile:    false,
+					successVerifyFileChecksum: true,
 				},
 			},
 			args: args{
@@ -194,10 +188,9 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 						Logger: log.New(),
 						h:      new(codec.CborHandle),
 					},
-					successEncode:              true,
-					successGetFileNameFromHash: true,
-					successSaveBytesToFile:     true,
-					successVerifyFileChecksum:  false,
+					successEncode:             true,
+					successSaveBytesToFile:    true,
+					successVerifyFileChecksum: false,
 				},
 			},
 			args: args{

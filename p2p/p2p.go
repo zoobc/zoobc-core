@@ -279,7 +279,7 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 }
 
 // DownloadFilesFromPeer download a file from a random peer
-func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRetryCount uint32) (failed []string, err error) {
+func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRetryCount uint32) ([]string, error) {
 	var (
 		peer          *model.Peer
 		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
@@ -289,6 +289,11 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
 	if len(resolvedPeers) < 1 {
 		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no resolved peer can be found")
+	}
+	// convert the slice to a map to make it easier to find elements in it
+	fileChunkNamesMap := make(map[string]string)
+	for _, s := range fileChunksNames {
+		fileChunkNamesMap[s] = s
 	}
 	fileChunksToDownload := fileChunksNames
 	for retryCount < maxRetryCount+1 {
@@ -317,19 +322,11 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 			return nil, err
 		}
 
-		// check first if all chunks returned are valid
+		// check first that all chunks returned are valid
 		skipFilesFromPeer := false
 		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
-			fileChunkComputedName, err := s.FileService.GetFileNameFromBytes(fileChunk)
-			if err != nil {
-				return nil, err
-			}
-			// convert the slice to a map to make it easier to find elements in it
-			elementMap := make(map[string]string)
-			for _, s := range fileChunksNames {
-				elementMap[s] = s
-			}
-			if _, ok := elementMap[fileChunkComputedName]; !ok {
+			fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
+			if _, ok := fileChunkNamesMap[fileChunkComputedName]; !ok {
 				s.Logger.Errorf("peer returned an invalid file chunk: %s", fileChunkComputedName)
 				skipFilesFromPeer = true
 				break
@@ -342,12 +339,10 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 
 		// save downloaded chunks to storage as soon as possible to avoid keeping in memory large arrays
 		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
-			// no need to check error here. already checked before
-			fileChunkComputedName, _ := s.FileService.GetFileNameFromBytes(fileChunk)
+			fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
 			err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
 			if err != nil {
 				s.Logger.Errorf("failed saving file to storage: %s", err)
-				failed = append(failed, fileChunkComputedName)
 				continue
 			}
 		}
@@ -363,5 +358,5 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 		}
 	}
 
-	return failed, nil
+	return fileChunksToDownload, nil
 }

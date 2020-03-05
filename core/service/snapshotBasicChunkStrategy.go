@@ -53,10 +53,7 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *mo
 
 		fileChunkHashes = append(fileChunkHashes, fileChunkHash)
 
-		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
-		if err != nil {
-			return nil, nil, err
-		}
+		fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
 		err = ss.FileService.SaveBytesToFile(filePath, fileName, fileChunk)
 		if err != nil {
 			// try remove saved files if saving a chunk file fails

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -11,7 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -23,8 +23,8 @@ type (
 		ReadFileByName(filePath, fileName string) ([]byte, error)
 		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
-		GetFileNameFromHash(fileHash []byte) (string, error)
-		GetFileNameFromBytes(fileBytes []byte) (string, error)
+		GetFileNameFromHash(fileHash []byte) string
+		GetFileNameFromBytes(fileBytes []byte) string
 		GetHashFromFileName(fileName string) ([]byte, error)
 		VerifyFileChecksum(fileBytes, hash []byte) bool
 		HashPayload(b []byte) ([]byte, error)
@@ -74,11 +74,7 @@ func (fs *FileService) VerifyFileChecksum(fileBytes, hash []byte) bool {
 }
 
 func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte, error) {
-	fileName, err := fs.GetFileNameFromHash(fileHash)
-	if err != nil {
-		return nil, err
-	}
-	return fs.ReadFileByName(filePath, fileName)
+	return fs.ReadFileByName(filePath, fs.GetFileNameFromHash(fileHash))
 }
 
 func (fs *FileService) ReadFileByName(filePath, fileName string) ([]byte, error) {
@@ -136,34 +132,18 @@ func (fs *FileService) HashPayload(b []byte) ([]byte, error) {
 	return hasher.Sum([]byte{}), nil
 }
 
-// GetHashFromFileName file name to hash conversion
-// TODO: refactor GetPublicKeyFromAddress name as it can be applied to other use cases, such as this one
+// GetHashFromFileName file hash to hash-name conversion: base64 urlencoded
 func (*FileService) GetHashFromFileName(fileName string) ([]byte, error) {
-	hash, err := util.GetPublicKeyFromAddress(fileName)
-	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.AppErr,
-			"invalid file name",
-		)
-	}
-	return hash, nil
+	return base64.URLEncoding.DecodeString(fileName)
 }
 
-// GetFileNameFromHash file hash to fileName conversion
-// TODO: refactor GetAddressFromPublicKey name as it can be applied to other use cases, such as this one
-func (*FileService) GetFileNameFromHash(fileHash []byte) (string, error) {
-	fileName, err := util.GetAddressFromPublicKey(fileHash)
-	if err != nil {
-		return "", blocker.NewBlocker(
-			blocker.ServerError,
-			"invalid file hash length",
-		)
-	}
-	return fileName, nil
+// GetFileNameFromHash file hash to fileName conversion: base64 urlencoded
+func (*FileService) GetFileNameFromHash(fileHash []byte) string {
+	return base64.URLEncoding.EncodeToString(fileHash)
 }
 
 // GetFileNameFromBytes helper method to get a hash-name from file raw bytes
-func (fs *FileService) GetFileNameFromBytes(fileBytes []byte) (string, error) {
+func (fs *FileService) GetFileNameFromBytes(fileBytes []byte) string {
 	fileHash := sha3.Sum256(fileBytes)
 	return fs.GetFileNameFromHash(fileHash[:])
 }
@@ -171,11 +151,7 @@ func (fs *FileService) GetFileNameFromBytes(fileBytes []byte) (string, error) {
 // DeleteFilesByHash remove a list of files by their hash/names
 func (fs *FileService) DeleteFilesByHash(filePath string, fileHashes [][]byte) error {
 	for _, fileChunkHash := range fileHashes {
-		fileName, err := fs.GetFileNameFromHash(fileChunkHash)
-		if err != nil {
-			return err
-		}
-		filePathName := filepath.Join(filePath, fileName)
+		filePathName := filepath.Join(filePath, fs.GetFileNameFromHash(fileChunkHash))
 		if err := os.Remove(filePathName); err != nil {
 			return err
 		}

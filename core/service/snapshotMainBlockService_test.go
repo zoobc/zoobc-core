@@ -633,11 +633,11 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
 			}
 			// remove generated files
-			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0Z"
+			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s1))
-			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaRg"
+			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaQ="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s2))
-			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T_7"
+			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T8="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s3))
 		})
 	}
