@@ -238,7 +238,14 @@ func GenerateBasicTransaction(
 	timestamp, fee int64,
 	recipientAccountAddress string,
 ) *model.Transaction {
-	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+	var (
+		senderAccountAddress string
+	)
+	if senderSeed == "" {
+		senderAccountAddress = senderAddress
+	} else {
+		senderAccountAddress = util.GetAddressFromSeed(senderSeed)
+	}
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
@@ -300,6 +307,9 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
+	if senderSeed == "" {
+		return unsignedTxBytes
+	}
 	tx.Signature = signature.Sign(
 		unsignedTxBytes,
 		constant.SignatureTypeDefault,
@@ -396,10 +406,11 @@ func GeneratedMultiSignatureTransaction(
 	if txHash != "" {
 		transactionHash, err := hex.DecodeString(txHash)
 		if err != nil {
+			fmt.Printf("hahaha %v\n\n\n", err)
 			return nil
 		}
 		for _, v := range addressSignatures {
-			asig := strings.Split(v, "-")
+			asig := strings.Split(v, ":")
 			if len(asig) < 2 {
 				return nil
 			}

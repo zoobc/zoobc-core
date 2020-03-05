@@ -25,6 +25,7 @@ var (
 	fee                     int64
 	post                    bool
 	postHost                string
+	senderAddress           string
 
 	// Send money transaction
 	sendAmount int64
