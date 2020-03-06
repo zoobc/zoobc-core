@@ -17,7 +17,7 @@ type (
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
-		GenerateAccountFromSeed(signatureType int32, seed string) (
+		GenerateAccountFromSeed(signatureType model.SignatureType, seed string) (
 			privateKey, publicKey []byte,
 			publickKeyString, address string,
 			err error,
@@ -145,12 +145,12 @@ func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) 
 }
 
 // GenerateAccountFromSeed to generate account based on provided seed
-func (*Signature) GenerateAccountFromSeed(signatureType int32, seed string) (
+func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, seed string) (
 	privateKey, publicKey []byte,
 	publickKeyString, address string,
 	err error,
 ) {
-	switch model.SignatureType(signatureType) {
+	switch signatureType {
 	case model.SignatureType_DefaultSignature:
 		var ed25519Signature = NewEd25519Signature()
 		privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)

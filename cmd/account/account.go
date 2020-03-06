@@ -96,7 +96,7 @@ func generateRandomAccount() {
 func generateAccountFromSeed(signatureType int32, seed string) {
 	var (
 		signature                                             = crypto.Signature{}
-		privateKey, publicKey, publickKeyString, address, err = signature.GenerateAccountFromSeed(signatureType, seed)
+		privateKey, publicKey, publickKeyString, address, err = signature.GenerateAccountFromSeed(model.SignatureType(signatureType), seed)
 	)
 	if err != nil {
 		panic(err)

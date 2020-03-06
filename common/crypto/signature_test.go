@@ -215,7 +215,7 @@ func TestSignature_VerifyNodeSignature(t *testing.T) {
 
 func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 	type args struct {
-		signatureType int32
+		signatureType model.SignatureType
 		seed          string
 	}
 	tests := []struct {
@@ -231,7 +231,7 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 		{
 			name: "GenerateAccountFromSeed:success-{DefaultSignature}",
 			args: args{
-				signatureType: int32(model.SignatureType_DefaultSignature),
+				signatureType: model.SignatureType_DefaultSignature,
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			wantPrivateKey: []byte{215, 143, 134, 166, 8, 238, 10, 130, 59, 25, 200, 58, 125, 85, 55, 94, 206, 50, 194, 93, 71,
@@ -246,7 +246,7 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 		{
 			name: "GenerateAccountFromSeed:success-{BitcoinSignature}",
 			args: args{
-				signatureType: int32(model.SignatureType_BitcoinSignature),
+				signatureType: model.SignatureType_BitcoinSignature,
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			wantPrivateKey: []byte{215, 143, 134, 166, 8, 238, 10, 130, 59, 25, 200, 58, 125, 85, 55, 94, 206, 50, 194, 93,
@@ -260,7 +260,7 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 		{
 			name: "GenerateAccountFromSeed:fiiled-{invalid-signature-type}",
 			args: args{
-				signatureType: int32(-1),
+				signatureType: model.SignatureType(-1),
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			wantPrivateKey:       nil,
