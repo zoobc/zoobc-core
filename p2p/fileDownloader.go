@@ -43,7 +43,7 @@ func NewFileDownloader(
 // DownloadSnapshot downloads a snapshot from the p2p network
 func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error {
 	var (
-		failedDownloadChunkNames sync.Map // map instead of array to avoid duplicates
+		failedDownloadChunkNames = model.NewMapStringInt() // map instead of array to avoid duplicates
 		hashSize                 = sha3.New256().Size()
 		wg                       sync.WaitGroup
 	)
@@ -69,10 +69,10 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 				ss.Logger.Error(err)
 			}
 			if len(failed) > 0 {
+				var nInt int64 = 0
 				n, ok := failedDownloadChunkNames.Load(fileName)
-				nInt := 0
 				if ok {
-					nInt = n.(int) + 1
+					nInt = n + 1
 				}
 				failedDownloadChunkNames.Store(fileName, nInt)
 				return
@@ -82,15 +82,9 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 	wg.Wait()
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, false)
 
-	// convert sync.Map to a regular map to check its size and print it out in case > 0
-	failedDownloadChunkNamesMap := make(map[string]int)
-	failedDownloadChunkNames.Range(func(k, v interface{}) bool {
-		failedDownloadChunkNamesMap[k.(string)] = v.(int)
-		return true
-	})
-	if len(failedDownloadChunkNamesMap) > 0 {
+	if failedDownloadChunkNames.Count() > 0 {
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("One or more snapshot chunks failed to download (name/failed times) %v",
-			failedDownloadChunkNamesMap))
+			failedDownloadChunkNames.GetMap()))
 	}
 	return nil
 }

@@ -19,8 +19,6 @@ import (
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"math/rand"
-	"time"
 )
 
 type (
@@ -296,13 +294,13 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 		fileChunkNamesMap[s] = s
 	}
 	fileChunksToDownload := fileChunksNames
+	r := util.GetFastRandomSeed()
 	for retryCount < maxRetryCount+1 {
 		retryCount++
 
 		// randomly select one of the resolved peers to download files from
 		// (no need for secure random here. we just want to get a quick pseudo random index)
-		r := rand.New(rand.NewSource(time.Now().Unix()))
-		randomIdx := r.Intn(len(resolvedPeers))
+		randomIdx := int(util.GetFastRandom(r, len(resolvedPeers)))
 		if randomIdx != 0 {
 			randomIdx %= len(resolvedPeers)
 		}
@@ -343,7 +341,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 			err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
 			if err != nil {
 				s.Logger.Errorf("failed saving file to storage: %s", err)
-				continue
+				return nil, err
 			}
 		}
 

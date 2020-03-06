@@ -188,7 +188,8 @@ func (ss *P2PServerHandler) RequestFileDownload(
 		)
 	}
 	res, err := ss.Service.RequestDownloadFile(ctx, req.GetFileChunkNames())
-
-	monitoring.IncrementSnapshotDownloadCounter(int32(len(res.FileChunks)), int32(len(res.Failed)))
+	if res != nil {
+		monitoring.IncrementSnapshotDownloadCounter(int32(len(res.FileChunks)), int32(len(res.Failed)))
+	}
 	return res, err
 }

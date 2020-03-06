@@ -3,7 +3,7 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"sync"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
@@ -28,10 +28,10 @@ type (
 )
 
 var (
-	isFirstDownloadFinished sync.Map
-	isDownloading           sync.Map
-	isDownloadingSnapshot   sync.Map
-	isSmithing              sync.Map
+	isFirstDownloadFinished = model.NewMapIntBool()
+	isDownloading           = model.NewMapIntBool()
+	isDownloadingSnapshot   = model.NewMapIntBool()
+	isSmithing              = model.NewMapIntBool()
 	isSmithingLocked        bool
 )
 
@@ -49,7 +49,7 @@ func NewBlockchainStatusService(
 
 func (btss *BlockchainStatusService) SetFirstDownloadFinished(ct chaintype.ChainType, finished bool) {
 	// set it only once, when the node starts
-	if res, ok := isFirstDownloadFinished.Load(ct.GetTypeInt()); ok && res == true {
+	if res, ok := isFirstDownloadFinished.Load(ct.GetTypeInt()); ok && res {
 		return
 	}
 	isFirstDownloadFinished.Store(ct.GetTypeInt(), finished)
@@ -60,7 +60,7 @@ func (btss *BlockchainStatusService) SetFirstDownloadFinished(ct chaintype.Chain
 
 func (btss *BlockchainStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
 	if res, ok := isFirstDownloadFinished.Load(ct.GetTypeInt()); ok {
-		return res.(bool)
+		return res
 	}
 	return false
 }
@@ -71,7 +71,7 @@ func (btss *BlockchainStatusService) SetIsDownloading(ct chaintype.ChainType, do
 
 func (btss *BlockchainStatusService) IsDownloading(ct chaintype.ChainType) bool {
 	if res, ok := isDownloading.Load(ct.GetTypeInt()); ok {
-		return res.(bool)
+		return res
 	}
 	return false
 }
@@ -99,7 +99,7 @@ func (btss *BlockchainStatusService) SetIsSmithing(ct chaintype.ChainType, smith
 
 func (btss *BlockchainStatusService) IsSmithing(ct chaintype.ChainType) bool {
 	if res, ok := isSmithing.Load(ct.GetTypeInt()); ok {
-		return res.(bool)
+		return res
 	}
 	return false
 }
@@ -119,7 +119,7 @@ func (btss *BlockchainStatusService) IsDownloadingSnapshot(ct chaintype.ChainTyp
 		return false
 	}
 	if res, ok := isDownloadingSnapshot.Load(ct.GetTypeInt()); ok {
-		return res.(bool)
+		return res
 	}
 	return false
 }

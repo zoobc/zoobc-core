@@ -13,7 +13,7 @@ import (
 type (
 	SpineBlockManifestQueryInterface interface {
 		InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) (str string, args []interface{})
-		GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string
+		GetSpineBlockManifestTimeInterval(fromTimestamp, toTimestamp int64) string
 		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string
 		ExtractModel(mb *model.SpineBlockManifest) []interface{}
 		BuildModel(spineBlockManifests []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
@@ -68,9 +68,9 @@ func (mbl *SpineBlockManifestQuery) GetLastSpineBlockManifest(ct chaintype.Chain
 	return query
 }
 
-// GetSpineBlockManifestsInTimeInterval retrieve all spineBlockManifests within a time frame
+// GetSpineBlockManifestTimeInterval retrieve all spineBlockManifests within a time frame
 // Note: it is used to get all entities that have expired between spine blocks
-func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string {
+func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestTimeInterval(fromTimestamp, toTimestamp int64) string {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_timestamp > %d AND manifest_timestamp <= %d "+
 		"ORDER BY manifest_type, chain_type, manifest_reference_height",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), fromTimestamp, toTimestamp)

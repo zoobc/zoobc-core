@@ -113,7 +113,7 @@ func TestSpineBlockManifestQuery_GetSpineBlockManifestsInTimeInterval(t *testing
 		want   string
 	}{
 		{
-			name: "GetSpineBlockManifestsInTimeInterval:success",
+			name: "GetSpineBlockManifestTimeInterval:success",
 			fields: fields{
 				Fields:    NewSpineBlockManifestQuery().Fields,
 				TableName: NewSpineBlockManifestQuery().TableName,
@@ -133,8 +133,8 @@ func TestSpineBlockManifestQuery_GetSpineBlockManifestsInTimeInterval(t *testing
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := mbl.GetSpineBlockManifestsInTimeInterval(tt.args.fromTimestamp, tt.args.toTimestamp); got != tt.want {
-				t.Errorf("SpineBlockManifestQuery.GetSpineBlockManifestsInTimeInterval() = %v, want %v", got, tt.want)
+			if got := mbl.GetSpineBlockManifestTimeInterval(tt.args.fromTimestamp, tt.args.toTimestamp); got != tt.want {
+				t.Errorf("SpineBlockManifestQuery.GetSpineBlockManifestTimeInterval() = %v, want %v", got, tt.want)
 			}
 		})
 	}

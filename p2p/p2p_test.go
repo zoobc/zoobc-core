@@ -21,12 +21,14 @@ type (
 	}
 	p2pMockPeerServiceClient struct {
 		client.PeerServiceClient
+		noFailedDownloads bool
+		downloadErr       bool
+		returnInvalidData bool
 	}
 	p2pMockFileService struct {
 		coreService.FileService
-		retInvalidChunk bool
-		saveFileFailed  bool
-		retFileName     string
+		saveFileFailed bool
+		retFileName    string
 	}
 )
 
@@ -51,6 +53,9 @@ var (
 	p2pChunk2Bytes = []byte{
 		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 	}
+	p2pChunk2InvalidBytes = []byte{
+		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0,
+	}
 )
 
 func (p2pMpe *p2pMockPeerExplorer) GetResolvedPeers() map[string]*model.Peer {
@@ -63,18 +68,36 @@ func (p2pMpe *p2pMockPeerExplorer) GetResolvedPeers() map[string]*model.Peer {
 	return peers
 }
 
-func (*p2pMockPeerServiceClient) RequestDownloadFile(
+func (p2pMpsc *p2pMockPeerServiceClient) RequestDownloadFile(
 	destPeer *model.Peer,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
-	return &model.FileDownloadResponse{
-		FileChunks: [][]byte{
+	var (
+		failed           []string
+		downloadedChunks [][]byte
+	)
+	if p2pMpsc.downloadErr {
+		return nil, errors.New("RequestDownloadFileFailed")
+	}
+	if p2pMpsc.returnInvalidData {
+		downloadedChunks = [][]byte{
+			p2pChunk1Bytes,
+			p2pChunk2InvalidBytes,
+		}
+	} else {
+		downloadedChunks = [][]byte{
 			p2pChunk1Bytes,
 			p2pChunk2Bytes,
-		},
-		Failed: []string{
+		}
+	}
+	if !p2pMpsc.noFailedDownloads {
+		failed = []string{
 			"testChunkFailed1",
-		},
+		}
+	}
+	return &model.FileDownloadResponse{
+		FileChunks: downloadedChunks,
+		Failed:     failed,
 	}, nil
 }
 
@@ -83,10 +106,10 @@ func (p2pMfs *p2pMockFileService) GetFileNameFromBytes(fileBytes []byte) string 
 		return "testChunk1"
 	}
 	if bytes.Equal(fileBytes, p2pChunk2Bytes) {
-		if p2pMfs.retInvalidChunk {
-			return "testChunk2Invalid"
-		}
 		return "testChunk2"
+	}
+	if bytes.Equal(fileBytes, p2pChunk2InvalidBytes) {
+		return "testChunk2Invalid"
 	}
 	return p2pMfs.retFileName
 }
@@ -137,6 +160,109 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 			wantFailed: []string{
 				"testChunkFailed1",
 			},
+		},
+		{
+			name: "DownloadFilesFromPeer:success-{WithRetry}",
+			args: args{
+				fileChunksNames: []string{
+					"testChunk1",
+					"testChunk2",
+					"testChunk3",
+				},
+				maxRetryCount: 1,
+			},
+			fields: fields{
+				Logger:            log.New(),
+				PeerExplorer:      &p2pMockPeerExplorer{},
+				FileService:       &p2pMockFileService{},
+				PeerServiceClient: &p2pMockPeerServiceClient{},
+			},
+			wantFailed: []string{
+				"testChunkFailed1",
+			},
+		},
+		{
+			name: "DownloadFilesFromPeer:success-{WithRetryNoFailedDownloads}",
+			args: args{
+				fileChunksNames: []string{
+					"testChunk1",
+					"testChunk2",
+					"testChunk3",
+				},
+				maxRetryCount: 1,
+			},
+			fields: fields{
+				Logger:       log.New(),
+				PeerExplorer: &p2pMockPeerExplorer{},
+				FileService:  &p2pMockFileService{},
+				PeerServiceClient: &p2pMockPeerServiceClient{
+					noFailedDownloads: true,
+				},
+			},
+		},
+		{
+			name: "DownloadFilesFromPeer:fail-{DownloadFailed}",
+			args: args{
+				fileChunksNames: []string{
+					"testChunk1",
+					"testChunk2",
+					"testChunk3",
+				},
+				maxRetryCount: 0,
+			},
+			fields: fields{
+				Logger:       log.New(),
+				PeerExplorer: &p2pMockPeerExplorer{},
+				FileService:  &p2pMockFileService{},
+				PeerServiceClient: &p2pMockPeerServiceClient{
+					downloadErr: true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "DownloadFilesFromPeer:success-{DownloadedInvalidFileChunk}",
+			args: args{
+				fileChunksNames: []string{
+					"testChunk1",
+					"testChunk2",
+					"testChunk3",
+				},
+				maxRetryCount: 0,
+			},
+			fields: fields{
+				Logger:       log.New(),
+				PeerExplorer: &p2pMockPeerExplorer{},
+				FileService:  &p2pMockFileService{},
+				PeerServiceClient: &p2pMockPeerServiceClient{
+					returnInvalidData: true,
+				},
+			},
+			wantFailed: []string{
+				"testChunk1",
+				"testChunk2",
+				"testChunk3",
+			},
+		},
+		{
+			name: "DownloadFilesFromPeer:fail-{SaveFileFailed}",
+			args: args{
+				fileChunksNames: []string{
+					"testChunk1",
+					"testChunk2",
+					"testChunk3",
+				},
+				maxRetryCount: 0,
+			},
+			fields: fields{
+				Logger:       log.New(),
+				PeerExplorer: &p2pMockPeerExplorer{},
+				FileService: &p2pMockFileService{
+					saveFileFailed: true,
+				},
+				PeerServiceClient: &p2pMockPeerServiceClient{},
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

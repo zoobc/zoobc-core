@@ -8,7 +8,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
-	"sync"
 	"time"
 )
 
@@ -33,7 +32,7 @@ var (
 	// this map holds boolean channels to all block types that support snapshots
 	stopSnapshotGeneration = make(map[int32]chan bool)
 	// this map holds boolean values to all block types that support snapshots
-	generatingSnapshot sync.Map
+	generatingSnapshot model.MapIntBool
 )
 
 func NewSnapshotService(
@@ -86,7 +85,7 @@ func (ss *SnapshotService) StopSnapshotGeneration(ct chaintype.ChainType) error 
 
 func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
 	if res, ok := generatingSnapshot.Load(ct.GetTypeInt()); ok {
-		return res.(bool)
+		return res
 	}
 	return false
 }
