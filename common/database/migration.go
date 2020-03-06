@@ -292,7 +292,8 @@ func (m *Migration) Init() error {
 				"account_address" TEXT,			-- account address of the respective signature
 				"signature" BLOB,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
-				PRIMARY KEY("account_address", "transaction_hash")
+				"latest" INTEGER,			-- latest flag for pending signature 
+				PRIMARY KEY("account_address", "transaction_hash", "block_height")
 			)
 			`,
 			`
@@ -302,12 +303,17 @@ func (m *Migration) Init() error {
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
 				"addresses" TEXT,			-- list of addresses / participants of the multisig account
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
+				"latest" INTEGER,			-- latest flag for pending signature
 				PRIMARY KEY("multisig_address", "block_height")
 			)
 			`,
 			`
 			ALTER TABLE "pending_transaction"
 				ADD COLUMN "sender_address" TEXT 
+			`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
 			`,
 		}
 		return nil
