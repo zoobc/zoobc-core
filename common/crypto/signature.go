@@ -160,7 +160,7 @@ func (*Signature) GenerateAccountFromSeed(signatureType int32, seed string) (
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		return privateKey, privateKey, publickKeyString, address, nil
+		return privateKey, publicKey, publickKeyString, address, nil
 	case model.SignatureType_BitcoinSignature:
 		var bitcoinSignature = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
 
@@ -170,7 +170,7 @@ func (*Signature) GenerateAccountFromSeed(signatureType int32, seed string) (
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		return privateKey, privateKey, publickKeyString, address, nil
+		return privateKey, publicKey, publickKeyString, address, nil
 	default:
 		return nil, nil, "", "", blocker.NewBlocker(
 			blocker.AppErr,
