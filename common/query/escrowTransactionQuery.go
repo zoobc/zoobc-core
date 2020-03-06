@@ -19,6 +19,7 @@ type (
 	EscrowTransactionQueryInterface interface {
 		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
+		GetEscrowTransactions(fields map[string]interface{}) (string, []interface{})
 		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
@@ -87,6 +88,22 @@ func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr
 			et.getTableName(),
 		),
 		[]interface{}{id, true}
+}
+
+// GetEscrowTransactions represents SELECT with multiple clauses connected via AND operand
+func (et *EscrowTransactionQuery) GetEscrowTransactions(fields map[string]interface{}) (qStr string, args []interface{}) {
+	qStr = fmt.Sprintf("SELECT %s FROM %s WHERE ", strings.Join(et.Fields, ", "), et.getTableName())
+
+	i := 1
+	for k, v := range fields {
+		qStr += fmt.Sprintf("%s = ? ", k)
+		if i < len(fields) {
+			qStr += "AND "
+		}
+		args = append(args, v)
+		i++
+	}
+	return qStr, args
 }
 
 // ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
@@ -170,8 +187,23 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", et.getTableName()),
+			fmt.Sprintf(`
+			UPDATE %s SET latest = ?
+			WHERE latest = ? AND (block_height || '_' || id) IN (
+				SELECT (MAX(block_height) || '_' || id) as prev
+				FROM %s
+				GROUP BY id
+			)`,
+				et.TableName,
+				et.TableName,
+			),
+			1,
+			0,
+		},
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ? AND latest = ?", et.getTableName()),
 			height,
+			1,
 		},
 	}
 }

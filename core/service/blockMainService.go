@@ -357,6 +357,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		blocksmithIndex *int64
 		err             error
 	)
+
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 		sortedBlocksmithMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
@@ -379,6 +380,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		block.CumulativeDifficulty = blockCumulativeDifficulty
 	}
+
+	bs.Logger.Warn("ExpiringEscrow")
+	// Respecting Expiring escrow before push block process
+	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight())
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
+
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()
 	if err != nil {
@@ -596,7 +605,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
-	bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
 	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
 	return nil
 }

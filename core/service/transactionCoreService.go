@@ -2,15 +2,12 @@ package service
 
 import (
 	"database/sql"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -21,7 +18,7 @@ type (
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
-		ExpiringEscrowListener() observer.Listener
+		ExpiringEscrowTransactions(blockHeight uint32) error
 	}
 
 	TransactionCoreService struct {
@@ -80,35 +77,50 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 	return tg.TransactionQuery.BuildModel(transactions, rows)
 }
 
-// ExpiringEscrowListener push an observer event that is ExpiringEscrowTransactions,
+// ExpiringEscrowTransactions push an observer event that is ExpiringEscrowTransactions,
 // will set status to be expired caused by current block height
-func (tg *TransactionCoreService) ExpiringEscrowListener() observer.Listener {
-	return observer.Listener{
-		OnNotify: func(data interface{}, args ...interface{}) {
-			var (
-				err error
-			)
+func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32) error {
+	var (
+		escrows []*model.Escrow
+		rows    *sql.Rows
+		err     error
+	)
 
-			blockHeight := data.(uint32)
-			escrowQ, escrowArgs := tg.EscrowTransactionQuery.ExpiringEscrowTransactions(blockHeight)
-			err = tg.QueryExecutor.BeginTx()
-			if err != nil {
-				fmt.Println(err)
-			}
-			err = tg.QueryExecutor.ExecuteTransaction(escrowQ, escrowArgs...)
-			if err != nil {
-				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
-					fmt.Println(err)
-				}
-			}
-			err = tg.QueryExecutor.CommitTx()
-			if err != nil {
-				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
-					fmt.Println(err)
-				}
-			}
-		},
+	escrowQ, escrowArgs := tg.EscrowTransactionQuery.GetEscrowTransactions(map[string]interface{}{
+		"timeout": blockHeight,
+		"status":  model.EscrowStatus_Pending,
+		"latest":  1,
+	})
+	rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, false, escrowArgs...)
+	if err != nil {
+		return err
 	}
+	escrows, err = tg.EscrowTransactionQuery.BuildModels(rows)
+	if err != nil {
+		return err
+	}
+	fmt.Println("TransactionService.ExpiringEscrowTransactions")
+	if len(escrows) > 0 {
+		err = tg.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		for _, escrow := range escrows {
+			q := tg.EscrowTransactionQuery.InsertEscrowTransaction(escrow)
+			err = tg.QueryExecutor.ExecuteTransactions(q)
+			if err != nil {
+				return err
+			}
+		}
+
+		err = tg.QueryExecutor.CommitTx()
+		if err != nil {
+			if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {
@@ -148,7 +160,10 @@ func (tg *TransactionCoreService) UndoApplyUnconfirmedTransaction(txAction trans
 	}
 }
 
-func (tg *TransactionCoreService) ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error {
+func (tg *TransactionCoreService) ApplyConfirmedTransaction(
+	txAction transaction.TypeAction,
+	blockTimestamp int64,
+) error {
 
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
