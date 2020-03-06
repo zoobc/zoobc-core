@@ -23,13 +23,13 @@ type (
 
 	// BlockchainProcessor handle smithing process, can be switch to process different chain by supplying different chain type
 	BlockchainProcessor struct {
-		ChainType              chaintype.ChainType
-		Generator              *model.Blocksmith
-		BlockService           service.BlockServiceInterface
-		LastBlockID            int64
-		Logger                 *log.Logger
-		smithError             error
-		BlockTypeStatusService service.BlockTypeStatusServiceInterface
+		ChainType               chaintype.ChainType
+		Generator               *model.Blocksmith
+		BlockService            service.BlockServiceInterface
+		LastBlockID             int64
+		Logger                  *log.Logger
+		smithError              error
+		BlockchainStatusService service.BlockchainStatusServiceInterface
 	}
 )
 
@@ -43,14 +43,14 @@ func NewBlockchainProcessor(
 	blocksmith *model.Blocksmith,
 	blockService service.BlockServiceInterface,
 	logger *log.Logger,
-	blockTypeStatusService service.BlockTypeStatusServiceInterface,
+	blockchainStatusService service.BlockchainStatusServiceInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
-		ChainType:              ct,
-		Generator:              blocksmith,
-		BlockService:           blockService,
-		Logger:                 logger,
-		BlockTypeStatusService: blockTypeStatusService,
+		ChainType:               ct,
+		Generator:               blocksmith,
+		BlockService:            blockService,
+		Logger:                  logger,
+		BlockchainStatusService: blockchainStatusService,
 	}
 }
 
@@ -169,30 +169,29 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 // Start starts the blockchainProcessor
 func (bp *BlockchainProcessor) Start(sleepPeriod time.Duration) {
 	ticker := time.NewTicker(sleepPeriod)
-	stopSmith = make(chan bool)
 	go func() {
 		for {
 			select {
 			case <-stopSmith:
-				ticker.Stop()
 				bp.Logger.Infof("Stopped smithing %s", bp.BlockService.GetChainType().GetName())
-				bp.BlockTypeStatusService.SetIsSmithing(bp.ChainType, false)
+				bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, false)
 				bp.smithError = nil
+				ticker.Stop()
 				return
 			case <-ticker.C:
 				// when starting a node, do not start smithing until the main blocks have been fully downloaded
-				if !bp.BlockTypeStatusService.IsSmithingLocked() {
+				if !bp.BlockchainStatusService.IsSmithingLocked() {
 					err := bp.StartSmithing()
 					if err != nil {
 						bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
-						bp.BlockTypeStatusService.SetIsSmithing(bp.ChainType, false)
+						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, false)
 						bp.smithError = err
+					} else {
+						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, true)
+						bp.smithError = nil
 					}
-					bp.BlockTypeStatusService.SetIsSmithing(bp.ChainType, true)
-					bp.smithError = nil
 				} else {
-					bp.BlockTypeStatusService.SetIsSmithing(bp.ChainType, true)
-					bp.Logger.Debug("Smithing process is locked...")
+					bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, false)
 				}
 			}
 		}
@@ -206,5 +205,5 @@ func (*BlockchainProcessor) Stop() {
 
 // GetBlockChainprocessorStatus return the smithing status for this blockchain processor
 func (bp *BlockchainProcessor) GetBlockChainprocessorStatus() (isSmithing bool, err error) {
-	return bp.BlockTypeStatusService.IsSmithing(bp.ChainType), bp.smithError
+	return bp.BlockchainStatusService.IsSmithing(bp.ChainType), bp.smithError
 }

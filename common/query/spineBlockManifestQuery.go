@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -13,7 +14,7 @@ import (
 type (
 	SpineBlockManifestQueryInterface interface {
 		InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) (str string, args []interface{})
-		GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string
+		GetSpineBlockManifestTimeInterval(fromTimestamp, toTimestamp int64) string
 		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string
 		ExtractModel(mb *model.SpineBlockManifest) []interface{}
 		BuildModel(spineBlockManifests []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
@@ -45,12 +46,15 @@ func (mbl *SpineBlockManifestQuery) getTableName() string {
 	return mbl.TableName
 }
 
-// InsertSpineBlockManifest
+// InsertSpineBlockManifest insert new spine block manifest
+// Note: a new one with same id will replace a previous one, if present.
+// this is to allow blocks downloaded from peers to override spine block manifests created locally and insure that the correct
+// snapshot is downloaded by the node when first joins the network
 func (mbl *SpineBlockManifestQuery) InsertSpineBlockManifest(
 	spineBlockManifest *model.SpineBlockManifest,
 ) (str string, args []interface{}) {
 	qryInsert := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		mbl.getTableName(),
 		strings.Join(mbl.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(mbl.Fields)-1)),
@@ -65,9 +69,9 @@ func (mbl *SpineBlockManifestQuery) GetLastSpineBlockManifest(ct chaintype.Chain
 	return query
 }
 
-// GetSpineBlockManifestsInTimeInterval retrieve all spineBlockManifests within a time frame
+// GetSpineBlockManifestTimeInterval retrieve all spineBlockManifests within a time frame
 // Note: it is used to get all entities that have expired between spine blocks
-func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestsInTimeInterval(fromTimestamp, toTimestamp int64) string {
+func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestTimeInterval(fromTimestamp, toTimestamp int64) string {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_timestamp > %d AND manifest_timestamp <= %d "+
 		"ORDER BY manifest_type, chain_type, manifest_reference_height",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), fromTimestamp, toTimestamp)
@@ -130,4 +134,16 @@ func (mbl *SpineBlockManifestQuery) Scan(mb *model.SpineBlockManifest, row *sql.
 		return err
 	}
 	return nil
+}
+
+// Rollback delete records `WHERE block_height > "height - constant.MinRollbackBlocks"`
+// Note: we subtract constant.MinRollbackBlocks from height because that's the block height the snapshot is taken in respect of current
+// block height
+func (mbl *SpineBlockManifestQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE manifest_reference_height > ?", mbl.getTableName()),
+			height - constant.MinRollbackBlocks,
+		},
+	}
 }

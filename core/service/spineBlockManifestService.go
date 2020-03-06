@@ -70,7 +70,7 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHe
 		return nil, err
 	}
 
-	qry = ss.SpineBlockManifestQuery.GetSpineBlockManifestsInTimeInterval(prevSpineBlock.Timestamp, spineTimestamp)
+	qry = ss.SpineBlockManifestQuery.GetSpineBlockManifestTimeInterval(prevSpineBlock.Timestamp, spineTimestamp)
 	rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (ss *SpineBlockManifestService) GetLastSpineBlockManifest(ct chaintype.Chai
 // ct the spineBlockManifest's chain type (eg. mainchain)
 // ct the spineBlockManifest's type (eg. snapshot)
 func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byte, megablockHeight uint32,
-	megablockTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType,
+	expirationTimestamp int64, sortedFileChunksHashes [][]byte, ct chaintype.ChainType,
 	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest,
 	error) {
 	var (
@@ -137,7 +137,7 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 		SpineBlockManifestHeight: megablockHeight,
 		ChainType:                ct.GetTypeInt(),
 		SpineBlockManifestType:   mbType,
-		ExpirationTimestamp:      megablockTimestamp,
+		ExpirationTimestamp:      expirationTimestamp,
 	}
 	megablockID, err := ss.GetSpineBlockManifestID(spineBlockManifest)
 	if err != nil {
