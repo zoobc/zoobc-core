@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -133,4 +134,16 @@ func (mbl *SpineBlockManifestQuery) Scan(mb *model.SpineBlockManifest, row *sql.
 		return err
 	}
 	return nil
+}
+
+// Rollback delete records `WHERE block_height > "height - constant.MinRollbackBlocks"`
+// Note: we subtract constant.MinRollbackBlocks from height because that's the block height the snapshot is taken in respect of current
+// block height
+func (mbl *SpineBlockManifestQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE manifest_reference_height > ?", mbl.getTableName()),
+			height - constant.MinRollbackBlocks,
+		},
+	}
 }

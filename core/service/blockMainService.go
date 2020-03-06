@@ -1314,7 +1314,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-
+	//
+	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
+	//  rollback. Something like this:
+	//  - before rolling back derived queries, select all spine block manifest records from commonBlock.Height till last
+	//  - delete all snapshots referenced by them
+	//
 	if mempoolsBackupBytes.Len() > 0 {
 		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
 		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
