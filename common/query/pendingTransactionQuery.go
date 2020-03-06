@@ -10,8 +10,10 @@ import (
 
 type (
 	PendingTransactionQueryInterface interface {
-		GetPendingTransactionByHash(txHash []byte) (str string, args []interface{})
-		GetPendingTransactionsBySenderAddress(multisigAddress string) (str string, args []interface{})
+		GetPendingTransactionByHash(txHash []byte, status model.PendingTransactionStatus) (str string, args []interface{})
+		GetPendingTransactionsBySenderAddress(multisigAddress string, status model.PendingTransactionStatus) (
+			str string, args []interface{},
+		)
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) (str string, args []interface{})
 		UpdatePendingTransaction(pendingTx *model.PendingTransaction) [][]interface{}
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
@@ -44,18 +46,23 @@ func (ptq *PendingTransactionQuery) getTableName() string {
 	return ptq.TableName
 }
 
-func (ptq *PendingTransactionQuery) GetPendingTransactionByHash(txHash []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? AND latest = true", strings.Join(ptq.Fields, ", "), ptq.getTableName())
+func (ptq *PendingTransactionQuery) GetPendingTransactionByHash(txHash []byte, status model.PendingTransactionStatus) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? AND status = ? "+
+		"AND latest = true", strings.Join(ptq.Fields, ", "), ptq.getTableName())
 	return query, []interface{}{
 		txHash,
+		status,
 	}
 }
 
-func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(multisigAddress string) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE sender_address = ? AND latest = true ORDER BY block_height ASC",
+func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
+	multisigAddress string, status model.PendingTransactionStatus,
+) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE sender_address = ? AND status = ? AND latest = true ORDER BY block_height ASC",
 		strings.Join(ptq.Fields, ", "), ptq.getTableName())
 	return query, []interface{}{
 		multisigAddress,
+		status,
 	}
 }
 

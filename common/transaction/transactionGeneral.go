@@ -483,7 +483,9 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				BlockHeight:      txHeight,
 			})
 		} else {
-			q, args := mtu.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(multisigAddress)
+			q, args := mtu.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(
+				multisigAddress, model.PendingTransactionStatus_PendingTransactionPending,
+			)
 			pendingTxRows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
 			if err != nil {
 				return nil, err
@@ -572,7 +574,9 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				BlockHeight:      txHeight,
 			}
 		} else {
-			q, args := mtu.PendingTransactionQuery.GetPendingTransactionByHash(txHash)
+			q, args := mtu.PendingTransactionQuery.GetPendingTransactionByHash(
+				txHash, model.PendingTransactionStatus_PendingTransactionPending,
+			)
 			row, err := mtu.QueryExecutor.ExecuteSelectRow(q, false, args...)
 			if err != nil {
 				return nil, err
