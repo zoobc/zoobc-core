@@ -2,8 +2,8 @@ package service
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -26,7 +26,15 @@ type (
 	mockMainchain struct {
 		chaintype.SpineChain
 	}
+
+	mockSnapshotMainBlockService struct {
+		SnapshotMainBlockService
+	}
 )
+
+func (*mockSnapshotMainBlockService) NewSnapshotFile(block *model.Block) (*model.SnapshotFileInfo, error) {
+	return new(model.SnapshotFileInfo), nil
+}
 
 var (
 	ssSpinechain    = &chaintype.SpineChain{}
@@ -129,108 +137,55 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 	return 15
 }
 
-type (
-	mockFileDownloaderService struct {
-		FileDownloaderService
-		success bool
-	}
-)
-
-func (mfdf *mockFileDownloaderService) DownloadFileByName(fileName string, fileHash []byte) error {
-	if mfdf.success {
-		return nil
-	}
-	return errors.New("DownloadFileByNameFail")
-}
-
-func TestSnapshotService_DownloadSnapshot(t *testing.T) {
+func TestSnapshotService_GenerateSnapshot(t *testing.T) {
 	type fields struct {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlockTypeStatusService    BlockTypeStatusServiceInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
-		FileDownloaderService     FileDownloaderServiceInterface
-		FileService               FileServiceInterface
 		Logger                    *log.Logger
 	}
 	type args struct {
-		spineBlockManifest *model.SpineBlockManifest
-		ct                 chaintype.ChainType
+		block                    *model.Block
+		ct                       chaintype.ChainType
+		snapshotChunkBytesLength int
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
+		want    *model.SnapshotFileInfo
 		wantErr bool
-		errMsg  string
 	}{
 		{
-			name: "DownloadSnapshot:fail-{zerolength}",
+			name: "GenerateSnapshot",
 			args: args{
-				spineBlockManifest: &model.SpineBlockManifest{
-					FileChunkHashes: make([]byte, 0),
-				},
-				ct: &chaintype.MainChain{},
+				ct:    ssMainchain,
+				block: ssMockMainBlock,
 			},
-			wantErr: true,
-			errMsg:  "ValidationErr: invalid file chunks hashes length",
-		},
-		{
-			name: "DownloadSnapshot:fail-{DownloadFailed}",
 			fields: fields{
-				FileDownloaderService: &mockFileDownloaderService{
-					success: false,
-				},
-				FileService: &mockFileService{
-					successGetFileNameFromHash: true,
+				SnapshotBlockServices: map[int32]SnapshotBlockServiceInterface{
+					0: &mockSnapshotMainBlockService{},
 				},
 				Logger: log.New(),
 			},
-			args: args{
-				spineBlockManifest: &model.SpineBlockManifest{
-					FileChunkHashes: make([]byte, 64),
-				},
-				ct: &chaintype.MainChain{},
-			},
-			wantErr: true,
-			errMsg: "AppErr: One or more snapshot chunks failed to download [AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
-				" AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
-		},
-		{
-			name: "DownloadSnapshot:success",
-			fields: fields{
-				FileDownloaderService: &mockFileDownloaderService{
-					success: true,
-				},
-				FileService: &mockFileService{
-					successGetFileNameFromHash: true,
-				},
-				Logger: log.New(),
-			},
-			args: args{
-				spineBlockManifest: &model.SpineBlockManifest{
-					FileChunkHashes: make([]byte, 64),
-				},
-				ct: &chaintype.MainChain{},
-			},
+			want: new(model.SnapshotFileInfo),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotService{
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
-				BlockTypeStatusService:    tt.fields.BlockTypeStatusService,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
-				FileDownloaderService:     tt.fields.FileDownloaderService,
-				FileService:               tt.fields.FileService,
 				Logger:                    tt.fields.Logger,
 			}
-			if err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); err != nil {
-				if !tt.wantErr {
-					t.Errorf("SnapshotService.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if tt.errMsg != err.Error() {
-					t.Errorf("SnapshotService.DownloadSnapshot() error wrong test exit point: %v", err)
-				}
+			got, err := ss.GenerateSnapshot(tt.args.block, tt.args.ct, tt.args.snapshotChunkBytesLength)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SnapshotService.GenerateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SnapshotService.GenerateSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}
