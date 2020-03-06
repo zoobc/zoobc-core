@@ -600,6 +600,7 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 					[]byte{0, 0, 0, 0, 0, 0, 0},
 					1,
 					1,
+					false,
 				),
 			)
 	}
@@ -693,6 +694,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 						Version:                 1,
 						TransactionIndex:        1,
+						MultisigChild:           false,
 					},
 				},
 			},
@@ -746,6 +748,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(
 			8,
 			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 			[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
+			false,
 		),
 	)
 	return db.Query("")
@@ -768,6 +771,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, ar
 				8,
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
+				false,
 			),
 	)
 	return db.QueryRow(""), nil
@@ -846,6 +850,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 				Version:                 1,
 				TransactionIndex:        1,
+				MultisigChild:           false,
 			},
 		},
 	}
