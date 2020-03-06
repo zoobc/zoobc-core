@@ -32,7 +32,7 @@ var (
 	// this map holds boolean channels to all block types that support snapshots
 	stopSnapshotGeneration = make(map[int32]chan bool)
 	// this map holds boolean values to all block types that support snapshots
-	generatingSnapshot model.MapIntBool
+	generatingSnapshot = model.NewMapIntBool()
 )
 
 func NewSnapshotService(

@@ -3,12 +3,16 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
+	"regexp"
+	"testing"
+
 	"github.com/DATA-DOG/go-sqlmock"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"regexp"
 )
 
 type (
@@ -22,7 +26,15 @@ type (
 	mockMainchain struct {
 		chaintype.SpineChain
 	}
+
+	mockSnapshotMainBlockService struct {
+		SnapshotMainBlockService
+	}
 )
+
+func (*mockSnapshotMainBlockService) NewSnapshotFile(block *model.Block) (*model.SnapshotFileInfo, error) {
+	return new(model.SnapshotFileInfo), nil
+}
 
 var (
 	ssSpinechain    = &chaintype.SpineChain{}
@@ -123,4 +135,58 @@ func (*mockMainchain) GetChainSmithingDelayTime() int64 {
 
 func (*mockMainchain) GetSmithingPeriod() int64 {
 	return 15
+}
+
+func TestSnapshotService_GenerateSnapshot(t *testing.T) {
+	type fields struct {
+		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
+		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
+		Logger                    *log.Logger
+	}
+	type args struct {
+		block                    *model.Block
+		ct                       chaintype.ChainType
+		snapshotChunkBytesLength int
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.SnapshotFileInfo
+		wantErr bool
+	}{
+		{
+			name: "GenerateSnapshot",
+			args: args{
+				ct:    ssMainchain,
+				block: ssMockMainBlock,
+			},
+			fields: fields{
+				SnapshotBlockServices: map[int32]SnapshotBlockServiceInterface{
+					0: &mockSnapshotMainBlockService{},
+				},
+				Logger: log.New(),
+			},
+			want: new(model.SnapshotFileInfo),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &SnapshotService{
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
+				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
+				Logger:                    tt.fields.Logger,
+			}
+			got, err := ss.GenerateSnapshot(tt.args.block, tt.args.ct, tt.args.snapshotChunkBytesLength)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SnapshotService.GenerateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SnapshotService.GenerateSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
