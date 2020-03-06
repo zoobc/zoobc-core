@@ -67,14 +67,13 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 	)
 
-	// STEF comment out for testing locally
-	// if block.Height <= constant.MinRollbackBlocks {
-	// 	return nil, blocker.NewBlocker(blocker.ValidationErr,
-	// 		fmt.Sprintf("invalid snapshot height: %d", block.Height))
-	// }
+	// @iltoga comment out for testing snapshots locally
+	if block.Height <= constant.MinRollbackBlocks {
+		return nil, blocker.NewBlocker(blocker.ValidationErr,
+			fmt.Sprintf("invalid snapshot height: %d", block.Height))
+	}
 	// (safe) height to get snapshot's data from
-	// snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
-	snapshotPayloadHeight := block.Height
+	snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
@@ -151,13 +150,13 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 // IsSnapshotHeight returns true if chain height passed is a snapshot height
 func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 	snapshotInterval := ss.chainType.GetSnapshotInterval()
-	// STEF comment out for testing locally
-	// if snapshotInterval < constant.MinRollbackBlocks {
-	// 	if height < constant.MinRollbackBlocks {
-	// 		return false
-	// 	}
-	// 	return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
-	// }
+	// @iltoga comment out for testing snapshots locally
+	if snapshotInterval < constant.MinRollbackBlocks {
+		if height < constant.MinRollbackBlocks {
+			return false
+		}
+		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	}
 	return height%snapshotInterval == 0
 
 }

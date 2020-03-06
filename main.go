@@ -734,7 +734,7 @@ func startBlockchainSyncronizers() {
 		for {
 			select {
 			case <-tickerLog.C:
-				loggerCoreService.Errorf("downloading spine blocks...")
+				loggerCoreService.Infof("downloading spine blocks...")
 			case <-ticker.C:
 				if blockchainStatusService.IsFirstDownloadFinished(spinechain) {
 					spineBlocksDownloadFinished <- true
@@ -757,14 +757,14 @@ func startBlockchainSyncronizers() {
 		loggerCoreService.Errorf("cannot get last spine block")
 		os.Exit(1)
 	}
-	loggerCoreService.Errorf("finished downloading spine blocks. last height is %d", lastSpineBlock.Height)
+	loggerCoreService.Infof("finished downloading spine blocks. last height is %d", lastSpineBlock.Height)
 	go func() {
 		ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
 		tickerLog := time.NewTicker(2 * time.Second)
 		for {
 			select {
 			case <-tickerLog.C:
-				loggerCoreService.Errorf("downloading main blocks...")
+				loggerCoreService.Infof("downloading main blocks...")
 			case <-ticker.C:
 				if blockchainStatusService.IsFirstDownloadFinished(mainchain) {
 					mainBlocksDownloadFinished <- true
@@ -775,7 +775,7 @@ func startBlockchainSyncronizers() {
 			}
 		}
 	}()
-	loggerCoreService.Error("done downloading spine blocks. searching for snapshots...")
+	loggerCoreService.Info("done downloading spine blocks. searching for snapshots...")
 	// loop through all chain types that support snapshots and download them if we find relative
 	// spineBlockManifest
 	lastMainBlock, err := mainchainSynchronizer.BlockService.GetLastBlock()
@@ -800,7 +800,7 @@ func startBlockchainSyncronizers() {
 				break
 			}
 			if lastSpineBlockManifest != nil {
-				loggerCoreService.Errorf("found a Snapshot Spine Block Manifest for chaintype %s, "+
+				loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
 					"at height is %d. Start downloading...", ct.GetName(),
 					lastSpineBlockManifest.SpineBlockManifestHeight)
 				if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
@@ -826,9 +826,9 @@ func startBlockchainSyncronizers() {
 	if err != nil {
 		loggerCoreService.Fatal("cannot get last main block")
 	}
-	loggerCoreService.Errorf("finished downloading main blocks. last height is %d",
+	loggerCoreService.Infof("finished downloading main blocks. last height is %d",
 		lastMainBlock.Height)
-	loggerCoreService.Error("blockchain sync completed. unlocking smithing process...")
+	loggerCoreService.Info("blockchain sync completed. unlocking smithing process...")
 	blockchainStatusService.SetIsSmithingLocked(false)
 }
 

@@ -19,8 +19,8 @@ var (
 	CheckTimedOutBlock        = 30 * time.Second
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
 	// SpineChainSmithingPeriod one spine block every 5 min (300 seconds)
-	// STEF reduce to 60 for testing locally
-	SpineChainSmithingPeriod = int64(60)
+	// @iltoga reduce to 60 for testing locally
+	SpineChainSmithingPeriod = int64(300)
 	MainChainSmithIdlePeriod = 500 * time.Millisecond
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)

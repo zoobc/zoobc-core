@@ -54,7 +54,7 @@ func (btss *BlockchainStatusService) SetFirstDownloadFinished(ct chaintype.Chain
 	}
 	isFirstDownloadFinished.Store(ct.GetTypeInt(), finished)
 	if finished {
-		btss.Logger.Errorf("%s first download finished", ct.GetName())
+		btss.Logger.Infof("%s first download finished", ct.GetName())
 	}
 }
 
@@ -86,7 +86,7 @@ func (btss *BlockchainStatusService) SetIsSmithingLocked(smithingLocked bool) {
 	} else {
 		lockedStr = "unlocked"
 	}
-	btss.Logger.Errorf("smithing process %s...", lockedStr)
+	btss.Logger.Infof("smithing process %s...", lockedStr)
 }
 
 func (btss *BlockchainStatusService) IsSmithingLocked() bool {
@@ -107,9 +107,9 @@ func (btss *BlockchainStatusService) IsSmithing(ct chaintype.ChainType) bool {
 func (btss *BlockchainStatusService) SetIsDownloadingSnapshot(ct chaintype.ChainType, downloadingSnapshot bool) {
 	isDownloadingSnapshot.Store(ct.GetTypeInt(), downloadingSnapshot)
 	if downloadingSnapshot {
-		btss.Logger.Errorf("Downloading snapshot for %s...", ct.GetName())
+		btss.Logger.Infof("Downloading snapshot for %s...", ct.GetName())
 	} else {
-		btss.Logger.Errorf("Finished Downloading snapshot for %s...", ct.GetName())
+		btss.Logger.Infof("Finished Downloading snapshot for %s...", ct.GetName())
 	}
 
 }
