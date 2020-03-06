@@ -249,6 +249,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				},
 				Signature:               &crypto.Signature{},
 				Height:                  tx.Height,
+				BlockID:                 tx.BlockID,
 				MultisigUtil:            multisigUtil,
 				QueryExecutor:           ts.Executor,
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),

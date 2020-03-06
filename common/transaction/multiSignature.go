@@ -2,8 +2,8 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 
-	"github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/query"
@@ -32,6 +32,7 @@ type (
 		TypeSwitcher        TypeActionSwitcher
 		Signature           crypto.SignatureInterface
 		Height              uint32
+		BlockID             int64
 		MultisigUtil        MultisigTransactionUtilInterface
 		// pending services
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
@@ -53,17 +54,18 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		}
 		tx.Body.MultiSignatureInfo.MultisigAddress = address
 		tx.Body.MultiSignatureInfo.BlockHeight = tx.Height
-		q, args := tx.MultisignatureInfoQuery.InsertMultisignatureInfo(tx.Body.MultiSignatureInfo)
-		err = tx.QueryExecutor.ExecuteTransaction(q, args...)
+		tx.Body.MultiSignatureInfo.Latest = true
+		insertMultisigInfoQ := tx.MultisignatureInfoQuery.InsertMultisignatureInfo(tx.Body.MultiSignatureInfo)
+		err = tx.QueryExecutor.ExecuteTransactions(insertMultisigInfoQ)
 		if err != nil {
-			sqliteErr := err.(sqlite3.Error)
-			if sqliteErr.ExtendedCode.Error() != sqlite3.ErrConstraintUnique.Error() {
-				return blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
+			return err
 		}
 	}
 	// if have transaction bytes, PendingTransactionService.AddPendingTransaction() -> noop duplicate
 	if len(tx.Body.UnsignedTransactionBytes) > 0 {
+		var (
+			pendingTx model.PendingTransaction
+		)
 		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
 		if err != nil {
 			return blocker.NewBlocker(
@@ -72,38 +74,42 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 			)
 		}
 		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
-		q, args := tx.PendingTransactionQuery.InsertPendingTransaction(&model.PendingTransaction{
-			SenderAddress:    innerTx.SenderAccountAddress,
-			TransactionHash:  txHash[:],
-			TransactionBytes: tx.Body.UnsignedTransactionBytes,
-			Status:           model.PendingTransactionStatus_PendingTransactionPending,
-			BlockHeight:      tx.Height,
-			Latest:           true,
-		})
-		err = tx.QueryExecutor.ExecuteTransaction(q, args...)
-		if err != nil {
-			sqliteErr := err.(sqlite3.Error)
-			if sqliteErr.ExtendedCode.Error() != sqlite3.ErrConstraintUnique.Error() {
+		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
+			txHash[:], model.PendingTransactionStatus_PendingTransactionExecuted,
+			tx.Height, constant.MinRollbackBlocks,
+		)
+		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
+		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
+		if err == sql.ErrNoRows {
+			pendingTxInsertQ := tx.PendingTransactionQuery.InsertPendingTransaction(&model.PendingTransaction{
+				SenderAddress:    innerTx.SenderAccountAddress,
+				TransactionHash:  txHash[:],
+				TransactionBytes: tx.Body.UnsignedTransactionBytes,
+				Status:           model.PendingTransactionStatus_PendingTransactionPending,
+				BlockHeight:      tx.Height,
+				Latest:           true,
+			})
+			err = tx.QueryExecutor.ExecuteTransactions(pendingTxInsertQ)
+			if err != nil {
 				return blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
+		} else {
+			return blocker.NewBlocker(blocker.ValidationErr, "PendingTransactionAlreadyExecuted")
 		}
+
 	}
 	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
 	if tx.Body.SignatureInfo != nil {
 		for addr, sig := range tx.Body.SignatureInfo.Signatures {
-			q, args := tx.PendingSignatureQuery.InsertPendingSignature(&model.PendingSignature{
+			insertPendingSigQ := tx.PendingSignatureQuery.InsertPendingSignature(&model.PendingSignature{
 				TransactionHash: tx.Body.SignatureInfo.TransactionHash,
 				AccountAddress:  addr,
 				Signature:       sig,
 				BlockHeight:     tx.Height,
+				Latest:          true,
 			})
-			err = tx.QueryExecutor.ExecuteTransaction(q, args...)
+			err = tx.QueryExecutor.ExecuteTransactions(insertPendingSigQ)
 			if err != nil {
-				sqliteErr := err.(sqlite3.Error)
-				if sqliteErr.Code == sqlite3.ErrConstraint &&
-					sqliteErr.ExtendedCode.Error() == sqlite3.ErrConstraintUnique.Error() {
-					continue
-				}
 				return blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
 
@@ -149,12 +155,21 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 			BlockHeight:      tx.Height,
 			Latest:           true,
 		}
-		updateQueries := tx.PendingTransactionQuery.UpdatePendingTransaction(pendingTx)
+		updateQueries := tx.PendingTransactionQuery.InsertPendingTransaction(pendingTx)
 		err = tx.QueryExecutor.ExecuteTransactions(updateQueries)
+
 		if err != nil {
 			return err
 		}
 
+		// save multisig_child transaction
+		utx.MultisigChild = true
+		utx.BlockID = tx.BlockID
+		insertMultisigChildQ, args := tx.TransactionQuery.InsertTransaction(utx)
+		err = tx.QueryExecutor.ExecuteTransaction(insertMultisigChildQ, args...)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -239,6 +254,9 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 		}
 	}
 	if len(body.UnsignedTransactionBytes) > 0 {
+		var (
+			pendingTx model.PendingTransaction
+		)
 		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
 		if err != nil {
 			return blocker.NewBlocker(
@@ -260,7 +278,17 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				"FailToValidateInnerTa",
 			)
 		}
+		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
 
+		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
+			txHash[:], model.PendingTransactionStatus_PendingTransactionExecuted,
+			tx.Height, constant.MinRollbackBlocks,
+		)
+		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
+		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "PendingTransactionAlreadyExecuted")
+		}
 	}
 	if body.SignatureInfo != nil {
 		if body.SignatureInfo.TransactionHash == nil { // transaction hash has to come with at least one signature
