@@ -2,6 +2,7 @@ package p2p
 
 import (
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -29,6 +30,7 @@ type (
 			queryExecutor query.ExecutorInterface,
 			blockServices map[int32]coreService.BlockServiceInterface,
 			mempoolServices map[int32]coreService.MempoolServiceInterface,
+			fileService coreService.FileServiceInterface,
 			observer *observer.Observer,
 		)
 		// exposed api list
@@ -42,6 +44,7 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
+		DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error)
 	}
 	Peer2PeerService struct {
 		Host              *model.Host
@@ -49,6 +52,7 @@ type (
 		PeerServiceClient client.PeerServiceClientInterface
 		Logger            *log.Logger
 		TransactionUtil   transaction.UtilInterface
+		FileService       coreService.FileServiceInterface
 	}
 )
 
@@ -59,12 +63,15 @@ func NewP2PService(
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	logger *log.Logger,
 	transactionUtil transaction.UtilInterface,
+	fileService coreService.FileServiceInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		Host:              host,
 		PeerServiceClient: peerServiceClient,
+		Logger:            logger,
 		PeerExplorer:      peerExplorer,
 		TransactionUtil:   transactionUtil,
+		FileService:       fileService,
 	}, nil
 }
 
@@ -76,10 +83,12 @@ func (s *Peer2PeerService) StartP2P(
 	queryExecutor query.ExecutorInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
+	fileService coreService.FileServiceInterface,
 	observer *observer.Observer,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
+		fileService,
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,
@@ -265,4 +274,87 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 			}(peer)
 		},
 	}
+}
+
+// DownloadFilesFromPeer download a file from a random peer
+func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRetryCount uint32) ([]string, error) {
+	var (
+		peer          *model.Peer
+		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
+		peerKey       string
+		retryCount    uint32
+	)
+	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
+	if len(resolvedPeers) < 1 {
+		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no resolved peer can be found")
+	}
+	// convert the slice to a map to make it easier to find elements in it
+	fileChunkNamesMap := make(map[string]string)
+	for _, s := range fileChunksNames {
+		fileChunkNamesMap[s] = s
+	}
+	fileChunksToDownload := fileChunksNames
+	r := util.GetFastRandomSeed()
+	for retryCount < maxRetryCount+1 {
+		retryCount++
+
+		// randomly select one of the resolved peers to download files from
+		// (no need for secure random here. we just want to get a quick pseudo random index)
+		randomIdx := int(util.GetFastRandom(r, len(resolvedPeers)))
+		if randomIdx != 0 {
+			randomIdx %= len(resolvedPeers)
+		}
+		idx := 0
+		for peerKey, peer = range resolvedPeers {
+			if idx == randomIdx {
+				// remove selected peer from map to avoid selecting it again
+				delete(resolvedPeers, peerKey)
+				break
+			}
+			idx++
+		}
+
+		// download the files
+		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunksToDownload)
+		if err != nil {
+			return nil, err
+		}
+
+		// check first that all chunks returned are valid
+		skipFilesFromPeer := false
+		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
+			fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
+			if _, ok := fileChunkNamesMap[fileChunkComputedName]; !ok {
+				s.Logger.Errorf("peer returned an invalid file chunk: %s", fileChunkComputedName)
+				skipFilesFromPeer = true
+				break
+			}
+		}
+		// never trust a peer that returns wrong data, just skip all files downloaded from it
+		if skipFilesFromPeer {
+			continue
+		}
+
+		// save downloaded chunks to storage as soon as possible to avoid keeping in memory large arrays
+		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
+			fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
+			err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
+			if err != nil {
+				s.Logger.Errorf("failed saving file to storage: %s", err)
+				return nil, err
+			}
+		}
+
+		// set next files to download = previous files that failed to download
+		fileChunksToDownload = fileDownloadResponse.GetFailed()
+		// break download loop either if all files have been successfully downloaded or there are no more peers to connect to
+		if len(fileChunksToDownload) == 0 || len(resolvedPeers) == 0 {
+			if len(fileChunksToDownload) > 0 && len(resolvedPeers) == 0 {
+				s.Logger.Debug("no more resolved peers to download files from. Already tried them all!")
+			}
+			break
+		}
+	}
+
+	return fileChunksToDownload, nil
 }

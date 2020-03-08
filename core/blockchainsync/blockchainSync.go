@@ -18,15 +18,15 @@ import (
 // TODO: rename into something more specific, such as SyncService
 type Service struct {
 	// isScanningBlockchain       bool
-	ChainType              chaintype.ChainType
-	PeerServiceClient      client.PeerServiceClientInterface
-	PeerExplorer           strategy.PeerExplorerStrategyInterface
-	BlockService           service.BlockServiceInterface
-	BlockchainDownloader   BlockchainDownloadInterface
-	ForkingProcessor       ForkingProcessorInterface
-	Logger                 *log.Logger
-	TransactionUtil        transaction.UtilInterface
-	BlockTypeStatusService service.BlockTypeStatusServiceInterface
+	ChainType               chaintype.ChainType
+	PeerServiceClient       client.PeerServiceClientInterface
+	PeerExplorer            strategy.PeerExplorerStrategyInterface
+	BlockService            service.BlockServiceInterface
+	BlockchainDownloader    BlockchainDownloadInterface
+	ForkingProcessor        ForkingProcessorInterface
+	Logger                  *log.Logger
+	TransactionUtil         transaction.UtilInterface
+	BlockchainStatusService service.BlockchainStatusServiceInterface
 }
 
 func NewBlockchainSyncService(
@@ -34,19 +34,19 @@ func NewBlockchainSyncService(
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	logger *log.Logger,
-	blockTypeStatusService service.BlockTypeStatusServiceInterface,
+	blockchainStatusService service.BlockchainStatusServiceInterface,
 	blockchainDownloader BlockchainDownloadInterface,
 	forkingProcessor ForkingProcessorInterface,
 ) *Service {
 	return &Service{
-		ChainType:              blockService.GetChainType(),
-		BlockService:           blockService,
-		PeerServiceClient:      peerServiceClient,
-		PeerExplorer:           peerExplorer,
-		BlockchainDownloader:   blockchainDownloader,
-		ForkingProcessor:       forkingProcessor,
-		Logger:                 logger,
-		BlockTypeStatusService: blockTypeStatusService,
+		ChainType:               blockService.GetChainType(),
+		BlockService:            blockService,
+		PeerServiceClient:       peerServiceClient,
+		PeerExplorer:            peerExplorer,
+		BlockchainDownloader:    blockchainDownloader,
+		ForkingProcessor:        forkingProcessor,
+		Logger:                  logger,
+		BlockchainStatusService: blockchainStatusService,
 	}
 }
 
@@ -91,7 +91,7 @@ func (bss *Service) getMoreBlocks() {
 		bss.Logger.Warn(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
 	}
 	if lastBlock == nil {
-		bss.Logger.Warn("There is no genesis block found")
+		bss.Logger.Fatal("There is no genesis block found")
 	}
 	initialHeight := lastBlock.Height
 
@@ -107,12 +107,10 @@ func (bss *Service) getMoreBlocks() {
 			case blocker.P2PNetworkConnectionErr:
 				// this will allow the node to start smithing if it fails to connect to the p2p network,
 				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
-				bss.BlockTypeStatusService.SetIsSmithingLocked(false)
+				bss.Logger.Info(err)
+				bss.BlockchainStatusService.SetIsSmithingLocked(false)
 				bss.Logger.Info(errCasted.Message)
 			case blocker.ChainValidationErr:
-				// this will allow the node to start smithing if it fails to connect to the p2p network,
-				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
-				bss.BlockTypeStatusService.SetIsSmithingLocked(false)
 				bss.Logger.Infof("peer %s:%d: %s",
 					peerBlockchainInfo.Peer.GetInfo().Address,
 					peerBlockchainInfo.Peer.GetInfo().Port,
@@ -176,8 +174,11 @@ func (bss *Service) getMoreBlocks() {
 		}
 
 		if bss.BlockchainDownloader.IsDownloadFinish(lastBlock) {
-			bss.BlockTypeStatusService.SetIsDownloading(bss.ChainType, false)
-			bss.Logger.Infof("Finished %s blockchain download: %d blocks pulled", bss.ChainType.GetName(), lastBlock.Height-initialHeight)
+			bss.BlockchainStatusService.SetIsDownloading(bss.ChainType, false)
+			// only set the first download finished = true once
+			bss.BlockchainStatusService.SetFirstDownloadFinished(bss.ChainType, true)
+			bss.Logger.Infof("Finished %s blocks download: %d blocks pulled", bss.ChainType.GetName(),
+				lastBlock.Height-initialHeight)
 			break
 		}
 
