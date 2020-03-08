@@ -187,6 +187,10 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", et.getTableName()),
+			height,
+		},
+		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
 			WHERE latest = ? AND (block_height || '_' || id) IN (
@@ -199,11 +203,6 @@ func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]inte
 			),
 			1,
 			0,
-		},
-		{
-			fmt.Sprintf("DELETE FROM %s WHERE block_height > ? AND latest = ?", et.getTableName()),
-			height,
-			1,
 		},
 	}
 }

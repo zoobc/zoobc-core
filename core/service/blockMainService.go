@@ -381,7 +381,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		block.CumulativeDifficulty = blockCumulativeDifficulty
 	}
 
-	bs.Logger.Warn("ExpiringEscrow")
 	// Respecting Expiring escrow before push block process
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight())
 	if err != nil {

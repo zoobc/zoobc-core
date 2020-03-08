@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -99,13 +98,20 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32)
 	if err != nil {
 		return err
 	}
-	fmt.Println("TransactionService.ExpiringEscrowTransactions")
 	if len(escrows) > 0 {
 		err = tg.QueryExecutor.BeginTx()
 		if err != nil {
 			return err
 		}
 		for _, escrow := range escrows {
+			/**
+			SET Escrow
+			1. block height = current block height
+			2. status = expired
+			*/
+			nEscrow := escrow
+			nEscrow.BlockHeight = blockHeight
+			nEscrow.Status = model.EscrowStatus_Expired
 			q := tg.EscrowTransactionQuery.InsertEscrowTransaction(escrow)
 			err = tg.QueryExecutor.ExecuteTransactions(q)
 			if err != nil {
