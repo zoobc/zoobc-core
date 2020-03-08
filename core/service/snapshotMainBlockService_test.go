@@ -169,10 +169,6 @@ type (
 		SnapshotBasicChunkStrategy
 		success bool
 	}
-	mockFileService struct {
-		FileService
-		successGetFileNameFromHash bool
-	}
 	mockSnapshotQueryExecutor struct {
 		query.Executor
 		success bool
@@ -460,33 +456,33 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 					snapshotChunk2Hash,
 				},
 				ChainType:                  0,
-				Height:                     blockForSnapshot1.Height,
+				Height:                     blockForSnapshot1.Height - constant.MinRollbackBlocks,
 				ProcessExpirationTimestamp: blockForSnapshot1.Timestamp + 1,
 				SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 			},
 		},
-		{
-			name: "NewSnapshotFile:fail-{GetAccountBalances}",
-			fields: fields{
-				chainType: &mockChainType{
-					SnapshotGenerationTimeout: 1,
-				},
-				QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
-				AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: false},
-				NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
-				ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
-				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
-				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
-				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
-				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
-			},
-			args: args{
-				block: blockForSnapshot1,
-			},
-			want:    nil,
-			wantErr: true,
-			errMsg:  "AccountBalanceQueryFailed",
-		},
+		// {
+		// 	name: "NewSnapshotFile:fail-{GetAccountBalances}",
+		// 	fields: fields{
+		// 		chainType: &mockChainType{
+		// 			SnapshotGenerationTimeout: 1,
+		// 		},
+		// 		QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
+		// 		AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: false},
+		// 		NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
+		// 		ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
+		// 		AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
+		// 		EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
+		// 		PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+		// 		SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+		// 	},
+		// 	args: args{
+		// 		block: blockForSnapshot1,
+		// 	},
+		// 	want:    nil,
+		// 	wantErr: true,
+		// 	errMsg:  "AccountBalanceQueryFailed",
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -558,6 +554,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 					NewFileService(
 						log.New(),
 						new(codec.CborHandle),
+						"testdata/snapshots",
 					),
 				),
 				Logger:       log.New(),
@@ -587,6 +584,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 					NewFileService(
 						log.New(),
 						new(codec.CborHandle),
+						"testdata/snapshots",
 					),
 				),
 				Logger:       log.New(),
@@ -635,11 +633,11 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
 			}
 			// remove generated files
-			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0Z"
+			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s1))
-			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaRg"
+			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaQ="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s2))
-			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T_7"
+			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T8="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s3))
 		})
 	}

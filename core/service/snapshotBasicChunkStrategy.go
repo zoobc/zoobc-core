@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
+	"io/ioutil"
 	"path/filepath"
 )
 
@@ -27,6 +28,8 @@ func NewSnapshotBasicChunkStrategy(
 	}
 }
 
+// GenerateSnapshotChunks generates a spliced (multiple file chunks of the same size) snapshot from a SnapshotPayload struct and returns
+// encoded snapshot payload's hash and the file chunks' hashes (to be included in a spine block manifest)
 func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *model.SnapshotPayload, filePath string) (fullHash []byte,
 	fileChunkHashes [][]byte, err error) {
 	// encode the snapshot payload
@@ -50,10 +53,7 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *mo
 
 		fileChunkHashes = append(fileChunkHashes, fileChunkHash)
 
-		fileName, err := ss.FileService.GetFileNameFromHash(fileChunkHash)
-		if err != nil {
-			return nil, nil, err
-		}
+		fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
 		err = ss.FileService.SaveBytesToFile(filePath, fileName, fileChunk)
 		if err != nil {
 			// try remove saved files if saving a chunk file fails
@@ -65,18 +65,23 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *mo
 
 		// make extra sure that the file created is not corrupted
 		filePathName := filepath.Join(filePath, fileName)
-		match, err := ss.FileService.VerifyFileHash(filePathName, fileChunkHash)
-		if err != nil || !match {
-			// try remove saved files if file chunk validation fails
-			if err1 := ss.FileService.DeleteFilesByHash(filePath, fileChunkHashes); err1 != nil {
-				return nil, nil, err1
-			}
+		fileBytes, err := ioutil.ReadFile(filePathName)
+		if err != nil {
 			return nil, nil, err
+		}
+		if !ss.FileService.VerifyFileChecksum(fileBytes, fileChunkHash) {
+			// try remove saved files if file chunk validation fails
+			err = ss.FileService.DeleteFilesByHash(filePath, fileChunkHashes)
+			if err != nil {
+				return nil, nil, err
+			}
+			return nil, nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidFileHash")
 		}
 	}
 	return fullHash, fileChunkHashes, nil
 }
 
+// BuildSnapshotFromChunks rebuilds a whole snapshot file from its file chunks and parses the encoded file into a SnapshotPayload struct
 func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte,
 	filePath string) (*model.SnapshotPayload, error) {
 	var (

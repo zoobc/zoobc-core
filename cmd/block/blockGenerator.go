@@ -22,8 +22,8 @@ import (
 )
 
 type (
-	mockBlockTypeStatusService struct {
-		service.BlockTypeStatusService
+	mockBlockchainStatusService struct {
+		service.BlockchainStatusService
 	}
 )
 
@@ -58,11 +58,11 @@ var (
 	}
 )
 
-func (*mockBlockTypeStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
+func (*mockBlockchainStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
 	return true
 }
 
-func (*mockBlockTypeStatusService) IsDownloading(ct chaintype.ChainType) bool {
+func (*mockBlockchainStatusService) IsDownloading(ct chaintype.ChainType) bool {
 	return true
 }
 
@@ -209,7 +209,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blocksmith,
 		blockService,
 		log.New(),
-		&mockBlockTypeStatusService{},
+		&mockBlockchainStatusService{},
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)
