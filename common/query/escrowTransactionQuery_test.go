@@ -358,7 +358,7 @@ func TestEscrowTransactionQuery_Rollback(t *testing.T) {
 			args:   args{height: 1},
 			wantMultiQueries: [][]interface{}{
 				{
-					"DELETE FROM escrow_transaction WHERE block_height > ? AND latest = ?",
+					"DELETE FROM escrow_transaction WHERE block_height > ?",
 					uint32(1),
 				},
 				{
