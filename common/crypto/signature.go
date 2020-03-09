@@ -66,6 +66,8 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 		}
 		result := ed25519.Verify(accountPublicKey, payload, signature[4:])
 		return result
+	case 2:
+		return true
 	default:
 		accountPublicKey, err := util.GetPublicKeyFromAddress(accountAddress)
 		if err != nil {

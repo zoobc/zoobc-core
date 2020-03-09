@@ -414,11 +414,16 @@ func GeneratedMultiSignatureTransaction(
 			if len(asig) < 2 {
 				return nil
 			}
-			signature, err := hex.DecodeString(asig[1])
-			if err != nil {
-				return nil
+			if asig[1] == "" {
+				sigType := util.ConvertUint32ToBytes(2)
+				signatures[asig[0]] = sigType
+			} else {
+				signature, err := hex.DecodeString(asig[1])
+				if err != nil {
+					return nil
+				}
+				signatures[asig[0]] = signature
 			}
-			signatures[asig[0]] = signature
 		}
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
