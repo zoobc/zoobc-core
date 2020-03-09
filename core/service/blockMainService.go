@@ -904,7 +904,7 @@ func (bs *BlockService) GenerateBlock(
 		payloadHash         []byte
 		err                 error
 		digest              = sha3.New256()
-		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
+		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block

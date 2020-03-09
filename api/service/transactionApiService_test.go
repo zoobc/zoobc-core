@@ -261,7 +261,7 @@ func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(mpTx
 func TestTransactionService_PostTransaction(t *testing.T) {
 
 	txTypeSuccess, transactionHashed := transaction.GetFixtureForSpecificTransaction(
-		-6039856766804960022,
+		1390544043583530800,
 		1562806389280,
 		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
@@ -273,8 +273,8 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		false,
 		true,
 	)
-	escrowApprovalTX, _ := transaction.GetFixtureForSpecificTransaction(
-		8391609053770132621,
+	escrowApprovalTX, escrowApprovalTXBytes := transaction.GetFixtureForSpecificTransaction(
+		1681608995461262354,
 		1581301507,
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		"",
@@ -528,16 +528,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{4, 0, 0, 0, 1, 3, 191, 64, 94, 0, 0, 0, 0, 44, 0, 0, 0, 66, 67,
-						90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68, 79, 86, 102, 57, 90, 83, 52,
-						69, 106, 118, 79, 73, 118, 95, 85, 101, 87, 52, 84, 86, 66, 81, 74, 95, 54,
-						116, 72, 75, 108, 69, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 76, 37, 113, 191, 231, 41, 103, 98, 57, 67,
-						169, 205, 172, 140, 249, 170, 166, 46, 82, 179, 192, 127, 37, 244, 251, 113,
-						230, 236, 118, 172, 62, 37, 88, 24, 121, 3, 105, 200, 185, 224, 142, 161, 63,
-						6, 209, 55, 7, 108, 96, 59, 240, 182, 151, 95, 41, 202, 157, 149, 39, 144,
-						135, 240, 25, 6},
+					TransactionBytes: escrowApprovalTXBytes,
 				},
 			},
 			want: escrowApprovalTX,
