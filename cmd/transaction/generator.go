@@ -50,7 +50,7 @@ func GenerateTxRegisterNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
 	txBody := &model.NodeRegistrationTransactionBody{
@@ -95,7 +95,7 @@ func GenerateTxUpdateNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -126,7 +126,7 @@ func GenerateTxUpdateNode(
 }
 
 func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
@@ -159,7 +159,7 @@ func GenerateTxClaimNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -234,6 +234,7 @@ func GenerateTxRemoveAccountDataset(
 
 func GenerateBasicTransaction(
 	senderSeed string,
+	senderSignatureType int32,
 	version uint32,
 	timestamp, fee int64,
 	recipientAccountAddress string,
@@ -244,8 +245,24 @@ func GenerateBasicTransaction(
 	if senderSeed == "" {
 		senderAccountAddress = senderAddress
 	} else {
-		senderAccountAddress = util.GetAddressFromSeed(senderSeed)
+		switch model.SignatureType(senderSignatureType) {
+		case model.SignatureType_DefaultSignature:
+			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+		case model.SignatureType_BitcoinSignature:
+			var (
+				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
+				err        error
+			)
+			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
+			if err != nil {
+				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+			}
+		default:
+			panic("GenerateBasicTransaction-Invalid Signature Type")
+		}
 	}
+
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
@@ -297,7 +314,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 	}
 }
 
-func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
+func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureType int32) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
 		txType          transaction.TypeAction
@@ -310,9 +327,9 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
-	tx.Signature = signature.Sign(
+	tx.Signature, _ = signature.Sign(
 		unsignedTxBytes,
-		constant.SignatureTypeDefault,
+		model.SignatureType(signatureType),
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)

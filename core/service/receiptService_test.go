@@ -157,17 +157,17 @@ func fixtureGenerateMerkle() {
 	signature := crypto.NewSignature()
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	// sign mock linked receipt and update the recipient public key
-	mockLinkedReceipt.BatchReceipt.RecipientPublicKey = util.GetPublicKeyFromSeed(mockSeed)
+	mockLinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	unsignedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
 	mockLinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
 	// sign rmr linked receipt
-	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientPublicKey = util.GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.SenderPublicKey = mockLinkedReceipt.BatchReceipt.SenderPublicKey
 	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.BatchReceipt)
 	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientSignature = signature.SignByNode(
 		unsignedUnlinkedReceiptByte, mockSeed)
 	// sign no rmr linked
-	mockUnlinkedReceipt.BatchReceipt.RecipientPublicKey = util.GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceipt.BatchReceipt.SenderPublicKey = mockLinkedReceipt.BatchReceipt.SenderPublicKey
 	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockUnlinkedReceipt.BatchReceipt)
 	mockUnlinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(

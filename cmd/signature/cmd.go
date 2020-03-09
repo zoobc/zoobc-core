@@ -6,11 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"golang.org/x/crypto/sha3"
-
-	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/spf13/cobra"
 )
@@ -59,11 +58,12 @@ func SignData(*cobra.Command, []string) {
 	}
 	if hash {
 		hashedUnsignedBytes = sha3.Sum256(unsignedBytes)
-		signature = (&crypto.Signature{}).Sign(hashedUnsignedBytes[:], constant.SignatureTypeDefault, seed)
+		signature, _ = (&crypto.Signature{}).Sign(hashedUnsignedBytes[:], model.SignatureType_DefaultSignature, seed)
 	} else {
-		signature = (&crypto.Signature{}).Sign(unsignedBytes, constant.SignatureTypeDefault, seed)
+		signature, _ = (&crypto.Signature{}).Sign(unsignedBytes, model.SignatureType_DefaultSignature, seed)
 	}
-	fmt.Printf("account-address:\t%v\n", util.GetAddressFromSeed(seed))
+	edUtil := crypto.NewEd25519Signature()
+	fmt.Printf("account-address:\t%v\n", edUtil.GetAddressFromSeed(seed))
 	fmt.Printf("transaction-bytes:\t%v\n", unsignedBytes)
 	fmt.Printf("transaction-hash:\t%v\n", hex.EncodeToString(hashedUnsignedBytes[:]))
 	fmt.Printf("signature-bytes:\t%v\n", signature)

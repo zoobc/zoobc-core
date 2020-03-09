@@ -2144,6 +2144,7 @@ func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
 	}
 	type args struct {
 		startHeight, limit uint32
+		withAttachedData   bool
 	}
 	tests := []struct {
 		name    string
@@ -2160,8 +2161,9 @@ func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
 				BlockQuery:    query.NewBlockQuery(&chaintype.SpineChain{}),
 			},
 			args: args{
-				startHeight: 0,
-				limit:       2,
+				startHeight:      0,
+				limit:            2,
+				withAttachedData: false,
 			},
 			want: []*model.Block{
 				&mockSpineBlockData,
@@ -2189,7 +2191,7 @@ func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
 				Signature:     tt.fields.Signature,
 				Observer:      tt.fields.Observer,
 			}
-			got, err := bs.GetBlocksFromHeight(tt.args.startHeight, tt.args.limit)
+			got, err := bs.GetBlocksFromHeight(tt.args.startHeight, tt.args.limit, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.GetBlocksFromHeight() error = %v, wantErr %v", err, tt.wantErr)
 				return

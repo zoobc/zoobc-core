@@ -58,15 +58,21 @@ var (
 
 	goRoutineActivityCounters     = make(map[string]prometheus.Gauge)
 	goRoutineActivityCountersSync sync.Mutex
+
+	snapshotDownloadRequestCounter       prometheus.Counter
+	snapshotDownloadRequestFailedCounter prometheus.Counter
+	snapshotDownloadRequestCounterSync   sync.Mutex
 )
 
 const (
-	P2pGetPeerInfoServer                = "P2pGetPeerInfoServer"
-	P2pGetMorePeersServer               = "P2pGetMorePeersServer"
-	P2pSendPeersServer                  = "P2pSendPeersServer"
-	P2pSendBlockServer                  = "P2pSendBlockServer"
-	P2pSendTransactionServer            = "P2pSendTransactionServer"
+	P2pGetPeerInfoServer     = "P2pGetPeerInfoServer"
+	P2pGetMorePeersServer    = "P2pGetMorePeersServer"
+	P2pSendPeersServer       = "P2pSendPeersServer"
+	P2pSendBlockServer       = "P2pSendBlockServer"
+	P2pSendTransactionServer = "P2pSendTransactionServer"
+	// @iltoga for @ali this is unused. can we delete it?
 	P2pRequestBlockTransactionsServer   = "P2pRequestBlockTransactionsServer"
+	P2pRequestFileDownloadServer        = "P2pRequestFileDownloadServer"
 	P2pGetCumulativeDifficultyServer    = "P2pGetCumulativeDifficultyServer"
 	P2pGetCommonMilestoneBlockIDsServer = "P2pGetCommonMilestoneBlockIDsServer"
 	P2pGetNextBlockIDsServer            = "P2pGetNextBlockIDsServer"
@@ -78,6 +84,7 @@ const (
 	P2pSendBlockClient                  = "P2pSendBlockClient"
 	P2pSendTransactionClient            = "P2pSendTransactionClient"
 	P2pRequestBlockTransactionsClient   = "P2pRequestBlockTransactionsClient"
+	P2pRequestFileDownloadClient        = "P2pRequestFileDownloadClient"
 	P2pGetCumulativeDifficultyClient    = "P2pGetCumulativeDifficultyClient"
 	P2pGetCommonMilestoneBlockIDsClient = "P2pGetCommonMilestoneBlockIDsClient"
 	P2pGetNextBlockIDsClient            = "P2pGetNextBlockIDsClient"
@@ -182,7 +189,7 @@ func SetUnresolvedPriorityPeersCount(count int) {
 	if unresolvedPriorityPeersCounter == nil {
 		unresolvedPriorityPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: fmt.Sprintf("zoobc_unresolved_priority_peers"),
-			Help: fmt.Sprintf("priority resolvedPeers counter"),
+			Help: fmt.Sprintf("priority unresolvedPeers counter"),
 		})
 		prometheus.MustRegister(unresolvedPriorityPeersCounter)
 	}
@@ -405,4 +412,35 @@ func DecrementGoRoutineActivity(activityName string) {
 		return
 	}
 	goRoutineActivityCounters[activityName].Dec()
+}
+
+func IncrementSnapshotDownloadCounter(succeeded, failed int32) {
+	if !isMonitoringActive {
+		return
+	}
+
+	snapshotDownloadRequestCounterSync.Lock()
+	defer snapshotDownloadRequestCounterSync.Unlock()
+	if succeeded > 0 {
+		if snapshotDownloadRequestCounter == nil {
+			snapshotDownloadRequestCounter = prometheus.NewCounter(prometheus.CounterOpts{
+				Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads"),
+				Help: fmt.Sprintf("snapshot file chunks succeeded to download"),
+			})
+			prometheus.MustRegister(snapshotDownloadRequestCounter)
+		}
+
+		snapshotDownloadRequestCounter.Add(float64(succeeded))
+	}
+	if failed > 0 {
+		if snapshotDownloadRequestFailedCounter == nil {
+			snapshotDownloadRequestFailedCounter = prometheus.NewCounter(prometheus.CounterOpts{
+				Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads_failed"),
+				Help: fmt.Sprintf("snapshot file chunks failed to download"),
+			})
+			prometheus.MustRegister(snapshotDownloadRequestFailedCounter)
+		}
+
+		snapshotDownloadRequestFailedCounter.Add(float64(failed))
+	}
 }

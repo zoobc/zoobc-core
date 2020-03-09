@@ -754,7 +754,7 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (transactions, receipts)
-func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
+func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -889,7 +889,7 @@ func (bs *BlockService) GenerateBlock(
 		payloadHash         []byte
 		err                 error
 		digest              = sha3.New256()
-		blockSmithPublicKey = util.GetPublicKeyFromSeed(secretPhrase)
+		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block
@@ -1313,7 +1313,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-
+	//
+	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
+	//  rollback. Something like this:
+	//  - before rolling back derived queries, select all spine block manifest records from commonBlock.Height till last
+	//  - delete all snapshots referenced by them
+	//
 	if mempoolsBackupBytes.Len() > 0 {
 		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
 		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))

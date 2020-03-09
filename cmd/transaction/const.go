@@ -1,6 +1,8 @@
 package transaction
 
-import "github.com/zoobc/zoobc-core/common/crypto"
+import (
+	"github.com/zoobc/zoobc-core/common/crypto"
+)
 
 var (
 	txTypeMap = map[string][]byte{
@@ -26,6 +28,7 @@ var (
 	post                    bool
 	postHost                string
 	senderAddress           string
+	senderSignatureType     int32
 
 	// Send money transaction
 	sendAmount int64

@@ -2484,6 +2484,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 	}
 	type args struct {
 		startHeight, limit uint32
+		withAttachedData   bool
 	}
 	tests := []struct {
 		name    string
@@ -2500,8 +2501,9 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			args: args{
-				startHeight: 0,
-				limit:       2,
+				startHeight:      0,
+				limit:            2,
+				withAttachedData: false,
 			},
 			want: []*model.Block{
 				&mockBlockData,
@@ -2534,7 +2536,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				Observer:            tt.fields.Observer,
 			}
-			got, err := bs.GetBlocksFromHeight(tt.args.startHeight, tt.args.limit)
+			got, err := bs.GetBlocksFromHeight(tt.args.startHeight, tt.args.limit, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GetBlocksFromHeight() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -3490,7 +3492,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    263934091258032500,
+			want:    -1004196121518553761,
 		},
 	}
 	for _, tt := range tests {

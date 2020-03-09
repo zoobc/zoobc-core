@@ -315,6 +315,15 @@ func (m *Migration) Init() error {
 			ALTER TABLE "transaction"
 				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
 			`,
+			`
+			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
+			`,
+			`
+			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height")
+			`,
+			`
+			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height")
+			`,
 		}
 		return nil
 	}
@@ -352,12 +361,14 @@ func (m *Migration) Apply() error {
 			return err
 		}
 		if m.CurrentVersion != nil {
+			*m.CurrentVersion++
 			err = m.Query.ExecuteTransaction(`UPDATE "migration"
-				SET "version" = ?, "created_date" = datetime('now');`, *m.CurrentVersion+1)
+				SET "version" = ?, "created_date" = datetime('now');`, m.CurrentVersion)
 			if err != nil {
 				return err
 			}
 		} else {
+			m.CurrentVersion = &version // should 0 value not nil anymore
 			err = m.Query.ExecuteTransaction(`
 				INSERT INTO "migration" (
 					"version",
@@ -373,7 +384,6 @@ func (m *Migration) Apply() error {
 			}
 		}
 
-		m.CurrentVersion = &version
 		err = m.Query.CommitTx()
 		if err != nil {
 			return err

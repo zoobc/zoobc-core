@@ -19,7 +19,43 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+var (
+	mockTxID                      int64  = 1390544043583530800
+	mockTxTimestamp               int64  = 1581301507
+	mockTxSenderAccountAddress           = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
+	mockTxRecipientAccountAddress        = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
+	mockTxBodyLength              uint32 = 8
+)
+
 func TestGetTransactionBytes(t *testing.T) {
+	var (
+		mockTxSignedSuccess, mockTxSignedSuccessBytes = GetFixtureForSpecificTransaction(
+			mockTxID,
+			mockTxTimestamp,
+			mockTxSenderAccountAddress,
+			mockTxRecipientAccountAddress,
+			mockTxBodyLength,
+			model.TransactionType_SendMoneyTransaction,
+			&model.SendMoneyTransactionBody{
+				Amount: 10,
+			},
+			false,
+			true,
+		)
+		mockTxSignedEscrowSuccess, mockTxSignedEscrowSuccessBytes = GetFixtureForSpecificTransaction(
+			mockTxID,
+			mockTxTimestamp,
+			mockTxSenderAccountAddress,
+			mockTxRecipientAccountAddress,
+			mockTxBodyLength,
+			model.TransactionType_SendMoneyTransaction,
+			&model.SendMoneyTransactionBody{
+				Amount: 10,
+			},
+			true,
+			true,
+		)
+	)
 	type args struct {
 		transaction *model.Transaction
 		sign        bool
@@ -33,30 +69,10 @@ func TestGetTransactionBytes(t *testing.T) {
 		{
 			name: "GetTransactionBytes:success",
 			args: args{
-				transaction: &model.Transaction{
-					TransactionType:         2,
-					Version:                 1,
-					Timestamp:               1562806389280,
-					SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					Fee:                     1000000,
-					TransactionBodyLength:   8,
-					TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-					Signature: []byte{0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174,
-						239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
-						139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				},
-				sign: true,
+				transaction: mockTxSignedSuccess,
+				sign:        true,
 			},
-			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73,
-				76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44, 0, 0,
-				0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66,
-				57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-				4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9,
-				76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119,
-				124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
-			},
+			want:    mockTxSignedSuccessBytes,
 			wantErr: false,
 		},
 		{
@@ -129,36 +145,10 @@ func TestGetTransactionBytes(t *testing.T) {
 		{
 			name: "Success:WithEscrow",
 			args: args{
-				transaction: &model.Transaction{
-					Version:                 1,
-					TransactionType:         2,
-					Timestamp:               1562806389280,
-					SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					Fee:                     1000000,
-					TransactionBodyLength:   8,
-					TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-					Escrow: &model.Escrow{
-						ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-						Commission:      24,
-						Timeout:         100,
-					},
-					Signature: []byte{0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174,
-						239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
-						139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				},
-				sign: true,
+				transaction: mockTxSignedEscrowSuccess,
+				sign:        true,
 			},
-			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51,
-				99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55, 44, 0, 0, 0, 66, 67, 90,
-				75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106,
-				102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 44, 0, 0, 0, 66, 67, 90, 68,
-				95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-				57, 56, 71, 69, 65, 85, 67, 55, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63,
-				155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88,
-				220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
-			},
+			want: mockTxSignedEscrowSuccessBytes,
 		},
 		{
 			name: "SuccessNoSigned:WithEscrow",
@@ -263,8 +253,8 @@ func TestGetTransactionBytes(t *testing.T) {
 }
 
 func TestParseTransactionBytes(t *testing.T) {
-	transactionBytes, transactionHashed := GetFixturesForTransactionBytes(&model.Transaction{
-		ID:                      670925173877174625,
+	var mockTransactionWithEscrow = &model.Transaction{
+		ID:                      4870989829983641364,
 		Version:                 1,
 		TransactionType:         2,
 		BlockID:                 0,
@@ -289,9 +279,12 @@ func TestParseTransactionBytes(t *testing.T) {
 			Commission:      24,
 			Timeout:         100,
 		},
-	}, true)
+	}
+	transactionWithEscrowBytes, transactionWithEscrowHashed := GetFixturesForTransactionBytes(mockTransactionWithEscrow, true)
+	mockTransactionWithEscrow.TransactionHash = transactionWithEscrowHashed[:]
+
 	approvalTX, approvalTXBytes := GetFixtureForSpecificTransaction(
-		-5003742102621241788,
+		-5081269314054617420,
 		12345678,
 		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 		"",
@@ -345,31 +338,10 @@ func TestParseTransactionBytes(t *testing.T) {
 		{
 			name: "ParseTransactionBytes:withEscrow",
 			args: args{
-				transactionBytes: transactionBytes,
+				transactionBytes: transactionWithEscrowBytes,
 				sign:             true,
 			},
-			want: &model.Transaction{
-				ID:                      8974217473277679238,
-				Version:                 1,
-				TransactionType:         2,
-				BlockID:                 0,
-				Height:                  0,
-				Timestamp:               1562806389280,
-				SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				Fee:                     1000000,
-				TransactionHash:         transactionHashed[:],
-				TransactionBodyLength:   8,
-				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-				Signature: []byte{0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174,
-					239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
-					139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				Escrow: &model.Escrow{
-					ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					Commission:      24,
-					Timeout:         100,
-				},
-			},
+			want:    mockTransactionWithEscrow,
 			wantErr: false,
 		},
 		{
@@ -411,10 +383,9 @@ func TestParseTransactionBytes(t *testing.T) {
 			name: "ParseTransactionBytes:fail",
 			args: args{
 				transactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 44, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83,
-					57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57,
-					56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5,
-					6, 7, 8},
+					6, 7, 8, 93, 3},
 				sign: true,
 			},
 			want:    nil,
@@ -551,7 +522,7 @@ func TestValidateTransaction(t *testing.T) {
 		true,
 	)
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txEscrowValidate, false)
-	signatureEscrow := (&crypto.Signature{}).Sign(txBytesEscrow, constant.SignatureTypeDefault,
+	signatureEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrow, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txEscrowValidate.Signature = signatureEscrow
 
@@ -562,7 +533,7 @@ func TestValidateTransaction(t *testing.T) {
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(txValidate, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
+	signature, _ := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txValidate.Signature = signature
 
