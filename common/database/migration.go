@@ -278,6 +278,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_transaction" (
+				"sender_address" TEXT,			-- sender of transaction 
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction
 				"transaction_bytes" BLOB,		-- full transaction bytes of the pending transaction
 				"status" INTEGER,			-- execution status of the pending transaction
@@ -306,10 +307,6 @@ func (m *Migration) Init() error {
 				"latest" INTEGER,			-- latest flag for pending signature
 				PRIMARY KEY("multisig_address", "block_height")
 			)
-			`,
-			`
-			ALTER TABLE "pending_transaction"
-				ADD COLUMN "sender_address" TEXT 
 			`,
 			`
 			ALTER TABLE "transaction"
