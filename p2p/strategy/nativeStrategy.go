@@ -57,7 +57,7 @@ func (ns *NativeStrategy) Start() {
 
 // ResolvePeersThread to periodically try get response from peers in UnresolvedPeer list
 func (ns *NativeStrategy) ResolvePeersThread() {
-	// go ns.ResolvePeers()
+	go ns.ResolvePeers()
 	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -173,7 +173,7 @@ func (ns *NativeStrategy) GetMorePeersThread() {
 		)
 	}
 
-	// go syncPeers()
+	go syncPeers()
 	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
