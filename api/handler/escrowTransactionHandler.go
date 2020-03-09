@@ -19,10 +19,3 @@ func (eh *EscrowTransactionHandler) GetEscrowTransactions(
 ) (*model.GetEscrowTransactionsResponse, error) {
 	return eh.Service.GetEscrowTransactions(req)
 }
-
-func (eh *EscrowTransactionHandler) GetEscrowTransaction(
-	_ context.Context,
-	req *model.GetEscrowTransactionRequest,
-) (*model.Escrow, error) {
-	return eh.Service.GetEscrowTransaction(req)
-}
