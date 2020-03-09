@@ -1,10 +1,11 @@
 package constant
 
 var (
-	AccountAddressLength      uint32 = 4
-	NodeAddressLength         uint32 = 4
-	AccountAddress            uint32 = 44
-	AccountAddressEmptyLength uint32
+	AccountAddressLength       uint32 = 4
+	NodeAddressLength          uint32 = 4
+	AccountAddress             uint32 = 44
+	AccountAddressEmptyLength  uint32
+	TransactionSignatureLength uint32 = 4
 	// NodePublicKey TODO: this is valid for pub keys generated using Ed25519. in future we might have more implementations
 	NodePublicKey uint32 = 32
 	Balance       uint32 = 8
@@ -17,8 +18,6 @@ var (
 	Timestamp             uint32 = 8
 	Fee                   uint32 = 8
 	TransactionBodyLength uint32 = 4
-	// AccountSignature TODO: this is valid for signatures using Ed25519. in future we might have more implementations
-	AccountSignature uint32 = 64
 	// SignatureType variables
 	SignatureType   uint32 = 4
 	AuthRequestType        = 4

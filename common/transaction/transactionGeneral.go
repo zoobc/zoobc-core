@@ -89,6 +89,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 		if transaction.Signature == nil {
 			return nil, errors.New("TransactionSignatureNotExist")
 		}
+		buffer.Write(util.ConvertUint32ToBytes(uint32(len(transaction.Signature))))
 		buffer.Write(transaction.Signature)
 	}
 	return buffer.Bytes(), nil
@@ -198,14 +199,12 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	transaction.Escrow = &escrow
 
 	if sign {
-		// TODO: implement below logic to allow multiple signature algorithm to work
-		// first 4 bytes of signature are the signature type
-		// signatureLengthBytes, err := ReadTransactionBytes(buffer, 2)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// signatureLength := int(ConvertBytesToUint32(signatureLengthBytes))
-		transaction.Signature, err = util.ReadTransactionBytes(buffer, int(constant.SignatureType+constant.AccountSignature))
+		var signatureLengthBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionSignatureLength))
+		if err != nil {
+			return nil, err
+		}
+		signatureLength := util.ConvertBytesToUint32(signatureLengthBytes)
+		transaction.Signature, err = util.ReadTransactionBytes(buffer, int(signatureLength))
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.ParserErr,
@@ -332,11 +331,9 @@ func (tu *Util) ValidateTransaction(
 	}
 	// verify the signature of the transaction
 	if verifySignature {
-		if !crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress) {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"TxInvalidSignature",
-			)
+		err = crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -346,12 +343,13 @@ func (tu *Util) ValidateTransaction(
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
 func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
-	var (
-		buff = bytes.NewBuffer([]byte{})
-	)
 	if info == nil {
 		return "", fmt.Errorf("params cannot be nil")
 	}
+	var (
+		buff = bytes.NewBuffer([]byte{})
+		sig  = crypto.NewEd25519Signature()
+	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
@@ -360,6 +358,6 @@ func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string,
 		buff.WriteString(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return util.GetAddressFromPublicKey(hashed[:])
+	return sig.GetAddressFromPublicKey(hashed[:])
 
 }

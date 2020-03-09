@@ -4,7 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestNewSignature(t *testing.T) {
@@ -29,43 +30,60 @@ func TestNewSignature(t *testing.T) {
 func TestSignature_Sign(t *testing.T) {
 	type args struct {
 		payload       []byte
-		signatureType uint32
+		signatureType model.SignatureType
 		seed          string
 	}
 	tests := []struct {
-		name string
-		args args
-		want []byte
+		name    string
+		args    args
+		want    []byte
+		wantErr bool
 	}{
 		{
-			name: "Sign:valid",
+			name: "Sign:valid-DefaultSignature",
 			args: args{
 				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				signatureType: constant.SignatureTypeDefault,
+				signatureType: model.SignatureType_DefaultSignature,
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			want: []byte{0, 0, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
 				45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 				103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
+			wantErr: false,
 		},
 		{
-			name: "Sign:valid-{default type}",
+			name: "Sign:valid-BitcoinSignature",
+			args: args{
+				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				signatureType: model.SignatureType_BitcoinSignature,
+				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			},
+			want: []byte{1, 0, 0, 0, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122, 227, 255, 114, 26, 116, 34,
+				23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144, 106, 172, 10, 8, 201,
+				172, 22, 1, 23, 102, 80, 158, 55, 191, 144, 127, 111, 186, 226, 211, 3, 203, 131, 93, 140, 126, 90, 133},
+			wantErr: false,
+		},
+		{
+			name: "Sign:invalid-signature-type}",
 			args: args{
 				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				signatureType: 1011,
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
-			want: []byte{243, 3, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
-				45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
-				103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Signature{}
-			got := s.Sign(tt.args.payload, tt.args.signatureType, tt.args.seed)
+			got, err := s.Sign(tt.args.payload, tt.args.signatureType, tt.args.seed)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Signature.Sign() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Signature.Sign() = %v, want %v", got, tt.want)
+				t.Errorf("Signature.Sign() = \n%v, want  \n%v", got, tt.want)
 			}
 		})
 	}
@@ -111,10 +129,10 @@ func TestSignature_VerifySignature(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want bool
+		want error
 	}{
 		{
-			name: "VerifySignature:success",
+			name: "VerifySignature:success-{default-signature}",
 			args: args{
 				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
@@ -122,10 +140,21 @@ func TestSignature_VerifySignature(t *testing.T) {
 					45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 					103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
 			},
-			want: true,
+			want: nil,
 		},
 		{
-			name: "VerifySignature:success-{default}",
+			name: "VerifySignature:success-{bitcoin-signature}",
+			args: args{
+				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountAddress: "0352f7c0f324cf475a0367dc2f73400f0d3bbae72d2a95490c05a68dcdb19c4d7a",
+				signature: []byte{1, 0, 0, 0, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122, 227, 255, 114, 26, 116, 34,
+					23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144, 106, 172, 10, 8, 201,
+					172, 22, 1, 23, 102, 80, 158, 55, 191, 144, 127, 111, 186, 226, 211, 3, 203, 131, 93, 140, 126, 90, 133},
+			},
+			want: nil,
+		},
+		{
+			name: "VerifySignature:failed-{invalid-signature-type}",
 			args: args{
 				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
@@ -133,7 +162,10 @@ func TestSignature_VerifySignature(t *testing.T) {
 					45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 					103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
 			},
-			want: true,
+			want: blocker.NewBlocker(
+				blocker.ValidationErr,
+				"InvalidSignatureType",
+			),
 		},
 	}
 	for _, tt := range tests {
@@ -176,6 +208,87 @@ func TestSignature_VerifyNodeSignature(t *testing.T) {
 			s := &Signature{}
 			if got := s.VerifyNodeSignature(tt.args.payload, tt.args.signature, tt.args.nodePublicKey); got != tt.want {
 				t.Errorf("Signature.VerifyNodeSignature() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSignature_GenerateAccountFromSeed(t *testing.T) {
+	type args struct {
+		signatureType model.SignatureType
+		seed          string
+	}
+	tests := []struct {
+		name                 string
+		s                    *Signature
+		args                 args
+		wantPrivateKey       []byte
+		wantPublicKey        []byte
+		wantPublickKeyString string
+		wantAddress          string
+		wantErr              bool
+	}{
+		{
+			name: "GenerateAccountFromSeed:success-{DefaultSignature}",
+			args: args{
+				signatureType: model.SignatureType_DefaultSignature,
+				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			},
+			wantPrivateKey: []byte{215, 143, 134, 166, 8, 238, 10, 130, 59, 25, 200, 58, 125, 85, 55, 94, 206, 50, 194, 93, 71,
+				172, 247, 140, 12, 13, 53, 119, 251, 233, 244, 212, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214,
+				82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			wantPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+				139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			wantPublickKeyString: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv/UeW4TVBQJ/6tHKk=",
+			wantAddress:          "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			wantErr:              false,
+		},
+		{
+			name: "GenerateAccountFromSeed:success-{BitcoinSignature}",
+			args: args{
+				signatureType: model.SignatureType_BitcoinSignature,
+				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			},
+			wantPrivateKey: []byte{215, 143, 134, 166, 8, 238, 10, 130, 59, 25, 200, 58, 125, 85, 55, 94, 206, 50, 194, 93,
+				71, 172, 247, 140, 12, 13, 53, 119, 251, 233, 244, 212},
+			wantPublicKey: []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
+				45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
+			wantPublickKeyString: "",
+			wantAddress:          "0352f7c0f324cf475a0367dc2f73400f0d3bbae72d2a95490c05a68dcdb19c4d7a",
+			wantErr:              false,
+		},
+		{
+			name: "GenerateAccountFromSeed:fiiled-{invalid-signature-type}",
+			args: args{
+				signatureType: model.SignatureType(-1),
+				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			},
+			wantPrivateKey:       nil,
+			wantPublicKey:        nil,
+			wantPublickKeyString: "",
+			wantAddress:          "",
+			wantErr:              true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Signature{}
+			gotPrivateKey, gotPublicKey, gotPublickKeyString, gotAddress, err := s.GenerateAccountFromSeed(tt.args.signatureType, tt.args.seed)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Signature.GenerateAccountFromSeed() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotPrivateKey, tt.wantPrivateKey) {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotPrivateKey = %v, want %v", gotPrivateKey, tt.wantPrivateKey)
+			}
+			if !reflect.DeepEqual(gotPublicKey, tt.wantPublicKey) {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotPublicKey = %v, want %v", gotPublicKey, tt.wantPublicKey)
+			}
+			if gotPublickKeyString != tt.wantPublickKeyString {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotPublickKeyString = %v, want %v", gotPublickKeyString, tt.wantPublickKeyString)
+			}
+			if gotAddress != tt.wantAddress {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotAddress = %v, want %v", gotAddress, tt.wantAddress)
 			}
 		})
 	}
