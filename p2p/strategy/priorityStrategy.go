@@ -520,7 +520,6 @@ func (ps *PriorityStrategy) GetHostInfo() *model.Node {
 }
 
 // GetResolvedPeers returns resolved peers in thread-safe manner
-// TODO: What purpose ?
 func (ps *PriorityStrategy) GetResolvedPeers() map[string]*model.Peer {
 	ps.ResolvedPeersLock.RLock()
 	defer ps.ResolvedPeersLock.RUnlock()
