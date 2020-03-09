@@ -2235,6 +2235,9 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		SpinePublicKeys: []*model.SpinePublicKey{
 			mockSpinePublicKey,
 		},
+		PayloadLength: 44,
+		PayloadHash: []byte{55, 140, 121, 255, 150, 51, 177, 63, 86, 185, 40, 206, 151, 168, 77, 67, 61, 43, 54, 73, 162, 230,
+			10, 202, 83, 1, 185, 208, 203, 232, 73, 215},
 	}
 	mockSpineBlockData.BlockHash = mockSpineGoodLastBlockHash
 
@@ -2804,8 +2807,9 @@ var (
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
 		CumulativeDifficulty: "1000",
-		PayloadLength:        1,
-		PayloadHash:          []byte{},
+		PayloadLength:        0,
+		PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77,
+			228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
 		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		TotalAmount:   1000,

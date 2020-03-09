@@ -185,9 +185,15 @@ func (bs *BlockSpineService) NewGenesisBlock(
 	return block, nil
 }
 
-// ValidatePayloadHash validate block's payload data hash against block's payload hash
-func (*BlockSpineService) ValidatePayloadHash(block *model.Block) error {
-
+// ValidatePayloadHash validate (computed) block's payload data hash against block's payload hash
+func (bs *BlockSpineService) ValidatePayloadHash(block *model.Block) error {
+	hash, length, err := bs.GetPayloadHashAndLength(block)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(hash, block.GetPayloadHash()) || length != block.GetPayloadLength() {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockPayload")
+	}
 	return nil
 }
 

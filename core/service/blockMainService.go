@@ -264,12 +264,19 @@ func (bs *BlockService) NewGenesisBlock(
 	return block, nil
 }
 
-// ValidatePayloadHash validate block's payload data hash against block's payload hash
-func (*BlockService) ValidatePayloadHash(block *model.Block) error {
+// ValidatePayloadHash validate (computed) block's payload data hash against block's payload hash
+func (bs *BlockService) ValidatePayloadHash(block *model.Block) error {
+	hash, length, err := bs.GetPayloadHashAndLength(block)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(hash, block.GetPayloadHash()) || length != block.GetPayloadLength() {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockPayload")
+	}
 	return nil
 }
 
-// PreValidateBlock valdiate block without it's transactions
+// PreValidateBlock validate block without it's transactions
 func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) error {
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
@@ -287,6 +294,10 @@ func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) 
 
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+	if err := bs.ValidatePayloadHash(block); err != nil {
+		return err
+	}
+
 	// check block timestamp
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
