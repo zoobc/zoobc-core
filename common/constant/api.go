@@ -1,5 +1,5 @@
 package constant
 
 var (
-	MaxAPIRequestPerSecond int32 = 10
+	MaxAPIRequestPerSecond uint32 = 10
 )

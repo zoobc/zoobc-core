@@ -22,8 +22,8 @@ import (
 )
 
 type simpleRateLimiter struct {
-	numberOfAllowedRequest int32
-	numberOfRequest        int32
+	numberOfAllowedRequest uint32
+	numberOfRequest        uint32
 	sync.Mutex
 }
 
@@ -40,7 +40,9 @@ func (rl *simpleRateLimiter) isAllowed() bool {
 func (rl *simpleRateLimiter) requestFinished() {
 	rl.Lock()
 	defer rl.Unlock()
-	rl.numberOfRequest--
+	if rl.numberOfRequest > 0 {
+		rl.numberOfRequest--
+	}
 }
 
 func (rl *simpleRateLimiter) start() {
@@ -66,7 +68,7 @@ func (rl *simpleRateLimiter) start() {
 NewServerRateLimiterInterceptor function can used to add rate limit to the server call
 */
 
-func NewServerRateLimiterInterceptor(requestLimitPerSecond int32) grpc.UnaryServerInterceptor {
+func NewServerRateLimiterInterceptor(requestLimitPerSecond uint32) grpc.UnaryServerInterceptor {
 	rateLimiter := &simpleRateLimiter{
 		numberOfAllowedRequest: requestLimitPerSecond,
 	}
