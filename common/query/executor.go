@@ -151,13 +151,13 @@ func (qe *Executor) ExecuteSelectRow(query string, tx bool, args ...interface{})
 func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	stmt, err := qe.Tx.Prepare(qStr)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(args...)
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
 }
