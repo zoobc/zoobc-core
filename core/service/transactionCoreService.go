@@ -94,6 +94,8 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32)
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
+
 	escrows, err = tg.EscrowTransactionQuery.BuildModels(rows)
 	if err != nil {
 		return err
