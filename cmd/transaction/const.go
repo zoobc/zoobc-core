@@ -56,7 +56,7 @@ var (
 
 	// multiSignature
 	unsignedTxHex     string
-	addressSignatures []string
+	addressSignatures map[string]string
 	txHash            string
 	addresses         []string
 	nonce             int64

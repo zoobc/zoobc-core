@@ -397,7 +397,7 @@ func GeneratedMultiSignatureTransaction(
 	minSignature uint32,
 	nonce int64,
 	unsignedTxHex, txHash string,
-	addressSignatures, addresses []string,
+	addressSignatures map[string]string, addresses []string,
 ) *model.Transaction {
 	var (
 		signatures    = make(map[string][]byte)
@@ -419,6 +419,7 @@ func GeneratedMultiSignatureTransaction(
 			return nil
 		}
 	}
+	fmt.Printf("signatures: %v\n\n\n", addressSignatures)
 
 	if txHash != "" {
 		transactionHash, err := hex.DecodeString(txHash)
@@ -426,20 +427,16 @@ func GeneratedMultiSignatureTransaction(
 			fmt.Printf("hahaha %v\n\n\n", err)
 			return nil
 		}
-		for _, v := range addressSignatures {
-			asig := strings.Split(v, ":")
-			if len(asig) < 2 {
-				return nil
-			}
-			if asig[1] == "" {
+		for k, v := range addressSignatures {
+			if k == "" {
 				sigType := util.ConvertUint32ToBytes(2)
-				signatures[asig[0]] = sigType
+				signatures[k] = sigType
 			} else {
-				signature, err := hex.DecodeString(asig[1])
+				signature, err := hex.DecodeString(v)
 				if err != nil {
 					return nil
 				}
-				signatures[asig[0]] = signature
+				signatures[k] = signature
 			}
 		}
 		signatureInfo = &model.SignatureInfo{
@@ -447,7 +444,6 @@ func GeneratedMultiSignatureTransaction(
 			Signatures:      signatures,
 		}
 	}
-
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
 	txBody := &model.MultiSignatureTransactionBody{
 		MultiSignatureInfo:       multiSigInfo,

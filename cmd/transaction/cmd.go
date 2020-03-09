@@ -151,8 +151,8 @@ func init() {
 		"to be valid")
 	multiSigCmd.Flags().StringVar(&unsignedTxHex, "unsigned-transaction", "", "hex string of the unsigned transaction bytes")
 	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
-	multiSigCmd.Flags().StringSliceVar(&addressSignatures, "address-signatures", []string{}, "address:signature list "+
-		"--address-signatures='address1:signature1,address2:signature2'")
+	multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
+		"--address1='signature1' --address2='signature2'")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
