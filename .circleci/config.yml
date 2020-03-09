@@ -12,18 +12,20 @@ jobs:
             - restore_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-                    - /go/src/github.com/zoobc/zoobc-core/vendor
+#                    - /go/src/github.com/zoobc/zoobc-core/vendor
+                    - /go/pkg/mod
             - run:
                 name: GOMOD
                 command: |
                     if [ ! -d ls | grep go.mod ]; then
                         go mod init
                     fi
-                    go mod vendor
+                    go mod download
             - save_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-                    - /go/src/github.com/zoobc/zoobc-core/vendor
+#                    - /go/src/github.com/zoobc/zoobc-core/vendor
+                    - go/pkg/mod
     test:
         working_directory: /go/src/github.com/zoobc/zoobc-core
         docker:
@@ -42,7 +44,8 @@ jobs:
             - restore_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-                    - /go/src/github.com/zoobc/zoobc-core/vendor
+#                    - /go/src/github.com/zoobc/zoobc-core/vendor
+                    - go/pkg/mod
             - run:
                 name: TEST
                 command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
@@ -64,7 +67,8 @@ jobs:
             - restore_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-                    - /go/src/github.com/zoobc/zoobc-core/vendor
+#                    - /go/src/github.com/zoobc/zoobc-core/vendor
+                    - go/pkg/mod
             - restore_cache:
                 key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
                 paths:
