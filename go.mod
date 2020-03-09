@@ -7,6 +7,8 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.3.3
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6
 	github.com/beorn7/perks v1.0.1
+	github.com/btcsuite/btcd v0.20.1-beta
+	github.com/btcsuite/btcutil v0.0.0-20190425235716-9e5f4b9a998d
 	github.com/dgraph-io/badger v1.6.0
 	github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2
 	github.com/dustin/go-humanize v1.0.0
