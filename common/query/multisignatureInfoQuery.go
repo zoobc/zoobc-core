@@ -140,7 +140,7 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", msi.TableName),
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", msi.getTableName()),
 			height,
 		},
 		{
