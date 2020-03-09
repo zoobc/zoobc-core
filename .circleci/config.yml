@@ -30,6 +30,8 @@ jobs:
             - GOLANGCI_LINT: 1.20.0
         steps:
             - checkout
+            - restore_cache:
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
                 name: ↓ GOLANGCI-LINT
                 command: |
@@ -37,8 +39,6 @@ jobs:
             - run:
                 name: ↓ GOLINT
                 command: go get -u golang.org/x/lint/golint
-            - restore_cache:
-                key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
                 name: TEST
                 command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
@@ -51,6 +51,10 @@ jobs:
             - run:
                 name: GOLINT RUN
                 command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+            - save_cache:
+                key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                paths:
+                    - /go/pkg/mod
     build:
         working_directory: ~/zoobc
         docker:
