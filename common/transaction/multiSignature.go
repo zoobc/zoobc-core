@@ -102,12 +102,9 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 					"SignatureMissing",
 				)
 			}
-			res := tx.Signature.VerifySignature(body.SignatureInfo.TransactionHash, sig, addr)
-			if !res {
-				return blocker.NewBlocker(
-					blocker.ValidationErr,
-					"InvalidSignature",
-				)
+			err := tx.Signature.VerifySignature(body.SignatureInfo.TransactionHash, sig, addr)
+			if err != nil {
+				return err
 			}
 		}
 	}

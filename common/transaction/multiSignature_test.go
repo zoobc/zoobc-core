@@ -281,12 +281,12 @@ type (
 	// MultiSignatureTransactionValidate mocks
 )
 
-func (*validateSignatureValidateFail) VerifySignature(payload, signature []byte, accountAddress string) bool {
-	return false
+func (*validateSignatureValidateFail) VerifySignature(payload, signature []byte, accountAddress string) error {
+	return errors.New("mockedError")
 }
 
-func (*validateSignatureValidateSuccess) VerifySignature(payload, signature []byte, accountAddress string) bool {
-	return true
+func (*validateSignatureValidateSuccess) VerifySignature(payload, signature []byte, accountAddress string) error {
+	return nil
 }
 
 func (*validateMockSendmoneyValidateFail) Validate(bool) error {

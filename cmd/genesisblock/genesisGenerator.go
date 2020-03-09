@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -193,16 +194,22 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
 func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry {
+	var (
+		ed25519Signature = crypto.NewEd25519Signature()
+	)
 	if accountAddress == "" {
-		seed := util.GetSecureRandomSeed()
-		privateKey, _ := util.GetPrivateKeyFromSeed(seed)
-		publicKey := privateKey[32:]
-		accountAddress, _ = util.GetAddressFromPublicKey(publicKey)
+		var (
+			seed       = util.GetSecureRandomSeed()
+			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+			publicKey  = privateKey[32:]
+		)
+		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(publicKey)
 	}
-
-	nodeSeed := util.GetSecureRandomSeed()
-	nodePrivateKey, _ := util.GetPrivateKeyFromSeed(nodeSeed)
-	nodePublicKey := nodePrivateKey[32:]
+	var (
+		nodeSeed       = util.GetSecureRandomSeed()
+		nodePrivateKey = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
+		nodePublicKey  = nodePrivateKey[32:]
+	)
 
 	return genesisEntry{
 		AccountAddress:     accountAddress,

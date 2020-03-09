@@ -62,3 +62,14 @@ func SplitByteSliceByChunkSize(b []byte, chunkSize int) (splitSlice [][]byte) {
 	}
 	return splitSlice
 }
+
+// GetChecksumByte Calculate a checksum byte from a collection of bytes
+// checksum 255 = 255, 256 = 0, 257 = 1 and so on.
+func GetChecksumByte(bytes []byte) byte {
+	n := len(bytes)
+	var a byte
+	for i := 0; i < n; i++ {
+		a += bytes[i]
+	}
+	return a
+}
