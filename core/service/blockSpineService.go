@@ -906,3 +906,47 @@ func (bs *BlockSpineService) WillSmith(
 	}
 	return blockchainProcessorLastBlockID, nil
 }
+
+func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {
+	var (
+		block model.Block
+		found bool
+	)
+	qry := bs.BlockQuery.GetBlockFromTimestamp(spineBlockManifest.GetExpirationTimestamp(), 1)
+	row, _ := bs.QueryExecutor.ExecuteSelectRow(qry, false)
+	if err := bs.BlockQuery.Scan(&block, row); err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSpineBlockManifestTimestamp")
+	}
+	if err := bs.PopulateBlockData(&block); err != nil {
+		return err
+	}
+
+	// first check if spineBlockManifest is included in block data
+	spineBlockManifestBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
+	for _, blSpineBlockManifest := range block.GetSpineBlockManifests() {
+		blSpineBlockManifestBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(blSpineBlockManifest)
+		if bytes.Equal(spineBlockManifestBytes, blSpineBlockManifestBytes) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSpineBlockManifestData")
+	}
+
+	// now validate against block payload hash
+	computedHash, computedLength, err := bs.GetPayloadHashAndLength(&block)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(computedHash, block.GetPayloadHash()) || computedLength != block.PayloadLength {
+		// in this case it could be that one or more spine block manifest entries have been manually added to db after the block
+		// has been pushed to db
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidComputedSpineBlockPayloadHash")
+	}
+
+	return nil
+}

@@ -106,7 +106,15 @@ type (
 	mockSpineNodeRegistrationServiceFail struct {
 		NodeRegistrationService
 	}
+
+	mockBlockSpinePublicKeyService struct {
+		BlockSpinePublicKeyService
+	}
 )
+
+func (*mockBlockSpinePublicKeyService) GetSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error) {
+	return nil, nil
+}
 
 func (*mockSpineNodeRegistrationServiceSuccess) AddParticipationScore(
 	nodeID, scoreDelta int64,
@@ -1282,8 +1290,9 @@ type (
 	}
 	mockSpineBlockManifestService struct {
 		SpineBlockManifestService
-		ResSpineBlockManifests []*model.SpineBlockManifest
-		ResError               error
+		ResSpineBlockManifests     []*model.SpineBlockManifest
+		ResError                   error
+		ResSpineBlockManifestBytes []byte
 	}
 )
 
@@ -3585,7 +3594,7 @@ type (
 )
 
 func (*mockSpineExecutorPopulateBlockDataFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	return nil, errors.New("Mock Error")
+	return nil, errors.New("MockError")
 }
 
 func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -3703,6 +3712,219 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 			}
 			if tt.expects != nil && !reflect.DeepEqual(tt.args.block, tt.expects) {
 				t.Errorf("BlockSpineService.PopulateBlockData() = %v, want %v", tt.expects, tt.args.block)
+			}
+		})
+	}
+}
+
+type (
+	mockSpineExecutorValidateSpineBlockManifest struct {
+		query.Executor
+		success bool
+		noRows  bool
+	}
+)
+
+func (msExQ *mockSpineExecutorValidateSpineBlockManifest) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	if !msExQ.success {
+		return nil, errors.New("ExecuteSelectRowFailed")
+	}
+	if msExQ.noRows {
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields))
+	}
+	switch qStr {
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
+		"version FROM spine_block WHERE timestamp >= 15875392 ORDER BY timestamp LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields).
+			AddRow(
+				mockSpineBlockData.GetID(),
+				mockSpineBlockData.GetBlockHash(),
+				mockSpineBlockData.GetPreviousBlockHash(),
+				mockSpineBlockData.GetHeight(),
+				mockSpineBlockData.GetTimestamp(),
+				mockSpineBlockData.GetBlockSeed(),
+				mockSpineBlockData.GetBlockSignature(),
+				mockSpineBlockData.GetCumulativeDifficulty(),
+				uint32(8),
+				[]byte{28, 122, 181, 212, 11, 147, 147, 173, 220, 102, 150, 8, 100, 164, 82, 120, 228, 253, 53, 160, 5, 21,
+					103, 1, 127, 243, 215, 57, 88, 97, 137, 113},
+				mockSpineBlockData.GetBlocksmithPublicKey(),
+				mockSpineBlockData.GetTotalAmount(),
+				mockSpineBlockData.GetTotalFee(),
+				mockSpineBlockData.GetTotalCoinBase(),
+				mockSpineBlockData.GetVersion(),
+			))
+	default:
+		return nil, errors.New("UnmockedQuery")
+	}
+	row := db.QueryRow(qStr)
+	return row, nil
+}
+
+func (ss *mockSpineBlockManifestService) GetSpineBlockManifestBytes(spineBlockManifest *model.SpineBlockManifest) []byte {
+	if spineBlockManifest.ID == 12345678 || ss.ResSpineBlockManifestBytes != nil {
+		return ss.ResSpineBlockManifestBytes
+	}
+	return []byte{}
+}
+
+func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
+	type fields struct {
+		RWMutex                   sync.RWMutex
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		Signature                 crypto.SignatureInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		Observer                  *observer.Observer
+		Logger                    *log.Logger
+		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService SpineBlockManifestServiceInterface
+	}
+	type args struct {
+		spineBlockManifest *model.SpineBlockManifest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ValidateSpineBlockManifest:success",
+			fields: fields{
+				QueryExecutor: &mockSpineExecutorValidateSpineBlockManifest{
+					success: true,
+				},
+				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
+				Logger:                logrus.New(),
+				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
+						{
+							ID:                       12345678,
+							FullFileHash:             make([]byte, 64),
+							FileChunkHashes:          make([]byte, 0),
+							SpineBlockManifestHeight: 720,
+							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:      int64(1000),
+						},
+					},
+				},
+			},
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					ID:                  12345678,
+					ExpirationTimestamp: 15875392,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ValidateSpineBlockManifest:fail-{InvalidSpineBlockManifestTimestamp}",
+			fields: fields{
+				QueryExecutor: &mockSpineExecutorValidateSpineBlockManifest{
+					success: true,
+					noRows:  true,
+				},
+				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
+				Logger:                logrus.New(),
+				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
+						{
+							ID:                     12345678,
+							SpineBlockManifestType: model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:    int64(1000),
+						},
+					},
+				},
+			},
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					ID:                  12345678,
+					ExpirationTimestamp: 15875392,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSpineBlockManifest:fail-{InvalidSpineBlockManifestData}",
+			fields: fields{
+				QueryExecutor: &mockSpineExecutorValidateSpineBlockManifest{
+					success: true,
+				},
+				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
+				Logger:                logrus.New(),
+				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+				},
+			},
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					ID:                  11111111,
+					ExpirationTimestamp: 15875392,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSpineBlockManifest:fail-{InvalidComputedSpineBlockPayloadHash}",
+			fields: fields{
+				QueryExecutor: &mockSpineExecutorValidateSpineBlockManifest{
+					success: true,
+				},
+				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
+				Logger:                logrus.New(),
+				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
+				SpineBlockManifestService: &mockSpineBlockManifestService{
+					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
+					ResSpineBlockManifests: []*model.SpineBlockManifest{
+						{
+							ID:                     11111111,
+							SpineBlockManifestType: model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:    int64(1000),
+						},
+						{
+							ID:                     22222222,
+							SpineBlockManifestType: model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:    int64(1000),
+						},
+					},
+				},
+			},
+			args: args{
+				spineBlockManifest: &model.SpineBlockManifest{
+					ID:                  11111111,
+					ExpirationTimestamp: 15875392,
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockSpineService{
+				RWMutex:                   tt.fields.RWMutex,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				Signature:                 tt.fields.Signature,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				Observer:                  tt.fields.Observer,
+				Logger:                    tt.fields.Logger,
+				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
+				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+			}
+			if err := bs.ValidateSpineBlockManifest(tt.args.spineBlockManifest); (err != nil) != tt.wantErr {
+				t.Errorf("BlockSpineService.ValidateSpineBlockManifest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

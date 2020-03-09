@@ -802,7 +802,10 @@ func startBlockchainSyncronizers() {
 					ct.GetName())
 				break
 			}
-			if lastSpineBlockManifest != nil {
+			err = spinechainBlockService.ValidateSpineBlockManifest(lastSpineBlockManifest)
+			loggerCoreService.Errorf("Invalid spineBlockManifest for chaintype %s Snapshot won't be downloaded. %s",
+				ct.GetName(), err)
+			if lastSpineBlockManifest != nil && err == nil {
 				loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
 					"at height is %d. Start downloading...", ct.GetName(),
 					lastSpineBlockManifest.SpineBlockManifestHeight)
