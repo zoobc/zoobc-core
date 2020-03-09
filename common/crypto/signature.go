@@ -129,7 +129,7 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 			)
 		}
 		return nil
-	case 2: // todo: use schema constant after solve conflict
+	case model.SignatureType_MultisigSignature: // multisig validation-only
 		return nil
 	default:
 		return blocker.NewBlocker(
