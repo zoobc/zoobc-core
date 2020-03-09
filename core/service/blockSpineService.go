@@ -105,7 +105,7 @@ func (bs *BlockSpineService) NewSpineBlock(
 	}
 
 	// compute block's payload hash and length and add it to block struct
-	if block.PayloadHash, block.PayloadLength, err = bs.GetPayloadHash(block); err != nil {
+	if block.PayloadHash, block.PayloadLength, err = bs.GetPayloadHashAndLength(block); err != nil {
 		return nil, err
 	}
 
@@ -491,7 +491,7 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 }
 
 // GetPayloadBytes compute and return the block's payload hash
-func (bs *BlockSpineService) GetPayloadHash(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
+func (bs *BlockSpineService) GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
 	var (
 		digest = sha3.New256()
 	)
