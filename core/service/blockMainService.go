@@ -163,10 +163,12 @@ func (bs *BlockService) NewMainBlock(
 	totalCoinBase int64,
 	transactions []*model.Transaction,
 	publishedReceipts []*model.PublishedReceipt,
-	payloadHash []byte,
-	payloadLength uint32,
 	secretPhrase string,
 ) (*model.Block, error) {
+	var (
+		err error
+	)
+
 	block := &model.Block{
 		Version:             version,
 		PreviousBlockHash:   previousBlockHash,
@@ -179,9 +181,13 @@ func (bs *BlockService) NewMainBlock(
 		TotalCoinBase:       totalCoinBase,
 		Transactions:        transactions,
 		PublishedReceipts:   publishedReceipts,
-		PayloadHash:         payloadHash,
-		PayloadLength:       payloadLength,
 	}
+
+	// compute block's payload hash and length and add it to block struct
+	if block.PayloadHash, block.PayloadLength, err = bs.GetPayloadHash(block); err != nil {
+		return nil, err
+	}
+
 	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		bs.Logger.Error(err.Error())
@@ -256,6 +262,11 @@ func (bs *BlockService) NewGenesisBlock(
 	}
 	block.BlockHash = blockHash
 	return block, nil
+}
+
+// ValidatePayloadHash validate block's payload data hash against block's payload hash
+func (*BlockService) ValidatePayloadHash(block *model.Block) error {
+	return nil
 }
 
 // PreValidateBlock valdiate block without it's transactions
@@ -875,6 +886,33 @@ func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transact
 	return nil
 }
 
+func (bs *BlockService) GetPayloadHash(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
+	var (
+		digest = sha3.New256()
+	)
+	for _, tx := range block.GetTransactions() {
+		if _, err := digest.Write(tx.GetTransactionHash()); err != nil {
+			return nil, 0, err
+		}
+		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, 0, err
+		}
+		payloadLength += txType.GetSize()
+	}
+	// filter only good receipt
+	for _, br := range block.GetPublishedReceipts() {
+		brBytes := bs.ReceiptUtil.GetSignedBatchReceiptBytes(br.BatchReceipt)
+		_, err = digest.Write(brBytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		payloadLength += uint32(len(brBytes))
+	}
+	payloadHash = digest.Sum([]byte{})
+	return
+}
+
 // GenerateBlock generate block from transactions in mempool
 func (bs *BlockService) GenerateBlock(
 	previousBlock *model.Block,
@@ -883,11 +921,9 @@ func (bs *BlockService) GenerateBlock(
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
-		payloadLength                        uint32
 		// only for mainchain
 		sortedTransactions  []*model.Transaction
 		publishedReceipts   []*model.PublishedReceipt
-		payloadHash         []byte
 		err                 error
 		digest              = sha3.New256()
 		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
@@ -901,16 +937,12 @@ func (bs *BlockService) GenerateBlock(
 	}
 	// select transactions from mempool to be added to the block
 	for _, tx := range sortedTransactions {
-		if _, err := digest.Write(tx.TransactionHash); err != nil {
-			return nil, err
-		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
 			return nil, err
 		}
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
-		payloadLength += txType.GetSize()
 	}
 	// select published receipts to be added to the block
 	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
@@ -918,27 +950,15 @@ func (bs *BlockService) GenerateBlock(
 			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		previousBlock.Height,
 	)
-	// FIXME: add published receipts to block payload length
-
 	if err != nil {
 		return nil, err
 	}
-	// filter only good receipt
-	for _, br := range publishedReceipts {
-		_, err = digest.Write(bs.ReceiptUtil.GetSignedBatchReceiptBytes(br.BatchReceipt))
-		if err != nil {
-			return nil, err
-		}
-	}
 
-	payloadHash = digest.Sum([]byte{})
-	// loop through transaction to build block hash
-	digest.Reset() // reset the digest
 	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
 		return nil, err
 	}
-
 	previousSeedHash := digest.Sum([]byte{})
+
 	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
 	// compute the previous block hash
@@ -958,8 +978,6 @@ func (bs *BlockService) GenerateBlock(
 		totalCoinbase,
 		sortedTransactions,
 		publishedReceipts,
-		payloadHash,
-		payloadLength,
 		secretPhrase,
 	)
 	if err != nil {

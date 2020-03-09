@@ -22,6 +22,8 @@ type (
 			timestamp int64,
 		) (*model.Block, error)
 		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
+		ValidatePayloadHash(block *model.Block) error
+		GetPayloadHash(block *model.Block) (payloadHash []byte, payloadLength uint32, err error)
 		PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error
 		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)

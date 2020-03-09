@@ -615,9 +615,10 @@ func TestBlockService_NewBlock(t *testing.T) {
 			TotalCoinBase:       0,
 			Transactions:        []*model.Transaction{},
 			PublishedReceipts:   []*model.PublishedReceipt{},
-			PayloadHash:         []byte{},
-			PayloadLength:       0,
-			BlockSignature:      []byte{},
+			PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128,
+				255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+			PayloadLength:  0,
+			BlockSignature: []byte{},
 		}
 		mockBlockHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
 	)
@@ -644,8 +645,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 		totalCoinBase       int64
 		transactions        []*model.Transaction
 		publishedReceipts   []*model.PublishedReceipt
-		payloadHash         []byte
-		payloadLength       uint32
 		secretPhrase        string
 	}
 	tests := []struct {
@@ -673,8 +672,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 				totalCoinBase:       0,
 				transactions:        []*model.Transaction{},
 				publishedReceipts:   []*model.PublishedReceipt{},
-				payloadHash:         []byte{},
-				payloadLength:       0,
 				secretPhrase:        "secretphrase",
 			},
 			want: mockBlock,
@@ -703,8 +700,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.totalCoinBase,
 				tt.args.transactions,
 				tt.args.publishedReceipts,
-				tt.args.payloadHash,
-				tt.args.payloadLength,
 				tt.args.secretPhrase,
 			)
 			if (err != nil) != tt.wantErr {

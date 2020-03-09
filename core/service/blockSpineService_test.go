@@ -556,9 +556,10 @@ func TestBlockSpineService_NewSpineBlock(t *testing.T) {
 			BlocksmithPublicKey: bcsNodePubKey1,
 			Timestamp:           15875392,
 			SpinePublicKeys:     []*model.SpinePublicKey{},
-			PayloadHash:         []byte{},
-			PayloadLength:       0,
-			BlockSignature:      []byte{},
+			PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128,
+				255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+			PayloadLength:  0,
+			BlockSignature: []byte{},
 		}
 		mockSpineBlockHash, _ = util.GetBlockHash(mockSpineBlock, &chaintype.SpineChain{})
 	)
@@ -581,8 +582,6 @@ func TestBlockSpineService_NewSpineBlock(t *testing.T) {
 		previousBlockHeight uint32
 		timestamp           int64
 		spinePublicKeys     []*model.SpinePublicKey
-		payloadHash         []byte
-		payloadLength       uint32
 		secretPhrase        string
 		spineBlockManifests []*model.SpineBlockManifest
 	}
@@ -607,8 +606,6 @@ func TestBlockSpineService_NewSpineBlock(t *testing.T) {
 				previousBlockHeight: 0,
 				timestamp:           15875392,
 				spinePublicKeys:     []*model.SpinePublicKey{},
-				payloadHash:         []byte{},
-				payloadLength:       0,
 				secretPhrase:        "secretphrase",
 			},
 			want: mockSpineBlock,
@@ -629,8 +626,6 @@ func TestBlockSpineService_NewSpineBlock(t *testing.T) {
 				tt.args.blockSmithPublicKey,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
-				tt.args.payloadHash,
-				tt.args.payloadLength,
 				tt.args.secretPhrase,
 				tt.args.spinePublicKeys,
 				tt.args.spineBlockManifests,
