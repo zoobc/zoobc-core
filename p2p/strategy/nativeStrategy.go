@@ -9,12 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/p2p/client"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
@@ -44,6 +43,7 @@ func NewNativeStrategy(
 	}
 }
 
+// Start method to start threads which mean goroutines for NativeStrategy
 func (ns *NativeStrategy) Start() {
 	// start p2p process threads
 	go ns.ResolvePeersThread()
@@ -147,23 +147,29 @@ func (ns *NativeStrategy) GetMorePeersHandler() (*model.Peer, error) {
 // GetMorePeersThread to periodically request more peers from another node in Peers list
 func (ns *NativeStrategy) GetMorePeersThread() {
 	syncPeers := func() {
-		peer, err := ns.GetMorePeersHandler()
+		var (
+			nodes []*model.Node
+			peer  *model.Peer
+			err   error
+		)
+
+		peer, err = ns.GetMorePeersHandler()
 		if err != nil {
 			ns.Logger.Warn(err.Error())
 			return
 		}
-		var myPeers []*model.Node
+
 		myResolvedPeers := ns.GetResolvedPeers()
-		for _, peer := range myResolvedPeers {
-			myPeers = append(myPeers, peer.Info)
+		for _, p := range myResolvedPeers {
+			nodes = append(nodes, p.Info)
 		}
 		if peer == nil {
 			return
 		}
-		myPeers = append(myPeers, ns.Host.GetInfo())
+		nodes = append(nodes, ns.Host.GetInfo())
 		_, _ = ns.PeerServiceClient.SendPeers(
 			peer,
-			myPeers,
+			nodes,
 		)
 	}
 
@@ -174,9 +180,7 @@ func (ns *NativeStrategy) GetMorePeersThread() {
 	for {
 		select {
 		case <-ticker.C:
-			go func() {
-				go syncPeers()
-			}()
+			go syncPeers()
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -210,7 +214,7 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
 	}()
 }
 
-// GetResolvedPeers returns resolved peers in thread-safe manner
+// GetPriorityPeers returns resolved peers in thread-safe manner
 func (ns *NativeStrategy) GetPriorityPeers() map[string]*model.Peer {
 	return make(map[string]*model.Peer)
 }
@@ -493,6 +497,6 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 	}
 }
 
-func (ns *NativeStrategy) ValidateRequest(ctx context.Context) bool {
+func (ns *NativeStrategy) ValidateRequest(context.Context) bool {
 	return true
 }
