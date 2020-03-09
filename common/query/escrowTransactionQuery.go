@@ -92,17 +92,21 @@ func (et *EscrowTransactionQuery) GetLatestEscrowTransactionByID(id int64) (qStr
 
 // GetEscrowTransactions represents SELECT with multiple clauses connected via AND operand
 func (et *EscrowTransactionQuery) GetEscrowTransactions(fields map[string]interface{}) (qStr string, args []interface{}) {
-	qStr = fmt.Sprintf("SELECT %s FROM %s WHERE ", strings.Join(et.Fields, ", "), et.getTableName())
+	qStr = fmt.Sprintf("SELECT %s FROM %s ", strings.Join(et.Fields, ", "), et.getTableName())
 
-	i := 1
-	for k, v := range fields {
-		qStr += fmt.Sprintf("%s = ? ", k)
-		if i < len(fields) {
-			qStr += "AND "
+	if len(fields) > 0 {
+		qStr += "WHERE "
+		i := 1
+		for k, v := range fields {
+			qStr += fmt.Sprintf("%s = ? ", k)
+			if i < len(fields) {
+				qStr += "AND "
+			}
+			args = append(args, v)
+			i++
 		}
-		args = append(args, v)
-		i++
 	}
+
 	return qStr, args
 }
 
