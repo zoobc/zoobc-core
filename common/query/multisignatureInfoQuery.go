@@ -147,8 +147,8 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 			fmt.Sprintf("UPDATE %s SET latest = ? WHERE latest = ? AND (block_height || '_' || "+
 				"multisig_address) IN (SELECT (MAX(block_height) || '_' || multisig_address) as con "+
 				"FROM %s GROUP BY multisig_address)",
-				msi.TableName,
-				msi.TableName,
+				msi.getTableName(),
+				msi.getTableName(),
 			),
 			1, 0,
 		},

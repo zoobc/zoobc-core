@@ -170,8 +170,8 @@ func (ptq *PendingTransactionQuery) Rollback(height uint32) (multiQueries [][]in
 			fmt.Sprintf("UPDATE %s SET latest = ? WHERE latest = ? AND (block_height || '_' || "+
 				"transaction_hash) IN (SELECT (MAX(block_height) || '_' || transaction_hash) as con "+
 				"FROM %s GROUP BY transaction_hash)",
-				ptq.TableName,
-				ptq.TableName,
+				ptq.getTableName(),
+				ptq.getTableName(),
 			),
 			1, 0,
 		},
