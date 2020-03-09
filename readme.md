@@ -24,8 +24,7 @@ Table of Contents:
 - [Contributing](#contributing)
 - [GRPC web proxy for browser](#grpc-web-proxy-for-browser)
 ### Environments
-- [golang](https://golang.org/doc/install), currently using go.1.12
-- [go dep](https://golang.github.io/dep/docs/installation.html), currently using v.0.5.1
+- [golang](https://golang.org/doc/install), currently using go.1.14
 - [go-swagger](https://github.com/go-swagger/go-swagger) optional. Used as tools to document the rpc endpoint.
 - [gopherbadger](https://github.com/jpoles1/gopherbadger) optional. Used to calculate total test coverage.
 - [protoc](https://github.com/protocolbuffers/protobuf), optional as we are pushing the generated go file to the repo.
@@ -33,7 +32,7 @@ Table of Contents:
 ### Install
 - clone the repository.
 - Dep user: run `dep ensure -v --vendor-only` to install the dependencies read from Gopkg.toml only.
-- Go mod user: `go mod vendor` to generate vendor directory which is should download the packages from `Gopkg.toml` or read from project recursively
+- Go mod user: `go mod download` to generate vendor directory which is should download the packages from `Gopkg.toml` or read from project recursively
 - run `git submodule update --init --recursive --remote` to update / fetch submodule.
 
 VSCode go modules support with this config:

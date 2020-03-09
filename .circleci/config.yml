@@ -1,7 +1,7 @@
 version: 2
 jobs:
     prepare:
-        working_directory: /go/src/github.com/zoobc/zoobc-core
+        working_directory: ~/zoobc
         docker:
             - image: circleci/golang:1.14.0
         steps:
@@ -12,7 +12,6 @@ jobs:
             - restore_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-#                    - /go/src/github.com/zoobc/zoobc-core/vendor
                     - /go/pkg/mod
             - run:
                 name: GOMOD
@@ -24,10 +23,9 @@ jobs:
             - save_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-#                    - /go/src/github.com/zoobc/zoobc-core/vendor
-                    - go/pkg/mod
+                    - /go/pkg/mod
     test:
-        working_directory: /go/src/github.com/zoobc/zoobc-core
+        working_directory: ~/zoobc
         docker:
             - image: circleci/golang:1.14.0
         environment:
@@ -44,8 +42,7 @@ jobs:
             - restore_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-#                    - /go/src/github.com/zoobc/zoobc-core/vendor
-                    - go/pkg/mod
+                    - /go/pkg/mod
             - run:
                 name: TEST
                 command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
@@ -59,7 +56,7 @@ jobs:
                 name: GOLINT RUN
                 command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
     build:
-        working_directory: /go/src/github.com/zoobc/zoobc-core
+        working_directory: ~/zoobc
         docker:
             - image: circleci/golang:1.14.0
         steps:
@@ -67,8 +64,7 @@ jobs:
             - restore_cache:
                 key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                 paths:
-#                    - /go/src/github.com/zoobc/zoobc-core/vendor
-                    - go/pkg/mod
+                    - /go/pkg/mod
             - restore_cache:
                 key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
                 paths:
@@ -89,7 +85,7 @@ jobs:
                 paths:
                     - ./dist
     deploy-develop:
-        working_directory: /go/src/github.com/zoobc/zoobc-core
+        working_directory: ~/zoobc
         docker:
             - image: circleci/golang:1.14.0
         steps:
