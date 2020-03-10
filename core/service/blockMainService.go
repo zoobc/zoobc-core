@@ -208,12 +208,12 @@ func (bs *BlockService) GetBlocksmithStrategy() strategy.BlocksmithStrategyInter
 func (bs *BlockService) ChainWriteLock(actionType int) {
 	monitoring.IncrementStatusLockCounter(actionType)
 	bs.Lock()
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, actionType)
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
 	monitoring.DecrementStatusLockCounter(actionType)
 	bs.Unlock()
 }
@@ -596,7 +596,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 	bs.Observer.Notify(observer.ExpiringEscrowTransactions, block.GetHeight())
-	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
+	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
 
@@ -1392,7 +1392,7 @@ func (bs *BlockService) WillSmith(
 		if err != nil {
 			return blockchainProcessorLastBlockID, err
 		}
-		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
 	}
 	// check for block pool duplicate
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
@@ -1585,7 +1585,7 @@ func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 			}
 
 			// check chaintype
-			if chainType.GetTypeInt() != bs.Chaintype.GetTypeInt() {
+			if chainType != bs.Chaintype {
 				bs.Logger.Warnf("chaintype is not macth, current chain is %s the incoming chain is %s",
 					bs.Chaintype.GetName(), chainType.GetName())
 				return
