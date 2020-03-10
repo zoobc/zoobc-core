@@ -196,7 +196,7 @@ func (bs *BlockSpineService) ValidatePayloadHash(block *model.Block) error {
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(hash, block.GetPayloadHash()) || length != block.GetPayloadLength() {
+	if length != block.GetPayloadLength() || !bytes.Equal(hash, block.GetPayloadHash()) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockPayload")
 	}
 	return nil
