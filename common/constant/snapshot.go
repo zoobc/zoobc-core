@@ -12,5 +12,5 @@ const (
 	// @iltoga reduce to 1 for testing locally
 	SnapshotChunkSize int = int(100 * 1024) // 10 KB
 	// DownloadSnapshotNumberOfRetries number of times to retry downloading failed snapshot file chunks from other peers
-	DownloadSnapshotNumberOfRetries uint32 = 3
+	DownloadSnapshotNumberOfRetries uint32 = 5
 )
