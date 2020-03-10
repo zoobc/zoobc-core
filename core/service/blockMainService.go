@@ -430,7 +430,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 		rows.Close()
-
 		if block.Height > 0 {
 			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {

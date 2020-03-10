@@ -2,6 +2,11 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
+
+	"golang.org/x/crypto/sha3"
+
+	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 
@@ -17,23 +22,213 @@ type (
 	// MultiSignatureTransaction represent wrapper transaction type that require multiple signer to approve the transcaction
 	// wrapped
 	MultiSignatureTransaction struct {
-		Body            *model.MultiSignatureTransactionBody
-		NormalFee       fee.FeeModelInterface
-		TransactionUtil UtilInterface
-		TypeSwitcher    TypeActionSwitcher
-		Signature       crypto.SignatureInterface
+		SenderAddress       string
+		Fee                 int64
+		QueryExecutor       query.ExecutorInterface
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Body                *model.MultiSignatureTransactionBody
+		NormalFee           fee.FeeModelInterface
+		TransactionUtil     UtilInterface
+		TypeSwitcher        TypeActionSwitcher
+		Signature           crypto.SignatureInterface
+		Height              uint32
+		BlockID             int64
+		MultisigUtil        MultisigTransactionUtilInterface
+		// pending services
+		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		PendingSignatureQuery   query.PendingSignatureQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
 	}
 )
 
-func (*MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error {
+func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error {
+	var (
+		err error
+	)
+	// if have multisig info, MultisigInfoService.AddMultisigInfo() -> noop duplicate
+	if tx.Body.MultiSignatureInfo != nil {
+		address, err := tx.TransactionUtil.GenerateMultiSigAddress(tx.Body.MultiSignatureInfo)
+		if err != nil {
+			return err
+		}
+		tx.Body.MultiSignatureInfo.MultisigAddress = address
+		tx.Body.MultiSignatureInfo.BlockHeight = tx.Height
+		tx.Body.MultiSignatureInfo.Latest = true
+		insertMultisigInfoQ := tx.MultisignatureInfoQuery.InsertMultisignatureInfo(tx.Body.MultiSignatureInfo)
+		err = tx.QueryExecutor.ExecuteTransactions(insertMultisigInfoQ)
+		if err != nil {
+			return err
+		}
+	}
+	// if have transaction bytes, PendingTransactionService.AddPendingTransaction() -> noop duplicate
+	if len(tx.Body.UnsignedTransactionBytes) > 0 {
+		var (
+			pendingTx model.PendingTransaction
+		)
+		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToParseTransactionBytes",
+			)
+		}
+		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
+		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
+			txHash[:], model.PendingTransactionStatus_PendingTransactionExecuted,
+			tx.Height, constant.MinRollbackBlocks,
+		)
+		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
+		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
+		if err == sql.ErrNoRows {
+			pendingTxInsertQ := tx.PendingTransactionQuery.InsertPendingTransaction(&model.PendingTransaction{
+				SenderAddress:    innerTx.SenderAccountAddress,
+				TransactionHash:  txHash[:],
+				TransactionBytes: tx.Body.UnsignedTransactionBytes,
+				Status:           model.PendingTransactionStatus_PendingTransactionPending,
+				BlockHeight:      tx.Height,
+				Latest:           true,
+			})
+			err = tx.QueryExecutor.ExecuteTransactions(pendingTxInsertQ)
+			if err != nil {
+				return blocker.NewBlocker(blocker.DBErr, err.Error())
+			}
+		} else {
+			return blocker.NewBlocker(blocker.ValidationErr, "PendingTransactionAlreadyExecuted")
+		}
+
+	}
+	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
+	if tx.Body.SignatureInfo != nil {
+		for addr, sig := range tx.Body.SignatureInfo.Signatures {
+			insertPendingSigQ := tx.PendingSignatureQuery.InsertPendingSignature(&model.PendingSignature{
+				TransactionHash: tx.Body.SignatureInfo.TransactionHash,
+				AccountAddress:  addr,
+				Signature:       sig,
+				BlockHeight:     tx.Height,
+				Latest:          true,
+			})
+			err = tx.QueryExecutor.ExecuteTransactions(insertPendingSigQ)
+			if err != nil {
+				return blocker.NewBlocker(blocker.DBErr, err.Error())
+			}
+
+		}
+	}
+	// checks for completion, if musigInfo && txBytes && signatureInfo exist, check if signature info complete
+	txs, err := tx.MultisigUtil.CheckMultisigComplete(tx.Body, tx.Height)
+	if err != nil {
+		return err
+	}
+	// every element in txs will have all three optional field filled, to avoid infinite recursive calls.
+	for _, v := range txs {
+		cpTx := tx
+		cpTx.Body = v
+		// parse the UnsignedTransactionBytes
+		utx, err := tx.TransactionUtil.ParseTransactionBytes(cpTx.Body.UnsignedTransactionBytes, false)
+		if err != nil {
+			return err
+		}
+		utx.Height = tx.Height
+		utxAct, err := tx.TypeSwitcher.GetTransactionType(utx)
+		if err != nil {
+			return err
+		}
+		err = utxAct.UndoApplyUnconfirmed()
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToApplyUndoUnconfirmedInnerTx",
+			)
+		}
+		// call ApplyConfirmed() to inner transaction
+		err = utxAct.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
+		// update pending transaction status
+		pendingTx := &model.PendingTransaction{
+			SenderAddress:    v.MultiSignatureInfo.MultisigAddress,
+			TransactionHash:  v.SignatureInfo.TransactionHash,
+			TransactionBytes: v.UnsignedTransactionBytes,
+			Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
+			BlockHeight:      tx.Height,
+			Latest:           true,
+		}
+		updateQueries := tx.PendingTransactionQuery.InsertPendingTransaction(pendingTx)
+		err = tx.QueryExecutor.ExecuteTransactions(updateQueries)
+
+		if err != nil {
+			return err
+		}
+
+		// save multisig_child transaction
+		utx.MultisigChild = true
+		utx.BlockID = tx.BlockID
+		insertMultisigChildQ, args := tx.TransactionQuery.InsertTransaction(utx)
+		err = tx.QueryExecutor.ExecuteTransaction(insertMultisigChildQ, args...)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-func (*MultiSignatureTransaction) ApplyUnconfirmed() error {
+func (tx *MultiSignatureTransaction) ApplyUnconfirmed() error {
+	var (
+		err error
+	)
+	// reduce fee from sender
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		-(tx.Fee),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+	// Run ApplyUnconfirmed of inner transaction
+	if len(tx.Body.UnsignedTransactionBytes) > 0 {
+		// parse and apply unconfirmed
+		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToParseTransactionBytes",
+			)
+		}
+		innerTa, err := tx.TypeSwitcher.GetTransactionType(innerTx)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToCastInnerTransaction",
+			)
+		}
+		err = innerTa.ApplyUnconfirmed()
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToApplyUnconfirmedInnerTx",
+			)
+		}
+	}
 	return nil
 }
 
-func (*MultiSignatureTransaction) UndoApplyUnconfirmed() error {
+func (tx *MultiSignatureTransaction) UndoApplyUnconfirmed() error {
+	// recover fee
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		+(tx.Fee),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -59,6 +254,9 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 		}
 	}
 	if len(body.UnsignedTransactionBytes) > 0 {
+		var (
+			pendingTx model.PendingTransaction
+		)
 		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
 		if err != nil {
 			return blocker.NewBlocker(
@@ -80,7 +278,17 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				"FailToValidateInnerTa",
 			)
 		}
+		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
 
+		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
+			txHash[:], model.PendingTransactionStatus_PendingTransactionExecuted,
+			tx.Height, constant.MinRollbackBlocks,
+		)
+		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
+		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "PendingTransactionAlreadyExecuted")
+		}
 	}
 	if body.SignatureInfo != nil {
 		if body.SignatureInfo.TransactionHash == nil { // transaction hash has to come with at least one signature

@@ -1,10 +1,13 @@
 package transaction
 
 import (
+	"database/sql"
 	"errors"
 	"math/rand"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 
@@ -278,8 +281,28 @@ type (
 	validateSignatureValidateSuccess struct {
 		crypto.Signature
 	}
+	validateNoExecutedPendingTxExecutor struct {
+		query.Executor
+	}
+	validateNoExecutedPendingTxQuery struct {
+		query.PendingTransactionQuery
+	}
+	validateDuplicateExecutedPendingTxQuery struct {
+		query.PendingTransactionQuery
+	}
 	// MultiSignatureTransactionValidate mocks
 )
+
+func (*validateNoExecutedPendingTxExecutor) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
+	return nil, nil
+}
+func (*validateNoExecutedPendingTxQuery) Scan(*model.PendingTransaction, *sql.Row) error {
+	return sql.ErrNoRows
+}
+
+func (*validateDuplicateExecutedPendingTxQuery) Scan(*model.PendingTransaction, *sql.Row) error {
+	return nil
+}
 
 func (*validateSignatureValidateFail) VerifySignature(payload, signature []byte, accountAddress string) error {
 	return errors.New("mockedError")
@@ -314,11 +337,13 @@ func (*validateTypeSwitcheGetTxTypeSuccessInnerValidateFail) GetTransactionType(
 }
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
-		Body            *model.MultiSignatureTransactionBody
-		NormalFee       fee.FeeModelInterface
-		TransactionUtil UtilInterface
-		TypeSwitcher    TypeActionSwitcher
-		Signature       crypto.SignatureInterface
+		Body                    *model.MultiSignatureTransactionBody
+		NormalFee               fee.FeeModelInterface
+		TransactionUtil         UtilInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		Executor                query.ExecutorInterface
+		TypeSwitcher            TypeActionSwitcher
+		Signature               crypto.SignatureInterface
 	}
 	type args struct {
 		dbTx bool
@@ -474,6 +499,26 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "MultisignatureTransaction_Validate-Success-TransactionBytesExist-ExecutedTxExist",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo:       nil,
+					UnsignedTransactionBytes: make([]byte, 100),
+					SignatureInfo:            nil,
+				},
+				NormalFee:               nil,
+				PendingTransactionQuery: &validateDuplicateExecutedPendingTxQuery{},
+				Executor:                &validateNoExecutedPendingTxExecutor{},
+				TransactionUtil:         &validateTransactionUtilParseSuccess{},
+				TypeSwitcher:            &validateTypeSwitcheGetTxTypeSuccessInnerValidateSuccess{},
+				Signature:               nil,
+			},
+			args: args{
+				dbTx: false,
+			},
+			wantErr: true,
+		},
+		{
 			name: "MultisignatureTransaction_Validate-Success-TransactionBytesExist-InnerValidateSuccess",
 			fields: fields{
 				Body: &model.MultiSignatureTransactionBody{
@@ -481,10 +526,12 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 					UnsignedTransactionBytes: make([]byte, 100),
 					SignatureInfo:            nil,
 				},
-				NormalFee:       nil,
-				TransactionUtil: &validateTransactionUtilParseSuccess{},
-				TypeSwitcher:    &validateTypeSwitcheGetTxTypeSuccessInnerValidateSuccess{},
-				Signature:       nil,
+				NormalFee:               nil,
+				PendingTransactionQuery: &validateNoExecutedPendingTxQuery{},
+				Executor:                &validateNoExecutedPendingTxExecutor{},
+				TransactionUtil:         &validateTransactionUtilParseSuccess{},
+				TypeSwitcher:            &validateTypeSwitcheGetTxTypeSuccessInnerValidateSuccess{},
+				Signature:               nil,
 			},
 			args: args{
 				dbTx: false,
@@ -606,11 +653,13 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				Body:            tt.fields.Body,
-				NormalFee:       tt.fields.NormalFee,
-				TransactionUtil: tt.fields.TransactionUtil,
-				TypeSwitcher:    tt.fields.TypeSwitcher,
-				Signature:       tt.fields.Signature,
+				Body:                    tt.fields.Body,
+				NormalFee:               tt.fields.NormalFee,
+				TransactionUtil:         tt.fields.TransactionUtil,
+				TypeSwitcher:            tt.fields.TypeSwitcher,
+				PendingTransactionQuery: tt.fields.PendingTransactionQuery,
+				QueryExecutor:           tt.fields.Executor,
+				Signature:               tt.fields.Signature,
 			}
 			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
