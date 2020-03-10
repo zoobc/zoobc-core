@@ -419,12 +419,9 @@ func GeneratedMultiSignatureTransaction(
 			return nil
 		}
 	}
-	fmt.Printf("signatures: %v\n\n\n", addressSignatures)
-
 	if txHash != "" {
 		transactionHash, err := hex.DecodeString(txHash)
 		if err != nil {
-			fmt.Printf("hahaha %v\n\n\n", err)
 			return nil
 		}
 		for k, v := range addressSignatures {
