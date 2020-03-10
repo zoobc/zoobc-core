@@ -140,12 +140,12 @@ func (bs *BlockSpineService) GetBlocksmithStrategy() strategy.BlocksmithStrategy
 func (bs *BlockSpineService) ChainWriteLock(actionType int) {
 	monitoring.IncrementStatusLockCounter(actionType)
 	bs.Lock()
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, actionType)
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockSpineService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
 	monitoring.DecrementStatusLockCounter(actionType)
 	bs.Unlock()
 }
@@ -355,7 +355,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
-	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
+	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
 
@@ -907,7 +907,7 @@ func (bs *BlockSpineService) WillSmith(
 		if err != nil {
 			return blockchainProcessorLastBlockID, err
 		}
-		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
 	}
 	return blockchainProcessorLastBlockID, nil
 }
