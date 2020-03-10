@@ -632,9 +632,10 @@ func TestBlockService_NewBlock(t *testing.T) {
 			TotalCoinBase:       0,
 			Transactions:        []*model.Transaction{},
 			PublishedReceipts:   []*model.PublishedReceipt{},
-			PayloadHash:         []byte{},
-			PayloadLength:       0,
-			BlockSignature:      []byte{},
+			PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128,
+				255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+			PayloadLength:  0,
+			BlockSignature: []byte{},
 		}
 		mockBlockHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
 	)
@@ -661,8 +662,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 		totalCoinBase       int64
 		transactions        []*model.Transaction
 		publishedReceipts   []*model.PublishedReceipt
-		payloadHash         []byte
-		payloadLength       uint32
 		secretPhrase        string
 	}
 	tests := []struct {
@@ -690,8 +689,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 				totalCoinBase:       0,
 				transactions:        []*model.Transaction{},
 				publishedReceipts:   []*model.PublishedReceipt{},
-				payloadHash:         []byte{},
-				payloadLength:       0,
 				secretPhrase:        "secretphrase",
 			},
 			want: mockBlock,
@@ -720,8 +717,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.totalCoinBase,
 				tt.args.transactions,
 				tt.args.publishedReceipts,
-				tt.args.payloadHash,
-				tt.args.payloadLength,
 				tt.args.secretPhrase,
 			)
 			if (err != nil) != tt.wantErr {
@@ -3592,8 +3587,9 @@ var (
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
 		CumulativeDifficulty: "1000",
-		PayloadLength:        1,
-		PayloadHash:          []byte{},
+		PayloadLength:        0,
+		PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
+			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
 		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		TotalAmount:   1000,
@@ -5020,6 +5016,151 @@ func TestBlockService_canPersistBlock(t *testing.T) {
 			}
 			if got := bs.canPersistBlock(tt.args.blocksmithIndex, tt.args.previousBlock); got != tt.want {
 				t.Errorf("canPersistBlock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	mockReceiptUtil struct {
+		coreUtil.ReceiptUtil
+		resSignetBytes []byte
+	}
+)
+
+func (mRu *mockReceiptUtil) GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
+	if mRu.resSignetBytes != nil {
+		return mRu.resSignetBytes
+	}
+	return []byte{}
+}
+
+func TestBlockService_ValidatePayloadHash(t *testing.T) {
+	mockBlock := &model.Block{
+		PayloadHash: []byte{102, 253, 86, 32, 28, 24, 212, 55, 129, 77, 244, 149, 6, 198, 243, 4, 86, 251, 61, 45, 48, 99, 191,
+			108, 13, 232, 254, 123, 170, 190, 3, 141},
+		PayloadLength: uint32(13),
+		Transactions: []*model.Transaction{
+			mockTransaction,
+		},
+		PublishedReceipts: mockPublishedReceipt,
+	}
+	mockInvalidBlock := &model.Block{
+		PayloadHash: []byte{102, 253, 86, 32, 28, 24, 212, 55, 129, 77, 244, 149, 6, 198, 243, 4, 86, 251, 61, 45, 48, 99, 191,
+			108, 13, 232, 254, 123, 170, 190, 3, 0},
+		PayloadLength: uint32(13),
+		Transactions: []*model.Transaction{
+			mockTransaction,
+		},
+		PublishedReceipts: mockPublishedReceipt,
+	}
+	type fields struct {
+		RWMutex                     sync.RWMutex
+		Chaintype                   chaintype.ChainType
+		KVExecutor                  kvdb.KVExecutorInterface
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		BlockPoolService            BlockPoolServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
+		ParticipationScoreService   ParticipationScoreServiceInterface
+		PublishedReceiptService     PublishedReceiptServiceInterface
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ValidatePayloadHash:success",
+			fields: fields{
+				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &mockTypeActionSuccess{},
+				ReceiptUtil: &mockReceiptUtil{
+					resSignetBytes: []byte{1, 1, 1, 1, 1},
+				},
+			},
+			args: args{
+				block: mockBlock,
+			},
+		},
+		{
+			name: "ValidatePayloadHash:fail",
+			fields: fields{
+				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher: &mockTypeActionSuccess{},
+				ReceiptUtil: &mockReceiptUtil{
+					resSignetBytes: []byte{1, 1, 1, 1, 1},
+				},
+			},
+			args: args{
+				block: mockInvalidBlock,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				RWMutex:                     tt.fields.RWMutex,
+				Chaintype:                   tt.fields.Chaintype,
+				KVExecutor:                  tt.fields.KVExecutor,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ReceiptService:              tt.fields.ReceiptService,
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				BlocksmithService:           tt.fields.BlocksmithService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
+				BlockPoolService:            tt.fields.BlockPoolService,
+				Observer:                    tt.fields.Observer,
+				Logger:                      tt.fields.Logger,
+				TransactionUtil:             tt.fields.TransactionUtil,
+				ReceiptUtil:                 tt.fields.ReceiptUtil,
+				PublishedReceiptUtil:        tt.fields.PublishedReceiptUtil,
+				TransactionCoreService:      tt.fields.TransactionCoreService,
+				CoinbaseService:             tt.fields.CoinbaseService,
+				ParticipationScoreService:   tt.fields.ParticipationScoreService,
+				PublishedReceiptService:     tt.fields.PublishedReceiptService,
+			}
+			if err := bs.ValidatePayloadHash(tt.args.block); (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.ValidatePayloadHash() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

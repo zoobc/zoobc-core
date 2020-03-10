@@ -48,7 +48,7 @@ const (
 	P2pGetCommonMilestoneBlockIDsServer = "P2pGetCommonMilestoneBlockIDsServer"
 	P2pGetNextBlockIDsServer            = "P2pGetNextBlockIDsServer"
 	P2pGetNextBlocksServer              = "P2pGetNextBlocksServer"
-	P2pRequestFileDownloadServer 		= "P2pRequestFileDownloadServer"
+	P2pRequestFileDownloadServer        = "P2pRequestFileDownloadServer"
 
 	P2pGetPeerInfoClient                = "P2pGetPeerInfoClient"
 	P2pGetMorePeersClient               = "P2pGetMorePeersClient"
@@ -60,7 +60,7 @@ const (
 	P2pGetCommonMilestoneBlockIDsClient = "P2pGetCommonMilestoneBlockIDsClient"
 	P2pGetNextBlockIDsClient            = "P2pGetNextBlockIDsClient"
 	P2pGetNextBlocksClient              = "P2pGetNextBlocksClient"
-	P2pRequestFileDownloadClient 		= "P2pRequestFileDownloadClient"
+	P2pRequestFileDownloadClient        = "P2pRequestFileDownloadClient"
 )
 
 func SetMonitoringActive(isActive bool) {
