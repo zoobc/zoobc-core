@@ -799,15 +799,18 @@ func startBlockchainSyncronizers() {
 					ct.GetName())
 				break
 			}
-			err = spinechainBlockService.ValidateSpineBlockManifest(lastSpineBlockManifest)
-			loggerCoreService.Errorf("Invalid spineBlockManifest for chaintype %s Snapshot won't be downloaded. %s",
-				ct.GetName(), err)
-			if lastSpineBlockManifest != nil && err == nil {
-				loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
-					"at height is %d. Start downloading...", ct.GetName(),
-					lastSpineBlockManifest.SpineBlockManifestHeight)
-				if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
-					loggerCoreService.Info(err)
+			if lastSpineBlockManifest != nil {
+				err := spinechainBlockService.ValidateSpineBlockManifest(lastSpineBlockManifest)
+				if err != nil {
+					loggerCoreService.Errorf("Invalid spineBlockManifest for chaintype %s Snapshot won't be downloaded. %s",
+						ct.GetName(), err)
+				} else {
+					loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
+						"at height is %d. Start downloading...", ct.GetName(),
+						lastSpineBlockManifest.SpineBlockManifestHeight)
+					if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
+						loggerCoreService.Info(err)
+					}
 				}
 			}
 		}
