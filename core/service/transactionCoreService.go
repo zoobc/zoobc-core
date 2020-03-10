@@ -17,7 +17,7 @@ type (
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
-		ExpiringEscrowTransactions(blockHeight uint32) error
+		ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error
 	}
 
 	TransactionCoreService struct {
@@ -78,7 +78,8 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 
 // ExpiringEscrowTransactions push an observer event that is ExpiringEscrowTransactions,
 // will set status to be expired caused by current block height
-func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32) error {
+// query lock from outside (PushBlock)
+func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error {
 	var (
 		escrows []*model.Escrow
 		rows    *sql.Rows
@@ -90,7 +91,7 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32)
 		"status":  model.EscrowStatus_Pending,
 		"latest":  1,
 	})
-	rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, false, escrowArgs...)
+	rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, useTX, escrowArgs...)
 	if err != nil {
 		return err
 	}
@@ -101,9 +102,11 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32)
 		return err
 	}
 	if len(escrows) > 0 {
-		err = tg.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
+		if !useTX {
+			err = tg.QueryExecutor.BeginTx()
+			if err != nil {
+				return err
+			}
 		}
 		for _, escrow := range escrows {
 			/**
@@ -121,10 +124,12 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32)
 			}
 		}
 
-		err = tg.QueryExecutor.CommitTx()
-		if err != nil {
-			if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
-				return err
+		if !useTX {
+			err = tg.QueryExecutor.CommitTx()
+			if err != nil {
+				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
+					return err
+				}
 			}
 		}
 	}

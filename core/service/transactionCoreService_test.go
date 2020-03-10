@@ -317,7 +317,7 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
-			if err := tg.ExpiringEscrowTransactions(tt.args.blockHeight); (err != nil) != tt.wantErr {
+			if err := tg.ExpiringEscrowTransactions(tt.args.blockHeight, false); (err != nil) != tt.wantErr {
 				t.Errorf("ExpiringEscrowTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

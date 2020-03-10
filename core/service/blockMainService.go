@@ -381,17 +381,18 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		block.CumulativeDifficulty = blockCumulativeDifficulty
 	}
 
-	// Respecting Expiring escrow before push block process
-	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight())
-	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, err.Error())
-	}
-
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
+
+	// Respecting Expiring escrow before push block process
+	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), true)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
+
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
