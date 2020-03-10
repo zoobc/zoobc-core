@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"golang.org/x/crypto/sha3"
@@ -32,7 +31,7 @@ func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 
 // GetBlockByte generate value for `Bytes` field if not assigned yet
 // return .`Bytes` if value assigned
-//TODO: Abstract this method in BlockCoreService or ChainType to decouple business logic from block type
+// TODO: Abstract this method in BlockCoreService or ChainType to decouple business logic from block type
 func GetBlockByte(block *model.Block, signed bool, ct chaintype.ChainType) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(ConvertUint32ToBytes(block.GetVersion()))
@@ -95,13 +94,19 @@ func GetBlockByHeight(
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 ) (*model.Block, error) {
-	qry := blockQuery.GetBlockByHeight(height)
-	rows, err := queryExecutor.ExecuteSelect(qry, false)
+	var (
+		blocks []*model.Block
+		rows   *sql.Rows
+		qry    = blockQuery.GetBlockByHeight(height)
+		err    error
+	)
+
+	rows, err = queryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
-	var blocks []*model.Block
+
 	blocks, err = blockQuery.BuildModel(blocks, rows)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
