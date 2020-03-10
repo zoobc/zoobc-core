@@ -27,6 +27,11 @@ import (
 )
 
 type (
+	// BlockServiceSpineInterface interface that contains methods specific of BlockSpineService
+	BlockServiceSpineInterface interface {
+		ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error
+	}
+
 	BlockSpineService struct {
 		sync.RWMutex
 		Chaintype                 chaintype.ChainType

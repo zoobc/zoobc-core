@@ -33,6 +33,7 @@ import (
 )
 
 type (
+	// BlockServiceMainInterface interface that contains methods specific of BlockService
 	BlockServiceMainInterface interface {
 		NewMainBlock(
 			version uint32,
