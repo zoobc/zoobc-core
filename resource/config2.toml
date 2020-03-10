@@ -4,6 +4,7 @@ badgerDbPath="./resource"
 badgerDbName="zoobc_2_kv/"
 configPath = "./resource/"
 nodeKeyFile = "node_keys_2.json"
+snapshotPath = "./resource/snapshots_2"
 
 # Peer
 peerPort=8002
@@ -23,5 +24,5 @@ proofOfOwnershipReqTimeoutSec = 1
 # Available log level: info, warn, error, fatal, panic
 logLevels=["fatal", "error", "panic"]
 
-apiapiCertFile="./resource/network.crt"
+apiCertFile="./resource/network.crt"
 apiKeyFile="./resource/network.key"

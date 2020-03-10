@@ -13,6 +13,7 @@ import (
 
 type (
 	NodeRegistrationQueryInterface interface {
+		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
@@ -58,6 +59,16 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 
 func (nrq *NodeRegistrationQuery) getTableName() string {
 	return nrq.TableName
+}
+
+// InsertNodeRegistration inserts a new node registration into DB
+func (nrq *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{}) {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		nrq.getTableName(),
+		strings.Join(nrq.Fields, ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(nrq.Fields)-1)),
+	), nrq.ExtractModel(nodeRegistration)
 }
 
 // UpdateNodeRegistration returns a slice of two queries.
@@ -354,4 +365,10 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 	nodeAddress := nrq.BuildNodeAddress(stringAddress)
 	nr.NodeAddress = nodeAddress
 	return nil
+}
+
+func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE "+
+		"height >= %d AND height <= %d AND latest=1 ORDER BY height DESC",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight)
 }

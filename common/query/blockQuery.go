@@ -15,9 +15,10 @@ type (
 		GetBlocks(height, size uint32) string
 		GetLastBlock() string
 		GetGenesisBlock() string
-		GetBlockByID(int64) string
-		GetBlockByHeight(uint32) string
-		GetBlockFromHeight(uint32, uint32) string
+		GetBlockByID(id int64) string
+		GetBlockByHeight(height uint32) string
+		GetBlockFromHeight(startHeight, limit uint32) string
+		GetBlockFromTimestamp(startTimestamp int64, limit uint32) string
 		InsertBlock(block *model.Block) (str string, args []interface{})
 		ExtractModel(block *model.Block) []interface{}
 		BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
@@ -93,8 +94,14 @@ func (bq *BlockQuery) GetBlockByHeight(height uint32) string {
 
 // GetBlockFromHeight returns query string to get blocks from a certain height
 func (bq *BlockQuery) GetBlockFromHeight(startHeight, limit uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE HEIGHT >= %d ORDER BY HEIGHT LIMIT %d",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d ORDER BY height LIMIT %d",
 		strings.Join(bq.Fields, ", "), bq.getTableName(), startHeight, limit)
+}
+
+// GetBlockFromTimestamp returns query string to get blocks from a certain block timestamp
+func (bq *BlockQuery) GetBlockFromTimestamp(startTimestamp int64, limit uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE timestamp >= %d ORDER BY timestamp LIMIT %d",
+		strings.Join(bq.Fields, ", "), bq.getTableName(), startTimestamp, limit)
 }
 
 // ExtractModel extract the model struct fields to the order of BlockQuery.Fields

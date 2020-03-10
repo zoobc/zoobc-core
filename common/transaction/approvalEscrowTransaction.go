@@ -51,6 +51,10 @@ func (*ApprovalEscrowTransaction) GetSize() uint32 {
 	return constant.EscrowApprovalBytesLength
 }
 
+func (*ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 // GetAmount return Amount from TransactionBody
 func (*ApprovalEscrowTransaction) GetAmount() int64 {
 	return 0

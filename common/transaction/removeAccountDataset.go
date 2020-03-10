@@ -186,6 +186,10 @@ func (tx *RemoveAccountDataset) GetAmount() int64 {
 	return tx.Fee
 }
 
+func (*RemoveAccountDataset) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 // GetSize is size of transaction body
 func (tx *RemoveAccountDataset) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))

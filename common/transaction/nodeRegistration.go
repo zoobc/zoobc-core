@@ -304,6 +304,10 @@ func (tx *NodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
 }
 
+func (*NodeRegistration) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func (tx *NodeRegistration) GetSize() uint32 {
 	nodeAddress := uint32(len([]byte(tx.NodeRegistrationQuery.ExtractNodeAddress(
 		tx.Body.GetNodeAddress(),
