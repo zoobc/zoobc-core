@@ -3,29 +3,29 @@ jobs:
     prepare:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0
+            - image: circleci/golang:1.14.0-stretch
         steps:
             - run:
-                name: SSH
-                command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
+                  name: SSH
+                  command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
             - checkout
             - restore_cache:
-                key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
-                name: GOMOD
-                command: |
-                    if [ ! -d ls | grep go.mod ]; then
-                        go mod init
-                    fi
-                    go mod download
+                  name: GOMOD
+                  command: |
+                      if [ ! -d ls | grep go.mod ]; then
+                          go mod init
+                      fi
+                      go mod download
             - save_cache:
-                key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
-                paths:
-                    - /go/pkg/mod
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                  paths:
+                      - /go/pkg/mod
     test:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0
+            - image: circleci/golang:1.14.0-stretch
         environment:
             - GOLANGCI_LINT: 1.20.0
         steps:
@@ -33,101 +33,140 @@ jobs:
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
-                name: ↓ GOLANGCI-LINT
-                command: |
-                    curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v${GOLANGCI_LINT}
+                  name: ↓ GOLANGCI-LINT
+                  command: |
+                      curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v${GOLANGCI_LINT}
             - run:
-                name: ↓ GOLINT
-                command: go get -u golang.org/x/lint/golint
+                  name: ↓ GOLINT
+                  command: go get -u golang.org/x/lint/golint
             - run:
-                name: TEST
-                command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
+                  name: TEST
+                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
             - run:
-                name: GO FMT
-                command: go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
+                  name: GO FMT
+                  command: go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
             - run:
-                name: GOLANGCI-LINT RUN
-                command: golangci-lint run
+                  name: GOLANGCI-LINT RUN
+                  command: golangci-lint run
             - run:
-                name: GOLINT RUN
-                command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+                  name: GOLINT RUN
+                  command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
             - save_cache:
-                key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
-                paths:
-                    - /go/pkg/mod
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                  paths:
+                      - /go/pkg/mod
     build:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0
+            - image: circleci/golang:1.14.0-stretch
         steps:
             - checkout
             - restore_cache:
-                key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - restore_cache:
-                key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
-                paths:
-                    - ./dist
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
+                  paths:
+                      - ./dist
             - run:
-                name: ↓ RSYNC
-                command: |
-                    if [ ! -d rsync ]; then
-                        sudo apt-get update && sudo apt-get install rsync
-                    fi
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                          sudo apt-get update && sudo apt-get install rsync
+                      fi
             - run:
-                name: BUILD
-                command: |
-                    go build -o ./dist/zoobc
-#                   rsync -va --exclude='*.db' ./resource ./dist
+                  name: BUILD
+                  command: |
+                      go build -o ./dist/zoobc
+            #                   rsync -va --exclude='*.db' ./resource ./dist
             - save_cache:
-                key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
-                paths:
-                    - ./dist
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
     deploy-develop:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0
+            - image: circleci/golang:1.14.0-strech
         steps:
             - checkout
             - add_ssh_keys
             - run:
-                name: ↓ RSYNC
-                command: |
-                    if [ ! -d rsync ]; then
-                        sudo apt-get update && sudo apt-get install rsync
-                    fi
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                          sudo apt-get update && sudo apt-get install rsync
+                      fi
             - restore_cache:
-                key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
-                paths:
-                    - ./dist
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
             - run:
-                name: ADD HOSTS
-                command: for host in $ln1 $ln2 $ln3 $ln4; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+                  name: ADD HOSTS
+                  command: for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
             - run:
-                name: DOWN SERVICES
-                command: |
-                    for host in $ln1 $ln2 $ln3 $ln4; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+                  name: DOWN SERVICES
+                  command: |
+                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
             - run:
-                name: DEPLOY
-                command: |
-                    for host in $ln1 $ln2 $ln3 $ln4; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
+                  name: DEPLOY
+                  command: |
+                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
             - run:
-                name: UP SERVICES
-                command: |
-                    for host in $ln1 $ln2 $ln3 $ln4; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+                  name: UP SERVICES
+                  command: |
+                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+    deploy-staging:
+        working_directory: ~/zoobc
+        docker:
+            - image: circleci/golang:1.14.0-stretch
+        steps:
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                          sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ADD HOST
+                  command: |
+                      ssh-keyscan $ln4 >> ~/.ssh/known_hosts
+            - run:
+                  name: DOWN SERVICE
+                  command: |
+                      ssh root@$ln4 'sudo systemctl stop zoobc.service'
+            - run:
+                  name: DEPLOY APP
+                  command: |
+                      rsync -vae ssh ./dist/ root@$ln4:/root/zoobc --exclude='*.db'
+            - run:
+                  name: UP SERVICE
+                  command: |
+                      ssh root@$ln4 'sudo systemctl start zoobc.service'
 workflows:
     version: 2
     prepare-deploy:
         jobs:
             - prepare
             - test:
-                requires:
-                    - prepare
+                  requires:
+                      - prepare
             - build:
-                requires:
-                    - test
+                  requires:
+                      - test
             - deploy-develop:
-                requires:
-                    - build
-                filters:
-                    branches:
-                        only: develop
+                  requires:
+                      - build
+                  filters:
+                      branches:
+                          only: develop
+            - deploy-staging:
+                  requires:
+                      - build
+                  filters:
+                      branches:
+                          only: staging
