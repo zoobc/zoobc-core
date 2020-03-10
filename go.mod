@@ -13,6 +13,7 @@ require (
 	github.com/golang/mock v1.3.1-0.20190508161146-9fa652df1129
 	github.com/golang/protobuf v1.3.2
 	github.com/google/go-cmp v0.3.1
+	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
