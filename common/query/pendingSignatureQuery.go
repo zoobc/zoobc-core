@@ -10,8 +10,11 @@ import (
 
 type (
 	PendingSignatureQueryInterface interface {
-		GetPendingSignatureByHash(txHash []byte) (str string, args []interface{})
-		InsertPendingSignature(pendingSig *model.PendingSignature) (str string, args []interface{})
+		GetPendingSignatureByHash(
+			txHash []byte,
+			currentHeight, limit uint32,
+		) (str string, args []interface{})
+		InsertPendingSignature(pendingSig *model.PendingSignature) [][]interface{}
 		Scan(pendingSig *model.PendingSignature, row *sql.Row) error
 		ExtractModel(pendingSig *model.PendingSignature) []interface{}
 		BuildModel(pendingSigs []*model.PendingSignature, rows *sql.Rows) ([]*model.PendingSignature, error)
@@ -31,6 +34,7 @@ func NewPendingSignatureQuery() *PendingSignatureQuery {
 			"account_address",
 			"signature",
 			"block_height",
+			"latest",
 		},
 		TableName: "pending_signature",
 	}
@@ -40,21 +44,44 @@ func (psq *PendingSignatureQuery) getTableName() string {
 	return psq.TableName
 }
 
-func (psq *PendingSignatureQuery) GetPendingSignatureByHash(txHash []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ?", strings.Join(psq.Fields, ", "), psq.getTableName())
+func (psq *PendingSignatureQuery) GetPendingSignatureByHash(
+	txHash []byte,
+	currentHeight, limit uint32,
+) (str string, args []interface{}) {
+	var (
+		blockHeight uint32
+	)
+	if currentHeight > limit {
+		blockHeight = currentHeight - limit
+	}
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? AND block_height >= ? AND latest = true",
+		strings.Join(psq.Fields, ", "), psq.getTableName())
 	return query, []interface{}{
 		txHash,
+		blockHeight,
 	}
 }
 
 // InsertPendingSignature inserts a new pending transaction into DB
-func (psq *PendingSignatureQuery) InsertPendingSignature(pendingSig *model.PendingSignature) (str string, args []interface{}) {
-	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+func (psq *PendingSignatureQuery) InsertPendingSignature(pendingSig *model.PendingSignature) [][]interface{} {
+	var queries [][]interface{}
+	insertQuery := fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		psq.getTableName(),
 		strings.Join(psq.Fields, ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(psq.Fields)-1)),
-	), psq.ExtractModel(pendingSig)
+	)
+	updateQuery := fmt.Sprintf("UPDATE %s SET latest = false WHERE account_address = ? AND transaction_hash = ? "+
+		"AND block_height != %d AND latest = true",
+		psq.getTableName(),
+		pendingSig.BlockHeight,
+	)
+	queries = append(queries,
+		append([]interface{}{insertQuery}, psq.ExtractModel(pendingSig)...),
+		[]interface{}{
+			updateQuery, pendingSig.AccountAddress, pendingSig.TransactionHash,
+		},
+	)
+	return queries
 }
 
 func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.Row) error {
@@ -63,6 +90,7 @@ func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.
 		&pendingSig.AccountAddress,
 		&pendingSig.Signature,
 		&pendingSig.BlockHeight,
+		&pendingSig.Latest,
 	)
 	return err
 }
@@ -73,6 +101,7 @@ func (*PendingSignatureQuery) ExtractModel(pendingSig *model.PendingSignature) [
 		&pendingSig.AccountAddress,
 		&pendingSig.Signature,
 		&pendingSig.BlockHeight,
+		&pendingSig.Latest,
 	}
 }
 
@@ -86,6 +115,7 @@ func (psq *PendingSignatureQuery) BuildModel(
 			&pendingSig.AccountAddress,
 			&pendingSig.Signature,
 			&pendingSig.BlockHeight,
+			&pendingSig.Latest,
 		)
 		if err != nil {
 			return nil, err
@@ -99,8 +129,18 @@ func (psq *PendingSignatureQuery) BuildModel(
 func (psq *PendingSignatureQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", psq.getTableName()),
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", psq.TableName),
 			height,
+		},
+		{
+			fmt.Sprintf("UPDATE %s SET latest = ? WHERE latest = ? AND (block_height || '_' || "+
+				"account_address || '_' || transaction_hash) IN (SELECT (MAX(block_height) || '_' || "+
+				"account_address || '_' || transaction_hash) as con FROM %s GROUP BY account_address "+
+				"|| '_' || transaction_hash)",
+				psq.TableName,
+				psq.TableName,
+			),
+			1, 0,
 		},
 	}
 }

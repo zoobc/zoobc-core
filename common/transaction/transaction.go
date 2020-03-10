@@ -228,6 +228,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 5:
 		switch buf[1] {
 		case 0:
+			// initialize service for pending_tx, pending_sig and multisig_info
+			multisigUtil := NewMultisigTransactionUtil(
+				ts.Executor,
+				query.NewPendingTransactionQuery(),
+				query.NewPendingSignatureQuery(),
+				query.NewMultisignatureInfoQuery(),
+				&Util{},
+			)
 			multiSigTransactionBody, err := new(MultiSignatureTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
@@ -239,7 +247,16 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				TypeSwitcher: &TypeSwitcher{
 					Executor: ts.Executor,
 				},
-				Signature: &crypto.Signature{},
+				Signature:               &crypto.Signature{},
+				Height:                  tx.Height,
+				BlockID:                 tx.BlockID,
+				MultisigUtil:            multisigUtil,
+				QueryExecutor:           ts.Executor,
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
+				PendingTransactionQuery: query.NewPendingTransactionQuery(),
+				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 			}, nil
 		default:
 			return nil, nil

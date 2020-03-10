@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zoobc/zoobc-core/cmd/signature"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/cmd/account"
@@ -73,6 +75,7 @@ func main() {
 	rootCmd.AddCommand(genesisblock.Commands())
 	rootCmd.AddCommand(rollback.Commands(sqliteDB))
 	rootCmd.AddCommand(parserCmd)
+	rootCmd.AddCommand(signature.Commands())
 	generateCmd.AddCommand(account.Commands())
 	generateCmd.AddCommand(transaction.Commands(sqliteDB))
 	generateCmd.AddCommand(block.Commands())
