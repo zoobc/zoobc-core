@@ -574,6 +574,23 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockTransaction.GetSenderAccountAddress(),
 			mockTransaction.GetRecipientAccountAddress(),
 		))
+	// which is escrow expiration process
+	default:
+		mockRows := sqlmock.NewRows(query.NewEscrowTransactionQuery().Fields)
+		mockRows.AddRow(
+			int64(1),
+			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			int64(10),
+			int64(1),
+			uint64(120),
+			model.EscrowStatus_Approved,
+			uint32(0),
+			true,
+			"",
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockRows)
 	}
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -1877,7 +1894,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionCoreService: NewTransactionCoreService(
 					&mockQueryExecutorSuccess{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
-					nil,
+					query.NewEscrowTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
 			},
