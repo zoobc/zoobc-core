@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
@@ -282,7 +281,6 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx boo
 	return db.Query(qStr)
 }
 func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteTransactions(queries [][]interface{}) error {
-	fmt.Println(queries)
 	return nil
 }
 
