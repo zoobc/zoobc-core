@@ -3,7 +3,7 @@ jobs:
     prepare:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0-buster
+            - image: circleci/golang:1.14.0-stretch
         steps:
             - run:
                   name: SSH
@@ -25,7 +25,7 @@ jobs:
     test:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0-buster
+            - image: circleci/golang:1.14.0-stretch
         environment:
             - GOLANGCI_LINT: 1.20.0
         steps:
@@ -58,7 +58,7 @@ jobs:
     build:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0-buster
+            - image: circleci/golang:1.14.0-stretch
         steps:
             - checkout
             - restore_cache:
@@ -101,7 +101,7 @@ jobs:
     deploy-develop:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0-buster
+            - image: circleci/golang:1.14.0-strech
         steps:
             - checkout
             - add_ssh_keys
@@ -133,7 +133,7 @@ jobs:
     deploy-staging:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0-buster
+            - image: circleci/golang:1.14.0-stretch
         steps:
             - checkout
             - add_ssh_keys
