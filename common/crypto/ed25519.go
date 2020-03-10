@@ -4,9 +4,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"crypto/ed25519"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
 
