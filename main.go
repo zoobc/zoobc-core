@@ -396,21 +396,19 @@ func startServices() {
 		receiptService,
 		transactionCoreServiceIns,
 	)
-
-	if isDebugMode {
-		go startNodeMonitoring()
-	}
 }
 
 func startNodeMonitoring() {
 	log.Infof("starting node monitoring at port:%d...", monitoringPort)
 	monitoring.SetMonitoringActive(true)
 	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
-	http.Handle("/metrics", promhttp.Handler())
-	err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to start monitoring service: %s", err))
-	}
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+		if err != nil {
+			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
+		}
+	}()
 }
 
 func startMainchain() {
@@ -419,7 +417,7 @@ func startMainchain() {
 		err                                         error
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
-	monitoring.SetBlockchainStatus(mainchain.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		mainchain,
@@ -598,7 +596,7 @@ func startSpinechain() {
 		nodeID      int64
 		sleepPeriod = constant.SpineChainSmithIdlePeriod
 	)
-	monitoring.SetBlockchainStatus(spinechain.GetTypeInt(), constant.BlockchainStatusIdle)
+	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
@@ -842,6 +840,10 @@ func main() {
 
 	if err := migration.Apply(); err != nil {
 		loggerCoreService.Fatal(err)
+	}
+
+	if isDebugMode {
+		startNodeMonitoring()
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)

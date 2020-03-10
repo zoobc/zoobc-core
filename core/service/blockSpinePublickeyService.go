@@ -34,6 +34,7 @@ func (bsf *BlockSpinePublicKeyService) GetSpinePublicKeysByBlockHeight(height ui
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 
 	spinePublicKeys, err = bsf.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
 	if err != nil {
