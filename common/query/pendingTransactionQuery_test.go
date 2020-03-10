@@ -2,9 +2,10 @@ package query
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -24,10 +25,12 @@ func TestNewPendingTransactionQuery(t *testing.T) {
 			name: "NewPendingTransactionQuery-Success",
 			want: &PendingTransactionQuery{
 				Fields: []string{
+					"sender_address",
 					"transaction_hash",
 					"transaction_bytes",
 					"status",
 					"block_height",
+					"latest",
 				},
 				TableName: "pending_transaction",
 			},
@@ -57,10 +60,12 @@ func getPendingTransactionQueryBuildModelSuccessRow() *sql.Rows {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockPendingTransactionQueryInstance.Fields)
 	mockRow.AddRow(
+		"",
 		make([]byte, 32),
 		make([]byte, 100),
 		model.PendingTransactionStatus_PendingTransactionExecuted,
 		uint32(10),
+		true,
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
@@ -110,10 +115,12 @@ func TestPendingTransactionQuery_BuildModel(t *testing.T) {
 			},
 			want: []*model.PendingTransaction{
 				{
+					SenderAddress:    "",
 					TransactionHash:  make([]byte, 32),
 					TransactionBytes: make([]byte, 100),
 					Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
 					BlockHeight:      10,
+					Latest:           true,
 				},
 			},
 			wantErr: false,
@@ -170,10 +177,12 @@ func TestPendingTransactionQuery_ExtractModel(t *testing.T) {
 				pendingTx: mockPendingTransactionExtractModel,
 			},
 			want: []interface{}{
+				&mockPendingTransactionExtractModel.SenderAddress,
 				&mockPendingTransactionExtractModel.TransactionHash,
 				&mockPendingTransactionExtractModel.TransactionBytes,
 				&mockPendingTransactionExtractModel.Status,
 				&mockPendingTransactionExtractModel.BlockHeight,
+				&mockPendingTransactionExtractModel.Latest,
 			},
 		},
 	}
@@ -196,7 +205,9 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		txHash []byte
+		txHash               []byte
+		status               model.PendingTransactionStatus
+		currentHeight, limit uint32
 	}
 	tests := []struct {
 		name     string
@@ -212,12 +223,17 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 				TableName: mockPendingTransactionQueryInstance.TableName,
 			},
 			args: args{
-				txHash: make([]byte, 32),
+				txHash:        make([]byte, 32),
+				status:        model.PendingTransactionStatus_PendingTransactionPending,
+				currentHeight: 0,
+				limit:         constant.MinRollbackBlocks,
 			},
-			wantStr: "SELECT transaction_hash, transaction_bytes, status, block_height FROM pending_transaction " +
-				"WHERE transaction_hash = ?",
+			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
+				"WHERE transaction_hash = ? AND status = ? AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{
 				make([]byte, 32),
+				model.PendingTransactionStatus_PendingTransactionPending,
+				uint32(0),
 			},
 		},
 	}
@@ -227,7 +243,12 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := ptq.GetPendingTransactionByHash(tt.args.txHash)
+			gotStr, gotArgs := ptq.GetPendingTransactionByHash(
+				tt.args.txHash,
+				tt.args.status,
+				tt.args.currentHeight,
+				tt.args.limit,
+			)
 			if gotStr != tt.wantStr {
 				t.Errorf("GetPendingTransactionByHash() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}
@@ -240,6 +261,7 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 
 var (
 	mockInsertPendingTransaction = &model.PendingTransaction{
+		SenderAddress:    "",
 		TransactionHash:  make([]byte, 32),
 		TransactionBytes: make([]byte, 100),
 		Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
@@ -256,11 +278,10 @@ func TestPendingTransactionQuery_InsertPendingTransaction(t *testing.T) {
 		pendingTx *model.PendingTransaction
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantStr  string
-		wantArgs []interface{}
+		name   string
+		fields fields
+		args   args
+		want   [][]interface{}
 	}{
 		{
 			name: "InsertPendingTransaction-Success",
@@ -271,9 +292,17 @@ func TestPendingTransactionQuery_InsertPendingTransaction(t *testing.T) {
 			args: args{
 				pendingTx: mockInsertPendingTransaction,
 			},
-			wantStr: "INSERT INTO pending_transaction (transaction_hash, transaction_bytes, " +
-				"status, block_height) VALUES(? , ? , ? , ? )",
-			wantArgs: mockPendingTransactionQueryInstance.ExtractModel(mockInsertPendingTransaction),
+			want: [][]interface{}{
+				append([]interface{}{
+					"INSERT OR REPLACE INTO pending_transaction (sender_address, transaction_hash, " +
+						"transaction_bytes, status, block_height, latest) VALUES(? , ? , ? , ? , ? , ? )",
+				}, mockPendingTransactionQueryInstance.ExtractModel(mockInsertPendingTransaction)...),
+				{
+					"UPDATE pending_transaction SET latest = false WHERE transaction_hash = ? AND block_height " +
+						"!= 10 AND latest = true",
+					mockInsertPendingTransaction.TransactionHash,
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -282,12 +311,9 @@ func TestPendingTransactionQuery_InsertPendingTransaction(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := ptq.InsertPendingTransaction(tt.args.pendingTx)
-			if gotStr != tt.wantStr {
-				t.Errorf("InsertPendingTransaction() gotStr = %v, want %v", gotStr, tt.wantStr)
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("InsertPendingTransaction() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			got := ptq.InsertPendingTransaction(tt.args.pendingTx)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("InsertPendingTransaction() gotArgs = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -318,8 +344,14 @@ func TestPendingTransactionQuery_Rollback(t *testing.T) {
 			},
 			wantMultiQueries: [][]interface{}{
 				{
-					fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", mockPendingTransactionQueryInstance.TableName),
+					"DELETE FROM pending_transaction WHERE block_height > ?",
 					uint32(10),
+				},
+				{
+					"UPDATE pending_transaction SET latest = ? WHERE latest = ? AND (block_height || '_' || " +
+						"transaction_hash) IN (SELECT (MAX(block_height) || '_' || transaction_hash) as con " +
+						"FROM pending_transaction GROUP BY transaction_hash)",
+					1, 0,
 				},
 			},
 		},
@@ -351,10 +383,12 @@ func getPendingTransactionQueryScanSuccessRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockPendingTransactionQueryInstance.Fields)
 	mockRow.AddRow(
+		"",
 		make([]byte, 32),
 		make([]byte, 100),
 		uint32(0),
 		uint32(10),
+		true,
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow("")

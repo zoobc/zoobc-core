@@ -13,7 +13,6 @@ type (
 	TransactionQueryInterface interface {
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
 		GetTransaction(id int64) string
-		GetTransactions(limit uint32, offset uint64) string
 		GetTransactionsByIds(txIds []int64) (str string, args []interface{})
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
@@ -47,6 +46,7 @@ func NewTransactionQuery(chaintype chaintype.ChainType) *TransactionQuery {
 			"signature",
 			"version",
 			"transaction_index",
+			"multisig_child",
 		},
 		TableName: "\"transaction\"",
 		ChainType: chaintype,
@@ -60,26 +60,13 @@ func (tq *TransactionQuery) getTableName() string {
 // GetTransaction get a single transaction from DB
 func (tq *TransactionQuery) GetTransaction(id int64) string {
 	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.getTableName())
-	var queryParam []string
+	var queryParam = []string{"multisig_child = false"}
 	if id != 0 {
 		queryParam = append(queryParam, fmt.Sprintf("id = %d", id))
 	}
 	if len(queryParam) > 0 {
 		query = query + " WHERE " + strings.Join(queryParam, " AND ")
 	}
-	return query
-}
-
-// GetTransactions get a set of transaction that satisfies the params from DB
-func (tq *TransactionQuery) GetTransactions(limit uint32, offset uint64) string {
-	query := fmt.Sprintf("SELECT %s from %s", strings.Join(tq.Fields, ", "), tq.getTableName())
-
-	newLimit := limit
-	if limit == 0 {
-		newLimit = uint32(10)
-	}
-
-	query = query + " ORDER BY block_height, timestamp" + fmt.Sprintf(" LIMIT %d,%d", offset, newLimit)
 	return query
 }
 
@@ -92,7 +79,7 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 }
 
 func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? "+
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? AND multisig_child = false "+
 		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
 }
@@ -103,7 +90,8 @@ func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, arg
 	for _, txID := range txIds {
 		txIdsStr = append(txIdsStr, fmt.Sprintf("%d", txID))
 	}
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE id in (%s)", strings.Join(tq.Fields, ", "), tq.getTableName(), strings.Join(txIdsStr, ","))
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE multisig_child = false AND id in (%s)",
+		strings.Join(tq.Fields, ", "), tq.getTableName(), strings.Join(txIdsStr, ","))
 	return query, []interface{}{}
 }
 
@@ -129,6 +117,7 @@ func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 		&tx.Signature,
 		&tx.Version,
 		&tx.TransactionIndex,
+		&tx.MultisigChild,
 	}
 }
 
@@ -153,6 +142,7 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) ([
 			&tx.Signature,
 			&tx.Version,
 			&tx.TransactionIndex,
+			&tx.MultisigChild,
 		)
 		if err != nil {
 			return nil, err
@@ -178,6 +168,7 @@ func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
 		&tx.Signature,
 		&tx.Version,
 		&tx.TransactionIndex,
+		&tx.MultisigChild,
 	)
 	return err
 }
