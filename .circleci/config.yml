@@ -85,7 +85,7 @@ jobs:
     deploy-develop:
         working_directory: ~/zoobc
         docker:
-            - image: circleci/golang:1.14.0-strech
+            - image: circleci/golang:1.14.0-stretch
         steps:
             - checkout
             - add_ssh_keys
