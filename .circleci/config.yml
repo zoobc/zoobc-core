@@ -78,22 +78,6 @@ jobs:
                   command: |
                       go build -o ./dist/zoobc
             #                   rsync -va --exclude='*.db' ./resource ./dist
-            - run:
-                  name: ADD HOSTS
-                  command: for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
-            - run:
-                  name: DOWN SERVICES
-                  command: |
-                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
-            - run:
-                  name: DEPLOY
-                  command: |
-                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
-            - run:
-                  name: UP SERVICES
-                  command: |
-                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
-
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:
