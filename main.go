@@ -364,7 +364,6 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
 	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
 	observerInstance.AddListener(observer.SendBlockTransactions, p2pServiceInstance.SendBlockTransactionsListener())
-	observerInstance.AddListener(observer.ExpiringEscrowTransactions, transactionCoreServiceIns.ExpiringEscrowListener())
 }
 
 func startServices() {
