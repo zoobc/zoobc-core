@@ -103,7 +103,7 @@ ofiness deviation starved"
 
 ### Account Generating multisig
 ```bash
-go run main.go generate account multisig --addresses BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN --addresses BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7 --addresses BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J —min-sigs 2 —nonce 3
+go run main.go generate account multisig --addresses BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN --addresses BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7 --addresses BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J —-min-sigs=2 --nonce=3
 ```
 
 ### Account Generate with spesific signature type
