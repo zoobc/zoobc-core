@@ -82,7 +82,9 @@ func (ms *MultisigService) GetPendingTransactionByAddress(
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
+	if param.GetPagination().GetOrderField() != "" {
+		caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
+	}
 	caseQuery.Paginate(
 		param.GetPagination().GetLimit(),
 		(param.GetPagination().GetPage()-1)*param.GetPagination().GetLimit())
