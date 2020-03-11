@@ -214,12 +214,12 @@ func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		)
 		tx = GenerateTxRegisterNode(
 			tx,
-			nodeOwnerAccountAddress,
-			nodeSeed,
 			recipientAccountAddress,
 			nodeAddress,
 			lockedBalance,
-			txg.DB,
+			poowMessageByte,
+			signatureByte,
+			nodePubKey,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -241,11 +241,11 @@ func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		)
 		tx = GenerateTxUpdateNode(
 			tx,
-			nodeOwnerAccountAddress,
-			nodeSeed,
 			nodeAddress,
 			lockedBalance,
-			txg.DB,
+			poowMessageByte,
+			signatureByte,
+			nodePubKey,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -265,7 +265,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveNode(tx, nodeSeed)
+		tx = GenerateTxRemoveNode(tx, nodePubKey)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}

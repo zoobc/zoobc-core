@@ -36,23 +36,10 @@ func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transac
 
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
-	nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress string,
+	recipientAccountAddress, nodeAddress string,
 	lockedBalance int64,
-	sqliteDB *sql.DB,
+	poownMessageBytes, signature, nodePubKey []byte,
 ) *model.Transaction {
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
-	if err != nil {
-		panic(err)
-	}
-	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      lastBlock.BlockHash,
-		BlockHeight:    lastBlock.Height,
-	}
-
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
-	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 		NodeAddress: &model.NodeAddress{
@@ -81,25 +68,10 @@ func GenerateTxRegisterNode(
 
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
-	nodeOwnerAccountAddress, nodeSeed, nodeAddress string,
+	nodeAddress string,
 	lockedBalance int64,
-	sqliteDB *sql.DB,
+	poowMessageBytes, signature, nodePubKey []byte,
 ) *model.Transaction {
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
-	if err != nil {
-		panic(err)
-	}
-	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      lastBlock.BlockHash,
-		BlockHeight:    lastBlock.Height,
-	}
-
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
-	signature := (&crypto.Signature{}).SignByNode(
-		poownMessageBytes,
-		nodeSeed)
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 		NodeAddress: &model.NodeAddress{
@@ -107,7 +79,7 @@ func GenerateTxUpdateNode(
 		},
 		LockedBalance: lockedBalance,
 		Poown: &model.ProofOfOwnership{
-			MessageBytes: poownMessageBytes,
+			MessageBytes: poowMessageBytes,
 			Signature:    signature,
 		},
 	}
@@ -125,8 +97,7 @@ func GenerateTxUpdateNode(
 	return tx
 }
 
-func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
