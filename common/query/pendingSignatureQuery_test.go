@@ -334,7 +334,7 @@ func TestPendingSignatureQuery_Rollback(t *testing.T) {
 			},
 			wantMultiQueries: [][]interface{}{
 				{
-					"DELETE FROM pending_signature WHERE height > ?",
+					"DELETE FROM pending_signature WHERE block_height > ?",
 					uint32(10),
 				},
 				{
