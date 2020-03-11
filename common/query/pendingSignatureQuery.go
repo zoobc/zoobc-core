@@ -129,7 +129,7 @@ func (psq *PendingSignatureQuery) BuildModel(
 func (psq *PendingSignatureQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE height > ?", psq.TableName),
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", psq.TableName),
 			height,
 		},
 		{
