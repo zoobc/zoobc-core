@@ -126,6 +126,7 @@ func NewServerInterceptor(
 			)
 
 			fields["latency"] = fmt.Sprintf("%d ns", latency.Nanoseconds())
+			fields["domain"] = "server"
 			monitoring.SetAPIResponseTime(info.FullMethod, latency.Seconds())
 			monitoring.DecrementRunningAPIHandling(info.FullMethod)
 			if err != nil {
@@ -194,6 +195,7 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 			)
 
 			fields["latency"] = fmt.Sprintf("%d ns", time.Since(start).Nanoseconds())
+			fields["domain"] = "client"
 			if err != nil {
 				// get stack after panic called and perhaps its first error
 				_, file, line, _ := runtime.Caller(4)

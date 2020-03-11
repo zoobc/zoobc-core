@@ -170,6 +170,8 @@ func (bss *Service) getMoreBlocks() {
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 17)
 					bss.Logger.Warn(err)
 				case len(otherPeerChainBlockIds) == 0:
+					// it means the peer have different CommonMilestoneBlockID
+					// downloading the fork
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 17)
 					_, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerToCheck, otherPeerChainBlockIds, peerBlockchainInfo.CommonBlock)
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 18)
