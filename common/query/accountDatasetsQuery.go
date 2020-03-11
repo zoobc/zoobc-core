@@ -287,3 +287,12 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 		},
 	}
 }
+
+func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER BY height DESC",
+		strings.Join(adq.GetFields(), ","),
+		adq.TableName,
+		fromHeight,
+		toHeight,
+	)
+}

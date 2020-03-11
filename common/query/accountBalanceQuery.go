@@ -43,7 +43,7 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 }
 
 func (q *AccountBalanceQuery) GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{}) {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_address = ? AND latest = 1`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_address = ? AND latest = 1 ORDER BY block_height DESC`,
 		strings.Join(q.Fields, ","), q.TableName), []interface{}{accountAddress}
 }
 
@@ -177,4 +177,9 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 			0,
 		},
 	}
+}
+
+func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
+		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight)
 }

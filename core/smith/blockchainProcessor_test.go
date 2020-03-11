@@ -1,6 +1,7 @@
 package smith
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"reflect"
 	"testing"
 
@@ -13,9 +14,11 @@ import (
 
 func TestNewBlockchainProcessor(t *testing.T) {
 	type args struct {
-		blocksmith   *model.Blocksmith
-		blockService service.BlockServiceInterface
-		logger       *log.Logger
+		ct                      chaintype.ChainType
+		blocksmith              *model.Blocksmith
+		blockService            service.BlockServiceInterface
+		logger                  *log.Logger
+		blockchainStatusService service.BlockchainStatusServiceInterface
 	}
 	tests := []struct {
 		name string
@@ -25,21 +28,27 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				blocksmith:   &model.Blocksmith{},
-				blockService: &service.BlockService{},
+				ct:                      &chaintype.MainChain{},
+				blocksmith:              &model.Blocksmith{},
+				blockService:            &service.BlockService{},
+				blockchainStatusService: &service.BlockchainStatusService{},
 			},
 			want: &BlockchainProcessor{
-				BlockService: &service.BlockService{},
-				Generator:    &model.Blocksmith{},
+				ChainType:               &chaintype.MainChain{},
+				Generator:               &model.Blocksmith{},
+				BlockService:            &service.BlockService{},
+				BlockchainStatusService: &service.BlockchainStatusService{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlockchainProcessor(
+				tt.args.ct,
 				tt.args.blocksmith,
 				tt.args.blockService,
 				tt.args.logger,
+				tt.args.blockchainStatusService,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}

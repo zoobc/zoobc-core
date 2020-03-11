@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -241,6 +241,82 @@ func TestTransactionCoreService_GetTransactionsByBlockID(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetTransactionsByBlockID() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	mockQueryExecutorExpiringEscrowSuccess struct {
+		query.ExecutorInterface
+	}
+)
+
+func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx() error {
+	return nil
+}
+func (*mockQueryExecutorExpiringEscrowSuccess) CommitTx() error {
+	return nil
+}
+func (*mockQueryExecutorExpiringEscrowSuccess) RollbackTx() error {
+	return nil
+}
+func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	mockRows := sqlmock.NewRows(query.NewEscrowTransactionQuery().Fields)
+	mockRows.AddRow(
+		int64(1),
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		int64(10),
+		int64(1),
+		uint64(120),
+		model.EscrowStatus_Approved,
+		uint32(0),
+		true,
+		"",
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
+	return db.Query(qStr)
+}
+func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
+	type fields struct {
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		blockHeight uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
+				EscrowTransactionQuery: query.NewEscrowTransactionQuery(),
+				QueryExecutor:          &mockQueryExecutorExpiringEscrowSuccess{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tg := &TransactionCoreService{
+				TransactionQuery:       tt.fields.TransactionQuery,
+				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tg.ExpiringEscrowTransactions(tt.args.blockHeight, false); (err != nil) != tt.wantErr {
+				t.Errorf("ExpiringEscrowTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

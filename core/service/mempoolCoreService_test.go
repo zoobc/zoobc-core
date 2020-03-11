@@ -69,46 +69,6 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 	return errors.New("MockedError")
 }
 
-// func buildTransaction(timestamp int64, sender, recipient string) *model.Transaction {
-// 	return &model.Transaction{
-// 		Version:                 1,
-// 		ID:                      2774809487,
-// 		BlockID:                 1,
-// 		Height:                  1,
-// 		SenderAccountAddress:    sender,
-// 		RecipientAccountAddress: recipient,
-// 		TransactionType:         0,
-// 		Fee:                     1,
-// 		Timestamp:               timestamp,
-// 		TransactionHash:         make([]byte, 32),
-// 		TransactionBodyLength:   0,
-// 		TransactionBodyBytes:    make([]byte, 0),
-// 		TransactionBody:         nil,
-// 		Signature:               make([]byte, 68),
-// 	}
-// }
-
-// func getTestSignedMempoolTransaction(id, timestamp int64) *model.MempoolTransaction {
-// 	sender := "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
-// 	recipient := "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-// 	tx := buildTransaction(timestamp, sender, recipient)
-//
-// 	txBytes, _ := transaction.GetTransactionBytes(tx, false)
-// 	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
-// 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-// 	tx.Signature = signature
-// 	txBytes, _ = transaction.GetTransactionBytes(tx, true)
-// 	return &model.MempoolTransaction{
-// 		ID:                      id,
-// 		BlockHeight:             0,
-// 		FeePerByte:              1,
-// 		ArrivalTimestamp:        timestamp,
-// 		TransactionBytes:        txBytes,
-// 		SenderAccountAddress:    "A",
-// 		RecipientAccountAddress: "B",
-// 	}
-// }
-
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
 		ct                     chaintype.ChainType
@@ -401,34 +361,6 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 		})
 	}
 }
-
-// type (
-// 	ReceivedTransactionListenerMockTypeAction struct {
-// 		transaction.SendMoney
-// 	}
-// 	ReceivedTransactionListenerMockTypeActionSuccess struct {
-// 		ReceivedTransactionListenerMockTypeAction
-// 	}
-// )
-
-// // mockTypeAction
-// func (*ReceivedTransactionListenerMockTypeAction) ApplyConfirmed() error {
-// 	return nil
-// }
-// func (*ReceivedTransactionListenerMockTypeAction) Validate(bool) error {
-// 	return nil
-// }
-// func (*ReceivedTransactionListenerMockTypeAction) GetAmount() int64 {
-// 	return 10
-// }
-
-// func (*ReceivedTransactionListenerMockTypeAction) ApplyUnconfirmed() error {
-// 	return nil
-// }
-
-// func (*ReceivedTransactionListenerMockTypeActionSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
-// 	return &ReceivedTransactionListenerMockTypeAction{}, nil
-// }
 
 type (
 	mockQueryExecutorDeleteExpiredMempoolTransactions struct {
