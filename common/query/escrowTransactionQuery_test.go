@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/go-cmp/cmp"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -470,12 +473,19 @@ func TestEscrowTransactionQuery_GetEscrowTransactions(t *testing.T) {
 				TableName: tt.fields.TableName,
 			}
 			got, got1 := et.GetEscrowTransactions(tt.args.fields)
-			if got != tt.want {
+			if !strings.Contains(got, "height = ?") || !strings.Contains(got, "latest = ?") {
 				t.Errorf("GetEscrowTransactions() got = \n%v, want \n%v", got, tt.want)
+				return
 			}
-			if !reflect.DeepEqual(got1, tt.want1) {
+
+			// perhaps tt.want1 is []int without string or any other types and sort it
+			if !cmp.Equal(got1, tt.want1, cmp.Transformer("Sort", func(in []int) []int {
+				sort.Ints(in)
+				return in
+			})) {
 				t.Errorf("GetEscrowTransactions() got1 = \n%v, want \n%v", got1, tt.want1)
 			}
+
 		})
 	}
 }
