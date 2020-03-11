@@ -156,6 +156,15 @@ func startGrpcServer(
 	rpcService.RegisterEscrowTransactionServiceServer(grpcServer, &handler.EscrowTransactionHandler{
 		Service: service.NewEscrowTransactionService(queryExecutor),
 	})
+	// Set GRPC handler for multisig information request
+	rpcService.RegisterMultisigServiceServer(grpcServer, &handler.MultisigHandler{
+		MultisigService: service.NewMultisigService(
+			queryExecutor,
+			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
+			query.NewPendingTransactionQuery(),
+			query.NewPendingSignatureQuery(),
+			query.NewMultisignatureInfoQuery(),
+		)})
 
 	// run grpc-gateway handler
 	go func() {

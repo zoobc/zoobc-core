@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/viper"
 	rpc_model "github.com/zoobc/zoobc-core/common/model"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
@@ -24,19 +25,26 @@ func main() {
 		}
 	}
 
-	conn, err := grpc.Dial(fmt.Sprintf("172.104.47.168:%d", 7000), grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
 	defer conn.Close()
 
-	c := rpc_service.NewBlockServiceClient(conn)
+	c := rpc_service.NewMultisigServiceClient(conn)
 
-	response, err := c.GetBlocks(context.Background(), &rpc_model.GetBlocksRequest{
-		ChainType: 0,
-		Limit:     3,
-		Height:    1,
-	})
+	response, err := c.GetPendingTransactionByAddress(context.Background(),
+		&rpc_model.GetPendingTransactionByAddressRequest{
+			SenderAddress: "E6u7lDnLgyiPuklLd6rXNQJI3_kGA1Q7e1BEXdJVB1hy",
+			Status:        rpc_model.PendingTransactionStatus_PendingTransactionExecuted,
+			Pagination: &rpc_model.Pagination{
+				OrderField: "block_height",
+				OrderBy:    rpc_model.OrderBy_DESC,
+				Page:       2,
+				Limit:      1,
+			},
+		},
+	)
 
 	if err != nil {
 		log.Fatalf("error calling remote.GetBlocks: %s", err)
