@@ -24,7 +24,7 @@ func main() {
 		}
 	}
 
-	conn, err := grpc.Dial(fmt.Sprintf("172.104.47.168:%d", 7000), grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
