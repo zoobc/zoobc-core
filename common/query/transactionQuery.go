@@ -17,7 +17,6 @@ type (
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(txs []*model.Transaction, rows *sql.Rows) ([]*model.Transaction, error)
-		DeleteTransactions(id int64) string
 		Scan(tx *model.Transaction, row *sql.Row) error
 	}
 
@@ -93,11 +92,6 @@ func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, arg
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE multisig_child = false AND id in (%s)",
 		strings.Join(tq.Fields, ", "), tq.getTableName(), strings.Join(txIdsStr, ","))
 	return query, []interface{}{}
-}
-
-// DeleteTransactions. delete some transactions according to timestamp
-func (tq *TransactionQuery) DeleteTransactions(id int64) string {
-	return fmt.Sprintf("DELETE FROM %v WHERE height >= (SELECT height FROM %v WHERE ID = %v)", tq.getTableName(), tq.getTableName(), id)
 }
 
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
