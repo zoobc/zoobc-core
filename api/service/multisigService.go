@@ -72,18 +72,15 @@ func (ms *MultisigService) GetPendingTransactionByAddress(
 
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 
-	countRows, err := ms.Executor.ExecuteSelect(countQuery, false, args...)
+	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
+	err = countRow.Scan(
+		&totalRecords,
+	)
 	if err != nil {
-		return nil, err
-	}
-	defer countRows.Close()
-	if countRows.Next() {
-		err = countRows.Scan(
-			&totalRecords,
-		)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, "FailToGetTotalItemInPendingTransaction")
 		}
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
 	caseQuery.Paginate(
