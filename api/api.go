@@ -165,7 +165,8 @@ func startGrpcServer(
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
 		)})
-
+	// Set GRPC handler for health check
+	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -240,5 +241,7 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterMultisigServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterHealthCheckServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }
