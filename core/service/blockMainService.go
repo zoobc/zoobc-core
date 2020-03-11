@@ -1435,7 +1435,10 @@ func (bs *BlockService) WillSmith(
 	}
 	// check for block pool duplicate
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-	blocksmithIndex := blocksmithsMap[string(blocksmith.NodePublicKey)]
+	blocksmithIndex, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
+	if !ok {
+		return blockchainProcessorLastBlockID, err
+	}
 	blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
 	if blockPool != nil {
 		return blockchainProcessorLastBlockID, blocker.NewBlocker(
