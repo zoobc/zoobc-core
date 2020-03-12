@@ -129,8 +129,6 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 			)
 		}
 		return nil
-	case model.SignatureType_MultisigSignature: // multisig validation-only
-		return nil
 	default:
 		return blocker.NewBlocker(
 			blocker.ValidationErr,

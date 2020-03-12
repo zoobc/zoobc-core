@@ -589,7 +589,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 					SignatureInfo: &model.SignatureInfo{
 						TransactionHash: make([]byte, 32),
 						Signatures: map[string][]byte{
-							"A": {1, 2, 3},
+							"A": {1, 2, 3, 4},
 						},
 					},
 				},
