@@ -86,3 +86,14 @@ func TestParticipationScoreQuery_UpdateParticipationScore(t *testing.T) {
 		}
 	})
 }
+
+func TestParticipationScoreQuery_SelectDataForSnapshot(t *testing.T) {
+	t.Run("UpdateParticipationScore", func(t *testing.T) {
+		res := mockParticipationScoreQuery.SelectDataForSnapshot(0, 1)
+		want := "SELECT node_id, score, latest, " +
+			"height FROM participation_score WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER by height DESC"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

@@ -34,6 +34,7 @@ func (bsf *BlockSpinePublicKeyService) GetSpinePublicKeysByBlockHeight(height ui
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	defer rows.Close()
 
 	spinePublicKeys, err = bsf.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
 	if err != nil {
@@ -67,14 +68,14 @@ func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
 	}
 	spinePublicKeys = make([]*model.SpinePublicKey, 0)
 	for _, nr := range nodeRegistrations {
-		bsfpk := &model.SpinePublicKey{
+		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   nr.NodePublicKey,
 			PublicKeyAction: util.GetAddRemoveSpineKeyAction(nr.RegistrationStatus),
-			MainBlockHeight: nr.Height,
+			MainBlockHeight: nr.Height, // (node registration) transaction's height
 			Height:          spineHeight,
 			Latest:          true,
 		}
-		spinePublicKeys = append(spinePublicKeys, bsfpk)
+		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
 	return spinePublicKeys, nil
 }

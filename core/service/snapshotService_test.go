@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -25,20 +26,26 @@ type (
 	mockMainchain struct {
 		chaintype.SpineChain
 	}
+
+	mockSnapshotMainBlockService struct {
+		SnapshotMainBlockService
+	}
 )
+
+func (*mockSnapshotMainBlockService) NewSnapshotFile(block *model.Block) (*model.SnapshotFileInfo, error) {
+	return new(model.SnapshotFileInfo), nil
+}
 
 var (
 	ssSpinechain    = &chaintype.SpineChain{}
 	ssMainchain     = &chaintype.MainChain{}
 	ssMockMainBlock = &model.Block{
-		Height: 720,
-		Timestamp: constant.MainchainGenesisBlockTimestamp + ssMainchain.GetSmithingPeriod() + ssMainchain.
-			GetChainSmithingDelayTime(),
+		Height:    720,
+		Timestamp: constant.MainchainGenesisBlockTimestamp + ssMainchain.GetSmithingPeriod(),
 	}
 	ssMockSpineBlock = &model.Block{
-		Height: 10,
-		Timestamp: constant.SpinechainGenesisBlockTimestamp + ssSpinechain.GetSmithingPeriod() + ssSpinechain.
-			GetChainSmithingDelayTime(),
+		Height:    10,
+		Timestamp: constant.SpinechainGenesisBlockTimestamp + ssSpinechain.GetSmithingPeriod(),
 	}
 	// ssSnapshotInterval          = uint32(1440 * 60 * 30) // 30 days
 	// ssSnapshotGenerationTimeout = int64(1440 * 60 * 3)   // 3 days
@@ -130,195 +137,55 @@ func (*mockMainchain) GetSmithingPeriod() int64 {
 	return 15
 }
 
-// FIXME: uncomment and fix the test once this method is completed
-// func TestSnapshotService_GenerateSnapshot(t *testing.T) {
-// 	type fields struct {
-// 		QueryExecutor             query.ExecutorInterface
-// 		SpineBlockManifestQuery            query.SpineBlockManifestQueryInterface
-// 		SpineBlockQuery           query.BlockQueryInterface
-// 		MainBlockQuery            query.BlockQueryInterface
-// 		FileChunkQuery        query.FileChunkQueryInterface
-// 		Logger                    *log.Logger
-// 		Spinechain                chaintype.ChainType
-// 		Mainchain                 chaintype.ChainType
-// 		MainchainSnapshotInterval          int64
-// 		SnapshotGenerationTimeout int64
-// 	}
-// 	type args struct {
-// 		mainHeight uint32
-// 		ct         chaintype.ChainType
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		args    args
-// 		want    *model.SpineBlockManifest
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "GenerateSnapshot:success",
-// 			fields: fields{
-// 				QueryExecutor: &mockSnapshotServiceQueryExecutor{
-// 					testName: "GenerateSnapshot:success",
-// 				},
-// 				SpineBlockQuery:           query.NewBlockQuery(ssSpinechain),
-// 				MainBlockQuery:            query.NewBlockQuery(ssMainchain),
-// 				SpineBlockManifestQuery:            query.NewSpineBlockManifestQuery(),
-// 				FileChunkQuery:        query.NewFileChunkQuery(),
-// 				Logger:                    log.New(),
-// 				Spinechain:                &mockSpinechain{},
-// 				Mainchain:                 &mockMainchain{},
-// 				MainchainSnapshotInterval:          ssSnapshotInterval,
-// 				SnapshotGenerationTimeout: ssSnapshotGenerationTimeout,
-// 			},
-// 			args: args{
-// 				mainHeight: ssMockMainBlock.Height,
-// 				ct:         &chaintype.MainChain{},
-// 			},
-// 			wantErr: false,
-// 			want: &model.SpineBlockManifest{
-// 				ID: int64(1919891213155270003),
-// 				FullFileHash:     make([]byte, 64),
-// 				SpineBlockManifestHeight:  ssMockMainBlock.Height,
-// 				SpineBlockHeight: uint32(419),
-// 				FileChunks:   make([]*model.FileChunk, 0),
-// 			},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			ss := &SnapshotService{
-// 				QueryExecutor:             tt.fields.QueryExecutor,
-// 				SpineBlockManifestQuery:            tt.fields.SpineBlockManifestQuery,
-// 				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-// 				MainBlockQuery:            tt.fields.MainBlockQuery,
-// 				FileChunkQuery:        tt.fields.FileChunkQuery,
-// 				Logger:                    tt.fields.Logger,
-// 				Spinechain:                tt.fields.Spinechain,
-// 				Mainchain:                 tt.fields.Mainchain,
-// 				MainchainSnapshotInterval:          tt.fields.MainchainSnapshotInterval,
-// 				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
-// 			}
-// 			got, err := ss.GenerateSnapshot(tt.args.mainHeight, tt.args.ct)
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("SnapshotService.GenerateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("SnapshotService.GenerateSnapshot() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
-
-func TestSnapshotService_IsSnapshotHeight(t *testing.T) {
+func TestSnapshotService_GenerateSnapshot(t *testing.T) {
 	type fields struct {
-		QueryExecutor             query.ExecutorInterface
-		SpineBlockQuery           query.BlockQueryInterface
-		MainBlockQuery            query.BlockQueryInterface
-		Logger                    *log.Logger
-		Spinechain                chaintype.ChainType
-		Mainchain                 chaintype.ChainType
-		SnapshotInterval          uint32
-		SnapshotGenerationTimeout int64
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
+		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface
+		Logger                    *log.Logger
 	}
 	type args struct {
-		height           uint32
-		snapshotInterval uint32
+		block                    *model.Block
+		ct                       chaintype.ChainType
+		snapshotChunkBytesLength int
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name    string
+		fields  fields
+		args    args
+		want    *model.SnapshotFileInfo
+		wantErr bool
 	}{
 		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_1}:",
+			name: "GenerateSnapshot",
 			args: args{
-				height:           1,
-				snapshotInterval: 10,
+				ct:    ssMainchain,
+				block: ssMockMainBlock,
 			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_2}:",
-			args: args{
-				height:           constant.MinRollbackBlocks,
-				snapshotInterval: 10,
+			fields: fields{
+				SnapshotBlockServices: map[int32]SnapshotBlockServiceInterface{
+					0: &mockSnapshotMainBlockService{},
+				},
+				Logger: log.New(),
 			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_3}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 9,
-				snapshotInterval: 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_4}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 10,
-				snapshotInterval: 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_lower_than_minRollback_5}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 20,
-				snapshotInterval: 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_1}:",
-			args: args{
-				height:           10,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_2}:",
-			args: args{
-				height:           constant.MinRollbackBlocks,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: false,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_3}:",
-			args: args{
-				height:           constant.MinRollbackBlocks + 10,
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: true,
-		},
-		{
-			name: "IsSnapshotHeight_{interval_higher_than_minRollback_4}:",
-			args: args{
-				height:           2 * (constant.MinRollbackBlocks + 10),
-				snapshotInterval: constant.MinRollbackBlocks + 10,
-			},
-			want: true,
+			want: new(model.SnapshotFileInfo),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &SnapshotService{
-				QueryExecutor:             tt.fields.QueryExecutor,
-				SpineBlockQuery:           tt.fields.SpineBlockQuery,
-				MainBlockQuery:            tt.fields.MainBlockQuery,
-				Logger:                    tt.fields.Logger,
-				SnapshotInterval:          tt.fields.SnapshotInterval,
-				SnapshotGenerationTimeout: tt.fields.SnapshotGenerationTimeout,
+			ss := &SnapshotService{
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
+				SnapshotBlockServices:     tt.fields.SnapshotBlockServices,
+				Logger:                    tt.fields.Logger,
 			}
-			if got := s.IsSnapshotHeight(tt.args.height, tt.args.snapshotInterval); got != tt.want {
-				t.Errorf("SnapshotService.IsSnapshotHeight() = %v, want %v", got, tt.want)
+			got, err := ss.GenerateSnapshot(tt.args.block, tt.args.ct, tt.args.snapshotChunkBytesLength)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SnapshotService.GenerateSnapshot() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SnapshotService.GenerateSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

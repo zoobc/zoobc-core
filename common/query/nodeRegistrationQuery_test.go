@@ -425,3 +425,26 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsByBlockTimestampInterval(t *t
 		}
 	})
 }
+
+func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
+	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
+		qry, _ := mockNodeRegistrationQuery.InsertNodeRegistration(&model.NodeRegistration{})
+		want := "INSERT INTO node_registry (id, node_public_key, account_address, registration_height, node_address, " +
+			"locked_balance, registration_status, latest, height) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? )"
+		if qry != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", qry, want)
+		}
+	})
+}
+
+func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
+	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
+		res := mockNodeRegistrationQuery.SelectDataForSnapshot(0, 1)
+		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+			"registration_status, latest, " +
+			"height FROM node_registry WHERE height >= 0 AND height <= 1 AND latest=1 ORDER BY height DESC"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

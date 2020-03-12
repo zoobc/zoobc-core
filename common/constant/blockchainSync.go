@@ -11,6 +11,7 @@ const (
 	PeerGetBlocksLimit               uint32        = 1440
 	CommonMilestoneBlockIdsLimit     int32         = 10
 	SafeBlockGap                     uint32        = 1440
-	MinRollbackBlocks                uint32        = 720
-	MaxCommonMilestoneRequestTrial   uint32        = MinRollbackBlocks/uint32(CommonMilestoneBlockIdsLimit) + 1
+	// @iltoga change this to 2 for testing snapshots
+	MinRollbackBlocks              uint32 = 720 // production 720
+	MaxCommonMilestoneRequestTrial uint32 = MinRollbackBlocks/uint32(CommonMilestoneBlockIdsLimit) + 1
 )

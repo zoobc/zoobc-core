@@ -32,6 +32,11 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewParticipationScoreQuery(),
 				NewPublishedReceiptQuery(),
 				NewAccountLedgerQuery(),
+				NewEscrowTransactionQuery(),
+				NewPendingTransactionQuery(),
+				NewPendingSignatureQuery(),
+				NewMultisignatureInfoQuery(),
+				NewSpineBlockManifestQuery(),
 			},
 		},
 		{

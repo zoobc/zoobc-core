@@ -1,5 +1,7 @@
 package constant
 
+import "time"
+
 const (
 	// PriorityStrategyMaxPriorityPeers, max priority peers will have
 	PriorityStrategyMaxPriorityPeers = 5
@@ -26,9 +28,10 @@ const (
 	// PriorityStrategyMaxStayedInUnresolvedPeers max time a peer can stay before being cycled out from unresolved peers
 	PriorityStrategyMaxStayedInUnresolvedPeers int64 = 120
 	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
-	BlockchainsyncWaitingTime = 3
-	// BlockchainsyncSpineCheckInterval time, in seconds, between checks if spine blocks have finished to be downloaded
-	BlockchainsyncSpineCheckInterval = 5
+	BlockchainsyncWaitingTime time.Duration = 5 * time.Second
+	// BlockchainsyncCheckInterval time, in seconds, between checks if spine blocks have finished to be downloaded
+	BlockchainsyncCheckInterval time.Duration = 3 * time.Second
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
-	BlockchainsyncSpineTimeout = 600
+	// download spine blocks and snapshot (if present) timeout
+	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second
 )

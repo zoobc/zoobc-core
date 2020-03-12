@@ -23,6 +23,9 @@ type (
 		GetTransaction(chaintype.ChainType, *model.GetTransactionRequest) (*model.Transaction, error)
 		GetTransactions(chaintype.ChainType, *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error)
 		PostTransaction(chaintype.ChainType, *model.PostTransactionRequest) (*model.Transaction, error)
+		GetTransactionMinimumFee(request *model.GetTransactionMinimumFeeRequest) (
+			*model.GetTransactionMinimumFeeResponse, error,
+		)
 	}
 
 	// TransactionService represents struct of TransactionService
@@ -190,6 +193,7 @@ func (ts *TransactionService) GetTransactions(
 			&tx.Signature,
 			&tx.Version,
 			&tx.TransactionIndex,
+			&tx.MultisigChild,
 		)
 		if err != nil {
 			if err != sql.ErrNoRows {
@@ -282,4 +286,29 @@ func (ts *TransactionService) PostTransaction(
 	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
 	// return parsed transaction
 	return tx, nil
+}
+
+func (ts *TransactionService) GetTransactionMinimumFee(req *model.GetTransactionMinimumFeeRequest) (
+	*model.GetTransactionMinimumFeeResponse, error,
+) {
+	var (
+		txBytes = req.TransactionBytes
+		err     error
+	)
+	tx, err := ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	// get the TypeAction object
+	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	minFee, err := txType.GetMinimumFee()
+	if err != nil {
+		return nil, err
+	}
+	return &model.GetTransactionMinimumFeeResponse{
+		Fee: minFee,
+	}, nil
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -28,6 +30,8 @@ type (
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
 		BlockQuery          query.BlockQueryInterface
+		NormalFee           fee.FeeModelInterface
+		EscrowFee           fee.FeeModelInterface
 	}
 )
 
@@ -209,6 +213,13 @@ func (tx *SendMoney) GetAmount() int64 {
 	return tx.Body.Amount
 }
 
+func (tx *SendMoney) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+}
+
 // GetSize send money Amount should be 8
 func (*SendMoney) GetSize() uint32 {
 	// only amount
@@ -281,7 +292,6 @@ Escrow Part
 func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
-		block          *model.Block
 		err            error
 		row            *sql.Row
 	)
@@ -297,14 +307,6 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	}
 	if tx.Escrow.GetRecipientAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
-	}
-
-	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	if uint64(block.GetHeight()) >= tx.Escrow.GetTimeout() {
-		return blocker.NewBlocker(blocker.ValidationErr, "TransactionExpired")
 	}
 
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in

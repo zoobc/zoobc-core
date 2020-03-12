@@ -13,12 +13,17 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+)
+
+type (
+	mockBlockchainStatusService struct {
+		service.BlockchainStatusService
+	}
 )
 
 var (
@@ -51,6 +56,14 @@ var (
 		},
 	}
 )
+
+func (*mockBlockchainStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
+	return true
+}
+
+func (*mockBlockchainStatusService) IsDownloading(ct chaintype.ChainType) bool {
+	return true
+}
 
 func init() {
 	fakeBlockCmd.Flags().IntVar(
@@ -87,7 +100,7 @@ func initialize(
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
 	observerInstance := observer.NewObserver()
-	blocksmith = model.NewBlocksmith(secretPhrase, util.GetPublicKeyFromSeed(secretPhrase), 0)
+	blocksmith = model.NewBlocksmith(secretPhrase, crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase), 0)
 	// initialize/open db and queryExecutor
 	dbInstance := database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
@@ -143,6 +156,10 @@ func initialize(
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
+		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
 	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
@@ -150,8 +167,6 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
-		query.NewMerkleTreeQuery(),
-		query.NewPublishedReceiptQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		crypto.NewSignature(),
 		mempoolService,
@@ -168,11 +183,14 @@ func initialize(
 		service.NewBlockIncompleteQueueService(chainType, observerInstance),
 		transactionUtil,
 		receiptUtil,
+		publishedReceiptUtil,
 		service.NewTransactionCoreService(
 			queryExecutor,
 			query.NewTransactionQuery(chainType),
 			nil,
 		),
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -186,9 +204,11 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 	initialize(blocksmithSecretPhrase, outputPath)
 	fmt.Println("done initializing database")
 	blockProcessor = smith.NewBlockchainProcessor(
+		blockService.GetChainType(),
 		blocksmith,
 		blockService,
 		log.New(),
+		&mockBlockchainStatusService{},
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)
