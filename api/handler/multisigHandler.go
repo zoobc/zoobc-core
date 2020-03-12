@@ -27,6 +27,10 @@ func (msh *MultisigHandler) GetPendingTransactionByAddress(
 	if req.GetPagination().GetPage() < 1 {
 		return nil, status.Error(codes.InvalidArgument, "PageCannotBeLessThanOne")
 	}
+	if req.GetPagination().GetOrderField() == "" {
+		req.Pagination.OrderField = "block_height"
+		req.Pagination.OrderBy = model.OrderBy_DESC
+	}
 	result, err := msh.MultisigService.GetPendingTransactionByAddress(req)
 	return result, err
 }
