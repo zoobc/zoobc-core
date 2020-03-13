@@ -425,7 +425,7 @@ func GeneratedMultiSignatureTransaction(
 			return nil
 		}
 		for k, v := range addressSignatures {
-			if k == "" {
+			if v == "" {
 				sigType := util.ConvertUint32ToBytes(2)
 				signatures[k] = sigType
 			} else {
@@ -436,6 +436,7 @@ func GeneratedMultiSignatureTransaction(
 				signatures[k] = signature
 			}
 		}
+		fmt.Printf("signatures: %v\n\n\n", signatures)
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
 			Signatures:      signatures,
