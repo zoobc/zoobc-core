@@ -27,13 +27,25 @@ var (
 		Use:   "send-money",
 		Short: "send-money command used to generate \"send money\" transaction",
 	}
+	registerNodeCmdScheduler = &cobra.Command{
+		Use:   "register-node",
+		Short: "send-money command used to generate \"send money\" transaction used on scheduler",
+	}
 	registerNodeCmd = &cobra.Command{
 		Use:   "register-node",
 		Short: "send-money command used to generate \"send money\" transaction",
 	}
+	updateNodeCmdScheduler = &cobra.Command{
+		Use:   "update-node",
+		Short: "update-node command used to generate \"update node\" transaction on scheduler",
+	}
 	updateNodeCmd = &cobra.Command{
 		Use:   "update-node",
 		Short: "update-node command used to generate \"update node\" transaction",
+	}
+	removeNodeCmdScheduler = &cobra.Command{
+		Use:   "remove-node",
+		Short: "remove-node command used to generate \"remove node\" transaction on scheduler",
 	}
 	removeNodeCmd = &cobra.Command{
 		Use:   "remove-node",
@@ -163,8 +175,12 @@ func Commands(sqliteDB *sql.DB) *cobra.Command {
 
 	sendMoneyCmd.Run = txGeneratorCommandsInstance.SendMoneyProcess()
 	txCmd.AddCommand(sendMoneyCmd)
-	registerNodeCmd.Run = txGeneratorCommandsInstance.RegisterNodeProcess()
+	registerNodeCmdScheduler.Run = txGeneratorCommandsInstance.RegisterNodeProcess()
+	txCmd.AddCommand(registerNodeCmdScheduler)
+	registerNodeCmd.Run = txGeneratorCommandsInstance.RegisterNodeProcessScheduler()
 	txCmd.AddCommand(registerNodeCmd)
+	updateNodeCmdScheduler.Run = txGeneratorCommandsInstance.UpdateNodeProcessScheduler()
+	txCmd.AddCommand(updateNodeCmdScheduler)
 	updateNodeCmd.Run = txGeneratorCommandsInstance.UpdateNodeProcess()
 	txCmd.AddCommand(updateNodeCmd)
 	removeNodeCmd.Run = txGeneratorCommandsInstance.RemoveAccountDatasetProcess()
@@ -202,6 +218,33 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 }
 
 // RegisterNodeProcess for generate TX RegisterNode type
+func (txg *TXGeneratorCommands) RegisterNodeProcessScheduler() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxRegisterNodeScheduler(
+			tx,
+			recipientAccountAddress,
+			nodeAddress,
+			lockedBalance,
+			poowMessageByte,
+			signatureByte,
+			nodePubKey,
+		)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+	}
+}
+
+// RegisterNodeProcess for generate TX RegisterNode type
 func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(
@@ -214,7 +257,33 @@ func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		)
 		tx = GenerateTxRegisterNode(
 			tx,
+			nodeOwnerAccountAddress,
+			nodeSeed,
 			recipientAccountAddress,
+			nodeAddress,
+			lockedBalance,
+			txg.DB,
+		)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+	}
+}
+
+// UpdateNodeProcess for generate TX UpdateNode type
+func (txg *TXGeneratorCommands) UpdateNodeProcessScheduler() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxUpdateNodeScheduler(
+			tx,
 			nodeAddress,
 			lockedBalance,
 			poowMessageByte,
@@ -241,12 +310,31 @@ func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		)
 		tx = GenerateTxUpdateNode(
 			tx,
+			nodeOwnerAccountAddress,
+			nodeSeed,
 			nodeAddress,
 			lockedBalance,
-			poowMessageByte,
-			signatureByte,
-			nodePubKey,
+			txg.DB,
 		)
+		if escrow {
+			tx = GenerateEscrowedTransaction(tx)
+		}
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+	}
+}
+
+// RemoveNodeProcessScheduler for generate TX RemoveNode type
+func (*TXGeneratorCommands) RemoveNodeProcessScheduler() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxRemoveNodeScheduler(tx, nodePubKey)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
@@ -265,7 +353,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveNode(tx, nodePubKey)
+		tx = GenerateTxRemoveNode(tx, nodeSeed)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}

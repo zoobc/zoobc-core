@@ -36,6 +36,51 @@ func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transac
 
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
+	nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress string,
+	lockedBalance int64,
+	sqliteDB *sql.DB,
+) *model.Transaction {
+	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
+	if err != nil {
+		panic(err)
+	}
+	poowMessage := &model.ProofOfOwnershipMessage{
+		AccountAddress: nodeOwnerAccountAddress,
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
+	}
+
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
+	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
+	txBody := &model.NodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+		NodeAddress: &model.NodeAddress{
+			Address: nodeAddress,
+		},
+		LockedBalance: lockedBalance,
+		Poown: &model.ProofOfOwnership{
+			MessageBytes: poownMessageBytes,
+			Signature:    signature,
+		},
+	}
+	txBodyBytes := (&transaction.NodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["registerNode"])
+	tx.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
+		NodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+
+	return tx
+}
+
+func GenerateTxRegisterNodeScheduler(
+	tx *model.Transaction,
 	recipientAccountAddress, nodeAddress string,
 	lockedBalance int64,
 	poownMessageBytes, signature, nodePubKey []byte,
@@ -68,6 +113,52 @@ func GenerateTxRegisterNode(
 
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
+	nodeOwnerAccountAddress, nodeSeed, nodeAddress string,
+	lockedBalance int64,
+	sqliteDB *sql.DB,
+) *model.Transaction {
+	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
+	if err != nil {
+		panic(err)
+	}
+	poowMessage := &model.ProofOfOwnershipMessage{
+		AccountAddress: nodeOwnerAccountAddress,
+		BlockHash:      lastBlock.BlockHash,
+		BlockHeight:    lastBlock.Height,
+	}
+
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
+	signature := (&crypto.Signature{}).SignByNode(
+		poownMessageBytes,
+		nodeSeed)
+	txBody := &model.UpdateNodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+		NodeAddress: &model.NodeAddress{
+			Address: nodeAddress,
+		},
+		LockedBalance: lockedBalance,
+		Poown: &model.ProofOfOwnership{
+			MessageBytes: poownMessageBytes,
+			Signature:    signature,
+		},
+	}
+	txBodyBytes := (&transaction.UpdateNodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"])
+	tx.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
+		UpdateNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	return tx
+}
+
+func GenerateTxUpdateNodeScheduler(
+	tx *model.Transaction,
 	nodeAddress string,
 	lockedBalance int64,
 	poowMessageBytes, signature, nodePubKey []byte,
@@ -97,7 +188,26 @@ func GenerateTxUpdateNode(
 	return tx
 }
 
-func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
+func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+	txBody := &model.RemoveNodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+	}
+	txBodyBytes := (&transaction.RemoveNodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"])
+	tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+		RemoveNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+func GenerateTxRemoveNodeScheduler(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
