@@ -241,7 +241,10 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &MultiSignatureTransaction{
+				ID:              tx.ID,
 				Body:            multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
+				Fee:             tx.GetFee(),
+				SenderAddress:   tx.GetSenderAccountAddress(),
 				NormalFee:       fee.NewConstantFeeModel(constant.OneZBC / 100),
 				TransactionUtil: &Util{},
 				TypeSwitcher: &TypeSwitcher{
@@ -257,6 +260,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				PendingTransactionQuery: query.NewPendingTransactionQuery(),
 				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 			}, nil
 		default:
 			return nil, nil
