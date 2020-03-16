@@ -13,7 +13,7 @@ jobs:
             - checkout
             - run:
                   name: ENV SET
-                  command: export GOPRIVATE=github.com/zoobc/*
+                  command: echo 'export GOPRIVATE=github.com/zoobc/*' >> $BASH_ENV
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
