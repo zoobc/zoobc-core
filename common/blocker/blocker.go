@@ -30,6 +30,7 @@ var (
 	ServerError             TypeBlocker = "ServerError"
 	SmithingErr             TypeBlocker = "SmithingErr"
 	ChainValidationErr      TypeBlocker = "ChainValidationErr"
+	P2PNetworkConnectionErr TypeBlocker = "P2PNetworkConnectionErr"
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {

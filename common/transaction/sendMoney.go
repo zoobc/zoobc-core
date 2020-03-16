@@ -6,10 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -88,7 +87,7 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 	// sender ledger
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -tx.GetAmount() + tx.Fee,
+		BalanceChange:  -(tx.GetAmount() + tx.Fee),
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
@@ -292,7 +291,6 @@ Escrow Part
 func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
-		block          *model.Block
 		err            error
 		row            *sql.Row
 	)
@@ -308,14 +306,6 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	}
 	if tx.Escrow.GetRecipientAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
-	}
-
-	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	if uint64(block.GetHeight()) >= tx.Escrow.GetTimeout() {
-		return blocker.NewBlocker(blocker.ValidationErr, "TransactionExpired")
 	}
 
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
@@ -414,7 +404,7 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	// sender ledger
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission(),
+		BalanceChange:  -(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()),
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,

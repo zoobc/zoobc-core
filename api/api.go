@@ -6,11 +6,13 @@ import (
 	"net"
 	"net/http"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -54,15 +56,19 @@ func startGrpcServer(
 	}
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds),
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
-			logger,
-			ownerAccountAddress,
-			map[codes.Code]string{
-				codes.Unavailable:     "indicates the destination service is currently unavailable",
-				codes.InvalidArgument: "indicates the argument request is invalid",
-				codes.Unauthenticated: "indicates the request is unauthenticated",
-			},
-		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			interceptor.NewServerRateLimiterInterceptor(constant.MaxAPIRequestPerSecond),
+			interceptor.NewServerInterceptor(
+				logger,
+				ownerAccountAddress,
+				map[codes.Code]string{
+					codes.Unavailable:     "indicates the destination service is currently unavailable",
+					codes.InvalidArgument: "indicates the argument request is invalid",
+					codes.Unauthenticated: "indicates the request is unauthenticated",
+				},
+			),
+		),
+		),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
@@ -150,7 +156,17 @@ func startGrpcServer(
 	rpcService.RegisterEscrowTransactionServiceServer(grpcServer, &handler.EscrowTransactionHandler{
 		Service: service.NewEscrowTransactionService(queryExecutor),
 	})
-
+	// Set GRPC handler for multisig information request
+	rpcService.RegisterMultisigServiceServer(grpcServer, &handler.MultisigHandler{
+		MultisigService: service.NewMultisigService(
+			queryExecutor,
+			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
+			query.NewPendingTransactionQuery(),
+			query.NewPendingSignatureQuery(),
+			query.NewMultisignatureInfoQuery(),
+		)})
+	// Set GRPC handler for health check
+	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -225,5 +241,7 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterMultisigServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterHealthCheckServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

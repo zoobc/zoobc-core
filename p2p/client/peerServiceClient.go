@@ -56,6 +56,10 @@ type (
 		// connection managements
 		DeleteConnection(destPeer *model.Peer) error
 		GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error)
+		RequestDownloadFile(
+			destPeer *model.Peer,
+			fileChunkNames []string,
+		) (*model.FileDownloadResponse, error)
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
@@ -418,6 +422,33 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 		return err
 	}
 	return nil
+}
+
+func (psc *PeerServiceClient) RequestDownloadFile(
+	destPeer *model.Peer,
+	fileChunkNames []string,
+) (*model.FileDownloadResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
+
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+	res, err := p2pClient.RequestFileDownload(ctx, &model.FileDownloadRequest{
+		FileChunkNames: fileChunkNames,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // GetCumulativeDifficulty request the cumulative difficulty status of a node

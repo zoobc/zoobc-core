@@ -12,5 +12,4 @@ const (
 	TransactionReceived                Event = "TransactionEvent.TransactionReceived"
 	ReceivedBlockTransactionsValidated Event = "TransactionEvent.ReceivedBlockTransactionsValidated"
 	SendBlockTransactions              Event = "TransactionEvent.SendBlockTransactions"
-	ExpiringEscrowTransactions         Event = "TransactionEvent.ExpiringEscrowTransaction"
 )

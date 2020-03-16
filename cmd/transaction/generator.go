@@ -1,11 +1,17 @@
 package transaction
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
+
+	rpc_model "github.com/zoobc/zoobc-core/common/model"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"google.golang.org/grpc"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -44,7 +50,7 @@ func GenerateTxRegisterNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
 	txBody := &model.NodeRegistrationTransactionBody{
@@ -89,7 +95,7 @@ func GenerateTxUpdateNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -120,7 +126,7 @@ func GenerateTxUpdateNode(
 }
 
 func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
@@ -153,7 +159,7 @@ func GenerateTxClaimNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -226,15 +232,37 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
-/*
-Basic Func
-*/
-func GenerateBasicTransaction(senderSeed string,
+func GenerateBasicTransaction(
+	senderSeed string,
+	senderSignatureType int32,
 	version uint32,
 	timestamp, fee int64,
 	recipientAccountAddress string,
 ) *model.Transaction {
-	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+	var (
+		senderAccountAddress string
+	)
+	if senderSeed == "" {
+		senderAccountAddress = senderAddress
+	} else {
+		switch model.SignatureType(senderSignatureType) {
+		case model.SignatureType_DefaultSignature:
+			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+		case model.SignatureType_BitcoinSignature:
+			var (
+				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
+				err        error
+			)
+			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
+			if err != nil {
+				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+			}
+		default:
+			panic("GenerateBasicTransaction-Invalid Signature Type")
+		}
+	}
+
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
@@ -264,19 +292,47 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 		}
 		resultStr = strings.Join(byteStrArr, ", ")
 	}
-	fmt.Println(resultStr)
+	if post {
+		conn, err := grpc.Dial(postHost, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("did not connect: %s", err)
+		}
+		defer conn.Close()
+
+		c := rpc_service.NewTransactionServiceClient(conn)
+
+		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+			TransactionBytes: signedTxBytes,
+		})
+		if err != nil {
+			fmt.Printf("post failed: %v\n", err)
+		} else {
+			fmt.Printf("\n\nresult: %v\n", response)
+		}
+	} else {
+		fmt.Println(resultStr)
+	}
 }
 
-func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
-	var transactionUtil = &transaction.Util{}
+func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureType int32) []byte {
+	var (
+		transactionUtil = &transaction.Util{}
+		txType          transaction.TypeAction
+	)
+	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	minimumFee, _ := txType.GetMinimumFee()
+	tx.Fee += minimumFee
+
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
-	tx.Signature = signature.Sign(
+	if senderSeed == "" {
+		return unsignedTxBytes
+	}
+	tx.Signature, _ = signature.Sign(
 		unsignedTxBytes,
-		constant.SignatureTypeDefault,
+		model.SignatureType(signatureType),
 		senderSeed,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
-	fmt.Printf("signedBytes: %v\n", len(signedTxBytes))
 	return signedTxBytes
 }
 
@@ -341,7 +397,7 @@ func GeneratedMultiSignatureTransaction(
 	minSignature uint32,
 	nonce int64,
 	unsignedTxHex, txHash string,
-	addressSignatures, addresses []string,
+	addressSignatures map[string]string, addresses []string,
 ) *model.Transaction {
 	var (
 		signatures    = make(map[string][]byte)
@@ -363,29 +419,29 @@ func GeneratedMultiSignatureTransaction(
 			return nil
 		}
 	}
-
 	if txHash != "" {
 		transactionHash, err := hex.DecodeString(txHash)
 		if err != nil {
 			return nil
 		}
-		for _, v := range addressSignatures {
-			asig := strings.Split(v, "-")
-			if len(asig) < 2 {
-				return nil
+		for k, v := range addressSignatures {
+			if v == "" {
+				sigType := util.ConvertUint32ToBytes(2)
+				signatures[k] = sigType
+			} else {
+				signature, err := hex.DecodeString(v)
+				if err != nil {
+					return nil
+				}
+				signatures[k] = signature
 			}
-			signature, err := hex.DecodeString(asig[1])
-			if err != nil {
-				return nil
-			}
-			signatures[asig[0]] = signature
 		}
+		fmt.Printf("signatures: %v\n\n\n", signatures)
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
 			Signatures:      signatures,
 		}
 	}
-
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
 	txBody := &model.MultiSignatureTransactionBody{
 		MultiSignatureInfo:       multiSigInfo,

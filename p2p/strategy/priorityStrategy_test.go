@@ -9,18 +9,16 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"google.golang.org/grpc/metadata"
-
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc/metadata"
 )
 
 func changeMaxUnresolvedPeers(hostServiceInstance *PriorityStrategy, newValue int32) {

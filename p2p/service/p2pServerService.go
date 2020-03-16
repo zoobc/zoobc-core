@@ -69,9 +69,14 @@ type (
 			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
+		RequestDownloadFile(
+			ctx context.Context,
+			fileChunkNames []string,
+		) (*model.FileDownloadResponse, error)
 	}
 
 	P2PServerService struct {
+		FileService      coreService.FileServiceInterface
 		PeerExplorer     strategy.PeerExplorerStrategyInterface
 		BlockServices    map[int32]coreService.BlockServiceInterface
 		MempoolServices  map[int32]coreService.MempoolServiceInterface
@@ -81,6 +86,7 @@ type (
 )
 
 func NewP2PServerService(
+	fileService coreService.FileServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
@@ -89,6 +95,7 @@ func NewP2PServerService(
 ) *P2PServerService {
 
 	return &P2PServerService{
+		FileService:      fileService,
 		PeerExplorer:     peerExplorer,
 		BlockServices:    blockServices,
 		MempoolServices:  mempoolServices,
@@ -266,7 +273,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit)
+		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit, false)
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
@@ -303,7 +310,7 @@ func (ps *P2PServerService) GetNextBlocks(
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)))
+		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -438,6 +445,32 @@ func (ps *P2PServerService) RequestBlockTransactions(
 		}
 		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
 		return &model.Empty{}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) RequestDownloadFile(
+	ctx context.Context,
+	fileChunkNames []string,
+) (*model.FileDownloadResponse, error) {
+	var (
+		fileChunks = make([][]byte, 0)
+		failed     []string
+	)
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		for _, fileName := range fileChunkNames {
+			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
+			if err != nil {
+				failed = append(failed, fileName)
+			} else {
+				fileChunks = append(fileChunks, chunkBytes)
+			}
+		}
+		res := &model.FileDownloadResponse{
+			FileChunks: fileChunks,
+			Failed:     failed,
+		}
+		return res, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

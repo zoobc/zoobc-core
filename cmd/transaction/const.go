@@ -1,6 +1,8 @@
 package transaction
 
-import "github.com/zoobc/zoobc-core/common/crypto"
+import (
+	"github.com/zoobc/zoobc-core/common/crypto"
+)
 
 var (
 	txTypeMap = map[string][]byte{
@@ -23,6 +25,10 @@ var (
 	senderSeed              string
 	recipientAccountAddress string
 	fee                     int64
+	post                    bool
+	postHost                string
+	senderAddress           string
+	senderSignatureType     int32
 
 	// Send money transaction
 	sendAmount int64
@@ -50,7 +56,7 @@ var (
 
 	// multiSignature
 	unsignedTxHex     string
-	addressSignatures []string
+	addressSignatures map[string]string
 	txHash            string
 	addresses         []string
 	nonce             int64

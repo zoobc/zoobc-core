@@ -519,7 +519,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		batchReceipt  *model.BatchReceipt
 		err           error
 		merkleQuery   = query.NewMerkleTreeQuery()
-		nodePublicKey = util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		lastRmrQ      = merkleQuery.GetLastMerkleRoot()
 		row, _        = rs.QueryExecutor.ExecuteSelectRow(lastRmrQ, false)
 	)
