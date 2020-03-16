@@ -30,18 +30,18 @@ var _ = runtime.String
 var _ = utilities.NewDoubleArray
 
 var (
-	filter_MultisigService_GetPendingTransactionByAddress_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+	filter_MultisigService_GetPendingTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
-func request_MultisigService_GetPendingTransactionByAddress_0(ctx context.Context, marshaler runtime.Marshaler, client MultisigServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq model.GetPendingTransactionByAddressRequest
+func request_MultisigService_GetPendingTransactions_0(ctx context.Context, marshaler runtime.Marshaler, client MultisigServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.GetPendingTransactionsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MultisigService_GetPendingTransactionByAddress_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MultisigService_GetPendingTransactions_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GetPendingTransactionByAddress(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetPendingTransactions(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
@@ -118,7 +118,7 @@ func RegisterMultisigServiceHandler(ctx context.Context, mux *runtime.ServeMux, 
 // "MultisigServiceClient" to call the correct interceptors.
 func RegisterMultisigServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client MultisigServiceClient) error {
 
-	mux.Handle("GET", pattern_MultisigService_GetPendingTransactionByAddress_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_MultisigService_GetPendingTransactions_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -127,14 +127,14 @@ func RegisterMultisigServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_MultisigService_GetPendingTransactionByAddress_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_MultisigService_GetPendingTransactions_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_MultisigService_GetPendingTransactionByAddress_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_MultisigService_GetPendingTransactions_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -182,7 +182,7 @@ func RegisterMultisigServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 }
 
 var (
-	pattern_MultisigService_GetPendingTransactionByAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactionByAddress"}, ""))
+	pattern_MultisigService_GetPendingTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactions"}, ""))
 
 	pattern_MultisigService_GetPendingTransactionDetailByTransactionHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactionDetailByTransactionHash"}, ""))
 
@@ -190,7 +190,7 @@ var (
 )
 
 var (
-	forward_MultisigService_GetPendingTransactionByAddress_0 = runtime.ForwardResponseMessage
+	forward_MultisigService_GetPendingTransactions_0 = runtime.ForwardResponseMessage
 
 	forward_MultisigService_GetPendingTransactionDetailByTransactionHash_0 = runtime.ForwardResponseMessage
 
