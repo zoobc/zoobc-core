@@ -3,10 +3,6 @@ defaults: &defaults
     working_directory: ~/zoobc
     docker:
         - image: circleci/golang:1.14.0-stretch
-globalEnv: &globalEnv
-    - run:
-          name: ENV SET
-          command: export GOPRIVATE=github.com/zoobc/*
 jobs:
     prepare:
         <<: *defaults
@@ -15,7 +11,9 @@ jobs:
                   name: SSH
                   command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
             - checkout
-            - *globalEnv
+            - run:
+                  name: ENV SET
+                  command: export GOPRIVATE=github.com/zoobc/*
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
