@@ -589,3 +589,237 @@ func TestNewMultisigService(t *testing.T) {
 		})
 	}
 }
+
+var (
+	// mock GetMultisigInfo
+	mockGetMultisigInfoExecutorParam = &model.GetMultisignatureInfoRequest{
+		MultisigAddress: "abc",
+		Pagination: &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+			Page:       1,
+			Limit:      1,
+		},
+	}
+	// mock GetMultisigInfo
+)
+
+type (
+	mockGetMultisigInfoExecutorCountFailNoRow struct {
+		query.Executor
+	}
+	mockGetMultisigInfoExecutorCountFailOther struct {
+		query.Executor
+	}
+	mockGetMultisigInfoExecutorExecuteSelectError struct {
+		query.Executor
+	}
+	mockGetMultisigInfoExecutorSuccess struct {
+		query.Executor
+	}
+	mockGetMultisigInfoQueryBuildFail struct {
+		query.MultisignatureInfoQuery
+	}
+	mockGetMultisigInfoQueryBuildSuccess struct {
+		query.MultisignatureInfoQuery
+	}
+)
+
+func (*mockGetMultisigInfoExecutorCountFailNoRow) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorCountFailOther) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total", "Other", "Other"}).AddRow(1, 1, 1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorExecuteSelectError) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}).AddRow(1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorExecuteSelectError) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockGetMultisigInfoExecutorSuccess) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}).AddRow(1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorSuccess) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"mockedColumn"}).AddRow(1))
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockGetMultisigInfoQueryBuildFail) BuildModel(
+	multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows,
+) ([]*model.MultiSignatureInfo, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockGetMultisigInfoQueryBuildSuccess) BuildModel(
+	multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows,
+) ([]*model.MultiSignatureInfo, error) {
+	return []*model.MultiSignatureInfo{}, nil
+}
+
+func TestMultisigService_GetMultisignatureInfo(t *testing.T) {
+	type fields struct {
+		Executor                query.ExecutorInterface
+		BlockService            service.BlockServiceInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		PendingSignatureQuery   query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
+		Logger                  *logrus.Logger
+	}
+	type args struct {
+		param *model.GetMultisignatureInfoRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetMultisignatureInfoResponse
+		wantErr bool
+	}{
+		{
+			name: "GetMultisignatureInfo-fail-countRow.Scan()-ErrorNoRow",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorCountFailNoRow{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-fail-countRow.Scan()-ErrorOther",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorCountFailOther{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-fail-multisigInfoExecuteSelect-Error",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorExecuteSelectError{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-fail-multisigInfoQueryBuild-Error",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorSuccess{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: &mockGetMultisigInfoQueryBuildFail{},
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-success",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorSuccess{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: &mockGetMultisigInfoQueryBuildSuccess{},
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want: &model.GetMultisignatureInfoResponse{
+				Count:              1,
+				Page:               mockGetMultisigInfoExecutorParam.GetPagination().Page,
+				MultisignatureInfo: []*model.MultiSignatureInfo{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ms := &MultisigService{
+				Executor:                tt.fields.Executor,
+				BlockService:            tt.fields.BlockService,
+				PendingTransactionQuery: tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:   tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery: tt.fields.MultisignatureInfoQuery,
+				Logger:                  tt.fields.Logger,
+			}
+			got, err := ms.GetMultisignatureInfo(tt.args.param)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetMultisignatureInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetMultisignatureInfo() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
