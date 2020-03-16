@@ -1,14 +1,21 @@
 version: 2
+defaults: &defaults
+    working_directory: ~/zoobc
+    docker:
+        - image: circleci/golang:1.14.0-stretch
+globalEnv: &globalEnv
+    - run:
+          name: ENV SET
+          command: export GOPRIVATE=github.com/zoobc/*
 jobs:
     prepare:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - run:
                   name: SSH
                   command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
             - checkout
+            - *globalEnv
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
@@ -23,9 +30,7 @@ jobs:
                   paths:
                       - /go/pkg/mod
     test:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         environment:
             - GOLANGCI_LINT: 1.20.0
         steps:
@@ -56,9 +61,7 @@ jobs:
                   paths:
                       - /go/pkg/mod
     build:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - checkout
             - restore_cache:
@@ -83,9 +86,7 @@ jobs:
                   paths:
                       - ./dist
     deploy-develop:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - checkout
             - add_ssh_keys
@@ -115,9 +116,7 @@ jobs:
                   command: |
                       for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
     deploy-staging:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - checkout
             - add_ssh_keys
