@@ -17,9 +17,9 @@ import (
 
 type (
 	MultisigServiceInterface interface {
-		GetPendingTransactionByAddress(
-			param *model.GetPendingTransactionByAddressRequest,
-		) (*model.GetPendingTransactionByAddressResponse, error)
+		GetPendingTransactions(
+			param *model.GetPendingTransactionsRequest,
+		) (*model.GetPendingTransactionsResponse, error)
 		GetPendingTransactionDetailByTransactionHash(
 			param *model.GetPendingTransactionDetailByTransactionHashRequest,
 		) (*model.GetPendingTransactionDetailByTransactionHashResponse, error)
@@ -54,9 +54,9 @@ func NewMultisigService(
 	}
 }
 
-func (ms *MultisigService) GetPendingTransactionByAddress(
-	param *model.GetPendingTransactionByAddressRequest,
-) (*model.GetPendingTransactionByAddressResponse, error) {
+func (ms *MultisigService) GetPendingTransactions(
+	param *model.GetPendingTransactionsRequest,
+) (*model.GetPendingTransactionsResponse, error) {
 	var (
 		totalRecords uint32
 		result       []*model.PendingTransaction
@@ -67,7 +67,9 @@ func (ms *MultisigService) GetPendingTransactionByAddress(
 		args         []interface{}
 	)
 	caseQuery.Select(musigQuery.TableName, musigQuery.Fields...)
-	caseQuery.Where(caseQuery.Equal("sender_address", param.GetSenderAddress()))
+	if param.GetSenderAddress() != "" {
+		caseQuery.Where(caseQuery.Equal("sender_address", param.GetSenderAddress()))
+	}
 	caseQuery.Where(caseQuery.Equal("status", param.GetStatus()))
 	caseQuery.Where(caseQuery.Equal("latest", true))
 
@@ -100,7 +102,7 @@ func (ms *MultisigService) GetPendingTransactionByAddress(
 	if err != nil {
 		return nil, err
 	}
-	return &model.GetPendingTransactionByAddressResponse{
+	return &model.GetPendingTransactionsResponse{
 		Count:               totalRecords,
 		Page:                param.GetPagination().GetPage(),
 		PendingTransactions: result,

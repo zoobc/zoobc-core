@@ -17,13 +17,10 @@ type (
 	}
 )
 
-func (msh *MultisigHandler) GetPendingTransactionByAddress(
+func (msh *MultisigHandler) GetPendingTransactions(
 	ctx context.Context,
-	req *model.GetPendingTransactionByAddressRequest,
-) (*model.GetPendingTransactionByAddressResponse, error) {
-	if req.GetSenderAddress() == "" {
-		return nil, status.Error(codes.InvalidArgument, "SenderAddressNotProvided")
-	}
+	req *model.GetPendingTransactionsRequest,
+) (*model.GetPendingTransactionsResponse, error) {
 	if req.GetPagination().GetPage() < 1 {
 		return nil, status.Error(codes.InvalidArgument, "PageCannotBeLessThanOne")
 	}
@@ -31,7 +28,7 @@ func (msh *MultisigHandler) GetPendingTransactionByAddress(
 		req.Pagination.OrderField = "block_height"
 		req.Pagination.OrderBy = model.OrderBy_DESC
 	}
-	result, err := msh.MultisigService.GetPendingTransactionByAddress(req)
+	result, err := msh.MultisigService.GetPendingTransactions(req)
 	return result, err
 }
 

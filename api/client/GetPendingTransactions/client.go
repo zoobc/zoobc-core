@@ -33,8 +33,8 @@ func main() {
 
 	c := rpc_service.NewMultisigServiceClient(conn)
 
-	response, err := c.GetPendingTransactionByAddress(context.Background(),
-		&rpc_model.GetPendingTransactionByAddressRequest{
+	response, err := c.GetPendingTransactions(context.Background(),
+		&rpc_model.GetPendingTransactionsRequest{
 			SenderAddress: "E6u7lDnLgyiPuklLd6rXNQJI3_kGA1Q7e1BEXdJVB1hy",
 			Status:        rpc_model.PendingTransactionStatus_PendingTransactionPending,
 			Pagination: &rpc_model.Pagination{
