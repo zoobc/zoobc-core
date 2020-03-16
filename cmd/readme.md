@@ -92,6 +92,10 @@ go run main.go generate account random
 ```
 
 ### Account Generating From Seed
+flags:
+1. --hd 
+2. --seed "mnemonic string"
+3. --signature-type **global**
 
 ```
 go run main.go generate account from-seed --seed "concur v
