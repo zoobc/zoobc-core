@@ -11,6 +11,7 @@ jobs:
                   name: SSH
                   command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
             - checkout
+            - add_ssh_keys
             - run:
                   name: ENV SET
                   command: echo 'export GOPRIVATE=github.com/zoobc/*' >> $BASH_ENV
