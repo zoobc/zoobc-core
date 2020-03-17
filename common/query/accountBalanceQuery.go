@@ -24,6 +24,7 @@ type (
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
 		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error)
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 )
 

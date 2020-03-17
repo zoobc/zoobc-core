@@ -153,7 +153,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 	if err != nil {
 		return err
 	}
-	err = ss.InsertSnapshotPayloadToDb(snapshotPayload)
+	err = ss.InsertSnapshotPayloadToDb(snapshotPayload, snapshotFileInfo.Height)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 }
 
 // InsertSnapshotPayloadToDb insert snapshot data to db
-func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.SnapshotPayload) error {
+func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.SnapshotPayload, height uint32) error {
 	var (
 		queries [][]interface{}
 	)
@@ -185,6 +185,12 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		return err
 	}
 
+	dummyArgs := make([]interface{}, 0)
+	qry := ss.AccountBalanceQuery.TrimDataBeforeSnapshot(0, height)
+	queries = append(queries,
+		append(
+			[]interface{}{qry}, dummyArgs...),
+	)
 	for _, rec := range payload.AccountBalances {
 		qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
 		queries = append(queries,
@@ -194,6 +200,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 
 	}
 
+	qry = ss.NodeRegistrationQuery.TrimDataBeforeSnapshot(0, height)
+	queries = append(queries,
+		append(
+			[]interface{}{qry}, dummyArgs...),
+	)
 	for _, rec := range payload.NodeRegistrations {
 		qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
 		queries = append(queries,
@@ -202,6 +213,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		)
 	}
 
+	qry = ss.PublishedReceiptQuery.TrimDataBeforeSnapshot(0, height)
+	queries = append(queries,
+		append(
+			[]interface{}{qry}, dummyArgs...),
+	)
 	for _, rec := range payload.PublishedReceipts {
 		qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
 		queries = append(queries,
@@ -210,6 +226,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		)
 	}
 
+	qry = ss.ParticipationScoreQuery.TrimDataBeforeSnapshot(0, height)
+	queries = append(queries,
+		append(
+			[]interface{}{qry}, dummyArgs...),
+	)
 	for _, rec := range payload.ParticipationScores {
 		qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
 		queries = append(queries,
@@ -218,11 +239,21 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		)
 	}
 
+	qry = ss.EscrowTransactionQuery.TrimDataBeforeSnapshot(0, height)
+	queries = append(queries,
+		append(
+			[]interface{}{qry}, dummyArgs...),
+	)
 	for _, rec := range payload.EscrowTransactions {
 		qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
 		queries = append(queries, qryArgs...)
 	}
 
+	qry = ss.AccountDatasetQuery.TrimDataBeforeSnapshot(0, height)
+	queries = append(queries,
+		append(
+			[]interface{}{qry}, dummyArgs...),
+	)
 	for _, rec := range payload.AccountDatasets {
 		qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
 		queries = append(queries, qryArgs...)

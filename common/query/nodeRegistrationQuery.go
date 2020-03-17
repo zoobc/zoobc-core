@@ -32,6 +32,7 @@ type (
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	NodeRegistrationQuery struct {

@@ -21,6 +21,7 @@ type (
 		Scan(participationScore *model.ParticipationScore, row *sql.Row) error
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	ParticipationScoreQuery struct {

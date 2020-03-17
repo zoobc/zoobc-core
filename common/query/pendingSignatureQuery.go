@@ -18,6 +18,7 @@ type (
 		Scan(pendingSig *model.PendingSignature, row *sql.Row) error
 		ExtractModel(pendingSig *model.PendingSignature) []interface{}
 		BuildModel(pendingSigs []*model.PendingSignature, rows *sql.Rows) ([]*model.PendingSignature, error)
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	PendingSignatureQuery struct {

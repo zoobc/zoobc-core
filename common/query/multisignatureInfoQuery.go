@@ -18,6 +18,7 @@ type (
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	MultisignatureInfoQuery struct {

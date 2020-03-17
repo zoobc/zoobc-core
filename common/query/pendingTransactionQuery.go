@@ -26,6 +26,7 @@ type (
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	PendingTransactionQuery struct {

@@ -23,6 +23,7 @@ type (
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 )
 

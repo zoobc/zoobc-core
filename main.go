@@ -811,8 +811,12 @@ func startBlockchainSyncronizers() {
 					loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
 						"at height is %d. Start downloading...", ct.GetName(),
 						lastSpineBlockManifest.SpineBlockManifestHeight)
-					if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
+					snapshotFileInfo, err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest)
+					if err != nil {
 						loggerCoreService.Info(err)
+					} else if err := snapshotBlockServices[ct.GetTypeInt()].ImportSnapshotFile(snapshotFileInfo); err != nil {
+						loggerCoreService.Infof("error importing snapshot file for chaintype %s at height %d", ct.GetName(),
+							lastSpineBlockManifest.SpineBlockManifestHeight)
 					}
 				}
 			}

@@ -24,6 +24,7 @@ type (
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 )
 
