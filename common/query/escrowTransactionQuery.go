@@ -220,3 +220,9 @@ func (et *EscrowTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 		toHeight,
 	)
 }
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (et *EscrowTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		et.TableName, fromHeight, toHeight)
+}

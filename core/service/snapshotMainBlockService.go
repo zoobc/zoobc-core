@@ -86,7 +86,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
 			var (
-				fromHeight uint32 = 1
+				fromHeight uint32
 				rows       *sql.Rows
 			)
 			if qryRepoName == "publishedReceipt" {

@@ -154,3 +154,9 @@ func (prq *PublishedReceiptQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 		strings.Join(prq.Fields, ", "),
 		prq.getTableName(), fromHeight, toHeight)
 }
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (prq *PublishedReceiptQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		prq.TableName, fromHeight, toHeight)
+}

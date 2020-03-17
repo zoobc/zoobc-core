@@ -10,6 +10,7 @@ type (
 	}
 	SnapshotQuery interface {
 		SelectDataForSnapshot(fromHeight, toHeight uint32) string
+		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 )
 

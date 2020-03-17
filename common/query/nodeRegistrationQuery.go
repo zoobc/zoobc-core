@@ -372,3 +372,9 @@ func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 		"height >= %d AND height <= %d AND latest=1 ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight)
 }
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (nrq *NodeRegistrationQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+		nrq.TableName, fromHeight, toHeight)
+}

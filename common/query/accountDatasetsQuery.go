@@ -296,3 +296,9 @@ func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint
 		toHeight,
 	)
 }
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (adq *AccountDatasetsQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+		adq.TableName, fromHeight, toHeight)
+}

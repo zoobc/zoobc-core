@@ -182,3 +182,9 @@ func (ptq *PendingTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight u
 	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
 		strings.Join(ptq.Fields, ","), ptq.TableName, fromHeight, toHeight)
 }
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (ptq *PendingTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		ptq.TableName, fromHeight, toHeight)
+}

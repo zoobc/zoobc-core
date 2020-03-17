@@ -505,3 +505,46 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	qry := NewAccountDatasetsQuery()
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "TrimDataBeforeSnapshot",
+			fields: fields{
+				TableName: qry.TableName,
+			},
+			args: args{
+				fromHeight: 0,
+				toHeight:   10,
+			},
+			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			if got := adq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("AccountDatasetsQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

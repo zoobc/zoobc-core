@@ -149,3 +149,9 @@ func (psq *PendingSignatureQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
 		strings.Join(psq.Fields, ","), psq.TableName, fromHeight, toHeight)
 }
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (psq *PendingSignatureQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		psq.TableName, fromHeight, toHeight)
+}
