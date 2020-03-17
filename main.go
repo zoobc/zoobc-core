@@ -187,6 +187,9 @@ func init() {
 		query.NewAccountDatasetsQuery(),
 		query.NewEscrowTransactionQuery(),
 		query.NewPublishedReceiptQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewPendingSignatureQuery(),
+		query.NewMultisignatureInfoQuery(),
 		query.GetSnapshotQuery(mainchain),
 	)
 
