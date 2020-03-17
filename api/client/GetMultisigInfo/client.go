@@ -33,23 +33,22 @@ func main() {
 
 	c := rpc_service.NewMultisigServiceClient(conn)
 
-	response, err := c.GetPendingTransactionByAddress(context.Background(),
-		&rpc_model.GetPendingTransactionByAddressRequest{
-			SenderAddress: "E6u7lDnLgyiPuklLd6rXNQJI3_kGA1Q7e1BEXdJVB1hy",
-			Status:        rpc_model.PendingTransactionStatus_PendingTransactionPending,
+	response, err := c.GetMultisignatureInfo(context.Background(),
+		&rpc_model.GetMultisignatureInfoRequest{
+			MultisigAddress: "",
 			Pagination: &rpc_model.Pagination{
 				OrderField: "block_height",
 				OrderBy:    rpc_model.OrderBy_DESC,
-				Page:       2,
-				Limit:      1,
+				Page:       1,
+				Limit:      2,
 			},
 		},
 	)
 
 	if err != nil {
-		log.Fatalf("error calling remote.GetBlocks: %s", err)
+		log.Fatalf("error calling remote.GetMultisigInfo: %s", err)
 	}
 
-	log.Printf("response from remote.GetBlocks(): %v", response)
+	log.Printf("response from remote.GetMultisigInfo(): %v", response)
 
 }
