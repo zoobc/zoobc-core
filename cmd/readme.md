@@ -92,12 +92,17 @@ go run main.go generate account random
 ```
 
 ### Account Generating From Seed
-flags:
-1. --hd 
-2. --seed "mnemonic string"
-3. --signature-type **global**
+```bash
+Flags:
+      --hd            --hd allow to generate account HD (default true)
+  -h, --help          help for from-seed
+      --seed string   Seed that is used to generate the account
 
+Global Flags:
+      --signature-type int32   signature-type that provide type of signature want to use to generate the account
 ```
+Example:
+```bash
 go run main.go generate account from-seed --seed "concur v
 ocalist rotten busload gap quote stinging undiluted surfer go
 ofiness deviation starved"
