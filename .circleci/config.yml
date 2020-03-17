@@ -14,13 +14,14 @@ jobs:
             - add_ssh_keys
             - run:
                   name: ENV SET
-                  command: echo 'export GOPRIVATE=github.com/zoobc/*' >> $BASH_ENV
+                  command: |
+                      echo 'export GOPRIVATE=github.com/zoobc/*' >> $BASH_ENV
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
                   name: GOMOD
                   command: |
-                      if [ ! -d ls | grep go.mod ]; then
+                      if ! [ -f "go.mod" ]; then
                           go mod init
                       fi
                       go mod download
@@ -79,7 +80,7 @@ jobs:
                   name: BUILD
                   command: |
                       go build -o ./dist/zoobc
-            #                   rsync -va --exclude='*.db' ./resource ./dist
+#                       rsync -va --exclude='*.db' ./resource ./dist
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:
