@@ -105,7 +105,6 @@ func generateAccountFromSeed(signatureType int32, seed string) {
 		slip10Key                        *slip10.Key
 	)
 
-	fmt.Printf("HD: %v\n", hd)
 	if hd {
 
 		seedBytes = slip10.NewSeed(seed, slip10.DefaultPassword)
