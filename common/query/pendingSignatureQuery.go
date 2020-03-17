@@ -144,3 +144,8 @@ func (psq *PendingSignatureQuery) Rollback(height uint32) (multiQueries [][]inte
 		},
 	}
 }
+
+func (psq *PendingSignatureQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
+		strings.Join(psq.Fields, ","), psq.TableName, fromHeight, toHeight)
+}

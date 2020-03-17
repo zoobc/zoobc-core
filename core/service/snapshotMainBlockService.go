@@ -24,6 +24,9 @@ type (
 		AccountDatasetQuery        query.AccountDatasetsQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		PendingTransactionQuery    query.PendingTransactionQueryInterface
+		PendingSignatureQuery      query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 )
@@ -39,6 +42,9 @@ func NewSnapshotMainBlockService(
 	accountDatasetQuery query.AccountDatasetsQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	pendingTransactionQuery query.PendingTransactionQueryInterface,
+	pendingSignatureQuery query.PendingSignatureQueryInterface,
+	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
@@ -53,6 +59,9 @@ func NewSnapshotMainBlockService(
 		ParticipationScoreQuery:    participationScoreQuery,
 		EscrowTransactionQuery:     escrowTransactionQuery,
 		PublishedReceiptQuery:      publishedReceiptQuery,
+		PendingTransactionQuery:    pendingTransactionQuery,
+		PendingSignatureQuery:      pendingSignatureQuery,
+		MultisignatureInfoQuery:    multisignatureInfoQuery,
 		SnapshotQueries:            snapshotQueries,
 	}
 }
@@ -77,7 +86,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
 			var (
-				fromHeight uint32
+				fromHeight uint32 = 1
 				rows       *sql.Rows
 			)
 			if qryRepoName == "publishedReceipt" {
@@ -107,6 +116,12 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 					PublishedReceipt{}, rows)
 			case "escrowTransaction":
 				snapshotPayload.EscrowTransactions, err = ss.EscrowTransactionQuery.BuildModels(rows)
+			case "pendingTransaction":
+				snapshotPayload.PendingTransactions, err = ss.PendingTransactionQuery.BuildModel([]*model.PendingTransaction{}, rows)
+			case "pendingSignature":
+				snapshotPayload.PendingSignatures, err = ss.PendingSignatureQuery.BuildModel([]*model.PendingSignature{}, rows)
+			case "multisignatureInfo":
+				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}

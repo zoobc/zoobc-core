@@ -6,10 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -482,6 +480,48 @@ func TestNewMultisignatureInfoQuery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewMultisignatureInfoQuery(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewMultisignatureInfoQuery() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "SelectDataForSnapshot",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				fromHeight: 1,
+				toHeight:   10,
+			},
+			want: "SELECT multisig_address,minimum_signatures,nonce,addresses,block_height," +
+				"latest FROM multisignature_info WHERE latest = 1 AND block_height >= 1 AND block_height <= 10 ORDER BY block_height DESC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msi := &MultisignatureInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

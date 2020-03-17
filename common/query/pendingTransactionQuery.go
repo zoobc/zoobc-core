@@ -177,3 +177,8 @@ func (ptq *PendingTransactionQuery) Rollback(height uint32) (multiQueries [][]in
 		},
 	}
 }
+
+func (ptq *PendingTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
+		strings.Join(ptq.Fields, ","), ptq.TableName, fromHeight, toHeight)
+}

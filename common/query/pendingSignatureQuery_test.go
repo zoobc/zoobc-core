@@ -5,10 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -468,6 +466,49 @@ func TestPendingSignatureQuery_getTableName(t *testing.T) {
 			}
 			if got := psq.getTableName(); got != tt.want {
 				t.Errorf("getTableName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingSignatureQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+
+		{
+			name: "SelectDataForSnapshot",
+			fields: fields{
+				Fields:    mockPendingSignatureQueryIntance.Fields,
+				TableName: mockPendingSignatureQueryIntance.TableName,
+			},
+			args: args{
+				fromHeight: 1,
+				toHeight:   10,
+			},
+			want: "SELECT transaction_hash,account_address,signature,block_height," +
+				"latest FROM pending_signature WHERE latest = 1 AND block_height >= 1 AND block_height <= 10 ORDER BY block_height DESC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			psq := &PendingSignatureQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := psq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PendingSignatureQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}
