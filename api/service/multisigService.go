@@ -17,12 +17,15 @@ import (
 
 type (
 	MultisigServiceInterface interface {
-		GetPendingTransactionByAddress(
-			param *model.GetPendingTransactionByAddressRequest,
-		) (*model.GetPendingTransactionByAddressResponse, error)
+		GetPendingTransactions(
+			param *model.GetPendingTransactionsRequest,
+		) (*model.GetPendingTransactionsResponse, error)
 		GetPendingTransactionDetailByTransactionHash(
 			param *model.GetPendingTransactionDetailByTransactionHashRequest,
 		) (*model.GetPendingTransactionDetailByTransactionHashResponse, error)
+		GetMultisignatureInfo(
+			param *model.GetMultisignatureInfoRequest,
+		) (*model.GetMultisignatureInfoResponse, error)
 	}
 
 	MultisigService struct {
@@ -51,9 +54,9 @@ func NewMultisigService(
 	}
 }
 
-func (ms *MultisigService) GetPendingTransactionByAddress(
-	param *model.GetPendingTransactionByAddressRequest,
-) (*model.GetPendingTransactionByAddressResponse, error) {
+func (ms *MultisigService) GetPendingTransactions(
+	param *model.GetPendingTransactionsRequest,
+) (*model.GetPendingTransactionsResponse, error) {
 	var (
 		totalRecords uint32
 		result       []*model.PendingTransaction
@@ -64,7 +67,9 @@ func (ms *MultisigService) GetPendingTransactionByAddress(
 		args         []interface{}
 	)
 	caseQuery.Select(musigQuery.TableName, musigQuery.Fields...)
-	caseQuery.Where(caseQuery.Equal("sender_address", param.GetSenderAddress()))
+	if param.GetSenderAddress() != "" {
+		caseQuery.Where(caseQuery.Equal("sender_address", param.GetSenderAddress()))
+	}
 	caseQuery.Where(caseQuery.Equal("status", param.GetStatus()))
 	caseQuery.Where(caseQuery.Equal("latest", true))
 
@@ -97,7 +102,7 @@ func (ms *MultisigService) GetPendingTransactionByAddress(
 	if err != nil {
 		return nil, err
 	}
-	return &model.GetPendingTransactionByAddressResponse{
+	return &model.GetPendingTransactionsResponse{
 		Count:               totalRecords,
 		Page:                param.GetPagination().GetPage(),
 		PendingTransactions: result,
@@ -188,4 +193,57 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 		PendingSignatures:  pendingSigs,
 		MultiSignatureInfo: multisigInfo,
 	}, nil
+}
+
+func (ms *MultisigService) GetMultisignatureInfo(
+	param *model.GetMultisignatureInfoRequest,
+) (*model.GetMultisignatureInfoResponse, error) {
+	var (
+		result            []*model.MultiSignatureInfo
+		caseQuery         = query.NewCaseQuery()
+		multisigInfoQuery = query.NewMultisignatureInfoQuery()
+		selectQuery       string
+		args              []interface{}
+		totalRecords      uint32
+		err               error
+	)
+	caseQuery.Select(multisigInfoQuery.TableName, multisigInfoQuery.Fields...)
+	if param.GetMultisigAddress() != "" {
+		caseQuery.Where(caseQuery.Equal("multisig_address", param.GetMultisigAddress()))
+	}
+	caseQuery.Where(caseQuery.Equal("latest", true))
+	selectQuery, args = caseQuery.Build()
+
+	countQuery := query.GetTotalRecordOfSelect(selectQuery)
+
+	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
+	err = countRow.Scan(
+		&totalRecords,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, "FailToGetTotalItemInMultisigInfo")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
+	caseQuery.Paginate(
+		param.GetPagination().GetLimit(),
+		param.GetPagination().GetPage(),
+	)
+	selectQuery, args = caseQuery.Build()
+	multisigInfoRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer multisigInfoRows.Close()
+	result, err = ms.MultisignatureInfoQuery.BuildModel(result, multisigInfoRows)
+	if err != nil {
+		return nil, err
+	}
+	return &model.GetMultisignatureInfoResponse{
+		Count:              totalRecords,
+		Page:               param.GetPagination().GetPage(),
+		MultisignatureInfo: result,
+	}, err
 }

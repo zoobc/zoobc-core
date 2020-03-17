@@ -17,7 +17,7 @@ import (
 
 var (
 	// mock GetPendingTransactionByAddress
-	mockGetPendingTransactionByAddressExecutorCountFailParam = &model.GetPendingTransactionByAddressRequest{
+	mockGetPendingTransactionsExecutorCountFailParam = &model.GetPendingTransactionsRequest{
 		SenderAddress: "abc",
 		Status:        model.PendingTransactionStatus_PendingTransactionPending,
 		Pagination: &model.Pagination{
@@ -32,25 +32,25 @@ var (
 
 type (
 	// mock GetPendingTransactionByAddress
-	mockGetPendingTransactionByAddressExecutorCountFail struct {
+	mockGetPendingTransactionsExecutorCountFail struct {
 		query.Executor
 	}
-	mockGetPendingTransactionByAddressExecutorGetPendingTxsFail struct {
+	mockGetPendingTransactionsExecutorGetPendingTxsFail struct {
 		query.Executor
 	}
-	mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess struct {
+	mockGetPendingTransactionsExecutorGetPendingTxsSuccess struct {
 		query.Executor
 	}
-	mockGetPendingTransactionByAddressPendingTxQueryBuildFail struct {
+	mockGetPendingTransactionsPendingTxQueryBuildFail struct {
 		query.PendingTransactionQuery
 	}
-	mockGetPendingTransactionByAddressPendingTxQueryBuildSuccess struct {
+	mockGetPendingTransactionsPendingTxQueryBuildSuccess struct {
 		query.PendingTransactionQuery
 	}
 	// mock GetPendingTransactionByAddress
 )
 
-func (*mockGetPendingTransactionByAddressExecutorCountFail) ExecuteSelectRow(
+func (*mockGetPendingTransactionsExecutorCountFail) ExecuteSelectRow(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -61,7 +61,7 @@ func (*mockGetPendingTransactionByAddressExecutorCountFail) ExecuteSelectRow(
 	return row, nil
 }
 
-func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsFail) ExecuteSelectRow(
+func (*mockGetPendingTransactionsExecutorGetPendingTxsFail) ExecuteSelectRow(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -72,13 +72,13 @@ func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsFail) ExecuteSelec
 	return row, nil
 }
 
-func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsFail) ExecuteSelect(
+func (*mockGetPendingTransactionsExecutorGetPendingTxsFail) ExecuteSelect(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
 	return nil, errors.New("mockedError")
 }
 
-func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess) ExecuteSelectRow(
+func (*mockGetPendingTransactionsExecutorGetPendingTxsSuccess) ExecuteSelectRow(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -89,7 +89,7 @@ func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess) ExecuteSe
 	return row, nil
 }
 
-func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess) ExecuteSelect(
+func (*mockGetPendingTransactionsExecutorGetPendingTxsSuccess) ExecuteSelect(
 	qe string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -100,13 +100,13 @@ func (*mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess) ExecuteSe
 	return rows, nil
 }
 
-func (*mockGetPendingTransactionByAddressPendingTxQueryBuildFail) BuildModel(
+func (*mockGetPendingTransactionsPendingTxQueryBuildFail) BuildModel(
 	pts []*model.PendingTransaction, rows *sql.Rows,
 ) ([]*model.PendingTransaction, error) {
 	return nil, errors.New("mockedError")
 }
 
-func (*mockGetPendingTransactionByAddressPendingTxQueryBuildSuccess) BuildModel(
+func (*mockGetPendingTransactionsPendingTxQueryBuildSuccess) BuildModel(
 	pts []*model.PendingTransaction, rows *sql.Rows,
 ) ([]*model.PendingTransaction, error) {
 	return []*model.PendingTransaction{}, nil
@@ -122,19 +122,19 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 		Logger                  *logrus.Logger
 	}
 	type args struct {
-		param *model.GetPendingTransactionByAddressRequest
+		param *model.GetPendingTransactionsRequest
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    *model.GetPendingTransactionByAddressResponse
+		want    *model.GetPendingTransactionsResponse
 		wantErr bool
 	}{
 		{
 			name: "GetPendingTransactionByAddress-fail-countExecuteSelectRow-error-noRow",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByAddressExecutorCountFail{},
+				Executor:                &mockGetPendingTransactionsExecutorCountFail{},
 				BlockService:            nil,
 				PendingTransactionQuery: nil,
 				PendingSignatureQuery:   nil,
@@ -142,7 +142,7 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 				Logger:                  nil,
 			},
 			args: args{
-				param: mockGetPendingTransactionByAddressExecutorCountFailParam,
+				param: mockGetPendingTransactionsExecutorCountFailParam,
 			},
 			want:    nil,
 			wantErr: true,
@@ -150,7 +150,7 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 		{
 			name: "GetPendingTransactionByAddress-fail-GetPendingTxsExecutor-error",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByAddressExecutorGetPendingTxsFail{},
+				Executor:                &mockGetPendingTransactionsExecutorGetPendingTxsFail{},
 				BlockService:            nil,
 				PendingTransactionQuery: nil,
 				PendingSignatureQuery:   nil,
@@ -158,7 +158,7 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 				Logger:                  nil,
 			},
 			args: args{
-				param: mockGetPendingTransactionByAddressExecutorCountFailParam,
+				param: mockGetPendingTransactionsExecutorCountFailParam,
 			},
 			want:    nil,
 			wantErr: true,
@@ -166,15 +166,15 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 		{
 			name: "GetPendingTransactionByAddress-fail-PendingTxQueryBuild-error",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess{},
+				Executor:                &mockGetPendingTransactionsExecutorGetPendingTxsSuccess{},
 				BlockService:            nil,
-				PendingTransactionQuery: &mockGetPendingTransactionByAddressPendingTxQueryBuildFail{},
+				PendingTransactionQuery: &mockGetPendingTransactionsPendingTxQueryBuildFail{},
 				PendingSignatureQuery:   nil,
 				MultisignatureInfoQuery: nil,
 				Logger:                  nil,
 			},
 			args: args{
-				param: mockGetPendingTransactionByAddressExecutorCountFailParam,
+				param: mockGetPendingTransactionsExecutorCountFailParam,
 			},
 			want:    nil,
 			wantErr: true,
@@ -182,17 +182,17 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 		{
 			name: "GetPendingTransactionByAddress-success",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByAddressExecutorGetPendingTxsSuccess{},
+				Executor:                &mockGetPendingTransactionsExecutorGetPendingTxsSuccess{},
 				BlockService:            nil,
-				PendingTransactionQuery: &mockGetPendingTransactionByAddressPendingTxQueryBuildSuccess{},
+				PendingTransactionQuery: &mockGetPendingTransactionsPendingTxQueryBuildSuccess{},
 				PendingSignatureQuery:   nil,
 				MultisignatureInfoQuery: nil,
 				Logger:                  nil,
 			},
 			args: args{
-				param: mockGetPendingTransactionByAddressExecutorCountFailParam,
+				param: mockGetPendingTransactionsExecutorCountFailParam,
 			},
-			want: &model.GetPendingTransactionByAddressResponse{
+			want: &model.GetPendingTransactionsResponse{
 				Count:               1,
 				Page:                1,
 				PendingTransactions: []*model.PendingTransaction{},
@@ -210,7 +210,7 @@ func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 				MultisignatureInfoQuery: tt.fields.MultisignatureInfoQuery,
 				Logger:                  tt.fields.Logger,
 			}
-			got, err := ms.GetPendingTransactionByAddress(tt.args.param)
+			got, err := ms.GetPendingTransactions(tt.args.param)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetPendingTransactionByAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -585,6 +585,240 @@ func TestNewMultisigService(t *testing.T) {
 				tt.args.executor, tt.args.blockService, tt.args.pendingTransactionQuery, tt.args.pendingSignatureQuery,
 				tt.args.multisignatureQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewMultisigService() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+var (
+	// mock GetMultisigInfo
+	mockGetMultisigInfoExecutorParam = &model.GetMultisignatureInfoRequest{
+		MultisigAddress: "abc",
+		Pagination: &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+			Page:       1,
+			Limit:      1,
+		},
+	}
+	// mock GetMultisigInfo
+)
+
+type (
+	mockGetMultisigInfoExecutorCountFailNoRow struct {
+		query.Executor
+	}
+	mockGetMultisigInfoExecutorCountFailOther struct {
+		query.Executor
+	}
+	mockGetMultisigInfoExecutorExecuteSelectError struct {
+		query.Executor
+	}
+	mockGetMultisigInfoExecutorSuccess struct {
+		query.Executor
+	}
+	mockGetMultisigInfoQueryBuildFail struct {
+		query.MultisignatureInfoQuery
+	}
+	mockGetMultisigInfoQueryBuildSuccess struct {
+		query.MultisignatureInfoQuery
+	}
+)
+
+func (*mockGetMultisigInfoExecutorCountFailNoRow) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorCountFailOther) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total", "Other", "Other"}).AddRow(1, 1, 1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorExecuteSelectError) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}).AddRow(1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorExecuteSelectError) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockGetMultisigInfoExecutorSuccess) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}).AddRow(1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigInfoExecutorSuccess) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"mockedColumn"}).AddRow(1))
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockGetMultisigInfoQueryBuildFail) BuildModel(
+	multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows,
+) ([]*model.MultiSignatureInfo, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockGetMultisigInfoQueryBuildSuccess) BuildModel(
+	multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows,
+) ([]*model.MultiSignatureInfo, error) {
+	return []*model.MultiSignatureInfo{}, nil
+}
+
+func TestMultisigService_GetMultisignatureInfo(t *testing.T) {
+	type fields struct {
+		Executor                query.ExecutorInterface
+		BlockService            service.BlockServiceInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		PendingSignatureQuery   query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
+		Logger                  *logrus.Logger
+	}
+	type args struct {
+		param *model.GetMultisignatureInfoRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetMultisignatureInfoResponse
+		wantErr bool
+	}{
+		{
+			name: "GetMultisignatureInfo-fail-countRow.Scan()-ErrorNoRow",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorCountFailNoRow{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-fail-countRow.Scan()-ErrorOther",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorCountFailOther{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-fail-multisigInfoExecuteSelect-Error",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorExecuteSelectError{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: nil,
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-fail-multisigInfoQueryBuild-Error",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorSuccess{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: &mockGetMultisigInfoQueryBuildFail{},
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo-success",
+			fields: fields{
+				Executor:                &mockGetMultisigInfoExecutorSuccess{},
+				BlockService:            nil,
+				PendingTransactionQuery: nil,
+				PendingSignatureQuery:   nil,
+				MultisignatureInfoQuery: &mockGetMultisigInfoQueryBuildSuccess{},
+				Logger:                  logrus.New(),
+			},
+			args: args{
+				param: mockGetMultisigInfoExecutorParam,
+			},
+			want: &model.GetMultisignatureInfoResponse{
+				Count:              1,
+				Page:               mockGetMultisigInfoExecutorParam.GetPagination().Page,
+				MultisignatureInfo: []*model.MultiSignatureInfo{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ms := &MultisigService{
+				Executor:                tt.fields.Executor,
+				BlockService:            tt.fields.BlockService,
+				PendingTransactionQuery: tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:   tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery: tt.fields.MultisignatureInfoQuery,
+				Logger:                  tt.fields.Logger,
+			}
+			got, err := ms.GetMultisignatureInfo(tt.args.param)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetMultisignatureInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetMultisignatureInfo() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
