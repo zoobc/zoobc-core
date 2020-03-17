@@ -52,6 +52,19 @@ func (es *Ed25519Signature) GetAddressFromSeed(seed string) string {
 	return result
 }
 
+// GetPublicKeyFromPrivateKey get public key bytes from private key
+func (es *Ed25519Signature) GetPublicKeyFromPrivateKey(privateKey []byte) ([]byte, error) {
+	if len(privateKey) != ed25519.PrivateKeySize {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid ed25519 private key")
+	}
+	return privateKey[32:], nil
+}
+
+// GetPublicKeyString will return string of row bytes public key
+func (*Ed25519Signature) GetPublicKeyString(publicKey []byte) string {
+	return base64.StdEncoding.EncodeToString(publicKey)
+}
+
 // GetPublicKeyFromAddress Get the raw public key from a formatted address
 func (*Ed25519Signature) GetPublicKeyFromAddress(address string) ([]byte, error) {
 	// decode base64 back to byte

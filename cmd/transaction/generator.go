@@ -250,13 +250,25 @@ func GenerateBasicTransaction(
 			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
-				err        error
+				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
+					senderSeed,
+					crypto.DefaultBitcoinPublicKeyFormat(),
+					crypto.DefaultBitcoinPrivateKeyLength(),
+				)
 			)
-			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
 			if err != nil {
-				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
+			}
+			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
+			if err != nil {
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
 			}
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
