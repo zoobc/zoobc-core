@@ -1,10 +1,12 @@
 package account
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	slip10 "github.com/zoobc/zoo-slip10"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -74,6 +76,7 @@ func init() {
 	accountCmd.AddCommand(randomAccountCmd)
 
 	fromSeedCmd.Flags().StringVar(&seed, "seed", "", "Seed that is used to generate the account")
+	fromSeedCmd.Flags().BoolVar(&hd, "hd", true, "--hd allow to generate account HD")
 	accountCmd.AddCommand(fromSeedCmd)
 
 	// multisig
@@ -95,17 +98,37 @@ func generateRandomAccount() {
 
 func generateAccountFromSeed(signatureType int32, seed string) {
 	var (
-		signature                                             = crypto.Signature{}
-		privateKey, publicKey, publickKeyString, address, err = signature.GenerateAccountFromSeed(model.SignatureType(signatureType), seed)
+		signature                        = crypto.Signature{}
+		seedBytes, privateKey, publicKey []byte
+		publicKeyString, address         string
+		err                              error
+		slip10Key                        *slip10.Key
 	)
-	if err != nil {
-		panic(err)
+
+	if hd {
+
+		seedBytes = slip10.NewSeed(seed, slip10.DefaultPassword)
+		slip10Key, err = slip10.DeriveForPath(slip10.StellarPrimaryAccountPath, seedBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		privateKey = slip10Key.Key
+		publicKey, _ = slip10Key.PublicKey()
+		publicKeyString = base64.StdEncoding.EncodeToString(publicKey)
+		address, _ = crypto.NewEd25519Signature().GetAddressFromPublicKey(publicKey)
+	} else {
+		privateKey, publicKey, publicKeyString, address, err = signature.GenerateAccountFromSeed(model.SignatureType(signatureType), seed)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 	fmt.Printf("signature type: %s\n", model.SignatureType_name[signatureType])
 	fmt.Printf("seed: %s\n", seed)
 	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
 	fmt.Printf("public key bytes: %v\n", publicKey)
-	fmt.Printf("public key string : %v\n", publickKeyString)
+	fmt.Printf("public key string : %v\n", publicKeyString)
 	fmt.Printf("private key bytes: %v\n", privateKey)
 	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey))
 	fmt.Printf("address: %s\n", address)
