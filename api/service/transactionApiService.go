@@ -99,7 +99,7 @@ func (ts *TransactionService) GetTransactions(
 ) (*model.GetTransactionsResponse, error) {
 	var (
 		err          error
-		rows         *sql.Rows
+		rowCount     *sql.Row
 		rows2        *sql.Rows
 		txs          []*model.Transaction
 		selectQuery  string
@@ -146,19 +146,15 @@ func (ts *TransactionService) GetTransactions(
 
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
+	rowCount, err = ts.Query.ExecuteSelectRow(countQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&totalRecords,
-		)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	err = rowCount.Scan(
+		&totalRecords,
+	)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Get Transactions with Pagination
