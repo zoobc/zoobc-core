@@ -76,12 +76,12 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 	)
 
-	if block.Height <= constant.MinRollbackBlocks {
-		return nil, blocker.NewBlocker(blocker.ValidationErr,
-			fmt.Sprintf("invalid snapshot height: %d", block.Height))
-	}
 	// (safe) height to get snapshot's data from
 	snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
+	if block.Height <= constant.MinRollbackBlocks {
+		return nil, blocker.NewBlocker(blocker.ValidationErr,
+			fmt.Sprintf("invalid snapshot height: %d", int32(snapshotPayloadHeight)))
+	}
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
@@ -163,13 +163,10 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 
 // IsSnapshotHeight returns true if chain height passed is a snapshot height
 func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
-	snapshotInterval := ss.chainType.GetSnapshotInterval()
-	if snapshotInterval < constant.MinRollbackBlocks {
-		if height < constant.MinRollbackBlocks {
-			return false
-		}
-		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	if height <= constant.MinRollbackBlocks {
+		return false
 	}
+	snapshotInterval := ss.chainType.GetSnapshotInterval()
 	return height%snapshotInterval == 0
 
 }

@@ -65,7 +65,7 @@ func TestSnapshotMainBlockService_IsSnapshotHeight(t *testing.T) {
 			args: args{
 				height: constant.MinRollbackBlocks,
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name: "IsSnapshotHeight_{interval_lower_than_minRollback_3}:",
