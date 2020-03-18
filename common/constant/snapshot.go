@@ -12,7 +12,5 @@ const (
 	// @iltoga reduce to 1 for testing locally
 	SnapshotChunkSize int = int(100 * 1024) // 10 KB
 	// DownloadSnapshotNumberOfRetries number of times to retry downloading failed snapshot file chunks from other peers
-	// @iltoga for now we set this to MaxResolvedPeers so that if a file fails to download the node will cycle trough all resolved peers
-	// until it is downloaded or it fails
-	DownloadSnapshotNumberOfRetries = uint32(MaxResolvedPeers)
+	DownloadSnapshotNumberOfRetries uint32 = 5
 )

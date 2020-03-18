@@ -9,7 +9,7 @@ const (
 	// LinkedReceiptScore the score for each receipt that can't proved have relation with previous published receipt via merkle root
 	UnlinkedReceiptScore float32 = 0.5
 	// MaxScoreChange the maximum score that node wll get
-	MaxScoreChange = 100000000 * int64(ScalarReceiptScore)
+	MaxScoreChange = 10 * int64(ScalarReceiptScore)
 	// punishment amount
 	ParticipationScorePunishAmount = -1 * MaxScoreChange / 2
 	// MaxReceipt the maximum receipt will publish in every block
