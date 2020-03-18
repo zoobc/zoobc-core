@@ -417,6 +417,32 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureTy
 	return signedTxBytes
 }
 
+func GenerateSignedTxBytesScheduler(tx *model.Transaction, senderSeed string, privateKey []byte, signatureType int32) []byte {
+	var (
+		transactionUtil = &transaction.Util{}
+		txType          transaction.TypeAction
+	)
+	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	minimumFee, err := txType.GetMinimumFee()
+	if err != nil {
+		log.Fatalln("error = ", err)
+	}
+	tx.Fee += minimumFee
+
+	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
+	if senderSeed == "" {
+		return unsignedTxBytes
+	}
+	tx.Signature, _ = signature.SignTest(
+		unsignedTxBytes,
+		model.SignatureType(signatureType),
+		senderSeed,
+		privateKey,
+	)
+	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
+	return signedTxBytes
+}
+
 // GenerateEscrowApprovalTransaction set escrow approval body
 func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction {
 
