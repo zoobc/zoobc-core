@@ -1,20 +1,28 @@
 version: 2
+defaults: &defaults
+    working_directory: ~/zoobc
+    docker:
+        - image: circleci/golang:1.14.0-stretch
 jobs:
     prepare:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - run:
                   name: SSH
-                  command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
+#                 command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
+                  command: git config --global url."https://github:607ce9de25dafc1029709aee756af723c107d31f@github.com".insteadOf "https://github.com"
             - checkout
+            - add_ssh_keys
+            - run:
+                  name: ENV SET
+                  command: |
+                      echo 'export GOPRIVATE=github.com/zoobc/*' >> $BASH_ENV
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
                   name: GOMOD
                   command: |
-                      if [ ! -d ls | grep go.mod ]; then
+                      if ! [ -f "go.mod" ]; then
                           go mod init
                       fi
                       go mod download
@@ -23,9 +31,7 @@ jobs:
                   paths:
                       - /go/pkg/mod
     test:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         environment:
             - GOLANGCI_LINT: 1.20.0
         steps:
@@ -56,9 +62,7 @@ jobs:
                   paths:
                       - /go/pkg/mod
     build:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - checkout
             - restore_cache:
@@ -77,15 +81,13 @@ jobs:
                   name: BUILD
                   command: |
                       go build -o ./dist/zoobc
-            #                   rsync -va --exclude='*.db' ./resource ./dist
+#                       rsync -va --exclude='*.db' ./resource ./dist
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:
                       - ./dist
     deploy-develop:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - checkout
             - add_ssh_keys
@@ -115,9 +117,7 @@ jobs:
                   command: |
                       for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
     deploy-staging:
-        working_directory: ~/zoobc
-        docker:
-            - image: circleci/golang:1.14.0-stretch
+        <<: *defaults
         steps:
             - checkout
             - add_ssh_keys
