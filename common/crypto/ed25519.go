@@ -53,7 +53,7 @@ func (es *Ed25519Signature) GetAddressFromSeed(seed string) string {
 }
 
 // GetPublicKeyFromPrivateKey get public key bytes from private key
-func (es *Ed25519Signature) GetPublicKeyFromPrivateKey(privateKey []byte) ([]byte, error) {
+func (*Ed25519Signature) GetPublicKeyFromPrivateKey(privateKey []byte) ([]byte, error) {
 	if len(privateKey) != ed25519.PrivateKeySize {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid ed25519 private key")
 	}

@@ -84,7 +84,7 @@ func (b *BitcoinSignature) GetPrivateKeyFromSeed(
 		// Convert seed (secret phrase) to byte array
 		seedBuffer = []byte(seed)
 		hasher     hash.Hash
-		err        error
+		privateKey *btcec.PrivateKey
 	)
 	switch privkeyLength {
 	case model.PrivateKeyBytesLength_PrivateKey256Bits:
@@ -96,14 +96,8 @@ func (b *BitcoinSignature) GetPrivateKeyFromSeed(
 	default:
 		return nil, blocker.NewBlocker(blocker.AppErr, "invalidPrivateKeyLength")
 	}
-
-	_, err = hasher.Write(seedBuffer)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
-	}
-	var (
-		privateKey, _ = btcec.PrivKeyFromBytes(b.Curve, hasher.Sum(nil))
-	)
+	hasher.Write(seedBuffer)
+	privateKey, _ = btcec.PrivKeyFromBytes(b.Curve, hasher.Sum(nil))
 	return privateKey, nil
 }
 
@@ -126,7 +120,7 @@ func (b *BitcoinSignature) GetPublicKeyFromSeed(
 
 // GetPublicKeyFromPrivateKey get raw public key from private key
 // public key format : https://bitcoin.org/en/wallets-guide#public-key-formats
-func (b *BitcoinSignature) GetPublicKeyFromPrivateKey(
+func (*BitcoinSignature) GetPublicKeyFromPrivateKey(
 	privateKey *btcec.PrivateKey,
 	format model.BitcoinPublicKeyFormat,
 ) ([]byte, error) {
