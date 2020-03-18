@@ -498,7 +498,9 @@ func TestPendingSignatureQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   10,
 			},
 			want: "SELECT transaction_hash,account_address,signature,block_height," +
-				"latest FROM pending_signature WHERE latest = 1 AND block_height >= 1 AND block_height <= 10 ORDER BY block_height DESC",
+				"latest FROM pending_signature WHERE block_height >= 1 AND block_height <= 10 AND (block_height) IN (SELECT (MAX(t2." +
+				"block_height) || '_' || t2.account_address || '_' || t2.transaction_hash) as con FROM pending_signature t2 GROUP BY t2." +
+				"account_address || '_' || t2.transaction_hash) ORDER BY block_height DESC",
 		},
 	}
 	for _, tt := range tests {

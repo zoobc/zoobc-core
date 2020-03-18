@@ -26,7 +26,6 @@ type (
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
-		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	PendingTransactionQuery struct {
@@ -180,8 +179,10 @@ func (ptq *PendingTransactionQuery) Rollback(height uint32) (multiQueries [][]in
 }
 
 func (ptq *PendingTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
-		strings.Join(ptq.Fields, ","), ptq.TableName, fromHeight, toHeight)
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (
+               block_height || '_' || transaction_hash) IN (SELECT (MAX(
+               block_height) || '_' || transaction_hash) as con FROM %s GROUP BY transaction_hash) ORDER BY block_height DESC`,
+		strings.Join(ptq.Fields, ","), ptq.TableName, fromHeight, toHeight, ptq.TableName)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot

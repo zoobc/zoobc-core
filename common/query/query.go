@@ -52,6 +52,7 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 	switch ct.(type) {
 	case *chaintype.MainChain:
 		snapshotQuery = map[string]SnapshotQuery{
+			"block":              NewBlockQuery(ct),
 			"accountBalance":     NewAccountBalanceQuery(),
 			"nodeRegistration":   NewNodeRegistrationQuery(),
 			"accountDataset":     NewAccountDatasetsQuery(),

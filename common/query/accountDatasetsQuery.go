@@ -23,7 +23,6 @@ type (
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
-		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 )
 
@@ -290,11 +289,19 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 }
 
 func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER BY height DESC",
-		strings.Join(adq.GetFields(), ","),
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d AND (%s) IN (
+					SELECT (%s) as con
+					FROM %s
+					GROUP BY %s
+				) ORDER BY height DESC`,
+		strings.Join(adq.PrimaryFields, " || '_' || "),
 		adq.TableName,
 		fromHeight,
 		toHeight,
+		strings.Join(adq.PrimaryFields, " || '_' || "),
+		fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(adq.PrimaryFields[:3], " || '_' || ")),
+		adq.TableName,
+		strings.Join(adq.PrimaryFields[:3], ", "),
 	)
 }
 

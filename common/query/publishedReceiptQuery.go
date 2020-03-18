@@ -16,7 +16,6 @@ type (
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
 		BuildModel(prs []*model.PublishedReceipt, rows *sql.Rows) ([]*model.PublishedReceipt, error)
-		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	PublishedReceiptQuery struct {

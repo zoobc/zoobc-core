@@ -24,7 +24,6 @@ type (
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
 		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error)
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
-		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 )
 
@@ -181,8 +180,13 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 }
 
 func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
-		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight)
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (
+                block_height || '_' || account_address) IN (
+				SELECT (MAX(block_height) || '_' || account_address) as con
+				FROM %s
+				GROUP BY account_address
+			) ORDER BY block_height DESC`,
+		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight, q.TableName)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot

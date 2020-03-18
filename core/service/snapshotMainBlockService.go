@@ -27,6 +27,7 @@ type (
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 )
@@ -45,6 +46,7 @@ func NewSnapshotMainBlockService(
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
 	pendingSignatureQuery query.PendingSignatureQueryInterface,
 	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
+	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
@@ -62,6 +64,7 @@ func NewSnapshotMainBlockService(
 		PendingTransactionQuery:    pendingTransactionQuery,
 		PendingSignatureQuery:      pendingSignatureQuery,
 		MultisignatureInfoQuery:    multisignatureInfoQuery,
+		BlockQuery:                 blockQuery,
 		SnapshotQueries:            snapshotQueries,
 	}
 }
@@ -101,6 +104,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 			}
 			defer rows.Close()
 			switch qryRepoName {
+			case "block":
+				snapshotPayload.Blocks, err = ss.BlockQuery.BuildModel([]*model.Block{}, rows)
 			case "accountBalance":
 				snapshotPayload.AccountBalances, err = ss.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 			case "nodeRegistration":
@@ -183,77 +188,82 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 	}
 
 	dummyArgs := make([]interface{}, 0)
-	qry := ss.AccountBalanceQuery.TrimDataBeforeSnapshot(0, height)
-	queries = append(queries,
-		append(
-			[]interface{}{qry}, dummyArgs...),
-	)
-	for _, rec := range payload.AccountBalances {
-		qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
+	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
+		qry := snapshotQuery.TrimDataBeforeSnapshot(0, height)
 		queries = append(queries,
 			append(
-				[]interface{}{qry}, args...),
+				[]interface{}{qry}, dummyArgs...),
 		)
 
-	}
-
-	qry = ss.NodeRegistrationQuery.TrimDataBeforeSnapshot(0, height)
-	queries = append(queries,
-		append(
-			[]interface{}{qry}, dummyArgs...),
-	)
-	for _, rec := range payload.NodeRegistrations {
-		qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, args...),
-		)
-	}
-
-	qry = ss.PublishedReceiptQuery.TrimDataBeforeSnapshot(0, height)
-	queries = append(queries,
-		append(
-			[]interface{}{qry}, dummyArgs...),
-	)
-	for _, rec := range payload.PublishedReceipts {
-		qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, args...),
-		)
-	}
-
-	qry = ss.ParticipationScoreQuery.TrimDataBeforeSnapshot(0, height)
-	queries = append(queries,
-		append(
-			[]interface{}{qry}, dummyArgs...),
-	)
-	for _, rec := range payload.ParticipationScores {
-		qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, args...),
-		)
-	}
-
-	qry = ss.EscrowTransactionQuery.TrimDataBeforeSnapshot(0, height)
-	queries = append(queries,
-		append(
-			[]interface{}{qry}, dummyArgs...),
-	)
-	for _, rec := range payload.EscrowTransactions {
-		qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
-		queries = append(queries, qryArgs...)
-	}
-
-	qry = ss.AccountDatasetQuery.TrimDataBeforeSnapshot(0, height)
-	queries = append(queries,
-		append(
-			[]interface{}{qry}, dummyArgs...),
-	)
-	for _, rec := range payload.AccountDatasets {
-		qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
-		queries = append(queries, qryArgs...)
+		switch qryRepoName {
+		case "block":
+			for _, rec := range payload.Blocks {
+				qry, args := ss.BlockQuery.InsertBlock(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "accountBalance":
+			for _, rec := range payload.AccountBalances {
+				qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "nodeRegistration":
+			for _, rec := range payload.NodeRegistrations {
+				qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "accountDataset":
+			for _, rec := range payload.AccountDatasets {
+				qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "participationScore":
+			for _, rec := range payload.ParticipationScores {
+				qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "publishedReceipt":
+			for _, rec := range payload.PublishedReceipts {
+				qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "escrowTransaction":
+			for _, rec := range payload.EscrowTransactions {
+				qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "pendingTransaction":
+			for _, rec := range payload.PendingTransactions {
+				qryArgs := ss.PendingTransactionQuery.InsertPendingTransaction(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "pendingSignature":
+			for _, rec := range payload.PendingSignatures {
+				qryArgs := ss.PendingSignatureQuery.InsertPendingSignature(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "multisignatureInfo":
+			for _, rec := range payload.MultiSignatureInfos {
+				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
+				queries = append(queries, qryArgs...)
+			}
+		default:
+			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
+		}
 	}
 
 	err = ss.QueryExecutor.ExecuteTransactions(queries)

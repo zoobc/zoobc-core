@@ -21,7 +21,6 @@ type (
 		Scan(participationScore *model.ParticipationScore, row *sql.Row) error
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
-		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	ParticipationScoreQuery struct {
@@ -205,8 +204,12 @@ func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row)
 }
 
 func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER by height DESC",
-		strings.Join(ps.Fields, ", "), ps.getTableName(), fromHeight, toHeight)
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d AND (height || '_' || node_id) IN (
+				SELECT (MAX(height) || '_' || node_id) as con
+				FROM %s
+				GROUP BY node_id
+			) ORDER by height DESC`,
+		strings.Join(ps.Fields, ", "), ps.getTableName(), fromHeight, toHeight, ps.getTableName())
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot

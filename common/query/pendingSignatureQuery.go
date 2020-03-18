@@ -18,7 +18,6 @@ type (
 		Scan(pendingSig *model.PendingSignature, row *sql.Row) error
 		ExtractModel(pendingSig *model.PendingSignature) []interface{}
 		BuildModel(pendingSigs []*model.PendingSignature, rows *sql.Rows) ([]*model.PendingSignature, error)
-		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
 
 	PendingSignatureQuery struct {
@@ -147,8 +146,11 @@ func (psq *PendingSignatureQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (psq *PendingSignatureQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE latest = 1 AND block_height >= %d AND block_height <= %d ORDER BY block_height DESC`,
-		strings.Join(psq.Fields, ","), psq.TableName, fromHeight, toHeight)
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (
+               block_height || '_' || account_address || '_' || transaction_hash) IN (SELECT (MAX(
+               block_height) || '_' || account_address || '_' || transaction_hash) as con FROM %s
+               GROUP BY account_address || '_' || transaction_hash) ORDER BY block_height DESC`,
+		strings.Join(psq.Fields, ","), psq.TableName, fromHeight, toHeight, psq.TableName)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot

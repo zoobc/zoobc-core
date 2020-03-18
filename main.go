@@ -190,6 +190,7 @@ func init() {
 		query.NewPendingTransactionQuery(),
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
+		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 	)
 
