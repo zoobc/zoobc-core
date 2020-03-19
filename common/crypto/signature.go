@@ -2,11 +2,6 @@ package crypto
 
 import (
 	"bytes"
-<<<<<<< HEAD
-	"encoding/base64"
-	"fmt"
-=======
->>>>>>> e7cc42b71f6de6c099d76d4eaff9ddf0ae1a2e6d
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
