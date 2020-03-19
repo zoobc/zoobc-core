@@ -21,3 +21,5 @@ resource_cluster/zoobc_*
 cmd/*.new
 accounts.txt
 .manual
+release/
+github.token
