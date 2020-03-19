@@ -138,7 +138,7 @@ func (bs *BlockSpineService) GetBlocksmithStrategy() strategy.BlocksmithStrategy
 
 // ChainWriteLock locks the chain
 func (bs *BlockSpineService) ChainWriteLock(actionType int) {
-	monitoring.IncrementStatusLockCounter(actionType)
+	monitoring.IncrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Lock()
 	monitoring.SetBlockchainStatus(bs.Chaintype, actionType)
 }
@@ -146,7 +146,7 @@ func (bs *BlockSpineService) ChainWriteLock(actionType int) {
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockSpineService) ChainWriteUnlock(actionType int) {
 	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
-	monitoring.DecrementStatusLockCounter(actionType)
+	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Unlock()
 }
 

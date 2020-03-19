@@ -95,8 +95,9 @@ func (rs *ReceiptService) SelectReceipts(
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
 		// this variable is to store picked receipt recipient to avoid duplicates
-		pickedRecipients = make(map[string]bool)
-		lowerBlockHeight uint32
+		pickedRecipients  = make(map[string]bool)
+		lowerBlockHeight  uint32
+		linkedReceiptTree = make(map[string][]byte)
 	)
 
 	if numberOfReceipt < 1 { // possible no connected node
@@ -106,17 +107,24 @@ func (rs *ReceiptService) SelectReceipts(
 	if lastBlockHeight > constant.MinRollbackBlocks {
 		lowerBlockHeight = lastBlockHeight - constant.MinRollbackBlocks
 	}
-	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
-		lowerBlockHeight,
-		lastBlockHeight,
-		numberOfReceipt*constant.ReceiptBatchPickMultiplier)
-	linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
-	if err != nil {
-		return nil, err
-	}
-	defer linkedTreeRows.Close()
 
-	linkedReceiptTree, err := rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
+	err := func() error {
+		treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
+			lowerBlockHeight,
+			lastBlockHeight,
+			numberOfReceipt*constant.ReceiptBatchPickMultiplier)
+		linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
+		if err != nil {
+			return err
+		}
+		defer linkedTreeRows.Close()
+
+		linkedReceiptTree, err = rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
+		if err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
 		return nil, err
 	}
