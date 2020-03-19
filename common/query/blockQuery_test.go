@@ -357,7 +357,7 @@ func TestBlockQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,block_hash,previous_block_hash,height,timestamp,block_seed,block_signature," +
 				"cumulative_difficulty,payload_length,payload_hash,blocksmith_public_key,total_amount,total_fee,total_coinbase," +
-				"version FROM block WHERE block_height = 10",
+				"version FROM main_block WHERE block_height = 10",
 		},
 	}
 	for _, tt := range tests {
@@ -397,7 +397,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM block WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM main_block WHERE block_height >= 0 AND block_height <= 10",
 		},
 	}
 	for _, tt := range tests {
