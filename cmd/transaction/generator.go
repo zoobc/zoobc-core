@@ -331,25 +331,13 @@ func GenerateBasicTransaction(
 			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
-					senderSeed,
-					crypto.DefaultBitcoinPublicKeyFormat(),
-					crypto.DefaultBitcoinPrivateKeyLength(),
-				)
+				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
+				err        error
 			)
+			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
 			if err != nil {
-				panic(fmt.Sprintln(
-					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
-					err.Error(),
-				))
-			}
-			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
-			if err != nil {
-				panic(fmt.Sprintln(
-					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
-					err.Error(),
-				))
+				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
 			}
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
@@ -429,27 +417,24 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureTy
 	return signedTxBytes
 }
 
-func GenerateSignedTxBytesScheduler(tx *model.Transaction, senderSeed string, privateKey []byte, signatureType int32) []byte {
+func GenerateSignedTxBytesScheduler(tx *model.Transaction, senderSeed string, PrivateKey []byte, signatureType int32) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
 		txType          transaction.TypeAction
 	)
 	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
-	minimumFee, err := txType.GetMinimumFee()
-	if err != nil {
-		log.Fatalln("error = ", err)
-	}
+	minimumFee, _ := txType.GetMinimumFee()
 	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
-	tx.Signature, _ = signature.SignTest(
+	tx.Signature, _ = signature.SignHDWallet(
 		unsignedTxBytes,
 		model.SignatureType(signatureType),
 		senderSeed,
-		privateKey,
+		PrivateKey,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
 	return signedTxBytes
@@ -544,7 +529,7 @@ func GeneratedMultiSignatureTransaction(
 			return nil
 		}
 		for k, v := range addressSignatures {
-			if v == "" {
+			if k == "" {
 				sigType := util.ConvertUint32ToBytes(2)
 				signatures[k] = sigType
 			} else {
@@ -555,7 +540,6 @@ func GeneratedMultiSignatureTransaction(
 				signatures[k] = signature
 			}
 		}
-		fmt.Printf("signatures: %v\n\n\n", signatures)
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
 			Signatures:      signatures,
