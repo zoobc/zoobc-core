@@ -479,8 +479,10 @@ func TestEscrowTransactionQuery_GetEscrowTransactions(t *testing.T) {
 			}
 
 			// perhaps tt.want1 is []int without string or any other types and sort it
-			if !cmp.Equal(got1, tt.want1, cmp.Transformer("Sort", func(in []int) []int {
-				sort.Ints(in)
+			if !cmp.Equal(got1, tt.want1, cmp.Transformer("Sort", func(in []interface{}) []interface{} {
+				sort.Slice(in, func(i, j int) bool {
+					return in[i].(int) < in[j].(int)
+				})
 				return in
 			})) {
 				t.Errorf("GetEscrowTransactions() got1 = \n%v, want \n%v", got1, tt.want1)

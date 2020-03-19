@@ -6,4 +6,5 @@ var (
 	multisigMinimSigs uint32
 	multiSigNonce     int64
 	signatureType     int32
+	hd                bool
 )

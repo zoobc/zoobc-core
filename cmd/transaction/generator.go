@@ -331,13 +331,25 @@ func GenerateBasicTransaction(
 			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
-				err        error
+				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
+					senderSeed,
+					crypto.DefaultBitcoinPublicKeyFormat(),
+					crypto.DefaultBitcoinPrivateKeyLength(),
+				)
 			)
-			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
 			if err != nil {
-				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
+			}
+			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
+			if err != nil {
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
 			}
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
@@ -532,7 +544,7 @@ func GeneratedMultiSignatureTransaction(
 			return nil
 		}
 		for k, v := range addressSignatures {
-			if k == "" {
+			if v == "" {
 				sigType := util.ConvertUint32ToBytes(2)
 				signatures[k] = sigType
 			} else {
@@ -543,6 +555,7 @@ func GeneratedMultiSignatureTransaction(
 				signatures[k] = signature
 			}
 		}
+		fmt.Printf("signatures: %v\n\n\n", signatures)
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
 			Signatures:      signatures,

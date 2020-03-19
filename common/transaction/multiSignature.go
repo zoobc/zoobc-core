@@ -22,6 +22,7 @@ type (
 	// MultiSignatureTransaction represent wrapper transaction type that require multiple signer to approve the transcaction
 	// wrapped
 	MultiSignatureTransaction struct {
+		ID                  int64
 		SenderAddress       string
 		Fee                 int64
 		QueryExecutor       query.ExecutorInterface
@@ -39,6 +40,7 @@ type (
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		TransactionQuery        query.TransactionQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
 )
 
@@ -170,6 +172,19 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		if err != nil {
 			return err
 		}
+	}
+	// sender ledger
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  -tx.Fee,
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventMultiSignatureTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+	err = tx.QueryExecutor.ExecuteTransaction(senderAccountLedgerQ, senderAccountLedgerArgs...)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -312,7 +327,10 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			}
 			err := tx.Signature.VerifySignature(body.SignatureInfo.TransactionHash, sig, addr)
 			if err != nil {
-				return err
+				signatureType := util.ConvertBytesToUint32(sig[:])
+				if model.SignatureType(signatureType) != model.SignatureType_MultisigSignature {
+					return err
+				}
 			}
 		}
 	}
