@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -60,7 +61,8 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	defer nodeRow.Close()
 	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	if (err != nil) || len(nodeRegistrations) == 0 {
-		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
+		// return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("%v", err))
 	}
 
 	prevNodeRegistration := nodeRegistrations[0]
@@ -159,9 +161,11 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 	defer nodeRow.Close()
+	fmt.Println(nodeRow)
 	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
 	if (err != nil) || len(nodeRegistrations) == 0 {
-		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
+		// return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("%v", err))
 	}
 	nr := nodeRegistrations[0]
 	// sender must be node owner

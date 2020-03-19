@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -14,6 +15,7 @@ type (
 	// SignatureInterface represent interface of signature
 	SignatureInterface interface {
 		Sign(payload []byte, signatureType model.SignatureType, seed string) ([]byte, error)
+		SignTest(payload []byte, signatureType model.SignatureType, seed string, privateKey []byte) ([]byte, error)
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
@@ -44,7 +46,43 @@ func (*Signature) Sign(payload []byte, signatureType model.SignatureType, seed s
 		var (
 			ed25519Signature  = NewEd25519Signature()
 			accountPrivateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
-			signature         = ed25519Signature.Sign(accountPrivateKey, payload)
+
+			signature = ed25519Signature.Sign(accountPrivateKey, payload)
+		)
+		fmt.Println("PRIVATE KEY = ", accountPrivateKey)
+		buffer.Write(signature)
+		return buffer.Bytes(), nil
+	case model.SignatureType_BitcoinSignature:
+		var (
+			bitcoinSignature  = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
+			accountPrivateKey = bitcoinSignature.GetPrivateKeyFromSeed(seed)
+			signature, err    = bitcoinSignature.Sign(accountPrivateKey, payload)
+		)
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(signature)
+		return buffer.Bytes(), nil
+	default:
+		return nil, blocker.NewBlocker(
+			blocker.AppErr,
+			"InvalidSignatureType",
+		)
+	}
+}
+
+// Sign accept account ID and payload to be signed then return the signature byte based on the
+// signature method associated with account.Type
+func (*Signature) SignTest(payload []byte, signatureType model.SignatureType, seed string, privateKey []byte) ([]byte, error) {
+	buffer := bytes.NewBuffer([]byte{})
+	buffer.Write(util.ConvertUint32ToBytes(uint32(signatureType)))
+	switch signatureType {
+	case model.SignatureType_DefaultSignature:
+		var (
+			ed25519Signature = NewEd25519Signature()
+			// accountPrivateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+
+			signature = ed25519Signature.Sign(privateKey, payload)
 		)
 		buffer.Write(signature)
 		return buffer.Bytes(), nil
