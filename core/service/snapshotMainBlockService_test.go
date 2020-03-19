@@ -209,6 +209,10 @@ type (
 		query.MultisignatureInfoQueryInterface
 		success bool
 	}
+	mockSnapshotBlockQuery struct {
+		query.BlockQueryInterface
+		success bool
+	}
 )
 
 var (
@@ -370,6 +374,12 @@ func (*mockSnapshotMultisignatureInfoQuery) BuildModel(multisignatureInfo []*mod
 	return []*model.MultiSignatureInfo{}, nil
 }
 
+func (*mockSnapshotBlockQuery) BuildModel(blocks []*model.Block,
+	rows *sql.Rows) ([]*model.Block,
+	error) {
+	return []*model.Block{}, nil
+}
+
 func (*mockSnapshotEscrowTransactionQuery) BuildModels(*sql.Rows) ([]*model.Escrow, error) {
 	return []*model.Escrow{
 		escrowTx1,
@@ -446,6 +456,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 	type args struct {
@@ -480,6 +491,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
 				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
@@ -497,28 +509,6 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 			},
 		},
-		// {
-		// 	name: "NewSnapshotFile:fail-{GetAccountBalances}",
-		// 	fields: fields{
-		// 		chainType: &mockChainType{
-		// 			SnapshotGenerationTimeout: 1,
-		// 		},
-		// 		QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
-		// 		AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: false},
-		// 		NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
-		// 		ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
-		// 		AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
-		// 		EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
-		// 		PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
-		// 		SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
-		// 	},
-		// 	args: args{
-		// 		block: blockForSnapshot1,
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// 	errMsg:  "AccountBalanceQueryFailed",
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -537,6 +527,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
 				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
@@ -577,6 +568,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 	type args struct {
@@ -614,6 +606,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
 				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
@@ -647,6 +640,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
 				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
@@ -672,6 +666,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
 				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
@@ -726,6 +721,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
 	tests := []struct {
@@ -755,6 +751,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: query.NewPendingTransactionQuery(),
 				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
 				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
 		},
@@ -776,6 +773,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
 				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
