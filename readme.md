@@ -49,14 +49,25 @@ Table of Contents:
 
 ### Build
 
-note: For cross compilation please install and activate docker.
+-   Core
 
-For:
+    note: For cross compilation please install and activate docker.
 
--   host: `go build -o zoobc`
--   darwin: `make VERSION=v1.10.1 darwin`
--   linux (386 & amd64): `make VERSION=v1.10.1 linux`
--   windows (32 & 64bit): `make VERSION=v1.10.1 windows`
+    For:
+
+    -   host: `go build -o zoobc`
+    -   darwin: `make VERSION=v1.10.1 core-darwin`
+    -   linux (386 & amd64): `make VERSION=v1.10.1 core-linux`
+    -   windows (32 & 64bit): `make VERSION=v1.10.1 core-windows`
+
+-   CMD
+
+    For:
+
+    -   host: `go build -o zoobc`
+    -   darwin: `make VERSION=v1.10.1 cmd-darwin`
+    -   linux (386 & amd64): `make VERSION=v1.10.1 cmd-linux`
+    -   windows (32 & 64bit): `make VERSION=v1.10.1 cmd-windows`
 
 ### Run
 

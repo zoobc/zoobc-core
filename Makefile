@@ -25,20 +25,38 @@ build:
 	mkdir -p release
 	go build -o release/$(BINARY_CORE)-$(VERSION)
 
-.PHONY: linux
-linux: $(XGO)
+.PHONY: core-linux
+core-linux: $(XGO)
 	mkdir -p release
 	xgo --targets=linux/amd64 -out=release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
 
-.PHONY: windows
-windows: $(XGO)
+.PHONY: core-windows
+core-windows: $(XGO)
 	mkdir -p release
 	xgo --targets=windows/* -out=release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
 
-.PHONY: darwin
-darwin: $(XGO)
+.PHONY: core-darwin
+core-darwin: $(XGO)
 	mkdir -p release
 	xgo --targets=darwin/* -out=release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
 
-.PHONY: release
-release: linux
+.PHONY: cmd-darwin
+cmd-darwin: $(XGO)
+	mkdir -p cmd/release
+	xgo --targets=darwin/* -out=cmd/release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+
+.PHONY: cmd-linux
+cmd-linux: $(XGO)
+	mkdir -p release
+	xgo --targets=linux/amd64 -out=cmd/release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+
+.PHONY: cmd-windows
+cmd-windows: $(XGO)
+	mkdir -p release
+	xgo --targets=windows/* -out=cmd/release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+
+.PHONY: release-core
+release-core: core-linux
+
+.PHONY: release-cmd
+release-cmd: cmd-linux
