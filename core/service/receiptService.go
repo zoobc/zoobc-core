@@ -104,8 +104,8 @@ func (rs *ReceiptService) SelectReceipts(
 		return []*model.PublishedReceipt{}, nil
 	}
 	// get the last merkle tree we have build so far
-	if lastBlockHeight > constant.NodeReceiptExpiryBlockHeight {
-		lowerBlockHeight = lastBlockHeight - constant.NodeReceiptExpiryBlockHeight
+	if lastBlockHeight > constant.MinRollbackBlocks {
+		lowerBlockHeight = lastBlockHeight - constant.MinRollbackBlocks
 	}
 
 	err := func() error {
