@@ -33,7 +33,7 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	var (
 		err               error
-		rows              *sql.Rows
+		rowCount          *sql.Row
 		rows2             *sql.Rows
 		selectQuery       string
 		args              []interface{}
@@ -57,19 +57,15 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	// count first
 	selectQuery, args = caseQuery.Build()
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ns.Query.ExecuteSelect(countQuery, false, args...)
+	rowCount, err = ns.Query.ExecuteSelectRow(countQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&totalRecords,
-		)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	err = rowCount.Scan(
+		&totalRecords,
+	)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if page.GetOrderField() == "" {
