@@ -394,10 +394,19 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			name:   "TrimDataBeforeSnapshot:success",
 			fields: fields(*mockBlockQuery),
 			args: args{
+				fromHeight: 1,
+				toHeight:   10,
+			},
+			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+		},
+		{
+			name:   "TrimDataBeforeSnapshot:success-{startFromGenesis}",
+			fields: fields(*mockBlockQuery),
+			args: args{
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 0 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
 		},
 	}
 	for _, tt := range tests {
