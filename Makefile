@@ -14,7 +14,7 @@ $(GOLANGCILINT):
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.20.0
 
 $(XGO):
-	go get github.com/karalabe/xgo
+	go get github.com/zoobc/xgo
 
 .PHONY: lint
 lint: $(GOLANGCILINT)
@@ -36,7 +36,7 @@ windows: $(XGO)
 	xgo --targets=windows/* -out=release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
 
 .PHONY: darwin
-darwin:
+darwin: $(XGO)
 	mkdir -p release
 	xgo --targets=darwin/* -out=release/$(BINARY_CORE)-$(VERSION) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
 
