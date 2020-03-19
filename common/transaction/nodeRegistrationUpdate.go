@@ -238,37 +238,49 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		tx.BlockQuery); err != nil {
 		return err
 	}
-	// check that sender is node's owner
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+	err := func() error {
+		// check that sender is node's owner
+		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+		if (err != nil) || len(tempNodeRegistrationResult) > 0 {
+			prevNodeRegistration = tempNodeRegistrationResult[0]
+			if prevNodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+				return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
+			}
+		} else {
+			return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
+		}
+		return nil
+	}()
 	if err != nil {
 		return err
-	}
-	defer rows.Close()
-
-	tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
-	if (err != nil) || len(tempNodeRegistrationResult) > 0 {
-		prevNodeRegistration = tempNodeRegistrationResult[0]
-		if prevNodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
-			return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
-		}
-	} else {
-		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
-		rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
-			GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+		err := func() error {
+			rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
+				GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+			if err != nil {
+				return err
+			}
+			defer rows2.Close()
+
+			tempNodeRegistrationResult2, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
+			if (err != nil) || len(tempNodeRegistrationResult2) > 0 {
+				return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
+			}
+			return nil
+		}()
 		if err != nil {
 			return err
-		}
-		defer rows2.Close()
-
-		tempNodeRegistrationResult2, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
-		if (err != nil) || len(tempNodeRegistrationResult2) > 0 {
-			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}
 
@@ -280,7 +292,7 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check balance
-	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	row3, err := tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())

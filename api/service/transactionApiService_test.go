@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -568,34 +567,37 @@ type (
 func (*mockQueryGetTransactionsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("want error")
 }
+func (*mockQueryGetTransactionsFail) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, errors.New("want error")
+}
 func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
-	switch strings.Contains(qStr, "total_record") {
-	case true:
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
-	default:
-		mock.ExpectQuery("").
-			WillReturnRows(sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).
-				AddRow(
-					4545420970999433273,
-					1,
-					1,
-					"senderA",
-					"recipientA",
-					1,
-					1,
-					10000,
-					[]byte{1, 1},
-					8,
-					[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-					[]byte{0, 0, 0, 0, 0, 0, 0},
-					1,
-					1,
-					false,
-				),
-			)
-	}
+	mock.ExpectQuery("").
+		WillReturnRows(sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).
+			AddRow(
+				4545420970999433273,
+				1,
+				1,
+				"senderA",
+				"recipientA",
+				1,
+				1,
+				10000,
+				[]byte{1, 1},
+				8,
+				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+				[]byte{0, 0, 0, 0, 0, 0, 0},
+				1,
+				1,
+				false,
+			),
+		)
 	return db.Query("")
+}
+func (*mockQueryGetTransactionsSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
+	return db.QueryRow(""), nil
 }
 func TestTransactionService_GetTransactions(t *testing.T) {
 	type fields struct {
