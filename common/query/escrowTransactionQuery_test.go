@@ -416,9 +416,10 @@ func TestEscrowTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 				Fields:    qry.Fields,
 				TableName: qry.TableName,
 			},
-			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, " +
-				"block_height, latest, instruction FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 1" +
-				" AND latest = 1 ORDER BY block_height DESC",
+			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, block_height, " +
+				"latest, instruction FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 1 AND (" +
+				"block_height || '_' || id) IN (SELECT (MAX(block_height) || '_' || id) as prev FROM escrow_transaction GROUP BY id) ORDER" +
+				" BY block_height",
 		},
 	}
 	for _, tt := range tests {

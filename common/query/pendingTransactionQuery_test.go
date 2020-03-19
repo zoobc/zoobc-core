@@ -505,7 +505,9 @@ func TestPendingTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   10,
 			},
 			want: "SELECT sender_address,transaction_hash,transaction_bytes,status,block_height," +
-				"latest FROM pending_transaction WHERE latest = 1 AND block_height >= 1 AND block_height <= 10 ORDER BY block_height DESC",
+				"latest FROM pending_transaction WHERE block_height >= 1 AND block_height <= 10 AND (" +
+				"block_height || '_' || transaction_hash) IN (SELECT (MAX(" +
+				"block_height) || '_' || transaction_hash) as con FROM pending_transaction GROUP BY transaction_hash) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {

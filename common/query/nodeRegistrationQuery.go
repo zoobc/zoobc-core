@@ -368,11 +368,8 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 }
 
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d AND (height || '_' || id) IN (
-				SELECT (MAX(height) || '_' || id) as con
-				FROM %s
-				GROUP BY id
-			) ORDER BY height DESC`,
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND (height || '_' || id) IN (SELECT (MAX("+
+		"height) || '_' || id) as con FROM %s GROUP BY id) ORDER BY height",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight, nrq.getTableName())
 }
 

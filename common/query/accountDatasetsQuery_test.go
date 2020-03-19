@@ -485,11 +485,18 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 		want   string
 	}{
 		{
+			name:   "SelectDataForSnapshot",
+			fields: fields(*mockDatasetQuery),
 			args: args{
 				fromHeight: 0,
 				toHeight:   1,
 			},
-			want: "SELECT  FROM  WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER BY height DESC",
+			want: "SELECT setter_account_address || '_' || recipient_account_address || '_' || property || '_' || height FROM" +
+				" account_dataset WHERE height >= 0 AND height <= 1 AND (" +
+				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || height) IN (SELECT (" +
+				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || MAX(" +
+				"height)) as con FROM account_dataset GROUP BY setter_account_address, recipient_account_address, " +
+				"property) ORDER BY height",
 		},
 	}
 	for _, tt := range tests {
@@ -507,7 +514,6 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 }
 
 func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
-	qry := NewAccountDatasetsQuery()
 	type fields struct {
 		PrimaryFields  []string
 		OrdinaryFields []string
@@ -524,10 +530,8 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "TrimDataBeforeSnapshot",
-			fields: fields{
-				TableName: qry.TableName,
-			},
+			name:   "TrimDataBeforeSnapshot",
+			fields: fields(*mockDatasetQuery),
 			args: args{
 				fromHeight: 0,
 				toHeight:   10,

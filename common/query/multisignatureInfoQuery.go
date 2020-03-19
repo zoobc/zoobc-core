@@ -156,9 +156,9 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 }
 
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (
-               block_height || '_' || multisig_address) IN (SELECT (MAX(
-               block_height) || '_' || multisig_address) as con FROM %s GROUP BY multisig_address) ORDER BY block_height DESC`,
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND ("+
+		"block_height || '_' || multisig_address) IN (SELECT (MAX("+
+		"block_height) || '_' || multisig_address) as con FROM %s GROUP BY multisig_address) ORDER BY block_height",
 		strings.Join(msi.Fields, ","), msi.TableName, fromHeight, toHeight, msi.TableName)
 }
 

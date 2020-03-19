@@ -194,7 +194,7 @@ func (bq *BlockQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 
 // SelectDataForSnapshot select only the block at snapshot height (fromHeight is unused)
 func (bq *BlockQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height == %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height = %d`,
 		strings.Join(bq.Fields, ","), bq.TableName, toHeight)
 }
 

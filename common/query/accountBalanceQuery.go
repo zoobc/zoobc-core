@@ -180,12 +180,8 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 }
 
 func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (
-                block_height || '_' || account_address) IN (
-				SELECT (MAX(block_height) || '_' || account_address) as con
-				FROM %s
-				GROUP BY account_address
-			) ORDER BY block_height DESC`,
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (block_height || '_' || account_address) IN ("+
+		"SELECT (MAX(block_height) || '_' || account_address) as con FROM %s GROUP BY account_address) ORDER BY block_height",
 		strings.Join(q.Fields, ","), q.TableName, fromHeight, toHeight, q.TableName)
 }
 

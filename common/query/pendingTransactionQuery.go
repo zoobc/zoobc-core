@@ -179,9 +179,9 @@ func (ptq *PendingTransactionQuery) Rollback(height uint32) (multiQueries [][]in
 }
 
 func (ptq *PendingTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND (
-               block_height || '_' || transaction_hash) IN (SELECT (MAX(
-               block_height) || '_' || transaction_hash) as con FROM %s GROUP BY transaction_hash) ORDER BY block_height DESC`,
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND ("+
+		"block_height || '_' || transaction_hash) IN (SELECT (MAX("+
+		"block_height) || '_' || transaction_hash) as con FROM %s GROUP BY transaction_hash) ORDER BY block_height",
 		strings.Join(ptq.Fields, ","), ptq.TableName, fromHeight, toHeight, ptq.TableName)
 }
 
