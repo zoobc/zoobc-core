@@ -8,9 +8,9 @@ jobs:
         <<: *defaults
         steps:
             - run:
-                  name: SSH
-#                 command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
-                  command: git config --global url."https://github:607ce9de25dafc1029709aee756af723c107d31f@github.com".insteadOf "https://github.com"
+                  name: GIT CONF
+                  command: |
+                      git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
             - checkout
             - add_ssh_keys
             - run:
