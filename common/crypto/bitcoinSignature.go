@@ -56,7 +56,7 @@ func NewBitcoinSignature(netParams *chaincfg.Params, curve *btcec.KoblitzCurve) 
 func (*BitcoinSignature) Sign(privateKey *btcec.PrivateKey, payload []byte) ([]byte, error) {
 	var sig, err = privateKey.Sign(payload)
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.AuthErr, err.Error())
 	}
 	return sig.Serialize(), nil
 }
@@ -143,7 +143,7 @@ func (b *BitcoinSignature) GetPublicKeyFromBytes(pubkey []byte) (*btcec.PublicKe
 func (b *BitcoinSignature) GetPublicKeyString(publicKey []byte) (string, error) {
 	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
 	if err != nil {
-		return "", err
+		return "", blocker.NewBlocker(blocker.ParserErr, err.Error())
 	}
 	return address.String(), nil
 }
@@ -152,7 +152,7 @@ func (b *BitcoinSignature) GetPublicKeyString(publicKey []byte) (string, error) 
 func (b *BitcoinSignature) GetAddressFromPublicKey(publicKey []byte) (string, error) {
 	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
 	if err != nil {
-		return "", err
+		return "", blocker.NewBlocker(blocker.ParserErr, err.Error())
 	}
 	return address.EncodeAddress(), nil
 }
@@ -161,7 +161,7 @@ func (b *BitcoinSignature) GetAddressFromPublicKey(publicKey []byte) (string, er
 func (b *BitcoinSignature) GetAddressBytes(address string) ([]byte, error) {
 	var decodedAddress, err = btcutil.DecodeAddress(address, b.GetNetworkParams())
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.ParserErr, err.Error())
 	}
 	return decodedAddress.ScriptAddress(), nil
 }
@@ -170,7 +170,7 @@ func (b *BitcoinSignature) GetAddressBytes(address string) ([]byte, error) {
 func (b *BitcoinSignature) GetSignatureFromBytes(signatureBytes []byte) (*btcec.Signature, error) {
 	var signature, err = btcec.ParseSignature(signatureBytes, b.Curve)
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.ParserErr, err.Error())
 	}
 	return signature, nil
 }

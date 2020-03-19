@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"encoding/base64"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -55,7 +54,7 @@ func (es *Ed25519Signature) GetAddressFromSeed(seed string) string {
 // GetPublicKeyFromPrivateKey get public key bytes from private key
 func (*Ed25519Signature) GetPublicKeyFromPrivateKey(privateKey []byte) ([]byte, error) {
 	if len(privateKey) != ed25519.PrivateKeySize {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid ed25519 private key")
+		return nil, blocker.NewBlocker(blocker.AppErr, "invalid ed25519 private key")
 	}
 	return privateKey[32:], nil
 }
@@ -70,11 +69,12 @@ func (*Ed25519Signature) GetPublicKeyFromAddress(address string) ([]byte, error)
 	// decode base64 back to byte
 	publicKey, err := base64.URLEncoding.DecodeString(address)
 	if err != nil {
-		return nil, err
+
+		return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
 	}
 	// Needs to check the checksum bit at the end, and if valid,
 	if publicKey[32] != util.GetChecksumByte(publicKey[:32]) {
-		return nil, fmt.Errorf("address checksum failed")
+		return nil, blocker.NewBlocker(blocker.AppErr, "address checksum failed")
 	}
 	return publicKey[:32], nil
 }

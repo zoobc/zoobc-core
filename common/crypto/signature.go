@@ -106,10 +106,7 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 			accountPublicKey, err = ed25519Signature.GetPublicKeyFromAddress(accountAddress)
 		)
 		if err != nil {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				err.Error(),
-			)
+			return err
 		}
 		if !ed25519Signature.Verify(accountPublicKey, payload, signature[4:]) {
 			return blocker.NewBlocker(
@@ -136,10 +133,7 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 		}
 		signaturePubKeyAddress, err := bitcoinSignature.GetAddressFromPublicKey(signaturePubKeyBytes)
 		if err != nil {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				err.Error(),
-			)
+			return err
 		}
 		// check sender account address to address from public key in signature
 		if accountAddress != signaturePubKeyAddress {
@@ -150,10 +144,8 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 		}
 		sig, err := bitcoinSignature.GetSignatureFromBytes(signature[signatureFirstBytesIndex:])
 		if err != nil {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				err.Error(),
-			)
+			return err
+
 		}
 		if !bitcoinSignature.Verify(payload, sig, signaturePubKey) {
 			return blocker.NewBlocker(
@@ -187,7 +179,10 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 	case model.SignatureType_DefaultSignature:
 		var ed25519Signature = NewEd25519Signature()
 		privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
-		publicKey = ed25519Signature.GetPublicKeyFromSeed(seed)
+		publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(privateKey)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
 		publickKeyString = ed25519Signature.GetPublicKeyString(publicKey)
 		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
 		if err != nil {

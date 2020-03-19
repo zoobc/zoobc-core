@@ -155,7 +155,7 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "wantFail-{decode error, wrong address format/length}",
+			name: "wantFail-{decode-error-wrong-address-format/length}",
 			args: args{
 				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgt",
 			},
@@ -163,7 +163,7 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantFail:fail-{checksum error, wrong address format}",
+			name: "wantFail:fail-{checksum-error-wrong-address-format}",
 			args: args{
 				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtM",
 			},
