@@ -6,6 +6,7 @@ import (
 	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -103,6 +104,10 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 // GetBlocks fetches multiple blocks from Blockchain system
 func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
+	if blockSize > constant.GetBlocksLimit {
+		blockSize = constant.GetBlocksLimit
+	}
+
 	var (
 		rows   *sql.Rows
 		err    error
