@@ -650,6 +650,33 @@ func (bs *BlockService) ScanBlockPool() error {
 			}
 		}
 	}
+	// check if we have passed the last blocksmith expiry time
+	numberOfBlocksmiths := len(bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock))
+	lastBlocksmithExpiry := bs.BlocksmithStrategy.GetSmithTime(int64(numberOfBlocksmiths-1), previousBlock) +
+		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
+	if len(blocks) > 0 &&
+		time.Now().Unix() > lastBlocksmithExpiry {
+		// choose block to persist since all blocksmith time has expired
+		var (
+			bestIndex   int64
+			bestCumDiff = new(big.Int).SetInt64(0)
+		)
+		for index, block := range blocks {
+			currBlockCumDiff, _ := new(big.Int).SetString(block.GetCumulativeDifficulty(), 10)
+			if currBlockCumDiff.Cmp(bestCumDiff) > 0 {
+				bestCumDiff = currBlockCumDiff
+				bestIndex = index
+			}
+		}
+		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+		err := bs.PushBlock(previousBlock, blocks[bestIndex], true, true)
+		bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.BlockErr, "ScanBlockPool:PushBlockFail",
+			)
+		}
+	}
 	return nil
 }
 
