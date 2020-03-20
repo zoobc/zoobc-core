@@ -53,7 +53,7 @@ func (m *Migration) Init() error {
 			ON "mempool" ("sender_account_address");`,
 			`
 			ALTER TABLE "mempool"
-				ADD COLUMN "block_height" INTEGER AFTER "id"
+				ADD COLUMN "block_height" INTEGER AFTER "id";
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "transaction" (
@@ -74,7 +74,7 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "transaction_index" INTEGER AFTER "version"
+				ADD COLUMN "transaction_index" INTEGER AFTER "version";
 			`,
 
 			`CREATE INDEX "idx_id_transaction" 
@@ -117,7 +117,7 @@ func (m *Migration) Init() error {
 			ON "main_block" ("height");`,
 			`
 			AlTER TABLE "main_block"
-				ADD COLUMN "block_hash" BLOB AFTER "id"
+				ADD COLUMN "block_hash" BLOB AFTER "id";
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
@@ -135,12 +135,10 @@ func (m *Migration) Init() error {
 			`CREATE INDEX "idx_height_node_registry" 
 			ON "node_registry" ("height");`,
 			`CREATE INDEX "idx_nodeaddr_node_registry" 
-			ON "node_registry" ("node_address");`
-			,
+			ON "node_registry" ("node_address");`,
 			`
 			ALTER TABLE "node_registry" 
-				RENAME COLUMN "queued" TO "registration_status"
-			`,
+				RENAME COLUMN "queued" TO "registration_status";`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_dataset"(
 				"setter_account_address" VARCHAR(255),
@@ -182,7 +180,7 @@ func (m *Migration) Init() error {
 				"rmr" BLOB,
 				"rmr_index" INTEGER,
 				PRIMARY KEY ("sender_public_key")
-			)
+			);
 			`,
 			`CREATE INDEX "idx_height_node_receipt" 
 			ON "node_receipt" ("sender_public_key");`,
@@ -208,18 +206,18 @@ func (m *Migration) Init() error {
 				"id" BLOB,
 				"tree" BLOB,
 				PRIMARY KEY("id")
-			)
+			);
 			`,
 			`CREATE INDEX "idx_merkle" 
-			ON "merkle_tree" ("id");`
+				ON "merkle_tree" ("id");`
 			,
 			`
 			ALTER TABLE "merkle_tree"
-				ADD COLUMN "block_height" INTEGER AFTER "id"
+				ADD COLUMN "block_height" INTEGER AFTER "id";
 			`,
 			`
 			ALTER TABLE "merkle_tree"
-				ADD COLUMN "timestamp" INTEGER AFTER "tree"
+				ADD COLUMN "timestamp" INTEGER AFTER "tree";
 			`,
 			`,
 			CREATE TABLE IF NOT EXISTS "published_receipt" (
@@ -250,7 +248,7 @@ func (m *Migration) Init() error {
 				"pop_change" INTEGER,
 				"block_height" INTEGER,
 				"blocksmith_index" INTEGER
-			)
+			);
 			`,
 			`CREATE INDEX "idx_pubkey_skipped_blocksmith" 
 			ON "skipped_blocksmith" ("blocksmith_public_key");
@@ -306,7 +304,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "account_ledger"
-				ADD COLUMN "timestamp" INTEGER
+				ADD COLUMN "timestamp" INTEGER;
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
@@ -322,7 +320,7 @@ func (m *Migration) Init() error {
 				"latest" INTEGER,
 				"instruction" TEXT,
 				PRIMARY KEY("id")
-			)
+			);
 			`,
 			`CREATE INDEX "idx_id_escrow_transaction" 
 			ON "escrow_transaction" ("id");
@@ -395,20 +393,20 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
+				ADD COLUMN "multisig_child" INTEGER DEFAULT 0;
 			`,
 			`
-			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
+			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height");
 			`,
 			`
-			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height")
+			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height");
 			`,
 			`
-			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height")
+			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height");
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
+				ADD COLUMN "multisig_child" INTEGER DEFAULT 0;
 			`,
 		}
 		return nil
