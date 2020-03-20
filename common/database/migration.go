@@ -209,16 +209,13 @@ func (m *Migration) Init() error {
 			);
 			`,
 			`CREATE INDEX "idx_merkle" 
-				ON "merkle_tree" ("id");`
-			,
+				ON "merkle_tree" ("id");`,
 			`
 			ALTER TABLE "merkle_tree"
-				ADD COLUMN "block_height" INTEGER AFTER "id";
-			`,
+				ADD COLUMN "block_height" INTEGER AFTER "id";`,
 			`
 			ALTER TABLE "merkle_tree"
-				ADD COLUMN "timestamp" INTEGER AFTER "tree";
-			`,
+				ADD COLUMN "timestamp" INTEGER AFTER "tree";`,
 			`,
 			CREATE TABLE IF NOT EXISTS "published_receipt" (
 				"sender_public_key" BLOB,
@@ -234,27 +231,21 @@ func (m *Migration) Init() error {
 				"receipt_index" INTEGER,
 				"published_index" INTEGER
 				
-			)
-			`,
+			);`,
 			`CREATE INDEX "idx_pubindex_published_receipt" 
-			ON "published_receipt" ("published_index");
-			`,
+			ON "published_receipt" ("published_index");`,
 			`CREATE INDEX "idx_sender_published_receipt" 
-			ON "published_receipt" ("sender_public_key");
-			`,
+			ON "published_receipt" ("sender_public_key");`,
 			`
 			CREATE TABLE IF NOT EXISTS "skipped_blocksmith" (
 				"blocksmith_public_key" BLOB,
 				"pop_change" INTEGER,
 				"block_height" INTEGER,
 				"blocksmith_index" INTEGER
-			);
-			`,
+			);`,
 			`CREATE INDEX "idx_pubkey_skipped_blocksmith" 
-			ON "skipped_blocksmith" ("blocksmith_public_key");
-			`,
-			`
-			CREATE TABLE IF NOT EXISTS "spine_block" (
+			ON "skipped_blocksmith" ("blocksmith_public_key");`,
+			`CREATE TABLE IF NOT EXISTS "spine_block" (
 				"id" INTEGER,
 				"block_hash" BLOB,
 				"previous_block_hash" BLOB,
@@ -273,8 +264,7 @@ func (m *Migration) Init() error {
 				UNIQUE("height")
 			);`,
 			`CREATE INDEX "idx_id_spine_block" 
-			ON "spine_block" ("id");
-			`,
+			ON "spine_block" ("id");`,
 			`
 			CREATE TABLE IF NOT EXISTS "spine_public_key"(
 				"node_public_key" BLOB,
