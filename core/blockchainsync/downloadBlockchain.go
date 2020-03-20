@@ -108,14 +108,9 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 33)
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	peerHeight := peerCumulativeDifficultyResponse.Height
-<<<<<<< HEAD
-
-	lastBlock, err = bd.BlockService.GetLastBlock(1)
-=======
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 34)
 	lastBlock, err = bd.BlockService.GetLastBlock()
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 35)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 36)
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())

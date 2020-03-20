@@ -801,10 +801,6 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttac
 }
 
 // GetLastBlock return the last pushed block
-<<<<<<< HEAD
-func (bs *BlockService) GetLastBlock(transFlag int) (*model.Block, error) {
-	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
-=======
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	var (
 		transactions []*model.Transaction
@@ -813,28 +809,16 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	)
 
 	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-<<<<<<< HEAD
-	if transFlag == 1 {
-		transactions, err := bs.GetTransactionsByBlockID(lastBlock.ID)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		lastBlock.Transactions = transactions
-	}
-
-=======
 	transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
 	lastBlock.Transactions = transactions
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	return lastBlock, nil
 }
 

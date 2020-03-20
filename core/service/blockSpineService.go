@@ -420,21 +420,10 @@ func (bs *BlockSpineService) GetLastBlock(flagTrans int) (*model.Block, error) {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
-<<<<<<< HEAD
-	if flagTrans == 1 {
-		spinePublicKeys, err := bs.GetSpinePublicKeysByBlockHeight(lastBlock.Height)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		lastBlock.SpinePublicKeys = spinePublicKeys
-	}
-
-=======
 	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	return lastBlock, nil
 }
 

@@ -182,13 +182,9 @@ func (bss *Service) getMoreBlocks() {
 				}
 			}
 
-<<<<<<< HEAD
-			newLastBlock, err = bss.BlockService.GetLastBlock(1)
-=======
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 20)
 			newLastBlock, err = bss.BlockService.GetLastBlock()
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 21)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 22)
 				bss.Logger.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)

@@ -727,15 +727,6 @@ func startBlockchainSyncronizers() {
 		mainBlocksDownloadFinished  = make(chan bool, 1)
 	)
 	go spinechainSynchronizer.Start()
-<<<<<<< HEAD
-	ticker := time.NewTicker(constant.BlockchainsyncSpineCheckInterval * time.Second)
-	timeout := time.After(constant.BlockchainsyncSpineTimeout * time.Second)
-syncronizersLoop:
-	for {
-		select {
-		case <-ticker.C:
-			lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock(1)
-=======
 	go func() {
 		ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
 		tickerLog := time.NewTicker(2 * time.Second)
@@ -803,7 +794,6 @@ syncronizersLoop:
 			// snapshot download
 			lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(ct,
 				model.SpineBlockManifestType_Snapshot)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 			if err != nil {
 				loggerCoreService.Errorf("db error: cannot get last spineBlockManifest for chaintype %s",
 					ct.GetName())

@@ -27,13 +27,8 @@ type (
 		PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error
 		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
-<<<<<<< HEAD
-		GetBlocksFromHeight(uint32, uint32) ([]*model.Block, error)
-		GetLastBlock(transFlag int) (*model.Block, error)
-=======
 		GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
 		PopulateBlockData(block *model.Block) error

@@ -329,14 +329,10 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-<<<<<<< HEAD
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock(0)
-=======
 		md, _ := metadata.FromIncomingContext(ctx)
 		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
 		peer, _ := p2pUtil.ParsePeer(fullAddress)
 		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
