@@ -42,7 +42,6 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "mempool" (
 				"id"	INTEGER,
-				"block_height" INTEGER,
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
@@ -52,6 +51,10 @@ func (m *Migration) Init() error {
 			);`,
 			`CREATE INDEX "idx_sender_mempool" 
 			ON "mempool" ("sender_account_address");`,
+			`
+			ALTER TABLE "mempool"
+				ADD COLUMN "block_height" INTEGER AFTER "id"
+			`,
 			`
 			CREATE TABLE IF NOT EXISTS "transaction" (
 				"id"	INTEGER,
@@ -67,9 +70,12 @@ func (m *Migration) Init() error {
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
 				"version" INTEGER,
-				"transaction_index" INTEGER,
 				PRIMARY KEY("id")
 			);`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "transaction_index" INTEGER AFTER "version"
+			`,
 
 			`CREATE INDEX "idx_id_transaction" 
 			ON "transaction" ("id");`,
@@ -92,7 +98,6 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "main_block" (
 				"id" INTEGER,
-				"block_hash" BLOB,
 				"previous_block_hash" BLOB,
 				"height" INTEGER,
 				"timestamp" INTEGER,
@@ -111,6 +116,10 @@ func (m *Migration) Init() error {
 			`CREATE INDEX "idx_height_main_block" 
 			ON "main_block" ("height");`,
 			`
+			AlTER TABLE "main_block"
+				ADD COLUMN "block_hash" BLOB AFTER "id"
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "node_registry" (
 				"id" INTEGER,
 				"node_public_key" BLOB,
@@ -118,7 +127,7 @@ func (m *Migration) Init() error {
 				"registration_height" INTEGER,
 				"node_address" VARCHAR(255),
 				"locked_balance" INTEGER,
-				"registration_status" INTEGER,
+				"queued" INTEGER,
 				"latest" INTEGER,
 				"height" INTEGER,
 				PRIMARY KEY("id")
@@ -126,7 +135,12 @@ func (m *Migration) Init() error {
 			`CREATE INDEX "idx_height_node_registry" 
 			ON "node_registry" ("height");`,
 			`CREATE INDEX "idx_nodeaddr_node_registry" 
-			ON "node_registry" ("node_address");`,
+			ON "node_registry" ("node_address");`
+			,
+			`
+			ALTER TABLE "node_registry" 
+				RENAME COLUMN "queued" TO "registration_status"
+			`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_dataset"(
 				"setter_account_address" VARCHAR(255),
@@ -192,15 +206,22 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "merkle_tree" (
 				"id" BLOB,
-				"block_height" INTEGER,
 				"tree" BLOB,
-				"timestamp" INTEGER,
 				PRIMARY KEY("id")
 			)
 			`,
 			`CREATE INDEX "idx_merkle" 
-			ON "merkle_tree" ("id");`,
+			ON "merkle_tree" ("id");`
+			,
 			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "block_height" INTEGER AFTER "id"
+			`,
+			`
+			ALTER TABLE "merkle_tree"
+				ADD COLUMN "timestamp" INTEGER AFTER "tree"
+			`,
+			`,
 			CREATE TABLE IF NOT EXISTS "published_receipt" (
 				"sender_public_key" BLOB,
 				"recipient_public_key" BLOB,
@@ -277,12 +298,15 @@ func (m *Migration) Init() error {
 				"balance_change" INTEGER,
 				"block_height" INTEGER,
 				"transaction_id" INTEGER NULL,
-				"event_type" INTEGER,
-				"timestamp" INTEGER
+				"event_type" INTEGER
 			)
 			`,
 			`CREATE INDEX "idx_accaddr_account_ledger" 
 			ON "account_ledger" ("account_address");
+			`,
+			`
+			ALTER TABLE "account_ledger"
+				ADD COLUMN "timestamp" INTEGER
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
@@ -381,6 +405,10 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height")
+			`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
 			`,
 		}
 		return nil
