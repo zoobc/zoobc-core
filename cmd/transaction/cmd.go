@@ -178,7 +178,7 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(registerNodeCmd)
 	updateNodeCmd.Run = txGeneratorCommandsInstance.UpdateNodeProcess()
 	txCmd.AddCommand(updateNodeCmd)
-	removeNodeCmd.Run = txGeneratorCommandsInstance.RemoveAccountDatasetProcess()
+	removeNodeCmd.Run = txGeneratorCommandsInstance.RemoveNodeProcess()
 	txCmd.AddCommand(removeNodeCmd)
 	claimNodeCmd.Run = txGeneratorCommandsInstance.ClaimNodeProcess()
 	txCmd.AddCommand(claimNodeCmd)
