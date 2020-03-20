@@ -72,7 +72,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 		err                     error
 		count                   uint64
 		selectQuery, countQuery string
-		rows                    *sql.Rows
+		rowCount                *sql.Row
 		rows2                   *sql.Rows
 		txs                     []*model.MempoolTransaction
 		response                *model.GetMempoolTransactionsResponse
@@ -103,17 +103,13 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	selectQuery, args = caseQuery.Build()
 	countQuery = query.GetTotalRecordOfSelect(selectQuery)
 
-	rows, err = ut.Query.ExecuteSelect(countQuery, false, args...)
+	rowCount, err = ut.Query.ExecuteSelectRow(countQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(&count)
-		if err != nil {
-			return response, status.Error(codes.Internal, err.Error())
-		}
+	err = rowCount.Scan(&count)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// select records
