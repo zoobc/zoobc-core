@@ -27,6 +27,11 @@ import (
 )
 
 type (
+	// BlockServiceSpineInterface interface that contains methods specific of BlockSpineService
+	BlockServiceSpineInterface interface {
+		ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error
+	}
+
 	BlockSpineService struct {
 		sync.RWMutex
 		Chaintype                 chaintype.ChainType
@@ -84,12 +89,14 @@ func (bs *BlockSpineService) NewSpineBlock(
 	blockSeed, blockSmithPublicKey []byte,
 	previousBlockHeight uint32,
 	timestamp int64,
-	payloadHash []byte,
-	payloadLength uint32,
 	secretPhrase string,
 	spinePublicKeys []*model.SpinePublicKey,
 	spineBlockManifests []*model.SpineBlockManifest,
 ) (*model.Block, error) {
+	var (
+		payloadLength uint32
+		err           error
+	)
 	block := &model.Block{
 		Version:             version,
 		PreviousBlockHash:   previousBlockHash,
@@ -97,11 +104,16 @@ func (bs *BlockSpineService) NewSpineBlock(
 		BlocksmithPublicKey: blockSmithPublicKey,
 		Height:              previousBlockHeight,
 		Timestamp:           timestamp,
-		PayloadHash:         payloadHash,
 		PayloadLength:       payloadLength,
 		SpinePublicKeys:     spinePublicKeys,
 		SpineBlockManifests: spineBlockManifests,
 	}
+
+	// compute block's payload hash and length and add it to block struct
+	if block.PayloadHash, block.PayloadLength, err = bs.GetPayloadHashAndLength(block); err != nil {
+		return nil, err
+	}
+
 	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		bs.Logger.Error(err.Error())
@@ -126,15 +138,15 @@ func (bs *BlockSpineService) GetBlocksmithStrategy() strategy.BlocksmithStrategy
 
 // ChainWriteLock locks the chain
 func (bs *BlockSpineService) ChainWriteLock(actionType int) {
-	monitoring.IncrementStatusLockCounter(actionType)
+	monitoring.IncrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Lock()
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, actionType)
 }
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockSpineService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype.GetTypeInt(), constant.BlockchainStatusIdle)
-	monitoring.DecrementStatusLockCounter(actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
+	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Unlock()
 }
 
@@ -178,10 +190,24 @@ func (bs *BlockSpineService) NewGenesisBlock(
 	return block, nil
 }
 
+// ValidatePayloadHash validate (computed) block's payload data hash against block's payload hash
+func (bs *BlockSpineService) ValidatePayloadHash(block *model.Block) error {
+	hash, length, err := bs.GetPayloadHashAndLength(block)
+	if err != nil {
+		return err
+	}
+	if length != block.GetPayloadLength() || !bytes.Equal(hash, block.GetPayloadHash()) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockPayload")
+	}
+	return nil
+}
+
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
-	// TODO: should we validate the received spineblcokManifests against the one that have been generated locally?
-	//		 what if they have been deleted?
+	// validate block's payload data
+	if err := bs.ValidatePayloadHash(block); err != nil {
+		return err
+	}
 
 	// todo: validate previous time
 	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
@@ -306,6 +332,17 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		return err
 	}
 
+	// if present, add new spine block manifests into spineBlockManifest table
+	for _, spineBlockManifest := range block.SpineBlockManifests {
+		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -318,7 +355,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
-	monitoring.SetLastBlock(bs.Chaintype.GetTypeInt(), block)
+	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
 
@@ -353,7 +390,7 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (spinePublicKeys)
-func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32) ([]*model.Block, error) {
+func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -363,6 +400,14 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32) ([]*
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+	}
+	if withAttachedData {
+		for _, block := range blocks {
+			err := bs.PopulateBlockData(block)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			}
+		}
 	}
 
 	return blocks, nil
@@ -456,6 +501,31 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 	return nil
 }
 
+// GetPayloadBytes compute and return the block's payload hash
+func (bs *BlockSpineService) GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
+	var (
+		digest = sha3.New256()
+	)
+	for _, spinePubKey := range block.GetSpinePublicKeys() {
+		spinePubKeyBytes := commonUtils.GetSpinePublicKeyBytes(spinePubKey)
+		if _, err := digest.Write(spinePubKeyBytes); err != nil {
+			return nil, 0, err
+		}
+		payloadLength += uint32(len(spinePubKeyBytes))
+
+	}
+	// compute the block payload length and hash by parsing all file chunks db entities into their bytes representation
+	for _, spineBlockManifest := range block.GetSpineBlockManifests() {
+		spineBlockManifestBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
+		if _, err := digest.Write(spineBlockManifestBytes); err != nil {
+			return nil, 0, err
+		}
+		payloadLength += uint32(len(spineBlockManifestBytes))
+	}
+	payloadHash = digest.Sum([]byte{})
+	return
+}
+
 // GenerateBlock generate block from transactions in mempool
 func (bs *BlockSpineService) GenerateBlock(
 	previousBlock *model.Block,
@@ -463,26 +533,21 @@ func (bs *BlockSpineService) GenerateBlock(
 	timestamp int64,
 ) (*model.Block, error) {
 	var (
-		payloadLength             uint32
-		spinePublicKeys           []*model.SpinePublicKey
-		payloadBytes, payloadHash []byte
-		err                       error
-		digest                    = sha3.New256()
-		blockSmithPublicKey       = util.GetPublicKeyFromSeed(secretPhrase)
-		fromTimestamp             = previousBlock.Timestamp
-		spineBlockManifests       []*model.SpineBlockManifest
+		spinePublicKeys     []*model.SpinePublicKey
+		err                 error
+		digest              = sha3.New256()
+		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		fromTimestamp       = previousBlock.Timestamp
+		spineBlockManifests []*model.SpineBlockManifest
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// compute spine pub keys from mainchain node registrations
 	// Note: since spine blocks are not in sync with main blocks and they are unaware of the height (on mainchain) where to retrieve
-	// node registration's public keys, we use timestamps for now
+	// node registration's public keys, we use timestamps instead of block heights
 	if fromTimestamp == bs.GetChainType().GetGenesisBlockTimestamp() {
 		fromTimestamp++
 	}
 	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(fromTimestamp, timestamp, newBlockHeight)
-	for _, spinePubKey := range spinePublicKeys {
-		payloadBytes = append(payloadBytes, commonUtils.GetSpinePublicKeyBytes(spinePubKey)...)
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -492,19 +557,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	// compute the block payload length and hash by parsing all file chunks db entities into their bytes representation
-	if len(spineBlockManifests) > 0 {
-		for _, spineBlockManifest := range spineBlockManifests {
-			megablockBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
-			payloadBytes = append(payloadBytes, megablockBytes...)
-		}
-	}
 
-	if _, err := digest.Write(payloadBytes); err != nil {
-		return nil, err
-	}
-	payloadHash = digest.Sum([]byte{})
-	payloadLength = uint32(len(payloadBytes))
 	// loop through transaction to build block hash
 	digest.Reset() // reset the digest
 	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
@@ -526,8 +579,6 @@ func (bs *BlockSpineService) GenerateBlock(
 		blockSmithPublicKey,
 		newBlockHeight,
 		timestamp,
-		payloadHash,
-		payloadLength,
 		secretPhrase,
 		spinePublicKeys,
 		spineBlockManifests,
@@ -856,7 +907,51 @@ func (bs *BlockSpineService) WillSmith(
 		if err != nil {
 			return blockchainProcessorLastBlockID, err
 		}
-		monitoring.SetBlockchainSmithTime(bs.GetChainType().GetTypeInt(), blocksmith.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
 	}
 	return blockchainProcessorLastBlockID, nil
+}
+
+func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {
+	var (
+		block model.Block
+		found bool
+	)
+	qry := bs.BlockQuery.GetBlockFromTimestamp(spineBlockManifest.GetExpirationTimestamp(), 1)
+	row, _ := bs.QueryExecutor.ExecuteSelectRow(qry, false)
+	if err := bs.BlockQuery.Scan(&block, row); err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSpineBlockManifestTimestamp")
+	}
+	if err := bs.PopulateBlockData(&block); err != nil {
+		return err
+	}
+
+	// first check if spineBlockManifest is included in block data
+	spineBlockManifestBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(spineBlockManifest)
+	for _, blSpineBlockManifest := range block.GetSpineBlockManifests() {
+		blSpineBlockManifestBytes := bs.SpineBlockManifestService.GetSpineBlockManifestBytes(blSpineBlockManifest)
+		if bytes.Equal(spineBlockManifestBytes, blSpineBlockManifestBytes) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSpineBlockManifestData")
+	}
+
+	// now validate against block payload hash
+	computedHash, computedLength, err := bs.GetPayloadHashAndLength(&block)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(computedHash, block.GetPayloadHash()) || computedLength != block.PayloadLength {
+		// in this case it could be that one or more spine block manifest entries have been manually added to db after the block
+		// has been pushed to db
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidComputedSpineBlockPayloadHash")
+	}
+
+	return nil
 }

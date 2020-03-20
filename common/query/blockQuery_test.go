@@ -5,10 +5,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
-	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
@@ -245,6 +243,90 @@ func TestBlockQuery_Rollback(t *testing.T) {
 			if !reflect.DeepEqual(multiQueries, tt.wantMultiQueries) {
 				t.Errorf("Rollback() = %v, want %v", multiQueries, tt.wantMultiQueries)
 				return
+			}
+		})
+	}
+}
+
+func TestBlockQuery_GetBlockFromHeight(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		startHeight uint32
+		limit       uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "GetBlockFromHeight:success",
+			fields: fields(*mockBlockQuery),
+			args: args{
+				limit:       1,
+				startHeight: 1,
+			},
+			want: "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+				"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
+				"total_coinbase, version FROM main_block WHERE height >= 1 ORDER BY height LIMIT 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BlockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if got := bq.GetBlockFromHeight(tt.args.startHeight, tt.args.limit); got != tt.want {
+				t.Errorf("BlockQuery.GetBlockFromHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockQuery_GetBlockFromTimestamp(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		startTimestamp int64
+		limit          uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "GetBlockFromTimestamp:success",
+			fields: fields(*mockBlockQuery),
+			args: args{
+				limit:          1,
+				startTimestamp: 15875392,
+			},
+			want: "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+				"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
+				"total_coinbase, version FROM main_block WHERE timestamp >= 15875392 ORDER BY timestamp LIMIT 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BlockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			if got := bq.GetBlockFromTimestamp(tt.args.startTimestamp, tt.args.limit); got != tt.want {
+				t.Errorf("BlockQuery.GetBlockFromTimestamp() = %v, want %v", got, tt.want)
 			}
 		})
 	}

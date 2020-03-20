@@ -22,8 +22,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// PriorityStrategy represent data service node as server
 type (
+	// PriorityStrategy represent data service node as server
 	PriorityStrategy struct {
 		Host                    *model.Host
 		PeerServiceClient       client.PeerServiceClientInterface
@@ -59,6 +59,7 @@ func NewPriorityStrategy(
 	}
 }
 
+// Start method to start threads which mean goroutines for PriorityStrategy
 func (ps *PriorityStrategy) Start() {
 	// start p2p process threads
 	go ps.ResolvePeersThread()
@@ -226,7 +227,7 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 	return peerIndex <= hostEndPeerIndex
 }
 
-// ValidateRequest, to validate incoming request based on metadata in context and Priority strategy
+// ValidateRequest to validate incoming request based on metadata in context and Priority strategy
 func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 	if ctx != nil {
 		md, _ := metadata.FromIncomingContext(ctx)
@@ -262,7 +263,6 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 						// and not priority peers
 						if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
 							!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
-							var err error
 							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
 								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
 									ps.Logger.Error(err.Error())
@@ -443,23 +443,29 @@ func (ps *PriorityStrategy) GetMorePeersHandler() (*model.Peer, error) {
 // GetMorePeersThread to periodically request more peers from another node in Peers list
 func (ps *PriorityStrategy) GetMorePeersThread() {
 	syncPeers := func() {
-		peer, err := ps.GetMorePeersHandler()
+		var (
+			nodes []*model.Node
+			peer  *model.Peer
+			err   error
+		)
+
+		peer, err = ps.GetMorePeersHandler()
 		if err != nil {
 			ps.Logger.Warn(err.Error())
 			return
 		}
-		var myPeers []*model.Node
 		myResolvedPeers := ps.GetResolvedPeers()
-		for _, peer := range myResolvedPeers {
-			myPeers = append(myPeers, peer.Info)
+		for _, p := range myResolvedPeers {
+			nodes = append(nodes, p.Info)
 		}
 		if peer == nil {
 			return
 		}
-		myPeers = append(myPeers, ps.Host.GetInfo())
+
+		nodes = append(nodes, ps.Host.GetInfo())
 		_, _ = ps.PeerServiceClient.SendPeers(
 			peer,
-			myPeers,
+			nodes,
 		)
 	}
 
@@ -470,9 +476,7 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 	for {
 		select {
 		case <-ticker.C:
-			go func() {
-				go syncPeers()
-			}()
+			go syncPeers()
 		case <-sigs:
 			ticker.Stop()
 			return

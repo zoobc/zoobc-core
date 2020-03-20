@@ -2,10 +2,14 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/go-cmp/cmp"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -360,6 +364,17 @@ func TestEscrowTransactionQuery_Rollback(t *testing.T) {
 					"DELETE FROM escrow_transaction WHERE block_height > ?",
 					uint32(1),
 				},
+				{
+					fmt.Sprintf(`
+			UPDATE escrow_transaction SET latest = ?
+			WHERE latest = ? AND (block_height || '_' || id) IN (
+				SELECT (MAX(block_height) || '_' || id) as prev
+				FROM escrow_transaction
+				GROUP BY id
+			)`),
+					1,
+					0,
+				},
 			},
 		},
 	}
@@ -415,6 +430,64 @@ func TestEscrowTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 			if got := et.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("EscrowTransactionQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestEscrowTransactionQuery_GetEscrowTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fields map[string]interface{}
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+		want1  []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*mockEscrowQuery),
+			args: args{
+				fields: map[string]interface{}{
+					"height": 100,
+					"latest": 1,
+				},
+			},
+			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, " +
+				"status, block_height, latest, instruction FROM escrow_transaction WHERE height = ? AND latest = ? ",
+			want1: []interface{}{
+				100,
+				1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			got, got1 := et.GetEscrowTransactions(tt.args.fields)
+			if !strings.Contains(got, "height = ?") || !strings.Contains(got, "latest = ?") {
+				t.Errorf("GetEscrowTransactions() got = \n%v, want \n%v", got, tt.want)
+				return
+			}
+
+			// perhaps tt.want1 is []int without string or any other types and sort it
+			if !cmp.Equal(got1, tt.want1, cmp.Transformer("Sort", func(in []interface{}) []interface{} {
+				sort.Slice(in, func(i, j int) bool {
+					return in[i].(int) < in[j].(int)
+				})
+				return in
+			})) {
+				t.Errorf("GetEscrowTransactions() got1 = \n%v, want \n%v", got1, tt.want1)
+			}
+
 		})
 	}
 }

@@ -324,10 +324,12 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_transaction" (
+				"sender_address" TEXT,			-- sender of transaction 
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction
 				"transaction_bytes" BLOB,		-- full transaction bytes of the pending transaction
 				"status" INTEGER,			-- execution status of the pending transaction
 				"block_height" INTEGER,			-- height when pending transaction inserted/updated
+				"latest" INTEGER,			-- latest flag for pending transaction
 				PRIMARY KEY("transaction_hash", "block_height")
 			)
 			`,
@@ -336,11 +338,12 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_signature" (
-				"transaction_hash" INTEGER,		-- transaction hash of pending transaction being signed
+				"transaction_hash" BLOB,		-- transaction hash of pending transaction being signed
 				"account_address" TEXT,			-- account address of the respective signature
 				"signature" BLOB,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
-				PRIMARY KEY("account_address", "transaction_hash")
+				"latest" INTEGER,			-- latest flag for pending signature 
+				PRIMARY KEY("account_address", "transaction_hash", "block_height")
 			)
 			`,
 			`CREATE INDEX "idx_id_pending_signature" 
@@ -356,6 +359,7 @@ func (m *Migration) Init() error {
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
 				"addresses" TEXT,			-- list of addresses / participants of the multisig account
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
+				"latest" INTEGER,			-- latest flag for pending signature
 				PRIMARY KEY("multisig_address", "block_height")
 			)
 			`,
@@ -364,6 +368,10 @@ func (m *Migration) Init() error {
 			`,
 			`CREATE INDEX "idx_blockheight_multisignature_info" 
 			ON "multisignature_info" ("block_height");
+			`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
 			`,
 			`
 			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")

@@ -125,7 +125,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		SnapshotFileHash:           snapshotFileHash,
 		FileChunksHashes:           fileChunkHashes,
 		ChainType:                  ss.chainType.GetTypeInt(),
-		Height:                     block.Height,
+		Height:                     snapshotPayloadHeight,
 		ProcessExpirationTimestamp: snapshotExpirationTimestamp,
 		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 	}, nil

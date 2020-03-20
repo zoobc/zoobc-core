@@ -10,8 +10,11 @@ import (
 
 type (
 	MultisignatureInfoQueryInterface interface {
-		GetMultisignatureInfoByAddress(multisigAddress string) (str string, args []interface{})
-		InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) (str string, args []interface{})
+		GetMultisignatureInfoByAddress(
+			multisigAddress string,
+			currentHeight, limit uint32,
+		) (str string, args []interface{})
+		InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{}
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
@@ -32,6 +35,7 @@ func NewMultisignatureInfoQuery() *MultisignatureInfoQuery {
 			"nonce",
 			"addresses",
 			"block_height",
+			"latest",
 		},
 		TableName: "multisignature_info",
 	}
@@ -41,21 +45,44 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
-func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(multisigAddress string) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE multisig_address = ?", strings.Join(msi.Fields, ", "), msi.getTableName())
+func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
+	multisigAddress string,
+	currentHeight, limit uint32,
+) (str string, args []interface{}) {
+	var (
+		blockHeight uint32
+	)
+	if currentHeight > limit {
+		blockHeight = currentHeight - limit
+	}
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
+		strings.Join(msi.Fields, ", "), msi.getTableName())
 	return query, []interface{}{
 		multisigAddress,
+		blockHeight,
 	}
 }
 
 // InsertPendingSignature inserts a new pending transaction into DB
-func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) (str string, args []interface{}) {
-	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{} {
+	var queries [][]interface{}
+	insertQuery := fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		msi.getTableName(),
 		strings.Join(msi.Fields, ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(msi.Fields)-1)),
-	), msi.ExtractModel(multisigInfo)
+	)
+	updateQuery := fmt.Sprintf("UPDATE %s SET latest = false WHERE multisig_address = ? "+
+		"AND block_height != %d AND latest = true",
+		msi.getTableName(),
+		multisigInfo.BlockHeight,
+	)
+	queries = append(queries,
+		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)...),
+		[]interface{}{
+			updateQuery, multisigInfo.MultisigAddress,
+		},
+	)
+	return queries
 }
 
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
@@ -66,6 +93,7 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 		&multisigInfo.Nonce,
 		&addresses,
 		&multisigInfo.BlockHeight,
+		&multisigInfo.Latest,
 	)
 	multisigInfo.Addresses = strings.Split(addresses, ", ")
 	return err
@@ -79,6 +107,7 @@ func (*MultisignatureInfoQuery) ExtractModel(multisigInfo *model.MultiSignatureI
 		&multisigInfo.Nonce,
 		addresses,
 		&multisigInfo.BlockHeight,
+		&multisigInfo.Latest,
 	}
 }
 
@@ -96,6 +125,7 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			&multisigInfo.Nonce,
 			&addresses,
 			&multisigInfo.BlockHeight,
+			&multisigInfo.Latest,
 		)
 		multisigInfo.Addresses = strings.Split(addresses, ", ")
 		if err != nil {
@@ -112,6 +142,15 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", msi.getTableName()),
 			height,
+		},
+		{
+			fmt.Sprintf("UPDATE %s SET latest = ? WHERE latest = ? AND (block_height || '_' || "+
+				"multisig_address) IN (SELECT (MAX(block_height) || '_' || multisig_address) as con "+
+				"FROM %s GROUP BY multisig_address)",
+				msi.getTableName(),
+				msi.getTableName(),
+			),
+			1, 0,
 		},
 	}
 }

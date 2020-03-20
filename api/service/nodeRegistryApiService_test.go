@@ -60,30 +60,41 @@ func (*mockQueryGetNodeRegistrationsFail) ExecuteSelect(query string, tx bool, a
 	return nil, errors.New("want error")
 }
 
+func (*mockQueryGetNodeRegistrationsFail) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, errors.New("want error")
+}
+
 func (*mockQueryGetNodeRegistrationsSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
+	mock.ExpectQuery("").
+		WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields).
+			AddRow(
+				1,
+				[]byte{1, 2},
+				"AccountA",
+				1,
+				"127.0.0.1",
+				1,
+				uint32(model.NodeRegistrationState_NodeQueued),
+				true,
+				1,
+			),
+		)
+	return db.Query("")
+}
+
+func (*mockQueryGetNodeRegistrationsSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
 	switch strings.Contains(qStr, "total_record") {
 	case true:
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
 	default:
-		mock.ExpectQuery("").
-			WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields).
-				AddRow(
-					1,
-					[]byte{1, 2},
-					"AccountA",
-					1,
-					"127.0.0.1",
-					1,
-					uint32(model.NodeRegistrationState_NodeQueued),
-					true,
-					1,
-				),
-			)
+		return nil, nil
 	}
-	return db.Query("")
+	return db.QueryRow(qStr), nil
 }
 
 func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
