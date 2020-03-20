@@ -122,7 +122,7 @@ func (*NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKe
 
 // GenerateNodeKey generates a new node ket from its seed and store it, together with relative public key into node_keys file
 func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
-	publicKey := commonUtils.GetPublicKeyFromSeed(seed)
+	publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(seed)
 	nodeKey := &model.NodeKey{
 		Seed:      seed,
 		PublicKey: publicKey,

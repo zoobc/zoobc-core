@@ -9,16 +9,19 @@ import (
 	"log"
 	"os"
 	"text/template"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -191,16 +194,22 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
 func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry {
+	var (
+		ed25519Signature = crypto.NewEd25519Signature()
+	)
 	if accountAddress == "" {
-		seed := util.GetSecureRandomSeed()
-		privateKey, _ := util.GetPrivateKeyFromSeed(seed)
-		publicKey := privateKey[32:]
-		accountAddress, _ = util.GetAddressFromPublicKey(publicKey)
+		var (
+			seed       = util.GetSecureRandomSeed()
+			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+			publicKey  = privateKey[32:]
+		)
+		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(publicKey)
 	}
-
-	nodeSeed := util.GetSecureRandomSeed()
-	nodePrivateKey, _ := util.GetPrivateKeyFromSeed(nodeSeed)
-	nodePublicKey := nodePrivateKey[32:]
+	var (
+		nodeSeed       = util.GetSecureRandomSeed()
+		nodePrivateKey = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
+		nodePublicKey  = nodePrivateKey[32:]
+	)
 
 	return genesisEntry{
 		AccountAddress:     accountAddress,
@@ -224,7 +233,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	}
 
 	dbInstance := database.NewSqliteDB()
-	db, err = dbInstance.OpenDB(dbPath, "zoobc.db", 10, 20)
+	db, err = dbInstance.OpenDB(dbPath, "zoobc.db", 10, 10, 20*time.Minute)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -248,19 +257,29 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if acc.AccountAddress == constant.MainchainGenesisAccountAddress {
 			continue
 		}
+
+		var nodeRegistrations []*model.NodeRegistration
+
 		bcEntry := new(genesisEntry)
 		bcEntry.AccountAddress = acc.AccountAddress
 		bcEntry.AccountBalance = acc.Balance
 
-		// get node registration for this account, if exists
-		qry, args := nodeRegistrationQuery.GetNodeRegistrationByAccountAddress(acc.AccountAddress)
-		nrRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return nil, err
-		}
-		defer nrRows.Close()
+		err := func() error {
+			// get node registration for this account, if exists
+			qry, args := nodeRegistrationQuery.GetNodeRegistrationByAccountAddress(acc.AccountAddress)
+			nrRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+			if err != nil {
+				return err
+			}
+			defer nrRows.Close()
 
-		nodeRegistrations, err := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, nrRows)
+			nodeRegistrations, err = nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, nrRows)
+			if err != nil {
+				return err
+			}
+			return nil
+		}()
+
 		if err != nil {
 			return nil, err
 		}
@@ -275,17 +294,23 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
 			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
-			// get the participation score for this node registration
-			qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
-			psRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+			err := func() error {
+				// get the participation score for this node registration
+				qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
+				psRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+				if err != nil {
+					return err
+				}
+				defer psRows.Close()
+
+				participationScores, err := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, psRows)
+				if (err != nil) || len(participationScores) > 0 {
+					bcEntry.ParticipationScore = participationScores[0].Score
+				}
+				return nil
+			}()
 			if err != nil {
 				return nil, err
-			}
-			defer psRows.Close()
-
-			participationScores, err := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, psRows)
-			if (err != nil) || len(participationScores) > 0 {
-				bcEntry.ParticipationScore = participationScores[0].Score
 			}
 		}
 		bcEntries = append(bcEntries, *bcEntry)
@@ -351,12 +376,17 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		nil,
-		nil,
-		nil,
-		nil,
 		&transaction.TypeSwitcher{},
 		nil,
 		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
 		nil,
 		nil,
 		nil,

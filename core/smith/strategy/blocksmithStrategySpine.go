@@ -25,6 +25,7 @@ type (
 		LastSortedBlockID     int64
 		SortedBlocksmithsLock sync.RWMutex
 		SortedBlocksmithsMap  map[string]*int64
+		SpineBlockQuery       query.BlockQueryInterface
 	}
 )
 
@@ -32,12 +33,14 @@ func NewBlocksmithStrategySpine(
 	queryExecutor query.ExecutorInterface,
 	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	logger *log.Logger,
+	spineBlockQuery query.BlockQueryInterface,
 ) *BlocksmithStrategySpine {
 	return &BlocksmithStrategySpine{
 		QueryExecutor:        queryExecutor,
 		SpinePublicKeyQuery:  spinePublicKeyQuery,
 		Logger:               logger,
 		SortedBlocksmithsMap: make(map[string]*int64),
+		SpineBlockQuery:      spineBlockQuery,
 	}
 }
 
@@ -77,12 +80,12 @@ func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model
 }
 
 func (bss *BlocksmithStrategySpine) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
-		bss.SortBlocksmiths(block)
-	}
-	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
+		bss.SortBlocksmiths(block, false)
+	}
+	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	copy(result, bss.SortedBlocksmiths)
 	return result
 }
@@ -92,24 +95,46 @@ func (bss *BlocksmithStrategySpine) GetSortedBlocksmithsMap(block *model.Block) 
 	var (
 		result = make(map[string]*int64)
 	)
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
-		bss.SortBlocksmiths(block)
-	}
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
+	if block.ID != bss.LastSortedBlockID || block.ID == constant.SpinechainGenesisBlockID {
+		bss.SortBlocksmiths(block, false)
+	}
 	for k, v := range bss.SortedBlocksmithsMap {
 		result[k] = v
 	}
 	return result
 }
 
-func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
+func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block, withLock bool) {
 	if block.ID == bss.LastSortedBlockID && block.ID != constant.SpinechainGenesisBlockID {
 		return
 	}
+
+	var (
+		prevHeight = block.Height
+		prevBlock  model.Block
+		err        error
+	)
+
+	// always calculate sorted blocksmiths from previous block, otherwise when downloading the spine blocks it could happen
+	// that the node is unable to validate a block if it is smithed by a newly registered node that has his public key included in the same
+	// block the node is trying to validate (in that scenario the node's public key isn't in the db yet because the block hasn't been
+	// pushed yet)
+	if block.Height > 0 {
+		prevHeight = block.Height - 1
+	}
+	blockAtHeightQ := bss.SpineBlockQuery.GetBlockByHeight(prevHeight)
+	blockAtHeightRow, _ := bss.QueryExecutor.ExecuteSelectRow(blockAtHeightQ, false)
+	err = bss.SpineBlockQuery.Scan(&prevBlock, blockAtHeightRow)
+	if err != nil {
+		bss.Logger.Errorf("SortBlocksmith (Spine):GetBlockByHeight fail: %s", err)
+		return
+	}
+
 	// fetch valid blocksmiths
 	var blocksmiths []*model.Blocksmith
-	nextBlocksmiths, err := bss.GetBlocksmiths(block)
+	nextBlocksmiths, err := bss.GetBlocksmiths(&prevBlock)
 	if err != nil {
 		bss.Logger.Errorf("SortBlocksmith (Spine):GetBlocksmiths fail: %s", err)
 		return
@@ -118,16 +143,17 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block) {
 	blocksmiths = append(blocksmiths, nextBlocksmiths...)
 	// sort blocksmiths by SmithOrder
 	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.BlockSeed - bj.BlockSeed
-		if res == 0 {
-			res = bi.NodeID - bj.NodeID
+		if blocksmiths[i].BlockSeed == blocksmiths[j].BlockSeed {
+			return blocksmiths[i].NodeID < blocksmiths[j].NodeID
 		}
 		// ascending sort
-		return res < 0
+		return blocksmiths[i].BlockSeed < blocksmiths[j].BlockSeed
 	})
-	bss.SortedBlocksmithsLock.Lock()
-	defer bss.SortedBlocksmithsLock.Unlock()
+
+	if withLock {
+		bss.SortedBlocksmithsLock.Lock()
+		defer bss.SortedBlocksmithsLock.Unlock()
+	}
 	// copying the sorted list to map[string(publicKey)]index
 	for index, blocksmith := range blocksmiths {
 		blocksmithIndex := int64(index)
@@ -154,7 +180,14 @@ func (bss *BlocksmithStrategySpine) CalculateSmith(
 
 // GetSmithTime calculate smith time of a blocksmith
 func (bss *BlocksmithStrategySpine) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+	var (
+		elapsedFromLastBlock int64
+	)
 	ct := &chaintype.SpineChain{}
-	elapsedFromLastBlock := (blocksmithIndex + 1) * ct.GetSmithingPeriod()
+	if blocksmithIndex < 1 {
+		elapsedFromLastBlock = ct.GetSmithingPeriod()
+	} else {
+		elapsedFromLastBlock = blocksmithIndex*constant.SmithingBlocksmithTimeGap + ct.GetSmithingPeriod()
+	}
 	return block.GetTimestamp() + elapsedFromLastBlock
 }

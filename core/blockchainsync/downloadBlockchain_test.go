@@ -11,7 +11,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 )
@@ -129,14 +131,30 @@ func (*mockBlockServiceFail) GetLastBlock(flagTrans int) (*model.Block, error) {
 	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
 }
 
+type (
+	mockBlockchainStatusService struct {
+		coreService.BlockchainStatusService
+	}
+)
+
+func (*mockBlockchainStatusService) IsFirstDownloadFinished(ct chaintype.ChainType) bool {
+	return true
+}
+
+func (*mockBlockchainStatusService) IsDownloading(ct chaintype.ChainType) bool {
+	return true
+}
+
 func TestGetPeerCommonBlockID(t *testing.T) {
 	type args struct {
-		PeerServiceClient client.PeerServiceClientInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		blockService      coreService.BlockServiceInterface
-		queryService      query.ExecutorInterface
-		logger            *log.Logger
+		PeerServiceClient       client.PeerServiceClientInterface
+		PeerExplorer            strategy.PeerExplorerStrategyInterface
+		blockService            coreService.BlockServiceInterface
+		queryService            query.ExecutorInterface
+		logger                  *log.Logger
+		blockchainStatusService coreService.BlockchainStatusServiceInterface
 	}
+
 	tests := []struct {
 		name    string
 		args    args
@@ -146,11 +164,12 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 		{
 			name: "want:getPeerCommonBlockID successfully return common block ID",
 			args: args{
-				PeerServiceClient: &mockP2pServiceSuccess{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceSuccess{},
-				queryService:      &mockQueryServiceSuccess{},
-				logger:            log.New(),
+				PeerServiceClient:       &mockP2pServiceSuccess{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceSuccess{},
+				queryService:            &mockQueryServiceSuccess{},
+				logger:                  log.New(),
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want:    int64(1),
 			wantErr: false,
@@ -158,11 +177,12 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 		{
 			name: "wantErr:getPeerCommonBlockID get last block failed",
 			args: args{
-				PeerServiceClient: &mockP2pServiceSuccess{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceFail{},
-				queryService:      &mockQueryServiceSuccess{},
-				logger:            log.New(),
+				PeerServiceClient:       &mockP2pServiceSuccess{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceFail{},
+				queryService:            &mockQueryServiceSuccess{},
+				logger:                  log.New(),
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want:    int64(0),
 			wantErr: true,
@@ -170,11 +190,12 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 		{
 			name: "wantErr:getPeerCommonBlockID grpc error",
 			args: args{
-				PeerServiceClient: &mockP2pServiceFail{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceSuccess{},
-				queryService:      &mockQueryServiceSuccess{},
-				logger:            log.New(),
+				PeerServiceClient:       &mockP2pServiceFail{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceSuccess{},
+				queryService:            &mockQueryServiceSuccess{},
+				logger:                  log.New(),
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want:    int64(0),
 			wantErr: true,
@@ -184,10 +205,11 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			blockchainDownloader := &BlockchainDownloader{
-				BlockService:      tt.args.blockService,
-				PeerServiceClient: tt.args.PeerServiceClient,
-				PeerExplorer:      tt.args.PeerExplorer,
-				Logger:            tt.args.logger,
+				BlockService:            tt.args.blockService,
+				PeerServiceClient:       tt.args.PeerServiceClient,
+				PeerExplorer:            tt.args.PeerExplorer,
+				Logger:                  tt.args.logger,
+				BlockchainStatusService: tt.args.blockchainStatusService,
 			}
 			got, err := blockchainDownloader.getPeerCommonBlockID(
 				&model.Peer{},
@@ -205,10 +227,11 @@ func TestGetPeerCommonBlockID(t *testing.T) {
 
 func TestGetBlockIdsAfterCommon(t *testing.T) {
 	type args struct {
-		PeerServiceClient client.PeerServiceClientInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		blockService      coreService.BlockServiceInterface
-		queryService      query.ExecutorInterface
+		PeerServiceClient       client.PeerServiceClientInterface
+		PeerExplorer            strategy.PeerExplorerStrategyInterface
+		blockService            coreService.BlockServiceInterface
+		queryService            query.ExecutorInterface
+		blockchainStatusService coreService.BlockchainStatusServiceInterface
 	}
 
 	tests := []struct {
@@ -219,40 +242,44 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 		{
 			name: "want:getBlockIdsAfterCommon (all getBlockIdsAfterCommon new)",
 			args: args{
-				PeerServiceClient: &mockP2pServiceSuccessNewResult{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceSuccess{},
-				queryService:      &mockQueryServiceSuccess{},
+				PeerServiceClient:       &mockP2pServiceSuccessNewResult{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceSuccess{},
+				queryService:            &mockQueryServiceSuccess{},
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want: []int64{3, 4},
 		},
 		{
 			name: "want:getBlockIdsAfterCommon (some getBlockIdsAfterCommon already exists)",
 			args: args{
-				PeerServiceClient: &mockP2pServiceSuccess{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceSuccess{},
-				queryService:      &mockQueryServiceSuccess{},
+				PeerServiceClient:       &mockP2pServiceSuccess{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceSuccess{},
+				queryService:            &mockQueryServiceSuccess{},
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want: []int64{2, 3, 4},
 		},
 		{
 			name: "want:getBlockIdsAfterCommon (all getBlockIdsAfterCommon already exists)",
 			args: args{
-				PeerServiceClient: &mockP2pServiceSuccessOneResult{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceSuccess{},
-				queryService:      &mockQueryServiceSuccess{},
+				PeerServiceClient:       &mockP2pServiceSuccessOneResult{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceSuccess{},
+				queryService:            &mockQueryServiceSuccess{},
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want: []int64{1},
 		},
 		{
 			name: "want:getBlockIdsAfterCommon (GetNextBlockIDs produce error)",
 			args: args{
-				PeerServiceClient: &mockP2pServiceFail{},
-				PeerExplorer:      &mockPeerExplorer{},
-				blockService:      &mockBlockServiceSuccess{},
-				queryService:      &mockQueryServiceSuccess{},
+				PeerServiceClient:       &mockP2pServiceFail{},
+				PeerExplorer:            &mockPeerExplorer{},
+				blockService:            &mockBlockServiceSuccess{},
+				queryService:            &mockQueryServiceSuccess{},
+				blockchainStatusService: &mockBlockchainStatusService{},
 			},
 			want: []int64{},
 		},
@@ -261,9 +288,10 @@ func TestGetBlockIdsAfterCommon(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			blockchainDownloader := &BlockchainDownloader{
-				BlockService:      tt.args.blockService,
-				PeerServiceClient: tt.args.PeerServiceClient,
-				PeerExplorer:      tt.args.PeerExplorer,
+				BlockService:            tt.args.blockService,
+				PeerServiceClient:       tt.args.PeerServiceClient,
+				PeerExplorer:            tt.args.PeerExplorer,
+				BlockchainStatusService: tt.args.blockchainStatusService,
 			}
 			got := blockchainDownloader.getBlockIdsAfterCommon(
 				&model.Peer{},
@@ -298,15 +326,21 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
+		nil,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
 		nil,
 	)
 	blockchainDownloader := &BlockchainDownloader{
-		BlockService:      blockService,
-		PeerServiceClient: &mockP2pServiceSuccess{},
-		PeerExplorer:      &mockPeerExplorer{},
+		BlockService:            blockService,
+		PeerServiceClient:       &mockP2pServiceSuccess{},
+		PeerExplorer:            &mockPeerExplorer{},
+		BlockchainStatusService: &mockBlockchainStatusService{},
 	}
 
 	type args struct {

@@ -1,6 +1,9 @@
 package chaintype
 
-import "github.com/zoobc/zoobc-core/common/constant"
+import (
+	"github.com/zoobc/zoobc-core/common/constant"
+	"time"
+)
 
 // MainChain is struct should has methods in below
 type MainChain struct{}
@@ -15,13 +18,8 @@ func (*MainChain) GetTablePrefix() string {
 	return "main"
 }
 
-// GetChainSmithingDelayTime return the value of chain smithing delay in second
-func (*MainChain) GetChainSmithingDelayTime() int64 {
-	return 20
-}
-
 func (*MainChain) GetSmithingPeriod() int64 {
-	return 15
+	return constant.MainChainSmithingPeriod
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node
@@ -52,4 +50,16 @@ func (*MainChain) GetGenesisBlockSignature() []byte {
 
 func (*MainChain) HasTransactions() bool {
 	return true
+}
+
+func (*MainChain) HasSnapshots() bool {
+	return true
+}
+
+func (*MainChain) GetSnapshotInterval() uint32 {
+	return constant.MainchainSnapshotInterval
+}
+
+func (*MainChain) GetSnapshotGenerationTimeout() time.Duration {
+	return constant.MainchainSnapshotGenerationTimeout
 }

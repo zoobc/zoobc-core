@@ -71,7 +71,7 @@ func TestGetTransaction(t *testing.T) {
 			want: "SELECT id, block_id, block_height, sender_account_address, " +
 				"recipient_account_address, transaction_type, fee, timestamp, " +
 				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index from \"transaction\"",
+				"transaction_index, multisig_child from \"transaction\" WHERE multisig_child = false",
 		},
 		{
 			name: "transaction query with ID param only",
@@ -81,81 +81,13 @@ func TestGetTransaction(t *testing.T) {
 			want: "SELECT id, block_id, block_height, sender_account_address, " +
 				"recipient_account_address, transaction_type, fee, timestamp, " +
 				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index from \"transaction\" " +
-				"WHERE id = 1",
+				"transaction_index, multisig_child from \"transaction\" " +
+				"WHERE multisig_child = false AND id = 1",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			query := transactionQuery.GetTransaction(tt.params.ID)
-			if query != tt.want {
-				t.Errorf("GetTransactionError() \ngot = %v \nwant = %v", query, tt.want)
-				return
-			}
-		})
-	}
-}
-
-func TestGetTransactions(t *testing.T) {
-	transactionQuery := NewTransactionQuery(chaintype.GetChainType(0))
-
-	type paramsStruct struct {
-		Limit  uint32
-		Offset uint64
-	}
-
-	tests := []struct {
-		name   string
-		params *paramsStruct
-		want   string
-	}{
-		{
-			name:   "transactions query without condition",
-			params: &paramsStruct{},
-			want: "SELECT id, block_id, block_height, sender_account_address, " +
-				"recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version," +
-				" transaction_index from " +
-				"\"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
-		},
-		{
-			name: "transactions query with limit",
-			params: &paramsStruct{
-				Limit: 10,
-			},
-			want: "SELECT id, block_id, block_height, sender_account_address, " +
-				"recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index from " +
-				"\"transaction\" ORDER BY block_height, timestamp LIMIT 0,10",
-		},
-		{
-			name: "transactions query with offset",
-			params: &paramsStruct{
-				Offset: 20,
-			},
-			want: "SELECT id, block_id, block_height, sender_account_address, " +
-				"recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index from " +
-				"\"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
-		},
-		{
-			name: "transactions query with all the params",
-			params: &paramsStruct{
-				Limit:  10,
-				Offset: 20,
-			},
-			want: "SELECT id, block_id, block_height, sender_account_address, " +
-				"recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index from " +
-				"\"transaction\" ORDER BY block_height, timestamp LIMIT 20,10",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			query := transactionQuery.GetTransactions(tt.params.Limit, tt.params.Offset)
 			if query != tt.want {
 				t.Errorf("GetTransactionError() \ngot = %v \nwant = %v", query, tt.want)
 				return
@@ -273,8 +205,8 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{blockID: int64(1)},
-			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ? ORDER BY "+
-				"transaction_index ASC",
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ? AND multisig_child = false"+
+				" ORDER BY transaction_index ASC",
 				strings.Join(mockTransactionQuery.Fields, ", "),
 			),
 			wantArgs: []interface{}{int64(1)},
@@ -293,6 +225,59 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("GetTransactionsByBlockID() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestTransactionQuery_GetTransactionsByIds(t *testing.T) {
+	var (
+		txIdsStr []string
+		txIds    = []int64{1, 2, 3, 4}
+	)
+	for _, txID := range txIds {
+		txIdsStr = append(txIdsStr, fmt.Sprintf("%d", txID))
+	}
+
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		txIds []int64
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockTransactionQuery),
+			args:   args{txIds: txIds},
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE multisig_child = false AND id in (%s)",
+				strings.Join(mockTransactionQuery.Fields, ", "),
+				strings.Join(txIdsStr, ","),
+			),
+			wantArgs: []interface{}{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tq := &TransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			gotStr, gotArgs := tq.GetTransactionsByIds(tt.args.txIds)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetTransactionsByIds() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetTransactionsByIds() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -322,6 +307,7 @@ func (*mockQueryExecutorBuildModel) ExecuteSelect(query string, tx bool, args ..
 			make([]byte, 68),
 			1,
 			1,
+			false,
 		),
 	)
 	return db.Query("")
@@ -393,6 +379,7 @@ func (*mockRowTransactionQueryScan) ExecuteSelectRow(qStr string, args ...interf
 			make([]byte, 68),
 			1,
 			1,
+			false,
 		),
 	)
 	return db.QueryRow("")

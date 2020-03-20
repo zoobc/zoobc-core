@@ -18,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -154,26 +155,27 @@ var (
 func fixtureGenerateMerkle() {
 	mockSeed := "mock seed"
 	signature := crypto.NewSignature()
+	receiptUtil := &coreUtil.ReceiptUtil{}
 	// sign mock linked receipt and update the recipient public key
-	mockLinkedReceipt.BatchReceipt.RecipientPublicKey = util.GetPublicKeyFromSeed(mockSeed)
-	unsignedReceiptByte := util.GetUnsignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
+	mockLinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	unsignedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
 	mockLinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
 	// sign rmr linked receipt
-	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientPublicKey = util.GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.SenderPublicKey = mockLinkedReceipt.BatchReceipt.SenderPublicKey
-	unsignedUnlinkedReceiptByte := util.GetUnsignedBatchReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.BatchReceipt)
+	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.BatchReceipt)
 	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientSignature = signature.SignByNode(
 		unsignedUnlinkedReceiptByte, mockSeed)
 	// sign no rmr linked
-	mockUnlinkedReceipt.BatchReceipt.RecipientPublicKey = util.GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceipt.BatchReceipt.SenderPublicKey = mockLinkedReceipt.BatchReceipt.SenderPublicKey
-	unsignedNoRMRReceiptByte := util.GetUnsignedBatchReceiptBytes(mockUnlinkedReceipt.BatchReceipt)
+	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockUnlinkedReceipt.BatchReceipt)
 	mockUnlinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(
 		unsignedNoRMRReceiptByte, mockSeed,
 	)
 	mockNodeRegistrationDataB.NodePublicKey = mockLinkedReceipt.BatchReceipt.RecipientPublicKey
 	mockMerkle = &util.MerkleRoot{}
-	receiptBytes := util.GetSignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
+	receiptBytes := receiptUtil.GetSignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
 	receiptHash := sha3.Sum256(receiptBytes)
 	mockMerkleHashes = append(mockMerkleHashes, bytes.NewBuffer(receiptHash[:]))
 	// generate random data for the hashes
@@ -208,7 +210,7 @@ func (*mockQueryExecutorFailExecuteSelectReceipt) ExecuteSelect(
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked)" +
-		" AND block_height BETWEEN 0 AND 1000 ORDER BY block_height ASC LIMIT 5":
+		" AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 5":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -237,7 +239,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) " +
-		"AND block_height BETWEEN 0 AND 1000 ORDER BY block_height ASC LIMIT 5":
+		"AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 5":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -450,7 +452,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) " +
-		"AND block_height BETWEEN 0 AND 1000 ORDER BY block_height ASC LIMIT 15":
+		"AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 15":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -490,7 +492,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE NOT " +
 		"EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) AND " +
-		"reference_block_height BETWEEN 0 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height " +
+		"reference_block_height BETWEEN 280 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height " +
 		"ASC LIMIT 15":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key",
@@ -737,6 +739,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				Signature:               crypto.NewSignature(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 			}
 			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt, 1000)
 			if (err != nil) != tt.wantErr {
@@ -924,6 +927,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
 				KVExecutor:        tt.fields.KVExecutor,
 				QueryExecutor:     tt.fields.QueryExecutor,
+				ReceiptUtil:       &coreUtil.ReceiptUtil{},
 			}
 			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
 				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)

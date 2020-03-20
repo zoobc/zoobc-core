@@ -23,6 +23,7 @@ type RemoveAccountDataset struct {
 	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface
 	AccountLedgerQuery  query.AccountLedgerQueryInterface
+	EscrowQuery         query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -185,6 +186,10 @@ func (tx *RemoveAccountDataset) GetAmount() int64 {
 	return tx.Fee
 }
 
+func (*RemoveAccountDataset) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 // GetSize is size of transaction body
 func (tx *RemoveAccountDataset) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))
@@ -261,4 +266,58 @@ func (tx *RemoveAccountDataset) GetTransactionBody(transaction *model.Transactio
 	transaction.TransactionBody = &model.Transaction_RemoveAccountDatasetTransactionBody{
 		RemoveAccountDatasetTransactionBody: tx.Body,
 	}
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *RemoveAccountDataset) Escrowable() (EscrowTypeAction, bool) {
+
+	return nil, false
+}
+
+/*
+EscrowValidate is func that for validating to Transaction RemoveAccountDataset type
+That specs:
+	- Check existing Account Dataset
+	- Check Spendable Balance sender
+*/
+func (tx *RemoveAccountDataset) EscrowValidate(dbTx bool) error {
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `RemoveAccountDataset` type
+*/
+func (tx *RemoveAccountDataset) EscrowApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *RemoveAccountDataset) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowApplyConfirmed is func that for applying Transaction RemoveAccountDataset type,
+*/
+func (tx *RemoveAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *RemoveAccountDataset) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+
+	return nil
 }

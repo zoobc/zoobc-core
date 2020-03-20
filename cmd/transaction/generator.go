@@ -1,11 +1,17 @@
 package transaction
 
 import (
+	"context"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
+
+	rpc_model "github.com/zoobc/zoobc-core/common/model"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"google.golang.org/grpc"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -44,7 +50,7 @@ func GenerateTxRegisterNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
 	txBody := &model.NodeRegistrationTransactionBody{
@@ -89,7 +95,7 @@ func GenerateTxUpdateNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -120,7 +126,7 @@ func GenerateTxUpdateNode(
 }
 
 func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
@@ -153,7 +159,7 @@ func GenerateTxClaimNode(
 		BlockHeight:    lastBlock.Height,
 	}
 
-	nodePubKey := util.GetPublicKeyFromSeed(nodeSeed)
+	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
 	signature := (&crypto.Signature{}).SignByNode(
 		poownMessageBytes,
@@ -226,15 +232,49 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
-/*
-Basic Func
-*/
-func GenerateBasicTransaction(senderSeed string,
+func GenerateBasicTransaction(
+	senderSeed string,
+	senderSignatureType int32,
 	version uint32,
 	timestamp, fee int64,
 	recipientAccountAddress string,
 ) *model.Transaction {
-	senderAccountAddress := util.GetAddressFromSeed(senderSeed)
+	var (
+		senderAccountAddress string
+	)
+	if senderSeed == "" {
+		senderAccountAddress = senderAddress
+	} else {
+		switch model.SignatureType(senderSignatureType) {
+		case model.SignatureType_DefaultSignature:
+			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+		case model.SignatureType_BitcoinSignature:
+			var (
+				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
+					senderSeed,
+					crypto.DefaultBitcoinPublicKeyFormat(),
+					crypto.DefaultBitcoinPrivateKeyLength(),
+				)
+			)
+			if err != nil {
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
+			}
+			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
+			if err != nil {
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
+			}
+		default:
+			panic("GenerateBasicTransaction-Invalid Signature Type")
+		}
+	}
+
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
@@ -244,6 +284,11 @@ func GenerateBasicTransaction(senderSeed string,
 		SenderAccountAddress:    senderAccountAddress,
 		RecipientAccountAddress: recipientAccountAddress,
 		Fee:                     fee,
+		Escrow: &model.Escrow{
+			ApproverAddress: "",
+			Commission:      0,
+			Timeout:         0,
+		},
 	}
 }
 
@@ -259,16 +304,166 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 		}
 		resultStr = strings.Join(byteStrArr, ", ")
 	}
-	fmt.Println(resultStr)
+	if post {
+		conn, err := grpc.Dial(postHost, grpc.WithInsecure())
+		if err != nil {
+			log.Fatalf("did not connect: %s", err)
+		}
+		defer conn.Close()
+
+		c := rpc_service.NewTransactionServiceClient(conn)
+
+		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+			TransactionBytes: signedTxBytes,
+		})
+		if err != nil {
+			fmt.Printf("post failed: %v\n", err)
+		} else {
+			fmt.Printf("\n\nresult: %v\n", response)
+		}
+	} else {
+		fmt.Println(resultStr)
+	}
 }
 
-func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string) []byte {
-	unsignedTxBytes, _ := transaction.GetTransactionBytes(tx, false)
-	tx.Signature = signature.Sign(
+func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureType int32) []byte {
+	var (
+		transactionUtil = &transaction.Util{}
+		txType          transaction.TypeAction
+	)
+	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	minimumFee, _ := txType.GetMinimumFee()
+	tx.Fee += minimumFee
+
+	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
+	if senderSeed == "" {
+		return unsignedTxBytes
+	}
+	tx.Signature, _ = signature.Sign(
 		unsignedTxBytes,
-		constant.SignatureTypeDefault,
+		model.SignatureType(signatureType),
 		senderSeed,
 	)
-	signedTxBytes, _ := transaction.GetTransactionBytes(tx, true)
+	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
 	return signedTxBytes
+}
+
+// GenerateEscrowApprovalTransaction set escrow approval body
+func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction {
+
+	var chosen model.EscrowApproval
+	switch approval {
+	case true:
+		chosen = model.EscrowApproval_Approve
+	default:
+		chosen = model.EscrowApproval_Reject
+	}
+
+	txBody := &model.ApprovalEscrowTransactionBody{
+		Approval:      chosen,
+		TransactionID: transactionID,
+	}
+	txBodyBytes := (&transaction.ApprovalEscrowTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+
+	tx.TransactionBody = txBody
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = constant.EscrowApprovalBytesLength
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["approvalEscrow"])
+
+	return tx
+}
+
+/*
+GenerateEscrowedTransaction inject escrow. Need:
+		1. esApproverAddress
+		2. Commission
+		3. Timeout
+Invalid escrow validation when those fields has not set
+*/
+func GenerateEscrowedTransaction(
+	tx *model.Transaction,
+) *model.Transaction {
+	tx.Escrow = &model.Escrow{
+		ApproverAddress: esApproverAddress,
+		Commission:      esCommission,
+		Timeout:         esTimeout,
+		Instruction:     esInstruction,
+	}
+	return tx
+}
+
+/*
+GeneratedMultiSignatureTransaction inject escrow. Need:
+		1. unsignedTxHex
+		2. signatures
+		3. multisigInfo:
+			- minSignature
+			- nonce
+			- addresses
+Invalid escrow validation when those fields has not set
+*/
+func GeneratedMultiSignatureTransaction(
+	tx *model.Transaction,
+	minSignature uint32,
+	nonce int64,
+	unsignedTxHex, txHash string,
+	addressSignatures map[string]string, addresses []string,
+) *model.Transaction {
+	var (
+		signatures    = make(map[string][]byte)
+		signatureInfo *model.SignatureInfo
+		unsignedTx    []byte
+		multiSigInfo  *model.MultiSignatureInfo
+		err           error
+	)
+	if minSignature > 0 && len(addresses) > 0 {
+		multiSigInfo = &model.MultiSignatureInfo{
+			MinimumSignatures: minSignature,
+			Nonce:             nonce,
+			Addresses:         addresses,
+		}
+	}
+	if unsignedTxHex != "" {
+		unsignedTx, err = hex.DecodeString(unsignedTxHex)
+		if err != nil {
+			return nil
+		}
+	}
+	if txHash != "" {
+		transactionHash, err := hex.DecodeString(txHash)
+		if err != nil {
+			return nil
+		}
+		for k, v := range addressSignatures {
+			if v == "" {
+				sigType := util.ConvertUint32ToBytes(2)
+				signatures[k] = sigType
+			} else {
+				signature, err := hex.DecodeString(v)
+				if err != nil {
+					return nil
+				}
+				signatures[k] = signature
+			}
+		}
+		fmt.Printf("signatures: %v\n\n\n", signatures)
+		signatureInfo = &model.SignatureInfo{
+			TransactionHash: transactionHash,
+			Signatures:      signatures,
+		}
+	}
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
+	txBody := &model.MultiSignatureTransactionBody{
+		MultiSignatureInfo:       multiSigInfo,
+		UnsignedTransactionBytes: unsignedTx,
+		SignatureInfo:            signatureInfo,
+	}
+	tx.TransactionBodyBytes = (&transaction.MultiSignatureTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
+	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
+	return tx
 }

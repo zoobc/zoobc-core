@@ -6,11 +6,13 @@ import (
 	"net"
 	"net/http"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -18,6 +20,7 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc"
@@ -36,6 +39,10 @@ func startGrpcServer(
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
+	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	receiptService coreService.ReceiptServiceInterface,
+	transactionCoreService coreService.TransactionCoreServiceInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -49,22 +56,28 @@ func startGrpcServer(
 	}
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds),
-		grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
-			logger,
-			ownerAccountAddress,
-			map[codes.Code]string{
-				codes.Unavailable:     "indicates the destination service is currently unavailable",
-				codes.InvalidArgument: "indicates the argument request is invalid",
-				codes.Unauthenticated: "indicates the request is unauthenticated",
-			},
-		)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+			interceptor.NewServerRateLimiterInterceptor(constant.MaxAPIRequestPerSecond),
+			interceptor.NewServerInterceptor(
+				logger,
+				ownerAccountAddress,
+				map[codes.Code]string{
+					codes.Unavailable:     "indicates the destination service is currently unavailable",
+					codes.InvalidArgument: "indicates the argument request is invalid",
+					codes.Unauthenticated: "indicates the request is unauthenticated",
+				},
+			),
+		),
+		),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
 	mempoolService := coreService.NewMempoolService(
-		chainType, kvExecutor,
+		transactionUtil,
+		chainType,
+		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -75,6 +88,9 @@ func startGrpcServer(
 		crypto.NewSignature(),
 		observer.NewObserver(),
 		logger,
+		receiptUtil,
+		receiptService,
+		transactionCoreService,
 	)
 	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -96,6 +112,7 @@ func startGrpcServer(
 			actionTypeSwitcher,
 			mempoolService,
 			observer.NewObserver(),
+			transactionUtil,
 		),
 	})
 	// Set GRPC handler for Transactions requests
@@ -134,6 +151,22 @@ func startGrpcServer(
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
 		Service: service.NewAccountLedgerService(queryExecutor),
 	})
+
+	// Set GRPC handler for escrow transaction request
+	rpcService.RegisterEscrowTransactionServiceServer(grpcServer, &handler.EscrowTransactionHandler{
+		Service: service.NewEscrowTransactionService(queryExecutor),
+	})
+	// Set GRPC handler for multisig information request
+	rpcService.RegisterMultisigServiceServer(grpcServer, &handler.MultisigHandler{
+		MultisigService: service.NewMultisigService(
+			queryExecutor,
+			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
+			query.NewPendingTransactionQuery(),
+			query.NewPendingSignatureQuery(),
+			query.NewMultisignatureInfoQuery(),
+		)})
+	// Set GRPC handler for health check
+	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -155,10 +188,28 @@ func Start(
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
+	transactionUtil transaction.UtilInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	receiptService coreService.ReceiptServiceInterface,
+	transactionCoreService coreService.TransactionCoreServiceInterface,
 ) {
 	startGrpcServer(
-		grpcPort, kvExecutor, queryExecutor, p2pHostService, blockServices, nodeRegistrationService,
-		ownerAccountAddress, nodefilePath, logger, isDebugMode, apiCertFile, apiKeyFile,
+		grpcPort,
+		kvExecutor,
+		queryExecutor,
+		p2pHostService,
+		blockServices,
+		nodeRegistrationService,
+		ownerAccountAddress,
+		nodefilePath,
+		logger,
+		isDebugMode,
+		apiCertFile,
+		apiKeyFile,
+		transactionUtil,
+		receiptUtil,
+		receiptService,
+		transactionCoreService,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {
@@ -189,6 +240,8 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-
+	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterMultisigServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterHealthCheckServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

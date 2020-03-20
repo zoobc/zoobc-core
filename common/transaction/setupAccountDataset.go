@@ -22,6 +22,7 @@ type SetupAccountDataset struct {
 	AccountDatasetQuery query.AccountDatasetsQueryInterface
 	QueryExecutor       query.ExecutorInterface
 	AccountLedgerQuery  query.AccountLedgerQueryInterface
+	EscrowQuery         query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -168,6 +169,10 @@ func (tx *SetupAccountDataset) GetAmount() int64 {
 	return tx.Fee
 }
 
+func (*SetupAccountDataset) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 // GetSize is size of transaction body
 func (tx *SetupAccountDataset) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))
@@ -252,4 +257,59 @@ func (tx *SetupAccountDataset) GetTransactionBody(transaction *model.Transaction
 	transaction.TransactionBody = &model.Transaction_SetupAccountDatasetTransactionBody{
 		SetupAccountDatasetTransactionBody: tx.Body,
 	}
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *SetupAccountDataset) Escrowable() (EscrowTypeAction, bool) {
+
+	return nil, false
+}
+
+/*
+EscrowValidate is func that for validating to Transaction SetupAccountDataset type
+That specs:
+	- Checking the expiration time
+	- Checking Spendable Balance sender
+*/
+func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `SetupAccountDataset` type
+*/
+func (tx *SetupAccountDataset) EscrowApplyUnconfirmed() error {
+
+	// update account sender spendable balance
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *SetupAccountDataset) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowApplyConfirmed is func that for applying Transaction SetupAccountDataset type,
+*/
+func (tx *SetupAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *SetupAccountDataset) EscrowApproval(blockTimestamp int64) error {
+
+	return nil
 }

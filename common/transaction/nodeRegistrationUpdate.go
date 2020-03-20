@@ -27,6 +27,7 @@ type UpdateNodeRegistration struct {
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.ProofOfOwnershipValidationInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
+	EscrowQuery           query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -237,37 +238,49 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		tx.BlockQuery); err != nil {
 		return err
 	}
-	// check that sender is node's owner
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+	err := func() error {
+		// check that sender is node's owner
+		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
+		if (err != nil) || len(tempNodeRegistrationResult) > 0 {
+			prevNodeRegistration = tempNodeRegistrationResult[0]
+			if prevNodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+				return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
+			}
+		} else {
+			return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
+		}
+		return nil
+	}()
 	if err != nil {
 		return err
-	}
-	defer rows.Close()
-
-	tempNodeRegistrationResult, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult, rows)
-	if (err != nil) || len(tempNodeRegistrationResult) > 0 {
-		prevNodeRegistration = tempNodeRegistrationResult[0]
-		if prevNodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
-			return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
-		}
-	} else {
-		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeRegistration.NodePublicKey, tx.Body.NodePublicKey) {
-		rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
-			GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+		err := func() error {
+			rows2, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.
+				GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+			if err != nil {
+				return err
+			}
+			defer rows2.Close()
+
+			tempNodeRegistrationResult2, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
+			if (err != nil) || len(tempNodeRegistrationResult2) > 0 {
+				return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
+			}
+			return nil
+		}()
 		if err != nil {
 			return err
-		}
-		defer rows2.Close()
-
-		tempNodeRegistrationResult2, err = tx.NodeRegistrationQuery.BuildModel(tempNodeRegistrationResult2, rows2)
-		if (err != nil) || len(tempNodeRegistrationResult2) > 0 {
-			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlredyRegistered")
 		}
 	}
 
@@ -279,7 +292,7 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check balance
-	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	row3, err := tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -306,6 +319,10 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 
 func (tx *UpdateNodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
+}
+
+func (*UpdateNodeRegistration) GetMinimumFee() (int64, error) {
+	return 0, nil
 }
 
 func (tx *UpdateNodeRegistration) GetSize() uint32 {
@@ -394,4 +411,46 @@ func (tx *UpdateNodeRegistration) GetTransactionBody(transaction *model.Transact
 	transaction.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
 		UpdateNodeRegistrationTransactionBody: tx.Body,
 	}
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *UpdateNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
+	return nil, false
+}
+
+// EscrowValidate validate node registration transaction and tx body
+func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNodeRegistration` type,
+perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
+*/
+func (tx *UpdateNodeRegistration) EscrowApplyUnconfirmed() error {
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
+*/
+func (tx *UpdateNodeRegistration) EscrowUndoApplyUnconfirmed() error {
+	return nil
+}
+
+// EscrowApplyConfirmed method for confirmed the transaction and store into database
+func (tx *UpdateNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *UpdateNodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+	return nil
 }

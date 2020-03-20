@@ -8,20 +8,58 @@ type (
 		// Rollback return query string to rollback table to `height`
 		Rollback(height uint32) (multiQueries [][]interface{})
 	}
+	SnapshotQuery interface {
+		SelectDataForSnapshot(fromHeight, toHeight uint32) string
+	}
 )
 
 // GetDerivedQuery func to get the whole queries has has rollback method
-func GetDerivedQuery(chainType chaintype.ChainType) []DerivedQuery {
-	return []DerivedQuery{
-		NewBlockQuery(chainType),
-		NewTransactionQuery(chainType),
-		NewNodeRegistrationQuery(),
-		NewAccountBalanceQuery(),
-		NewAccountDatasetsQuery(),
-		NewMempoolQuery(chainType),
-		NewSkippedBlocksmithQuery(),
-		NewParticipationScoreQuery(),
-		NewPublishedReceiptQuery(),
-		NewAccountLedgerQuery(),
+func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
+	derivedQuery = []DerivedQuery{
+		NewBlockQuery(ct),
 	}
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		mainchainDerivedQuery := []DerivedQuery{
+			NewTransactionQuery(ct),
+			NewNodeRegistrationQuery(),
+			NewAccountBalanceQuery(),
+			NewAccountDatasetsQuery(),
+			NewMempoolQuery(ct),
+			NewSkippedBlocksmithQuery(),
+			NewParticipationScoreQuery(),
+			NewPublishedReceiptQuery(),
+			NewAccountLedgerQuery(),
+			NewEscrowTransactionQuery(),
+			NewPendingTransactionQuery(),
+			NewPendingSignatureQuery(),
+			NewMultisignatureInfoQuery(),
+			NewSpineBlockManifestQuery(),
+		}
+		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
+	case *chaintype.SpineChain:
+		spinechainDerivedQuery := []DerivedQuery{
+			NewSpinePublicKeyQuery(),
+		}
+		derivedQuery = append(derivedQuery, spinechainDerivedQuery...)
+	}
+	return derivedQuery
+}
+
+// GetSnapshotQuery func to get all query repos that have a SelectDataForSnapshot method
+func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]SnapshotQuery) {
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		snapshotQuery = map[string]SnapshotQuery{
+			"accountBalance":     NewAccountBalanceQuery(),
+			"nodeRegistration":   NewNodeRegistrationQuery(),
+			"accountDataset":     NewAccountDatasetsQuery(),
+			"participationScore": NewParticipationScoreQuery(),
+			"publishedReceipt":   NewPublishedReceiptQuery(),
+			"escrowTransaction":  NewEscrowTransactionQuery(),
+		}
+	default:
+		snapshotQuery = map[string]SnapshotQuery{}
+	}
+	return snapshotQuery
 }

@@ -28,6 +28,7 @@ type NodeRegistration struct {
 	QueryExecutor           query.ExecutorInterface
 	AuthPoown               auth.ProofOfOwnershipValidationInterface
 	AccountLedgerQuery      query.AccountLedgerQueryInterface
+	EscrowQuery             query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -208,10 +209,10 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 
 // Validate validate node registration transaction and tx body
 func (tx *NodeRegistration) Validate(dbTx bool) error {
-
 	var (
 		accountBalance                        model.AccountBalance
 		nodeRegistrations, nodeRegistrations2 []*model.NodeRegistration
+		err                                   error
 	)
 
 	// no need to validate node registration transaction for genesis block
@@ -232,58 +233,78 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	// check balance
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-	if rows.Next() {
-		err = rows.Scan(
-			&accountBalance.AccountAddress,
-			&accountBalance.BlockHeight,
-			&accountBalance.SpendableBalance,
-			&accountBalance.Balance,
-			&accountBalance.PopRevenue,
-			&accountBalance.Latest,
-		)
+	err = func() error {
+		// check balance
+		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
+		defer rows.Close()
+		if rows.Next() {
+			err = rows.Scan(
+				&accountBalance.AccountAddress,
+				&accountBalance.BlockHeight,
+				&accountBalance.SpendableBalance,
+				&accountBalance.Balance,
+				&accountBalance.PopRevenue,
+				&accountBalance.Latest,
+			)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
+	if err != nil {
+		return err
 	}
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
 		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
 	}
-	// check for public key duplication
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
-		dbTx, tx.Body.NodePublicKey)
+	err = func() error {
+		// check for public key duplication
+		nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+			dbTx, tx.Body.NodePublicKey)
+		if err != nil {
+			return err
+		}
+		defer nodeRow.Close()
+		nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
+		if err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
 		return err
 	}
-	defer nodeRow.Close()
-	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	if err != nil {
-		return err
-	}
+
 	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
 	if len(nodeRegistrations) > 0 && nodeRegistrations[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
 	}
 
-	// check for account address duplication (accounts can register one node at the time)
-	qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
-	nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx, args...)
+	err = func() error {
+		// check for account address duplication (accounts can register one node at the time)
+		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+		nodeRow2, err := tx.QueryExecutor.ExecuteSelect(qryNodeByAccount, dbTx, args...)
+		if err != nil {
+			return err
+		}
+		defer nodeRow2.Close()
+		nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
+		if err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
 		return err
 	}
-	defer nodeRow2.Close()
-	nodeRegistrations2, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations2, nodeRow2)
-	if err != nil {
-		return err
-	}
+
 	// in case a node with same account address, validation must pass only if that node is tagged as deleted
 	// if any other state validation should fail
 	if len(nodeRegistrations2) > 0 && nodeRegistrations2[0].RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
@@ -301,6 +322,10 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 
 func (tx *NodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
+}
+
+func (*NodeRegistration) GetMinimumFee() (int64, error) {
+	return 0, nil
 }
 
 func (tx *NodeRegistration) GetSize() uint32 {
@@ -396,4 +421,61 @@ func (tx *NodeRegistration) getDefaultParticipationScore() int64 {
 		}
 	}
 	return constant.DefaultParticipationScore
+}
+
+/*
+Escrowable will check the transaction is escrow or not.
+Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
+*/
+func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
+
+	return nil, false
+}
+
+/**
+Escrow Part
+1. ApplyUnconfirmed
+2. UndoApplyUnconfirmed
+3. ApplyConfirmed
+4. Validate
+*/
+
+// EscrowValidate special validation for escrow's transaction
+func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
+similar with ApplyUnconfirmed and Escrow.Commission
+*/
+func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+this will be called on apply confirmed or when rollback occurred
+*/
+func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
+
+	return nil
+}
+
+/*
+EscrowApplyConfirmed func that for applying Transaction SendMoney type.
+*/
+func (tx *NodeRegistration) EscrowApplyConfirmed(int64) error {
+
+	return nil
+}
+
+/*
+EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+like: spreading commission and fee, and also more pending tasks
+*/
+func (tx *NodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+	return nil
 }

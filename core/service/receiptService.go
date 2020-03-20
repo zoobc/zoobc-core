@@ -15,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -53,6 +54,7 @@ type (
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		ReceiptUtil             coreUtil.ReceiptUtilInterface
 	}
 )
 
@@ -67,6 +69,7 @@ func NewReceiptService(
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	receiptUtil coreUtil.ReceiptUtilInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:        nodeReceiptQuery,
@@ -79,6 +82,7 @@ func NewReceiptService(
 		NodeRegistrationService: nodeRegistrationService,
 		Signature:               signature,
 		PublishedReceiptQuery:   publishedReceiptQuery,
+		ReceiptUtil:             receiptUtil,
 	}
 }
 
@@ -91,28 +95,36 @@ func (rs *ReceiptService) SelectReceipts(
 	var (
 		linkedReceiptList = make(map[string][]*model.Receipt)
 		// this variable is to store picked receipt recipient to avoid duplicates
-		pickedRecipients = make(map[string]bool)
-		lowerBlockHeight uint32
+		pickedRecipients  = make(map[string]bool)
+		lowerBlockHeight  uint32
+		linkedReceiptTree = make(map[string][]byte)
 	)
 
 	if numberOfReceipt < 1 { // possible no connected node
 		return []*model.PublishedReceipt{}, nil
 	}
 	// get the last merkle tree we have build so far
-	if lastBlockHeight > constant.NodeReceiptExpiryBlockHeight {
-		lowerBlockHeight = lastBlockHeight - constant.NodeReceiptExpiryBlockHeight
+	if lastBlockHeight > constant.MinRollbackBlocks {
+		lowerBlockHeight = lastBlockHeight - constant.MinRollbackBlocks
 	}
-	treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
-		lowerBlockHeight,
-		lastBlockHeight,
-		numberOfReceipt*constant.ReceiptBatchPickMultiplier)
-	linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
-	if err != nil {
-		return nil, err
-	}
-	defer linkedTreeRows.Close()
 
-	linkedReceiptTree, err := rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
+	err := func() error {
+		treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
+			lowerBlockHeight,
+			lastBlockHeight,
+			numberOfReceipt*constant.ReceiptBatchPickMultiplier)
+		linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
+		if err != nil {
+			return err
+		}
+		defer linkedTreeRows.Close()
+
+		linkedReceiptTree, err = rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
+		if err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +170,7 @@ func (rs *ReceiptService) SelectReceipts(
 				continue
 			}
 			var intermediateHashes [][]byte
-			rcByte := util.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcByte := rs.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
 			rcHash := sha3.Sum256(rcByte)
 
 			intermediateHashesBuffer := merkle.GetIntermediateHashes(
@@ -275,7 +287,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 		for _, b := range batchReceipts {
 			// hash the receipts
-			hashedBatchReceipt := sha3.Sum256(util.GetSignedBatchReceiptBytes(b))
+			hashedBatchReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedBatchReceiptBytes(b))
 			hashedReceipts = append(
 				hashedReceipts,
 				bytes.NewBuffer(hashedBatchReceipt[:]),
@@ -339,7 +351,7 @@ func (rs *ReceiptService) ValidateReceipt(
 		blockAtHeight model.Block
 		err           error
 	)
-	unsignedBytes := util.GetUnsignedBatchReceiptBytes(receipt)
+	unsignedBytes := rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(receipt)
 	if !rs.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		receipt.RecipientSignature,
@@ -515,7 +527,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		batchReceipt  *model.BatchReceipt
 		err           error
 		merkleQuery   = query.NewMerkleTreeQuery()
-		nodePublicKey = util.GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		lastRmrQ      = merkleQuery.GetLastMerkleRoot()
 		row, _        = rs.QueryExecutor.ExecuteSelectRow(lastRmrQ, false)
 	)
@@ -525,7 +537,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		return nil, err
 	}
 	// generate receipt
-	batchReceipt, err = util.GenerateBatchReceipt(
+	batchReceipt, err = rs.ReceiptUtil.GenerateBatchReceipt(
 		ct,
 		lastBlock,
 		senderPublicKey,
@@ -538,7 +550,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		return nil, err
 	}
 	batchReceipt.RecipientSignature = rs.Signature.SignByNode(
-		util.GetUnsignedBatchReceiptBytes(batchReceipt),
+		rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(batchReceipt),
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash for reminder

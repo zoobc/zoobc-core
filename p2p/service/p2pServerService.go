@@ -4,16 +4,18 @@ import (
 	"context"
 	"errors"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -55,33 +57,50 @@ type (
 			transactionBytes,
 			senderPublicKey []byte,
 		) (*model.SendTransactionResponse, error)
+		SendBlockTransactions(
+			ctx context.Context,
+			chainType chaintype.ChainType,
+			transactionsBytes [][]byte,
+			senderPublicKey []byte,
+		) (*model.SendBlockTransactionsResponse, error)
 		RequestBlockTransactions(
 			ctx context.Context,
 			chainType chaintype.ChainType,
+			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
+		RequestDownloadFile(
+			ctx context.Context,
+			fileChunkNames []string,
+		) (*model.FileDownloadResponse, error)
 	}
 
 	P2PServerService struct {
+		FileService      coreService.FileServiceInterface
 		PeerExplorer     strategy.PeerExplorerStrategyInterface
 		BlockServices    map[int32]coreService.BlockServiceInterface
 		MempoolServices  map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase string
+		Observer         *observer.Observer
 	}
 )
 
 func NewP2PServerService(
+	fileService coreService.FileServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
+	observer *observer.Observer,
 ) *P2PServerService {
 
 	return &P2PServerService{
+		FileService:      fileService,
 		PeerExplorer:     peerExplorer,
 		BlockServices:    blockServices,
 		MempoolServices:  mempoolServices,
 		NodeSecretPhrase: nodeSecretPhrase,
+		Observer:         observer,
 	}
 }
 
@@ -244,7 +263,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit)
+		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit, false)
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
@@ -275,12 +294,13 @@ func (ps *P2PServerService) GetNextBlocks(
 		// TODO: getting data from cache
 		var blocksMessage []*model.Block
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
-
+		blockService.ChainWriteLock(constant.BlockchainSendingBlocks)
+		defer blockService.ChainWriteUnlock(constant.BlockchainSendingBlocks)
 		block, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)))
+		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -309,7 +329,14 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
+<<<<<<< HEAD
 		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock(0)
+=======
+		md, _ := metadata.FromIncomingContext(ctx)
+		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+		peer, _ := p2pUtil.ParsePeer(fullAddress)
+		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+>>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
@@ -321,6 +348,7 @@ func (ps *P2PServerService) SendBlock(
 			lastBlock,
 			block,
 			ps.NodeSecretPhrase,
+			peer,
 		)
 		if err != nil {
 			return nil, err
@@ -364,14 +392,79 @@ func (ps *P2PServerService) SendTransaction(
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
+// SendTransaction receive transaction from other node and calling TransactionReceived Event
+func (ps *P2PServerService) SendBlockTransactions(
+	ctx context.Context,
+	chainType chaintype.ChainType,
+	transactionsBytes [][]byte,
+	senderPublicKey []byte,
+) (*model.SendBlockTransactionsResponse, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		if err != nil {
+			return nil, blocker.NewBlocker(
+				blocker.BlockErr,
+				"fail to get last block",
+			)
+		}
+
+		batchReceipts, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedBlockTransactions(
+			senderPublicKey,
+			transactionsBytes,
+			lastBlock,
+			ps.NodeSecretPhrase,
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &model.SendBlockTransactionsResponse{
+			BatchReceipts: batchReceipts,
+		}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
 func (ps *P2PServerService) RequestBlockTransactions(
 	ctx context.Context,
 	chainType chaintype.ChainType,
+	blockID int64,
 	transactionsIDs []int64,
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		// TODO: add asyc process to check and send back requested transactions
+		md, _ := metadata.FromIncomingContext(ctx)
+		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+		peer, err := p2pUtil.ParsePeer(fullAddress)
+		if err != nil {
+			_ = status.Error(codes.InvalidArgument, "Invalid requester data")
+		}
+		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
 		return &model.Empty{}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) RequestDownloadFile(
+	ctx context.Context,
+	fileChunkNames []string,
+) (*model.FileDownloadResponse, error) {
+	var (
+		fileChunks = make([][]byte, 0)
+		failed     []string
+	)
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		for _, fileName := range fileChunkNames {
+			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
+			if err != nil {
+				failed = append(failed, fileName)
+			} else {
+				fileChunks = append(fileChunks, chunkBytes)
+			}
+		}
+		res := &model.FileDownloadResponse{
+			FileChunks: fileChunks,
+			Failed:     failed,
+		}
+		return res, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

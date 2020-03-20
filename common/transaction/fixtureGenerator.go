@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -211,11 +210,13 @@ func GetFixturesForRemoveAccountDataset() (
 	}
 	return txBody, ra.GetBodyBytes()
 }
+
 func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes []byte, hashed [32]byte) {
-	byteValue, _ := GetTransactionBytes(tx, sign)
+	byteValue, _ := (&Util{}).GetTransactionBytes(tx, sign)
 	transactionHash := sha3.Sum256(byteValue)
 	return byteValue, transactionHash
 }
+
 func GetFixturesForTransaction(
 	timestamp int64,
 	sender, recipient string,
@@ -253,17 +254,19 @@ func GetFixturesForTransaction(
 
 	return &tx
 }
+
 func GetFixturesForSignedMempoolTransaction(
 	id, timestamp int64,
 	sender, recipient string,
 	escrow bool,
 ) *model.MempoolTransaction {
+	transactionUtil := &Util{}
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
-	txBytes, _ := GetTransactionBytes(tx, false)
-	signature := (&crypto.Signature{}).Sign(txBytes, constant.SignatureTypeDefault,
+	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
+	signature, _ := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
-	txBytes, _ = GetTransactionBytes(tx, true)
+	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
 		ID:                      id,
 		BlockHeight:             0,
@@ -273,4 +276,77 @@ func GetFixturesForSignedMempoolTransaction(
 		SenderAccountAddress:    sender,
 		RecipientAccountAddress: recipient,
 	}
+}
+func GetFixturesForApprovalEscrowTransaction() (
+	txBody *model.ApprovalEscrowTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.ApprovalEscrowTransactionBody{
+		Approval:      model.EscrowApproval_Approve,
+		TransactionID: 100,
+	}
+
+	sa := ApprovalEscrowTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixtureForSpecificTransaction(
+	id, timestamp int64,
+	sender, recipient string,
+	bodyLength uint32,
+	transactionType model.TransactionType,
+	transactionBody model.TransactionBodyInterface,
+	escrow, sign bool,
+) (tx *model.Transaction, txBytes []byte) {
+	var (
+		transactionBytes []byte
+	)
+
+	tx = &model.Transaction{
+		Version:                 1,
+		ID:                      id,
+		SenderAccountAddress:    sender,
+		RecipientAccountAddress: recipient,
+		TransactionType:         uint32(transactionType),
+		Fee:                     1,
+		Timestamp:               timestamp,
+		TransactionBodyLength:   bodyLength,
+		TransactionBodyBytes:    make([]byte, bodyLength),
+		TransactionIndex:        0,
+		TransactionBody:         transactionBody,
+		Signature:               nil,
+		Escrow: &model.Escrow{
+			ApproverAddress: "",
+			Commission:      0,
+			Timeout:         0,
+			Instruction:     "",
+		},
+	}
+
+	if escrow {
+		tx.Escrow = &model.Escrow{
+			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			Commission:      1,
+			Timeout:         100,
+			Instruction:     "",
+		}
+	}
+
+	var transactionUtil = &Util{}
+	transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, false)
+	if sign {
+		tx.Signature, _ = (&crypto.Signature{}).Sign(
+			transactionBytes,
+			model.SignatureType_DefaultSignature,
+			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+		)
+		transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
+		hashed := sha3.Sum256(transactionBytes)
+		tx.TransactionHash = hashed[:]
+
+	}
+	tx.TransactionBody = nil
+	return tx, transactionBytes
 }

@@ -4,6 +4,7 @@ badgerDbPath="./resource"
 badgerDbName="zoobc_3_kv/"
 configPath = "./resource/"
 nodeKeyFile = "node_keys_3.json"
+snapshotPath = "./resource/snapshots"
 
 # Peer
 peerPort=8003
@@ -15,7 +16,7 @@ apiHTTPPort=3033
 monitoringPort=9093
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
+ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"
 
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels

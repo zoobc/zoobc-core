@@ -23,6 +23,9 @@ type (
 		GetTransaction(chaintype.ChainType, *model.GetTransactionRequest) (*model.Transaction, error)
 		GetTransactions(chaintype.ChainType, *model.GetTransactionsRequest) (*model.GetTransactionsResponse, error)
 		PostTransaction(chaintype.ChainType, *model.PostTransactionRequest) (*model.Transaction, error)
+		GetTransactionMinimumFee(request *model.GetTransactionMinimumFeeRequest) (
+			*model.GetTransactionMinimumFeeResponse, error,
+		)
 	}
 
 	// TransactionService represents struct of TransactionService
@@ -32,6 +35,7 @@ type (
 		ActionTypeSwitcher transaction.TypeActionSwitcher
 		MempoolService     service.MempoolServiceInterface
 		Observer           *observer.Observer
+		TransactionUtil    transaction.UtilInterface
 	}
 )
 
@@ -44,6 +48,7 @@ func NewTransactionService(
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	mempoolService service.MempoolServiceInterface,
 	observer *observer.Observer,
+	transactionUtil transaction.UtilInterface,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -52,6 +57,7 @@ func NewTransactionService(
 			ActionTypeSwitcher: txTypeSwitcher,
 			MempoolService:     mempoolService,
 			Observer:           observer,
+			TransactionUtil:    transactionUtil,
 		}
 	}
 	return transactionServiceInstance
@@ -93,7 +99,7 @@ func (ts *TransactionService) GetTransactions(
 ) (*model.GetTransactionsResponse, error) {
 	var (
 		err          error
-		rows         *sql.Rows
+		rowCount     *sql.Row
 		rows2        *sql.Rows
 		txs          []*model.Transaction
 		selectQuery  string
@@ -140,19 +146,15 @@ func (ts *TransactionService) GetTransactions(
 
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-	rows, err = ts.Query.ExecuteSelect(countQuery, false, args...)
+	rowCount, err = ts.Query.ExecuteSelectRow(countQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-
-	if rows.Next() {
-		err = rows.Scan(
-			&totalRecords,
-		)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	err = rowCount.Scan(
+		&totalRecords,
+	)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Get Transactions with Pagination
@@ -187,6 +189,7 @@ func (ts *TransactionService) GetTransactions(
 			&tx.Signature,
 			&tx.Version,
 			&tx.TransactionIndex,
+			&tx.MultisigChild,
 		)
 		if err != nil {
 			if err != sql.ErrNoRows {
@@ -208,31 +211,38 @@ func (ts *TransactionService) GetTransactions(
 	}, nil
 }
 
+// PostTransaction represents POST transaction method
 func (ts *TransactionService) PostTransaction(
 	chaintype chaintype.ChainType,
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
-	txBytes := req.TransactionBytes
+	var (
+		txBytes = req.TransactionBytes
+		txType  transaction.TypeAction
+		tx      *model.Transaction
+		err     error
+	)
 	// get unsigned bytes
-	tx, err := transaction.ParseTransactionBytes(txBytes, true)
+
+	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Validate Tx
-	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	txType, err = ts.ActionTypeSwitcher.GetTransactionType(tx)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Save to mempool
 	mpTx := &model.MempoolTransaction{
 		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
-		ID:                      tx.ID,
+		ID:                      tx.GetID(),
 		TransactionBytes:        txBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    tx.SenderAccountAddress,
-		RecipientAccountAddress: tx.RecipientAccountAddress,
+		SenderAccountAddress:    tx.GetSenderAccountAddress(),
+		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
 	}
-	if err := ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+	if err = ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
@@ -240,7 +250,15 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = txType.ApplyUnconfirmed()
+
+	// TODO: repetitive way
+	escrowable, ok := txType.Escrowable()
+	switch ok {
+	case true:
+		err = escrowable.EscrowApplyUnconfirmed()
+	default:
+		err = txType.ApplyUnconfirmed()
+	}
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
@@ -264,4 +282,29 @@ func (ts *TransactionService) PostTransaction(
 	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
 	// return parsed transaction
 	return tx, nil
+}
+
+func (ts *TransactionService) GetTransactionMinimumFee(req *model.GetTransactionMinimumFeeRequest) (
+	*model.GetTransactionMinimumFeeResponse, error,
+) {
+	var (
+		txBytes = req.TransactionBytes
+		err     error
+	)
+	tx, err := ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	// get the TypeAction object
+	txType, err := ts.ActionTypeSwitcher.GetTransactionType(tx)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	minFee, err := txType.GetMinimumFee()
+	if err != nil {
+		return nil, err
+	}
+	return &model.GetTransactionMinimumFeeResponse{
+		Fee: minFee,
+	}, nil
 }

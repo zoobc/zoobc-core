@@ -93,7 +93,7 @@ func TestNewHost(t *testing.T) {
 	}
 }
 
-func TestNewKnownPeer(t *testing.T) {
+func TestNewPeer(t *testing.T) {
 	type args struct {
 		address string
 		port    int
@@ -105,7 +105,7 @@ func TestNewKnownPeer(t *testing.T) {
 	}{
 		// TODO: Add test cases.
 		{
-			name: "NewKnownPeer:success",
+			name: "NewPeer:success",
 			args: args{
 				address: "127.0.0.1",
 				port:    8001,
@@ -120,8 +120,8 @@ func TestNewKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewKnownPeer(tt.args.address, tt.args.port); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewKnownPeer() = %v, want %v", got, tt.want)
+			if got := NewPeer(tt.args.address, tt.args.port); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewPeer() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -175,7 +175,7 @@ func TestParseKnownPeers(t *testing.T) {
 			args: args{
 				peers: []string{"192.168.1.2:2001", "192.168.5.123:3000"},
 			},
-			want:    append([]*model.Peer{}, NewKnownPeer("192.168.1.2", 2001), NewKnownPeer("192.168.5.123", 3000)),
+			want:    append([]*model.Peer{}, NewPeer("192.168.1.2", 2001), NewPeer("192.168.5.123", 3000)),
 			wantErr: false,
 		},
 		{

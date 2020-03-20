@@ -8,8 +8,12 @@ type TXEmpty struct {
 	Body *model.EmptyTransactionBody
 }
 
+func (tx *TXEmpty) Escrowable() (EscrowTypeAction, bool) {
+	return nil, false
+}
+
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *TXEmpty) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *TXEmpty) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
 	return false, nil
 }
 
@@ -26,6 +30,11 @@ func (tx *TXEmpty) UndoApplyUnconfirmed() error {
 func (tx *TXEmpty) Validate(bool) error {
 	return nil
 }
+
+func (*TXEmpty) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func (*TXEmpty) GetAmount() int64 {
 	return 0
 }
@@ -34,7 +43,7 @@ func (tx *TXEmpty) GetSize() uint32 {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (*TXEmpty) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+func (*TXEmpty) ParseBodyBytes([]byte) (model.TransactionBodyInterface, error) {
 	return &model.EmptyTransactionBody{}, nil
 }
 
@@ -43,4 +52,4 @@ func (*TXEmpty) GetBodyBytes() []byte {
 	return []byte{}
 }
 
-func (*TXEmpty) GetTransactionBody(transaction *model.Transaction) {}
+func (*TXEmpty) GetTransactionBody(*model.Transaction) {}

@@ -34,7 +34,7 @@ func NewNodeAdminService(
 	ownerAccountAddress, nodeKeyFilePath string,
 ) *NodeAdminService {
 	if nodeAdminServiceInstance == nil {
-		mainchain := &chaintype.MainChain{}
+		mainchain := chaintype.GetChainType(0)
 		nodeAdminCoreService := coreService.NewNodeAdminService(queryExecutor,
 			query.NewBlockQuery(mainchain), crypto.NewSignature(), blockService, nodeKeyFilePath)
 		nodeAdminServiceInstance = &NodeAdminService{

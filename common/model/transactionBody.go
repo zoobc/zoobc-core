@@ -11,3 +11,5 @@ func (*EmptyTransactionBody) isTransaction_TransactionBody()                  {}
 func (*SendMoneyTransactionBody) isTransaction_TransactionBody()              {}
 func (*SetupAccountDatasetTransactionBody) isTransaction_TransactionBody()    {}
 func (*RemoveAccountDatasetTransactionBody) isTransaction_TransactionBody()   {}
+func (*ApprovalEscrowTransactionBody) isTransaction_TransactionBody()         {}
+func (*MultiSignatureTransactionBody) isTransaction_TransactionBody()         {}

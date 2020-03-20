@@ -5,12 +5,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/util"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
@@ -21,6 +23,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 
 	mockSetupAccountDatasetBody, mockBytesSetupAccountDataset := GetFixturesForSetupAccountDataset()
 	mockRemoveAccountDatasetBody, mockBytesRemoveAccountDataset := GetFixturesForRemoveAccountDataset()
+
+	approvalEscrowBody, approvalEscrowBytes := GetFixturesForApprovalEscrowTransaction()
 
 	type fields struct {
 		Executor query.ExecutorInterface
@@ -63,6 +67,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, constant.OneZBC/100,
+				),
+				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
 			},
 		},
 		{
@@ -292,6 +302,39 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+			},
+		},
+		{
+			name: "wantEscrowApproval",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_ApprovalEscrowTransactionBody{
+						ApprovalEscrowTransactionBody: approvalEscrowBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{4, 0, 0, 0}),
+					TransactionBodyBytes: approvalEscrowBytes,
+				},
+			},
+			want: &ApprovalEscrowTransaction{
+				ID:                  0,
+				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+				Body:                approvalEscrowBody,
+				Height:              5,
+				QueryExecutor:       &query.Executor{},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				TypeActionSwitcher: &TypeSwitcher{
+					Executor: &query.Executor{},
+				},
 			},
 		},
 	}

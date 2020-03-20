@@ -32,3 +32,4 @@ All Pull Requests should be submitted to `develop` branch, or any other feature 
 3. **Increase the version numbers** in any examples files and the [readme.md](readme.md) to the new version that this Pull Request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
 4. Your Pull Request will be merged in once you have the **approval of two other developers**, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
 5. **Pull request are `squashed` into a single commit** to keep the history clean.
+6. If your PR containing a packages update, don't mind to ***tidying go modules***, it is will sliming of go modules, removing unused package and updates your current go.mod to include the dependencies needed for tests in your module.

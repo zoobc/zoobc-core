@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -187,6 +186,7 @@ func (*mockTransactionExecutorCommitFail) CommitTx() error {
 }
 
 func TestNewTransactionService(t *testing.T) {
+	transactionUtil := &transaction.Util{}
 	db, _, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("error while opening database connection")
@@ -200,7 +200,8 @@ func TestNewTransactionService(t *testing.T) {
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
 			want: &TransactionService{
-				Query: query.NewQueryExecutor(db),
+				Query:           query.NewQueryExecutor(db),
+				TransactionUtil: transactionUtil,
 			},
 		},
 	}
@@ -212,6 +213,7 @@ func TestNewTransactionService(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				transactionUtil,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
@@ -220,28 +222,71 @@ func TestNewTransactionService(t *testing.T) {
 	}
 }
 
+type (
+	mockQueryExecutorPostApprovalEscrowTX struct {
+		query.Executor
+	}
+	mockMempoolServicePostApprovalEscrowTX struct {
+		service.MempoolService
+	}
+	mockMempoolServicePostApprovalEscrowTXSuccess struct {
+		service.MempoolService
+	}
+)
+
+func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx() error {
+	return nil
+}
+func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx() error {
+	return nil
+}
+func (*mockQueryExecutorPostApprovalEscrowTX) RollbackTx() error {
+	return nil
+}
+func (*mockQueryExecutorPostApprovalEscrowTX) ExecuteTransaction(query string, args ...interface{}) error {
+	return nil
+}
+
+func (*mockMempoolServicePostApprovalEscrowTX) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return errors.New("test")
+}
+func (*mockMempoolServicePostApprovalEscrowTXSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return nil
+}
+func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	return nil
+}
+
 func TestTransactionService_PostTransaction(t *testing.T) {
-	transactionBytes, transactionHashed := transaction.GetFixturesForTransactionBytes(&model.Transaction{
-		ID:                      9132391972059444517,
-		Version:                 1,
-		TransactionType:         2,
-		BlockID:                 0,
-		Height:                  0,
-		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Fee:                     1000000,
-		TransactionHash: []byte{
-			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
-			187, 45, 245, 113, 210, 87, 23, 67, 157, 117, 41, 143,
+
+	txTypeSuccess, transactionHashed := transaction.GetFixtureForSpecificTransaction(
+		1390544043583530800,
+		1562806389280,
+		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		8,
+		model.TransactionType_SendMoneyTransaction,
+		&model.SendMoneyTransactionBody{
+			Amount: 10,
 		},
-		TransactionBodyLength: 8,
-		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Signature: []byte{
-			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
-			68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-			77, 80, 80, 39, 254, 173, 28, 169,
-		}}, true)
+		false,
+		true,
+	)
+	escrowApprovalTX, escrowApprovalTXBytes := transaction.GetFixtureForSpecificTransaction(
+		1681608995461262354,
+		1581301507,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"",
+		12,
+		model.TransactionType_ApprovalEscrowTransaction,
+		&model.ApprovalEscrowTransactionBody{
+			Approval:      0,
+			TransactionID: 0,
+		},
+		false,
+		true,
+	)
+
 	type fields struct {
 		Query              query.ExecutorInterface
 		Signature          crypto.SignatureInterface
@@ -462,38 +507,30 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: transactionBytes,
+					TransactionBytes: transactionHashed,
 				},
 			},
 			wantErr: false,
-			want: &model.Transaction{
-				ID:                      9132391972059444517,
-				Version:                 1,
-				TransactionType:         2,
-				BlockID:                 0,
-				Height:                  0,
-				Timestamp:               1562806389280,
-				SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				Fee:                     1000000,
-				TransactionHash:         transactionHashed[:],
-				TransactionBodyLength:   8,
-				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
-				Signature: []byte{
-					0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
-					68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-					77, 80, 80, 39, 254, 173, 28, 169,
+			want:    txTypeSuccess,
+		},
+		{
+			name: "WantError:ValidateMempoolFail1",
+			fields: fields{
+				Query:     &mockQueryExecutorPostApprovalEscrowTX{},
+				Signature: nil,
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					Executor: &mockQueryExecutorPostApprovalEscrowTX{},
 				},
-				Escrow: &model.Escrow{
-					ID:               0,
-					SenderAddress:    "",
-					RecipientAddress: "",
-					ApproverAddress:  "",
-					Amount:           0,
-					Commission:       0,
-					Timeout:          0,
+				MempoolService: &mockMempoolServicePostApprovalEscrowTXSuccess{},
+				Observer:       observer.NewObserver(),
+			},
+			args: args{
+				chaintype: &chaintype.MainChain{},
+				req: &model.PostTransactionRequest{
+					TransactionBytes: escrowApprovalTXBytes,
 				},
 			},
+			want: escrowApprovalTX,
 		},
 	}
 	for _, tt := range tests {
@@ -504,6 +541,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
 				Observer:           tt.fields.Observer,
+				TransactionUtil:    &transaction.Util{},
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -529,33 +567,37 @@ type (
 func (*mockQueryGetTransactionsFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("want error")
 }
+func (*mockQueryGetTransactionsFail) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, errors.New("want error")
+}
 func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
-	switch strings.Contains(qStr, "total_record") {
-	case true:
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
-	default:
-		mock.ExpectQuery("").
-			WillReturnRows(sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).
-				AddRow(
-					4545420970999433273,
-					1,
-					1,
-					"senderA",
-					"recipientA",
-					1,
-					1,
-					10000,
-					[]byte{1, 1},
-					8,
-					[]byte{1, 2, 3, 4, 5, 6, 7, 8},
-					[]byte{0, 0, 0, 0, 0, 0, 0},
-					1,
-					1,
-				),
-			)
-	}
+	mock.ExpectQuery("").
+		WillReturnRows(sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields).
+			AddRow(
+				4545420970999433273,
+				1,
+				1,
+				"senderA",
+				"recipientA",
+				1,
+				1,
+				10000,
+				[]byte{1, 1},
+				8,
+				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
+				[]byte{0, 0, 0, 0, 0, 0, 0},
+				1,
+				1,
+				false,
+			),
+		)
 	return db.Query("")
+}
+func (*mockQueryGetTransactionsSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total_record"}).AddRow(1))
+	return db.QueryRow(""), nil
 }
 func TestTransactionService_GetTransactions(t *testing.T) {
 	type fields struct {
@@ -645,6 +687,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 						Version:                 1,
 						TransactionIndex:        1,
+						MultisigChild:           false,
 					},
 				},
 			},
@@ -658,6 +701,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
+				TransactionUtil:    &transaction.Util{},
 			}
 			got, err := ts.GetTransactions(tt.args.chainType, tt.args.params)
 			if (err != nil) != tt.wantErr {
@@ -697,6 +741,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(
 			8,
 			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 			[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
+			false,
 		),
 	)
 	return db.Query("")
@@ -719,6 +764,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, ar
 				8,
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
+				false,
 			),
 	)
 	return db.QueryRow(""), nil
@@ -797,6 +843,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 				Version:                 1,
 				TransactionIndex:        1,
+				MultisigChild:           false,
 			},
 		},
 	}
@@ -807,6 +854,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
+				TransactionUtil:    &transaction.Util{},
 			}
 			got, err := ts.GetTransaction(tt.args.chainType, tt.args.params)
 			if (err != nil) != tt.wantErr {
