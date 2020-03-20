@@ -633,7 +633,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
-	previousBlock, err := bs.GetLastBlock(0)
+	previousBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
 	}
