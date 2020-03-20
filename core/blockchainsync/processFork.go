@@ -48,12 +48,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 	)
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 80)
 
-<<<<<<< HEAD
-	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock(0)
-=======
 	lastBlockBeforeProcess, err = fp.BlockService.GetLastBlock()
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 81)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 82)
 		return err
@@ -67,12 +63,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		return err
 	}
 
-<<<<<<< HEAD
-	lastBlock, err = fp.BlockService.GetLastBlock(0)
-=======
 	lastBlock, err = fp.BlockService.GetLastBlock()
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 86)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 87)
 		return err
@@ -82,13 +74,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		// rebuilding the chain
 		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 88)
 		for _, block := range forkBlocks {
-<<<<<<< HEAD
-			lastBlock, err = fp.BlockService.GetLastBlock(1)
-=======
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 89)
 			lastBlock, err = fp.BlockService.GetLastBlock()
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 90)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 			if err != nil {
 				return err
 			}
@@ -129,13 +117,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		}
 	}
 
-<<<<<<< HEAD
-	currentLastBlock, err = fp.BlockService.GetLastBlock(0)
-=======
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 98)
 	currentLastBlock, err = fp.BlockService.GetLastBlock()
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 99)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 100)
 		return err
@@ -167,13 +151,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 106)
 		fp.Logger.Println("Did not accept any blocks from peer, pushing back my blocks")
 		for _, block := range myPoppedOffBlocks {
-<<<<<<< HEAD
-			lastBlock, err = fp.BlockService.GetLastBlock(1)
-=======
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 107)
 			lastBlock, err = fp.BlockService.GetLastBlock()
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 108)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 109)
 				return err

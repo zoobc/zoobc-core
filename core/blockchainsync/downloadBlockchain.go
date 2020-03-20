@@ -319,12 +319,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		if block.Height == 0 {
 			continue
 		}
-<<<<<<< HEAD
-		lastBlock, err := bd.BlockService.GetLastBlock(1)
-=======
 		lastBlock, err := bd.BlockService.GetLastBlock()
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 66)
->>>>>>> e2eb870e6bc510d6cae2e15b03f599ad59e382f1
 		if err != nil {
 			return nil, err
 		}
