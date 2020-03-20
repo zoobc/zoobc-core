@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -12,9 +11,7 @@ import (
 
 type (
 	// TXGeneratorCommands represent struct of transaction generator commands
-	TXGeneratorCommands struct {
-		DB *sql.DB
-	}
+	TXGeneratorCommands struct{}
 	// RunCommand represent of output function from transaction generator commands
 	RunCommand func(ccmd *cobra.Command, args []string)
 )
@@ -105,6 +102,7 @@ func init() {
 	registerNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
 	registerNodeCmd.Flags().StringVar(&nodeAddress, "node-address", "", "(ip) Address of the node")
 	registerNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
+	registerNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "proof-of-ownership-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
 	registerNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
 	registerNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
@@ -116,7 +114,7 @@ func init() {
 	updateNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
 	updateNodeCmd.Flags().StringVar(&nodeAddress, "node-address", "", "(ip) Address of the node")
 	updateNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
-	updateNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "proof-of-ownership-hex", "", "the hex string proof of owenership bytes")
+	updateNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
 	updateNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
 	updateNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
@@ -131,6 +129,7 @@ func init() {
 	*/
 	claimNodeCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "", "Account address of the owner of the node")
 	claimNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
+	claimNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
 	claimNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
 	claimNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
@@ -226,7 +225,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 				recipientAccountAddress,
 			)
 			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-			pow        = GenerateProofOfOwnership(
+			poow       = GenerateProofOfOwnership(
 				databasePath,
 				databaseName,
 				nodeOwnerAccountAddress,
@@ -239,7 +238,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 			nodeAddress,
 			lockedBalance,
 			nodePubKey,
-			pow,
+			poow,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -261,7 +260,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 				recipientAccountAddress,
 			)
 			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-			pow        = GenerateProofOfOwnership(
+			poow       = GenerateProofOfOwnership(
 				databasePath,
 				databaseName,
 				nodeOwnerAccountAddress,
@@ -275,7 +274,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 			nodeAddress,
 			lockedBalance,
 			nodePubKey,
-			pow,
+			poow,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -316,7 +315,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 				recipientAccountAddress,
 			)
 			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-			pow        = GenerateProofOfOwnership(
+			poow       = GenerateProofOfOwnership(
 				databasePath,
 				databaseName,
 				nodeOwnerAccountAddress,
@@ -327,7 +326,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		tx = GenerateTxClaimNode(
 			tx,
 			nodePubKey,
-			pow,
+			poow,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)

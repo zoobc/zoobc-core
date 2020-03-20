@@ -8,10 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/cmd/noderegistry"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
@@ -166,40 +165,7 @@ func GenerateProofOfOwnership(
 		}
 		return pow
 	}
-
-	var sqliteDbInstance = database.NewSqliteDB()
-	if err := sqliteDbInstance.InitializeDB(databasePath, databaseName); err != nil {
-		panic(fmt.Sprintf("InitializeDB err: %s", err.Error()))
-	}
-	sqliteDB, err := sqliteDbInstance.OpenDB(
-		databasePath,
-		databaseName,
-		constant.SQLMaxOpenConnetion,
-		constant.SQLMaxIdleConnections,
-		constant.SQLMaxConnectionLifetime,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("OpenDB err: %s", err.Error()))
-	}
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
-	if err != nil {
-		panic(err)
-	}
-	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      lastBlock.BlockHash,
-		BlockHeight:    lastBlock.Height,
-	}
-
-	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
-	signature := (&crypto.Signature{}).SignByNode(
-		poownMessageBytes,
-		nodeSeed)
-
-	return &model.ProofOfOwnership{
-		MessageBytes: poownMessageBytes,
-		Signature:    signature,
-	}
+	return noderegistry.GetProofOfOwnerShip(dbPath, dbname, nodeOwnerAccountAddress, nodeSeed)
 }
 
 /*
