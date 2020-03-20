@@ -2,7 +2,6 @@ package query
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -365,13 +364,13 @@ func TestEscrowTransactionQuery_Rollback(t *testing.T) {
 					uint32(1),
 				},
 				{
-					fmt.Sprintf(`
+					`
 			UPDATE escrow_transaction SET latest = ?
 			WHERE latest = ? AND (block_height || '_' || id) IN (
 				SELECT (MAX(block_height) || '_' || id) as prev
 				FROM escrow_transaction
 				GROUP BY id
-			)`),
+			)`,
 					1,
 					0,
 				},

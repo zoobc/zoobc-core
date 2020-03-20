@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	rpc_model "github.com/zoobc/zoobc-core/common/model"
@@ -26,7 +25,7 @@ func main() {
 		configPath = "../../../resource"
 	}
 	if err := util.LoadConfig(configPath, "config", "toml"); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		if apiRPCPort == 0 {

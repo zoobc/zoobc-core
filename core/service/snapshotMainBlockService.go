@@ -29,6 +29,7 @@ type (
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		DerivedQueries             []query.DerivedQuery
 	}
 )
 
@@ -48,6 +49,7 @@ func NewSnapshotMainBlockService(
 	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
+	derivedQueries []query.DerivedQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:               snapshotPath,
@@ -66,6 +68,7 @@ func NewSnapshotMainBlockService(
 		MultisignatureInfoQuery:    multisignatureInfoQuery,
 		BlockQuery:                 blockQuery,
 		SnapshotQueries:            snapshotQueries,
+		DerivedQueries:             derivedQueries,
 	}
 }
 
@@ -158,7 +161,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 	if err != nil {
 		return err
 	}
-	err = ss.InsertSnapshotPayloadToDb(snapshotPayload, snapshotFileInfo.Height)
+	err = ss.InsertSnapshotPayloadToDB(snapshotPayload, snapshotFileInfo.Height)
 	if err != nil {
 		return err
 	}
@@ -176,8 +179,8 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 
 }
 
-// InsertSnapshotPayloadToDb insert snapshot data to db
-func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.SnapshotPayload, height uint32) error {
+// InsertSnapshotPayloadToDB insert snapshot data to db
+func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.SnapshotPayload, height uint32) error {
 	var (
 		queries [][]interface{}
 	)
@@ -274,6 +277,21 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		}
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
 	}
+
+	for key, dQuery := range ss.DerivedQueries {
+		queries := dQuery.Rollback(height)
+		err = ss.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			fmt.Println(key)
+			fmt.Println("Failed execute rollback queries, ", err.Error())
+			err = ss.QueryExecutor.RollbackTx()
+			if err != nil {
+				fmt.Println("Failed to run RollbackTX DB")
+			}
+			break
+		}
+	}
+
 	err = ss.QueryExecutor.CommitTx()
 	if err != nil {
 		return err

@@ -22,7 +22,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -189,12 +188,12 @@ func (bs *BlockService) NewMainBlock(
 		return nil, err
 	}
 
-	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
+	blockUnsignedByte, err := commonUtils.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		bs.Logger.Error(err.Error())
 	}
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
-	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
+	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +256,7 @@ func (bs *BlockService) NewGenesisBlock(
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
 	}
-	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
+	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +324,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
 	}
 	// Verify previous block hash
-	previousBlockHash, err := util.GetBlockHash(previousLastBlock, bs.Chaintype)
+	previousBlockHash, err := commonUtils.GetBlockHash(previousLastBlock, bs.Chaintype)
 	if err != nil {
 		return err
 	}
@@ -640,12 +639,12 @@ func (bs *BlockService) ScanBlockPool() error {
 	blocks := bs.BlockPoolService.GetBlocks()
 	for index, block := range blocks {
 		if bs.canPersistBlock(index, previousBlock) {
-			err := func() error {
+			err := func(block *model.Block) error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 				err := bs.PushBlock(previousBlock, block, true, true)
 				return err
-			}
+			}(block)
 			if err != nil {
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
@@ -1029,7 +1028,7 @@ func (bs *BlockService) GenerateBlock(
 	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
 	// compute the previous block hash
-	previousBlockHash, err := util.GetBlockHash(previousBlock, bs.Chaintype)
+	previousBlockHash, err := commonUtils.GetBlockHash(previousBlock, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -1070,7 +1069,7 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}
-		if tx.TransactionType == util.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+		if tx.TransactionType == commonUtils.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
 			totalAmount += tx.GetSendMoneyTransactionBody().Amount
 		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
@@ -1296,7 +1295,7 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	}
 
 	blExt.ReceiptValue = commonUtils.GetReceiptValue(linkedPublishedReceiptCount, unLinkedPublishedReceiptCount)
-	blExt.PopChange, err = util.CalculateParticipationScore(
+	blExt.PopChange, err = commonUtils.CalculateParticipationScore(
 		linkedPublishedReceiptCount,
 		unLinkedPublishedReceiptCount,
 		bs.ReceiptUtil.GetNumberOfMaxReceipts(len(nodeRegistryAtHeight)),
@@ -1323,7 +1322,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return []*model.Block{}, err
 	}
-	minRollbackHeight := util.GetMinRollbackHeight(lastBlock.Height)
+	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
@@ -1408,7 +1407,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 			[...{4}byteSize,{bytesSize}transactionBytes]
 		*/
 		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
-		mempoolsBackupBytes.Write(util.ConvertUint32ToBytes(sizeMempool))
+		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
 		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
 	}
 	err = bs.QueryExecutor.CommitTx()

@@ -192,6 +192,7 @@ func init() {
 		query.NewMultisignatureInfoQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
+		query.GetDerivedQuery(mainchain),
 	)
 
 	snapshotService = service.NewSnapshotService(

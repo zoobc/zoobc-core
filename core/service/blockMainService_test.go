@@ -13,7 +13,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -1289,7 +1288,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Signature:               tt.fields.Signature,
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
@@ -1865,7 +1864,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		NodeRegistrationService NodeRegistrationServiceInterface
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		BlockPoolService        BlockPoolServiceInterface
-		Logger                  *logrus.Logger
+		Logger                  *log.Logger
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
 	}
@@ -3172,7 +3171,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
 				Observer:                    tt.fields.Observer,
 				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
-				Logger:                      logrus.New(),
+				Logger:                      log.New(),
 				NodeRegistrationService:     tt.fields.NodeRegistrationService,
 				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
 				ReceiptUtil:                 &coreUtil.ReceiptUtil{},
@@ -4252,7 +4251,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				NodeRegistrationQuery:   nil,
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				Observer:                nil,
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4283,7 +4282,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 			},
 			args: args{
 				commonBlock: mockBadCommonBlockHardFork,
@@ -4314,7 +4313,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4345,7 +4344,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4376,7 +4375,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4407,7 +4406,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4799,7 +4798,7 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
 				TransactionCoreService: &mockPopulateBlockDataTransactionCoreServiceSuccess{},
 				PublishedReceiptUtil:   &mockPopulateBlockDataPublishedReceiptUtilFail{},
-				Logger:                 logrus.New(),
+				Logger:                 log.New(),
 			},
 			args: args{
 				block: &model.Block{},
@@ -4815,7 +4814,7 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
 				TransactionCoreService: &mockPopulateBlockDataTransactionCoreServiceSuccess{},
 				PublishedReceiptUtil:   &mockPopulateBlockDataPublishedReceiptUtilSuccess{},
-				Logger:                 logrus.New(),
+				Logger:                 log.New(),
 			},
 			args: args{
 				block: &model.Block{

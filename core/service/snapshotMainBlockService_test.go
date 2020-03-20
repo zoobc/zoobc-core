@@ -570,6 +570,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
 		block *model.Block
@@ -608,6 +609,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -642,6 +644,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -668,6 +671,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -723,6 +727,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		DerivedQueries             []query.DerivedQuery
 	}
 	tests := []struct {
 		name    string
@@ -753,6 +758,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 		},
 	}
@@ -775,6 +781,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {
