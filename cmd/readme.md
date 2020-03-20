@@ -143,8 +143,14 @@ outputs cmd/genesis.go.new and cmd/cluster_config.json
 ```
 
 ```
+
 ### Generate Proof of Ownership Node Registry
 ```bash
-gr main.go generate poow --node-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"   --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM"  --db-node-path "../resource" --db-node-name "zoobc.db"
+go run main.go generate poow --node-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"   --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM"  --db-node-path "../resource" --db-node-name "zoobc.db"
 --output-type "hex" 
+```
+
+### Rollback Blockchain State
+```bash
+go run main.go rollback blockchain --to-height 10 --db-path "../resource" --db-name "zoobc.db"
 ```
