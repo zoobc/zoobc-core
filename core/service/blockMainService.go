@@ -589,6 +589,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// get blocksmith index
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
 		blocksmithIndex = blocksmithsMap[string(block.BlocksmithPublicKey)]
+		if blocksmithIndex == nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
+		}
 		// handle if is first index
 		if *blocksmithIndex > 0 {
 			// check if current block is in pushable window
@@ -1453,7 +1459,9 @@ func (bs *BlockService) WillSmith(
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 	blocksmithIndex, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
 	if !ok {
-		return blockchainProcessorLastBlockID, err
+		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+			blocker.BlockErr, "BlocksmithNotInSmithingList",
+		)
 	}
 	blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
 	if blockPool != nil {
