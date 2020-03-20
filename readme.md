@@ -49,6 +49,8 @@ Table of Contents:
 
 ### Build
 
+To make use of the `Makefile` please rename `github.token.example` to `github.token` and place your github token there. This is required since we are accessing private repository for one of our dependencies.
+
 -   Core
 
     note: For cross compilation please install and activate docker.
