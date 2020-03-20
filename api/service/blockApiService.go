@@ -4,8 +4,10 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -103,6 +105,10 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 // GetBlocks fetches multiple blocks from Blockchain system
 func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
+	if blockSize > constant.MaxAPIGetBlocks {
+		return nil, status.Error(codes.OutOfRange, fmt.Sprintf("limit exceeded, max. %d", constant.MaxAPIGetBlocks))
+	}
+
 	var (
 		rows   *sql.Rows
 		err    error
