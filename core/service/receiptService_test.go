@@ -210,7 +210,7 @@ func (*mockQueryExecutorFailExecuteSelectReceipt) ExecuteSelect(
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked)" +
-		" AND block_height BETWEEN 0 AND 1000 ORDER BY block_height ASC LIMIT 5":
+		" AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 5":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -239,7 +239,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) " +
-		"AND block_height BETWEEN 0 AND 1000 ORDER BY block_height ASC LIMIT 5":
+		"AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 5":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -452,7 +452,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) " +
-		"AND block_height BETWEEN 0 AND 1000 ORDER BY block_height ASC LIMIT 15":
+		"AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 15":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -492,7 +492,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE NOT " +
 		"EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) AND " +
-		"reference_block_height BETWEEN 0 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height " +
+		"reference_block_height BETWEEN 280 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height " +
 		"ASC LIMIT 15":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key",
