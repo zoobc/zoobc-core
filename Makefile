@@ -1,5 +1,6 @@
 BIN_DIR := $(GOPATH)/bin
 GOLANGCILINT := $(BIN_DIR)/golangci-lint
+GOLANGCILINT_VERSION := v1.20.0
 XGO := $(BIN_DIR)/xgo
 VERSION ?= latest
 BINARY_CORE := zoobc
@@ -7,18 +8,22 @@ BINARY_CLI := zoomd
 GITHUB_TOKEN ?= $(shell cat github.token)
 
 .PHONY: test
-test: lint
-	go test ./... --count=1
+test: go-fmt golangci-lint
+	go test `go list ./... | egrep -v 'common/model|common/service'` --short
 
 $(GOLANGCILINT):
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.20.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $(GOLANGCILINT_VERSION)
 
 $(XGO):
 	go get github.com/zoobc/xgo
 
-.PHONY: lint
-lint: $(GOLANGCILINT)
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCILINT)
 	golangci-lint run
+
+.PHONY: go-fmt
+go-fmt:
+	go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
 
 .PHONY: build
 build:
