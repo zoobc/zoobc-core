@@ -131,10 +131,12 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			}
 
 			// add the priority peers to unresolvedPeers
+
 			err := ps.AddToUnresolvedPeer(&newPeer)
 			if err != nil {
 				ps.Logger.Error(err)
 			}
+
 			unresolvedPeers[priorityPeerAddress] = &newPeer
 			exceedMaxUnresolvedPeers++
 			i++
@@ -271,10 +273,12 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 						if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
 							!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
 							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
+
 								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
 									ps.Logger.Error(err.Error())
 									break
 								}
+
 								isAddedToUnresolved = true
 								break
 							}
@@ -423,6 +427,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	if err = ps.AddToResolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
 	}
+
 }
 
 // GetMorePeersHandler request peers to random peer in list and if get new peers will add to unresolved peer
@@ -434,6 +439,7 @@ func (ps *PriorityStrategy) GetMorePeersHandler() (*model.Peer, error) {
 			ps.Logger.Infof("getMorePeers Error: %v\n", err)
 			return nil, err
 		}
+
 		err = ps.AddToUnresolvedPeers(newPeers.GetPeers(), false)
 		if err != nil {
 			ps.Logger.Warnf("getMorePeers error: %v\n", err)
@@ -701,8 +707,10 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
 			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
-			if err := ps.AddToUnresolvedPeer(peer); err != nil {
-				ps.Logger.Error(err.Error())
+			if peer.GetInfo().CodeName == hostAddress.Info.CodeName && peer.GetInfo().Version == hostAddress.Info.Version {
+				if err := ps.AddToUnresolvedPeer(peer); err != nil {
+					ps.Logger.Error(err.Error())
+				}
 			}
 			peersAdded++
 		}
@@ -829,6 +837,7 @@ func (ps *PriorityStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	if err := ps.RemoveBlacklistedPeer(peer); err != nil {
 		ps.Logger.Error(err.Error())
 	}
+
 	if err := ps.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
 		ps.Logger.Warn(err.Error())
 	}

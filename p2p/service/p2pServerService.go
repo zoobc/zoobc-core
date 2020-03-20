@@ -115,10 +115,13 @@ func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 // GetMorePeers contains info other peers
 func (ps *P2PServerService) GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
+
 		var nodes []*model.Node
 		// only sends the connected (resolved) peers
 		for _, hostPeer := range ps.PeerExplorer.GetResolvedPeers() {
+
 			nodes = append(nodes, hostPeer.GetInfo())
+
 		}
 		return nodes, nil
 	}
@@ -131,17 +134,18 @@ func (ps *P2PServerService) SendPeers(
 	peers []*model.Node,
 ) (*model.Empty, error) {
 
-	hostInfo := ps.PeerExplorer.GetHostInfo()
-	var resPeers []*model.Node
-	for _, peer := range peers {
-		if peer.CodeName == hostInfo.CodeName {
-			resPeers = append(resPeers, peer)
-		}
-	}
-
 	if ps.PeerExplorer.ValidateRequest(ctx) {
+		hostInfo := ps.PeerExplorer.GetHostInfo()
+		var resPeers []*model.Node
 		// TODO: only accept nodes that are already registered in the node registration
+		for _, peer := range peers {
+			if peer.CodeName == hostInfo.CodeName && peer.Version == hostInfo.Version {
+				resPeers = append(resPeers, peer)
+			}
+		}
+
 		err := ps.PeerExplorer.AddToUnresolvedPeers(resPeers, true)
+
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

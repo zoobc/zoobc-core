@@ -10,7 +10,7 @@ snapshotPath = "./resource/snapshots_2"
 peerPort=8002
 myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8001"]
-Version = "0.1.31"
+Version = "0.0.31"
 CodeName = "ZooBC-Alpha"
 
 apiRPCPort=3002

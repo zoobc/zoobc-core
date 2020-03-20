@@ -130,7 +130,17 @@ func (ns *NativeStrategy) GetMorePeersHandler() (*model.Peer, error) {
 			ns.Logger.Infof("getMorePeers Error accord %v\n", err)
 			return nil, err
 		}
-		err = ns.AddToUnresolvedPeers(newPeers.GetPeers(), true)
+
+		hostInfo := ns.Host.GetInfo()
+		var resPeers []*model.Node
+
+		for _, peer := range newPeers.GetPeers() {
+			if peer.CodeName == hostInfo.CodeName && peer.Version == hostInfo.Version {
+				resPeers = append(resPeers, peer)
+			}
+		}
+
+		err = ns.AddToUnresolvedPeers(resPeers, true)
 		if err != nil {
 			ns.Logger.Infof("getMorePeers error: %v\n", err)
 			return nil, err
@@ -160,8 +170,11 @@ func (ns *NativeStrategy) GetMorePeersThread() {
 		}
 
 		myResolvedPeers := ns.GetResolvedPeers()
+
 		for _, p := range myResolvedPeers {
+
 			nodes = append(nodes, p.Info)
+
 		}
 		if peer == nil {
 			return
@@ -480,9 +493,11 @@ func (ns *NativeStrategy) PeerUnblacklist(peer *model.Peer) *model.Peer {
 	if err := ns.RemoveBlacklistedPeer(peer); err != nil {
 		ns.Logger.Error(err.Error())
 	}
+
 	if err := ns.AddToUnresolvedPeers([]*model.Node{peer.Info}, false); err != nil {
-		ns.Logger.Error(err.Error())
+		ns.Logger.Warn(err.Error())
 	}
+
 	return peer
 }
 

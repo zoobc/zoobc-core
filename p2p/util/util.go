@@ -67,12 +67,15 @@ func ParseKnownPeers(peers []string) ([]*model.Peer, error) {
 	var (
 		knownPeers []*model.Peer
 	)
+
 	for _, peerData := range peers {
 		peer, err := ParsePeer(peerData)
 		if err != nil {
 			return nil, err
 		}
+
 		knownPeers = append(knownPeers, peer)
+
 	}
 	return knownPeers, nil
 }
