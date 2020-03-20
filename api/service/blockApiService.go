@@ -104,8 +104,8 @@ func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height u
 
 // GetBlocks fetches multiple blocks from Blockchain system
 func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, height uint32) (*model.GetBlocksResponse, error) {
-	if blockSize > constant.GetBlocksLimit {
-		blockSize = constant.GetBlocksLimit
+	if blockSize > constant.APIMaxGetBlocks {
+		blockSize = constant.APIMaxGetBlocks
 	}
 
 	var (
