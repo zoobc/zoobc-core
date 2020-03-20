@@ -640,9 +640,12 @@ func (bs *BlockService) ScanBlockPool() error {
 	blocks := bs.BlockPoolService.GetBlocks()
 	for index, block := range blocks {
 		if bs.canPersistBlock(index, previousBlock) {
-			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-			err := bs.PushBlock(previousBlock, block, true, true)
-			bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+			err := func() error {
+				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+				err := bs.PushBlock(previousBlock, block, true, true)
+				return err
+			}
 			if err != nil {
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
@@ -668,9 +671,12 @@ func (bs *BlockService) ScanBlockPool() error {
 				bestIndex = index
 			}
 		}
-		bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-		err := bs.PushBlock(previousBlock, blocks[bestIndex], true, true)
-		bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+		err := func() error {
+			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+			defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+			err := bs.PushBlock(previousBlock, blocks[bestIndex], true, true)
+			return err
+		}()
 		if err != nil {
 			return blocker.NewBlocker(
 				blocker.BlockErr, "ScanBlockPool:PushBlockFail",
