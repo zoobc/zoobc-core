@@ -12,7 +12,7 @@ test: go-fmt golangci-lint
 	go test `go list ./... | egrep -v 'common/model|common/service'` --short
 
 $(GOLANGCILINT):
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin $(GOLANGCILINT_VERSION)
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin $(GOLANGCILINT_VERSION)
 
 $(XGO):
 	go get github.com/zoobc/xgo
