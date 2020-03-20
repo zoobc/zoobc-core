@@ -1,0 +1,54 @@
+signature type: DefaultSignature
+seed: nawi
+public key hex: 7b2f8c7151e39444cc54024b6d45fb56ed3e9ea64581af34f28938f0d8d8bdbd
+public key bytes: [123 47 140 113 81 227 148 68 204 84 2 75 109 69 251 86 237 62 158 166 69 129 175 52 242 137 56 240 216 216 189 189]
+public key string : ey+McVHjlETMVAJLbUX7Vu0+nqZFga808ok48NjYvb0=
+private key bytes: [217 89 40 71 89 115 49 110 225 238 170 2 204 49 47 113 100 235 143 119 5 218 74 97 187 118 7 54 49 207 87 251 123 47 140 113 81 227 148 68 204 84 2 75 109 69 251 86 237 62 158 166 69 129 175 52 242 137 56 240 216 216 189 189]
+private key hex: d95928475973316ee1eeaa02cc312f7164eb8f7705da4a61bb76073631cf57fb7b2f8c7151e39444cc54024b6d45fb56ed3e9ea64581af34f28938f0d8d8bdbd
+address: ey-McVHjlETMVAJLbUX7Vu0-nqZFga808ok48NjYvb0I
+
+
+___________
+signature type: DefaultSignature
+seed: kartini
+public key hex: 6247701394d8cab8208bff5992a15b57cd0de558237d8e7dd47da41852d8ec47
+public key bytes: [98 71 112 19 148 216 202 184 32 139 255 89 146 161 91 87 205 13 229 88 35 125 142 125 212 125 164 24 82 216 236 71]
+public key string : YkdwE5TYyrggi/9ZkqFbV80N5VgjfY591H2kGFLY7Ec=
+private key bytes: [116 175 255 146 128 185 8 174 192 23 49 196 113 244 92 106 29 233 68 216 49 134 205 196 151 86 161 77 174 118 132 162 98 71 112 19 148 216 202 184 32 139 255 89 146 161 91 87 205 13 229 88 35 125 142 125 212 125 164 24 82 216 236 71]
+private key hex: 74afff9280b908aec01731c471f45c6a1de944d83186cdc49756a14dae7684a26247701394d8cab8208bff5992a15b57cd0de558237d8e7dd47da41852d8ec47
+address: YkdwE5TYyrggi_9ZkqFbV80N5VgjfY591H2kGFLY7Ecu
+
+_____________
+
+UPDATE FILE genesis.go
+dapetin nodePublicKey:
+__
+package main
+
+import "fmt"
+import "strings"
+
+func main() {
+	bitarr := "[98 71 112 19 148 216 202 184 32 139 255 89 146 161 91 87 205 13 229 88 35 125 142 125 212 125 164 24 82 216 236 71]";
+	fmt.Println(strings.Join(strings.Split(bitarr, " "), ", "))
+}
+__________________________________________
+
+
+___________
+-GENERATE ACCOUNT
+go run main.go generate account from-seed --seed "nawi"
+go run main.go generate account from-seed --seed "kartini"
+go run main.go generate account from-seed --seed "nimade"
+
+___
+CARA RUN BEBERAPA NODE
+go run main.go <-- untuk yang pertama
+go run main.go config-postfix ./resource/config2.toml
+
+
+UNIX GET TIMESTAMP
+date +%s
+
+Transaction Send Money
+go run main.go generate transaction send-money --timestamp 1584346401 --sender-seed "nawi" --recipient ey-McVHjlETMVAJLbUX7Vu0-nqZFga808ok48NjYvb0I --amount 100000
