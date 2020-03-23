@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	rpc_model "github.com/zoobc/zoobc-core/common/model"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"google.golang.org/grpc"
 
@@ -313,7 +312,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 
 		c := rpc_service.NewTransactionServiceClient(conn)
 
-		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+		response, err := c.PostTransaction(context.Background(), &model.PostTransactionRequest{
 			TransactionBytes: signedTxBytes,
 		})
 		if err != nil {

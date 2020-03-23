@@ -20,4 +20,5 @@ resource/snapshots*
 resource_cluster/zoobc_*
 cmd/*.new
 accounts.txt
+.editorconfig
 .manual
