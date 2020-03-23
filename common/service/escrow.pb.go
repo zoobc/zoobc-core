@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -91,6 +93,17 @@ func (c *escrowTransactionServiceClient) GetEscrowTransaction(ctx context.Contex
 type EscrowTransactionServiceServer interface {
 	GetEscrowTransactions(context.Context, *model.GetEscrowTransactionsRequest) (*model.GetEscrowTransactionsResponse, error)
 	GetEscrowTransaction(context.Context, *model.GetEscrowTransactionRequest) (*model.Escrow, error)
+}
+
+// UnimplementedEscrowTransactionServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedEscrowTransactionServiceServer struct {
+}
+
+func (*UnimplementedEscrowTransactionServiceServer) GetEscrowTransactions(ctx context.Context, req *model.GetEscrowTransactionsRequest) (*model.GetEscrowTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEscrowTransactions not implemented")
+}
+func (*UnimplementedEscrowTransactionServiceServer) GetEscrowTransaction(ctx context.Context, req *model.GetEscrowTransactionRequest) (*model.Escrow, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEscrowTransaction not implemented")
 }
 
 func RegisterEscrowTransactionServiceServer(s *grpc.Server, srv EscrowTransactionServiceServer) {

@@ -345,8 +345,7 @@ func TestPublishedReceiptQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
-				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 ORDER BY block_height" +
-				" DESC",
+				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -357,6 +356,48 @@ func TestPublishedReceiptQuery_SelectDataForSnapshot(t *testing.T) {
 			}
 			if got := prq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("PublishedReceiptQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPublishedReceiptQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	prQry := NewPublishedReceiptQuery()
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "TrimDataBeforeSnapshot",
+			args: args{
+				toHeight:   10,
+				fromHeight: 0,
+			},
+			fields: fields{
+				TableName: prQry.TableName,
+				Fields:    prQry.Fields,
+			},
+			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prq := &PublishedReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := prq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PublishedReceiptQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -18,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
@@ -596,11 +595,11 @@ type (
 	}
 
 	mockReceiptUtilSuccess struct {
-		util.ReceiptUtilInterface
+		coreUtil.ReceiptUtilInterface
 	}
 
 	mockReceiptUtilError struct {
-		util.ReceiptUtilInterface
+		coreUtil.ReceiptUtilInterface
 	}
 
 	mockMempoolServiceUtilSuccess struct {

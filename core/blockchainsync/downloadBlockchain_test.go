@@ -2,7 +2,6 @@ package blockchainsync
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -112,7 +111,7 @@ func (*mockBlockServiceSuccess) GetBlockByID(blockID int64, withAttachedData boo
 			ID: 1,
 		}, nil
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block is not found")
 }
 
 func (*mockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
@@ -128,7 +127,7 @@ func (*mockBlockServiceFail) GetChainType() chaintype.ChainType {
 }
 
 func (*mockBlockServiceFail) GetLastBlock() (*model.Block, error) {
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block is not found"))
+	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block is not found")
 }
 
 type (
