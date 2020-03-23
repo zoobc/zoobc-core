@@ -3,6 +3,7 @@ package crypto
 import (
 	"encoding/base64"
 
+	slip10 "github.com/zoobc/zoo-slip10"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/ed25519"
@@ -29,12 +30,26 @@ func (*Ed25519Signature) Verify(accountPublicKey, payload, signature []byte) boo
 
 // GetPrivateKeyFromSeed to get private key form seed
 func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
+
 	// Convert seed (secret phrase) to byte array
 	seedBuffer := []byte(seed)
 	// Compute SHA3-256 hash of seed (secret phrase)
 	seedHash := sha3.Sum256(seedBuffer)
 	// Generate a private key from the hash of the seed
 	return ed25519.NewKeyFromSeed(seedHash[:])
+}
+
+// GetPrivateKeyFromSeedUseSlip10 generate privite key form seed using slip10
+func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error) {
+	var (
+		seedBytes      = slip10.NewSeed(seed, slip10.DefaultPassword)
+		slip10Key, err = slip10.DeriveForPath(slip10.StellarPrimaryAccountPath, seedBytes)
+	)
+	if err != nil {
+		return nil, err
+	}
+	return slip10Key.Key, nil
+
 }
 
 // GetPublicKeyFromSeed Get the raw public key corresponding to a seed (secret phrase)
