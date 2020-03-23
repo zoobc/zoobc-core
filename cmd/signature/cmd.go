@@ -6,12 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/model"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"golang.org/x/crypto/sha3"
-
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/model"
+	"golang.org/x/crypto/sha3"
 )
 
 var (

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	rpc_model "github.com/zoobc/zoobc-core/common/model"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"google.golang.org/grpc"
 
@@ -250,13 +249,25 @@ func GenerateBasicTransaction(
 			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
-				err        error
+				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
+					senderSeed,
+					crypto.DefaultBitcoinPublicKeyFormat(),
+					crypto.DefaultBitcoinPrivateKeyLength(),
+				)
 			)
-			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
 			if err != nil {
-				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
+			}
+			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
+			if err != nil {
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
 			}
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
@@ -301,7 +312,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 
 		c := rpc_service.NewTransactionServiceClient(conn)
 
-		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+		response, err := c.PostTransaction(context.Background(), &model.PostTransactionRequest{
 			TransactionBytes: signedTxBytes,
 		})
 		if err != nil {
