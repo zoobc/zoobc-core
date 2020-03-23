@@ -30,7 +30,6 @@ func (*Ed25519Signature) Verify(accountPublicKey, payload, signature []byte) boo
 
 // GetPrivateKeyFromSeed to get private key form seed
 func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
-
 	// Convert seed (secret phrase) to byte array
 	seedBuffer := []byte(seed)
 	// Compute SHA3-256 hash of seed (secret phrase)
