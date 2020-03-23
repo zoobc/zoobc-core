@@ -650,6 +650,7 @@ func (bs *BlockService) ScanBlockPool() error {
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
 				)
 			}
+			break
 		}
 	}
 	// check if we have passed the last blocksmith expiry time

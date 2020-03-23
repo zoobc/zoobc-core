@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -290,6 +291,9 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
 	log.Printf("myAddress: %s", myAddress)
+	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
+		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
+	}
 }
 
 func initLogInstance() {
