@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -78,6 +80,14 @@ func (c *healthCheckServiceClient) HealthCheck(ctx context.Context, in *model.Em
 // HealthCheckServiceServer is the server API for HealthCheckService service.
 type HealthCheckServiceServer interface {
 	HealthCheck(context.Context, *model.Empty) (*model.HealthCheckResponse, error)
+}
+
+// UnimplementedHealthCheckServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedHealthCheckServiceServer struct {
+}
+
+func (*UnimplementedHealthCheckServiceServer) HealthCheck(ctx context.Context, req *model.Empty) (*model.HealthCheckResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HealthCheck not implemented")
 }
 
 func RegisterHealthCheckServiceServer(s *grpc.Server, srv HealthCheckServiceServer) {
