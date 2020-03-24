@@ -12,7 +12,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -980,7 +979,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				BlockQuery:                tt.fields.BlockQuery,
 				Signature:                 tt.fields.Signature,
 				Observer:                  tt.fields.Observer,
-				Logger:                    logrus.New(),
+				Logger:                    log.New(),
 				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
@@ -1551,7 +1550,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		Observer                  *observer.Observer
 		NodeRegistrationService   NodeRegistrationServiceInterface
 		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
-		Logger                    *logrus.Logger
+		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 	}
@@ -2518,7 +2517,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				Signature:                 tt.fields.Signature,
 				Observer:                  tt.fields.Observer,
 				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
-				Logger:                    logrus.New(),
+				Logger:                    log.New(),
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 			}
@@ -3434,7 +3433,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				ParticipationScoreQuery: nil,
 				Observer:                nil,
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 				SpinePublicKeyService: &BlockSpinePublicKeyService{
 					Logger:                log.New(),
 					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -3470,7 +3469,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				ParticipationScoreQuery: nil,
 				Observer:                nil,
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 				SpinePublicKeyService: &BlockSpinePublicKeyService{
 					Logger:                log.New(),
 					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -3506,7 +3505,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				ParticipationScoreQuery: nil,
 				NodeRegistrationQuery:   nil,
 				Observer:                nil,
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 				SpinePublicKeyService: &BlockSpinePublicKeyService{
 					Logger:                log.New(),
 					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -3542,7 +3541,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				AccountBalanceQuery:     nil,
 				ParticipationScoreQuery: nil,
 				Observer:                nil,
-				Logger:                  logrus.New(),
+				Logger:                  log.New(),
 				SpinePublicKeyService: &BlockSpinePublicKeyService{
 					Logger:                log.New(),
 					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -3649,7 +3648,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 			fields: fields{
 				Chaintype:     &chaintype.SpineChain{},
 				QueryExecutor: &mockSpineExecutorPopulateBlockDataFail{},
-				Logger:        logrus.New(),
+				Logger:        log.New(),
 				SpinePublicKeyService: &BlockSpinePublicKeyService{
 					Logger:                log.New(),
 					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -3669,7 +3668,7 @@ func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 			fields: fields{
 				Chaintype:     &chaintype.SpineChain{},
 				QueryExecutor: &mockSpineExecutorPopulateBlockDataSuccess{},
-				Logger:        logrus.New(),
+				Logger:        log.New(),
 				SpinePublicKeyService: &BlockSpinePublicKeyService{
 					Logger:                log.New(),
 					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -3801,7 +3800,7 @@ func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
 					success: true,
 				},
 				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
-				Logger:                logrus.New(),
+				Logger:                log.New(),
 				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
@@ -3833,7 +3832,7 @@ func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
 					noRows:  true,
 				},
 				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
-				Logger:                logrus.New(),
+				Logger:                log.New(),
 				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
@@ -3861,7 +3860,7 @@ func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
 					success: true,
 				},
 				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
-				Logger:                logrus.New(),
+				Logger:                log.New(),
 				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
@@ -3882,7 +3881,7 @@ func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
 					success: true,
 				},
 				BlockQuery:            query.NewBlockQuery(&chaintype.SpineChain{}),
-				Logger:                logrus.New(),
+				Logger:                log.New(),
 				SpinePublicKeyService: &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
