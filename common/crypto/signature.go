@@ -5,7 +5,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -18,7 +17,7 @@ type (
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
 		GenerateAccountFromSeed(signatureType model.SignatureType, seed string) (
 			privateKey, publicKey []byte,
-			publickKeyString, address string,
+			publicKeyString, address string,
 			err error,
 		)
 	}
@@ -172,7 +171,7 @@ func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) 
 // GenerateAccountFromSeed to generate account based on provided seed
 func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, seed string) (
 	privateKey, publicKey []byte,
-	publickKeyString, address string,
+	publicKeyString, address string,
 	err error,
 ) {
 	switch signatureType {
@@ -183,12 +182,12 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		publickKeyString = ed25519Signature.GetPublicKeyString(publicKey)
+		publicKeyString = ed25519Signature.GetPublicKeyString(publicKey)
 		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		return privateKey, publicKey, publickKeyString, address, nil
+		return privateKey, publicKey, publicKeyString, address, nil
 	case model.SignatureType_BitcoinSignature:
 		var (
 			bitcoinSignature = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
@@ -210,11 +209,11 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		publickKeyString, err = bitcoinSignature.GetPublicKeyString(publicKey)
+		publicKeyString, err = bitcoinSignature.GetPublicKeyString(publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		return privateKey, publicKey, publickKeyString, address, nil
+		return privateKey, publicKey, publicKeyString, address, nil
 	default:
 		return nil, nil, "", "", blocker.NewBlocker(
 			blocker.AppErr,

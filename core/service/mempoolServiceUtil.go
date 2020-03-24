@@ -194,21 +194,23 @@ func (mg *MempoolGetter) GetTotalMempoolTransactions() (int, error) {
 // GetMempoolTransactions fetch transactions from mempool
 func (mg *MempoolGetter) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
 	var (
-		rows *sql.Rows
-		err  error
+		mempoolTransactions []*model.MempoolTransaction
+		sqlStr              = mg.MempoolQuery.GetMempoolTransactions()
+		rows                *sql.Rows
+		err                 error
 	)
-	sqlStr := mg.MempoolQuery.GetMempoolTransactions()
+
 	rows, err = mg.QueryExecutor.ExecuteSelect(sqlStr, false)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var mempoolTransactions []*model.MempoolTransaction
 	mempoolTransactions, err = mg.MempoolQuery.BuildModel(mempoolTransactions, rows)
 	if err != nil {
 		return nil, err
 	}
+
 	return mempoolTransactions, nil
 }
 
