@@ -15,7 +15,7 @@ import (
 type (
 	// FileDownloaderInterface snapshot logic shared across block types
 	FileDownloaderInterface interface {
-		DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error
+		DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) (*model.SnapshotFileInfo, error)
 	}
 
 	FileDownloader struct {
@@ -41,7 +41,8 @@ func NewFileDownloader(
 }
 
 // DownloadSnapshot downloads a snapshot from the p2p network
-func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) error {
+func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) (*model.SnapshotFileInfo,
+	error) {
 	var (
 		failedDownloadChunkNames = model.NewMapStringInt() // map instead of array to avoid duplicates
 		hashSize                 = sha3.New256().Size()
@@ -49,10 +50,10 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 	)
 	fileChunkHashes, err := ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(fileChunkHashes) == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "Failed parsing File Chunk Hashes from Spine Block Manifest")
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "Failed parsing File Chunk Hashes from Spine Block Manifest")
 	}
 
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, true)
@@ -83,8 +84,16 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, false)
 
 	if failedDownloadChunkNames.Count() > 0 {
-		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("One or more snapshot chunks failed to download (name/failed times) %v",
+		return nil, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("One or more snapshot chunks failed to download (name/failed times) %v",
 			failedDownloadChunkNames.GetMap()))
 	}
-	return nil
+
+	return &model.SnapshotFileInfo{
+		SnapshotFileHash:           spineBlockManifest.GetFullFileHash(),
+		FileChunksHashes:           fileChunkHashes,
+		ChainType:                  ct.GetTypeInt(),
+		Height:                     spineBlockManifest.SpineBlockManifestHeight,
+		ProcessExpirationTimestamp: spineBlockManifest.ExpirationTimestamp,
+		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
+	}, nil
 }
