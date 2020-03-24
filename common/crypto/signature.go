@@ -192,12 +192,16 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 			if err != nil {
 				return nil, nil, "", "", err
 			}
+			publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKeyUseSlip10(privateKey)
+			if err != nil {
+				return nil, nil, "", "", err
+			}
 		} else {
 			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
-		}
-		publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(privateKey)
-		if err != nil {
-			return nil, nil, "", "", err
+			publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(privateKey)
+			if err != nil {
+				return nil, nil, "", "", err
+			}
 		}
 		publicKeyString = ed25519Signature.GetPublicKeyString(publicKey)
 		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)

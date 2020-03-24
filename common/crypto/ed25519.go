@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"bytes"
 	"encoding/base64"
 
 	slip10 "github.com/zoobc/zoo-slip10"
@@ -38,7 +39,9 @@ func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 	return ed25519.NewKeyFromSeed(seedHash[:])
 }
 
-// GetPrivateKeyFromSeedUseSlip10 generate privite key form seed using slip10
+// GetPrivateKeyFromSeedUseSlip10 generate privite key form seed using slip10, this private used by hdwallet
+// NOTE: currently this private cannot use to sign message using golang ed25519,
+// The privite key output in golang ed25519 is seed bytes
 func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error) {
 	var (
 		seedBytes      = slip10.NewSeed(seed, slip10.DefaultPassword)
@@ -48,7 +51,18 @@ func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, er
 		return nil, err
 	}
 	return slip10Key.Key, nil
+}
 
+// GetPublicKeyFromPrivateKeyUseSlip10 get pubic key from slip10 private key
+func (*Ed25519Signature) GetPublicKeyFromPrivateKeyUseSlip10(privateKey []byte) ([]byte, error) {
+	var (
+		reader            = bytes.NewReader(privateKey)
+		publicKey, _, err = ed25519.GenerateKey(reader)
+	)
+	if err != nil {
+		return nil, err
+	}
+	return publicKey, nil
 }
 
 // GetPublicKeyFromSeed Get the raw public key corresponding to a seed (secret phrase)
