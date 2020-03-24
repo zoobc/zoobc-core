@@ -2,18 +2,18 @@ package rollback
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
+	// RunCommand represent of output function from rollback commands
 	RunCommand func(ccmd *cobra.Command, args []string)
 )
 
@@ -45,35 +45,26 @@ will call all existing rollback query and show the last status of database after
 func init() {
 	// Rollback Blockchain flag
 	rollbackBlockChainCmd.Flags().Uint32Var(&wantedBlockHeight, "to-height", 0, "Block height state wanted after rollback")
-	rollbackBlockChainCmd.Flags().StringVar(&dBPath, "db-path", "", "path of DB blockchain wanted to rollback")
-	rollbackBlockChainCmd.Flags().StringVar(&dBName, "db-name", "", "name of DB blockchain wanted to rollback")
+	rollbackBlockChainCmd.Flags().StringVar(&dBPath, "db-path", "../resource", "path of DB blockchain wanted to rollback")
+	rollbackBlockChainCmd.Flags().StringVar(&dBName, "db-name", "zoobc.db", "name of DB blockchain wanted to rollback")
 }
 
-func Commands(sqliteDB *sql.DB) *cobra.Command {
-	rollbackBlockChainCmd.Run = rollbackBlockChain(sqliteDB)
+// Commands return Instance of rollback command
+func Commands() *cobra.Command {
+	rollbackBlockChainCmd.Run = rollbackBlockChain()
 	rollbackCmd.AddCommand(rollbackBlockChainCmd)
 	return rollbackCmd
 }
 
 // RollbackBlockChain func to run rollback to all
-func rollbackBlockChain(defaultDB *sql.DB) RunCommand {
+func rollbackBlockChain() RunCommand {
 	var (
-		err               error
-		dB                = defaultDB
 		chaintypeRollback = chaintype.GetChainType(0)
+		dB, err           = getSqliteDB(dBPath, dBName)
 	)
-
-	// checking DB path and DB name flag, making sure both must use or both of them must default
-	if (dBPath == "" && dBName != "") || (dBPath != "" && dBName == "") {
-		panic(errors.New("please set both db-path and db-name"))
-	}
-
-	if dBPath != "" && dBName != "" {
-		dB, err = getSqliteDB(dBPath, dBName)
-		if err != nil {
-			fmt.Println("Failed get Db")
-			panic(err)
-		}
+	if err != nil {
+		fmt.Println("Failed get Db")
+		panic(err)
 	}
 
 	return func(ccmd *cobra.Command, args []string) {
@@ -131,7 +122,13 @@ func getSqliteDB(dbPath, dbName string) (*sql.DB, error) {
 	if err := sqliteDbInstance.InitializeDB(dbPath, dbName); err != nil {
 		return nil, err
 	}
-	sqliteDB, err := sqliteDbInstance.OpenDB(dbPath, dbName, 10, 10, 20*time.Minute)
+	sqliteDB, err := sqliteDbInstance.OpenDB(
+		dbPath,
+		dbName,
+		constant.SQLMaxOpenConnetion,
+		constant.SQLMaxIdleConnections,
+		constant.SQLMaxConnectionLifetime,
+	)
 	if err != nil {
 		return nil, err
 	}
