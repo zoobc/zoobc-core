@@ -1,9 +1,13 @@
 package crypto
 
 import (
+	"hash"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcutil"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/model"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -30,9 +34,14 @@ func DefaultBitcoinCurve() *btcec.KoblitzCurve {
 }
 
 // DefaultBitcoinPublicKeyFormat return recommended public key format
-func DefaultBitcoinPublicKeyFormat() btcutil.PubKeyFormat {
+func DefaultBitcoinPublicKeyFormat() model.BitcoinPublicKeyFormat {
 	// https://bitcoin.org/en/glossary/compressed-public-key
-	return btcutil.PKFCompressed
+	return model.BitcoinPublicKeyFormat_PublicKeyFormatCompressed
+}
+
+// DefaultBitcoinPrivateKeyLength to
+func DefaultBitcoinPrivateKeyLength() model.PrivateKeyBytesLength {
+	return model.PrivateKeyBytesLength_PrivateKey256Bits
 }
 
 // NewBitcoinSignature is new instance of bitcoin signature
@@ -47,7 +56,7 @@ func NewBitcoinSignature(netParams *chaincfg.Params, curve *btcec.KoblitzCurve) 
 func (*BitcoinSignature) Sign(privateKey *btcec.PrivateKey, payload []byte) ([]byte, error) {
 	var sig, err = privateKey.Sign(payload)
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.AuthErr, err.Error())
 	}
 	return sig.Serialize(), nil
 }
@@ -67,70 +76,103 @@ func (b *BitcoinSignature) GetNetworkParams() *chaincfg.Params {
 }
 
 // GetPrivateKeyFromSeed to get private key form seed
-func (b *BitcoinSignature) GetPrivateKeyFromSeed(seed string) *btcec.PrivateKey {
+func (b *BitcoinSignature) GetPrivateKeyFromSeed(
+	seed string,
+	privkeyLength model.PrivateKeyBytesLength,
+) (*btcec.PrivateKey, error) {
 	var (
 		// Convert seed (secret phrase) to byte array
 		seedBuffer = []byte(seed)
-		// Compute SHA3-256 hash of seed (secret phrase)
-		seedHash      = sha3.Sum256(seedBuffer)
-		privateKey, _ = btcec.PrivKeyFromBytes(b.Curve, seedHash[:])
+		hasher     hash.Hash
+		privateKey *btcec.PrivateKey
 	)
-	return privateKey
+	switch privkeyLength {
+	case model.PrivateKeyBytesLength_PrivateKey256Bits:
+		hasher = sha3.New256()
+	case model.PrivateKeyBytesLength_PrivateKey384Bits:
+		hasher = sha3.New384()
+	case model.PrivateKeyBytesLength_PrivateKey512Bits:
+		hasher = sha3.New512()
+	default:
+		return nil, blocker.NewBlocker(blocker.AppErr, "invalidPrivateKeyLength")
+	}
+	if _, err := hasher.Write(seedBuffer); err != nil {
+		return nil, err
+	}
+	privateKey, _ = btcec.PrivKeyFromBytes(b.Curve, hasher.Sum(nil))
+	return privateKey, nil
 }
 
 // GetPublicKeyFromSeed Get the raw public key corresponding to a seed (secret phrase)
-// public key format : https://bitcoin.org/en/wallets-guide#public-key-formats
-func (b *BitcoinSignature) GetPublicKeyFromSeed(seed string, format btcutil.PubKeyFormat) []byte {
-	var privateKey = b.GetPrivateKeyFromSeed(seed)
-	switch format {
-	case btcutil.PKFUncompressed:
-		return privateKey.PubKey().SerializeUncompressed()
-	case btcutil.PKFCompressed:
-		return privateKey.PubKey().SerializeCompressed()
-	case btcutil.PKFHybrid:
-		return privateKey.PubKey().SerializeHybrid()
-	default:
-		return nil
-	}
-}
-
-// GetAddressPublicKey to get address public key from seed
-// NOTE: Currently the address is the  hex-encoded  from serialized public key (pay-to-pubkey)
-func (b *BitcoinSignature) GetAddressPublicKey(publicKey []byte) (string, error) {
-	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
-	if err != nil {
-		return "", err
-	}
-	return address.String(), nil
-}
-
-// GetBytesAddressPublicKey Get raw bytes of address
-func (b *BitcoinSignature) GetBytesAddressPublicKey(address string) ([]byte, error) {
-	var decodedAddress, err = btcutil.DecodeAddress(address, b.GetNetworkParams())
+func (b *BitcoinSignature) GetPublicKeyFromSeed(
+	seed string,
+	format model.BitcoinPublicKeyFormat,
+	privkeyLength model.PrivateKeyBytesLength,
+) ([]byte, error) {
+	var privateKey, err = b.GetPrivateKeyFromSeed(seed, privkeyLength)
 	if err != nil {
 		return nil, err
 	}
-	return decodedAddress.ScriptAddress(), nil
-}
-
-// GetPublicKeyFromAddress to get public key from address
-func (b *BitcoinSignature) GetPublicKeyFromAddress(address string) (*btcec.PublicKey, error) {
-	rowBytesAddress, err := b.GetBytesAddressPublicKey(address)
-	if err != nil {
-		return nil, err
-	}
-	publicKey, err := btcec.ParsePubKey(rowBytesAddress, b.Curve)
+	publicKey, err := b.GetPublicKeyFromPrivateKey(privateKey, format)
 	if err != nil {
 		return nil, err
 	}
 	return publicKey, nil
 }
 
+// GetPublicKeyFromPrivateKey get raw public key from private key
+// public key format : https://bitcoin.org/en/wallets-guide#public-key-formats
+func (*BitcoinSignature) GetPublicKeyFromPrivateKey(
+	privateKey *btcec.PrivateKey,
+	format model.BitcoinPublicKeyFormat,
+) ([]byte, error) {
+	switch format {
+	case model.BitcoinPublicKeyFormat_PublicKeyFormatUncompressed:
+		return privateKey.PubKey().SerializeUncompressed(), nil
+	case model.BitcoinPublicKeyFormat_PublicKeyFormatCompressed:
+		return privateKey.PubKey().SerializeCompressed(), nil
+	default:
+		return nil, blocker.NewBlocker(blocker.AppErr, "invalidPublicKeyFormat")
+	}
+}
+
+// GetPublicKeyFromBytes to get public key from raw bytes public key
+func (b *BitcoinSignature) GetPublicKeyFromBytes(pubkey []byte) (*btcec.PublicKey, error) {
+	return btcec.ParsePubKey(pubkey, b.Curve)
+}
+
+// GetPublicKeyString will return hex string from bytes public key
+func (b *BitcoinSignature) GetPublicKeyString(publicKey []byte) (string, error) {
+	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
+	if err != nil {
+		return "", blocker.NewBlocker(blocker.ParserErr, err.Error())
+	}
+	return address.String(), nil
+}
+
+// GetAddressFromPublicKey to get address public key from seed
+func (b *BitcoinSignature) GetAddressFromPublicKey(publicKey []byte) (string, error) {
+	var address, err = btcutil.NewAddressPubKey(publicKey, b.GetNetworkParams())
+	if err != nil {
+		return "", blocker.NewBlocker(blocker.ParserErr, err.Error())
+	}
+	return address.EncodeAddress(), nil
+}
+
+// GetAddressBytes Get raw bytes of address
+func (b *BitcoinSignature) GetAddressBytes(address string) ([]byte, error) {
+	var decodedAddress, err = btcutil.DecodeAddress(address, b.GetNetworkParams())
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.ParserErr, err.Error())
+	}
+	return decodedAddress.ScriptAddress(), nil
+}
+
 // GetSignatureFromBytes to get signature type from signature raw bytes
 func (b *BitcoinSignature) GetSignatureFromBytes(signatureBytes []byte) (*btcec.Signature, error) {
 	var signature, err = btcec.ParseSignature(signatureBytes, b.Curve)
 	if err != nil {
-		return nil, err
+		return nil, blocker.NewBlocker(blocker.ParserErr, err.Error())
 	}
 	return signature, nil
 }

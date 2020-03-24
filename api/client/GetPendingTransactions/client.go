@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+
 	"github.com/spf13/viper"
 	rpc_model "github.com/zoobc/zoobc-core/common/model"
 	rpc_service "github.com/zoobc/zoobc-core/common/service"
@@ -15,7 +17,7 @@ import (
 func main() {
 	var apiRPCPort int
 	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		if apiRPCPort == 0 {
@@ -29,16 +31,25 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := rpc_service.NewBlockServiceClient(conn)
+	c := rpc_service.NewMultisigServiceClient(conn)
 
-	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		ID: 7339863030352842209,
-	})
+	response, err := c.GetPendingTransactions(context.Background(),
+		&rpc_model.GetPendingTransactionsRequest{
+			SenderAddress: "E6u7lDnLgyiPuklLd6rXNQJI3_kGA1Q7e1BEXdJVB1hy",
+			Status:        rpc_model.PendingTransactionStatus_PendingTransactionPending,
+			Pagination: &rpc_model.Pagination{
+				OrderField: "block_height",
+				OrderBy:    rpc_model.OrderBy_DESC,
+				Page:       2,
+				Limit:      1,
+			},
+		},
+	)
 
 	if err != nil {
-		log.Fatalf("error calling rpc_service.GetBlockByID: %s", err)
+		log.Fatalf("error calling remote.GetBlocks: %s", err)
 	}
 
-	log.Printf("response from remote rpc_service.ID(): %s", response)
+	log.Printf("response from remote.GetBlocks(): %v", response)
 
 }

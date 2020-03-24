@@ -15,26 +15,25 @@ var (
 	isMonitoringActive bool
 	nodePublicKey      []byte
 
-	receiptCounter                       prometheus.Counter
-	unresolvedPeersCounter               prometheus.Gauge
-	resolvedPeersCounter                 prometheus.Gauge
-	unresolvedPriorityPeersCounter       prometheus.Gauge
-	resolvedPriorityPeersCounter         prometheus.Gauge
-	activeRegisteredNodesGauge           prometheus.Gauge
-	nodeScore                            prometheus.Gauge
-	blockerCounterVector                 *prometheus.CounterVec
-	statusLockGaugeVector                *prometheus.GaugeVec
-	blockchainStatusGaugeVector          *prometheus.GaugeVec
-	blockchainSmithTimeGaugeVector       *prometheus.GaugeVec
-	blockchainIDMsbGaugeVector           *prometheus.GaugeVec
-	blockchainIDLsbGaugeVector           *prometheus.GaugeVec
-	blockchainHeightGaugeVector          *prometheus.GaugeVec
-	goRoutineActivityGaugeVector         *prometheus.GaugeVec
-	downloadCycleDebuggerGaugeVector     *prometheus.GaugeVec
-	apiGaugeVector                       *prometheus.GaugeVec
-	apiRunningGaugeVector                *prometheus.GaugeVec
-	snapshotDownloadRequestCounter       prometheus.Counter
-	snapshotDownloadRequestFailedCounter prometheus.Counter
+	receiptCounter                   prometheus.Counter
+	unresolvedPeersCounter           prometheus.Gauge
+	resolvedPeersCounter             prometheus.Gauge
+	unresolvedPriorityPeersCounter   prometheus.Gauge
+	resolvedPriorityPeersCounter     prometheus.Gauge
+	activeRegisteredNodesGauge       prometheus.Gauge
+	nodeScore                        prometheus.Gauge
+	blockerCounterVector             *prometheus.CounterVec
+	statusLockGaugeVector            *prometheus.GaugeVec
+	blockchainStatusGaugeVector      *prometheus.GaugeVec
+	blockchainSmithTimeGaugeVector   *prometheus.GaugeVec
+	blockchainIDMsbGaugeVector       *prometheus.GaugeVec
+	blockchainIDLsbGaugeVector       *prometheus.GaugeVec
+	blockchainHeightGaugeVector      *prometheus.GaugeVec
+	goRoutineActivityGaugeVector     *prometheus.GaugeVec
+	downloadCycleDebuggerGaugeVector *prometheus.GaugeVec
+	apiGaugeVector                   *prometheus.GaugeVec
+	apiRunningGaugeVector            *prometheus.GaugeVec
+	snapshotDownloadRequestCounter   *prometheus.CounterVec
 )
 
 const (
@@ -111,7 +110,7 @@ func SetMonitoringActive(isActive bool) {
 	statusLockGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_status_lock",
 		Help: "Status lock counter",
-	}, []string{"blocker_type"})
+	}, []string{"chaintype", "status_type"})
 	prometheus.MustRegister(statusLockGaugeVector)
 
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -174,12 +173,11 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"api_name"})
 	prometheus.MustRegister(apiRunningGaugeVector)
 
-	snapshotDownloadRequestFailedCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads_failed"),
-		Help: fmt.Sprintf("snapshot file chunks failed to download"),
-	})
-	prometheus.MustRegister(snapshotDownloadRequestFailedCounter)
-
+	snapshotDownloadRequestCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "zoobc_snapshot_chunk_downloads_status",
+		Help: "snapshot file chunks to download",
+	}, []string{"status"})
+	prometheus.MustRegister(snapshotDownloadRequestCounter)
 }
 
 func SetNodePublicKey(pk []byte) {
@@ -246,20 +244,20 @@ func IncrementBlockerMetrics(typeBlocker string) {
 	blockerCounterVector.WithLabelValues(typeBlocker).Inc()
 }
 
-func IncrementStatusLockCounter(typeStatusLock int) {
+func IncrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	statusLockGaugeVector.WithLabelValues(fmt.Sprintf("%d", typeStatusLock)).Inc()
+	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Inc()
 }
 
-func DecrementStatusLockCounter(typeStatusLock int) {
+func DecrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	statusLockGaugeVector.WithLabelValues(fmt.Sprintf("%d", typeStatusLock)).Dec()
+	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
 }
 
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {
@@ -366,9 +364,9 @@ func IncrementSnapshotDownloadCounter(succeeded, failed int32) {
 	}
 
 	if succeeded > 0 {
-		snapshotDownloadRequestCounter.Add(float64(succeeded))
+		snapshotDownloadRequestCounter.WithLabelValues("success").Add(float64(succeeded))
 	}
 	if failed > 0 {
-		snapshotDownloadRequestFailedCounter.Add(float64(failed))
+		snapshotDownloadRequestCounter.WithLabelValues("failed").Add(float64(failed))
 	}
 }
