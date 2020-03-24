@@ -505,3 +505,54 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountDatasetsQuery_GetAccountDatasets(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		clauses map[string]interface{}
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockDatasetQuery),
+			args: args{
+				clauses: map[string]interface{}{
+					"latest": 1,
+				},
+			},
+			wantStr: "SELECT setter_account_address, recipient_account_address, property, height, value, " +
+				"timestamp_starts, timestamp_expires, latest FROM account_dataset WHERE latest = ? ",
+			wantArgs: []interface{}{
+				1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			gotStr, gotArgs := adq.GetAccountDatasets(tt.args.clauses)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetAccountDatasets() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				return
+			}
+
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetAccountDatasets() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

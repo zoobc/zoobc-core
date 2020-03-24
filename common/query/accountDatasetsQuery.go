@@ -20,6 +20,7 @@ type (
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
 		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
+		GetAccountDatasets(clauses map[string]interface{}) (str string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
@@ -57,7 +58,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	caseArgs := []interface{}{accountSetter, accountRecipient, property}
 	cq := NewCaseQuery()
 	cq.Select(adq.TableName, adq.GetFields()...)
-	// where caluse : setter_account_address, recipient_account_address, property, lasted
+	// where clause : setter_account_address, recipient_account_address, property, lasted
 	cq.Where(cq.Equal("latest", true))
 	for k, v := range adq.PrimaryFields[:3] {
 		cq.And(cq.Equal(v, caseArgs[k]))
@@ -187,6 +188,28 @@ func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []
 		fmt.Sprintf("%s != ? ", strings.Join(adq.PrimaryFields, " = ? AND ")), // where clause
 	)
 	return append([]interface{}{updateVersionQ}, adq.ExtractArgsWhere(dataset)...)
+}
+
+// GetAccountDatasets represents a dynamic clauses getter query
+func (adq *AccountDatasetsQuery) GetAccountDatasets(clauses map[string]interface{}) (str string, args []interface{}) {
+	str = fmt.Sprintf("SELECT %s FROM %s ", strings.Join(adq.GetFields(), ", "), adq.getTableName())
+	if len(clauses) > 0 {
+		str += "WHERE "
+	}
+	i := 1
+	for column, value := range clauses {
+		str += fmt.Sprintf("%s = ? ", column)
+		if i < len(clauses) {
+			str += "AND "
+		}
+		args = append(args, value)
+		i++
+	}
+	return str, args
+}
+
+func (adq *AccountDatasetsQuery) getTableName() string {
+	return adq.TableName
 }
 
 func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {

@@ -78,6 +78,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	1. ApproverAddress
 	2. Commission
 	3. Timeout
+	4. Instruction
 	*/
 	if transaction.GetEscrow() != nil {
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
@@ -110,7 +111,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 }
 
 // ParseTransactionBytes build transaction from transaction bytes
-func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
+func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
 	var (
 		chunkedBytes []byte
 		transaction  model.Transaction
@@ -177,6 +178,7 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	1. ApproverAddress
 	2. Commission
 	3. Timeout
+	4. Instruction
 	*/
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
@@ -228,7 +230,7 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	}
 	// compute and return tx hash and ID too
 	transactionHash := sha3.Sum256(transactionBytes)
-	txID, _ := tu.GetTransactionID(transactionHash[:])
+	txID, _ := u.GetTransactionID(transactionHash[:])
 	transaction.ID = txID
 	transaction.TransactionHash = transactionHash[:]
 	return &transaction, nil
@@ -255,7 +257,7 @@ func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 }
 
 // ValidateTransaction take in transaction object and execute basic validation
-func (tu *Util) ValidateTransaction(
+func (u *Util) ValidateTransaction(
 	tx *model.Transaction,
 	queryExecutor query.ExecutorInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
@@ -339,7 +341,7 @@ func (tu *Util) ValidateTransaction(
 		)
 	}
 
-	unsignedTransactionBytes, err := tu.GetTransactionBytes(tx, false)
+	unsignedTransactionBytes, err := u.GetTransactionBytes(tx, false)
 	if err != nil {
 		return err
 	}
@@ -356,7 +358,7 @@ func (tu *Util) ValidateTransaction(
 
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
-func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
+func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
 	if info == nil {
 		return "", fmt.Errorf("params cannot be nil")
 	}
