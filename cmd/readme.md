@@ -16,6 +16,11 @@ Command line interface to as a utility tools to develop the zoobc system.
 
 - example: `go run main.go account generate` will generate account to use.
 
+### See more help about commands
+- `go run main --help` to see available commands and flags
+- `go run main {command} --help` to see to see available subcommands and flags
+- `go run main {command} {subcommand} --help` to see to see available subcommands and flags of subcommand
+
 ### Transaction general flag 
   - `--output` to provide generated ouput type. Example: `--ouput bytes`
   - `--version` to provide version of transaction. Example: `--version 1`
@@ -84,27 +89,16 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
 go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecretPhrase='sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness' --out='../resource/zoobc.db'
 ```
 
-### Account Generating Randomly
+### Account Generate Using Ed25519 Algorithm
 
-```
-go run main.go generate account random
-```
-
-### Account Generating From Seed
 ```bash
-Flags:
-      --hd            --hd allow to generate account HD (default true)
-  -h, --help          help for from-seed
-      --seed string   Seed that is used to generate the account
-
-Global Flags:
-      --signature-type int32   signature-type that provide type of signature want to use to generate the account
+go run main.go generate account ed25519 --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --use-slip10
 ```
-Example:
+
+### Account Generate Using Bitcoin Algorithm
+
 ```bash
-go run main.go generate account from-seed --seed "concur v
-ocalist rotten busload gap quote stinging undiluted surfer go
-ofiness deviation starved"
+go run main.go generate account bitcoin --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --private-key-length 32 --public-key-format 1
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json
 
 ```
@@ -112,11 +106,6 @@ ofiness deviation starved"
 ### Account Generating multisig
 ```bash
 go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN" --addresses "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" --addresses "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J" —-min-sigs=2 --nonce=3
-```
-
-### Account Generate with spesific signature type
-```
-go run main.go generate account random  --signature-type 1
 ```
 
 go run main.go genesis generate

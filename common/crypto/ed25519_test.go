@@ -261,3 +261,39 @@ func TestEd25519Signature_GetPrivateKeyFromSeed(t *testing.T) {
 		})
 	}
 }
+
+func TestEd25519Signature_GetPrivateKeyFromSeedUseSlip10(t *testing.T) {
+	type args struct {
+		seed string
+	}
+	tests := []struct {
+		name    string
+		e       *Ed25519Signature
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				seed: ed25519MockSeed,
+			},
+			want: []byte{28, 187, 31, 185, 115, 15, 68, 41, 91, 146, 30, 50, 233, 74, 207, 177, 84, 58, 87,
+				180, 69, 50, 232, 116, 223, 54, 71, 100, 177, 196, 171, 106},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Ed25519Signature{}
+			got, err := e.GetPrivateKeyFromSeedUseSlip10(tt.args.seed)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeedUseSlip10() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeedUseSlip10() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
