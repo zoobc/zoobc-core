@@ -8,9 +8,9 @@ jobs:
         <<: *defaults
         steps:
             - run:
-                  name: SSH
-#                 command: git config --global url.ssh://git@github.com/zoobc.insteadOf https://github.com/zoobc
-                  command: git config --global url."https://github:607ce9de25dafc1029709aee756af723c107d31f@github.com".insteadOf "https://github.com"
+                  name: GIT CONF
+                  command: |
+                      git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
             - checkout
             - add_ssh_keys
             - run:
@@ -32,28 +32,16 @@ jobs:
                       - /go/pkg/mod
     test:
         <<: *defaults
-        environment:
-            - GOLANGCI_LINT: 1.20.0
         steps:
             - checkout
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
             - run:
-                  name: ↓ GOLANGCI-LINT
-                  command: |
-                      curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v${GOLANGCI_LINT}
-            - run:
                   name: ↓ GOLINT
                   command: go get -u golang.org/x/lint/golint
             - run:
-                  name: TEST
-                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short
-            - run:
-                  name: GO FMT
-                  command: go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
-            - run:
-                  name: GOLANGCI-LINT RUN
-                  command: golangci-lint run
+                  name: GO Test
+                  command: make test
             - run:
                   name: GOLINT RUN
                   command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
@@ -81,7 +69,7 @@ jobs:
                   name: BUILD
                   command: |
                       go build -o ./dist/zoobc
-#                       rsync -va --exclude='*.db' ./resource ./dist
+            #                       rsync -va --exclude='*.db' ./resource ./dist
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:

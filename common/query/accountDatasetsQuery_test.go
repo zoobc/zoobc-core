@@ -485,11 +485,17 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 		want   string
 	}{
 		{
+			name:   "SelectDataForSnapshot",
+			fields: fields(*mockDatasetQuery),
 			args: args{
 				fromHeight: 0,
 				toHeight:   1,
 			},
-			want: "SELECT  FROM  WHERE height >= 0 AND height <= 1 AND latest = 1 ORDER BY height DESC",
+			want: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires," +
+				"latest FROM account_dataset WHERE height >= 0 AND height <= 1 AND (" +
+				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || height) IN (SELECT (" +
+				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || MAX(" +
+				"height)) as con FROM account_dataset GROUP BY setter_account_address, recipient_account_address, property) ORDER BY height",
 		},
 	}
 	for _, tt := range tests {
@@ -506,6 +512,45 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 	}
 }
 
+func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "TrimDataBeforeSnapshot",
+			fields: fields(*mockDatasetQuery),
+			args: args{
+				fromHeight: 0,
+				toHeight:   10,
+			},
+			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			if got := adq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("AccountDatasetsQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 func TestAccountDatasetsQuery_GetAccountDatasets(t *testing.T) {
 	type fields struct {
 		PrimaryFields  []string
