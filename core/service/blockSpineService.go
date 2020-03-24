@@ -16,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -114,12 +113,12 @@ func (bs *BlockSpineService) NewSpineBlock(
 		return nil, err
 	}
 
-	blockUnsignedByte, err := util.GetBlockByte(block, false, bs.Chaintype)
+	blockUnsignedByte, err := commonUtils.GetBlockByte(block, false, bs.Chaintype)
 	if err != nil {
 		bs.Logger.Error(err.Error())
 	}
 	block.BlockSignature = bs.Signature.SignByNode(blockUnsignedByte, secretPhrase)
-	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
+	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +181,7 @@ func (bs *BlockSpineService) NewGenesisBlock(
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
 	}
-	blockHash, err := util.GetBlockHash(block, bs.Chaintype)
+	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +239,7 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSignature")
 	}
 	// Verify previous block hash
-	previousBlockHash, err := util.GetBlockHash(previousLastBlock, bs.Chaintype)
+	previousBlockHash, err := commonUtils.GetBlockHash(previousLastBlock, bs.Chaintype)
 	if err != nil {
 		return err
 	}
@@ -568,7 +567,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
 	// compute the previous block hash
-	previousBlockHash, err := util.GetBlockHash(previousBlock, bs.Chaintype)
+	previousBlockHash, err := commonUtils.GetBlockHash(previousBlock, bs.Chaintype)
 	if err != nil {
 		return nil, err
 	}
@@ -786,7 +785,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	if err != nil {
 		return []*model.Block{}, err
 	}
-	minRollbackHeight := util.GetMinRollbackHeight(lastBlock.Height)
+	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
@@ -836,7 +835,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 func (bs *BlockSpineService) getGenesisSpinePayloadBytes(spinePublicKeys []*model.SpinePublicKey) (spinePublicKeysBytes []byte) {
 	spinePublicKeysBytes = make([]byte, 0)
 	for _, spinePublicKey := range spinePublicKeys {
-		spinePublicKeysBytes = append(spinePublicKeysBytes, util.GetSpinePublicKeyBytes(spinePublicKey)...)
+		spinePublicKeysBytes = append(spinePublicKeysBytes, commonUtils.GetSpinePublicKeyBytes(spinePublicKey)...)
 	}
 	return spinePublicKeysBytes
 }
