@@ -41,7 +41,7 @@ func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 
 // GetPrivateKeyFromSeedUseSlip10 generate privite key form seed using slip10, this private used by hdwallet
 // NOTE: currently this private cannot use to sign message using golang ed25519,
-// The privite key output in golang ed25519 is seed bytes
+// The output private key is first 32 bytes from private key golang ed25519
 func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error) {
 	var (
 		seedBytes      = slip10.NewSeed(seed, slip10.DefaultPassword)
