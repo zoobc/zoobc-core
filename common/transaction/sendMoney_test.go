@@ -188,14 +188,12 @@ func (*mockQueryExecutorValidateSendMoneyNeedEscrow) ExecuteSelectRow(qStr strin
 }
 
 func (*mockAccountBalanceValidateSendMoneySuccess) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	accountBalance = &model.AccountBalance{
-		AccountAddress:   "BCZ",
-		BlockHeight:      0,
-		SpendableBalance: 0,
-		Balance:          0,
-		PopRevenue:       0,
-		Latest:           true,
-	}
+	accountBalance.AccountAddress = "BCZ"
+	accountBalance.BlockHeight = 10
+	accountBalance.SpendableBalance = 10000
+	accountBalance.Balance = 10
+	accountBalance.PopRevenue = 0
+	accountBalance.Latest = true
 	return nil
 }
 
@@ -275,58 +273,47 @@ func TestSendMoney_Validate(t *testing.T) {
 				},
 				Height:               1,
 				SenderAccountType:    0,
+				SenderAddress:        "",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountBalanceQuery:  &mockAccountBalanceValidateSendMoneySuccess{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantError:AmountNotEnough",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
+				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAccountType: 0,
+				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
+				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Height:               1,
+				SenderAccountType:    0,
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountBalanceQuery:  &mockAccountBalanceValidateSendMoneySuccess{},
-				// QueryExecutor: &executorAccountCreateSuccess{
-				// 	query.Executor{
-				// 		Db: db,
-				// 	},
-				// },
+				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 			},
-			wantErr: true,
+			wantErr: false,
 		},
-		// {
-		// 	name: "wantError:AmountNotEnough",
-		// 	fields: fields{
-		// 		Body: &model.SendMoneyTransactionBody{
-		// 			Amount: 10,
-		// 		},
-		// 		Height:               1,
-		// 		SenderAccountType:    0,
-		// 		SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 		RecipientAccountType: 0,
-		// 		RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 		AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-		// 		QueryExecutor: &executorAccountCountSuccess{
-		// 			query.Executor{
-		// 				Db: db,
-		// 			},
-		// 		},
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "wantSuccess",
-		// 	fields: fields{
-		// 		Body: &model.SendMoneyTransactionBody{
-		// 			Amount: 10,
-		// 		},
-		// 		Height:               1,
-		// 		SenderAccountType:    0,
-		// 		SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 		RecipientAccountType: 0,
-		// 		RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 		AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-		// 		QueryExecutor: &executorValidateSuccess{
-		// 			query.Executor{
-		// 				Db: db,
-		// 			},
-		// 		},
-		// 	},
-		// 	wantErr: false,
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
