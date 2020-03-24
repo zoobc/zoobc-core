@@ -177,3 +177,16 @@ func (ptq *PendingTransactionQuery) Rollback(height uint32) (multiQueries [][]in
 		},
 	}
 }
+
+func (ptq *PendingTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND ("+
+		"block_height || '_' || transaction_hash) IN (SELECT (MAX("+
+		"block_height) || '_' || transaction_hash) as con FROM %s GROUP BY transaction_hash) ORDER BY block_height",
+		strings.Join(ptq.Fields, ","), ptq.TableName, fromHeight, toHeight, ptq.TableName)
+}
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (ptq *PendingTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		ptq.TableName, fromHeight, toHeight)
+}

@@ -174,8 +174,8 @@ func SetMonitoringActive(isActive bool) {
 	prometheus.MustRegister(apiRunningGaugeVector)
 
 	snapshotDownloadRequestCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads_status"),
-		Help: fmt.Sprintf("snapshot file chunks to download"),
+		Name: "zoobc_snapshot_chunk_downloads_status",
+		Help: "snapshot file chunks to download",
 	}, []string{"status"})
 	prometheus.MustRegister(snapshotDownloadRequestCounter)
 }
