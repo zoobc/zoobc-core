@@ -16,6 +16,11 @@ Command line interface to as a utility tools to develop the zoobc system.
 
 - example: `go run main.go account generate` will generate account to use.
 
+### See more help about commands
+- `go run main --help` to see available commands and flags
+- `go run main {command} --help` to see to see available subcommands and flags
+- `go run main {command} {subcommand} --help` to see to see available subcommands and flags of subcommand
+
 ### Transaction general flag 
   - `--output` to provide generated ouput type. Example: `--ouput bytes`
   - `--version` to provide version of transaction. Example: `--version 1`
@@ -39,39 +44,38 @@ go run main.go generate transaction send-money --escrow true --approver-address 
 ```
 
 ### Transaction Register Node
-
-```
-go run main.go generate transaction register-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --node-address "127.0.0.1" --locked-balance 1000000000
+```bash
+go run main.go generate transaction register-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --node-address "127.0.0.1:8001" --locked-balance 1000000000 --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
 ```
 
 ### Transaction Update Node Registration
 
-```
-go run main.go generate transaction update-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --node-address "127.0.0.1" --locked-balance 10050000000000
+```bash
+go run main.go generate transaction update-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --node-address "127.0.0.1:8001" --locked-balance 10050000000000 --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
 ```
 
 ### Transaction Claim Node
 
-```
-go run main.go generate transaction claim-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM
+```bash
+go run main.go generate transaction claim-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --recipient "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
 ```
 
 ### Transaction Remove Node
 
-```
+```bash
 go run main.go generate transaction remove-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"  --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 ```
 
 ### Transaction Set Account Dataset
 
-```
-go run main.go generate transaction set-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --property "Member" --value "Welcome to the jungle"
+```bash
+go run main.go generate transaction set-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --property "Member" --value "Welcome to the jungle"
 ```
 
 ### Transaction Remove Account Dataset
 
-```
-go run main.go generate transaction remove-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --property "Member" --value "Good Boy"
+```bash
+go run main.go generate transaction remove-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --property "Member" --value "Good Boy"
 ```
 
 ### Transaction Escrow Approval
@@ -81,49 +85,33 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
 
 ### Block Generating Fake Blocks
 
-```
+```bash
 go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecretPhrase='sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness' --out='../resource/zoobc.db'
 ```
 
-### Account Generating Randomly
+### Account Generate Using Ed25519 Algorithm
 
-```
-go run main.go generate account random
-```
-
-### Account Generating From Seed
 ```bash
-Flags:
-      --hd            --hd allow to generate account HD (default true)
-  -h, --help          help for from-seed
-      --seed string   Seed that is used to generate the account
-
-Global Flags:
-      --signature-type int32   signature-type that provide type of signature want to use to generate the account
+go run main.go generate account ed25519 --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --use-slip10
 ```
-Example:
+
+### Account Generate Using Bitcoin Algorithm
+
 ```bash
-go run main.go generate account from-seed --seed "concur v
-ocalist rotten busload gap quote stinging undiluted surfer go
-ofiness deviation starved"
+go run main.go generate account bitcoin --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --private-key-length 32 --public-key-format 1
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json
 
 ```
 
 ### Account Generating multisig
 ```bash
-go run main.go generate account multisig --addresses BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN --addresses BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7 --addresses BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J —-min-sigs=2 --nonce=3
-```
-
-### Account Generate with spesific signature type
-```
-go run main.go generate account random  --signature-type 1
+go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN" --addresses "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" --addresses "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J" —-min-sigs=2 --nonce=3
 ```
 
 go run main.go genesis generate
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
-```
+```bash
 
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db
 
@@ -132,7 +120,7 @@ outputs cmd/genesis.go.new and cmd/cluster_config.json
 go run main.go genesis generate -w
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
-```
+```bash
 
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db, plus n random nodes registrations
 
@@ -143,4 +131,15 @@ outputs cmd/genesis.go.new and cmd/cluster_config.json
 
 ```
 
+```
+
+### Generate Proof of Ownership Node Registry
+```bash
+go run main.go generate poow --node-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"   --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM"  --db-node-path "../resource" --db-node-name "zoobc.db"
+--output-type "hex" 
+```
+
+### Rollback Blockchain State
+```bash
+go run main.go rollback blockchain --to-height 10 --db-path "../resource" --db-name "zoobc.db"
 ```

@@ -583,19 +583,6 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			}
 		}
 		if validSignatureCounter >= multisigInfo.MinimumSignatures {
-			// replace unsigned tx to have status executed
-			pendingTxInsertQ := mtu.PendingTransactionQuery.InsertPendingTransaction(&model.PendingTransaction{
-				SenderAddress:    innerTx.SenderAccountAddress,
-				TransactionHash:  txHash[:],
-				TransactionBytes: body.UnsignedTransactionBytes,
-				Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
-				BlockHeight:      txHeight,
-				Latest:           true,
-			})
-			err = mtu.QueryExecutor.ExecuteTransactions(pendingTxInsertQ)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
 			return []*model.MultiSignatureTransactionBody{
 				body,
 			}, nil
