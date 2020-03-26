@@ -1,8 +1,10 @@
 package crypto
 
 import (
+	"bytes"
 	"encoding/base64"
 
+	slip10 "github.com/zoobc/zoo-slip10"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/ed25519"
@@ -35,6 +37,32 @@ func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 	seedHash := sha3.Sum256(seedBuffer)
 	// Generate a private key from the hash of the seed
 	return ed25519.NewKeyFromSeed(seedHash[:])
+}
+
+// GetPrivateKeyFromSeedUseSlip10 generate privite key form seed using slip10, this private used by hdwallet
+// NOTE: currently this private cannot use to sign message using golang ed25519,
+// The output private key is first 32 bytes from private key golang ed25519
+func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error) {
+	var (
+		seedBytes      = slip10.NewSeed(seed, slip10.DefaultPassword)
+		slip10Key, err = slip10.DeriveForPath(slip10.StellarPrimaryAccountPath, seedBytes)
+	)
+	if err != nil {
+		return nil, err
+	}
+	return slip10Key.Key, nil
+}
+
+// GetPublicKeyFromPrivateKeyUseSlip10 get pubic key from slip10 private key
+func (*Ed25519Signature) GetPublicKeyFromPrivateKeyUseSlip10(privateKey []byte) ([]byte, error) {
+	var (
+		reader            = bytes.NewReader(privateKey)
+		publicKey, _, err = ed25519.GenerateKey(reader)
+	)
+	if err != nil {
+		return nil, err
+	}
+	return publicKey, nil
 }
 
 // GetPublicKeyFromSeed Get the raw public key corresponding to a seed (secret phrase)

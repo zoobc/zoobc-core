@@ -327,7 +327,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			}
 			err := tx.Signature.VerifySignature(body.SignatureInfo.TransactionHash, sig, addr)
 			if err != nil {
-				signatureType := util.ConvertBytesToUint32(sig[:])
+				signatureType := util.ConvertBytesToUint32(sig)
 				if model.SignatureType(signatureType) != model.SignatureType_MultisigSignature {
 					return err
 				}
