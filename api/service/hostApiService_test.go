@@ -51,8 +51,8 @@ func (m *MockP2pService) GetPriorityPeers() map[string]*model.Peer {
 }
 
 func TestHostService_GetHostInfo(t *testing.T) {
-	testBlockService := make(map[int32]coreService.BlockServiceInterface)
-	testBlockService[int32(0)] = &MockBlockService{}
+	mockBlockService := make(map[int32]coreService.BlockServiceInterface)
+	mockBlockService[int32(0)] = &MockBlockService{}
 
 	hostToReturn := &model.Host{}
 	priorityPeersToReturn := make(map[string]*model.Peer)
@@ -80,7 +80,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 		{
 			name: "GetHostInfo:error-GetScrambleNodesByHeight",
 			fields: fields{
-				BlockServices:           testBlockService,
+				BlockServices:           mockBlockService,
 				NodeRegistrationService: &MockNodeRegistrationServiceError{},
 			},
 			wantErr: true,
@@ -88,7 +88,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 		{
 			name: "GetHostInfo:success",
 			fields: fields{
-				BlockServices:           testBlockService,
+				BlockServices:           mockBlockService,
 				NodeRegistrationService: &MockNodeRegistrationServiceSuccess{},
 				P2pService: &MockP2pService{
 					HostToReturn:          hostToReturn,
