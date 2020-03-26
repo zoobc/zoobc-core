@@ -551,3 +551,51 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		recipientAccountAddress string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantQStr string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockDatasetQuery),
+			args:   args{recipientAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"},
+			wantQStr: "SELECT setter_account_address, recipient_account_address, property, height, value, timestamp_starts, " +
+				"timestamp_expires, latest FROM account_dataset WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+			wantArgs: []interface{}{
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				"AccountDatasetEscrowApproval",
+				1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			gotQStr, gotArgs := adq.GetAccountDatasetEscrowApproval(tt.args.recipientAccountAddress)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("GetAccountDatasetEscrowApproval() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetAccountDatasetEscrowApproval() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
