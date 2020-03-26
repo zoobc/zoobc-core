@@ -348,13 +348,6 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			recipientAccountAddress,
 		)
 
-		// model.AccountDatasetProperty assertion, if false just pass as string and would an
-		// model.AccountDatasetProperty key which is a string otherwise
-		accountDatasetEscrowApproval, ok := model.AccountDatasetProperty_value[property]
-		if ok {
-			property = model.AccountDatasetProperty_name[accountDatasetEscrowApproval]
-		}
-
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
