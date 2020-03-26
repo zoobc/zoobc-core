@@ -190,8 +190,7 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if (err != nil) && err != sql.ErrNoRows {
 		return err
 	}
-	if accountDataset.GetProperty() == model.AccountDatasetProperty_name[0] &&
-		time.Unix(int64(accountDataset.GetTimestampExpires()), 0).After(time.Now()) {
+	if time.Unix(int64(accountDataset.GetTimestampExpires()), 0).After(time.Now()) {
 		return fmt.Errorf("RecipientRequireEscrow")
 	}
 
