@@ -60,7 +60,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	}
 
 	if lastBlock == nil {
-		return nil, status.Error(codes.NotFound, "LastBlockNotFound")
+		return nil, status.Error(codes.InvalidArgs, "LastBlockIsNil")
 	}
 
 	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
