@@ -72,7 +72,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, constant.OneZBC/100,
 				),
-				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
+				NormalFee:           fee.NewConstantFeeModel(constant.OneZBC / 100),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 			},
 		},
 		{
