@@ -10,7 +10,22 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 )
 
+// type(
+// 	MockBlockWithMetaData struct{
+
+// 	}
+// )
+
+// func (*MockBlockWithMetaData) GetLastBlock() (*model.Block, error) {
+// 	return &model.Block{
+// 		Height: 0,
+// 	}, nil
+// }
+
 func TestBlockIncompleteQueueService_GetBlockQueue(t *testing.T) {
+	mockBlockWithMetaData := make(map[int64]*BlockWithMetaData)
+	mockBlockWithMetaData[int64(0)] = &BlockWithMetaData{Block: &model.Block{}}
+
 	type fields struct {
 		BlocksQueue                   map[int64]*BlockWithMetaData
 		BlockRequiringTransactionsMap map[int64]TransactionIDsMap
@@ -34,10 +49,18 @@ func TestBlockIncompleteQueueService_GetBlockQueue(t *testing.T) {
 			fields: fields{
 				BlocksQueue: make(map[int64]*BlockWithMetaData),
 			},
-			args: args{
-				blockID: int64(1),
-			},
+			args: args{},
 			want: nil,
+		},
+		{
+			name: "GetBlockQueue:success",
+			fields: fields{
+				BlocksQueue: mockBlockWithMetaData,
+			},
+			args: args{
+				blockID: int64(0),
+			},
+			want: &model.Block{},
 		},
 	}
 	for _, tt := range tests {
