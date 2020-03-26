@@ -444,8 +444,8 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 					GROUP BY %s
 				)`,
 					mockDatasetQuery.TableName,
-					strings.Join(mockDatasetQuery.PrimaryFields, " || '_' || "),
-					fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], " || '_' || ")),
+					strings.Join(mockDatasetQuery.PrimaryFields, ","),
+					fmt.Sprintf("%s, MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], ",")),
 					mockDatasetQuery.TableName,
 					strings.Join(mockDatasetQuery.PrimaryFields[:3], ", "),
 				),
@@ -492,10 +492,10 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   1,
 			},
 			want: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires," +
-				"latest FROM account_dataset WHERE height >= 0 AND height <= 1 AND (" +
-				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || height) IN (SELECT (" +
-				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || MAX(" +
-				"height)) as con FROM account_dataset GROUP BY setter_account_address, recipient_account_address, property) ORDER BY height",
+				"latest FROM account_dataset WHERE (setter_account_address,recipient_account_address,property," +
+				"height) IN (SELECT setter_account_address,recipient_account_address,property, " +
+				"MAX(height) FROM account_dataset WHERE height >= 0 AND height <= 1 GROUP BY setter_account_address, " +
+				"recipient_account_address, property) ORDER BY height",
 		},
 	}
 	for _, tt := range tests {

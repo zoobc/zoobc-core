@@ -239,10 +239,10 @@ func TestNodeRegistrationQuery_Rollback(t *testing.T) {
 				},
 				{`
 			UPDATE account_balance SET latest = ?
-			WHERE latest = ? AND (height || '_' || id) IN (
-				SELECT (MAX(height) || '_' || id) as con
-				FROM account_balance
-				GROUP BY id
+			WHERE latest = ? AND (id, height) IN (
+				SELECT t2.id, MAX(t2.height)
+				FROM account_balance as t2
+				GROUP BY t2.id
 			)`,
 					1, 0,
 				},
@@ -440,9 +440,9 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.SelectDataForSnapshot(0, 10)
-		want := "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-			"latest, height FROM node_registry WHERE height >= 0 AND height <= 10 AND (height || '_' || id) IN (SELECT (MAX(" +
-			"height) || '_' || id) as con FROM node_registry GROUP BY id) ORDER BY height"
+		want := "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
+			"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, " +
+			"MAX(t2.height) FROM node_registry as t2 WHERE height >= 0 AND height <= 10 GROUP BY t2.id) ORDER BY height"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
