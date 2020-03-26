@@ -180,17 +180,14 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	// checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
 	// yes would be error
 	// TODO: Move this part to `transactionCoreService` when all transaction types need this part
-	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasets(map[string]interface{}{
-		"recipient_account_address": tx.RecipientAddress,
-		"property":                  model.AccountDatasetProperty_AccountDatasetEscrowApproval.String(),
-		"latest":                    1,
-	})
+	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAddress)
 	row, _ = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
 	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
 	if (err != nil) && err != sql.ErrNoRows {
 		return err
 	}
-	if time.Unix(int64(accountDataset.GetTimestampExpires()), 0).After(time.Now()) {
+	if accountDataset.GetProperty() != "" &&
+		time.Unix(int64(accountDataset.GetTimestampExpires()), 0).After(time.Now()) {
 		return fmt.Errorf("RecipientRequireEscrow")
 	}
 

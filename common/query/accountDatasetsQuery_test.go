@@ -551,33 +551,32 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		})
 	}
 }
-func TestAccountDatasetsQuery_GetAccountDatasets(t *testing.T) {
+
+func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 	type fields struct {
 		PrimaryFields  []string
 		OrdinaryFields []string
 		TableName      string
 	}
 	type args struct {
-		clauses map[string]interface{}
+		recipientAccountAddress string
 	}
 	tests := []struct {
 		name     string
 		fields   fields
 		args     args
-		wantStr  string
+		wantQStr string
 		wantArgs []interface{}
 	}{
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockDatasetQuery),
-			args: args{
-				clauses: map[string]interface{}{
-					"latest": 1,
-				},
-			},
-			wantStr: "SELECT setter_account_address, recipient_account_address, property, height, value, " +
-				"timestamp_starts, timestamp_expires, latest FROM account_dataset WHERE latest = ? ",
+			args:   args{recipientAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"},
+			wantQStr: "SELECT setter_account_address, recipient_account_address, property, height, value, timestamp_starts, " +
+				"timestamp_expires, latest FROM account_dataset WHERE recipient_account_address = ? AND property = ? AND latest = ?",
 			wantArgs: []interface{}{
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				"AccountDatasetEscrowApproval",
 				1,
 			},
 		},
@@ -589,14 +588,13 @@ func TestAccountDatasetsQuery_GetAccountDatasets(t *testing.T) {
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,
 			}
-			gotStr, gotArgs := adq.GetAccountDatasets(tt.args.clauses)
-			if gotStr != tt.wantStr {
-				t.Errorf("GetAccountDatasets() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+			gotQStr, gotArgs := adq.GetAccountDatasetEscrowApproval(tt.args.recipientAccountAddress)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("GetAccountDatasetEscrowApproval() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
 				return
 			}
-
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("GetAccountDatasets() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("GetAccountDatasetEscrowApproval() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

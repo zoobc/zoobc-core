@@ -20,7 +20,9 @@ type (
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
 		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
-		GetAccountDatasets(clauses map[string]interface{}) (str string, args []interface{})
+		GetAccountDatasetEscrowApproval(
+			recipientAccountAddress string,
+		) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
@@ -190,22 +192,19 @@ func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []
 	return append([]interface{}{updateVersionQ}, adq.ExtractArgsWhere(dataset)...)
 }
 
-// GetAccountDatasets represents a dynamic clauses getter query
-func (adq *AccountDatasetsQuery) GetAccountDatasets(clauses map[string]interface{}) (str string, args []interface{}) {
-	str = fmt.Sprintf("SELECT %s FROM %s ", strings.Join(adq.GetFields(), ", "), adq.getTableName())
-	if len(clauses) > 0 {
-		str += "WHERE "
-	}
-	i := 1
-	for column, value := range clauses {
-		str += fmt.Sprintf("%s = ? ", column)
-		if i < len(clauses) {
-			str += "AND "
+// GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
+func (adq *AccountDatasetsQuery) GetAccountDatasetEscrowApproval(
+	recipientAccountAddress string,
+) (qStr string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+			strings.Join(adq.GetFields(), ", "),
+			adq.getTableName(),
+		), []interface{}{
+			recipientAccountAddress,
+			"AccountDatasetEscrowApproval",
+			1,
 		}
-		args = append(args, value)
-		i++
-	}
-	return str, args
 }
 
 func (adq *AccountDatasetsQuery) getTableName() string {
