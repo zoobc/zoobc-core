@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -46,6 +48,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	)
 	for chainType, blockService := range hs.BlockServices {
 		lastBlock, err = blockService.GetLastBlock()
+
 		if lastBlock == nil || err != nil {
 			continue
 		}
@@ -56,11 +59,15 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		})
 	}
 
+	if lastBlock == nil {
+		return nil, errors.New("lastBlock is nil")
+	}
+
 	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &model.HostInfo{
 		Host:                 hs.P2pService.GetHostInfo(),
 		ChainStatuses:        chainStatuses,
