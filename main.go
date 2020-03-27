@@ -140,6 +140,8 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize services
+	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
+
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -147,6 +149,7 @@ func init() {
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(mainchain),
 		loggerCoreService,
+		blockchainStatusService,
 	)
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
@@ -161,7 +164,6 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
-	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -557,6 +559,10 @@ func startMainchain() {
 			)
 		}
 		if node != nil {
+			// register node config public key, so node registration service can detect if node has been admitted
+			nodeRegistrationService.SetCurrentNodePublicKey(nodePublicKey)
+			// default to isBlocksmith=true
+			blockchainStatusService.SetIsBlocksmith(true)
 			mainchainProcessor = smith.NewBlockchainProcessor(
 				mainchainBlockService.GetChainType(),
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
