@@ -188,7 +188,6 @@ func (bp *BlockchainProcessor) Start(sleepPeriod time.Duration) {
 						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, false)
 						bp.smithError = err
 						if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type == blocker.ZeroParticipationScoreErr {
-							bp.BlockchainStatusService.SetIsSmithingLocked(true)
 							bp.BlockchainStatusService.SetIsBlocksmith(false)
 						}
 					} else {
