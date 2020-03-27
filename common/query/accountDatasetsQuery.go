@@ -295,7 +295,7 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 			fmt.Sprintf(`
 				UPDATE %s SET latest = ?
 				WHERE latest = ? AND (%s) IN (
-					SELECT (%s) as con
+					SELECT %s
 					FROM %s
 					GROUP BY setter_account_address, recipient_account_address, property
 				)`,
