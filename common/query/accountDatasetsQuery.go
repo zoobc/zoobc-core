@@ -80,16 +80,16 @@ func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]i
 
 	// Update Dataset will happen when new dataset already exist in highest height
 	updateDataset := fmt.Sprintf(`
-		UPDATE %s SET (%s) = 
+		UPDATE %s SET (%s) =
 		(
-			SELECT '%s', %d, 
-				%d + CASE 
+			SELECT '%s', %d,
+				%d + CASE
 					WHEN timestamp_expires - %d < 0 THEN 0
-					ELSE timestamp_expires - %d END 
-			FROM %s 
+					ELSE timestamp_expires - %d END
+			FROM %s
 			WHERE %s AND latest = true
 			ORDER BY height DESC LIMIT 1
-		) 
+		)
 		WHERE %s AND latest = true
 	`,
 		adq.TableName,
