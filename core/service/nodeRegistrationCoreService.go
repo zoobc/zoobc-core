@@ -1,8 +1,8 @@
 package service
 
 import (
+	"bytes"
 	"math/big"
-	"reflect"
 	"sort"
 	"sync"
 
@@ -155,7 +155,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
 		}
-		if reflect.DeepEqual(nrs.CurrentNodePublicKey, nodeRegistration.NodePublicKey) {
+		if bytes.Equal(nrs.CurrentNodePublicKey, nodeRegistration.NodePublicKey) {
 			nrs.BlockchainStatusService.SetIsBlocksmith(true)
 		}
 	}
