@@ -1,6 +1,7 @@
 package monitoring
 
 import (
+	"database/sql"
 	"fmt"
 	"math"
 	"reflect"
@@ -34,6 +35,7 @@ var (
 	apiGaugeVector                   *prometheus.GaugeVec
 	apiRunningGaugeVector            *prometheus.GaugeVec
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
+	dbStatGaugeVector                *prometheus.GaugeVec
 )
 
 const (
@@ -178,6 +180,13 @@ func SetMonitoringActive(isActive bool) {
 		Help: "snapshot file chunks to download",
 	}, []string{"status"})
 	prometheus.MustRegister(snapshotDownloadRequestCounter)
+
+	dbStatGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_stats",
+		Help: "Log the database connection status",
+	}, []string{"status"})
+	prometheus.MustRegister(dbStatGaugeVector)
+
 }
 
 func SetNodePublicKey(pk []byte) {
@@ -369,4 +378,14 @@ func IncrementSnapshotDownloadCounter(succeeded, failed int32) {
 	if failed > 0 {
 		snapshotDownloadRequestCounter.WithLabelValues("failed").Add(float64(failed))
 	}
+}
+
+func SetDatabaseStats(dbStat sql.DBStats) {
+	if !isMonitoringActive {
+		return
+	}
+
+	dbStatGaugeVector.WithLabelValues("OpenConnections").Set(float64(dbStat.OpenConnections))
+	dbStatGaugeVector.WithLabelValues("ConnectionsInUse").Set(float64(dbStat.InUse))
+	dbStatGaugeVector.WithLabelValues("ConnectionsWaitCount").Set(float64(dbStat.WaitCount))
 }
