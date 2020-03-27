@@ -166,7 +166,7 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
 			WHERE latest = ? AND (account_address, block_height) IN (
-				SELECT (t2.account_address, MAX(t2.block_height))
+				SELECT t2.account_address, MAX(t2.block_height)
 				FROM %s as t2
 				GROUP BY t2.account_address
 			)`,

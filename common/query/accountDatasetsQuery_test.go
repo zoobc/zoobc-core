@@ -441,13 +441,12 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 				WHERE latest = ? AND (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					GROUP BY %s
+					GROUP BY setter_account_address, recipient_account_address, property
 				)`,
 					mockDatasetQuery.TableName,
 					strings.Join(mockDatasetQuery.PrimaryFields, ","),
 					fmt.Sprintf("%s, MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], ",")),
 					mockDatasetQuery.TableName,
-					strings.Join(mockDatasetQuery.PrimaryFields[:3], ", "),
 				),
 					1, 0,
 				},

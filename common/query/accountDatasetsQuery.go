@@ -297,13 +297,12 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 				WHERE latest = ? AND (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					GROUP BY %s
+					GROUP BY setter_account_address, recipient_account_address, property
 				)`,
 				adq.TableName,
 				strings.Join(adq.PrimaryFields, ","),
 				fmt.Sprintf("%s, MAX(height)", strings.Join(adq.PrimaryFields[:3], ",")),
 				adq.TableName,
-				strings.Join(adq.PrimaryFields[:3], ", "),
 			),
 			1, 0,
 		},
@@ -312,7 +311,8 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 
 func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE (%s) IN (SELECT "+
-		"%s FROM %s WHERE height >= %d AND height <= %d GROUP BY %s) ORDER BY height",
+		"%s FROM %s WHERE height >= %d AND height <= %d GROUP BY setter_account_address, recipient_account_address, "+
+		"property) ORDER BY height",
 		strings.Join(adq.GetFields(), ","),
 		adq.TableName,
 		strings.Join(adq.PrimaryFields, ","),
@@ -320,7 +320,6 @@ func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint
 		adq.TableName,
 		fromHeight,
 		toHeight,
-		strings.Join(adq.PrimaryFields[:3], ", "),
 	)
 }
 

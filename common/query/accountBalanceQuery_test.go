@@ -189,7 +189,7 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 				{`
 			UPDATE account_balance SET latest = ?
 			WHERE latest = ? AND (account_address, block_height) IN (
-				SELECT (t2.account_address, MAX(t2.block_height))
+				SELECT t2.account_address, MAX(t2.block_height)
 				FROM account_balance as t2
 				GROUP BY t2.account_address
 			)`,
