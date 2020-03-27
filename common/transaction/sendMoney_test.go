@@ -144,6 +144,59 @@ func (*executorApplyUnconfirmedSuccess) ExecuteTransaction(qStr string, args ...
 	return nil
 }
 
+type (
+	mockQueryExecutorValidateSendMoneyHasEscrow struct {
+		query.Executor
+	}
+	mockQueryExecutorValidateSendMoneyNeedEscrow struct {
+		query.Executor
+	}
+	mockAccountBalanceValidateSendMoneySuccess struct {
+		query.AccountBalanceQuery
+	}
+)
+
+func (*mockQueryExecutorValidateSendMoneyHasEscrow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mock.ExpectQuery("").WillReturnRows(mockRow)
+	row := db.QueryRow("")
+	return row, nil
+}
+
+func (*mockQueryExecutorValidateSendMoneyHasEscrow) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return &sql.Rows{}, nil
+}
+
+func (*mockQueryExecutorValidateSendMoneyNeedEscrow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mockRow.AddRow(
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"AccountDatasetEscrowApproval",
+		5,
+		"You Welcome",
+		1565942932686,
+		1565943056129,
+		true,
+	)
+
+	mock.ExpectQuery("").WillReturnRows(mockRow)
+	row := db.QueryRow("")
+	return row, nil
+}
+
+func (*mockAccountBalanceValidateSendMoneySuccess) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
+	accountBalance.AccountAddress = "BCZ"
+	accountBalance.BlockHeight = 10
+	accountBalance.SpendableBalance = 10000
+	accountBalance.Balance = 10
+	accountBalance.PopRevenue = 0
+	accountBalance.Latest = true
+	return nil
+}
+
 func TestSendMoney_Validate(t *testing.T) {
 	type fields struct {
 		Body                 *model.SendMoneyTransactionBody
@@ -154,6 +207,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
+		AccountDatasetQuery  query.AccountDatasetsQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -181,8 +235,23 @@ func TestSendMoney_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "wantError:NeedEscrow",
+			fields: fields{
+				QueryExecutor:       &mockQueryExecutorValidateSendMoneyNeedEscrow{},
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 1,
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name: "wantError:SenderInvalid",
 			fields: fields{
+				QueryExecutor:       &mockQueryExecutorValidateSendMoneyHasEscrow{},
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
@@ -197,20 +266,17 @@ func TestSendMoney_Validate(t *testing.T) {
 		{
 			name: "wantError:SenderNotExists",
 			fields: fields{
+				QueryExecutor:       &mockQueryExecutorValidateSendMoneyHasEscrow{},
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
 				Height:               1,
 				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress:        "",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCreateSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				AccountBalanceQuery:  &mockAccountBalanceValidateSendMoneySuccess{},
 			},
 			wantErr: true,
 		},
@@ -226,11 +292,8 @@ func TestSendMoney_Validate(t *testing.T) {
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorAccountCountSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 			},
 			wantErr: true,
 		},
@@ -245,12 +308,9 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor: &executorValidateSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				AccountBalanceQuery:  &mockAccountBalanceValidateSendMoneySuccess{},
+				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 			},
 			wantErr: false,
 		},
@@ -264,6 +324,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 			}
 			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)

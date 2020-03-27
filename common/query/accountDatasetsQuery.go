@@ -20,6 +20,9 @@ type (
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
 		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
+		GetAccountDatasetEscrowApproval(
+			recipientAccountAddress string,
+		) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
@@ -57,7 +60,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	caseArgs := []interface{}{accountSetter, accountRecipient, property}
 	cq := NewCaseQuery()
 	cq.Select(adq.TableName, adq.GetFields()...)
-	// where caluse : setter_account_address, recipient_account_address, property, lasted
+	// where clause : setter_account_address, recipient_account_address, property, lasted
 	cq.Where(cq.Equal("latest", true))
 	for k, v := range adq.PrimaryFields[:3] {
 		cq.And(cq.Equal(v, caseArgs[k]))
@@ -187,6 +190,25 @@ func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []
 		fmt.Sprintf("%s != ? ", strings.Join(adq.PrimaryFields, " = ? AND ")), // where clause
 	)
 	return append([]interface{}{updateVersionQ}, adq.ExtractArgsWhere(dataset)...)
+}
+
+// GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
+func (adq *AccountDatasetsQuery) GetAccountDatasetEscrowApproval(
+	recipientAccountAddress string,
+) (qStr string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+			strings.Join(adq.GetFields(), ", "),
+			adq.getTableName(),
+		), []interface{}{
+			recipientAccountAddress,
+			"AccountDatasetEscrowApproval",
+			1,
+		}
+}
+
+func (adq *AccountDatasetsQuery) getTableName() string {
+	return adq.TableName
 }
 
 func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {
