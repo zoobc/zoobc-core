@@ -366,10 +366,10 @@ func TestEscrowTransactionQuery_Rollback(t *testing.T) {
 				{
 					`
 			UPDATE escrow_transaction SET latest = ?
-			WHERE latest = ? AND (block_height || '_' || id) IN (
-				SELECT (MAX(block_height) || '_' || id) as prev
-				FROM escrow_transaction
-				GROUP BY id
+			WHERE latest = ? AND (id, block_height) IN (
+				SELECT t2.id, MAX(t2.block_height)
+				FROM escrow_transaction as t2
+				GROUP BY t2.id
 			)`,
 					1,
 					0,
@@ -415,10 +415,11 @@ func TestEscrowTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 				Fields:    qry.Fields,
 				TableName: qry.TableName,
 			},
-			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, block_height, " +
-				"latest, instruction FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 1 AND (" +
-				"block_height || '_' || id) IN (SELECT (MAX(block_height) || '_' || id) as prev FROM escrow_transaction GROUP BY id) ORDER" +
-				" BY block_height",
+			want: "SELECT id,sender_address,recipient_address,approver_address,amount,commission,timeout,status,block_height,latest," +
+				"instruction FROM escrow_transaction WHERE (id, block_height) IN (SELECT t2.id, " +
+				"MAX(t2.block_height) FROM escrow_transaction as t2 WHERE t2." +
+				"block_height >= 0 AND t2.block_height <= 1 GROUP BY t2.id) ORDER BY" +
+				" block_height",
 		},
 	}
 	for _, tt := range tests {
