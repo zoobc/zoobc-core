@@ -64,11 +64,11 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 	}
 	caseQ.And(caseQ.Equal("latest", true))
 
-	countQ, _ := caseQ.Build()
-	rowCount, _ = ads.QueryExecutor.ExecuteSelectRow(countQ, false)
+	countQ, countArgs := caseQ.Build()
+	rowCount, _ = ads.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(countQ), false, countArgs...)
 	if err = rowCount.Scan(&count); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, status.Error(codes.Internal, "There is something wrong")
+			return nil, status.Error(codes.Internal, "Something wrong happened")
 		}
 
 		return nil, status.Error(codes.NotFound, "Record not found")
@@ -97,13 +97,13 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 	selectQ, args := caseQ.Build()
 	rows, err = ads.QueryExecutor.ExecuteSelect(selectQ, false, args...)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "There something wrong")
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 
 	accDatasets, err = ads.AccountDatasetQuery.BuildModel([]*model.AccountDataset{}, rows)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "There something wrong")
+		return nil, status.Error(codes.Internal, "Something wrong happened")
 	}
 
 	return &model.GetAccountDatasetsResponse{

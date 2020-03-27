@@ -348,6 +348,12 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			recipientAccountAddress,
 		)
 
+		// Recipient required while property set as AccountDatasetEscrowApproval
+		_, ok := model.AccountDatasetProperty_value[property]
+		if ok && recipientAccountAddress == "" {
+			println("--recipient is required while property as AccountDatasetEscrowApproval")
+			return
+		}
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
