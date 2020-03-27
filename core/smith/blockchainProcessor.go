@@ -1,8 +1,9 @@
 package smith
 
 import (
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -180,12 +181,15 @@ func (bp *BlockchainProcessor) Start(sleepPeriod time.Duration) {
 				return
 			case <-ticker.C:
 				// when starting a node, do not start smithing until the main blocks have been fully downloaded
-				if !bp.BlockchainStatusService.IsSmithingLocked() {
+				if !bp.BlockchainStatusService.IsSmithingLocked() && bp.BlockchainStatusService.IsBlocksmith() {
 					err := bp.StartSmithing()
 					if err != nil {
 						bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
 						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, false)
 						bp.smithError = err
+						if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type == blocker.ZeroParticipationScoreErr {
+							bp.BlockchainStatusService.SetIsBlocksmith(false)
+						}
 					} else {
 						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, true)
 						bp.smithError = nil
