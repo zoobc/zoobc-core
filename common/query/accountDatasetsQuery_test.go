@@ -441,13 +441,12 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 				WHERE latest = ? AND (%s) IN (
 					SELECT (%s) as con
 					FROM %s
-					GROUP BY %s
+					GROUP BY setter_account_address, recipient_account_address, property
 				)`,
 					mockDatasetQuery.TableName,
-					strings.Join(mockDatasetQuery.PrimaryFields, " || '_' || "),
-					fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], " || '_' || ")),
+					strings.Join(mockDatasetQuery.PrimaryFields, ","),
+					fmt.Sprintf("%s, MAX(height)", strings.Join(mockDatasetQuery.PrimaryFields[:3], ",")),
 					mockDatasetQuery.TableName,
-					strings.Join(mockDatasetQuery.PrimaryFields[:3], ", "),
 				),
 					1, 0,
 				},
@@ -492,10 +491,10 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   1,
 			},
 			want: "SELECT setter_account_address,recipient_account_address,property,height,value,timestamp_starts,timestamp_expires," +
-				"latest FROM account_dataset WHERE height >= 0 AND height <= 1 AND (" +
-				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || height) IN (SELECT (" +
-				"setter_account_address || '_' || recipient_account_address || '_' || property || '_' || MAX(" +
-				"height)) as con FROM account_dataset GROUP BY setter_account_address, recipient_account_address, property) ORDER BY height",
+				"latest FROM account_dataset WHERE (setter_account_address,recipient_account_address,property," +
+				"height) IN (SELECT setter_account_address,recipient_account_address,property, " +
+				"MAX(height) FROM account_dataset WHERE height >= 0 AND height <= 1 GROUP BY setter_account_address, " +
+				"recipient_account_address, property) ORDER BY height",
 		},
 	}
 	for _, tt := range tests {
@@ -547,6 +546,54 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 			if got := adq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("AccountDatasetsQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
+	type fields struct {
+		PrimaryFields  []string
+		OrdinaryFields []string
+		TableName      string
+	}
+	type args struct {
+		recipientAccountAddress string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantQStr string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockDatasetQuery),
+			args:   args{recipientAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"},
+			wantQStr: "SELECT setter_account_address, recipient_account_address, property, height, value, timestamp_starts, " +
+				"timestamp_expires, latest FROM account_dataset WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+			wantArgs: []interface{}{
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				"AccountDatasetEscrowApproval",
+				1,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetsQuery{
+				PrimaryFields:  tt.fields.PrimaryFields,
+				OrdinaryFields: tt.fields.OrdinaryFields,
+				TableName:      tt.fields.TableName,
+			}
+			gotQStr, gotArgs := adq.GetAccountDatasetEscrowApproval(tt.args.recipientAccountAddress)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("GetAccountDatasetEscrowApproval() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetAccountDatasetEscrowApproval() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

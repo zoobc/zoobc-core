@@ -22,3 +22,5 @@ cmd/*.new
 accounts.txt
 .editorconfig
 .manual
+release/
+github.token

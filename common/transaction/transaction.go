@@ -28,7 +28,7 @@ type (
 		SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error)
 		Escrowable() (EscrowTypeAction, bool)
 	}
-	// TypeActionSwitcher assert transaction to TypeAction / EscrowTyepAction
+	// TypeActionSwitcher assert transaction to TypeAction / EscrowTypeAction
 	TypeActionSwitcher interface {
 		GetTransactionType(tx *model.Transaction) (TypeAction, error)
 	}
@@ -72,7 +72,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, constant.OneZBC/100,
 				),
-				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
+				NormalFee:           fee.NewConstantFeeModel(constant.OneZBC / 100),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 			}, nil
 		default:
 			return nil, nil

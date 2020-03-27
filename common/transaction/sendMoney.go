@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -23,12 +24,13 @@ type (
 		RecipientAddress    string
 		Height              uint32
 		Body                *model.SendMoneyTransactionBody
+		QueryExecutor       query.ExecutorInterface
 		Escrow              *model.Escrow
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
 		BlockQuery          query.BlockQueryInterface
+		AccountDatasetQuery query.AccountDatasetsQueryInterface
 		NormalFee           fee.FeeModelInterface
 		EscrowFee           fee.FeeModelInterface
 	}
@@ -162,6 +164,11 @@ That specs:
 func (tx *SendMoney) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
+		accountDataset model.AccountDataset
+		accDatasetArgs []interface{}
+		accDatasetQ    string
+		row            *sql.Row
+		err            error
 	)
 
 	if tx.Body.GetAmount() <= 0 {
@@ -170,6 +177,20 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if tx.RecipientAddress == "" {
 		return errors.New("transaction must have a valid recipient account id")
 	}
+	// checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
+	// yes would be error
+	// TODO: Move this part to `transactionCoreService` when all transaction types need this part
+	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAddress)
+	row, _ = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
+	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
+	if (err != nil) && err != sql.ErrNoRows {
+		return err
+	}
+	if accountDataset.GetProperty() != "" &&
+		time.Unix(int64(accountDataset.GetTimestampExpires()), 0).After(time.Now()) {
+		return fmt.Errorf("RecipientRequireEscrow")
+	}
+
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
 	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
@@ -178,23 +199,14 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		}
 
 		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 		if err != nil {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		defer rows.Close()
-		if rows.Next() {
-			err = rows.Scan(
-				&accountBalance.AccountAddress,
-				&accountBalance.BlockHeight,
-				&accountBalance.SpendableBalance,
-				&accountBalance.Balance,
-				&accountBalance.PopRevenue,
-				&accountBalance.Latest,
-			)
-			if err != nil {
-				return err
-			}
+
+		err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+		if err != nil {
+			return err
 		}
 
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
