@@ -20,6 +20,9 @@ type (
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
 		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
+		GetAccountDatasetEscrowApproval(
+			recipientAccountAddress string,
+		) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
@@ -57,7 +60,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	caseArgs := []interface{}{accountSetter, accountRecipient, property}
 	cq := NewCaseQuery()
 	cq.Select(adq.TableName, adq.GetFields()...)
-	// where caluse : setter_account_address, recipient_account_address, property, lasted
+	// where clause : setter_account_address, recipient_account_address, property, lasted
 	cq.Where(cq.Equal("latest", true))
 	for k, v := range adq.PrimaryFields[:3] {
 		cq.And(cq.Equal(v, caseArgs[k]))
@@ -189,6 +192,25 @@ func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []
 	return append([]interface{}{updateVersionQ}, adq.ExtractArgsWhere(dataset)...)
 }
 
+// GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
+func (adq *AccountDatasetsQuery) GetAccountDatasetEscrowApproval(
+	recipientAccountAddress string,
+) (qStr string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+			strings.Join(adq.GetFields(), ", "),
+			adq.getTableName(),
+		), []interface{}{
+			recipientAccountAddress,
+			"AccountDatasetEscrowApproval",
+			1,
+		}
+}
+
+func (adq *AccountDatasetsQuery) getTableName() string {
+	return adq.TableName
+}
+
 func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {
 	return []interface{}{
 		dataset.GetSetterAccountAddress(),
@@ -289,10 +311,21 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 }
 
 func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 ORDER BY height DESC",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND (%s) IN (SELECT ("+
+		"%s) as con FROM %s GROUP BY %s) ORDER BY height",
 		strings.Join(adq.GetFields(), ","),
 		adq.TableName,
 		fromHeight,
 		toHeight,
+		strings.Join(adq.PrimaryFields, " || '_' || "),
+		fmt.Sprintf("%s || '_' || MAX(height)", strings.Join(adq.PrimaryFields[:3], " || '_' || ")),
+		adq.TableName,
+		strings.Join(adq.PrimaryFields[:3], ", "),
 	)
+}
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (adq *AccountDatasetsQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+		adq.TableName, fromHeight, toHeight)
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -16,9 +15,9 @@ type (
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
-		GenerateAccountFromSeed(signatureType model.SignatureType, seed string) (
+		GenerateAccountFromSeed(signatureType model.SignatureType, seed string, optionalParams ...interface{}) (
 			privateKey, publicKey []byte,
-			publickKeyString, address string,
+			publicKeyString, address string,
 			err error,
 		)
 	}
@@ -170,38 +169,71 @@ func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) 
 }
 
 // GenerateAccountFromSeed to generate account based on provided seed
-func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, seed string) (
+func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, seed string, optionalParams ...interface{}) (
 	privateKey, publicKey []byte,
-	publickKeyString, address string,
+	publicKeyString, address string,
 	err error,
 ) {
 	switch signatureType {
 	case model.SignatureType_DefaultSignature:
-		var ed25519Signature = NewEd25519Signature()
-		privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
-		publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(privateKey)
-		if err != nil {
-			return nil, nil, "", "", err
+		var (
+			ed25519Signature = NewEd25519Signature()
+			useSlip10, ok    bool
+		)
+		if len(optionalParams) != 0 {
+			useSlip10, ok = optionalParams[0].(bool)
+			if !ok {
+				return nil, nil, "", "", blocker.NewBlocker(blocker.AppErr, "failedAssertType")
+			}
 		}
-		publickKeyString = ed25519Signature.GetPublicKeyString(publicKey)
+		if useSlip10 {
+			privateKey, err = ed25519Signature.GetPrivateKeyFromSeedUseSlip10(seed)
+			if err != nil {
+				return nil, nil, "", "", err
+			}
+			publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKeyUseSlip10(privateKey)
+			if err != nil {
+				return nil, nil, "", "", err
+			}
+		} else {
+			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+			publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(privateKey)
+			if err != nil {
+				return nil, nil, "", "", err
+			}
+		}
+		publicKeyString = ed25519Signature.GetPublicKeyString(publicKey)
 		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		return privateKey, publicKey, publickKeyString, address, nil
+		return privateKey, publicKey, publicKeyString, address, nil
 	case model.SignatureType_BitcoinSignature:
 		var (
 			bitcoinSignature = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
-			privKey, err     = bitcoinSignature.GetPrivateKeyFromSeed(seed, DefaultBitcoinPrivateKeyLength())
+			privateKeyLength = DefaultBitcoinPrivateKeyLength()
+			publicKeyFormat  = DefaultBitcoinPublicKeyFormat()
+			ok               bool
 		)
+		if len(optionalParams) >= 2 {
+			privateKeyLength, ok = optionalParams[0].(model.PrivateKeyBytesLength)
+			if !ok {
+				return nil, nil, "", "", blocker.NewBlocker(blocker.AppErr, "failedAssertPrivateKeyLengthType")
+			}
+			publicKeyFormat, ok = optionalParams[1].(model.BitcoinPublicKeyFormat)
+			if !ok {
+				return nil, nil, "", "", blocker.NewBlocker(blocker.AppErr, "failedAssertPublicKeyFormatType")
+			}
+		}
+		privKey, err := bitcoinSignature.GetPrivateKeyFromSeed(seed, privateKeyLength)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
 		privateKey = privKey.Serialize()
 		publicKey, err = bitcoinSignature.GetPublicKeyFromSeed(
 			seed,
-			DefaultBitcoinPublicKeyFormat(),
-			DefaultBitcoinPrivateKeyLength(),
+			publicKeyFormat,
+			privateKeyLength,
 		)
 		if err != nil {
 			return nil, nil, "", "", err
@@ -210,11 +242,11 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		publickKeyString, err = bitcoinSignature.GetPublicKeyString(publicKey)
+		publicKeyString, err = bitcoinSignature.GetPublicKeyString(publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		return privateKey, publicKey, publickKeyString, address, nil
+		return privateKey, publicKey, publicKeyString, address, nil
 	default:
 		return nil, nil, "", "", blocker.NewBlocker(
 			blocker.AppErr,

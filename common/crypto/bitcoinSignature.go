@@ -96,7 +96,9 @@ func (b *BitcoinSignature) GetPrivateKeyFromSeed(
 	default:
 		return nil, blocker.NewBlocker(blocker.AppErr, "invalidPrivateKeyLength")
 	}
-	hasher.Write(seedBuffer)
+	if _, err := hasher.Write(seedBuffer); err != nil {
+		return nil, err
+	}
 	privateKey, _ = btcec.PrivKeyFromBytes(b.Curve, hasher.Sum(nil))
 	return privateKey, nil
 }
