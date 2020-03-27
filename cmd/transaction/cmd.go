@@ -347,6 +347,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
+
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)

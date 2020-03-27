@@ -346,9 +346,9 @@ func TestPendingTransactionQuery_Rollback(t *testing.T) {
 					uint32(10),
 				},
 				{
-					"UPDATE pending_transaction SET latest = ? WHERE latest = ? AND (block_height || '_' || " +
-						"transaction_hash) IN (SELECT (MAX(block_height) || '_' || transaction_hash) as con " +
-						"FROM pending_transaction GROUP BY transaction_hash)",
+					"UPDATE pending_transaction SET latest = ? WHERE latest = ? AND (transaction_hash, " +
+						"block_height) IN (SELECT t2.transaction_hash, MAX(t2.block_height) FROM pending_transaction as t2 GROUP BY t2." +
+						"transaction_hash)",
 					1, 0,
 				},
 			},
@@ -505,9 +505,9 @@ func TestPendingTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   10,
 			},
 			want: "SELECT sender_address,transaction_hash,transaction_bytes,status,block_height," +
-				"latest FROM pending_transaction WHERE block_height >= 1 AND block_height <= 10 AND (" +
-				"block_height || '_' || transaction_hash) IN (SELECT (MAX(" +
-				"block_height) || '_' || transaction_hash) as con FROM pending_transaction GROUP BY transaction_hash) ORDER BY block_height",
+				"latest FROM pending_transaction WHERE (transaction_hash, block_height) IN (SELECT t2.transaction_hash, " +
+				"MAX(t2.block_height) FROM pending_transaction as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
+				"transaction_hash) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
