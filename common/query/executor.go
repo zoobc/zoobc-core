@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -43,6 +44,7 @@ lock the struct on begin
 */
 func (qe *Executor) BeginTx() error {
 	qe.Lock()
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	tx, err := qe.Db.Begin()
 
 	if err != nil {
@@ -61,6 +63,7 @@ error will be nil otherwise.
 func (qe *Executor) Execute(query string) (sql.Result, error) {
 	qe.Lock()
 	defer qe.Unlock()
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	result, err := qe.Db.Exec(query)
 
 	if err != nil {
@@ -76,6 +79,7 @@ error will be nil otherwise.
 */
 func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
 	qe.Lock()
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	stmt, err := qe.Db.Prepare(query)
 
 	if err != nil {
@@ -104,6 +108,7 @@ func (qe *Executor) ExecuteSelect(query string, tx bool, args ...interface{}) (*
 		err  error
 		rows *sql.Rows
 	)
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	if tx {
 		if qe.Tx != nil {
 			rows, err = qe.Tx.Query(query, args...)
@@ -131,6 +136,7 @@ func (qe *Executor) ExecuteSelectRow(query string, tx bool, args ...interface{})
 	var (
 		row *sql.Row
 	)
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	if tx {
 		if qe.Tx != nil {
 			row = qe.Tx.QueryRow(query, args...)
@@ -155,6 +161,7 @@ func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	}
 	defer stmt.Close()
 
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	_, err = stmt.Exec(args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -170,6 +177,7 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 		if err != nil {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
+		monitoring.SetDatabaseStats(qe.Db.Stats())
 		_, err = stmt.Exec(query[1:]...)
 		if err != nil {
 			stmt.Close()
@@ -183,6 +191,7 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 // ExecuteTransactionCommit commit on every transaction stacked in Executor.Tx
 // note: rollback is called in this function if commit fail, to avoid locking complication
 func (qe *Executor) CommitTx() error {
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	err := qe.Tx.Commit()
 
 	defer func() {
@@ -198,6 +207,7 @@ func (qe *Executor) CommitTx() error {
 
 // RollbackTx rollback and unlock executor in case any single tx fail
 func (qe *Executor) RollbackTx() error {
+	monitoring.SetDatabaseStats(qe.Db.Stats())
 	err := qe.Tx.Rollback()
 	qe.Tx = nil
 	defer qe.Unlock()

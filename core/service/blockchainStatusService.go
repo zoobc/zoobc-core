@@ -18,6 +18,8 @@ type (
 		IsSmithing(ct chaintype.ChainType) bool
 		SetIsDownloadingSnapshot(ct chaintype.ChainType, isDownloadingSnapshot bool)
 		IsDownloadingSnapshot(ct chaintype.ChainType) bool
+		SetIsBlocksmith(isBlocksmith bool)
+		IsBlocksmith() bool
 	}
 )
 
@@ -33,6 +35,7 @@ var (
 	isDownloadingSnapshot   = model.NewMapIntBool()
 	isSmithing              = model.NewMapIntBool()
 	isSmithingLocked        bool
+	isBlocksmith            bool
 )
 
 func NewBlockchainStatusService(
@@ -122,4 +125,12 @@ func (btss *BlockchainStatusService) IsDownloadingSnapshot(ct chaintype.ChainTyp
 		return res
 	}
 	return false
+}
+
+func (btss *BlockchainStatusService) SetIsBlocksmith(blocksmith bool) {
+	isBlocksmith = blocksmith
+}
+
+func (btss *BlockchainStatusService) IsBlocksmith() bool {
+	return isBlocksmith
 }

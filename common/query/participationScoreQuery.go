@@ -180,10 +180,10 @@ func (ps *ParticipationScoreQuery) Rollback(height uint32) (multiQueries [][]int
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE latest = ? AND (height || '_' || node_id) IN (
-				SELECT (MAX(height) || '_' || node_id) as con
-				FROM %s
-				GROUP BY node_id
+			WHERE latest = ? AND (node_id, height) IN (
+				SELECT t2.node_id, MAX(t2.height)
+				FROM %s as t2
+				GROUP BY t2.node_id
 			)`,
 				ps.TableName,
 				ps.TableName,
@@ -204,9 +204,9 @@ func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row)
 }
 
 func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND (height || '_' || node_id) IN (SELECT (MAX("+
-		"height) || '_' || node_id) as con FROM %s GROUP BY node_id ) ORDER by height",
-		strings.Join(ps.Fields, ", "), ps.getTableName(), fromHeight, toHeight, ps.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s WHERE (node_id, height) IN (SELECT t2.node_id, MAX("+
+		"t2.height) FROM %s as t2 WHERE t2.height >= %d AND t2.height <= %d GROUP BY t2.node_id ) ORDER by height",
+		strings.Join(ps.Fields, ","), ps.getTableName(), ps.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot

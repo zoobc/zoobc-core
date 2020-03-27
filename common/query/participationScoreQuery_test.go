@@ -90,9 +90,8 @@ func TestParticipationScoreQuery_UpdateParticipationScore(t *testing.T) {
 func TestParticipationScoreQuery_SelectDataForSnapshot(t *testing.T) {
 	t.Run("SelectDataForSnapshot", func(t *testing.T) {
 		res := mockParticipationScoreQuery.SelectDataForSnapshot(0, 1)
-		want := "SELECT node_id, score, latest, height FROM participation_score WHERE height >= 0 AND height <= 1 AND (" +
-			"height || '_' || node_id) IN (SELECT (MAX(height) || '_' || node_id) as con FROM participation_score GROUP BY node_id ) ORDER" +
-			" by height"
+		want := "SELECT node_id,score,latest,height FROM participation_score WHERE (node_id, height) IN (SELECT t2.node_id, " +
+			"MAX(t2.height) FROM participation_score as t2 WHERE t2.height >= 0 AND t2.height <= 1 GROUP BY t2.node_id ) ORDER by height"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
