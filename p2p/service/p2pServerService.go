@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -19,8 +18,9 @@ import (
 )
 
 type (
+	// P2PServerServiceInterface interface that contains registered methods of P2P Server Service
 	P2PServerServiceInterface interface {
-		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error)
+		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error)
 		SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error)
 		GetCumulativeDifficulty(
@@ -74,7 +74,7 @@ type (
 			fileChunkNames []string,
 		) (*model.FileDownloadResponse, error)
 	}
-
+	// P2PServerService represent of P2P server service
 	P2PServerService struct {
 		FileService      coreService.FileServiceInterface
 		PeerExplorer     strategy.PeerExplorerStrategyInterface
@@ -85,6 +85,7 @@ type (
 	}
 )
 
+// NewP2PServerService return new instance of P2P server service
 func NewP2PServerService(
 	fileService coreService.FileServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
@@ -93,7 +94,6 @@ func NewP2PServerService(
 	nodeSecretPhrase string,
 	observer *observer.Observer,
 ) *P2PServerService {
-
 	return &P2PServerService{
 		FileService:      fileService,
 		PeerExplorer:     peerExplorer,
@@ -104,9 +104,12 @@ func NewP2PServerService(
 	}
 }
 
-func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.Node, error) {
+// GetPeerInfo responds to the request of peers a node info
+func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		return ps.PeerExplorer.GetHostInfo(), nil
+		return &model.GetPeerInfoResponse{
+			NodeInfo: ps.PeerExplorer.GetHostInfo(),
+		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
@@ -147,6 +150,12 @@ func (ps *P2PServerService) GetCumulativeDifficulty(
 ) (*model.GetCumulativeDifficultyResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
+		if blockService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"the block service is not set for this chaintype in this host",
+			)
+		}
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -171,16 +180,14 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		var (
 			height, jump uint32
 			blockIds     []int64
+			blockService = ps.BlockServices[chainType.GetTypeInt()]
 		)
-
-		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
+			return nil, status.Error(
+				codes.InvalidArgument,
 				"the block service is not set for this chaintype in this host",
 			)
 		}
-
 		if lastBlockID == 0 && lastMilestoneBlockID == 0 {
 			return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 		}
@@ -249,10 +256,15 @@ func (ps *P2PServerService) GetNextBlockIDs(
 	reqBlockID int64,
 ) ([]int64, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		var blockIds []int64
-		blockService := ps.BlockServices[chainType.GetTypeInt()]
+		var (
+			blockIds     []int64
+			blockService = ps.BlockServices[chainType.GetTypeInt()]
+		)
 		if blockService == nil {
-			return nil, errors.New("the block service is not set for this chaintype in this host")
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"the block service is not set for this chaintype in this host",
+			)
 		}
 		limit := constant.PeerGetBlocksLimit
 		if reqLimit != 0 && reqLimit < limit {
@@ -270,11 +282,6 @@ func (ps *P2PServerService) GetNextBlockIDs(
 				"failed to get block id",
 			)
 		}
-
-		if len(blocks) == 0 {
-			return blockIds, nil
-		}
-
 		for _, block := range blocks {
 			blockIds = append(blockIds, block.ID)
 		}
@@ -292,8 +299,16 @@ func (ps *P2PServerService) GetNextBlocks(
 ) (*model.BlocksData, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: getting data from cache
-		var blocksMessage []*model.Block
-		blockService := ps.BlockServices[chainType.GetTypeInt()]
+		var (
+			blocksMessage []*model.Block
+			blockService  = ps.BlockServices[chainType.GetTypeInt()]
+		)
+		if blockService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"the block service is not set for this chaintype in this host",
+			)
+		}
 		blockService.ChainWriteLock(constant.BlockchainSendingBlocks)
 		defer blockService.ChainWriteUnlock(constant.BlockchainSendingBlocks)
 		block, err := blockService.GetBlockByID(blockID, false)
@@ -309,13 +324,12 @@ func (ps *P2PServerService) GetNextBlocks(
 			if block.ID != blockIDList[idx] {
 				break
 			}
-			err = ps.BlockServices[chainType.GetTypeInt()].PopulateBlockData(block)
+			err = blockService.PopulateBlockData(block)
 			if err != nil {
-				return nil, err
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			blocksMessage = append(blocksMessage, block)
 		}
-
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -329,17 +343,35 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		md, _ := metadata.FromIncomingContext(ctx)
-		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-		peer, _ := p2pUtil.ParsePeer(fullAddress)
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		var md, _ = metadata.FromIncomingContext(ctx)
+		if len(md) == 0 {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"InvalidContext",
+			)
+		}
+		var (
+			fullAddress = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+			peer, err   = p2pUtil.ParsePeer(fullAddress)
+		)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalidPeer")
+		}
+		blockService := ps.BlockServices[chainType.GetTypeInt()]
+		if blockService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"blockServiceNotFoundByThisChainType",
+			)
+		}
+		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
-				"fail to get last block",
+				"failGetLastBlock",
 			)
 		}
-		batchReceipt, err := ps.BlockServices[chainType.GetTypeInt()].ReceiveBlock(
+		batchReceipt, err := blockService.ReceiveBlock(
 			senderPublicKey,
 			lastBlock,
 			block,
@@ -364,15 +396,28 @@ func (ps *P2PServerService) SendTransaction(
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		var blockService = ps.BlockServices[chainType.GetTypeInt()]
+		if blockService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"blockServiceNotFoundByThisChainType",
+			)
+		}
+		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
-				"fail to get last block",
+				"failGetLastBlock",
 			)
 		}
-
-		batchReceipt, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedTransaction(
+		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
+		if mempoolService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"mempoolServiceNotFoundByThisChainType",
+			)
+		}
+		batchReceipt, err := mempoolService.ReceivedTransaction(
 			senderPublicKey,
 			transactionBytes,
 			lastBlock,
@@ -388,7 +433,7 @@ func (ps *P2PServerService) SendTransaction(
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
-// SendTransaction receive transaction from other node and calling TransactionReceived Event
+// SendBlockTransactions receive a list of transaction from other node and calling TransactionReceived Event
 func (ps *P2PServerService) SendBlockTransactions(
 	ctx context.Context,
 	chainType chaintype.ChainType,
@@ -396,15 +441,28 @@ func (ps *P2PServerService) SendBlockTransactions(
 	senderPublicKey []byte,
 ) (*model.SendBlockTransactionsResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		lastBlock, err := ps.BlockServices[chainType.GetTypeInt()].GetLastBlock()
+		var blockService = ps.BlockServices[chainType.GetTypeInt()]
+		if blockService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"blockServiceNotFoundByThisChainType",
+			)
+		}
+		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
 			return nil, blocker.NewBlocker(
 				blocker.BlockErr,
-				"fail to get last block",
+				"failGetLastBlock",
 			)
 		}
-
-		batchReceipts, err := ps.MempoolServices[chainType.GetTypeInt()].ReceivedBlockTransactions(
+		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
+		if mempoolService == nil {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"mempoolServiceNotFoundByThisChainType",
+			)
+		}
+		batchReceipts, err := mempoolService.ReceivedBlockTransactions(
 			senderPublicKey,
 			transactionsBytes,
 			lastBlock,
@@ -427,11 +485,19 @@ func (ps *P2PServerService) RequestBlockTransactions(
 	transactionsIDs []int64,
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		md, _ := metadata.FromIncomingContext(ctx)
-		fullAddress := md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-		peer, err := p2pUtil.ParsePeer(fullAddress)
+		var md, _ = metadata.FromIncomingContext(ctx)
+		if len(md) == 0 {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"invalidContext",
+			)
+		}
+		var (
+			fullAddress = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+			peer, err   = p2pUtil.ParsePeer(fullAddress)
+		)
 		if err != nil {
-			_ = status.Error(codes.InvalidArgument, "Invalid requester data")
+			return nil, status.Error(codes.InvalidArgument, "invalidPeer")
 		}
 		ps.Observer.Notify(observer.BlockTransactionsRequested, transactionsIDs, chainType, blockID, peer)
 		return &model.Empty{}, nil
@@ -443,11 +509,11 @@ func (ps *P2PServerService) RequestDownloadFile(
 	ctx context.Context,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
-	var (
-		fileChunks = make([][]byte, 0)
-		failed     []string
-	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
+		var (
+			fileChunks = make([][]byte, 0)
+			failed     []string
+		)
 		for _, fileName := range fileChunkNames {
 			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
 			if err != nil {
