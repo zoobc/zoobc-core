@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"math/big"
 	"sort"
 	"sync"
@@ -31,6 +32,7 @@ type (
 			blockHeight uint32,
 		) (*model.ScrambledNodes, error)
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
+		SetCurrentNodePublicKey(publicKey []byte)
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -45,6 +47,8 @@ type (
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
 		ScrambledNodesLock           sync.RWMutex
 		MemoizedLatestScrambledNodes *model.ScrambledNodes
+		BlockchainStatusService      BlockchainStatusServiceInterface
+		CurrentNodePublicKey         []byte
 	}
 )
 
@@ -55,6 +59,7 @@ func NewNodeRegistrationService(
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	logger *log.Logger,
+	blockchainStatusService BlockchainStatusServiceInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:           queryExecutor,
@@ -65,6 +70,7 @@ func NewNodeRegistrationService(
 		NodeAdmittanceCycle:     constant.NodeAdmittanceCycle,
 		Logger:                  logger,
 		ScrambledNodes:          map[uint32]*model.ScrambledNodes{},
+		BlockchainStatusService: blockchainStatusService,
 	}
 }
 
@@ -148,6 +154,9 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		queries = append(queries, updateParticipationScoreQuery...)
 		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
+		}
+		if bytes.Equal(nrs.CurrentNodePublicKey, nodeRegistration.NodePublicKey) {
+			nrs.BlockchainStatusService.SetIsBlocksmith(true)
 		}
 	}
 	return nil
@@ -410,4 +419,10 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	updateParticipationScoreQuery := nrs.ParticipationScoreQuery.UpdateParticipationScore(nodeID, newScore, height)
 	err = nrs.QueryExecutor.ExecuteTransactions(updateParticipationScoreQuery)
 	return newScore, err
+}
+
+// SetCurrentNodePublicKey set the public key of running node, this information will be used to check if current node is
+// being admitted and can start unlock smithing process
+func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
+	nrs.CurrentNodePublicKey = publicKey
 }

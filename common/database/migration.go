@@ -260,7 +260,8 @@ func (m *Migration) Init() error {
 				"status" INTEGER,
 				"block_height" INTEGER,
 				"latest" INTEGER,
-				"instruction" TEXT
+				"instruction" TEXT,
+				PRIMARY KEY("id", "block_height")
 			)
 			`,
 			`

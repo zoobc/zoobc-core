@@ -1476,6 +1476,7 @@ func (bs *BlockService) WillSmith(
 			// no negative scores allowed
 			blocksmithScore = 0
 			bs.Logger.Errorf("Participation score calculation: %s", err)
+			return 0, blocker.NewBlocker(blocker.ZeroParticipationScoreErr, "participation score = 0")
 		}
 		err = bs.BlocksmithStrategy.CalculateSmith(
 			lastBlock,
