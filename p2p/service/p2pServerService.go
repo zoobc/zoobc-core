@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -153,7 +152,7 @@ func (ps *P2PServerService) GetCumulativeDifficulty(
 		if blockService == nil {
 			return nil, status.Error(
 				codes.InvalidArgument,
-				"the block service is not set for this chaintype in this host",
+				"blockServiceNotFoundByThisChainType",
 			)
 		}
 		lastBlock, err := blockService.GetLastBlock()
@@ -185,18 +184,15 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		if blockService == nil {
 			return nil, status.Error(
 				codes.InvalidArgument,
-				"the block service is not set for this chaintype in this host",
+				"blockServiceNotFoundByThisChainType",
 			)
 		}
 		if lastBlockID == 0 && lastMilestoneBlockID == 0 {
-			return nil, blocker.NewBlocker(blocker.RequestParameterErr, "either LastBlockID or LastMilestoneBlockID has to be supplied")
+			return nil, status.Error(codes.InvalidArgument, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 		}
 		myLastBlock, err := blockService.GetLastBlock()
 		if err != nil || myLastBlock == nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
-				"failed to get last block",
-			)
+			return nil, status.Error(codes.Internal, "failedGetLastBlock")
 		}
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
@@ -217,7 +213,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 			lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID, false)
 			// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 			if err != nil {
-				return nil, err
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			height = lastMilestoneBlock.GetHeight()
 			jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myBlockchainHeight, 1))
@@ -231,7 +227,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		for ; limit > 0; limit-- {
 			block, err := blockService.GetBlockByHeight(height)
 			if err != nil {
-				return nil, err
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			blockIds = append(blockIds, block.ID)
 			switch {
@@ -263,7 +259,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 		if blockService == nil {
 			return nil, status.Error(
 				codes.InvalidArgument,
-				"the block service is not set for this chaintype in this host",
+				"blockServiceNotFoundByThisChainType",
 			)
 		}
 		limit := constant.PeerGetBlocksLimit
@@ -273,14 +269,11 @@ func (ps *P2PServerService) GetNextBlockIDs(
 
 		foundBlock, err := blockService.GetBlockByID(reqBlockID, false)
 		if err != nil {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		blocks, err := blockService.GetBlocksFromHeight(foundBlock.Height, limit, false)
 		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
-				"failed to get block id",
-			)
+			return nil, status.Error(codes.Internal, "failedGetBlocks")
 		}
 		for _, block := range blocks {
 			blockIds = append(blockIds, block.ID)
@@ -306,7 +299,7 @@ func (ps *P2PServerService) GetNextBlocks(
 		if blockService == nil {
 			return nil, status.Error(
 				codes.InvalidArgument,
-				"the block service is not set for this chaintype in this host",
+				"blockServiceNotFoundByThisChainType",
 			)
 		}
 		blockService.ChainWriteLock(constant.BlockchainSendingBlocks)
@@ -366,8 +359,8 @@ func (ps *P2PServerService) SendBlock(
 		}
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
+			return nil, status.Error(
+				codes.Internal,
 				"failGetLastBlock",
 			)
 		}
@@ -405,8 +398,8 @@ func (ps *P2PServerService) SendTransaction(
 		}
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
+			return nil, status.Error(
+				codes.Internal,
 				"failGetLastBlock",
 			)
 		}
@@ -450,8 +443,8 @@ func (ps *P2PServerService) SendBlockTransactions(
 		}
 		lastBlock, err := blockService.GetLastBlock()
 		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.BlockErr,
+			return nil, status.Error(
+				codes.Internal,
 				"failGetLastBlock",
 			)
 		}
