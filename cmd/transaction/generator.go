@@ -462,3 +462,84 @@ func GeneratedMultiSignatureTransaction(
 	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
 	return tx
 }
+
+func GenerateTxRegisterNodeHDwallet(
+	tx *model.Transaction,
+	recipientAccountAddress, nodeAddress string,
+	lockedBalance int64,
+	poownMessageBytes, signature, nodePubKey []byte,
+) *model.Transaction {
+	txBody := &model.NodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+		NodeAddress: &model.NodeAddress{
+			Address: nodeAddress,
+		},
+		LockedBalance: lockedBalance,
+		Poown: &model.ProofOfOwnership{
+			MessageBytes: poownMessageBytes,
+			Signature:    signature,
+		},
+	}
+	txBodyBytes := (&transaction.NodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["registerNode"])
+	tx.TransactionBody = &model.Transaction_NodeRegistrationTransactionBody{
+		NodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+
+	return tx
+}
+
+func GenerateTxUpdateNodeHDwallet(
+	tx *model.Transaction,
+	nodeAddress string,
+	lockedBalance int64,
+	poowMessageBytes, signature, nodePubKey []byte,
+) *model.Transaction {
+	txBody := &model.UpdateNodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+		NodeAddress: &model.NodeAddress{
+			Address: nodeAddress,
+		},
+		LockedBalance: lockedBalance,
+		Poown: &model.ProofOfOwnership{
+			MessageBytes: poowMessageBytes,
+			Signature:    signature,
+		},
+	}
+	txBodyBytes := (&transaction.UpdateNodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["updateNodeRegistration"])
+	tx.TransactionBody = &model.Transaction_UpdateNodeRegistrationTransactionBody{
+		UpdateNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	return tx
+}
+
+func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
+	txBody := &model.RemoveNodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+	}
+	txBodyBytes := (&transaction.RemoveNodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"])
+	tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+		RemoveNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
