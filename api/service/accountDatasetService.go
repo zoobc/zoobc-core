@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"google.golang.org/grpc/codes"
@@ -75,18 +74,6 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 	}
 
 	pagination := request.GetPagination()
-	if pagination == nil {
-		pagination = &model.Pagination{
-			OrderField: "height",
-			OrderBy:    model.OrderBy_ASC,
-			Page:       0,
-			Limit:      constant.MaxAPILimitPerPage,
-		}
-	}
-	if pagination.GetLimit() > constant.MaxAPILimitPerPage {
-		return nil, status.Errorf(codes.OutOfRange, "Limit exceeded, max. %d", constant.MaxAPILimitPerPage)
-	}
-
 	if pagination.GetOrderField() != "" {
 		caseQ.OrderBy(pagination.GetOrderField(), pagination.GetOrderBy())
 	} else {
@@ -121,10 +108,6 @@ func (ads *AccountDatasetService) GetAccountDataset(
 		row        *sql.Row
 		caseQ      = query.NewCaseQuery()
 	)
-
-	if request.GetRecipientAccountAddress() == "" && request.GetProperty() == "" {
-		return nil, status.Error(codes.InvalidArgument, "Request must have Property or RecipientAccountAddress")
-	}
 
 	caseQ.Select(ads.AccountDatasetQuery.TableName, ads.AccountDatasetQuery.GetFields()...)
 	if request.GetProperty() != "" {
