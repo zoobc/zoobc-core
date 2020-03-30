@@ -104,6 +104,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			previousBlock,
 			bp.Generator.SecretPhrase,
 			timeNow,
+			true,
 		)
 		if err != nil {
 			return err
@@ -129,6 +130,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
 	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
+	var blocksmithIndex int64
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return blocker.NewBlocker(
@@ -136,7 +138,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	// todo: move this piece of code to service layer
 	// caching: only calculate smith time once per new block
-	bp.LastBlockID, err = bp.BlockService.WillSmith(
+	bp.LastBlockID, blocksmithIndex, err = bp.BlockService.WillSmith(
 		bp.Generator, bp.LastBlockID,
 	)
 	if err != nil {
@@ -150,6 +152,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		lastBlock,
 		bp.Generator.SecretPhrase,
 		timestamp,
+		blocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
 	)
 	if err != nil {
 		return err
