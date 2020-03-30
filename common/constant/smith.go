@@ -26,5 +26,5 @@ var (
 	MainChainSmithingPeriod = int64(15)
 	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
 	// 0 will set node to always create empty block
-	EmptyBlockSkippedBlocksmithLimit = int64(15)
+	EmptyBlockSkippedBlocksmithLimit = int64(2)
 )
