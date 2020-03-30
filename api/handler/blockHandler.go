@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
