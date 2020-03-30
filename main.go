@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -46,7 +47,7 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath, profilingFilePathName string
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
@@ -94,6 +95,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
 	nodeKey                                         *model.NodeKey
+	cpuProfile                                      bool
 )
 
 func init() {
@@ -106,9 +108,21 @@ func init() {
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
+	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.Parse()
 
 	loadNodeConfig(configPath, "config"+configPostfix, "toml")
+
+	// start profiling if enabled
+	if cpuProfile {
+		f, err := os.Create(profilingFilePathName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Info("CPU Profiling failed to start")
+		}
+	}
 
 	initLogInstance()
 	// initialize/open db and queryExecutor
@@ -257,6 +271,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
+	profilingFilePathName = viper.GetString("profilingFilePathName")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
@@ -886,6 +901,11 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
 	loggerCoreService.Info("Shutting down node...")
+	if cpuProfile {
+		// stop profiling when exiting app
+		defer pprof.StopCPUProfile()
+	}
+
 	if mainchainProcessor != nil {
 		mainchainProcessor.Stop()
 	}
