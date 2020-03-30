@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -39,8 +39,8 @@ func (bs *BlockHandler) GetBlock(ctx context.Context, req *model.GetBlockRequest
 
 // GetBlocks handles request to get data of multiple blocks
 func (bs *BlockHandler) GetBlocks(ctx context.Context, req *model.GetBlocksRequest) (*model.GetBlocksResponse, error) {
-	if req.Limit > constant.MaxAPIGetBlocks {
-		return nil, status.Error(codes.OutOfRange, fmt.Sprintf("limit exceeded, max. %d", constant.MaxAPIGetBlocks))
+	if req.Limit > constant.MaxAPILimitPerPage {
+		return nil, status.Error(codes.OutOfRange, fmt.Sprintf("limit exceeded, max. %d", constant.MaxAPILimitPerPage))
 	}
 
 	chainType := chaintype.GetChainType(req.ChainType)

@@ -160,16 +160,16 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 				dataset: mockDataset,
 			},
 			want: append(want, append([]interface{}{fmt.Sprintf(`
-		UPDATE %s SET (%s) = 
+		UPDATE %s SET (%s) =
 		(
-			SELECT '%s', %d, 
-				%d + CASE 
+			SELECT '%s', %d,
+				%d + CASE
 					WHEN timestamp_expires - %d < 0 THEN 0
-					ELSE timestamp_expires - %d END 
-			FROM %s 
+					ELSE timestamp_expires - %d END
+			FROM %s
 			WHERE %s AND latest = true
 			ORDER BY height DESC LIMIT 1
-		) 
+		)
 		WHERE %s AND latest = true
 	`,
 				mockDatasetQuery.TableName,
@@ -439,7 +439,7 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 				[]interface{}{fmt.Sprintf(`
 				UPDATE %s SET latest = ?
 				WHERE latest = ? AND (%s) IN (
-					SELECT (%s) as con
+					SELECT %s
 					FROM %s
 					GROUP BY setter_account_address, recipient_account_address, property
 				)`,
