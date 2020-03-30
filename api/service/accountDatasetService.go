@@ -67,7 +67,7 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 	rowCount, _ = ads.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(countQ), false, countArgs...)
 	if err = rowCount.Scan(&count); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, status.Error(codes.Internal, "Something wrong happened")
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 
 		return nil, status.Error(codes.NotFound, "Record not found")
@@ -90,7 +90,7 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 
 	accDatasets, err = ads.AccountDatasetQuery.BuildModel([]*model.AccountDataset{}, rows)
 	if err != nil {
-		return nil, status.Error(codes.Internal, "Something wrong happened")
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &model.GetAccountDatasetsResponse{
@@ -123,7 +123,7 @@ func (ads *AccountDatasetService) GetAccountDataset(
 	err = ads.AccountDatasetQuery.Scan(&accDataset, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			return nil, status.Error(codes.Internal, "There is something wrong")
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 
 		return nil, status.Error(codes.NotFound, "Record not found")
