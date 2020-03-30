@@ -1449,8 +1449,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 func (bs *BlockService) WillSmith(
 	blocksmith *model.Blocksmith,
 	blockchainProcessorLastBlockID int64,
-) (lastBlockID, index int64, err error) {
-	var blocksmithScore, blocksmithIndex int64
+) (lastBlockID, blocksmithIndex int64, err error) {
+	var blocksmithScore int64
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
