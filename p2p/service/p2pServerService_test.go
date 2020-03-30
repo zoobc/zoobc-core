@@ -167,7 +167,7 @@ func TestP2PServerService_GetPeerInfo(t *testing.T) {
 				req: &model.GetPeerInfoRequest{},
 			},
 			want: &model.GetPeerInfoResponse{
-				NodeInfo: &mockNode,
+				HostInfo: &mockNode,
 			},
 			wantErr: false,
 		},
