@@ -878,10 +878,10 @@ func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Liste
 func (bs *BlockSpineService) WillSmith(
 	blocksmith *model.Blocksmith,
 	blockchainProcessorLastBlockID int64,
-) (lastBlockId, index int64, err error) {
+) (lastBlockId, blocksmithIndex int64, err error) {
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
-		return blockchainProcessorLastBlockID, 0, blocker.NewBlocker(
+		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
 	// caching: only calculate smith time once per new block
@@ -892,7 +892,7 @@ func (bs *BlockSpineService) WillSmith(
 		// check if eligible to create block in this round
 		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
-			return blockchainProcessorLastBlockID, 0,
+			return blockchainProcessorLastBlockID, blocksmithIndex,
 				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		// calculate blocksmith score for the block type
@@ -905,11 +905,11 @@ func (bs *BlockSpineService) WillSmith(
 			blocksmithScore,
 		)
 		if err != nil {
-			return blockchainProcessorLastBlockID, 0, err
+			return blockchainProcessorLastBlockID, blocksmithIndex, err
 		}
 		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
 	}
-	return blockchainProcessorLastBlockID, 0, nil
+	return blockchainProcessorLastBlockID, blocksmithIndex, nil
 }
 
 func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {
