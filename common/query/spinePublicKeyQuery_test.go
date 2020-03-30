@@ -3,6 +3,7 @@ package query
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -56,4 +57,54 @@ func TestSpinePublicKeyQuery_GetSpinePublicKeysByBlockHeight(t *testing.T) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, wantQry)
 		}
 	})
+}
+
+func TestSpinePublicKeyQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*mockSpinePublicKeyQuery),
+			args:   args{height: 1},
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM spine_public_key WHERE height > ?",
+					uint32(1),
+				},
+				{
+					`
+			UPDATE spine_public_key SET latest = ?
+			WHERE latest = ? AND (node_public_key, height) IN (
+				SELECT t2.node_public_key, MAX(t2.height)
+				FROM spine_public_key as t2
+				GROUP BY t2.node_public_key
+			)`,
+					1,
+					0,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spk := &SpinePublicKeyQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if gotMultiQueries := spk.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
+				t.Errorf("Rollback() = \n%v, want \n%v", gotMultiQueries, tt.wantMultiQueries)
+			}
+		})
+	}
 }
