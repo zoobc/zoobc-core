@@ -6,7 +6,7 @@ import (
 	"net"
 	"net/http"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
@@ -56,7 +56,7 @@ func startGrpcServer(
 	}
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
+		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
 			interceptor.NewServerRateLimiterInterceptor(constant.MaxAPIRequestPerSecond),
 			interceptor.NewServerInterceptor(
 				logger,
@@ -167,6 +167,14 @@ func startGrpcServer(
 		)})
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
+
+	// Set GRPC handler for account dataset
+	rpcService.RegisterAccountDatasetServiceServer(grpcServer, &handler.AccountDatasetHandler{
+		Service: service.NewAccountDatasetService(
+			query.NewAccountDatasetsQuery(),
+			queryExecutor,
+		),
+	})
 	// run grpc-gateway handler
 	go func() {
 		if err := grpcServer.Serve(serv); err != nil {
@@ -243,5 +251,6 @@ func runProxy(apiPort, rpcPort int) error {
 	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterMultisigServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	_ = rpcService.RegisterHealthCheckServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
+	_ = rpcService.RegisterAccountDatasetServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
 	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

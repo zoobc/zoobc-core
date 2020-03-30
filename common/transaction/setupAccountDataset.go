@@ -146,6 +146,13 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 	if tx.Body.GetMuchTime() == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
 	}
+
+	// Recipient required while property set as AccountDatasetEscrowApproval
+	_, ok := model.AccountDatasetProperty_value[tx.Body.GetProperty()]
+	if ok && tx.Body.GetRecipientAccountAddress() == "" {
+		return blocker.NewBlocker(blocker.ValidationErr, "RecipientRequired")
+	}
+
 	// check account balance sender
 	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	row, err := tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
