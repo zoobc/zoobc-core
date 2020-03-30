@@ -104,6 +104,7 @@ func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) m
 	return result
 }
 
+// SortBlocksmiths sort the list of active node of current block height, index start from 0.
 func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock bool) {
 	if block.ID == bss.LastSortedBlockID && block.ID != constant.MainchainGenesisBlockID {
 		return

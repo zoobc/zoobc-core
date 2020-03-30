@@ -985,11 +985,12 @@ func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash
 	return
 }
 
-// GenerateBlock generate block from transactions in mempool
+// GenerateBlock generate block from transactions in mempool, pass empty flag to generate an empty block
 func (bs *BlockService) GenerateBlock(
 	previousBlock *model.Block,
 	secretPhrase string,
 	timestamp int64,
+	empty bool,
 ) (*model.Block, error) {
 	var (
 		totalAmount, totalFee, totalCoinbase int64
@@ -1003,19 +1004,22 @@ func (bs *BlockService) GenerateBlock(
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block
 	totalCoinbase = bs.CoinbaseService.GetCoinbase()
-	sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
-	if err != nil {
-		return nil, errors.New("MempoolReadError")
-	}
-	// select transactions from mempool to be added to the block
-	for _, tx := range sortedTransactions {
-		txType, errType := bs.ActionTypeSwitcher.GetTransactionType(tx)
-		if errType != nil {
-			return nil, err
+	if !empty {
+		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
+		if err != nil {
+			return nil, errors.New("MempoolReadError")
 		}
-		totalAmount += txType.GetAmount()
-		totalFee += tx.Fee
+		// select transactions from mempool to be added to the block
+		for _, tx := range sortedTransactions {
+			txType, errType := bs.ActionTypeSwitcher.GetTransactionType(tx)
+			if errType != nil {
+				return nil, err
+			}
+			totalAmount += txType.GetAmount()
+			totalFee += tx.Fee
+		}
 	}
+
 	// select published receipts to be added to the block
 	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
 		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
@@ -1445,11 +1449,11 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 func (bs *BlockService) WillSmith(
 	blocksmith *model.Blocksmith,
 	blockchainProcessorLastBlockID int64,
-) (int64, error) {
+) (lastBlockID, blocksmithIndex int64, err error) {
 	var blocksmithScore int64
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
-		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
 
@@ -1460,7 +1464,7 @@ func (bs *BlockService) WillSmith(
 		// check if eligible to create block in this round
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
 		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
-			return blockchainProcessorLastBlockID,
+			return blockchainProcessorLastBlockID, blocksmithIndex,
 				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		// calculate blocksmith score for the block type
@@ -1476,7 +1480,7 @@ func (bs *BlockService) WillSmith(
 			// no negative scores allowed
 			blocksmithScore = 0
 			bs.Logger.Errorf("Participation score calculation: %s", err)
-			return 0, blocker.NewBlocker(blocker.ZeroParticipationScoreErr, "participation score = 0")
+			return 0, 0, blocker.NewBlocker(blocker.ZeroParticipationScoreErr, "participation score = 0")
 		}
 		err = bs.BlocksmithStrategy.CalculateSmith(
 			lastBlock,
@@ -1485,25 +1489,26 @@ func (bs *BlockService) WillSmith(
 			blocksmithScore,
 		)
 		if err != nil {
-			return blockchainProcessorLastBlockID, err
+			return blockchainProcessorLastBlockID, blocksmithIndex, err
 		}
 		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
 	}
 	// check for block pool duplicate
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-	blocksmithIndex, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
+	blocksmithIdxPtr, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
 	if !ok {
-		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
 			blocker.BlockErr, "BlocksmithNotInSmithingList",
 		)
 	}
-	blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
+	blocksmithIndex = *blocksmithIdxPtr
+	blockPool := bs.BlockPoolService.GetBlock(blocksmithIndex)
 	if blockPool != nil {
-		return blockchainProcessorLastBlockID, blocker.NewBlocker(
+		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
 			blocker.BlockErr, "DuplicateBlockPool",
 		)
 	}
-	return blockchainProcessorLastBlockID, nil
+	return blockchainProcessorLastBlockID, blocksmithIndex, nil
 }
 
 // ProcessCompletedBlock to process block that already having all needed transactions

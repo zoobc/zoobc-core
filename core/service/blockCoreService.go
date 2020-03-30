@@ -20,6 +20,7 @@ type (
 			previousBlock *model.Block,
 			secretPhrase string,
 			timestamp int64,
+			empty bool,
 		) (*model.Block, error)
 		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
 		ValidatePayloadHash(block *model.Block) error
@@ -54,6 +55,6 @@ type (
 		WillSmith(
 			blocksmith *model.Blocksmith,
 			blockchainProcessorLastBlockID int64,
-		) (int64, error)
+		) (lastBlockID, blocksmithIndex int64, err error)
 	}
 )
