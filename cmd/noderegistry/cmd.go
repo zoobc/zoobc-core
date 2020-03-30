@@ -27,11 +27,15 @@ var (
 )
 
 func init() {
-	generateProofOfOwnerShipCmd.Flags().StringVar(&outputType, "output-type", "hex", "defines the type of the output to be generated [\"hex\", \"bytes\"]")
-	generateProofOfOwnerShipCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "", "Account address of the owner of the node")
+	generateProofOfOwnerShipCmd.Flags().StringVar(&outputType, "output-type", "hex",
+		"defines the type of the output to be generated [\"hex\", \"bytes\"]")
+	generateProofOfOwnerShipCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "",
+		"Account address of the owner of the node")
 	generateProofOfOwnerShipCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
-	generateProofOfOwnerShipCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
-	generateProofOfOwnerShipCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
+	generateProofOfOwnerShipCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	generateProofOfOwnerShipCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 }
 
 // Commands will return  proof of owner ship cmd

@@ -1410,6 +1410,7 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 		previousBlock *model.Block
 		secretPhrase  string
 		timestamp     int64
+		empty         bool
 	}
 	tests := []struct {
 		name    string
@@ -1492,6 +1493,7 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				tt.args.previousBlock,
 				tt.args.secretPhrase,
 				tt.args.timestamp,
+				tt.args.empty,
 			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.GenerateBlock() error = %v, wantErr %v", err, tt.wantErr)
