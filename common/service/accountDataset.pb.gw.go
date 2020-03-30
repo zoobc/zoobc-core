@@ -37,7 +37,10 @@ func request_AccountDatasetService_GetAccountDatasets_0(ctx context.Context, mar
 	var protoReq model.GetAccountDatasetsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_AccountDatasetService_GetAccountDatasets_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_AccountDatasetService_GetAccountDatasets_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -54,7 +57,10 @@ func request_AccountDatasetService_GetAccountDataset_0(ctx context.Context, mars
 	var protoReq model.GetAccountDatasetRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_AccountDatasetService_GetAccountDataset_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_AccountDatasetService_GetAccountDataset_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -145,9 +151,9 @@ func RegisterAccountDatasetServiceHandlerClient(ctx context.Context, mux *runtim
 }
 
 var (
-	pattern_AccountDatasetService_GetAccountDatasets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "accountDataset", "GetAccountDatasets"}, ""))
+	pattern_AccountDatasetService_GetAccountDatasets_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "accountDataset", "GetAccountDatasets"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_AccountDatasetService_GetAccountDataset_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "accountDataset", "GetAccountDataset"}, ""))
+	pattern_AccountDatasetService_GetAccountDataset_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "accountDataset", "GetAccountDataset"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
