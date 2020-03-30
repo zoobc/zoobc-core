@@ -27,6 +27,7 @@ type (
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 		DerivedQueries             []query.DerivedQuery
@@ -47,6 +48,7 @@ func NewSnapshotMainBlockService(
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
 	pendingSignatureQuery query.PendingSignatureQueryInterface,
 	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
+	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 	derivedQueries []query.DerivedQuery,
@@ -66,6 +68,7 @@ func NewSnapshotMainBlockService(
 		PendingTransactionQuery:    pendingTransactionQuery,
 		PendingSignatureQuery:      pendingSignatureQuery,
 		MultisignatureInfoQuery:    multisignatureInfoQuery,
+		SkippedBlocksmithQuery:     skippedBlocksmithQuery,
 		BlockQuery:                 blockQuery,
 		SnapshotQueries:            snapshotQueries,
 		DerivedQueries:             derivedQueries,
@@ -130,6 +133,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				snapshotPayload.PendingSignatures, err = ss.PendingSignatureQuery.BuildModel([]*model.PendingSignature{}, rows)
 			case "multisignatureInfo":
 				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
+			case "skippedBlocksmith":
+				snapshotPayload.SkippedBlocksmiths, err = ss.SkippedBlocksmithQuery.BuildModel([]*model.SkippedBlocksmith{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
@@ -263,6 +268,14 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			for _, rec := range payload.MultiSignatureInfos {
 				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
 				queries = append(queries, qryArgs...)
+			}
+		case "skippedBlocksmith":
+			for _, rec := range payload.SkippedBlocksmiths {
+				qry, args := ss.SkippedBlocksmithQuery.InsertSkippedBlocksmith(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
 			}
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
