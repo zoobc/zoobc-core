@@ -107,7 +107,7 @@ func NewP2PServerService(
 func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		return &model.GetPeerInfoResponse{
-			NodeInfo: ps.PeerExplorer.GetHostInfo(),
+			HostInfo: ps.PeerExplorer.GetHostInfo(),
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
