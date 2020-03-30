@@ -57,29 +57,6 @@ func TestAccountDatasetService_GetAccountDatasets(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantError:LimitExceeded",
-			fields: fields{
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &mockGetAccountDatasetsExecutor{},
-			},
-			args: args{
-				request: &model.GetAccountDatasetsRequest{
-					Property:                "",
-					Value:                   "",
-					RecipientAccountAddress: "",
-					SetterAccountAddress:    "",
-					Height:                  0,
-					Pagination: &model.Pagination{
-						OrderField: "",
-						OrderBy:    0,
-						Page:       0,
-						Limit:      5001,
-					},
-				},
-			},
-			wantErr: true,
-		},
-		{
 			name: "wantSuccess",
 			fields: fields{
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -186,14 +163,6 @@ func TestAccountDatasetService_GetAccountDataset(t *testing.T) {
 		want    *model.AccountDataset
 		wantErr bool
 	}{
-		{
-			name: "wantError:InvalidArgs",
-			fields: fields{
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &mockExecutorGetAccountDataset{},
-			},
-			wantErr: true,
-		},
 		{
 			name: "wantError:NoRows",
 			fields: fields{
