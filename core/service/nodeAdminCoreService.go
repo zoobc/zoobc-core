@@ -120,7 +120,7 @@ func (*NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKe
 	return max
 }
 
-// GenerateNodeKey generates a new node ket from its seed and store it, together with relative public key into node_keys file
+// GenerateNodeKey generates a new node key from its seed and store it, together with relative public key into node_keys file
 func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 	publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(seed)
 	nodeKey := &model.NodeKey{

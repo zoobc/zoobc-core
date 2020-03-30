@@ -104,8 +104,10 @@ func init() {
 	registerNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
 	registerNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "proof-of-ownership-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
-	registerNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
-	registerNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
+	registerNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	registerNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 
 	/*
 		UpdateNode Command
@@ -116,8 +118,10 @@ func init() {
 	updateNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
 	updateNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
-	updateNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
-	updateNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
+	updateNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	updateNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 
 	/*
 		RemoveNode Command
@@ -131,8 +135,10 @@ func init() {
 	claimNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
 	claimNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
-	claimNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, make sure to download the database from node or run this command on node")
-	claimNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, make sure to download the database from node or run this command on node")
+	claimNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	claimNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 
 	/*
 		SetupAccountDataset Command
@@ -348,6 +354,12 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			recipientAccountAddress,
 		)
 
+		// Recipient required while property set as AccountDatasetEscrowApproval
+		_, ok := model.AccountDatasetProperty_value[property]
+		if ok && recipientAccountAddress == "" {
+			println("--recipient is required while property as AccountDatasetEscrowApproval")
+			return
+		}
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)

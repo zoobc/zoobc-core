@@ -152,6 +152,7 @@ func initialize(
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(chainType),
 		log.New(),
+		&mockBlockchainStatusService{},
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
