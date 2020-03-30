@@ -38,6 +38,9 @@ var (
 	nodeOwnerAccountAddress string
 	nodeAddress             string
 	lockedBalance           int64
+	poowMessageByte         []byte
+	signatureByte           []byte
+	nodePubKey              []byte
 	proofOfOwnershipHex     string
 	databasePath            string
 	databaseName            string

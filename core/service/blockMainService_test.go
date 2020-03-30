@@ -1705,6 +1705,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 		secretPhrase             string
 		timestamp                int64
 		blockSmithAccountAddress string
+		empty                    bool
 	}
 	tests := []struct {
 		name    string
@@ -1740,6 +1741,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				secretPhrase:             "phasepress",
 				timestamp:                12344587645,
 				blockSmithAccountAddress: "BCZ",
+				empty:                    false,
 			},
 			wantErr: true,
 		},
@@ -1778,6 +1780,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				},
 				secretPhrase: "",
 				timestamp:    12345678,
+				empty:        false,
 			},
 			wantErr: false,
 		},
@@ -1802,6 +1805,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				tt.args.previousBlock,
 				tt.args.secretPhrase,
 				tt.args.timestamp,
+				tt.args.empty,
 			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.GenerateBlock() error = %v, wantErr %v", err, tt.wantErr)

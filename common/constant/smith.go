@@ -24,4 +24,7 @@ var (
 	MainChainSmithIdlePeriod = 500 * time.Millisecond
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)
+	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
+	// 0 will set node to always create empty block
+	EmptyBlockSkippedBlocksmithLimit = int64(2)
 )
