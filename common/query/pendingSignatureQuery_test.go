@@ -5,10 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -338,10 +336,9 @@ func TestPendingSignatureQuery_Rollback(t *testing.T) {
 					uint32(10),
 				},
 				{
-					"UPDATE pending_signature SET latest = ? WHERE latest = ? AND (block_height || '_' || " +
-						"account_address || '_' || transaction_hash) IN (SELECT (MAX(block_height) || '_' || " +
-						"account_address || '_' || transaction_hash) as con FROM pending_signature GROUP BY " +
-						"account_address || '_' || transaction_hash)",
+					"UPDATE pending_signature SET latest = ? WHERE latest = ? AND (account_address, transaction_hash, " +
+						"block_height) IN (SELECT t2.account_address, t2.transaction_hash, " +
+						"MAX(t2.block_height) FROM pending_signature as t2 GROUP BY t2.account_address, t2.transaction_hash)",
 					1, 0,
 				},
 			},
@@ -468,6 +465,92 @@ func TestPendingSignatureQuery_getTableName(t *testing.T) {
 			}
 			if got := psq.getTableName(); got != tt.want {
 				t.Errorf("getTableName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingSignatureQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+
+		{
+			name: "SelectDataForSnapshot",
+			fields: fields{
+				Fields:    mockPendingSignatureQueryIntance.Fields,
+				TableName: mockPendingSignatureQueryIntance.TableName,
+			},
+			args: args{
+				fromHeight: 1,
+				toHeight:   10,
+			},
+			want: "SELECT transaction_hash,account_address,signature,block_height,latest FROM pending_signature WHERE (account_address, " +
+				"transaction_hash, block_height) IN (SELECT t2.account_address, t2.transaction_hash, " +
+				"MAX(t2.block_height) FROM pending_signature as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
+				"account_address, t2.transaction_hash) ORDER BY block_height",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			psq := &PendingSignatureQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := psq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PendingSignatureQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingSignatureQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "TrimDataBeforeSnapshot",
+			fields: fields{
+				Fields:    mockPendingTransactionQueryInstance.Fields,
+				TableName: mockPendingTransactionQueryInstance.TableName,
+			},
+			args: args{
+				fromHeight: 0,
+				toHeight:   10,
+			},
+			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			psq := &PendingSignatureQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := psq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PendingSignatureQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

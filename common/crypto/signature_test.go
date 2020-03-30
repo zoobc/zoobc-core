@@ -240,14 +240,14 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 		seed          string
 	}
 	tests := []struct {
-		name                 string
-		s                    *Signature
-		args                 args
-		wantPrivateKey       []byte
-		wantPublicKey        []byte
-		wantPublickKeyString string
-		wantAddress          string
-		wantErr              bool
+		name                string
+		s                   *Signature
+		args                args
+		wantPrivateKey      []byte
+		wantPublicKey       []byte
+		wantPublicKeyString string
+		wantAddress         string
+		wantErr             bool
 	}{
 		{
 			name: "GenerateAccountFromSeed:success-{DefaultSignature}",
@@ -260,9 +260,9 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 				82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			wantPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
 				139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-			wantPublickKeyString: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv/UeW4TVBQJ/6tHKk=",
-			wantAddress:          "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			wantErr:              false,
+			wantPublicKeyString: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv/UeW4TVBQJ/6tHKk=",
+			wantAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			wantErr:             false,
 		},
 		{
 			name: "GenerateAccountFromSeed:success-{BitcoinSignature}",
@@ -274,9 +274,9 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 				71, 172, 247, 140, 12, 13, 53, 119, 251, 233, 244, 212},
 			wantPublicKey: []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
 				45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
-			wantPublickKeyString: "0352f7c0f324cf475a0367dc2f73400f0d3bbae72d2a95490c05a68dcdb19c4d7a",
-			wantAddress:          "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
-			wantErr:              false,
+			wantPublicKeyString: "0352f7c0f324cf475a0367dc2f73400f0d3bbae72d2a95490c05a68dcdb19c4d7a",
+			wantAddress:         "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
+			wantErr:             false,
 		},
 		{
 			name: "GenerateAccountFromSeed:fiiled-{invalid-signature-type}",
@@ -284,11 +284,11 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 				signatureType: model.SignatureType(-1),
 				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
-			wantPrivateKey:       nil,
-			wantPublicKey:        nil,
-			wantPublickKeyString: "",
-			wantAddress:          "",
-			wantErr:              true,
+			wantPrivateKey:      nil,
+			wantPublicKey:       nil,
+			wantPublicKeyString: "",
+			wantAddress:         "",
+			wantErr:             true,
 		},
 	}
 	for _, tt := range tests {
@@ -305,8 +305,8 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 			if !reflect.DeepEqual(gotPublicKey, tt.wantPublicKey) {
 				t.Errorf("Signature.GenerateAccountFromSeed() gotPublicKey = %v, want %v", gotPublicKey, tt.wantPublicKey)
 			}
-			if gotPublickKeyString != tt.wantPublickKeyString {
-				t.Errorf("Signature.GenerateAccountFromSeed() gotPublickKeyString = %v, want %v", gotPublickKeyString, tt.wantPublickKeyString)
+			if gotPublickKeyString != tt.wantPublicKeyString {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotPublickKeyString = %v, want %v", gotPublickKeyString, tt.wantPublicKeyString)
 			}
 			if gotAddress != tt.wantAddress {
 				t.Errorf("Signature.GenerateAccountFromSeed() gotAddress = %v, want %v", gotAddress, tt.wantAddress)

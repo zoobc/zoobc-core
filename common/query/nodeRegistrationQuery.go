@@ -295,10 +295,10 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE latest = ? AND (height || '_' || id) IN (
-				SELECT (MAX(height) || '_' || id) as con
-				FROM %s
-				GROUP BY id
+			WHERE latest = ? AND (id, height) IN (
+				SELECT t2.id, MAX(t2.height)
+				FROM %s as t2
+				GROUP BY t2.id
 			)`,
 				nrq.TableName,
 				nrq.TableName,
@@ -368,7 +368,13 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 }
 
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE "+
-		"height >= %d AND height <= %d AND latest=1 ORDER BY height DESC",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, MAX("+
+		"t2.height) FROM %s as t2 WHERE height >= %d AND height <= %d GROUP BY t2.id) ORDER BY height",
+		strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight, toHeight)
+}
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (nrq *NodeRegistrationQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+		nrq.TableName, fromHeight, toHeight)
 }

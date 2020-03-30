@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -11,9 +10,9 @@ import (
 )
 
 type (
-	TXGeneratorCommands struct {
-		DB *sql.DB
-	}
+	// TXGeneratorCommands represent struct of transaction generator commands
+	TXGeneratorCommands struct{}
+	// RunCommand represent of output function from transaction generator commands
 	RunCommand func(ccmd *cobra.Command, args []string)
 )
 
@@ -115,6 +114,12 @@ func init() {
 	registerNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
 	registerNodeCmd.Flags().StringVar(&nodeAddress, "node-address", "", "(ip) Address of the node")
 	registerNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
+	registerNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "proof-of-ownership-hex", "", "the hex string proof of owenership bytes")
+	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
+	registerNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	registerNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 
 	/*
 		UpdateNode Command
@@ -123,6 +128,12 @@ func init() {
 	updateNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
 	updateNodeCmd.Flags().StringVar(&nodeAddress, "node-address", "", "(ip) Address of the node")
 	updateNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
+	updateNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
+	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
+	updateNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	updateNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 
 	/*
 		RemoveNode Command
@@ -134,6 +145,12 @@ func init() {
 	*/
 	claimNodeCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "", "Account address of the owner of the node")
 	claimNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
+	claimNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
+	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
+	claimNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
+		"make sure to download the database from node or run this command on node")
+	claimNodeCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
+		"make sure to download the database from node or run this command on node")
 
 	/*
 		SetupAccountDataset Command
@@ -168,9 +185,9 @@ func init() {
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
-func Commands(sqliteDB *sql.DB) *cobra.Command {
+func Commands() *cobra.Command {
 	if txGeneratorCommandsInstance == nil {
-		txGeneratorCommandsInstance = &TXGeneratorCommands{DB: sqliteDB}
+		txGeneratorCommandsInstance = &TXGeneratorCommands{}
 	}
 
 	sendMoneyCmd.Run = txGeneratorCommandsInstance.SendMoneyProcess()
@@ -179,7 +196,7 @@ func Commands(sqliteDB *sql.DB) *cobra.Command {
 	txCmd.AddCommand(registerNodeCmd)
 	updateNodeCmd.Run = txGeneratorCommandsInstance.UpdateNodeProcess()
 	txCmd.AddCommand(updateNodeCmd)
-	removeNodeCmd.Run = txGeneratorCommandsInstance.RemoveAccountDatasetProcess()
+	removeNodeCmd.Run = txGeneratorCommandsInstance.RemoveNodeProcess()
 	txCmd.AddCommand(removeNodeCmd)
 	claimNodeCmd.Run = txGeneratorCommandsInstance.ClaimNodeProcess()
 	txCmd.AddCommand(claimNodeCmd)
@@ -220,24 +237,32 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 }
 
 // RegisterNodeProcess for generate TX RegisterNode type
-func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
+func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(
-			senderSeed,
-			senderSignatureType,
-			version,
-			timestamp,
-			fee,
-			recipientAccountAddress,
+		var (
+			tx = GenerateBasicTransaction(
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress,
+			)
+			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			poow       = GenerateProofOfOwnership(
+				databasePath,
+				databaseName,
+				nodeOwnerAccountAddress,
+				nodeSeed,
+				proofOfOwnershipHex,
+			)
 		)
 		tx = GenerateTxRegisterNode(
 			tx,
-			nodeOwnerAccountAddress,
-			nodeSeed,
-			recipientAccountAddress,
 			nodeAddress,
 			lockedBalance,
-			txg.DB,
+			nodePubKey,
+			poow,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -247,23 +272,33 @@ func (txg *TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 }
 
 // UpdateNodeProcess for generate TX UpdateNode type
-func (txg *TXGeneratorCommands) UpdateNodeProcess() RunCommand {
+func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(
-			senderSeed,
-			senderSignatureType,
-			version,
-			timestamp,
-			fee,
-			recipientAccountAddress,
+		var (
+			tx = GenerateBasicTransaction(
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress,
+			)
+			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			poow       = GenerateProofOfOwnership(
+				databasePath,
+				databaseName,
+				nodeOwnerAccountAddress,
+				nodeSeed,
+				proofOfOwnershipHex,
+			)
 		)
+
 		tx = GenerateTxUpdateNode(
 			tx,
-			nodeOwnerAccountAddress,
-			nodeSeed,
 			nodeAddress,
 			lockedBalance,
-			txg.DB,
+			nodePubKey,
+			poow,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -292,22 +327,30 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 }
 
 // ClaimNodeProcess for generate TX ClaimNode type
-func (txg *TXGeneratorCommands) ClaimNodeProcess() RunCommand {
+func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(
-			senderSeed,
-			senderSignatureType,
-			version,
-			timestamp,
-			fee,
-			recipientAccountAddress,
+		var (
+			tx = GenerateBasicTransaction(
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress,
+			)
+			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			poow       = GenerateProofOfOwnership(
+				databasePath,
+				databaseName,
+				nodeOwnerAccountAddress,
+				nodeSeed,
+				proofOfOwnershipHex,
+			)
 		)
 		tx = GenerateTxClaimNode(
 			tx,
-			nodeOwnerAccountAddress,
-			nodeSeed,
-			recipientAccountAddress,
-			txg.DB,
+			nodePubKey,
+			poow,
 		)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -328,6 +371,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
+
 		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)

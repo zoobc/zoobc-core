@@ -76,6 +76,9 @@ run:
 
 issues:
     exclude-rules:
+        - text: "should be"
+          linters:
+              - stylecheck
         - text: "rows.Err must be checked"
           linters:
               - rowserrcheck

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -139,6 +140,8 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize services
+	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
+
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -146,6 +149,7 @@ func init() {
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(mainchain),
 		loggerCoreService,
+		blockchainStatusService,
 	)
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
@@ -160,7 +164,6 @@ func init() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 	)
-	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -187,7 +190,12 @@ func init() {
 		query.NewAccountDatasetsQuery(),
 		query.NewEscrowTransactionQuery(),
 		query.NewPublishedReceiptQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewPendingSignatureQuery(),
+		query.NewMultisignatureInfoQuery(),
+		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
+		query.GetDerivedQuery(mainchain),
 	)
 
 	snapshotService = service.NewSnapshotService(
@@ -285,6 +293,9 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
 	log.Printf("myAddress: %s", myAddress)
+	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
+		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
+	}
 }
 
 func initLogInstance() {
@@ -548,6 +559,10 @@ func startMainchain() {
 			)
 		}
 		if node != nil {
+			// register node config public key, so node registration service can detect if node has been admitted
+			nodeRegistrationService.SetCurrentNodePublicKey(nodePublicKey)
+			// default to isBlocksmith=true
+			blockchainStatusService.SetIsBlocksmith(true)
 			mainchainProcessor = smith.NewBlockchainProcessor(
 				mainchainBlockService.GetChainType(),
 				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
@@ -808,8 +823,12 @@ func startBlockchainSyncronizers() {
 					loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
 						"at height is %d. Start downloading...", ct.GetName(),
 						lastSpineBlockManifest.SpineBlockManifestHeight)
-					if err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest); err != nil {
-						loggerCoreService.Info(err)
+					snapshotFileInfo, err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest)
+					if err != nil {
+						loggerCoreService.Warning(err)
+					} else if err := snapshotBlockServices[ct.GetTypeInt()].ImportSnapshotFile(snapshotFileInfo); err != nil {
+						loggerCoreService.Warningf("error importing snapshot file for chaintype %s at height %d", ct.GetName(),
+							lastSpineBlockManifest.SpineBlockManifestHeight)
 					}
 				}
 			}

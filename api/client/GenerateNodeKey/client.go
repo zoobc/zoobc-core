@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -21,7 +20,7 @@ import (
 func main() {
 	var apiRPCPort int
 	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
-		logrus.Fatal(err)
+		log.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
 		if apiRPCPort == 0 {

@@ -38,9 +38,15 @@ var (
 	nodeOwnerAccountAddress string
 	nodeAddress             string
 	lockedBalance           int64
+<<<<<<< HEAD
 	poowMessageByte         []byte
 	signatureByte           []byte
 	nodePubKey              []byte
+=======
+	proofOfOwnershipHex     string
+	databasePath            string
+	databaseName            string
+>>>>>>> 4f354ef2df93b708fe5ccd791c50300b6b633bed
 
 	// dataset transaction
 	property   string

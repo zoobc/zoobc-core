@@ -188,10 +188,10 @@ func TestAccountBalanceQuery_Rollback(t *testing.T) {
 				},
 				{`
 			UPDATE account_balance SET latest = ?
-			WHERE latest = ? AND (block_height || '_' || account_address) IN (
-				SELECT (MAX(block_height) || '_' || account_address) as con
-				FROM account_balance
-				GROUP BY account_address
+			WHERE latest = ? AND (account_address, block_height) IN (
+				SELECT t2.account_address, MAX(t2.block_height)
+				FROM account_balance as t2
+				GROUP BY t2.account_address
 			)`,
 					1, 0,
 				},
@@ -281,14 +281,25 @@ func TestAccountBalanceQuery_GetAccountBalances(t *testing.T) {
 	})
 }
 
-func TestAccountBalanceQuery_GetAccountBalancesForSnapshot(t *testing.T) {
-	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
-		strQry := mockAccountBalanceQuery.SelectDataForSnapshot(0, 1)
-		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue," +
-			"latest FROM account_balance WHERE latest = 1 AND block_height >= 0 AND block_height <= 1 ORDER BY block_height DESC"
-		if strQry != want {
-			t.Errorf("string not match:\nget: %s\nwant: %s", strQry, want)
+func TestAccountBalanceQuery_SelectDataForSnapshot(t *testing.T) {
+	t.Run("SelectDataForSnapshot", func(t *testing.T) {
+		q := mockAccountBalanceQuery.SelectDataForSnapshot(0, 10)
+		wantQ := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue," +
+			"latest FROM account_balance WHERE (account_address, block_height) IN (SELECT t2.account_address, " +
+			"MAX(t2.block_height) FROM account_balance as t2 WHERE t2.block_height >= 0 AND t2.block_height <= 10 GROUP BY t2." +
+			"account_address) ORDER BY block_height"
+		if q != wantQ {
+			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
+	})
+}
 
+func TestAccountBalanceQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	t.Run("TrimDataBeforeSnapshot", func(t *testing.T) {
+		q := mockAccountBalanceQuery.TrimDataBeforeSnapshot(0, 10)
+		wantQ := "DELETE FROM account_balance WHERE block_height >= 0 AND block_height <= 10"
+		if q != wantQ {
+			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
+		}
 	})
 }

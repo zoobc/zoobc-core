@@ -24,7 +24,12 @@ type (
 		AccountDatasetQuery        query.AccountDatasetsQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		PendingTransactionQuery    query.PendingTransactionQueryInterface
+		PendingSignatureQuery      query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		DerivedQueries             []query.DerivedQuery
 	}
 )
 
@@ -39,7 +44,12 @@ func NewSnapshotMainBlockService(
 	accountDatasetQuery query.AccountDatasetsQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	pendingTransactionQuery query.PendingTransactionQueryInterface,
+	pendingSignatureQuery query.PendingSignatureQueryInterface,
+	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
+	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
+	derivedQueries []query.DerivedQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:               snapshotPath,
@@ -53,7 +63,12 @@ func NewSnapshotMainBlockService(
 		ParticipationScoreQuery:    participationScoreQuery,
 		EscrowTransactionQuery:     escrowTransactionQuery,
 		PublishedReceiptQuery:      publishedReceiptQuery,
+		PendingTransactionQuery:    pendingTransactionQuery,
+		PendingSignatureQuery:      pendingSignatureQuery,
+		MultisignatureInfoQuery:    multisignatureInfoQuery,
+		BlockQuery:                 blockQuery,
 		SnapshotQueries:            snapshotQueries,
+		DerivedQueries:             derivedQueries,
 	}
 }
 
@@ -67,12 +82,12 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 		snapshotExpirationTimestamp = block.Timestamp + int64(ss.chainType.GetSnapshotGenerationTimeout().Seconds())
 	)
 
-	if block.Height <= constant.MinRollbackBlocks {
-		return nil, blocker.NewBlocker(blocker.ValidationErr,
-			fmt.Sprintf("invalid snapshot height: %d", block.Height))
-	}
 	// (safe) height to get snapshot's data from
 	snapshotPayloadHeight := block.Height - constant.MinRollbackBlocks
+	if block.Height <= constant.MinRollbackBlocks {
+		return nil, blocker.NewBlocker(blocker.ValidationErr,
+			fmt.Sprintf("invalid snapshot height: %d", int32(snapshotPayloadHeight)))
+	}
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
@@ -92,6 +107,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 			}
 			defer rows.Close()
 			switch qryRepoName {
+			case "block":
+				snapshotPayload.Blocks, err = ss.BlockQuery.BuildModel([]*model.Block{}, rows)
 			case "accountBalance":
 				snapshotPayload.AccountBalances, err = ss.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 			case "nodeRegistration":
@@ -107,6 +124,12 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 					PublishedReceipt{}, rows)
 			case "escrowTransaction":
 				snapshotPayload.EscrowTransactions, err = ss.EscrowTransactionQuery.BuildModels(rows)
+			case "pendingTransaction":
+				snapshotPayload.PendingTransactions, err = ss.PendingTransactionQuery.BuildModel([]*model.PendingTransaction{}, rows)
+			case "pendingSignature":
+				snapshotPayload.PendingSignatures, err = ss.PendingSignatureQuery.BuildModel([]*model.PendingSignature{}, rows)
+			case "multisignatureInfo":
+				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
@@ -138,7 +161,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 	if err != nil {
 		return err
 	}
-	err = ss.InsertSnapshotPayloadToDb(snapshotPayload)
+	err = ss.InsertSnapshotPayloadToDB(snapshotPayload, snapshotFileInfo.Height)
 	if err != nil {
 		return err
 	}
@@ -148,19 +171,16 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 
 // IsSnapshotHeight returns true if chain height passed is a snapshot height
 func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
-	snapshotInterval := ss.chainType.GetSnapshotInterval()
-	if snapshotInterval < constant.MinRollbackBlocks {
-		if height < constant.MinRollbackBlocks {
-			return false
-		}
-		return (constant.MinRollbackBlocks+height)%snapshotInterval == 0
+	if height <= constant.MinRollbackBlocks {
+		return false
 	}
+	snapshotInterval := ss.chainType.GetSnapshotInterval()
 	return height%snapshotInterval == 0
 
 }
 
-// InsertSnapshotPayloadToDb insert snapshot data to db
-func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.SnapshotPayload) error {
+// InsertSnapshotPayloadToDB insert snapshot data to db
+func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.SnapshotPayload, height uint32) error {
 	var (
 		queries [][]interface{}
 	)
@@ -170,47 +190,83 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		return err
 	}
 
-	for _, rec := range payload.AccountBalances {
-		qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
+	dummyArgs := make([]interface{}, 0)
+	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
+		qry := snapshotQuery.TrimDataBeforeSnapshot(0, height)
 		queries = append(queries,
 			append(
-				[]interface{}{qry}, args...),
+				[]interface{}{qry}, dummyArgs...),
 		)
 
-	}
-
-	for _, rec := range payload.NodeRegistrations {
-		qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, args...),
-		)
-	}
-
-	for _, rec := range payload.PublishedReceipts {
-		qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, args...),
-		)
-	}
-
-	for _, rec := range payload.ParticipationScores {
-		qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, args...),
-		)
-	}
-
-	for _, rec := range payload.EscrowTransactions {
-		qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
-		queries = append(queries, qryArgs...)
-	}
-
-	for _, rec := range payload.AccountDatasets {
-		qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
-		queries = append(queries, qryArgs...)
+		switch qryRepoName {
+		case "block":
+			for _, rec := range payload.Blocks {
+				qry, args := ss.BlockQuery.InsertBlock(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "accountBalance":
+			for _, rec := range payload.AccountBalances {
+				qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "nodeRegistration":
+			for _, rec := range payload.NodeRegistrations {
+				qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "accountDataset":
+			for _, rec := range payload.AccountDatasets {
+				qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "participationScore":
+			for _, rec := range payload.ParticipationScores {
+				qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "publishedReceipt":
+			for _, rec := range payload.PublishedReceipts {
+				qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "escrowTransaction":
+			for _, rec := range payload.EscrowTransactions {
+				qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "pendingTransaction":
+			for _, rec := range payload.PendingTransactions {
+				qryArgs := ss.PendingTransactionQuery.InsertPendingTransaction(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "pendingSignature":
+			for _, rec := range payload.PendingSignatures {
+				qryArgs := ss.PendingSignatureQuery.InsertPendingSignature(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "multisignatureInfo":
+			for _, rec := range payload.MultiSignatureInfos {
+				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
+				queries = append(queries, qryArgs...)
+			}
+		default:
+			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
+		}
 	}
 
 	err = ss.QueryExecutor.ExecuteTransactions(queries)
@@ -221,6 +277,21 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDb(payload *model.Sna
 		}
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
 	}
+
+	for key, dQuery := range ss.DerivedQueries {
+		queries := dQuery.Rollback(height)
+		err = ss.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			fmt.Println(key)
+			fmt.Println("Failed execute rollback queries, ", err.Error())
+			err = ss.QueryExecutor.RollbackTx()
+			if err != nil {
+				fmt.Println("Failed to run RollbackTX DB")
+			}
+			break
+		}
+	}
+
 	err = ss.QueryExecutor.CommitTx()
 	if err != nil {
 		return err

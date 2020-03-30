@@ -5,6 +5,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -46,6 +48,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	)
 	for chainType, blockService := range hs.BlockServices {
 		lastBlock, err = blockService.GetLastBlock()
+
 		if lastBlock == nil || err != nil {
 			continue
 		}
@@ -54,6 +57,10 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 			Height:    lastBlock.Height,
 			LastBlock: lastBlock,
 		})
+	}
+
+	if lastBlock == nil {
+		return nil, status.Error(codes.InvalidArgument, "LastBlockIsNil")
 	}
 
 	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
