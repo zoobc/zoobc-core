@@ -44,6 +44,7 @@ var (
 	proofOfOwnershipHex     string
 	databasePath            string
 	databaseName            string
+	hdwalletflag            string
 
 	// dataset transaction
 	property   string

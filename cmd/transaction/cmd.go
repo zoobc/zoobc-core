@@ -61,18 +61,6 @@ var (
 		Long: "transaction sub command used to generate 'multi signature' transaction that require multiple account to submit their signature " +
 			"before it is valid to be executed",
 	}
-	registerNodeCmdHDwallet = &cobra.Command{
-		Use:   "register-node",
-		Short: "send-money command used to generate \"send money\" transaction based on HD Wallet",
-	}
-	updateNodeCmdHDwallet = &cobra.Command{
-		Use:   "update-node",
-		Short: "update-node command used to generate \"update node\" transaction based on HD Wallet",
-	}
-	removeNodeCmdHDwallet = &cobra.Command{
-		Use:   "remove-node",
-		Short: "remove-node command used to generate \"remove node\" transaction based on HD Wallet",
-	}
 )
 
 func init() {
@@ -208,12 +196,6 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(escrowApprovalCmd)
 	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
 	txCmd.AddCommand(multiSigCmd)
-	registerNodeCmdHDwallet.Run = txGeneratorCommandsInstance.RegisterNodeProcessHDwallet()
-	txCmd.AddCommand(registerNodeCmdHDwallet)
-	updateNodeCmdHDwallet.Run = txGeneratorCommandsInstance.UpdateNodeProcessHDwallet()
-	txCmd.AddCommand(updateNodeCmdHDwallet)
-	removeNodeCmdHDwallet.Run = txGeneratorCommandsInstance.RemoveNodeProcessHDwallet()
-	txCmd.AddCommand(removeNodeCmdHDwallet)
 	return txCmd
 }
 
@@ -439,77 +421,5 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		} else {
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 		}
-	}
-}
-
-// RegisterNodeProcess for generate TX RegisterNode type
-func (txg *TXGeneratorCommands) RegisterNodeProcessHDwallet() RunCommand {
-	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(
-			senderSeed,
-			senderSignatureType,
-			version,
-			timestamp,
-			fee,
-			recipientAccountAddress,
-		)
-		tx = GenerateTxRegisterNodeHDwallet(
-			tx,
-			recipientAccountAddress,
-			nodeAddress,
-			lockedBalance,
-			poowMessageByte,
-			signatureByte,
-			nodePubKey,
-		)
-		if escrow {
-			tx = GenerateEscrowedTransaction(tx)
-		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
-	}
-}
-
-// GenerateTxUpdateNodeHDwallet for generate TX UpdateNode type
-func (txg *TXGeneratorCommands) UpdateNodeProcessHDwallet() RunCommand {
-	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(
-			senderSeed,
-			senderSignatureType,
-			version,
-			timestamp,
-			fee,
-			recipientAccountAddress,
-		)
-		tx = GenerateTxUpdateNodeHDwallet(
-			tx,
-			nodeAddress,
-			lockedBalance,
-			poowMessageByte,
-			signatureByte,
-			nodePubKey,
-		)
-		if escrow {
-			tx = GenerateEscrowedTransaction(tx)
-		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
-	}
-}
-
-// GenerateTxRemoveNodeHDwallet for generate TX RemoveNode type
-func (*TXGeneratorCommands) RemoveNodeProcessHDwallet() RunCommand {
-	return func(ccmd *cobra.Command, args []string) {
-		tx := GenerateBasicTransaction(
-			senderSeed,
-			senderSignatureType,
-			version,
-			timestamp,
-			fee,
-			recipientAccountAddress,
-		)
-		tx = GenerateTxRemoveNodeHDwallet(tx, nodePubKey)
-		if escrow {
-			tx = GenerateEscrowedTransaction(tx)
-		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }
