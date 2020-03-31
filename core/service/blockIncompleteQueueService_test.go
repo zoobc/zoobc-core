@@ -67,3 +67,73 @@ func TestBlockIncompleteQueueService_GetBlockQueue(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
+	mockBlockIDsMap := make(map[int64]BlockIDsMap)
+	mockBlockIDsMap[int64(0)] = BlockIDsMap{0: true}
+
+	mockBlockWithMetaData := make(map[int64]*BlockWithMetaData)
+	mockBlockWithMetaData[int64(0)] = &BlockWithMetaData{Block: &model.Block{}}
+
+	mockTransactionIDsMap := make(map[int64]TransactionIDsMap)
+	mockTransactionIDsMap[int64(0)] = TransactionIDsMap{0: 1}
+
+	type fields struct {
+		BlocksQueue                   map[int64]*BlockWithMetaData
+		BlockRequiringTransactionsMap map[int64]TransactionIDsMap
+		TransactionsRequiredMap       map[int64]BlockIDsMap
+		Chaintype                     chaintype.ChainType
+		BlockQueueLock                sync.Mutex
+		Observer                      *observer.Observer
+	}
+	type args struct {
+		transaction *model.Transaction
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []*model.Block
+	}{
+		// TODO: Add test cases.
+		{
+			name: "AddTransaction:errorBlockIsNil",
+			fields: fields{
+				TransactionsRequiredMap: make(map[int64]BlockIDsMap),
+			},
+			args: args{
+				transaction: &model.Transaction{},
+			},
+			want: nil,
+		},
+		{
+			name: "AddTransaction:errorTxsIsEmpty",
+			fields: fields{
+				BlocksQueue:                   mockBlockWithMetaData,
+				TransactionsRequiredMap:       mockBlockIDsMap,
+				BlockRequiringTransactionsMap: mockTransactionIDsMap,
+			},
+			args: args{
+				transaction: &model.Transaction{
+					BlockID: int64(0),
+				},
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buqs := &BlockIncompleteQueueService{
+				BlocksQueue:                   tt.fields.BlocksQueue,
+				BlockRequiringTransactionsMap: tt.fields.BlockRequiringTransactionsMap,
+				TransactionsRequiredMap:       tt.fields.TransactionsRequiredMap,
+				Chaintype:                     tt.fields.Chaintype,
+				BlockQueueLock:                tt.fields.BlockQueueLock,
+				Observer:                      tt.fields.Observer,
+			}
+			if got := buqs.AddTransaction(tt.args.transaction); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockIncompleteQueueService.AddTransaction() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
