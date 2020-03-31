@@ -4,6 +4,7 @@ badgerDbPath="./resource"
 badgerDbName="zoobc_5_kv/"
 configPath = "./resource/"
 nodeKeyFile = "node_keys_5.json"
+profilingFilePathName = "./resource/node_5.prof"
 snapshotPath = "./resource/snapshots"
 
 # Peer
