@@ -3,6 +3,7 @@ dbName = "zoobc.db"
 badgerDbPath="./resource"
 badgerDbName="zoobc_1_kv/"
 configPath = "./resource/"
+profilingFilePathName = "./resource/node_%s.prof"
 nodeKeyFile = "node_keys.json"
 snapshotPath = "./resource/snapshots"
 
