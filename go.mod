@@ -7,10 +7,11 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btcutil v1.0.1
-	github.com/dgraph-io/badger v1.6.0
+	github.com/dgraph-io/badger v1.6.1
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
-	github.com/golang/mock v1.3.1-0.20190508161146-9fa652df1129
-	github.com/golang/protobuf v1.3.3
+	github.com/golang/mock v1.3.1
+	github.com/golang/protobuf v1.3.5
 	github.com/google/go-cmp v0.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3
@@ -20,10 +21,11 @@ require (
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/common v0.7.0 // indirect
-	github.com/prometheus/procfs v0.0.5 // indirect
-	github.com/shirou/gopsutil v2.19.9+incompatible
+	github.com/prometheus/procfs v0.0.11 // indirect
+	github.com/shirou/gopsutil v2.19.12+incompatible
 	github.com/shirou/w32 v0.0.0-20160930032740-bb4de0191aa4 // indirect
 	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/cast v1.3.1 // indirect
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.6.2
@@ -32,7 +34,9 @@ require (
 	github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
+	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20200306153348-d950eab6f860
-	google.golang.org/grpc v1.27.0
+	google.golang.org/grpc v1.27.1
+	gopkg.in/ini.v1 v1.51.1 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
