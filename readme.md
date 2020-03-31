@@ -89,6 +89,22 @@ go run main.go
     1. `debug` (bool): enters debug mode with capabilities like `prometheus monitoring` (uses port defined by `monitoringPort` in the config file).
     2. `config-postfix` (string): defines which config file with defined postfix to use. It will use the config file in `./resource/config{postfix}`.toml.
     3. `config-path` (string): defines the directory that will hold the resources and configs. by default it will use `./resource`. This will be useful particularly for robust resource placements, for example while used in Zoobc-Testing-Framework.
+    4. `cpu-profile` (bool): enable cpu profiling *(1)* for the running instance. A profile (node_cpu.prof) file will be persisted to storage 
+    at a
+     location defined in profilingFilePathName config parameter.
+    5. `mem-profile` (bool): enable memory (heap) profiling *(1)* for the running instance. A profile (node_mem.prof) file will be persisted
+     to 
+    storage at a
+     location defined in profilingFilePathName config parameter.
+    
+    *(1)* Profiles can then be visualized with the pprof tool:
+    ```
+    go tool pprof .resource/node_cpu.prof 
+    ```
+
+    See [Getting started with Go CPU and memory profiling](https://flaviocopes.com/golang-profiling/) 
+    for documentation on how to use goLang pprof tool
+    
 -   Command line tools
     ```bash
     cd cmd
