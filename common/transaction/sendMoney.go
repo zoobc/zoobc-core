@@ -399,7 +399,6 @@ account ledger, and escrow
 func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	var (
 		queries [][]interface{}
-		block   *model.Block
 		err     error
 	)
 
@@ -425,12 +424,7 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 	queries = append(queries, senderAccountLedgerArgs)
 
-	// Insert Escrow
-	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	tx.Escrow.Timeout += uint64(block.GetHeight())
+	tx.Escrow.Timeout += uint64(tx.Height)
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
 	queries = append(queries, escrowArgs...)
 
@@ -453,7 +447,6 @@ func (tx *SendMoney) EscrowApproval(
 		queries [][]interface{}
 		err     error
 	)
-	fmt.Printf("EscrowApproval")
 
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:
