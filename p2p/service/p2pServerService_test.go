@@ -130,7 +130,8 @@ func TestNewP2PServerService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewP2PServerService(tt.args.fileService, tt.args.peerExplorer, tt.args.blockServices, tt.args.mempoolServices, tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
+			if got := NewP2PServerService(tt.args.fileService, tt.args.peerExplorer, tt.args.blockServices, tt.args.mempoolServices,
+				tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1495,7 +1496,7 @@ func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(
 	lastBlock *model.Block,
 	nodeSecretPhrase string,
 ) ([]*model.BatchReceipt, error) {
-	return []*model.BatchReceipt{&model.BatchReceipt{
+	return []*model.BatchReceipt{{
 		SenderPublicKey: []byte{1},
 	}}, nil
 }
@@ -1608,7 +1609,7 @@ func TestP2PServerService_SendBlockTransactions(t *testing.T) {
 				chainType: &mockChainType,
 			},
 			want: &model.SendBlockTransactionsResponse{
-				BatchReceipts: []*model.BatchReceipt{&model.BatchReceipt{
+				BatchReceipts: []*model.BatchReceipt{{
 					SenderPublicKey: []byte{1},
 				}},
 			},
@@ -1821,7 +1822,7 @@ func TestP2PServerService_RequestDownloadFile(t *testing.T) {
 				fileChunkNames: []string{mockRequestDownloadFileName},
 			},
 			want: &model.FileDownloadResponse{
-				FileChunks: [][]byte{[]byte{1}},
+				FileChunks: [][]byte{{1}},
 			},
 			wantErr: false,
 		},
