@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 	"syscall"
@@ -95,7 +96,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
 	nodeKey                                         *model.NodeKey
-	cpuProfile                                      bool
+	cpuProfile, memProfile                          bool
 )
 
 func init() {
@@ -109,20 +110,10 @@ func init() {
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
+	flag.BoolVar(&memProfile, "mem-profile", false, "if this flag is used, write memory (heap) profile to file")
 	flag.Parse()
 
 	loadNodeConfig(configPath, "config"+configPostfix, "toml")
-
-	// start profiling if enabled
-	if cpuProfile {
-		f, err := os.Create(profilingFilePathName)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			log.Info("CPU Profiling failed to start")
-		}
-	}
 
 	initLogInstance()
 	// initialize/open db and queryExecutor
@@ -874,6 +865,42 @@ func startBlockchainSyncronizers() {
 }
 
 func main() {
+	// start cpu profiling if enabled
+	if cpuProfile {
+		if profilingFilePathName == "" {
+			log.Error("missing profilingFilePathName configuration parameter")
+		} else {
+			// add cpu to prof file name
+			f, err := os.Create(fmt.Sprintf(profilingFilePathName, "cpu"))
+			if err != nil {
+				log.Fatal("could not create CPU profile: ", err)
+			}
+			defer f.Close() // error handling omitted for example
+			if err := pprof.StartCPUProfile(f); err != nil {
+				log.Error("could not start CPU profile: ", err)
+			}
+			defer pprof.StopCPUProfile()
+		}
+	}
+
+	// start memory profiling if enabled
+	if memProfile {
+		if profilingFilePathName == "" {
+			log.Error("missing profilingFilePathName configuration parameter")
+		} else {
+			// add mem to prof file name
+			f, err := os.Create(fmt.Sprintf(profilingFilePathName, "mem"))
+			if err != nil {
+				log.Fatal("could not create memory profile: ", err)
+			}
+			defer f.Close() // error handling omitted for example
+			runtime.GC()    // get up-to-date statistics
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				log.Error("could not write memory profile: ", err)
+			}
+		}
+	}
+
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		loggerCoreService.Fatal(err)
@@ -901,10 +928,6 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
 	loggerCoreService.Info("Shutting down node...")
-	if cpuProfile {
-		// stop profiling when exiting app
-		defer pprof.StopCPUProfile()
-	}
 
 	if mainchainProcessor != nil {
 		mainchainProcessor.Stop()
