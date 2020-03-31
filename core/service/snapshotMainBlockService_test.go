@@ -209,6 +209,10 @@ type (
 		query.MultisignatureInfoQueryInterface
 		success bool
 	}
+	mockSkippedBlocksmithQuery struct {
+		query.SkippedBlocksmithQueryInterface
+		success bool
+	}
 	mockSnapshotBlockQuery struct {
 		query.BlockQueryInterface
 		success bool
@@ -374,6 +378,12 @@ func (*mockSnapshotMultisignatureInfoQuery) BuildModel(multisignatureInfo []*mod
 	return []*model.MultiSignatureInfo{}, nil
 }
 
+func (*mockSkippedBlocksmithQuery) BuildModel(skippedBlocksmith []*model.SkippedBlocksmith,
+	rows *sql.Rows) ([]*model.SkippedBlocksmith,
+	error) {
+	return []*model.SkippedBlocksmith{}, nil
+}
+
 func (*mockSnapshotBlockQuery) BuildModel(blocks []*model.Block,
 	rows *sql.Rows) ([]*model.Block,
 	error) {
@@ -456,6 +466,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 	}
@@ -491,6 +502,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
 				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 			},
@@ -527,6 +539,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
 				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 			}
@@ -568,6 +581,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 		DerivedQueries             []query.DerivedQuery
@@ -607,6 +621,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
 				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
@@ -642,6 +657,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
 				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
 				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
@@ -669,6 +685,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
 				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 				DerivedQueries:             tt.fields.DerivedQueries,
@@ -725,6 +742,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
 		PendingSignatureQuery      query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
 		DerivedQueries             []query.DerivedQuery
@@ -756,6 +774,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PendingTransactionQuery: query.NewPendingTransactionQuery(),
 				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
 				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
@@ -779,6 +798,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
 				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
 				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 				DerivedQueries:             tt.fields.DerivedQueries,

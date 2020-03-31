@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -46,7 +48,7 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath, profilingFilePathName string
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
@@ -94,6 +96,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
 	nodeKey                                         *model.NodeKey
+	cpuProfile, memProfile                          bool
 )
 
 func init() {
@@ -106,6 +109,8 @@ func init() {
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
+	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
+	flag.BoolVar(&memProfile, "mem-profile", false, "if this flag is used, write memory (heap) profile to file")
 	flag.Parse()
 
 	loadNodeConfig(configPath, "config"+configPostfix, "toml")
@@ -193,6 +198,7 @@ func init() {
 		query.NewPendingTransactionQuery(),
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
@@ -256,6 +262,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
+	profilingFilePathName = viper.GetString("profilingFilePathName")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
@@ -858,6 +865,42 @@ func startBlockchainSyncronizers() {
 }
 
 func main() {
+	// start cpu profiling if enabled
+	if cpuProfile {
+		if profilingFilePathName == "" {
+			log.Error("missing profilingFilePathName configuration parameter")
+		} else {
+			// add cpu to prof file name
+			f, err := os.Create(fmt.Sprintf(profilingFilePathName, "cpu"))
+			if err != nil {
+				log.Fatal("could not create CPU profile: ", err)
+			}
+			defer f.Close() // error handling omitted for example
+			if err := pprof.StartCPUProfile(f); err != nil {
+				log.Error("could not start CPU profile: ", err)
+			}
+			defer pprof.StopCPUProfile()
+		}
+	}
+
+	// start memory profiling if enabled
+	if memProfile {
+		if profilingFilePathName == "" {
+			log.Error("missing profilingFilePathName configuration parameter")
+		} else {
+			// add mem to prof file name
+			f, err := os.Create(fmt.Sprintf(profilingFilePathName, "mem"))
+			if err != nil {
+				log.Fatal("could not create memory profile: ", err)
+			}
+			defer f.Close() // error handling omitted for example
+			runtime.GC()    // get up-to-date statistics
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				log.Error("could not write memory profile: ", err)
+			}
+		}
+	}
+
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		loggerCoreService.Fatal(err)
@@ -885,6 +928,7 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
 	loggerCoreService.Info("Shutting down node...")
+
 	if mainchainProcessor != nil {
 		mainchainProcessor.Stop()
 	}
