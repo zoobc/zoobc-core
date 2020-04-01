@@ -207,7 +207,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
-		AccountDatasetQuery  query.AccountDatasetsQueryInterface
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
 	}
 	tests := []struct {
 		name    string

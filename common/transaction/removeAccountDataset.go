@@ -20,7 +20,7 @@ type RemoveAccountDataset struct {
 	Body                *model.RemoveAccountDatasetTransactionBody
 	Escrow              *model.Escrow
 	AccountBalanceQuery query.AccountBalanceQueryInterface
-	AccountDatasetQuery query.AccountDatasetsQueryInterface
+	AccountDatasetQuery query.AccountDatasetQueryInterface
 	QueryExecutor       query.ExecutorInterface
 	AccountLedgerQuery  query.AccountLedgerQueryInterface
 	EscrowQuery         query.EscrowTransactionQueryInterface

@@ -9,13 +9,13 @@ import (
 )
 
 type (
-	AccountDatasetsQuery struct {
+	AccountDatasetQuery struct {
 		PrimaryFields  []string
 		OrdinaryFields []string
 		TableName      string
 	}
 
-	AccountDatasetsQueryInterface interface {
+	AccountDatasetQueryInterface interface {
 		GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{})
 		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
 		AddDataset(dataset *model.AccountDataset) [][]interface{}
@@ -29,9 +29,9 @@ type (
 	}
 )
 
-// NewAccountDatasetsQuery will create a new AccountDatasetsQuery
-func NewAccountDatasetsQuery() *AccountDatasetsQuery {
-	return &AccountDatasetsQuery{
+// NewAccountDatasetsQuery will create a new AccountDatasetQuery
+func NewAccountDatasetsQuery() *AccountDatasetQuery {
+	return &AccountDatasetQuery{
 		PrimaryFields: []string{
 			"setter_account_address",
 			"recipient_account_address",
@@ -48,7 +48,7 @@ func NewAccountDatasetsQuery() *AccountDatasetsQuery {
 	}
 }
 
-func (adq *AccountDatasetsQuery) GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{}) {
+func (adq *AccountDatasetQuery) GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE recipient_account_address = ? AND latest = 1",
 			strings.Join(adq.GetFields(), ","),
 			adq.TableName,
@@ -56,7 +56,7 @@ func (adq *AccountDatasetsQuery) GetDatasetsByRecipientAccountAddress(accountRec
 		accountRecipient
 }
 
-func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{}) {
+func (adq *AccountDatasetQuery) GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{}) {
 	caseArgs := []interface{}{accountSetter, accountRecipient, property}
 	cq := NewCaseQuery()
 	cq.Select(adq.TableName, adq.GetFields()...)
@@ -73,7 +73,7 @@ func (adq *AccountDatasetsQuery) GetLastDataset(accountSetter, accountRecipient,
 	return cq.Build()
 }
 
-func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]interface{} {
+func (adq *AccountDatasetQuery) AddDataset(dataset *model.AccountDataset) [][]interface{} {
 	var (
 		queries [][]interface{}
 	)
@@ -146,7 +146,7 @@ func (adq *AccountDatasetsQuery) AddDataset(dataset *model.AccountDataset) [][]i
 	return queries
 }
 
-func (adq *AccountDatasetsQuery) RemoveDataset(dataset *model.AccountDataset) [][]interface{} {
+func (adq *AccountDatasetQuery) RemoveDataset(dataset *model.AccountDataset) [][]interface{} {
 	var (
 		queries [][]interface{}
 	)
@@ -183,7 +183,7 @@ func (adq *AccountDatasetsQuery) RemoveDataset(dataset *model.AccountDataset) []
 	return queries
 }
 
-func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []interface{} {
+func (adq *AccountDatasetQuery) UpdateVersion(dataset *model.AccountDataset) []interface{} {
 	updateVersionQ := fmt.Sprintf(
 		"UPDATE %s SET latest = false WHERE %s AND latest = true",
 		adq.TableName,
@@ -193,7 +193,7 @@ func (adq *AccountDatasetsQuery) UpdateVersion(dataset *model.AccountDataset) []
 }
 
 // GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
-func (adq *AccountDatasetsQuery) GetAccountDatasetEscrowApproval(
+func (adq *AccountDatasetQuery) GetAccountDatasetEscrowApproval(
 	recipientAccountAddress string,
 ) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
@@ -207,11 +207,11 @@ func (adq *AccountDatasetsQuery) GetAccountDatasetEscrowApproval(
 		}
 }
 
-func (adq *AccountDatasetsQuery) getTableName() string {
+func (adq *AccountDatasetQuery) getTableName() string {
 	return adq.TableName
 }
 
-func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {
+func (adq *AccountDatasetQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {
 	return []interface{}{
 		dataset.GetSetterAccountAddress(),
 		dataset.GetRecipientAccountAddress(),
@@ -228,7 +228,7 @@ func (adq *AccountDatasetsQuery) ExtractModel(dataset *model.AccountDataset) []i
 	ExtractArgsWhere represent extracted spesific field of account dataset model
 	(Primary field of account dataset)
 */
-func (adq *AccountDatasetsQuery) ExtractArgsWhere(dataset *model.AccountDataset) []interface{} {
+func (adq *AccountDatasetQuery) ExtractArgsWhere(dataset *model.AccountDataset) []interface{} {
 	return []interface{}{
 		dataset.GetSetterAccountAddress(),
 		dataset.GetRecipientAccountAddress(),
@@ -237,7 +237,7 @@ func (adq *AccountDatasetsQuery) ExtractArgsWhere(dataset *model.AccountDataset)
 	}
 }
 
-func (adq *AccountDatasetsQuery) BuildModel(
+func (adq *AccountDatasetQuery) BuildModel(
 	datasets []*model.AccountDataset,
 	rows *sql.Rows,
 ) ([]*model.AccountDataset, error) {
@@ -264,7 +264,7 @@ func (adq *AccountDatasetsQuery) BuildModel(
 	return datasets, nil
 }
 
-func (*AccountDatasetsQuery) Scan(dataset *model.AccountDataset, row *sql.Row) error {
+func (*AccountDatasetQuery) Scan(dataset *model.AccountDataset, row *sql.Row) error {
 	err := row.Scan(
 		&dataset.SetterAccountAddress,
 		&dataset.RecipientAccountAddress,
@@ -278,14 +278,14 @@ func (*AccountDatasetsQuery) Scan(dataset *model.AccountDataset, row *sql.Row) e
 	return err
 }
 
-func (adq *AccountDatasetsQuery) GetFields() []string {
+func (adq *AccountDatasetQuery) GetFields() []string {
 	return append(
 		adq.PrimaryFields,
 		adq.OrdinaryFields...,
 	)
 }
 
-func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+func (adq *AccountDatasetQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE height > ?", adq.TableName),
@@ -309,7 +309,7 @@ func (adq *AccountDatasetsQuery) Rollback(height uint32) (multiQueries [][]inter
 	}
 }
 
-func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE (%s) IN (SELECT "+
 		"%s FROM %s WHERE height >= %d AND height <= %d GROUP BY setter_account_address, recipient_account_address, "+
 		"property) ORDER BY height",
@@ -324,7 +324,7 @@ func (adq *AccountDatasetsQuery) SelectDataForSnapshot(fromHeight, toHeight uint
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
-func (adq *AccountDatasetsQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+func (adq *AccountDatasetQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
 		adq.TableName, fromHeight, toHeight)
 }

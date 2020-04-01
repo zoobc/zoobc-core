@@ -17,13 +17,13 @@ type (
 	}
 	// AccountDatasetService contain fields that needed for AccountDatasetServiceInterface
 	AccountDatasetService struct {
-		AccountDatasetQuery *query.AccountDatasetsQuery
+		AccountDatasetQuery *query.AccountDatasetQuery
 		QueryExecutor       query.ExecutorInterface
 	}
 )
 
 func NewAccountDatasetService(
-	accountDatasetQuery *query.AccountDatasetsQuery,
+	accountDatasetQuery *query.AccountDatasetQuery,
 	queryExecutor query.ExecutorInterface,
 ) AccountDatasetServiceInterface {
 	return &AccountDatasetService{

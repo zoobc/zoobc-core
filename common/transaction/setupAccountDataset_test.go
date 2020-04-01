@@ -121,7 +121,7 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 	}
@@ -210,7 +210,7 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
@@ -286,7 +286,7 @@ func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
@@ -352,7 +352,7 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
@@ -438,7 +438,7 @@ func TestSetupAccountDataset_GetAmount(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
@@ -485,7 +485,7 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
@@ -539,7 +539,7 @@ func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	tests := []struct {
@@ -599,7 +599,7 @@ func TestSetupAccountDataset_GetTransactionBody(t *testing.T) {
 		SenderAddress       string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {

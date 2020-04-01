@@ -19,7 +19,7 @@ type SetupAccountDataset struct {
 	Body                *model.SetupAccountDatasetTransactionBody
 	Escrow              *model.Escrow
 	AccountBalanceQuery query.AccountBalanceQueryInterface
-	AccountDatasetQuery query.AccountDatasetsQueryInterface
+	AccountDatasetQuery query.AccountDatasetQueryInterface
 	QueryExecutor       query.ExecutorInterface
 	AccountLedgerQuery  query.AccountLedgerQueryInterface
 	EscrowQuery         query.EscrowTransactionQueryInterface

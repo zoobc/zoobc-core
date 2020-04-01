@@ -43,7 +43,7 @@ func (*mockGetAccountDatasetsExecutor) ExecuteSelect(string, bool, ...interface{
 
 func TestAccountDatasetService_GetAccountDatasets(t *testing.T) {
 	type fields struct {
-		AccountDatasetQuery *query.AccountDatasetsQuery
+		AccountDatasetQuery *query.AccountDatasetQuery
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
@@ -150,7 +150,7 @@ func (*mockExecutorGetAccountDatasetErr) ExecuteSelectRow(string, bool, ...inter
 
 func TestAccountDatasetService_GetAccountDataset(t *testing.T) {
 	type fields struct {
-		AccountDatasetQuery *query.AccountDatasetsQuery
+		AccountDatasetQuery *query.AccountDatasetQuery
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {

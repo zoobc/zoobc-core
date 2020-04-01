@@ -2,13 +2,14 @@ package service
 
 import (
 	"database/sql"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/query"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -182,7 +183,7 @@ type (
 		success bool
 	}
 	mockSnapshotAccountDatasetQuery struct {
-		query.AccountDatasetsQueryInterface
+		query.AccountDatasetQueryInterface
 		success bool
 	}
 	mockSnapshotParticipationScoreQuery struct {
@@ -460,7 +461,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -575,7 +576,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -736,7 +737,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface

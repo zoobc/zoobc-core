@@ -30,7 +30,7 @@ type (
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
 		BlockQuery          query.BlockQueryInterface
-		AccountDatasetQuery query.AccountDatasetsQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		NormalFee           fee.FeeModelInterface
 		EscrowFee           fee.FeeModelInterface
 	}

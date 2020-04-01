@@ -11,7 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-var mockDatasetQuery = &AccountDatasetsQuery{
+var mockDatasetQuery = &AccountDatasetQuery{
 	PrimaryFields: []string{
 		"setter_account_address",
 		"recipient_account_address",
@@ -41,7 +41,7 @@ var mockDataset = &model.AccountDataset{
 func TestNewAccountDatasetsQuery(t *testing.T) {
 	tests := []struct {
 		name string
-		want *AccountDatasetsQuery
+		want *AccountDatasetQuery
 	}{
 		{
 			name: "success",
@@ -82,10 +82,10 @@ func TestAccountDatasetsQuery_GetDatasetsByRecipientAccountAddress(t *testing.T)
 		t.Run(tt.name, func(t *testing.T) {
 			gotQuery, gotArgs := mockDatasetQuery.GetDatasetsByRecipientAccountAddress(tt.args.RecipientAccountAddress)
 			if gotQuery != tt.wantQuery {
-				t.Errorf("AccountDatasetsQuery.GetDatasetsByRecipientAccountAddress() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
+				t.Errorf("AccountDatasetQuery.GetDatasetsByRecipientAccountAddress() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("AccountDatasetsQuery.GetDatasetsByRecipientAccountAddress() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("AccountDatasetQuery.GetDatasetsByRecipientAccountAddress() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -133,11 +133,11 @@ func TestAccountDatasetsQuery_GetLastDataset(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotQuery, gotArgs := mockDatasetQuery.GetLastDataset(tt.args.SetterAccountAddress, tt.args.RecipientAccountAddress, tt.args.property)
 			if gotQuery != tt.wantQuery {
-				t.Errorf("AccountDatasetsQuery.GetLastDataset() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
+				t.Errorf("AccountDatasetQuery.GetLastDataset() gotQuery = \n%v want \n%v", gotQuery, tt.wantQuery)
 			}
 
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("AccountDatasetsQuery.GetLastDataset() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("AccountDatasetQuery.GetLastDataset() gotArgs = \n%v want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -226,7 +226,7 @@ func TestAccountDatasetsQuery_AddDataset(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mockDatasetQuery.AddDataset(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AccountDatasetsQuery.AddDataset() = \n%v, want \n%v", got, tt.want)
+				t.Errorf("AccountDatasetQuery.AddDataset() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -282,7 +282,7 @@ func TestAccountDatasetsQuery_RemoveDataset(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mockDatasetQuery.RemoveDataset(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AccountDatasetsQuery.RemoveDataset() = \n%v, want \n%v", got, tt.want)
+				t.Errorf("AccountDatasetQuery.RemoveDataset() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -317,7 +317,7 @@ func TestAccountDatasetsQuery_ExtractModel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mockDatasetQuery.ExtractModel(tt.args.dataset); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AccountDatasetsQuery.ExtractModel() = %v, want %v", got, tt.want)
+				t.Errorf("AccountDatasetQuery.ExtractModel() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -342,7 +342,7 @@ func TestAccountDatasetsQuery_BuildModel(t *testing.T) {
 		rows, _ := db.Query("foo")
 		var tempDataset []*model.AccountDataset
 		if got, _ := mockDatasetQuery.BuildModel(tempDataset, rows); !reflect.DeepEqual(got[0], mockDataset) {
-			t.Errorf("AccountDatasetsQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
+			t.Errorf("AccountDatasetQuery.BuildModel() = \n%v want \n%v", got, mockDataset)
 		}
 	})
 }
@@ -398,13 +398,13 @@ func TestAccountDatasetsQuery_Scan(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &AccountDatasetsQuery{
+			a := &AccountDatasetQuery{
 				PrimaryFields:  tt.fields.PrimaryFields,
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,
 			}
 			if err := a.Scan(tt.args.dataset, tt.args.row); (err != nil) != tt.wantErr {
-				t.Errorf("AccountDatasetsQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AccountDatasetQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -455,13 +455,13 @@ func TestAccountDatasetsQuery_Rollback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			adq := &AccountDatasetsQuery{
+			adq := &AccountDatasetQuery{
 				PrimaryFields:  tt.fields.PrimaryFields,
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,
 			}
 			if got := adq.Rollback(tt.args.height); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AccountDatasetsQuery.Rollback() = \n%v \nwant \n%v", got, tt.want)
+				t.Errorf("AccountDatasetQuery.Rollback() = \n%v \nwant \n%v", got, tt.want)
 			}
 		})
 	}
@@ -499,13 +499,13 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			adq := &AccountDatasetsQuery{
+			adq := &AccountDatasetQuery{
 				PrimaryFields:  tt.fields.PrimaryFields,
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,
 			}
 			if got := adq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-				t.Errorf("AccountDatasetsQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+				t.Errorf("AccountDatasetQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -539,13 +539,13 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			adq := &AccountDatasetsQuery{
+			adq := &AccountDatasetQuery{
 				PrimaryFields:  tt.fields.PrimaryFields,
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,
 			}
 			if got := adq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-				t.Errorf("AccountDatasetsQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+				t.Errorf("AccountDatasetQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -582,7 +582,7 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			adq := &AccountDatasetsQuery{
+			adq := &AccountDatasetQuery{
 				PrimaryFields:  tt.fields.PrimaryFields,
 				OrdinaryFields: tt.fields.OrdinaryFields,
 				TableName:      tt.fields.TableName,

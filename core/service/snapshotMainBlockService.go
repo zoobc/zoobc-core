@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -21,7 +22,7 @@ type (
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -42,7 +43,7 @@ func NewSnapshotMainBlockService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
-	accountDatasetQuery query.AccountDatasetsQueryInterface,
+	accountDatasetQuery query.AccountDatasetQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
