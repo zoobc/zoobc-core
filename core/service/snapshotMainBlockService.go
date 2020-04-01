@@ -98,6 +98,11 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				fromHeight uint32
 				rows       *sql.Rows
 			)
+			if qryRepoName == "block" {
+				if snapshotPayloadHeight > constant.MinRollbackBlocks {
+					fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
+				}
+			}
 			if qryRepoName == "publishedReceipt" {
 				if snapshotPayloadHeight > constant.LinkedReceiptBlocksLimit {
 					fromHeight = snapshotPayloadHeight - constant.LinkedReceiptBlocksLimit
