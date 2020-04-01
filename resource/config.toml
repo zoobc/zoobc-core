@@ -3,7 +3,6 @@ dbName = "zoobc.db"
 badgerDbPath="./resource"
 badgerDbName="zoobc_1_kv/"
 configPath = "./resource/"
-profilingFilePathName = "./resource/node_%s.prof"
 nodeKeyFile = "node_keys.json"
 snapshotPath = "./resource/snapshots"
 
@@ -16,6 +15,7 @@ apiRPCPort=7000
 # comment out or set to 0 to disable http proxy, only enable in dev mode
 apiHTTPPort=3031
 monitoringPort=9090
+cpuProfilingPort=6060
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "5Zup5YFOgVUZHRtoz4E9-8Ki2fN0U8DTHCM6WxbvgGg_"
