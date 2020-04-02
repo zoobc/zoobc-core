@@ -7,6 +7,9 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -389,6 +392,358 @@ func TestNewBlocksmithService(t *testing.T) {
 			if got := NewBlocksmithStrategyMain(tt.args.queryExecutor, tt.args.nodeRegistrationQuery,
 				tt.args.skippedBlocksmithQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategyMain_IsBlockTimestampValid(t *testing.T) {
+	type fields struct {
+		QueryExecutor                          query.ExecutorInterface
+		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
+		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
+		Logger                                 *log.Logger
+		SortedBlocksmiths                      []*model.Blocksmith
+		LastSortedBlockID                      int64
+		LastEstimatedBlockPersistedTimestamp   int64
+		LastEstimatedPersistedTimestampBlockID int64
+		SortedBlocksmithsLock                  sync.RWMutex
+		SortedBlocksmithsMap                   map[string]*int64
+	}
+	type args struct {
+		blocksmithIndex     int64
+		numberOfBlocksmiths int64
+		previousBlock       *model.Block
+		currentBlock        *model.Block
+	}
+	mainchain := &chaintype.MainChain{}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "blocksmithIndex=0 && timeSinceLast > 15",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   0,
+				LastEstimatedPersistedTimestampBlockID: 1,
+				SortedBlocksmithsLock:                  sync.RWMutex{},
+				SortedBlocksmithsMap:                   nil,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 10,
+				previousBlock: &model.Block{
+					ID: int64(1),
+				},
+				currentBlock: &model.Block{
+					Timestamp: 16,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "blocksmithIndex=1 && blocksmith expired",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   0,
+				LastEstimatedPersistedTimestampBlockID: 1,
+				SortedBlocksmithsLock:                  sync.RWMutex{},
+				SortedBlocksmithsMap:                   nil,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 10,
+				previousBlock: &model.Block{
+					ID: int64(1),
+				},
+				currentBlock: &model.Block{
+					Timestamp: 26 + mainchain.GetBlocksmithTimeGap() + mainchain.GetBlocksmithNetworkTolerance() +
+						mainchain.GetBlocksmithBlockCreationTime(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "blocksmithIndex=1 && blocksmith pending",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   0,
+				LastEstimatedPersistedTimestampBlockID: 1,
+				SortedBlocksmithsLock:                  sync.RWMutex{},
+				SortedBlocksmithsMap:                   nil,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 10,
+				previousBlock: &model.Block{
+					ID: int64(1),
+				},
+				currentBlock: &model.Block{
+					Timestamp: 1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "blocksmithIndex=1 && blocksmith valid time",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   0,
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 10,
+				previousBlock: &model.Block{
+					ID: int64(1),
+				},
+				currentBlock: &model.Block{
+					Timestamp: 26,
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategyMain{
+				QueryExecutor:                          tt.fields.QueryExecutor,
+				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
+				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
+				Logger:                                 tt.fields.Logger,
+				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
+				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,
+				LastEstimatedPersistedTimestampBlockID: tt.fields.LastEstimatedPersistedTimestampBlockID,
+				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
+				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
+			}
+			if err := bss.IsBlockTimestampValid(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock, tt.args.currentBlock); (err != nil) != tt.wantErr {
+				t.Errorf("IsBlockTimestampValid() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
+	type fields struct {
+		QueryExecutor                          query.ExecutorInterface
+		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
+		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
+		Logger                                 *log.Logger
+		SortedBlocksmiths                      []*model.Blocksmith
+		LastSortedBlockID                      int64
+		LastEstimatedBlockPersistedTimestamp   int64
+		LastEstimatedPersistedTimestampBlockID int64
+		SortedBlocksmithsLock                  sync.RWMutex
+		SortedBlocksmithsMap                   map[string]*int64
+	}
+	type args struct {
+		blocksmithIndex     int64
+		numberOfBlocksmiths int64
+		previousBlock       *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "previousBlock-genesis",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 0,
+				previousBlock: &model.Block{
+					Height: 0,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "timeSinceLastBlock < smithing period",
+			fields: fields{
+				LastSortedBlockID:                      0,
+				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix(),
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 0,
+				previousBlock: &model.Block{
+					Height: 1,
+					ID:     1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "can persist block-first round",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - 65,
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 3,
+				previousBlock: &model.Block{
+					Height: 1,
+					ID:     1,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "can persist block-multiple round",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - 95,
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 3,
+				previousBlock: &model.Block{
+					Height: 1,
+					ID:     1,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "canPersist",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - 1000,
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 10,
+				previousBlock: &model.Block{
+					Height: 1,
+					ID:     1,
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategyMain{
+				QueryExecutor:                          tt.fields.QueryExecutor,
+				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
+				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
+				Logger:                                 tt.fields.Logger,
+				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
+				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,
+				LastEstimatedPersistedTimestampBlockID: tt.fields.LastEstimatedPersistedTimestampBlockID,
+				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
+				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
+			}
+			if err := bss.CanPersistBlock(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock); (err != nil) != tt.wantErr {
+				t.Errorf("CanPersistBlock() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategyMain_IsValidSmithTime(t *testing.T) {
+	type fields struct {
+		QueryExecutor                          query.ExecutorInterface
+		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
+		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
+		Logger                                 *log.Logger
+		SortedBlocksmiths                      []*model.Blocksmith
+		LastSortedBlockID                      int64
+		LastEstimatedBlockPersistedTimestamp   int64
+		LastEstimatedPersistedTimestampBlockID int64
+		SortedBlocksmithsLock                  sync.RWMutex
+		SortedBlocksmithsMap                   map[string]*int64
+	}
+	type args struct {
+		blocksmithIndex     int64
+		numberOfBlocksmiths int64
+		previousBlock       *model.Block
+	}
+	mainchain := &chaintype.MainChain{}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "TimeSinceLastBlock < SmithPeriod",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - (mainchain.GetSmithingPeriod() - 1),
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 3,
+				previousBlock:       &model.Block{ID: 1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "SmithingPending",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp: time.Now().Unix() - mainchain.GetSmithingPeriod() -
+					(mainchain.GetBlocksmithBlockCreationTime() + mainchain.GetBlocksmithNetworkTolerance() + 1),
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 6,
+				previousBlock:       &model.Block{ID: 1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "allowedBegin-one round",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp: time.Now().Unix() - mainchain.GetSmithingPeriod() -
+					mainchain.GetBlocksmithTimeGap() - 1,
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 6,
+				previousBlock:       &model.Block{ID: 1},
+			},
+			wantErr: false,
+		},
+		{
+			name: "allowedBegin-multiple round",
+			fields: fields{
+				LastEstimatedBlockPersistedTimestamp: time.Now().Unix() - mainchain.GetSmithingPeriod() -
+					(11 * mainchain.GetBlocksmithTimeGap()) - 1,
+				LastEstimatedPersistedTimestampBlockID: 1,
+			},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 6,
+				previousBlock:       &model.Block{ID: 1},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategyMain{
+				QueryExecutor:                          tt.fields.QueryExecutor,
+				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
+				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
+				Logger:                                 tt.fields.Logger,
+				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
+				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,
+				LastEstimatedPersistedTimestampBlockID: tt.fields.LastEstimatedPersistedTimestampBlockID,
+				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
+				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
+			}
+			if err := bss.IsValidSmithTime(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock); (err != nil) != tt.wantErr {
+				t.Errorf("IsValidSmithTime() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

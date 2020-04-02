@@ -198,16 +198,16 @@ func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, number
 	}
 	// check if is valid time
 	timeGapCurrentLastBlock := currentBlock.GetTimestamp() - bss.LastEstimatedBlockPersistedTimestamp
-	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
+	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
 	// exception: first blocksmith check
 	if blocksmithIndex == 0 && timeGapCurrentLastBlock >= ct.GetSmithingPeriod() {
 		if timeGapCurrentLastBlock <= ct.GetSmithingPeriod()+ct.GetBlocksmithBlockCreationTime()+ct.GetBlocksmithNetworkTolerance() {
 			return nil
 		}
 	}
-	remainder := math.Remainder(float64(timeGapCurrentLastBlock-ct.GetSmithingPeriod()), float64(timeForOneRound))
-	if int64(remainder) >= blocksmithIndex*ct.GetBlocksmithTimeGap() {
-		if int64(remainder) > ct.GetBlocksmithTimeGap()+ct.GetBlocksmithBlockCreationTime()+ct.GetBlocksmithNetworkTolerance() {
+	remainder := timeGapCurrentLastBlock - ct.GetSmithingPeriod()%timeForOneRound
+	if remainder >= blocksmithIndex*ct.GetBlocksmithTimeGap() {
+		if remainder > ct.GetBlocksmithTimeGap()+ct.GetBlocksmithBlockCreationTime()+ct.GetBlocksmithNetworkTolerance() {
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithExpired")
 		}
 		return nil
@@ -217,7 +217,11 @@ func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, number
 
 // CanPersistBlock check if currentTime is a time to persist the provided block.
 // This function uses current node time, which make it unsafe to validate past block.
-func (bss *BlocksmithStrategyMain) CanPersistBlock(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
+// numberOfBlocksmiths must be > 0
+func (bss *BlocksmithStrategyMain) CanPersistBlock(
+	blocksmithIndex, numberOfBlocksmiths int64,
+	previousBlock *model.Block,
+) error {
 	var (
 		err                                         error
 		ct                                          = &chaintype.MainChain{}
@@ -238,7 +242,7 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(blocksmithIndex int64, number
 	}
 	// check if is valid time
 	// calculate total time before every blocksmiths are skipped
-	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
+	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - bss.LastEstimatedBlockPersistedTimestamp
 	if timeSinceLastBlock < ct.GetSmithingPeriod() {
 		return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")
@@ -283,7 +287,8 @@ func (bss *BlocksmithStrategyMain) IsValidSmithTime(
 		}
 	}
 	// calculate total time before every blocksmiths are skipped
-	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
+	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
+
 	timeSinceLastBlock := currentTime - bss.LastEstimatedBlockPersistedTimestamp
 	if timeSinceLastBlock < ct.GetSmithingPeriod() {
 		return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")

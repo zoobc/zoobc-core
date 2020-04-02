@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"encoding/binary"
+	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -204,22 +205,33 @@ func (*BlocksmithStrategySpine) CanPersistBlock(
 
 func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
-		currentTime = time.Now().Unix()
-		ct          = &chaintype.MainChain{}
+		currentTime                      = time.Now().Unix()
+		ct                               = &chaintype.MainChain{}
+		prevRoundBegin, prevRoundExpired int64
 	)
 	// calculate total time before every blocksmiths are skipped
-	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
+	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - previousBlock.GetTimestamp()
 
 	if timeSinceLastBlock < ct.GetSmithingPeriod() {
 		return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")
 	}
-
-	remainder := (timeSinceLastBlock - ct.GetSmithingPeriod()) % timeForOneRound
-	allowedBeginTime := blocksmithIndex*ct.GetBlocksmithTimeGap() + (currentTime - remainder)
+	modTimeSinceLastBlock := timeSinceLastBlock - ct.GetSmithingPeriod()
+	timeRound := math.Floor(float64(modTimeSinceLastBlock) / float64(timeForOneRound))
+	remainder := modTimeSinceLastBlock % timeForOneRound
+	nearestRoundBeginning := currentTime - remainder
+	if timeRound > 0 { // if more than one round has passed, calculate previous round start-expiry time for overlap
+		prevRoundStart := nearestRoundBeginning - timeForOneRound
+		prevRoundBegin = prevRoundStart + blocksmithIndex*ct.GetBlocksmithTimeGap()
+		prevRoundExpired = prevRoundBegin + ct.GetBlocksmithBlockCreationTime() +
+			ct.GetBlocksmithNetworkTolerance()
+	}
+	allowedBeginTime := blocksmithIndex*ct.GetBlocksmithTimeGap() + nearestRoundBeginning
 	expiredTime := allowedBeginTime + ct.GetBlocksmithBlockCreationTime() +
 		ct.GetBlocksmithNetworkTolerance()
-	if currentTime > allowedBeginTime && currentTime < expiredTime {
+	// if currentTime overlap with either currentRound window or previous round window, it's considered valid time
+	if (currentTime >= allowedBeginTime && currentTime <= expiredTime) ||
+		(currentTime >= prevRoundBegin && currentTime <= prevRoundExpired) {
 		return nil
 	}
 	return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")

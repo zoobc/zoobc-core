@@ -27,9 +27,9 @@ var (
 	// Mainchain smithing
 	MainSmithingBlockCreationTime = int64(30)
 	MainSmithingNetworkTolerance  = int64(15)
-	MainSmithingBlocksmithTimeGap = int64(15)
+	MainSmithingBlocksmithTimeGap = int64(10)
 	// Spinechain smithing
 	SpineSmithingBlockCreationTime = int64(30)
 	SpineSmithingNetworkTolerance  = int64(15)
-	SpineSmithingBlocksmithTimeGap = int64(15)
+	SpineSmithingBlocksmithTimeGap = int64(10)
 )
