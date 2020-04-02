@@ -3,7 +3,6 @@ dbName = "zoobc_4.db"
 badgerDbPath="./resource"
 badgerDbName="zoobc_4_kv/"
 configPath = "./resource/"
-profilingFilePathName = "./resource/node_4_%s.prof"
 nodeKeyFile = "node_keys_4.json"
 snapshotPath = "./resource/snapshots"
 
@@ -15,6 +14,7 @@ wellknownPeers=["127.0.0.1:8001"]
 apiRPCPort=3004
 apiHTTPPort=3034
 monitoringPort=9094
+cpuProfilingPort=6064
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd"
