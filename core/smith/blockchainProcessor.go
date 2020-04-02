@@ -57,6 +57,7 @@ func NewBlockchainProcessor(
 
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
 // errors
+// todo: @andy-shi need to adjust this function to newest state of smithing process.
 func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool) error {
 	// todo: if debug mode, allow, else no
 	var (
@@ -81,20 +82,14 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			err = bp.BlockService.GetBlocksmithStrategy().CalculateSmith(lastBlock, 0, bp.Generator, 1)
+			err = bp.BlockService.GetBlocksmithStrategy().CalculateScore(bp.Generator, 1)
 			if err != nil {
 				return err
 			}
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
-		for bp.Generator.SmithTime > timeNow {
+		for timeNow < lastBlock.GetTimestamp()+15 {
 			timeNow++ // speed up bro
-		}
-		// todo: replace to smithing time >= timestamp
-		if bp.Generator.SmithTime > timeNow {
-			return blocker.NewBlocker(
-				blocker.SmithingErr, "verify seed return false",
-			)
 		}
 		previousBlock, err := bp.BlockService.GetLastBlock()
 		if err != nil {
@@ -145,9 +140,6 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	timestamp := time.Now().Unix()
-	if bp.Generator.SmithTime > timestamp {
-		return nil
-	}
 	block, err := bp.BlockService.GenerateBlock(
 		lastBlock,
 		bp.Generator.SecretPhrase,

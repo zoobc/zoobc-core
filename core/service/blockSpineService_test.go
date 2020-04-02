@@ -801,7 +801,7 @@ func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block
 }
 func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
 }
-func (*mockSpineBlocksmithServicePushBlock) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+func (*mockSpineBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
 	return 0
 }
 func TestBlockSpineService_PushBlock(t *testing.T) {
@@ -2843,7 +2843,7 @@ func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*
 		string(mockSpineBlockData.BlocksmithPublicKey):                        &secondIndex,
 	}
 }
-func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
+func (*mockSpineBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
 	return 0
 }
 
