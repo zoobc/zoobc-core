@@ -795,10 +795,13 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
+	if id == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
+	}
 	var (
-		block model.Block
+		block    model.Block
+		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	)
-	row, err := bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -808,18 +811,17 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 		}
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
 	}
-
-	if block.ID != 0 {
-		if withAttachedData {
-			transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
-			block.Transactions = transactions
-		}
-		return &block, nil
+	if block.ID == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+	if withAttachedData {
+		var transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		block.Transactions = transactions
+	}
+	return &block, nil
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).

@@ -361,10 +361,13 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
+	if id == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
+	}
 	var (
-		block model.Block
+		block    model.Block
+		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	)
-	row, err := bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -375,16 +378,16 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
 	}
 
-	if block.ID != 0 {
-		if withAttachedData {
-			err := bs.PopulateBlockData(&block)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
-		}
-		return &block, nil
+	if block.ID == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+	if withAttachedData {
+		err := bs.PopulateBlockData(&block)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+	}
+	return &block, nil
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
