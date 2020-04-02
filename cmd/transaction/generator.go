@@ -102,10 +102,9 @@ func GenerateTxUpdateNode(
 
 /*
 GenerateTxRemoveNode return remove node transaction based on provided basic transaction &
-others spesific field for remove node transaction
+others specific field for remove node transaction
 */
-func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
