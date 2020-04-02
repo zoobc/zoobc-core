@@ -32,6 +32,7 @@ var (
 	ZeroParticipationScoreErr TypeBlocker = "ZeroParticipationScoreErr"
 	ChainValidationErr        TypeBlocker = "ChainValidationErr"
 	P2PNetworkConnectionErr   TypeBlocker = "P2PNetworkConnectionErr"
+	SmithingPending           TypeBlocker = "SmithingPending"
 )
 
 func NewBlocker(typeBlocker TypeBlocker, message string) error {
