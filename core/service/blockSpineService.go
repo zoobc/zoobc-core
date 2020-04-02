@@ -221,7 +221,7 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
-	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, previousLastBlock, block)
+	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock, block)
 	if err != nil {
 		return err
 	}
@@ -909,7 +909,8 @@ func (bs *BlockSpineService) WillSmith(
 		monitoring.SetBlockchainSmithIndex(bs.GetChainType(), *blocksmithIdx)
 	}
 	// check if it's legal to create block for current blocksmith now
-	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, lastBlock)
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
 	if err == nil {
 		return blockchainProcessorLastBlockID, blocksmithIndex, nil
 	}

@@ -885,7 +885,7 @@ func (*mockBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block) map
 func (*mockBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 
-func (*mockBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
+func (*mockBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
 	return nil
 }
 
@@ -2702,7 +2702,7 @@ func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.B
 	}
 }
 
-func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
+func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
 	return nil
 }
 
@@ -2729,10 +2729,7 @@ func (*mockQueryExecutorReceiveBlockFail) ExecuteSelectRow(qStr string, tx bool,
 	return db.QueryRow(qStr), nil
 }
 
-func (bss *mockBlocksmithServiceReceiveBlock) IsValidSmithTime(
-	blocksmithIndex int64,
-	previousBlock *model.Block,
-) error {
+func (bss *mockBlocksmithServiceReceiveBlock) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	return nil
 }
 
@@ -3623,14 +3620,11 @@ func (*mockBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*model
 	}
 }
 
-func (*mockBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
+func (*mockBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
 	return nil
 }
 
-func (*mockBlocksmithServiceValidateBlockSuccess) IsValidSmithTime(
-	blocksmithIndex int64,
-	previousBlock *model.Block,
-) error {
+func (*mockBlocksmithServiceValidateBlockSuccess) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	return nil
 }
 
@@ -4496,7 +4490,7 @@ func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmithsMap(block *model.
 func (*mockBlocksmithServiceProcessQueued) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 
-func (*mockBlocksmithServiceProcessQueued) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
+func (*mockBlocksmithServiceProcessQueued) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
 	return nil
 }
 

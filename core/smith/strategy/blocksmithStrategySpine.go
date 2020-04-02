@@ -177,7 +177,7 @@ func (bss *BlocksmithStrategySpine) CalculateScore(generator *model.Blocksmith, 
 
 // IsBlockTimestampValid check if currentBlock timestamp is valid
 func (bss *BlocksmithStrategySpine) IsBlockTimestampValid(
-	blocksmithIndex int64,
+	blocksmithIndex, numberOfBlocksmiths int64,
 	previousBlock, currentBlock *model.Block,
 ) error {
 	var (
@@ -196,21 +196,17 @@ func (bss *BlocksmithStrategySpine) IsBlockTimestampValid(
 }
 
 func (*BlocksmithStrategySpine) CanPersistBlock(
-	blocksmithIndex int64,
+	blocksmithIndex, numberOfBlocksmiths int64,
 	previousBlock *model.Block,
 ) error {
 	return nil
 }
 
-func (bss *BlocksmithStrategySpine) IsValidSmithTime(
-	blocksmithIndex int64,
-	previousBlock *model.Block,
-) error {
+func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
 		currentTime = time.Now().Unix()
 		ct          = &chaintype.MainChain{}
 	)
-	numberOfBlocksmiths := len(bss.GetSortedBlocksmithsMap(previousBlock))
 	// calculate total time before every blocksmiths are skipped
 	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - previousBlock.GetTimestamp()

@@ -184,10 +184,7 @@ func (bss *BlocksmithStrategyMain) EstimateLastBlockPersistedTime(
 
 // IsBlockTimestampValid check if the block provided (currentBlock) has valid timestamp based on the previous block
 // of the current node. This function is save to be called on download process, it does not make use of node current time.
-func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(
-	blocksmithIndex int64,
-	previousBlock, currentBlock *model.Block,
-) error {
+func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
 	var (
 		err error
 		ct  = &chaintype.MainChain{}
@@ -201,7 +198,6 @@ func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(
 	}
 	// check if is valid time
 	timeGapCurrentLastBlock := currentBlock.GetTimestamp() - bss.LastEstimatedBlockPersistedTimestamp
-	numberOfBlocksmiths := len(bss.GetSortedBlocksmithsMap(previousBlock))
 	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
 	// exception: first blocksmith check
 	if blocksmithIndex == 0 && timeGapCurrentLastBlock >= ct.GetSmithingPeriod() {
@@ -221,10 +217,7 @@ func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(
 
 // CanPersistBlock check if currentTime is a time to persist the provided block.
 // This function uses current node time, which make it unsafe to validate past block.
-func (bss *BlocksmithStrategyMain) CanPersistBlock(
-	blocksmithIndex int64,
-	previousBlock *model.Block,
-) error {
+func (bss *BlocksmithStrategyMain) CanPersistBlock(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
 		err                                         error
 		ct                                          = &chaintype.MainChain{}
@@ -244,7 +237,6 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(
 		}
 	}
 	// check if is valid time
-	numberOfBlocksmiths := len(bss.GetSortedBlocksmithsMap(previousBlock))
 	// calculate total time before every blocksmiths are skipped
 	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - bss.LastEstimatedBlockPersistedTimestamp
@@ -274,7 +266,7 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(
 }
 
 func (bss *BlocksmithStrategyMain) IsValidSmithTime(
-	blocksmithIndex int64,
+	blocksmithIndex, numberOfBlocksmiths int64,
 	previousBlock *model.Block,
 ) error {
 	var (
@@ -290,7 +282,6 @@ func (bss *BlocksmithStrategyMain) IsValidSmithTime(
 			return err
 		}
 	}
-	numberOfBlocksmiths := len(bss.GetSortedBlocksmithsMap(previousBlock))
 	// calculate total time before every blocksmiths are skipped
 	timeForOneRound := int64(numberOfBlocksmiths) * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - bss.LastEstimatedBlockPersistedTimestamp

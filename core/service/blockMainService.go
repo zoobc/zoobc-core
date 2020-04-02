@@ -285,7 +285,7 @@ func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) 
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
 	// check smithtime
-	err := bs.BlocksmithStrategy.IsValidSmithTime(*blocksmithIndex, previousLastBlock)
+	err := bs.BlocksmithStrategy.IsValidSmithTime(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
 	}
@@ -597,7 +597,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// handle if is first index
 		if *blocksmithIndex > 0 {
 			// check if current block is in pushable window
-			err = bs.BlocksmithStrategy.CanPersistBlock(*blocksmithIndex, previousBlock)
+			err = bs.BlocksmithStrategy.CanPersistBlock(*blocksmithIndex, int64(len(blocksmithsMap)), previousBlock)
 			if err != nil {
 				// insert into block pool
 				bs.BlockPoolService.InsertBlock(block, *blocksmithIndex)
@@ -644,8 +644,9 @@ func (bs *BlockService) ScanBlockPool() error {
 		return err
 	}
 	blocks := bs.BlockPoolService.GetBlocks()
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock)
 	for index, block := range blocks {
-		err = bs.BlocksmithStrategy.CanPersistBlock(index, previousBlock)
+		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), previousBlock)
 		if err == nil {
 			err := func(block *model.Block) error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
@@ -1453,7 +1454,7 @@ func (bs *BlockService) WillSmith(
 		)
 	}
 	// check if it's legal to create block for current blocksmith now
-	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, lastBlock)
+	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
 	if err == nil {
 		return blockchainProcessorLastBlockID, blocksmithIndex, nil
 	}
