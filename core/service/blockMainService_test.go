@@ -886,7 +886,7 @@ func (*mockBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withL
 }
 
 func (*mockBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
-	return 10000 - 10
+	return nil
 }
 
 type (
@@ -2703,7 +2703,7 @@ func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.B
 }
 
 func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
-	return mockSmithTime
+	return nil
 }
 
 func (*mockBlockIncompleteQueueServiceReceiveBlock) GetBlockQueue(blockID int64) *model.Block {
@@ -2727,6 +2727,13 @@ func (*mockQueryExecutorReceiveBlockFail) ExecuteSelectRow(qStr string, tx bool,
 	mockRows.AddRow("1")
 	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
 	return db.QueryRow(qStr), nil
+}
+
+func (bss *mockBlocksmithServiceReceiveBlock) IsValidSmithTime(
+	blocksmithIndex int64,
+	previousBlock *model.Block,
+) error {
+	return nil
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
@@ -3617,7 +3624,14 @@ func (*mockBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*model
 }
 
 func (*mockBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
-	return 0
+	return nil
+}
+
+func (*mockBlocksmithServiceValidateBlockSuccess) IsValidSmithTime(
+	blocksmithIndex int64,
+	previousBlock *model.Block,
+) error {
+	return nil
 }
 
 func TestBlockService_ValidateBlock(t *testing.T) {
@@ -4483,7 +4497,7 @@ func (*mockBlocksmithServiceProcessQueued) SortBlocksmiths(block *model.Block, w
 }
 
 func (*mockBlocksmithServiceProcessQueued) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
-	return 0
+	return nil
 }
 
 func (*mockBlockIncompleteQueueServiceAlreadyExist) GetBlockQueue(blockID int64) *model.Block {

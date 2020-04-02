@@ -802,7 +802,7 @@ func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block
 func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 func (*mockSpineBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
-	return 0
+	return nil
 }
 func TestBlockSpineService_PushBlock(t *testing.T) {
 	type fields struct {
@@ -2844,7 +2844,7 @@ func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*
 	}
 }
 func (*mockSpineBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmithIndex int64, currentBlock *model.Block, previousBlock *model.Block) error {
-	return 0
+	return nil
 }
 
 func TestBlockSpineService_ValidateBlock(t *testing.T) {
