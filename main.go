@@ -756,7 +756,13 @@ func startBlockchainSyncronizers() {
 		fileDownloader,
 		snapshotBlockServices[mainchain.GetTypeInt()],
 		loggerCoreService)
-	go blockchainOrchestrator.Start()
+	go func() {
+		err := blockchainOrchestrator.Start()
+		if err != nil {
+			loggerCoreService.Fatal(err.Error())
+			os.Exit(1)
+		}
+	}()
 }
 
 func main() {

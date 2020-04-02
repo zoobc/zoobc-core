@@ -1,10 +1,12 @@
 package blockchainsync
 
 import (
-	"os"
+	"errors"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -43,7 +45,7 @@ func NewBlockchainOrchestratorService(
 	}
 }
 
-func (bos *BlockchainOrchestratorService) SyncChain(chainSyncService BlockchainSyncServiceInterface, timeout time.Duration) {
+func (bos *BlockchainOrchestratorService) StartSyncChain(chainSyncService BlockchainSyncServiceInterface, timeout time.Duration) error {
 	chainType := chainSyncService.GetBlockService().GetChainType()
 
 	bos.Logger.Infof("downloading %s blocks...\n", chainType.GetName())
@@ -64,7 +66,7 @@ CheckLoop:
 		// TODO: add push notification to node owner that the node has shutdown because of network issues
 		case <-timeoutChannel:
 			if timeout != 0 {
-				bos.Logger.Fatalf("%s blocks sync timed out...\n", chainType.GetName())
+				return blocker.NewBlocker(blocker.TimeoutExceeded, fmt.Sprintf("%s blocks sync timed out...\n", chainType.GetName()))
 			}
 		}
 	}
@@ -72,12 +74,13 @@ CheckLoop:
 	lastChainBlock, err := chainSyncService.GetBlockService().GetLastBlock()
 	if err != nil {
 		bos.Logger.Errorf("cannot get last %s block\n", chainType.GetName())
-		os.Exit(1)
+		return err
 	}
 	bos.Logger.Infof("finished downloading %s blocks. last height is %d\n", chainType.GetName(), lastChainBlock.Height)
+	return nil
 }
 
-func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainType) {
+func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainType) error {
 	bos.Logger.Info("dowloading snapshots...")
 	log.Info("dowloading snapshots...")
 	lastSpineBlockManifest, err := bos.SpineBlockManifestService.GetLastSpineBlockManifest(ct,
@@ -85,7 +88,7 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 	if err != nil {
 		bos.Logger.Errorf("db error: cannot get last spineBlockManifest for chaintype %s: %s\n",
 			ct.GetName(), err.Error())
-		return
+		return err
 	}
 	if lastSpineBlockManifest == nil {
 		bos.Logger.Info("no lastSpineBlockManifest is found")
@@ -96,43 +99,55 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 		if err != nil {
 			bos.Logger.Errorf("Invalid spineBlockManifest for chaintype %s Snapshot won't be downloaded. %s\n",
 				ct.GetName(), err)
+			return err
+		}
+		bos.Logger.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
+			"at height is %d. Start downloading...\n", ct.GetName(),
+			lastSpineBlockManifest.SpineBlockManifestHeight)
+		snapshotFileInfo, err := bos.FileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest)
+		if err != nil {
+			bos.Logger.Warning(err)
+			return err
 		} else {
-			bos.Logger.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
-				"at height is %d. Start downloading...\n", ct.GetName(),
-				lastSpineBlockManifest.SpineBlockManifestHeight)
-			snapshotFileInfo, err := bos.FileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest)
-			if err != nil {
-				bos.Logger.Warning(err)
-			} else {
-				log.Info("applying snapshots...")
-				if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
-					bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d\n", ct.GetName(),
-						lastSpineBlockManifest.SpineBlockManifestHeight)
-				}
+			log.Info("applying snapshots...")
+			if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
+				bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d: %s\n", ct.GetName(),
+					lastSpineBlockManifest.SpineBlockManifestHeight, err.Error())
+				return err
 			}
 		}
+
 	}
+	return nil
 }
 
-func (bos *BlockchainOrchestratorService) Start() {
+func (bos *BlockchainOrchestratorService) Start() error {
+	var err error
 	// downloading spinechain and wait until the first download is complete
 	// wait downloading snapshot and main blocks until node has finished downloading spine blocks
-	bos.SyncChain(bos.SpinechainSyncService, constant.BlockchainsyncSpineTimeout)
+	err = bos.StartSyncChain(bos.SpinechainSyncService, constant.BlockchainsyncSpineTimeout)
+	if err != nil {
+		return err
+	}
 
 	lastMainBlock, err := bos.MainchainSyncService.GetBlockService().GetLastBlock()
 	if err != nil {
-		bos.Logger.Fatal("cannot get last main block")
+		return errors.New(fmt.Sprintf("cannot get last main block: %s", err.Error()))
 	}
 	if lastMainBlock.Height == 0 &&
 		bos.MainchainSyncService.GetBlockService().GetChainType().HasSnapshots() {
-		bos.DownloadSnapshot(bos.MainchainSyncService.GetBlockService().GetChainType())
+		_ = bos.DownloadSnapshot(bos.MainchainSyncService.GetBlockService().GetChainType())
 	}
 
 	// start downloading mainchain
-	bos.SyncChain(bos.MainchainSyncService, 0)
+	err = bos.StartSyncChain(bos.MainchainSyncService, 0)
+	if err != nil {
+		return err
+	}
 
 	bos.Logger.Info("blockchain sync completed. unlocking smithing process...")
 	log.Info("blockchain sync completed. unlocking smithing process...")
 	log.Info("now the blockchain operates normally")
 	bos.BlockchainStatusService.SetIsSmithingLocked(false)
+	return nil
 }
