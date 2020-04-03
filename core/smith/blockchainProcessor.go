@@ -88,7 +88,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			}
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
-		for timeNow < lastBlock.GetTimestamp()+15 {
+		for timeNow < lastBlock.GetTimestamp()+constant.MainChainSmithingPeriod {
 			timeNow++ // speed up bro
 		}
 		previousBlock, err := bp.BlockService.GetLastBlock()
