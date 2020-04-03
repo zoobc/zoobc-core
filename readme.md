@@ -89,6 +89,9 @@ go run main.go
     1. `debug` (bool): enters debug mode with capabilities like `prometheus monitoring` (uses port defined by `monitoringPort` in the config file).
     2. `config-postfix` (string): defines which config file with defined postfix to use. It will use the config file in `./resource/config{postfix}`.toml.
     3. `config-path` (string): defines the directory that will hold the resources and configs. by default it will use `./resource`. This will be useful particularly for robust resource placements, for example while used in Zoobc-Testing-Framework.
+    4. `cpu-profile` (bool): enable realtime profiling for the running instance, via http server.
+    See [http pprof](https://golang.org/pkg/net/http/pprof/) for documentation on how to use this tool 
+    
 -   Command line tools
     ```bash
     cd cmd

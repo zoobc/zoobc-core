@@ -881,7 +881,7 @@ func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Liste
 func (bs *BlockSpineService) WillSmith(
 	blocksmith *model.Blocksmith,
 	blockchainProcessorLastBlockID int64,
-) (lastBlockId, blocksmithIndex int64, err error) {
+) (lastBlockID, blocksmithIndex int64, err error) {
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(

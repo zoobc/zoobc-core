@@ -89,7 +89,7 @@ func init() {
 		SendMoney Command
 	*/
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
-	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
+	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", true, "Escrowable transaction ? need approver-address if yes")
 	sendMoneyCmd.Flags().StringVar(&esApproverAddress, "approver-address", "", "Escrow fields: Approver account address")
 	sendMoneyCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
@@ -300,7 +300,8 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveNode(tx, nodeSeed)
+		nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		tx = GenerateTxRemoveNode(tx, nodePubKey)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}

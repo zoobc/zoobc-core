@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -46,12 +47,13 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath, profilingFilePathName string
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
 	apiRPCPort, apiHTTPPort, monitoringPort         int
+	cpuProfilingPort                                int
 	apiCertFile, apiKeyFile                         string
 	peerPort                                        uint32
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
@@ -94,6 +96,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
 	nodeKey                                         *model.NodeKey
+	cpuProfile                                      bool
 )
 
 func init() {
@@ -106,6 +109,7 @@ func init() {
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
+	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.Parse()
 
 	loadNodeConfig(configPath, "config"+configPostfix, "toml")
@@ -193,6 +197,7 @@ func init() {
 		query.NewPendingTransactionQuery(),
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
@@ -242,6 +247,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	wellknownPeers = viper.GetStringSlice("wellknownPeers")
 	smithing = viper.GetBool("smithing")
@@ -256,6 +262,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
+	profilingFilePathName = viper.GetString("profilingFilePathName")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
@@ -288,6 +295,9 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("monitoringPort: %d", monitoringPort)
 	log.Printf("apiRPCPort: %d", apiRPCPort)
 	log.Printf("apiHTTPPort: %d", apiHTTPPort)
+	if cpuProfile {
+		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
+	}
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
 	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
@@ -414,8 +424,9 @@ func startNodeMonitoring() {
 	monitoring.SetMonitoringActive(true)
 	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), mux)
 		if err != nil {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
 		}
@@ -867,6 +878,15 @@ func startBlockchainSyncronizers() {
 }
 
 func main() {
+	// start cpu profiling if enabled
+	if cpuProfile {
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cpuProfilingPort), nil); err != nil {
+				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
+			}
+		}()
+	}
+
 	migration := database.Migration{Query: queryExecutor}
 	if err := migration.Init(); err != nil {
 		loggerCoreService.Fatal(err)
@@ -894,6 +914,7 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	<-sigs
 	loggerCoreService.Info("Shutting down node...")
+
 	if mainchainProcessor != nil {
 		mainchainProcessor.Stop()
 	}

@@ -62,6 +62,7 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 			"pendingTransaction": NewPendingTransactionQuery(),
 			"pendingSignature":   NewPendingSignatureQuery(),
 			"multisignatureInfo": NewMultisignatureInfoQuery(),
+			"skippedBlocksmith":  NewSkippedBlocksmithQuery(),
 		}
 	default:
 		snapshotQuery = map[string]SnapshotQuery{}

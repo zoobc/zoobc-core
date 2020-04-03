@@ -126,7 +126,13 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 				Peer:        peer,
 				CommonBlock: commonBlock,
 			}, blocker.NewBlocker(blocker.ChainValidationErr,
-				"cumulative difficulty is lower/same with the current node's")
+				fmt.Sprintf(
+					"cumulative difficulty is lower/same with the current node's. Own: %s/%d, Peer: %s/%d",
+					lastBlock.CumulativeDifficulty, lastBlock.Height,
+					peerCumulativeDifficultyResponse.CumulativeDifficulty,
+					peerCumulativeDifficultyResponse.Height,
+				),
+			)
 	}
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 38)

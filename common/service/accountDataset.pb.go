@@ -10,6 +10,8 @@ import (
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -91,6 +93,17 @@ func (c *accountDatasetServiceClient) GetAccountDataset(ctx context.Context, in 
 type AccountDatasetServiceServer interface {
 	GetAccountDatasets(context.Context, *model.GetAccountDatasetsRequest) (*model.GetAccountDatasetsResponse, error)
 	GetAccountDataset(context.Context, *model.GetAccountDatasetRequest) (*model.AccountDataset, error)
+}
+
+// UnimplementedAccountDatasetServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedAccountDatasetServiceServer struct {
+}
+
+func (*UnimplementedAccountDatasetServiceServer) GetAccountDatasets(ctx context.Context, req *model.GetAccountDatasetsRequest) (*model.GetAccountDatasetsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountDatasets not implemented")
+}
+func (*UnimplementedAccountDatasetServiceServer) GetAccountDataset(ctx context.Context, req *model.GetAccountDatasetRequest) (*model.AccountDataset, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccountDataset not implemented")
 }
 
 func RegisterAccountDatasetServiceServer(s *grpc.Server, srv AccountDatasetServiceServer) {

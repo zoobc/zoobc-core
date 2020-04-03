@@ -102,10 +102,9 @@ func GenerateTxUpdateNode(
 
 /*
 GenerateTxRemoveNode return remove node transaction based on provided basic transaction &
-others spesific field for remove node transaction
+others specific field for remove node transaction
 */
-func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
@@ -460,5 +459,23 @@ func GeneratedMultiSignatureTransaction(
 	}).GetBodyBytes()
 	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
 	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
+	return tx
+}
+
+func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
+	txBody := &model.RemoveNodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+	}
+	txBodyBytes := (&transaction.RemoveNodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"])
+	tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+		RemoveNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
 	return tx
 }
