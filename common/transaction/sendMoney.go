@@ -320,7 +320,9 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetRecipientAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
 	}
-
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
+	}
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
 	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
