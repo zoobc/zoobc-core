@@ -298,7 +298,8 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveNode(tx, nodeSeed)
+		nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		tx = GenerateTxRemoveNode(tx, nodePubKey)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
