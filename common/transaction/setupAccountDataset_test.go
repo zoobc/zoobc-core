@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -17,23 +18,6 @@ type (
 		query.Executor
 	}
 	executorSetupAccountDatasetApplyConfirmedFail struct {
-		query.Executor
-	}
-
-	executorSetupAccountDatasetApplyUnconfirmedSuccess struct {
-		query.Executor
-	}
-	executorSetupAccountDatasetApplyUnconfirmedFail struct {
-		query.Executor
-	}
-
-	executorSetupAccountDatasetUndoUnconfirmSuccess struct {
-		query.Executor
-	}
-	executorSetupAccountDatasetUndoUnconfirmFail struct {
-		query.Executor
-	}
-	executorSetupAccountDatasetValidateSuccess struct {
 		query.Executor
 	}
 )
@@ -53,6 +37,94 @@ func (*executorSetupAccountDatasetApplyConfirmedFail) ExecuteTransaction(qStr st
 func (*executorSetupAccountDatasetApplyConfirmedFail) ExecuteTransactions([][]interface{}) error {
 	return errors.New("MockedError")
 }
+
+func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
+	mockSetupAccountDatasetTransactionBody, _ := GetFixturesForSetupAccountDataset()
+
+	type fields struct {
+		Body                *model.SetupAccountDatasetTransactionBody
+		Fee                 int64
+		SenderAddress       string
+		Height              uint32
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "success",
+			fields: fields{
+				Body:                mockSetupAccountDatasetTransactionBody,
+				Fee:                 1,
+				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       &executorSetupAccountDatasetApplyConfirmedSuccess{},
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+			},
+			wantErr: false,
+		},
+		{
+			name: "wantErr:UndoUnconfirmFail",
+			fields: fields{
+				Body:                &model.SetupAccountDatasetTransactionBody{},
+				Fee:                 1,
+				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				Height:              3,
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       &executorSetupAccountDatasetApplyConfirmedFail{},
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:TransactionsFail",
+			fields: fields{
+				Body:                &model.SetupAccountDatasetTransactionBody{},
+				Fee:                 1,
+				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				Height:              0,
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       &executorSetupAccountDatasetApplyConfirmedFail{},
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &SetupAccountDataset{
+				Body:                tt.fields.Body,
+				Fee:                 tt.fields.Fee,
+				SenderAddress:       tt.fields.SenderAddress,
+				Height:              tt.fields.Height,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+			}
+			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
+				t.Errorf("SetupAccountDataset.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	executorSetupAccountDatasetApplyUnconfirmedSuccess struct {
+		query.Executor
+	}
+	executorSetupAccountDatasetApplyUnconfirmedFail struct {
+		query.Executor
+	}
+)
 
 func (*executorSetupAccountDatasetApplyUnconfirmedSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
@@ -88,121 +160,6 @@ func (*executorSetupAccountDatasetApplyUnconfirmedFail) ExecuteTransaction(qStr 
 	return errors.New("MockedError")
 }
 
-func (*executorSetupAccountDatasetUndoUnconfirmSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
-	return nil
-}
-
-func (*executorSetupAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr string, args ...interface{}) error {
-	return errors.New("MockedError")
-}
-
-func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
-		sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
-			"BCZ",
-			1,
-			1,
-			1,
-			0,
-			true,
-		),
-	)
-
-	return db.QueryRow(qStr), nil
-}
-
-func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
-	mockSetupAccountDatasetTransactionBody, _ := GetFixturesForSetupAccountDataset()
-
-	type fields struct {
-		Body                *model.SetupAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "success",
-			fields: fields{
-				Body:                mockSetupAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor: &executorSetupAccountDatasetApplyConfirmedSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
-			},
-			wantErr: false,
-		},
-		{
-			name: "wantErr:UndoUnconfirmFail",
-			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
-				Height:              3,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor: &executorSetupAccountDatasetApplyConfirmedFail{
-					query.Executor{
-						Db: db,
-					},
-				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantErr:TransactionsFail",
-			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       mockSetupAccountDatasetTransactionBody.GetSetterAccountAddress(),
-				Height:              0,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor: &executorSetupAccountDatasetApplyConfirmedFail{
-					query.Executor{
-						Db: db,
-					},
-				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tx := &SetupAccountDataset{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-			}
-			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
-				t.Errorf("SetupAccountDataset.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
@@ -223,7 +180,6 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				Body: &model.SetupAccountDatasetTransactionBody{
 					SetterAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					MuchTime:             2000,
 					Property:             "Admin",
 					Value:                "Welcome",
 				},
@@ -231,11 +187,7 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: nil,
-				QueryExecutor: &executorSetupAccountDatasetApplyUnconfirmedSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:       &executorSetupAccountDatasetApplyUnconfirmedSuccess{},
 			},
 			wantErr: false,
 		},
@@ -244,7 +196,6 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				Body: &model.SetupAccountDatasetTransactionBody{
 					SetterAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					MuchTime:             2000,
 					Property:             "Admin",
 					Value:                "Welcome",
 				},
@@ -252,11 +203,7 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: nil,
-				QueryExecutor: &executorSetupAccountDatasetApplyUnconfirmedFail{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:       &executorSetupAccountDatasetApplyUnconfirmedFail{},
 			},
 			wantErr: true,
 		},
@@ -277,6 +224,23 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 			}
 		})
 	}
+}
+
+type (
+	executorSetupAccountDatasetUndoUnconfirmSuccess struct {
+		query.Executor
+	}
+	executorSetupAccountDatasetUndoUnconfirmFail struct {
+		query.Executor
+	}
+)
+
+func (*executorSetupAccountDatasetUndoUnconfirmSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return nil
+}
+
+func (*executorSetupAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr string, args ...interface{}) error {
+	return errors.New("MockedError")
 }
 
 func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
@@ -302,11 +266,7 @@ func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: nil,
-				QueryExecutor: &executorSetupAccountDatasetUndoUnconfirmSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:       &executorSetupAccountDatasetUndoUnconfirmSuccess{},
 			},
 			wantErr: false,
 		},
@@ -318,11 +278,7 @@ func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: nil,
-				QueryExecutor: &executorSetupAccountDatasetUndoUnconfirmFail{
-					query.Executor{
-						Db: db,
-					},
-				},
+				QueryExecutor:       &executorSetupAccountDatasetUndoUnconfirmFail{},
 			},
 			wantErr: true,
 		},
@@ -345,6 +301,77 @@ func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 	}
 }
 
+type (
+	executorSetupAccountDatasetValidateSuccess struct {
+		query.Executor
+	}
+	executorSetupAccountDatasetValidateAlreadyExists struct {
+		query.Executor
+	}
+)
+
+func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	switch strings.Contains(qStr, "account_balance") {
+	case true:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
+				"BCZ",
+				1,
+				1,
+				1,
+				0,
+				true,
+			),
+		)
+	default:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewAccountDatasetsQuery().Fields).AddRow(
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				"Admin",
+				"You're Welcome",
+				false,
+				true,
+				5,
+			),
+		)
+	}
+
+	return db.QueryRow(qStr), nil
+}
+
+func (*executorSetupAccountDatasetValidateAlreadyExists) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	switch strings.Contains(qStr, "account_balance") {
+	case true:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
+				"BCZ",
+				1,
+				1,
+				1,
+				0,
+				true,
+			),
+		)
+	default:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(query.NewAccountDatasetsQuery().Fields).AddRow(
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				"Admin",
+				"You're Welcome",
+				true,
+				true,
+				5,
+			),
+		)
+	}
+
+	return db.QueryRow(qStr), nil
+}
+
 func TestSetupAccountDataset_Validate(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
@@ -361,56 +388,46 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantErr:MuchTimeZero",
-			fields: fields{
-				Body: &model.SetupAccountDatasetTransactionBody{
-					MuchTime: 0,
-				},
-				Fee:                 1,
-				SenderAddress:       "",
-				AccountBalanceQuery: nil,
-				AccountDatasetQuery: nil,
-				QueryExecutor:       nil,
-			},
-			wantErr: true,
-		},
-		{
 			name: "wantErr:BalanceNotEnough",
 			fields: fields{
-				Body: &model.SetupAccountDatasetTransactionBody{
-					MuchTime: 2000,
-				},
+				Body:                &model.SetupAccountDatasetTransactionBody{},
 				Fee:                 60,
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: nil,
-				QueryExecutor: &executorSetupAccountDatasetValidateSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       &executorSetupAccountDatasetValidateSuccess{},
 			},
 			wantErr: true,
 		},
 		{
-			name: "Validate:success",
+			name: "wantErr:AlreadyExists",
 			fields: fields{
 				Body: &model.SetupAccountDatasetTransactionBody{
 					SetterAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					MuchTime:             2000,
 					Property:             "Admin",
 					Value:                "Welcome",
 				},
 				Fee:                 1,
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: nil,
-				QueryExecutor: &executorSetupAccountDatasetValidateSuccess{
-					query.Executor{
-						Db: db,
-					},
-				},
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       &executorSetupAccountDatasetValidateAlreadyExists{},
 			},
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name: "wantErr:Success",
+			fields: fields{
+				Body: &model.SetupAccountDatasetTransactionBody{
+					SetterAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					Property:             "Admin",
+					Value:                "Welcome",
+				},
+				Fee:                 1,
+				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				QueryExecutor:       &executorSetupAccountDatasetValidateSuccess{},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -501,7 +518,6 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					Property:                "Admin",
 					Value:                   "Welcome",
-					MuchTime:                123,
 				},
 				Fee:                 1,
 				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
@@ -510,7 +526,7 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
-			want: 124,
+			want: 116,
 		},
 	}
 	for _, tt := range tests {
@@ -551,25 +567,26 @@ func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
 			name: "GetBodyBytes:success",
 			fields: fields{
 				Body: &model.SetupAccountDatasetTransactionBody{
-					SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					Property:                "Admin",
-					Value:                   "Welcome",
-					MuchTime:                123,
+					SetterAccountAddress:    "Hl891TeTFxGgWOWfOOFKYr_XdhXNxO8JK8WnMJV6g8aL",
+					RecipientAccountAddress: "HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha",
+					Property:                "AccountDatasetEscrowApproval",
+					Value:                   "Happy birthday",
 				},
 				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:       "Hl891TeTFxGgWOWfOOFKYr_XdhXNxO8JK8WnMJV6g8aL",
 				Height:              5,
 				AccountBalanceQuery: nil,
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
 			want: []byte{
-				44, 0, 0, 0, 66, 67, 90, 110, 83, 102, 113, 112, 80, 53, 116, 113, 70, 81, 108, 77, 84, 89, 107, 68, 101, 66, 86,
-				70, 87, 110, 98, 121, 86, 75, 55, 118, 76, 114, 53, 79, 82, 70, 112, 84, 106, 103, 116, 78, 44, 0, 0, 0, 66, 67,
-				90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118,
-				66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 5, 0, 0, 0, 65, 100, 109, 105, 110, 7, 0,
-				0, 0, 87, 101, 108, 99, 111, 109, 101, 123, 0, 0, 0, 0, 0, 0, 0,
+				44, 0, 0, 0, 72, 108, 56, 57, 49, 84, 101, 84, 70, 120, 71, 103, 87, 79, 87, 102, 79, 79,
+				70, 75, 89, 114, 95, 88, 100, 104, 88, 78, 120, 79, 56, 74, 75, 56, 87, 110, 77, 74, 86,
+				54, 103, 56, 97, 76, 44, 0, 0, 0, 72, 108, 90, 76, 104, 51, 86, 99, 110, 78, 108, 118, 66,
+				121, 87, 111, 65, 122, 88, 79, 81, 50, 106, 65, 108, 119, 70, 79, 105, 121, 79, 57, 95, 110,
+				106, 73, 51, 111, 113, 53, 89, 103, 104, 97, 28, 0, 0, 0, 65, 99, 99, 111, 117, 110, 116,
+				68, 97, 116, 97, 115, 101, 116, 69, 115, 99, 114, 111, 119, 65, 112, 112, 114, 111, 118, 97,
+				108, 14, 0, 0, 0, 72, 97, 112, 112, 121, 32, 98, 105, 114, 116, 104, 100, 97, 121,
 			},
 		},
 	}

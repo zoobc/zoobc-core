@@ -236,8 +236,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		case "accountDataset":
 			for _, rec := range payload.AccountDatasets {
-				qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
-				queries = append(queries, qryArgs...)
+				qry, args := ss.AccountDatasetQuery.InsertAccountDataset(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
 			}
 		case "participationScore":
 			for _, rec := range payload.ParticipationScores {

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -181,16 +180,18 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	// yes would be error
 	// TODO: Move this part to `transactionCoreService` when all transaction types need this part
 	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAddress)
-	row, _ = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
-	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
-	if (err != nil) && err != sql.ErrNoRows {
+	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
+	if err != nil {
 		return err
 	}
-	if accountDataset.GetProperty() != "" &&
-		time.Unix(int64(accountDataset.GetTimestampExpires()), 0).After(time.Now()) {
+	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	// false if err in above is sql.ErrNoRows || nil
+	if accountDataset.GetIsActive() {
 		return fmt.Errorf("RecipientRequireEscrow")
 	}
-
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
 	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {

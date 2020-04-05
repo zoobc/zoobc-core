@@ -25,16 +25,15 @@ func (*mockGetAccountDatasetsExecutor) ExecuteSelect(string, bool, ...interface{
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	mockRows := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mockRows := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mockRows.AddRow(
 		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		"AccountDatasetEscrowApproval",
-		5,
 		"Message",
-		1565942932686,
-		1565943056129,
 		true,
+		true,
+		5,
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRows)
 
@@ -85,10 +84,9 @@ func TestAccountDatasetService_GetAccountDatasets(t *testing.T) {
 						RecipientAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 						Property:                "AccountDatasetEscrowApproval",
 						Value:                   "Message",
-						TimestampStarts:         1565942932686,
-						TimestampExpires:        1565943056129,
 						Height:                  5,
 						Latest:                  true,
+						IsActive:                true,
 					},
 				},
 			},
@@ -125,16 +123,15 @@ func (*mockExecutorGetAccountDataset) ExecuteSelectRow(string, bool, ...interfac
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mockRow.AddRow(
 		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		"AccountDatasetEscrowApproval",
-		5,
 		"Message",
-		1565942932686,
-		1565943056129,
 		true,
+		true,
+		5,
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow(""), nil
@@ -143,7 +140,7 @@ func (*mockExecutorGetAccountDatasetErr) ExecuteSelectRow(string, bool, ...inter
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow(""), nil
 }
@@ -192,10 +189,9 @@ func TestAccountDatasetService_GetAccountDataset(t *testing.T) {
 				RecipientAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				Property:                "AccountDatasetEscrowApproval",
 				Value:                   "Message",
-				TimestampStarts:         1565942932686,
-				TimestampExpires:        1565943056129,
 				Height:                  5,
 				Latest:                  true,
+				IsActive:                true,
 			},
 		},
 	}

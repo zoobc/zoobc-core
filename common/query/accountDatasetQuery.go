@@ -9,17 +9,17 @@ import (
 )
 
 type (
+	// AccountDatasetQuery fields that must have
 	AccountDatasetQuery struct {
-		PrimaryFields  []string
-		OrdinaryFields []string
-		TableName      string
+		Fields    []string
+		TableName string
 	}
 
+	// AccountDatasetQueryInterface methods must have
 	AccountDatasetQueryInterface interface {
-		GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{})
-		GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{})
-		AddDataset(dataset *model.AccountDataset) [][]interface{}
-		RemoveDataset(dataset *model.AccountDataset) [][]interface{}
+		GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{})
+		InsertAccountDataset(dataset *model.AccountDataset) (str string, args []interface{})
+		RemoveAccountDataset(dataset *model.AccountDataset) [][]interface{}
 		GetAccountDatasetEscrowApproval(
 			recipientAccountAddress string,
 		) (qStr string, args []interface{})
@@ -32,164 +32,76 @@ type (
 // NewAccountDatasetsQuery will create a new AccountDatasetQuery
 func NewAccountDatasetsQuery() *AccountDatasetQuery {
 	return &AccountDatasetQuery{
-		PrimaryFields: []string{
+		Fields: []string{
 			"setter_account_address",
 			"recipient_account_address",
 			"property",
-			"height",
-		},
-		OrdinaryFields: []string{
 			"value",
-			"timestamp_starts",
-			"timestamp_expires",
+			"is_active",
 			"latest",
+			"height",
 		},
 		TableName: "account_dataset",
 	}
 }
 
-func (adq *AccountDatasetQuery) GetDatasetsByRecipientAccountAddress(accountRecipient string) (query string, args interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE recipient_account_address = ? AND latest = 1",
-			strings.Join(adq.GetFields(), ","),
-			adq.TableName,
+/*
+InsertAccountDataset represents a query builder to insert new record and set old version as latest is false and active is false
+to account_dataset table
+*/
+func (adq *AccountDatasetQuery) InsertAccountDataset(dataset *model.AccountDataset) (str string, args []interface{}) {
+	return fmt.Sprintf(
+		"INSERT INTO %s (%s) VALUES(%s)",
+		adq.getTableName(),
+		strings.Join(adq.Fields, ", "),
+		fmt.Sprintf("?%s", strings.Repeat(", ?", len(adq.Fields)-1)),
+	), adq.ExtractModel(dataset)
+
+}
+
+// GetLatestAccountDataset represents query builder to get the latest record of account_dataset
+func (adq *AccountDatasetQuery) GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
+			strings.Join(adq.Fields, ", "),
+			adq.getTableName(),
 		),
-		accountRecipient
+		[]interface{}{
+			setterAccountAddress,
+			recipientAccountAddress,
+			property,
+			true,
+		}
 }
 
-func (adq *AccountDatasetQuery) GetLastDataset(accountSetter, accountRecipient, property string) (query string, args []interface{}) {
-	caseArgs := []interface{}{accountSetter, accountRecipient, property}
-	cq := NewCaseQuery()
-	cq.Select(adq.TableName, adq.GetFields()...)
-	// where clause : setter_account_address, recipient_account_address, property, lasted
-	cq.Where(cq.Equal("latest", true))
-	for k, v := range adq.PrimaryFields[:3] {
-		cq.And(cq.Equal(v, caseArgs[k]))
+/*
+RemoveAccountDataset represents a query builder to insert new record and set old version as latest is false and active is false
+to account_dataset table. Perhaps *model.AccountDataset.IsActive already set to false
+*/
+func (adq *AccountDatasetQuery) RemoveAccountDataset(dataset *model.AccountDataset) (str [][]interface{}) {
+
+	return [][]interface{}{
+		{
+			fmt.Sprintf(
+				"UPDATE %s set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? "+
+					"AND property = ? AND is_active = ?",
+				adq.getTableName(),
+			),
+			false,
+			dataset.GetSetterAccountAddress(),
+			dataset.GetRecipientAccountAddress(),
+			dataset.GetProperty(),
+			true,
+		},
+		append([]interface{}{
+			fmt.Sprintf(
+				"INSERT INTO %s (%s) VALUES(%s)",
+				adq.getTableName(),
+				strings.Join(adq.Fields, ", "),
+				fmt.Sprintf("?%s", strings.Repeat(", ?", len(adq.Fields)-1)),
+			),
+		}, adq.ExtractModel(dataset)...),
 	}
-	// it's removed dataset when timestamp_starts = timestamp_expires
-	cq.And("timestamp_starts <> timestamp_expires ")
-	cq.OrderBy("height", model.OrderBy_DESC)
-	cq.Limit(1)
-
-	return cq.Build()
-}
-
-func (adq *AccountDatasetQuery) AddDataset(dataset *model.AccountDataset) [][]interface{} {
-	var (
-		queries [][]interface{}
-	)
-
-	// Update Dataset will happen when new dataset already exist in highest height
-	updateDataset := fmt.Sprintf(`
-		UPDATE %s SET (%s) =
-		(
-			SELECT '%s', %d,
-				%d + CASE
-					WHEN timestamp_expires - %d < 0 THEN 0
-					ELSE timestamp_expires - %d END
-			FROM %s
-			WHERE %s AND latest = true
-			ORDER BY height DESC LIMIT 1
-		)
-		WHERE %s AND latest = true
-	`,
-		adq.TableName,
-		strings.Join(adq.OrdinaryFields[:3], ","),
-		dataset.GetValue(),
-		dataset.GetTimestampStarts(),
-		dataset.GetTimestampExpires(),
-		dataset.GetTimestampStarts(),
-		dataset.GetTimestampStarts(),
-		adq.TableName,
-		fmt.Sprintf("%s = ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
-		fmt.Sprintf("%s = ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
-	)
-
-	// Insert Dataset will happen when new dataset doesn't exist in highest height
-	insertDataset := fmt.Sprintf(`
-		INSERT INTO %s (%s)
-		SELECT %s,
-			%d + IFNULL((
-				SELECT CASE
-					WHEN timestamp_expires - %d < 0 THEN 0
-					ELSE timestamp_expires - %d END
-				FROM %s
-				WHERE %s AND latest = true
-				ORDER BY height DESC LIMIT 1
-			), 0),
-			true
-		WHERE NOT EXISTS (
-			SELECT %s FROM %s
-			WHERE %s
-		)
-	`,
-		adq.TableName,
-		strings.Join(adq.GetFields(), ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(adq.GetFields()[:6])-1)),
-		dataset.GetTimestampExpires(),
-		dataset.GetTimestampStarts(),
-		dataset.GetTimestampStarts(),
-		adq.TableName,
-		fmt.Sprintf("%s != ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
-		adq.PrimaryFields[0],
-		adq.TableName,
-		fmt.Sprintf("%s = ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
-	)
-
-	argumentWhere := adq.ExtractArgsWhere(dataset)
-	queries = append(queries,
-		append([]interface{}{updateDataset}, append(argumentWhere, argumentWhere...)...),
-		append([]interface{}{insertDataset},
-			append(adq.ExtractModel(dataset)[:6], append(argumentWhere, argumentWhere...)...)...),
-		adq.UpdateVersion(dataset),
-	)
-
-	return queries
-}
-
-func (adq *AccountDatasetQuery) RemoveDataset(dataset *model.AccountDataset) [][]interface{} {
-	var (
-		queries [][]interface{}
-	)
-
-	updateDataset := fmt.Sprintf(
-		"UPDATE %s SET %s WHERE %s AND latest = true",
-		adq.TableName,
-		fmt.Sprintf("%s = ? ", strings.Join(adq.OrdinaryFields, " = ?, ")),
-		fmt.Sprintf("%s = ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
-	)
-
-	insertDataset := fmt.Sprintf(`
-		INSERT INTO %s (%s)
-		SELECT %s
-		WHERE NOT EXISTS (
-			SELECT %s FROM %s
-			WHERE %s
-		)
-	`,
-		adq.TableName,
-		strings.Join(adq.GetFields(), ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(adq.GetFields())-1)),
-		adq.PrimaryFields[0],
-		adq.TableName,
-		fmt.Sprintf("%s = ? ", strings.Join(adq.PrimaryFields, " = ? AND ")),
-	)
-
-	argumentWhere := adq.ExtractArgsWhere(dataset)
-	queries = append(queries,
-		append([]interface{}{updateDataset}, append(adq.ExtractModel(dataset)[4:], argumentWhere...)...),
-		append([]interface{}{insertDataset}, append(adq.ExtractModel(dataset), argumentWhere...)...),
-		adq.UpdateVersion(dataset),
-	)
-	return queries
-}
-
-func (adq *AccountDatasetQuery) UpdateVersion(dataset *model.AccountDataset) []interface{} {
-	updateVersionQ := fmt.Sprintf(
-		"UPDATE %s SET latest = false WHERE %s AND latest = true",
-		adq.TableName,
-		fmt.Sprintf("%s != ? ", strings.Join(adq.PrimaryFields, " = ? AND ")), // where clause
-	)
-	return append([]interface{}{updateVersionQ}, adq.ExtractArgsWhere(dataset)...)
 }
 
 // GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
@@ -198,7 +110,7 @@ func (adq *AccountDatasetQuery) GetAccountDatasetEscrowApproval(
 ) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 			"SELECT %s FROM %s WHERE recipient_account_address = ? AND property = ? AND latest = ?",
-			strings.Join(adq.GetFields(), ", "),
+			strings.Join(adq.Fields, ", "),
 			adq.getTableName(),
 		), []interface{}{
 			recipientAccountAddress,
@@ -211,32 +123,20 @@ func (adq *AccountDatasetQuery) getTableName() string {
 	return adq.TableName
 }
 
+// ExtractModel allowing to extracting the values
 func (adq *AccountDatasetQuery) ExtractModel(dataset *model.AccountDataset) []interface{} {
 	return []interface{}{
 		dataset.GetSetterAccountAddress(),
 		dataset.GetRecipientAccountAddress(),
 		dataset.GetProperty(),
-		dataset.GetHeight(),
 		dataset.GetValue(),
-		dataset.GetTimestampStarts(),
-		dataset.GetTimestampExpires(),
+		dataset.GetIsActive(),
 		dataset.GetLatest(),
-	}
-}
-
-/*
-	ExtractArgsWhere represent extracted spesific field of account dataset model
-	(Primary field of account dataset)
-*/
-func (adq *AccountDatasetQuery) ExtractArgsWhere(dataset *model.AccountDataset) []interface{} {
-	return []interface{}{
-		dataset.GetSetterAccountAddress(),
-		dataset.GetRecipientAccountAddress(),
-		dataset.GetProperty(),
 		dataset.GetHeight(),
 	}
 }
 
+// BuildModel allowing to extract *rows into list of model.AccountDataset
 func (adq *AccountDatasetQuery) BuildModel(
 	datasets []*model.AccountDataset,
 	rows *sql.Rows,
@@ -250,11 +150,10 @@ func (adq *AccountDatasetQuery) BuildModel(
 			&dataset.SetterAccountAddress,
 			&dataset.RecipientAccountAddress,
 			&dataset.Property,
-			&dataset.Height,
 			&dataset.Value,
-			&dataset.TimestampStarts,
-			&dataset.TimestampExpires,
+			&dataset.IsActive,
 			&dataset.Latest,
+			&dataset.Height,
 		)
 		if err != nil {
 			return nil, err
@@ -264,24 +163,16 @@ func (adq *AccountDatasetQuery) BuildModel(
 	return datasets, nil
 }
 
+// Scan represents *sql.Scan
 func (*AccountDatasetQuery) Scan(dataset *model.AccountDataset, row *sql.Row) error {
-	err := row.Scan(
+	return row.Scan(
 		&dataset.SetterAccountAddress,
 		&dataset.RecipientAccountAddress,
 		&dataset.Property,
-		&dataset.Height,
 		&dataset.Value,
-		&dataset.TimestampStarts,
-		&dataset.TimestampExpires,
+		&dataset.IsActive,
 		&dataset.Latest,
-	)
-	return err
-}
-
-func (adq *AccountDatasetQuery) GetFields() []string {
-	return append(
-		adq.PrimaryFields,
-		adq.OrdinaryFields...,
+		&dataset.Height,
 	)
 }
 
@@ -294,15 +185,13 @@ func (adq *AccountDatasetQuery) Rollback(height uint32) (multiQueries [][]interf
 		{
 			fmt.Sprintf(`
 				UPDATE %s SET latest = ?
-				WHERE latest = ? AND (%s) IN (
-					SELECT %s
+				WHERE latest = ? AND (setter_account_address, recipient_account_address, property, height) IN (
+					SELECT setter_account_address, recipient_account_address, property, MAX(height)
 					FROM %s
 					GROUP BY setter_account_address, recipient_account_address, property
 				)`,
-				adq.TableName,
-				strings.Join(adq.PrimaryFields, ","),
-				fmt.Sprintf("%s, MAX(height)", strings.Join(adq.PrimaryFields[:3], ",")),
-				adq.TableName,
+				adq.getTableName(),
+				adq.getTableName(),
 			),
 			1, 0,
 		},
@@ -310,14 +199,16 @@ func (adq *AccountDatasetQuery) Rollback(height uint32) (multiQueries [][]interf
 }
 
 func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (%s) IN (SELECT "+
-		"%s FROM %s WHERE height >= %d AND height <= %d GROUP BY setter_account_address, recipient_account_address, "+
-		"property) ORDER BY height",
-		strings.Join(adq.GetFields(), ","),
-		adq.TableName,
-		strings.Join(adq.PrimaryFields, ","),
-		fmt.Sprintf("%s, MAX(height)", strings.Join(adq.PrimaryFields[:3], ",")),
-		adq.TableName,
+	return fmt.Sprintf(`
+			SELECT %s FROM %s
+			WHERE (setter_account_address, recipient_account_address, property, height) IN (
+				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM %s
+				WHERE height >= %d AND height <= %d
+				GROUP BY setter_account_address, recipient_account_address, property
+			) ORDER BY height`,
+		strings.Join(adq.Fields, ", "),
+		adq.getTableName(),
+		adq.getTableName(),
 		fromHeight,
 		toHeight,
 	)

@@ -45,7 +45,7 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 		err         error
 	)
 
-	caseQ.Select(ads.AccountDatasetQuery.TableName, ads.AccountDatasetQuery.GetFields()...)
+	caseQ.Select(ads.AccountDatasetQuery.TableName, ads.AccountDatasetQuery.Fields...)
 	if request.GetProperty() != "" {
 		caseQ.Where(caseQ.Equal("property", request.GetProperty()))
 	}
@@ -109,7 +109,7 @@ func (ads *AccountDatasetService) GetAccountDataset(
 		caseQ      = query.NewCaseQuery()
 	)
 
-	caseQ.Select(ads.AccountDatasetQuery.TableName, ads.AccountDatasetQuery.GetFields()...)
+	caseQ.Select(ads.AccountDatasetQuery.TableName, ads.AccountDatasetQuery.Fields...)
 	if request.GetProperty() != "" {
 		caseQ.Where(caseQ.Equal("property", request.GetProperty()))
 	}

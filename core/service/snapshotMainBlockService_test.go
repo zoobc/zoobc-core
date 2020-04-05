@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/query"
-
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
@@ -297,8 +296,6 @@ var (
 		Property:                "testProp",
 		RecipientAccountAddress: bcsAddress1,
 		SetterAccountAddress:    bcsAddress2,
-		TimestampExpires:        15875392,
-		TimestampStarts:         15875000,
 		Value:                   "testVal",
 	}
 	blockForSnapshot1 = &model.Block{
@@ -698,7 +695,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 			}
 			// this is the hash of encoded bynary data
 			if !reflect.DeepEqual(got.SnapshotFileHash, tt.want) {
-				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = \n%v, want \n%v", got, tt.want)
 			}
 			// remove generated files
 			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0="
