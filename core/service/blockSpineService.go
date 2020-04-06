@@ -894,8 +894,8 @@ func (bs *BlockSpineService) WillSmith(
 		blockSmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		blocksmithIdx := blocksmithsMap[string(blocksmith.NodePublicKey)]
-		if blocksmithIdx == nil {
+		blocksmithIdx, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
+		if !ok {
 			return blockchainProcessorLastBlockID, blocksmithIndex,
 				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
