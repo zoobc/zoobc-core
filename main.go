@@ -769,7 +769,7 @@ func main() {
 	// start cpu profiling if enabled
 	if cpuProfile {
 		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf("localhost:%d", cpuProfilingPort), nil); err != nil {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cpuProfilingPort), nil); err != nil {
 				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
 			}
 		}()
