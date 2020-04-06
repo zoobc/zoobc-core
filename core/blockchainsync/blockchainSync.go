@@ -25,7 +25,6 @@ type (
 	}
 
 	BlockchainSyncService struct {
-		// isScanningBlockchain       bool
 		ChainType               chaintype.ChainType
 		PeerServiceClient       client.PeerServiceClientInterface
 		PeerExplorer            strategy.PeerExplorerStrategyInterface

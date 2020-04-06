@@ -26,6 +26,10 @@ type (
 	}
 )
 
+// NewBlockchainOrchestratorService returns service instance for orchestrating the blockchains
+// as multiple blockhains are implemented in the application, this service controls the behavior
+// of the blockchains so that the expected behavior is consistent within the application.
+// In the future, this service may also be expanded to orchestrate the smithing activity of the blockchains
 func NewBlockchainOrchestratorService(
 	spinechainSyncService BlockchainSyncServiceInterface,
 	mainchainSyncService BlockchainSyncServiceInterface,
