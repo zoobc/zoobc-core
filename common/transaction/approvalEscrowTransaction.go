@@ -249,6 +249,7 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		return blocker.NewBlocker(blocker.AppErr, "TransactionNotFound")
 
 	}
+	transaction.Height = tx.Height
 	transaction.Escrow = &latestEscrow
 
 	txType, err = tx.TypeActionSwitcher.GetTransactionType(&transaction)
