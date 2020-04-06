@@ -53,7 +53,7 @@ func (bos *BlockchainOrchestratorService) StartSyncChain(chainSyncService Blockc
 	chainType := chainSyncService.GetBlockService().GetChainType()
 
 	bos.Logger.Infof("downloading %s blocks...\n", chainType.GetName())
-	log.Infof("downloading %s blocks...\n", chainType.GetName())
+
 	go chainSyncService.Start()
 
 	ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
@@ -86,7 +86,6 @@ CheckLoop:
 
 func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainType) error {
 	bos.Logger.Info("dowloading snapshots...")
-	log.Info("dowloading snapshots...")
 	lastSpineBlockManifest, err := bos.SpineBlockManifestService.GetLastSpineBlockManifest(ct,
 		model.SpineBlockManifestType_Snapshot)
 	if err != nil {
@@ -96,7 +95,6 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 	}
 	if lastSpineBlockManifest == nil {
 		bos.Logger.Info("no lastSpineBlockManifest is found")
-		log.Info("no lastSpineBlockManifest is found")
 	} else {
 		spinechainBlockService := (bos.SpinechainSyncService.GetBlockService()).(service.BlockServiceSpineInterface)
 		err := spinechainBlockService.ValidateSpineBlockManifest(lastSpineBlockManifest)
@@ -113,7 +111,6 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 			bos.Logger.Warning(err)
 			return err
 		} else {
-			log.Info("applying snapshots...")
 			if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
 				bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d: %s\n", ct.GetName(),
 					lastSpineBlockManifest.SpineBlockManifestHeight, err.Error())
@@ -150,8 +147,6 @@ func (bos *BlockchainOrchestratorService) Start() error {
 	}
 
 	bos.Logger.Info("blockchain sync completed. unlocking smithing process...")
-	log.Info("blockchain sync completed. unlocking smithing process...")
-	log.Info("now the blockchain operates normally")
 	bos.BlockchainStatusService.SetIsSmithingLocked(false)
 	return nil
 }
