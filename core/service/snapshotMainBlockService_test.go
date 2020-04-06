@@ -2,11 +2,9 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -697,12 +695,6 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 			}
 			// this is the hash of encoded bynary data
 			if !reflect.DeepEqual(got.SnapshotFileHash, tt.want) {
-				var byteStrArr []string
-				for _, bt := range got.SnapshotFileHash {
-					byteStrArr = append(byteStrArr, fmt.Sprintf("%v", bt))
-				}
-				resultStr := strings.Join(byteStrArr, ", ")
-				fmt.Println(resultStr)
 				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = \n%v, want \n%v", got.SnapshotFileHash, tt.want)
 			}
 			// remove generated files
