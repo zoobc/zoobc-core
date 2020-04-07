@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger"
@@ -886,8 +885,8 @@ func (*mockBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block) map
 func (*mockBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 
-func (*mockBlocksmithServicePushBlock) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
-	return 10000 - 10
+func (*mockBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
+	return nil
 }
 
 type (
@@ -2703,8 +2702,8 @@ func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.B
 	}
 }
 
-func (*mockBlocksmithServiceReceiveBlock) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	return mockSmithTime
+func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
+	return nil
 }
 
 func (*mockBlockIncompleteQueueServiceReceiveBlock) GetBlockQueue(blockID int64) *model.Block {
@@ -2728,6 +2727,10 @@ func (*mockQueryExecutorReceiveBlockFail) ExecuteSelectRow(qStr string, tx bool,
 	mockRows.AddRow("1")
 	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
 	return db.QueryRow(qStr), nil
+}
+
+func (bss *mockBlocksmithServiceReceiveBlock) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
+	return nil
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
@@ -3617,8 +3620,12 @@ func (*mockBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*model
 	}
 }
 
-func (*mockBlocksmithServiceValidateBlockSuccess) GetSmithTime(blocksmithIndex int64, previousBlock *model.Block) int64 {
-	return 0
+func (*mockBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
+	return nil
+}
+
+func (*mockBlocksmithServiceValidateBlockSuccess) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
+	return nil
 }
 
 func TestBlockService_ValidateBlock(t *testing.T) {
@@ -4483,8 +4490,8 @@ func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmithsMap(block *model.
 func (*mockBlocksmithServiceProcessQueued) SortBlocksmiths(block *model.Block, withLock bool) {
 }
 
-func (*mockBlocksmithServiceProcessQueued) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	return 0
+func (*mockBlocksmithServiceProcessQueued) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
+	return nil
 }
 
 func (*mockBlockIncompleteQueueServiceAlreadyExist) GetBlockQueue(blockID int64) *model.Block {
@@ -4866,159 +4873,6 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 			}
 			if tt.expects != nil && !reflect.DeepEqual(tt.args.block, tt.expects) {
 				t.Errorf("BlockMainService.PopulateBlockData() = %v, want %v", tt.expects, tt.args.block)
-			}
-		})
-	}
-}
-
-type (
-	mockBlocksmithStrategyMainFalse struct {
-		strategy.BlocksmithStrategyMain
-	}
-
-	mockBlocksmithStrategyMainTrue struct {
-		strategy.BlocksmithStrategyMain
-	}
-)
-
-func (*mockBlocksmithStrategyMainFalse) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	// using current time will make the blocksmith can't persist the block yet, since it needs to wait until
-	// previous blocksmith persist time expired
-	return time.Now().Unix()
-}
-
-func (*mockBlocksmithStrategyMainTrue) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
-	// using this formula will simulate the blocksmith to have persist time true
-	return time.Now().Unix() - constant.SmithingBlockCreationTime -
-		constant.SmithingNetworkTolerance
-}
-
-func TestBlockService_canPersistBlock(t *testing.T) {
-	type fields struct {
-		RWMutex                 sync.RWMutex
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ReceiptService          ReceiptServiceInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Observer                *observer.Observer
-		Logger                  *log.Logger
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
-		BlockPoolService        BlockPoolServiceInterface
-	}
-	type args struct {
-		blocksmithIndex int64
-		previousBlock   *model.Block
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		{
-			name:   "canPersist: true, blocksmithIndex = first",
-			fields: fields{},
-			args: args{
-				blocksmithIndex: 0,
-				previousBlock:   nil,
-			},
-			want: true,
-		},
-		{
-			name: "canPersist: false, blocksmithIndex = second, prevBlock.height = genesis",
-			fields: fields{
-				BlocksmithStrategy: &mockBlocksmithStrategyMainFalse{},
-			},
-			args: args{
-				blocksmithIndex: 1,
-				previousBlock: &model.Block{
-					Height: 0,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "canPersist: false, blocksmithIndex = second, prevBlock.height = non-genesis",
-			fields: fields{
-				BlocksmithStrategy: &mockBlocksmithStrategyMainFalse{},
-			},
-			args: args{
-				blocksmithIndex: 1,
-				previousBlock: &model.Block{
-					Height: 1,
-				},
-			},
-			want: false,
-		},
-		{
-			name: "canPersist: false, blocksmithIndex = second, prevBlock.height = genesis",
-			fields: fields{
-				BlocksmithStrategy: &mockBlocksmithStrategyMainTrue{},
-			},
-			args: args{
-				blocksmithIndex: 1,
-				previousBlock: &model.Block{
-					Height: 0,
-				},
-			},
-			want: true,
-		},
-		{
-			name: "canPersist: false, blocksmithIndex = second, prevBlock.height = non-genesis",
-			fields: fields{
-				BlocksmithStrategy: &mockBlocksmithStrategyMainTrue{},
-			},
-			args: args{
-				blocksmithIndex: 1,
-				previousBlock: &model.Block{
-					Height: 1,
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				RWMutex:                 tt.fields.RWMutex,
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ReceiptService:          tt.fields.ReceiptService,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				Observer:                tt.fields.Observer,
-				Logger:                  tt.fields.Logger,
-				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
-				BlockPoolService:        tt.fields.BlockPoolService,
-			}
-			if got := bs.canPersistBlock(tt.args.blocksmithIndex, tt.args.previousBlock); got != tt.want {
-				t.Errorf("canPersistBlock() = %v, want %v", got, tt.want)
 			}
 		})
 	}
