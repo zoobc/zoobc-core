@@ -467,6 +467,8 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
+		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
 		block *model.Block
@@ -503,6 +505,8 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -540,6 +544,8 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
+				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -582,6 +588,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
@@ -623,6 +630,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -659,6 +667,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -687,6 +696,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 				DerivedQueries:             tt.fields.DerivedQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -743,6 +753,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
 	}
 	tests := []struct {
@@ -775,6 +786,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 		},
@@ -799,6 +811,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
 				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)

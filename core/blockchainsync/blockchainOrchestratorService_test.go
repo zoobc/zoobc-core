@@ -68,15 +68,18 @@ type (
 	}
 )
 
-func (*MockSpineBlockManifestServiceError) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
+func (*MockSpineBlockManifestServiceError) GetLastSpineBlockManifest(ct chaintype.ChainType,
+	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
 	return nil, errors.New("GetLastSpineBlockManifest error")
 }
 
-func (*MockSpineBlockManifestServiceSuccessNoSpineBlockManifest) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
+func (*MockSpineBlockManifestServiceSuccessNoSpineBlockManifest) GetLastSpineBlockManifest(ct chaintype.ChainType,
+	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
 	return nil, nil
 }
 
-func (*MockSpineBlockManifestServiceSuccessWithSpineBlockManifest) GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
+func (*MockSpineBlockManifestServiceSuccessWithSpineBlockManifest) GetLastSpineBlockManifest(ct chaintype.ChainType,
+	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error) {
 	return &model.SpineBlockManifest{}, nil
 }
 
@@ -116,11 +119,13 @@ func (*MockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &model.Block{}, nil
 }
 
-func (*MockFileDownloaderError) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) (*model.SnapshotFileInfo, error) {
+func (*MockFileDownloaderError) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) (*model.
+	SnapshotFileInfo, error) {
 	return nil, errors.New("DownloadSnapshot error")
 }
 
-func (*MockFileDownloaderSuccess) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) (*model.SnapshotFileInfo, error) {
+func (*MockFileDownloaderSuccess) DownloadSnapshot(ct chaintype.ChainType, spineBlockManifest *model.SpineBlockManifest) (*model.
+	SnapshotFileInfo, error) {
 	return &model.SnapshotFileInfo{}, nil
 }
 
@@ -248,7 +253,7 @@ func TestBlockchainOrchestratorService_DownloadSnapshot(t *testing.T) {
 				MainchainSnapshotBlockServices: tt.fields.MainchainSnapshotBlockServices,
 				Logger:                         tt.fields.Logger,
 			}
-			bos.DownloadSnapshot(tt.args.ct)
+			_ = bos.DownloadSnapshot(tt.args.ct)
 			if err := bos.DownloadSnapshot(tt.args.ct); (err != nil) != tt.wantErr {
 				t.Errorf("BlockchainOrchestratorService.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
 			}

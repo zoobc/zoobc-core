@@ -31,6 +31,7 @@ type (
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
 	}
 )
@@ -52,6 +53,7 @@ func NewSnapshotMainBlockService(
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
+	blocksmithSafeQueries map[string]bool,
 	derivedQueries []query.DerivedQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
@@ -72,6 +74,7 @@ func NewSnapshotMainBlockService(
 		SkippedBlocksmithQuery:     skippedBlocksmithQuery,
 		BlockQuery:                 blockQuery,
 		SnapshotQueries:            snapshotQueries,
+		BlocksmithSafeQuery:        blocksmithSafeQueries,
 		DerivedQueries:             derivedQueries,
 	}
 }
@@ -99,15 +102,11 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				fromHeight uint32
 				rows       *sql.Rows
 			)
-			if qryRepoName == "block" {
-				if snapshotPayloadHeight > constant.MinRollbackBlocks {
-					fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
-				}
-			}
-			if qryRepoName == "publishedReceipt" {
-				if snapshotPayloadHeight > constant.LinkedReceiptBlocksLimit {
-					fromHeight = snapshotPayloadHeight - constant.LinkedReceiptBlocksLimit
-				}
+			// if current query repo is blocksmith safe,
+			// include more blocks to make sure we don't break smithing process due to missing data such as blocks,
+			// published receipts and node registrations
+			if ss.BlocksmithSafeQuery[qryRepoName] && snapshotPayloadHeight > constant.MinRollbackBlocks {
+				fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
 			}
 			qry := snapshotQuery.SelectDataForSnapshot(fromHeight, snapshotPayloadHeight)
 			rows, err = ss.QueryExecutor.ExecuteSelect(qry, false)

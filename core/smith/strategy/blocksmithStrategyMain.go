@@ -164,7 +164,9 @@ func (bss *BlocksmithStrategyMain) EstimateLastBlockPersistedTime(
 			return nil, err
 		}
 		defer skippedBlocksmithsRows.Close()
-		bss.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows)
+		if _, err := bss.SkippedBlocksmithQuery.BuildModel(skippedBlocksmiths, skippedBlocksmithsRows); err != nil {
+			return nil, err
+		}
 		return skippedBlocksmiths, nil
 	}()
 	if err != nil {
@@ -184,7 +186,8 @@ func (bss *BlocksmithStrategyMain) EstimateLastBlockPersistedTime(
 
 // IsBlockTimestampValid check if the block provided (currentBlock) has valid timestamp based on the previous block
 // of the current node. This function is save to be called on download process, it does not make use of node current time.
-func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock, currentBlock *model.Block) error {
+func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock,
+	currentBlock *model.Block) error {
 	var (
 		err error
 		ct  = &chaintype.MainChain{}

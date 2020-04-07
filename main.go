@@ -88,7 +88,6 @@ var (
 	receiptUtil                                     = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                       service.TransactionCoreServiceInterface
 	fileService                                     service.FileServiceInterface
-	chainTypes                                      = chaintype.GetChainTypes()
 	mainchain                                       = &chaintype.MainChain{}
 	spinechain                                      = &chaintype.SpineChain{}
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
@@ -200,6 +199,7 @@ func init() {
 		query.NewSkippedBlocksmithQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
+		query.GetBlocksmithSafeQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
 	)
 

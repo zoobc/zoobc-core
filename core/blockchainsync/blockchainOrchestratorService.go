@@ -1,7 +1,6 @@
 package blockchainsync
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -31,8 +30,7 @@ type (
 // of the blockchains so that the expected behavior is consistent within the application.
 // In the future, this service may also be expanded to orchestrate the smithing activity of the blockchains
 func NewBlockchainOrchestratorService(
-	spinechainSyncService BlockchainSyncServiceInterface,
-	mainchainSyncService BlockchainSyncServiceInterface,
+	spinechainSyncService, mainchainSyncService BlockchainSyncServiceInterface,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
 	spineBlockManifestService service.SpineBlockManifestServiceInterface,
 	fileDownloader p2p.FileDownloaderInterface,
@@ -110,12 +108,10 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 		if err != nil {
 			bos.Logger.Warning(err)
 			return err
-		} else {
-			if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
-				bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d: %s\n", ct.GetName(),
-					lastSpineBlockManifest.SpineBlockManifestHeight, err.Error())
-				return err
-			}
+		} else if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
+			bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d: %s\n", ct.GetName(),
+				lastSpineBlockManifest.SpineBlockManifestHeight, err.Error())
+			return err
 		}
 
 	}
@@ -133,7 +129,7 @@ func (bos *BlockchainOrchestratorService) Start() error {
 
 	lastMainBlock, err := bos.MainchainSyncService.GetBlockService().GetLastBlock()
 	if err != nil {
-		return errors.New(fmt.Sprintf("cannot get last main block: %s", err.Error()))
+		return fmt.Errorf("cannot get last main block: %s", err.Error())
 	}
 	if lastMainBlock.Height == 0 &&
 		bos.MainchainSyncService.GetBlockService().GetChainType().HasSnapshots() {
