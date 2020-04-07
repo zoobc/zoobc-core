@@ -168,7 +168,7 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block, withLock
 	bss.SortedBlocksmiths = blocksmiths
 }
 
-// CalculateSmith calculate seed, smithTime, and Deadline
+// CalculateScore calculate the blocksmith score of spinechain
 func (bss *BlocksmithStrategySpine) CalculateScore(generator *model.Blocksmith, score int64) error {
 	// FIXME: ask @barton probably the way we compute spine blocksmith has to be reviewed, since we don't have ps and receipts,
 	//		  attached to spine blocks

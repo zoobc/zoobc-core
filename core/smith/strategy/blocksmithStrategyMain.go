@@ -144,7 +144,7 @@ func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock 
 	bss.SortedBlocksmiths = blocksmiths
 }
 
-// CalculateSmith calculate seed, smithTime, and Deadline for mainchain
+// CalculateScore calculate the blocksmith score
 func (bss *BlocksmithStrategyMain) CalculateScore(generator *model.Blocksmith, score int64) error {
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
 	return nil

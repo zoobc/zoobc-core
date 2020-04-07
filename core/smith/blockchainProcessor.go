@@ -18,7 +18,7 @@ type (
 		Start(sleepPeriod time.Duration)
 		Stop()
 		StartSmithing() error
-		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
+		FakeSmithing(numberOfBlocks int, fromGenesis bool, chainType chaintype.ChainType) error
 		GetBlockChainprocessorStatus() (isSmithing bool, err error)
 	}
 
@@ -58,7 +58,7 @@ func NewBlockchainProcessor(
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
 // errors
 // todo: @andy-shi need to adjust this function to newest state of smithing process.
-func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool) error {
+func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool, ct chaintype.ChainType) error {
 	// todo: if debug mode, allow, else no
 	var (
 		timeNow int64
@@ -88,7 +88,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			}
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
-		for timeNow < lastBlock.GetTimestamp()+constant.MainChainSmithingPeriod {
+		for timeNow < lastBlock.GetTimestamp()+ct.GetSmithingPeriod() {
 			timeNow++ // speed up bro
 		}
 		previousBlock, err := bp.BlockService.GetLastBlock()
