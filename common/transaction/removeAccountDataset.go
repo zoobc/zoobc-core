@@ -3,7 +3,6 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
-	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -12,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
+// RemoveAccountDataset has fields that's needed
 type RemoveAccountDataset struct {
 	ID                  int64
 	Fee                 int64
@@ -20,14 +20,14 @@ type RemoveAccountDataset struct {
 	Body                *model.RemoveAccountDatasetTransactionBody
 	Escrow              *model.Escrow
 	AccountBalanceQuery query.AccountBalanceQueryInterface
-	AccountDatasetQuery query.AccountDatasetsQueryInterface
+	AccountDatasetQuery query.AccountDatasetQueryInterface
 	QueryExecutor       query.ExecutorInterface
 	AccountLedgerQuery  query.AccountLedgerQueryInterface
 	EscrowQuery         query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *RemoveAccountDataset) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *RemoveAccountDataset) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
 	return false, nil
 }
 
@@ -37,7 +37,7 @@ ApplyConfirmed is func that for applying Transaction RemoveAccountDataset type,
 func (tx *RemoveAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err     error
-		dataset *model.AccountDataset
+		queries [][]interface{}
 	)
 
 	// update sender balance by reducing his spendable balance of the tx fee
@@ -49,22 +49,17 @@ func (tx *RemoveAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 		},
 	)
 
-	// Account dataset removed when TimestampStarts same with TimestampExpires
-	currentTime := uint64(time.Now().Unix())
-	dataset = &model.AccountDataset{
+	// Account dataset removed, need to set IsActive false
+	datasetQ := tx.AccountDatasetQuery.RemoveAccountDataset(&model.AccountDataset{
 		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
 		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
 		Property:                tx.Body.GetProperty(),
 		Value:                   tx.Body.GetValue(),
-		TimestampStarts:         currentTime,
-		TimestampExpires:        currentTime,
 		Height:                  tx.Height,
 		Latest:                  true,
-	}
-
-	datasetQuery := tx.AccountDatasetQuery.RemoveDataset(dataset)
-	queries := append(accountBalanceSenderQ, datasetQuery...)
-
+		IsActive:                false,
+	})
+	queries = append(accountBalanceSenderQ, datasetQ...)
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -tx.Fee,
@@ -73,8 +68,7 @@ func (tx *RemoveAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 		EventType:      model.EventType_EventRemoveNodeRegistrationTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
+	queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
@@ -142,27 +136,34 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 		accountBalance model.AccountBalance
 		accountDataset model.AccountDataset
 		err            error
+		row            *sql.Row
 	)
 
 	/*
-		Chack existing dataset
+		Check existing dataset
 		Account Dataset can only delete when account dataset exist
 	*/
-	datasetQ, datasetArg := tx.AccountDatasetQuery.GetLastDataset(
+	datasetQ, datasetArgs := tx.AccountDatasetQuery.GetLatestAccountDataset(
 		tx.Body.GetSetterAccountAddress(),
 		tx.Body.GetRecipientAccountAddress(),
 		tx.Body.GetProperty(),
 	)
-	row, err := tx.QueryExecutor.ExecuteSelectRow(datasetQ, dbTx, datasetArg...)
+
+	row, err = tx.QueryExecutor.ExecuteSelectRow(datasetQ, dbTx, datasetArgs...)
 	if err != nil {
 		return err
 	}
 	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, "Remove Account Dataset, Dataset does not exist ")
+		if err != sql.ErrNoRows {
+			return err
 		}
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountDatasetNotExists")
+	}
+	// !false if err in above is sql.ErrNoRows || nil
+	if !accountDataset.GetIsActive() {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountDatasetAlreadyRemoved")
 	}
 
 	// check account balance sender
@@ -283,7 +284,7 @@ That specs:
 	- Check existing Account Dataset
 	- Check Spendable Balance sender
 */
-func (tx *RemoveAccountDataset) EscrowValidate(dbTx bool) error {
+func (tx *RemoveAccountDataset) EscrowValidate(bool) error {
 
 	return nil
 }
@@ -308,7 +309,7 @@ func (tx *RemoveAccountDataset) EscrowUndoApplyUnconfirmed() error {
 /*
 EscrowApplyConfirmed is func that for applying Transaction RemoveAccountDataset type,
 */
-func (tx *RemoveAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error {
+func (tx *RemoveAccountDataset) EscrowApplyConfirmed(int64) error {
 
 	return nil
 }
