@@ -42,6 +42,7 @@ type (
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlocksmithService         BlocksmithServiceInterface
 	}
 )
 
@@ -56,6 +57,7 @@ func NewBlockSpineService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	megablockQuery query.SpineBlockManifestQueryInterface,
+	blocksmithService BlocksmithServiceInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:          ct,
@@ -78,6 +80,7 @@ func NewBlockSpineService(
 			spineBlockQuery,
 			logger,
 		),
+		BlocksmithService: blocksmithService,
 	}
 }
 
@@ -218,9 +221,9 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
-	blocksmithTime := bs.BlocksmithStrategy.GetSmithTime(*blocksmithIndex, previousLastBlock)
-	if blocksmithTime > block.GetTimestamp() {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
+	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock, block)
+	if err != nil {
+		return err
 	}
 	if coreUtil.GetBlockID(block, bs.Chaintype) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
@@ -894,25 +897,29 @@ func (bs *BlockSpineService) WillSmith(
 		blockSmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
+		blocksmithIdx, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
+		if !ok {
 			return blockchainProcessorLastBlockID, blocksmithIndex,
 				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		// calculate blocksmith score for the block type
 		// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
 		blocksmithScore := constant.DefaultParticipationScore
-		err = blockSmithStrategy.CalculateSmith(
-			lastBlock,
-			*(blocksmithsMap[string(blocksmith.NodePublicKey)]),
-			blocksmith,
-			blocksmithScore,
-		)
+		err = blockSmithStrategy.CalculateScore(blocksmith, blocksmithScore)
 		if err != nil {
 			return blockchainProcessorLastBlockID, blocksmithIndex, err
 		}
-		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithIndex(bs.GetChainType(), *blocksmithIdx)
 	}
-	return blockchainProcessorLastBlockID, blocksmithIndex, nil
+	// check if it's legal to create block for current blocksmith now
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
+	if err == nil {
+		return blockchainProcessorLastBlockID, blocksmithIndex, nil
+	}
+	return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
+		blocker.SmithingErr, "NotTimeToSmithYet",
+	)
 }
 
 func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {

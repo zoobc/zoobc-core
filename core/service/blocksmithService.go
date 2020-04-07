@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -20,6 +22,7 @@ type (
 		AccountLedgerQuery    query.AccountLedgerQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		Chaintype             chaintype.ChainType
 	}
 )
 
@@ -28,12 +31,14 @@ func NewBlocksmithService(
 	accountLedgerQuery query.AccountLedgerQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	queryExecutor query.ExecutorInterface,
+	chaintype chaintype.ChainType,
 ) *BlocksmithService {
 	return &BlocksmithService{
 		AccountBalanceQuery:   accountBalanceQuery,
 		AccountLedgerQuery:    accountLedgerQuery,
 		NodeRegistrationQuery: nodeRegistrationQuery,
 		QueryExecutor:         queryExecutor,
+		Chaintype:             chaintype,
 	}
 }
 

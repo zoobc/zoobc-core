@@ -13,7 +13,6 @@ type Blocksmith struct {
 	NodeOrder     *big.Int
 	SmithOrder    uint32
 	Score         *big.Int
-	SmithTime     int64
 	BlockSeed     int64
 	SecretPhrase  string
 	Deadline      uint32

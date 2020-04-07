@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"math/big"
 	"reflect"
 	"regexp"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
@@ -202,75 +204,6 @@ func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelectRow(qStr st
 			mockBlock.GetVersion(),
 		))
 	return db.QueryRow(qStr), nil
-}
-
-func TestBlocksmithStrategySpine_GetSmithTime(t *testing.T) {
-	type fields struct {
-		QueryExecutor        query.ExecutorInterface
-		SpinePublicKeyQuery  query.SpinePublicKeyQueryInterface
-		Logger               *log.Logger
-		SortedBlocksmiths    []*model.Blocksmith
-		LastSortedBlockID    int64
-		SortedBlocksmithsMap map[string]*int64
-	}
-	type args struct {
-		blocksmithIndex int64
-		block           *model.Block
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   int64
-	}{
-		{
-			name: "GetSmithTime:0",
-			fields: fields{
-				Logger:               log.New(),
-				SortedBlocksmiths:    nil,
-				SortedBlocksmithsMap: make(map[string]*int64),
-				LastSortedBlockID:    1,
-			},
-			args: args{
-				blocksmithIndex: 0,
-				block: &model.Block{
-					Timestamp: 0,
-				},
-			},
-			want: constant.SpineChainSmithingPeriod,
-		},
-		{
-			name: "GetSmithTime:1",
-			fields: fields{
-				Logger:               log.New(),
-				SortedBlocksmiths:    nil,
-				SortedBlocksmithsMap: make(map[string]*int64),
-				LastSortedBlockID:    1,
-			},
-			args: args{
-				blocksmithIndex: 1,
-				block: &model.Block{
-					Timestamp: 120120,
-				},
-			},
-			want: 120120 + constant.SmithingBlocksmithTimeGap + constant.SpineChainSmithingPeriod,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithStrategySpine{
-				QueryExecutor:        tt.fields.QueryExecutor,
-				SpinePublicKeyQuery:  tt.fields.SpinePublicKeyQuery,
-				Logger:               tt.fields.Logger,
-				SortedBlocksmiths:    tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:    tt.fields.LastSortedBlockID,
-				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
-			}
-			if got := bss.GetSmithTime(tt.args.blocksmithIndex, tt.args.block); got != tt.want {
-				t.Errorf("BlocksmithStrategySpine.GetSmithTime() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
@@ -562,7 +495,7 @@ func TestBlocksmithStrategySpine_GetSortedBlocksmiths(t *testing.T) {
 	}
 }
 
-func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
+func TestBlocksmithStrategySpine_CalculateScore(t *testing.T) {
 	type fields struct {
 		QueryExecutor        query.ExecutorInterface
 		SpinePublicKeyQuery  query.SpinePublicKeyQueryInterface
@@ -599,7 +532,6 @@ func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
 				NodePublicKey: bssNodePubKey1,
 				NodeID:        1,
 				Score:         big.NewInt(1000000000),
-				SmithTime:     constant.SpineChainSmithingPeriod,
 			},
 		},
 	}
@@ -613,7 +545,7 @@ func TestBlocksmithStrategySpine_CalculateSmith(t *testing.T) {
 				LastSortedBlockID:    tt.fields.LastSortedBlockID,
 				SortedBlocksmithsMap: tt.fields.SortedBlocksmithsMap,
 			}
-			err := bss.CalculateSmith(tt.args.lastBlock, tt.args.blocksmithIndex, tt.args.generator, tt.args.score)
+			err := bss.CalculateScore(tt.args.generator, tt.args.score)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlocksmithStrategySpine.CalculateSmith() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -651,6 +583,256 @@ func TestNewBlocksmithStrategySpine(t *testing.T) {
 			if got := NewBlocksmithStrategySpine(tt.args.queryExecutor, tt.args.spinePublicKeyQuery,
 				tt.args.logger, tt.args.spineBlockQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategySpine() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategySpine_IsBlockTimestampValid(t *testing.T) {
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
+		Logger                *log.Logger
+		SortedBlocksmiths     []*model.Blocksmith
+		LastSortedBlockID     int64
+		SortedBlocksmithsLock sync.RWMutex
+		SortedBlocksmithsMap  map[string]*int64
+		SpineBlockQuery       query.BlockQueryInterface
+	}
+	type args struct {
+		blocksmithIndex     int64
+		numberOfBlocksmiths int64
+		previousBlock       *model.Block
+		currentBlock        *model.Block
+	}
+	spine := &chaintype.SpineChain{}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "BlocksmithIndex = 0 - true",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 0,
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				currentBlock: &model.Block{
+					Timestamp: spine.GetSmithingPeriod(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "BlocksmithIndex > 0 - true",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 0,
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				currentBlock: &model.Block{
+					Timestamp: spine.GetSmithingPeriod() + (1 * spine.GetBlocksmithTimeGap()),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "BlocksmithIndex > 0 - false",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 0,
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				currentBlock: &model.Block{
+					Timestamp: spine.GetSmithingPeriod(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:   "BlocksmithIndex = 0 - false",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 0,
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				currentBlock: &model.Block{
+					Timestamp: spine.GetSmithingPeriod() - 1,
+				},
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategySpine{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:     tt.fields.LastSortedBlockID,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsLock,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SpineBlockQuery:       tt.fields.SpineBlockQuery,
+			}
+			if err := bss.IsBlockTimestampValid(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock, tt.args.currentBlock); (err != nil) != tt.wantErr {
+				t.Errorf("IsBlockTimestampValid() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategySpine_CanPersistBlock(t *testing.T) {
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
+		Logger                *log.Logger
+		SortedBlocksmiths     []*model.Blocksmith
+		LastSortedBlockID     int64
+		SortedBlocksmithsLock sync.RWMutex
+		SortedBlocksmithsMap  map[string]*int64
+		SpineBlockQuery       query.BlockQueryInterface
+	}
+	type args struct {
+		blocksmithIndex     int64
+		numberOfBlocksmiths int64
+		previousBlock       *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:    "Default - Spinechain Does not need persist block function",
+			fields:  fields{},
+			args:    args{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bl := &BlocksmithStrategySpine{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:     tt.fields.LastSortedBlockID,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsLock,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SpineBlockQuery:       tt.fields.SpineBlockQuery,
+			}
+			if err := bl.CanPersistBlock(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock); (err != nil) != tt.wantErr {
+				t.Errorf("CanPersistBlock() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategySpine_IsValidSmithTime(t *testing.T) {
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
+		Logger                *log.Logger
+		SortedBlocksmiths     []*model.Blocksmith
+		LastSortedBlockID     int64
+		SortedBlocksmithsLock sync.RWMutex
+		SortedBlocksmithsMap  map[string]*int64
+		SpineBlockQuery       query.BlockQueryInterface
+	}
+	type args struct {
+		blocksmithIndex     int64
+		numberOfBlocksmiths int64
+		previousBlock       *model.Block
+	}
+	spine := &chaintype.SpineChain{}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "TimeSinceLastBlock < SmithPeriod",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 3,
+				previousBlock: &model.Block{
+					ID:        1,
+					Timestamp: time.Now().Unix(),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:   "SmithingPending",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     0,
+				numberOfBlocksmiths: 100,
+				previousBlock: &model.Block{
+					ID: 1,
+					Timestamp: time.Now().Unix() - spine.GetSmithingPeriod() - spine.GetBlocksmithBlockCreationTime() -
+						spine.GetBlocksmithNetworkTolerance() - 1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:   "allowedBegin-one round",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 6,
+				previousBlock: &model.Block{
+					ID: 1,
+					Timestamp: time.Now().Unix() - spine.GetSmithingPeriod() -
+						spine.GetBlocksmithTimeGap() + 1,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:   "allowedBegin-multiple round",
+			fields: fields{},
+			args: args{
+				blocksmithIndex:     1,
+				numberOfBlocksmiths: 6,
+				previousBlock: &model.Block{
+					ID: 1,
+					Timestamp: time.Now().Unix() - spine.GetSmithingPeriod() -
+						(11 * spine.GetBlocksmithTimeGap()) - 1,
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategySpine{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
+				Logger:                tt.fields.Logger,
+				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
+				LastSortedBlockID:     tt.fields.LastSortedBlockID,
+				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsLock,
+				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
+				SpineBlockQuery:       tt.fields.SpineBlockQuery,
+			}
+			if err := bss.IsValidSmithTime(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock); (err != nil) != tt.wantErr {
+				t.Errorf("IsValidSmithTime() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
