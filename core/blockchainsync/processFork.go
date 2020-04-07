@@ -74,6 +74,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 		// rebuilding the chain
 		monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 88)
 		for _, block := range forkBlocks {
+			if block.ID == lastBlock.ID {
+				continue
+			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 89)
 			lastBlock, err = fp.BlockService.GetLastBlock()
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 90)
@@ -107,7 +110,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if blacklistErr != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 					}
-					fp.Logger.Warnf("\n\nPushBlock err %v\n\n", err)
+					fp.Logger.Warnf("\n\nPushBlock of fork blocks err %v\n\n", err)
 					break
 				}
 
