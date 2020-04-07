@@ -9,11 +9,10 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"runtime"
-	"runtime/pprof"
 	"strings"
 	"syscall"
 	"time"
@@ -54,6 +53,7 @@ var (
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
 	apiRPCPort, apiHTTPPort, monitoringPort         int
+	cpuProfilingPort                                int
 	apiCertFile, apiKeyFile                         string
 	peerPort                                        uint32
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
@@ -81,7 +81,7 @@ var (
 	loggerAPIService                                *log.Logger
 	loggerCoreService                               *log.Logger
 	loggerP2PService                                *log.Logger
-	spinechainSynchronizer, mainchainSynchronizer   *blockchainsync.Service
+	spinechainSynchronizer, mainchainSynchronizer   blockchainsync.BlockchainSyncServiceInterface
 	spineBlockManifestService                       service.SpineBlockManifestServiceInterface
 	snapshotService                                 service.SnapshotServiceInterface
 	transactionUtil                                 = &transaction.Util{}
@@ -96,7 +96,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
 	nodeKey                                         *model.NodeKey
-	cpuProfile, memProfile                          bool
+	cpuProfile                                      bool
 )
 
 func init() {
@@ -110,7 +110,6 @@ func init() {
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
-	flag.BoolVar(&memProfile, "mem-profile", false, "if this flag is used, write memory (heap) profile to file")
 	flag.Parse()
 
 	loadNodeConfig(configPath, "config"+configPostfix, "toml")
@@ -248,6 +247,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
+	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	wellknownPeers = viper.GetStringSlice("wellknownPeers")
 	smithing = viper.GetBool("smithing")
@@ -295,6 +295,9 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("monitoringPort: %d", monitoringPort)
 	log.Printf("apiRPCPort: %d", apiRPCPort)
 	log.Printf("apiHTTPPort: %d", apiHTTPPort)
+	if cpuProfile {
+		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
+	}
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
 	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
@@ -421,8 +424,9 @@ func startNodeMonitoring() {
 	monitoring.SetMonitoringActive(true)
 	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
 	go func() {
-		http.Handle("/metrics", promhttp.Handler())
-		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), nil)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), mux)
 		if err != nil {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
 		}
@@ -744,161 +748,31 @@ func startScheduler() {
 }
 
 func startBlockchainSyncronizers() {
-	var (
-		spineBlocksDownloadFinished = make(chan bool, 1)
-		mainBlocksDownloadFinished  = make(chan bool, 1)
-	)
-	go spinechainSynchronizer.Start()
+	blockchainOrchestrator := blockchainsync.NewBlockchainOrchestratorService(
+		spinechainSynchronizer,
+		mainchainSynchronizer,
+		blockchainStatusService,
+		spineBlockManifestService,
+		fileDownloader,
+		snapshotBlockServices[mainchain.GetTypeInt()],
+		loggerCoreService)
 	go func() {
-		ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
-		tickerLog := time.NewTicker(2 * time.Second)
-		timeout := time.After(constant.BlockchainsyncSpineTimeout)
-		for {
-			select {
-			case <-tickerLog.C:
-				loggerCoreService.Infof("downloading spine blocks...")
-			case <-ticker.C:
-				if blockchainStatusService.IsFirstDownloadFinished(spinechain) {
-					spineBlocksDownloadFinished <- true
-					ticker.Stop()
-					tickerLog.Stop()
-					return
-				}
-			// spine blocks shouldn't take that long to be downloaded. shutdown the node
-			// TODO: add push notification to node owner that the node has shutdown because of network issues
-			case <-timeout:
-				loggerCoreService.Fatal("spine blocks sync timed out...")
-			}
+		err := blockchainOrchestrator.Start()
+		if err != nil {
+			loggerCoreService.Fatal(err.Error())
+			os.Exit(1)
 		}
 	}()
-
-	// wait downloading snapshot and main blocks until node has finished downloading spine blocks
-	<-spineBlocksDownloadFinished
-	lastSpineBlock, err := spinechainSynchronizer.BlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Errorf("cannot get last spine block")
-		os.Exit(1)
-	}
-	loggerCoreService.Infof("finished downloading spine blocks. last height is %d", lastSpineBlock.Height)
-	go func() {
-		ticker := time.NewTicker(constant.BlockchainsyncCheckInterval)
-		tickerLog := time.NewTicker(2 * time.Second)
-		for {
-			select {
-			case <-tickerLog.C:
-				loggerCoreService.Infof("downloading main blocks...")
-			case <-ticker.C:
-				if blockchainStatusService.IsFirstDownloadFinished(mainchain) {
-					mainBlocksDownloadFinished <- true
-					ticker.Stop()
-					tickerLog.Stop()
-					return
-				}
-			}
-		}
-	}()
-	loggerCoreService.Info("done downloading spine blocks. searching for snapshots...")
-	// loop through all chain types that support snapshots and download them if we find relative
-	// spineBlockManifest
-	lastMainBlock, err := mainchainSynchronizer.BlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal("cannot get last main block")
-	}
-	for i := 0; i < len(chainTypes); i++ {
-		ct := chaintype.GetChainType(int32(i))
-		// exclude spinechain
-		if i == int(spinechain.GetTypeInt()) {
-			continue
-		}
-
-		// only download/apply snapshots first time a node joins the network (for now)
-		if lastMainBlock.Height == 0 && ct.HasSnapshots() {
-			// snapshot download
-			lastSpineBlockManifest, err := spineBlockManifestService.GetLastSpineBlockManifest(ct,
-				model.SpineBlockManifestType_Snapshot)
-			if err != nil {
-				loggerCoreService.Errorf("db error: cannot get last spineBlockManifest for chaintype %s",
-					ct.GetName())
-				break
-			}
-			if lastSpineBlockManifest != nil {
-				err := spinechainBlockService.ValidateSpineBlockManifest(lastSpineBlockManifest)
-				if err != nil {
-					loggerCoreService.Errorf("Invalid spineBlockManifest for chaintype %s Snapshot won't be downloaded. %s",
-						ct.GetName(), err)
-				} else {
-					loggerCoreService.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
-						"at height is %d. Start downloading...", ct.GetName(),
-						lastSpineBlockManifest.SpineBlockManifestHeight)
-					snapshotFileInfo, err := fileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest)
-					if err != nil {
-						loggerCoreService.Warning(err)
-					} else if err := snapshotBlockServices[ct.GetTypeInt()].ImportSnapshotFile(snapshotFileInfo); err != nil {
-						loggerCoreService.Warningf("error importing snapshot file for chaintype %s at height %d", ct.GetName(),
-							lastSpineBlockManifest.SpineBlockManifestHeight)
-					}
-				}
-			}
-		}
-		// download remaining main blocks and start the mainchain synchronizer
-		// TODO: generalise this so that we can just inject the chaintype and will start the correct
-		//  syncronizer
-		switch ct.(type) {
-		case *chaintype.MainChain:
-			loggerCoreService.Info("start downloading main blocks...")
-			go mainchainSynchronizer.Start()
-
-		default:
-			loggerCoreService.Debug("invalid chaintype for snapshot")
-		}
-	}
-	// unlock smithing process after main blocks have finished downloading
-	<-mainBlocksDownloadFinished
-	lastMainBlock, err = mainchainSynchronizer.BlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal("cannot get last main block")
-	}
-	loggerCoreService.Infof("finished downloading main blocks. last height is %d",
-		lastMainBlock.Height)
-	loggerCoreService.Info("blockchain sync completed. unlocking smithing process...")
-	blockchainStatusService.SetIsSmithingLocked(false)
 }
 
 func main() {
 	// start cpu profiling if enabled
 	if cpuProfile {
-		if profilingFilePathName == "" {
-			log.Error("missing profilingFilePathName configuration parameter")
-		} else {
-			// add cpu to prof file name
-			f, err := os.Create(fmt.Sprintf(profilingFilePathName, "cpu"))
-			if err != nil {
-				log.Fatal("could not create CPU profile: ", err)
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cpuProfilingPort), nil); err != nil {
+				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
 			}
-			defer f.Close() // error handling omitted for example
-			if err := pprof.StartCPUProfile(f); err != nil {
-				log.Error("could not start CPU profile: ", err)
-			}
-			defer pprof.StopCPUProfile()
-		}
-	}
-
-	// start memory profiling if enabled
-	if memProfile {
-		if profilingFilePathName == "" {
-			log.Error("missing profilingFilePathName configuration parameter")
-		} else {
-			// add mem to prof file name
-			f, err := os.Create(fmt.Sprintf(profilingFilePathName, "mem"))
-			if err != nil {
-				log.Fatal("could not create memory profile: ", err)
-			}
-			defer f.Close() // error handling omitted for example
-			runtime.GC()    // get up-to-date statistics
-			if err := pprof.WriteHeapProfile(f); err != nil {
-				log.Error("could not write memory profile: ", err)
-			}
-		}
+		}()
 	}
 
 	migration := database.Migration{Query: queryExecutor}
