@@ -69,15 +69,6 @@ func TestBlockIncompleteQueueService_GetBlockQueue(t *testing.T) {
 }
 
 func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
-	mockBlockIDsMap := make(map[int64]BlockIDsMap)
-	mockBlockIDsMap[int64(0)] = BlockIDsMap{0: true}
-
-	mockBlockWithMetaData := make(map[int64]*BlockWithMetaData)
-	mockBlockWithMetaData[int64(0)] = &BlockWithMetaData{Block: &model.Block{}}
-
-	mockTransactionIDsMap := make(map[int64]TransactionIDsMap)
-	mockTransactionIDsMap[int64(0)] = TransactionIDsMap{0: 1}
-
 	type fields struct {
 		BlocksQueue                   map[int64]*BlockWithMetaData
 		BlockRequiringTransactionsMap map[int64]TransactionIDsMap
@@ -97,7 +88,7 @@ func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
 	}{
 		// TODO: Add test cases.
 		{
-			name: "AddTransaction:errorBlockIsNil",
+			name: "AddTransaction:errorBlocksQueueIsNil",
 			fields: fields{
 				TransactionsRequiredMap: make(map[int64]BlockIDsMap),
 			},
@@ -107,15 +98,47 @@ func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "AddTransaction:errorTxsIsEmpty",
+			name: "AddTransaction:errorLenTxsIsEmpty",
 			fields: fields{
-				BlocksQueue:                   mockBlockWithMetaData,
-				TransactionsRequiredMap:       mockBlockIDsMap,
-				BlockRequiringTransactionsMap: mockTransactionIDsMap,
+				BlocksQueue: map[int64]*BlockWithMetaData{
+					0: &BlockWithMetaData{Block: &model.Block{}},
+				},
+				TransactionsRequiredMap: map[int64]BlockIDsMap{
+					0: BlockIDsMap{0: true},
+				},
+				BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
+					0: TransactionIDsMap{0: 1},
+				},
 			},
 			args: args{
 				transaction: &model.Transaction{
 					BlockID: int64(0),
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "AddTransaction:success",
+			fields: fields{
+				BlocksQueue: map[int64]*BlockWithMetaData{
+					15: &BlockWithMetaData{Block: &model.Block{
+						Transactions: []*model.Transaction{
+							{},
+							{},
+						},
+					}},
+				},
+				TransactionsRequiredMap: map[int64]BlockIDsMap{
+					21: BlockIDsMap{15: true},
+					22: BlockIDsMap{15: true},
+				},
+				BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
+					15: TransactionIDsMap{21: 0, 22: 1},
+				},
+			},
+			args: args{
+				transaction: &model.Transaction{
+					ID: 21,
 				},
 			},
 			want: nil,
