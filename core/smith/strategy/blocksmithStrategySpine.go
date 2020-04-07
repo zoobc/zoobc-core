@@ -203,7 +203,7 @@ func (*BlocksmithStrategySpine) CanPersistBlock(
 	return nil
 }
 
-func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
+func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
 		currentTime                      = time.Now().Unix()
 		ct                               = &chaintype.MainChain{}

@@ -517,7 +517,8 @@ func TestBlocksmithStrategyMain_IsBlockTimestampValid(t *testing.T) {
 				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
 				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
 			}
-			if err := bss.IsBlockTimestampValid(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock, tt.args.currentBlock); (err != nil) != tt.wantErr {
+			if err := bss.IsBlockTimestampValid(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock,
+				tt.args.currentBlock); (err != nil) != tt.wantErr {
 				t.Errorf("IsBlockTimestampValid() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

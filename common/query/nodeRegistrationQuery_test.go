@@ -437,17 +437,19 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 	})
 }
 
-func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
-	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.SelectDataForSnapshot(0, 10)
-		want := "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
-			"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, " +
-			"MAX(t2.height) FROM node_registry as t2 WHERE height >= 0 AND height <= 10 GROUP BY t2.id) ORDER BY height"
-		if res != want {
-			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
-		}
-	})
-}
+// func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
+// 	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
+// 		res := mockNodeRegistrationQuery.SelectDataForSnapshot(0, 10)
+// 		want := "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
+// 			"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) FROM node_registry as t2 WHERE t2." +
+// 			"height >= 0 AND t2.height < 0 GROUP BY t2.id) AND id NOT IN (SELECT DISTINCT t3.id FROM node_registry as t3 WHERE t3." +
+// 			"height >= 0 AND t3.height < 10) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
+// 			"locked_balance,registration_status,latest,height FROM node_registry WHERE height >= 0 AND height <= 10 ORDER BY height"
+// 		if res != want {
+// 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+// 		}
+// 	})
+// }
 
 func TestNodeRegistrationQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot:success", func(t *testing.T) {
@@ -457,4 +459,63 @@ func TestNodeRegistrationQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
 	})
+}
+
+func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "SelectDataForSnapshot:success-{fromGenesis}",
+			fields: fields{
+				TableName: NewNodeRegistrationQuery().TableName,
+				Fields:    NewNodeRegistrationQuery().Fields,
+			},
+			args: args{
+				fromHeight: 0,
+				toHeight:   10,
+			},
+			want: "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
+				"height FROM node_registry WHERE height >= 0 AND height <= 10 ORDER BY height, id",
+		},
+		{
+			name: "SelectDataForSnapshot:success-{fromArbitraryHeight}",
+			fields: fields{
+				TableName: NewNodeRegistrationQuery().TableName,
+				Fields:    NewNodeRegistrationQuery().Fields,
+			},
+			args: args{
+				fromHeight: 720,
+				toHeight:   1440,
+			},
+			want: "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
+				"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) FROM node_registry as t2 WHERE t2." +
+				"height >= 0 AND t2.height < 720 GROUP BY t2.id) AND id NOT IN (SELECT DISTINCT t3.id FROM node_registry as t3 WHERE t3." +
+				"height >= 720 AND t3.height < 1440) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
+				"locked_balance,registration_status,latest," +
+				"height FROM node_registry WHERE height >= 720 AND height <= 1440 ORDER BY height, id",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := nrq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
