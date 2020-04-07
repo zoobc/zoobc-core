@@ -437,20 +437,6 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 	})
 }
 
-// func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
-// 	t.Run("GetActiveNodeRegistrations", func(t *testing.T) {
-// 		res := mockNodeRegistrationQuery.SelectDataForSnapshot(0, 10)
-// 		want := "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
-// 			"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) FROM node_registry as t2 WHERE t2." +
-// 			"height >= 0 AND t2.height < 0 GROUP BY t2.id) AND id NOT IN (SELECT DISTINCT t3.id FROM node_registry as t3 WHERE t3." +
-// 			"height >= 0 AND t3.height < 10) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
-// 			"locked_balance,registration_status,latest,height FROM node_registry WHERE height >= 0 AND height <= 10 ORDER BY height"
-// 		if res != want {
-// 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
-// 		}
-// 	})
-// }
-
 func TestNodeRegistrationQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.TrimDataBeforeSnapshot(0, 10)
