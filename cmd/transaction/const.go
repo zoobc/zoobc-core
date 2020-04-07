@@ -43,9 +43,8 @@ var (
 	databaseName            string
 
 	// dataset transaction
-	property   string
-	value      string
-	activeTime uint64
+	property string
+	value    string
 	// escrowable
 	escrow            bool
 	esApproverAddress string

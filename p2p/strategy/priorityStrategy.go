@@ -234,9 +234,10 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 		// Check have default context
 		if len(md.Get(p2pUtil.DefaultConnectionMetadata)) != 0 {
 			// get scramble node
+			// NOTE: calling this query is highly possibility issued error `db is locked`. Need optimize
 			lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
 			if err != nil {
-				ps.Logger.Errorf("FailGetLastBlock: %v", err)
+				ps.Logger.Errorf("ValidateRequestFailGetLastBlock: %v", err)
 				return false
 			}
 			scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)

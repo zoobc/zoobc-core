@@ -34,7 +34,7 @@ func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transac
 
 /*
 GenerateTxRegisterNode return register node transaction based on provided basic transaction &
-others spesific field for generate register node transaction
+others specific field for generate register node transaction
 */
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
@@ -69,7 +69,7 @@ func GenerateTxRegisterNode(
 
 /*
 GenerateTxUpdateNode return update node transaction based on provided basic transaction &
-others spesific field for update register node transaction
+others specific field for update register node transaction
 */
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
@@ -124,7 +124,7 @@ func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Trans
 
 /*
 GenerateTxClaimNode return claim node transaction based on provided basic transaction &
-others spesific field for claim node transaction
+others specific field for claim node transaction
 */
 func GenerateTxClaimNode(
 	tx *model.Transaction,
@@ -149,7 +149,7 @@ func GenerateTxClaimNode(
 	return tx
 }
 
-// GenerateProofOfOwnership generate proof of owner ship for transaction ralated with node registry
+// GenerateProofOfOwnership generate proof of owner ship for transaction related with node registry
 func GenerateProofOfOwnership(
 	dbPath, dbname, nodeOwnerAccountAddress, nodeSeed, proofOfOwnershipHex string,
 ) *model.ProofOfOwnership {
@@ -168,20 +168,18 @@ func GenerateProofOfOwnership(
 }
 
 /*
-GenerateTxSetupAccountDataset return setup accout dataset transaction based on provided basic transaction &
-others spesific field for setup accout dataset transaction
+GenerateTxSetupAccountDataset return setup account dataset transaction based on provided basic transaction &
+others specific field for setup account dataset transaction
 */
 func GenerateTxSetupAccountDataset(
 	tx *model.Transaction,
 	senderAccountAddress, recipientAccountAddress, property, value string,
-	activeTime uint64,
 ) *model.Transaction {
 	txBody := &model.SetupAccountDatasetTransactionBody{
 		SetterAccountAddress:    senderAccountAddress,
 		RecipientAccountAddress: recipientAccountAddress,
 		Property:                property,
 		Value:                   value,
-		MuchTime:                activeTime,
 	}
 	txBodyBytes := (&transaction.SetupAccountDataset{
 		Body: txBody,
@@ -197,8 +195,8 @@ func GenerateTxSetupAccountDataset(
 }
 
 /*
-GenerateTxRemoveAccountDataset return remove accout dataset transaction based on provided basic transaction &
-others spesific field for remove accout dataset transaction
+GenerateTxRemoveAccountDataset return remove account dataset transaction based on provided basic transaction &
+others specific field for remove account dataset transaction
 */
 func GenerateTxRemoveAccountDataset(
 	tx *model.Transaction,

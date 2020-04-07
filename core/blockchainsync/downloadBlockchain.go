@@ -149,7 +149,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 41)
 	chainBlockIds := bd.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 42)
-	if len(chainBlockIds) < 2 || !bd.PeerHasMore {
+	if int32(len(chainBlockIds)) < constant.MinimumPeersBlocksToDownload || !bd.PeerHasMore {
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 43)
 		return &PeerBlockchainInfo{
 			Peer:        peer,

@@ -16,17 +16,10 @@ import (
 var db, mock, _ = sqlmock.New()
 
 type (
-	executorAccountCreateSuccess struct {
-		query.Executor
-	}
 	executorAccountCountSuccess struct {
 		query.Executor
 	}
 	executorAccountCountFail struct {
-		query.Executor
-	}
-
-	executorValidateSuccess struct {
 		query.Executor
 	}
 
@@ -46,46 +39,6 @@ type (
 		query.ExecutorInterface
 	}
 )
-
-func (*executorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
-		"total_record",
-	}).AddRow(2))
-
-	return db.QueryRow(qStr, 1, 2), nil
-}
-func (*executorValidateSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
-		query.NewAccountBalanceQuery().Fields,
-	).AddRow(1, 2, 50, 50, 0, 1))
-	return db.Query(qStr, 1)
-}
-
-func (*executorAccountCreateSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
-	return nil
-}
-
-func (*executorAccountCreateSuccess) ExecuteTransactions([][]interface{}) error {
-	return nil
-}
-
-func (*executorAccountCreateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WithArgs(1, 2).WillReturnRows(sqlmock.NewRows([]string{
-		"total_record",
-	}).AddRow(2))
-
-	return db.QueryRow(qStr, 1, 2), nil
-}
 
 func (*executorAccountCountFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:accountInsertFail")
@@ -156,30 +109,29 @@ type (
 	}
 )
 
-func (*mockQueryExecutorValidateSendMoneyHasEscrow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+func (*mockQueryExecutorValidateSendMoneyHasEscrow) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	row := db.QueryRow("")
 	return row, nil
 }
 
-func (*mockQueryExecutorValidateSendMoneyHasEscrow) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorValidateSendMoneyHasEscrow) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	return &sql.Rows{}, nil
 }
 
-func (*mockQueryExecutorValidateSendMoneyNeedEscrow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+func (*mockQueryExecutorValidateSendMoneyNeedEscrow) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().GetFields())
+	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mockRow.AddRow(
 		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		"AccountDatasetEscrowApproval",
-		5,
 		"You Welcome",
-		1565942932686,
-		1565943056129,
 		true,
+		true,
+		5,
 	)
 
 	mock.ExpectQuery("").WillReturnRows(mockRow)
@@ -207,7 +159,7 @@ func TestSendMoney_Validate(t *testing.T) {
 		Height               uint32
 		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
-		AccountDatasetQuery  query.AccountDatasetsQueryInterface
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
 	}
 	tests := []struct {
 		name    string

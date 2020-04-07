@@ -2,20 +2,20 @@ package service
 
 import (
 	"database/sql"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/query"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
@@ -182,7 +182,7 @@ type (
 		success bool
 	}
 	mockSnapshotAccountDatasetQuery struct {
-		query.AccountDatasetsQueryInterface
+		query.AccountDatasetQueryInterface
 		success bool
 	}
 	mockSnapshotParticipationScoreQuery struct {
@@ -296,8 +296,6 @@ var (
 		Property:                "testProp",
 		RecipientAccountAddress: bcsAddress1,
 		SetterAccountAddress:    bcsAddress2,
-		TimestampExpires:        15875392,
-		TimestampStarts:         15875000,
 		Value:                   "testVal",
 	}
 	blockForSnapshot1 = &model.Block{
@@ -305,8 +303,8 @@ var (
 		Timestamp: 15875392,
 	}
 	snapshotFullHash = []byte{
-		35, 247, 199, 251, 175, 178, 67, 125, 232, 88, 96, 242, 1, 221, 39, 114, 236, 24, 1, 74, 8, 217, 208, 166, 36, 145, 70, 40,
-		100, 40, 97, 164,
+		222, 155, 147, 46, 83, 40, 19, 208, 55, 187, 156, 164, 162, 158, 70, 249, 53, 131, 183, 153, 67, 89,
+		47, 189, 207, 38, 224, 31, 115, 124, 247, 161,
 	}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
@@ -460,7 +458,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -469,6 +467,8 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
+		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
 		block *model.Block
@@ -505,6 +505,8 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -542,6 +544,8 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
+				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -575,7 +579,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -584,6 +588,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
@@ -625,6 +630,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -661,6 +667,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -689,6 +696,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 				DerivedQueries:             tt.fields.DerivedQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -697,14 +705,14 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 			}
 			// this is the hash of encoded bynary data
 			if !reflect.DeepEqual(got.SnapshotFileHash, tt.want) {
-				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = \n%v, want \n%v", got.SnapshotFileHash, tt.want)
 			}
 			// remove generated files
-			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0="
+			s1 := "3puTLlMoE9A3u5ykop5G-TWDt5lDWS-9zybgH3N896E="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s1))
-			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaQ="
+			s2 := "jica4f9TBxknRQC_gDcd83OMRno9SkmIPBJQbyjK2F8="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s2))
-			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T8="
+			s3 := "JWx5HOAgG11sFIAHVF-G1dtveG4iIm5K7VoZsxrBlOw="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s3))
 		})
 	}
@@ -736,7 +744,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -745,6 +753,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
 	}
 	tests := []struct {
@@ -777,6 +786,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 		},
@@ -801,6 +811,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
 				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
