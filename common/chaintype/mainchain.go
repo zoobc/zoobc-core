@@ -1,8 +1,9 @@
 package chaintype
 
 import (
-	"github.com/zoobc/zoobc-core/common/constant"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 // MainChain is struct should has methods in below
@@ -20,6 +21,18 @@ func (*MainChain) GetTablePrefix() string {
 
 func (*MainChain) GetSmithingPeriod() int64 {
 	return constant.MainChainSmithingPeriod
+}
+
+func (*MainChain) GetBlocksmithTimeGap() int64 {
+	return constant.MainSmithingBlocksmithTimeGap
+}
+
+func (*MainChain) GetBlocksmithBlockCreationTime() int64 {
+	return constant.MainSmithingBlockCreationTime
+}
+
+func (*MainChain) GetBlocksmithNetworkTolerance() int64 {
+	return constant.MainSmithingNetworkTolerance
 }
 
 // GetName return the name of the chain : used in parsing chaintype across node

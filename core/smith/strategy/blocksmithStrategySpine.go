@@ -2,9 +2,13 @@ package strategy
 
 import (
 	"encoding/binary"
+	"math"
 	"math/big"
 	"sort"
 	"sync"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -164,22 +168,19 @@ func (bss *BlocksmithStrategySpine) SortBlocksmiths(block *model.Block, withLock
 	bss.SortedBlocksmiths = blocksmiths
 }
 
-// CalculateSmith calculate seed, smithTime, and Deadline
-func (bss *BlocksmithStrategySpine) CalculateSmith(
-	lastBlock *model.Block,
-	blocksmithIndex int64,
-	generator *model.Blocksmith,
-	score int64,
-) error {
+// CalculateScore calculate the blocksmith score of spinechain
+func (bss *BlocksmithStrategySpine) CalculateScore(generator *model.Blocksmith, score int64) error {
 	// FIXME: ask @barton probably the way we compute spine blocksmith has to be reviewed, since we don't have ps and receipts,
 	//		  attached to spine blocks
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
-	generator.SmithTime = bss.GetSmithTime(blocksmithIndex, lastBlock)
 	return nil
 }
 
-// GetSmithTime calculate smith time of a blocksmith
-func (bss *BlocksmithStrategySpine) GetSmithTime(blocksmithIndex int64, block *model.Block) int64 {
+// IsBlockTimestampValid check if currentBlock timestamp is valid
+func (bss *BlocksmithStrategySpine) IsBlockTimestampValid(
+	blocksmithIndex, numberOfBlocksmiths int64,
+	previousBlock, currentBlock *model.Block,
+) error {
 	var (
 		elapsedFromLastBlock int64
 	)
@@ -187,7 +188,51 @@ func (bss *BlocksmithStrategySpine) GetSmithTime(blocksmithIndex int64, block *m
 	if blocksmithIndex < 1 {
 		elapsedFromLastBlock = ct.GetSmithingPeriod()
 	} else {
-		elapsedFromLastBlock = blocksmithIndex*constant.SmithingBlocksmithTimeGap + ct.GetSmithingPeriod()
+		elapsedFromLastBlock = blocksmithIndex*ct.GetBlocksmithTimeGap() + ct.GetSmithingPeriod()
 	}
-	return block.GetTimestamp() + elapsedFromLastBlock
+	if currentBlock.GetTimestamp() < previousBlock.GetTimestamp()+elapsedFromLastBlock {
+		return blocker.NewBlocker(blocker.SmithingErr, "InvalidBlockTimestamp")
+	}
+	return nil
+}
+
+func (*BlocksmithStrategySpine) CanPersistBlock(
+	blocksmithIndex, numberOfBlocksmiths int64,
+	previousBlock *model.Block,
+) error {
+	return nil
+}
+
+func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex int64, numberOfBlocksmiths int64, previousBlock *model.Block) error {
+	var (
+		currentTime                      = time.Now().Unix()
+		ct                               = &chaintype.MainChain{}
+		prevRoundBegin, prevRoundExpired int64
+	)
+	// calculate total time before every blocksmiths are skipped
+	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
+	timeSinceLastBlock := currentTime - previousBlock.GetTimestamp()
+
+	if timeSinceLastBlock < ct.GetSmithingPeriod() {
+		return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")
+	}
+	modTimeSinceLastBlock := timeSinceLastBlock - ct.GetSmithingPeriod()
+	timeRound := math.Floor(float64(modTimeSinceLastBlock) / float64(timeForOneRound))
+	remainder := modTimeSinceLastBlock % timeForOneRound
+	nearestRoundBeginning := currentTime - remainder
+	if timeRound > 0 { // if more than one round has passed, calculate previous round start-expiry time for overlap
+		prevRoundStart := nearestRoundBeginning - timeForOneRound
+		prevRoundBegin = prevRoundStart + blocksmithIndex*ct.GetBlocksmithTimeGap()
+		prevRoundExpired = prevRoundBegin + ct.GetBlocksmithBlockCreationTime() +
+			ct.GetBlocksmithNetworkTolerance()
+	}
+	allowedBeginTime := blocksmithIndex*ct.GetBlocksmithTimeGap() + nearestRoundBeginning
+	expiredTime := allowedBeginTime + ct.GetBlocksmithBlockCreationTime() +
+		ct.GetBlocksmithNetworkTolerance()
+	// if currentTime overlap with either currentRound window or previous round window, it's considered valid time
+	if (currentTime >= allowedBeginTime && currentTime <= expiredTime) ||
+		(currentTime >= prevRoundBegin && currentTime <= prevRoundExpired) {
+		return nil
+	}
+	return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")
 }

@@ -479,6 +479,7 @@ func startMainchain() {
 		query.NewAccountLedgerQuery(),
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
+		mainchain,
 	)
 	mainchainCoinbaseService := service.NewCoinbaseService(
 		query.NewNodeRegistrationQuery(),
@@ -629,6 +630,13 @@ func startSpinechain() {
 		loggerCoreService,
 		query.NewBlockQuery(spinechain),
 	)
+	spinechainBlocksmithService := service.NewBlocksmithService(
+		query.NewAccountBalanceQuery(),
+		query.NewAccountLedgerQuery(),
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+		spinechain,
+	)
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
 		queryExecutor,
@@ -640,6 +648,7 @@ func startSpinechain() {
 		blocksmithStrategySpine,
 		loggerCoreService,
 		query.NewSpineBlockManifestQuery(),
+		spinechainBlocksmithService,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

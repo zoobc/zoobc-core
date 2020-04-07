@@ -285,8 +285,8 @@ func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) 
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
 	// check smithtime
-	blocksmithTime := bs.BlocksmithStrategy.GetSmithTime(*blocksmithIndex, previousLastBlock)
-	if blocksmithTime > block.GetTimestamp() {
+	err := bs.BlocksmithStrategy.IsValidSmithTime(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock)
+	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
 	}
 	return nil
@@ -597,7 +597,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// handle if is first index
 		if *blocksmithIndex > 0 {
 			// check if current block is in pushable window
-			if !bs.canPersistBlock(*blocksmithIndex, previousBlock) {
+			err = bs.BlocksmithStrategy.CanPersistBlock(*blocksmithIndex, int64(len(blocksmithsMap)), previousBlock)
+			if err != nil {
 				// insert into block pool
 				bs.BlockPoolService.InsertBlock(block, *blocksmithIndex)
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -643,8 +644,10 @@ func (bs *BlockService) ScanBlockPool() error {
 		return err
 	}
 	blocks := bs.BlockPoolService.GetBlocks()
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock)
 	for index, block := range blocks {
-		if bs.canPersistBlock(index, previousBlock) {
+		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), previousBlock)
+		if err == nil {
 			err := func(block *model.Block) error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
@@ -659,64 +662,10 @@ func (bs *BlockService) ScanBlockPool() error {
 			break
 		}
 	}
-	// check if we have passed the last blocksmith expiry time
-	numberOfBlocksmiths := len(bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock))
-	lastBlocksmithExpiry := bs.BlocksmithStrategy.GetSmithTime(int64(numberOfBlocksmiths-1), previousBlock) +
-		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
-	if len(blocks) > 0 &&
-		time.Now().Unix() > lastBlocksmithExpiry {
-		// choose block to persist since all blocksmith time has expired
-		var (
-			bestIndex   int64
-			bestCumDiff = new(big.Int).SetInt64(0)
-		)
-		for index, block := range blocks {
-			currBlockCumDiff, _ := new(big.Int).SetString(block.GetCumulativeDifficulty(), 10)
-			if currBlockCumDiff.Cmp(bestCumDiff) > 0 {
-				bestCumDiff = currBlockCumDiff
-				bestIndex = index
-			}
-		}
-		err := func() error {
-			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-			defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-			err := bs.PushBlock(previousBlock, blocks[bestIndex], true, true)
-			return err
-		}()
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.BlockErr, "ScanBlockPool:PushBlockFail",
-			)
-		}
-	}
 	return nil
 }
 
-// canPersistBlock check if the blocksmith can push the block based on previous block's blocksmiths order
-// this function must only run when receiving / generating block, not on download block since it uses the current machine
-// time as comparison
-// todo: will move this to block pool service + write the test when refactoring the block service
-func (bs *BlockService) canPersistBlock(blocksmithIndex int64, previousBlock *model.Block) bool {
-	if blocksmithIndex < 1 {
-		return true
-	}
-	var (
-		currentTime = time.Now().Unix()
-	)
-	blocksmithAllowedBeginTime := bs.BlocksmithStrategy.GetSmithTime(blocksmithIndex, previousBlock)
-	blocksmithExpiredPersistTime := blocksmithAllowedBeginTime +
-		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
-	previousBlocksmithAllowedBeginTime := blocksmithAllowedBeginTime - constant.SmithingBlocksmithTimeGap
-	blocksmithAllowedPersistTime := previousBlocksmithAllowedBeginTime +
-		constant.SmithingBlockCreationTime + constant.SmithingNetworkTolerance
-	// allowed time window = lastBlocksmithExpiredTime < current_time <= currentBlocksmithExpiredTime
-	if previousBlock.GetHeight() == 0 {
-		return currentTime > blocksmithAllowedPersistTime
-	}
-	return currentTime >= blocksmithAllowedPersistTime && currentTime <= blocksmithExpiredPersistTime
-}
-
-// adminNodes seelct and admit nodes from node registry
+// adminNodes select and admit nodes from node registry
 func (bs *BlockService) admitNodes(block *model.Block) error {
 	// select n (= MaxNodeAdmittancePerCycle) queued nodes with the highest locked balance from node registry
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeAdmitted(constant.MaxNodeAdmittancePerCycle)
@@ -1463,7 +1412,8 @@ func (bs *BlockService) WillSmith(
 		bs.BlocksmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
+		blocksmithIdx := blocksmithsMap[string(blocksmith.NodePublicKey)]
+		if blocksmithIdx == nil {
 			return blockchainProcessorLastBlockID, blocksmithIndex,
 				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
@@ -1482,16 +1432,11 @@ func (bs *BlockService) WillSmith(
 			bs.Logger.Errorf("Participation score calculation: %s", err)
 			return 0, 0, blocker.NewBlocker(blocker.ZeroParticipationScoreErr, "participation score = 0")
 		}
-		err = bs.BlocksmithStrategy.CalculateSmith(
-			lastBlock,
-			*(blocksmithsMap[string(blocksmith.NodePublicKey)]),
-			blocksmith,
-			blocksmithScore,
-		)
+		err = bs.BlocksmithStrategy.CalculateScore(blocksmith, blocksmithScore)
 		if err != nil {
 			return blockchainProcessorLastBlockID, blocksmithIndex, err
 		}
-		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithIndex(bs.GetChainType(), *blocksmithIdx)
 	}
 	// check for block pool duplicate
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
@@ -1508,7 +1453,14 @@ func (bs *BlockService) WillSmith(
 			blocker.BlockErr, "DuplicateBlockPool",
 		)
 	}
-	return blockchainProcessorLastBlockID, blocksmithIndex, nil
+	// check if it's legal to create block for current blocksmith now
+	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
+	if err == nil {
+		return blockchainProcessorLastBlockID, blocksmithIndex, nil
+	}
+	return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
+		blocker.SmithingErr, "NotTimeToSmithYet",
+	)
 }
 
 // ProcessCompletedBlock to process block that already having all needed transactions
