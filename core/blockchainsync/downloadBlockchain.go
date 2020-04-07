@@ -245,6 +245,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		forkBlocks           []*model.Block
 		segSize              = constant.BlockDownloadSegSize
 		stop                 = uint32(len(chainBlockIds))
+		initialErrorPeerIdx  = -1
 	)
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 50)
 
@@ -257,8 +258,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	}
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 51)
-	initialNextPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
-	nextPeerIdx := initialNextPeerIdx
+	nextPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
 	peerUsed := feederPeer
 	blocksSegments := [][]*model.Block{}
 
@@ -279,12 +279,23 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 53)
 		if err != nil || len(nextBlocks) == 0 {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 54)
-			if nextPeerIdx == initialNextPeerIdx {
+			if nextPeerIdx == initialErrorPeerIdx {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 55)
-				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid blockchain downloaded")
+				return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
+					"invalid blockchain downloaded from the feeder %v",
+					peerUsed,
+				))
+			}
+			// marking the error peer index
+			if initialErrorPeerIdx == -1 {
+				initialErrorPeerIdx = nextPeerIdx
 			}
 			continue
 		}
+		// removing error mark as other peer is responding well,
+		// which means the feeder peer is less likely to be a fork
+		initialErrorPeerIdx = -1
+
 		elapsedTime := time.Since(startTime)
 		if elapsedTime > constant.MaxResponseTime {
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
