@@ -3,7 +3,6 @@ package blockchainsync
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"time"
 
@@ -283,16 +282,16 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			start, commonUtil.MinUint32(start+segSize, stop))
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 53)
 		if err != nil || len(nextBlocks) == 0 {
+			// counting the error in a cycle
+			numberOfErrorsInACycle++
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 54)
-			if numberOfErrorsInACycle > int(math.Ceil(float64(len(peersSlice)/2))) {
+			if numberOfErrorsInACycle >= (len(peersSlice)/3)*2 {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 55)
 				return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
 					"invalid blockchain downloaded from the feeder %v",
 					peerUsed,
 				))
 			}
-			// counting the error in a cycle
-			numberOfErrorsInACycle++
 			continue
 		}
 
