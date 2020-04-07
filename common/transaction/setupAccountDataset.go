@@ -2,7 +2,7 @@ package transaction
 
 import (
 	"bytes"
-	"time"
+	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
+// SetupAccountDataset fields that's needed
 type SetupAccountDataset struct {
 	ID                  int64
 	Fee                 int64
@@ -19,14 +20,14 @@ type SetupAccountDataset struct {
 	Body                *model.SetupAccountDatasetTransactionBody
 	Escrow              *model.Escrow
 	AccountBalanceQuery query.AccountBalanceQueryInterface
-	AccountDatasetQuery query.AccountDatasetsQueryInterface
+	AccountDatasetQuery query.AccountDatasetQueryInterface
 	QueryExecutor       query.ExecutorInterface
 	AccountLedgerQuery  query.AccountLedgerQueryInterface
 	EscrowQuery         query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SetupAccountDataset) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *SetupAccountDataset) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
 	return false, nil
 }
 
@@ -37,6 +38,7 @@ func (tx *SetupAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err     error
 		dataset *model.AccountDataset
+		queries [][]interface{}
 	)
 
 	// update sender balance by reducing his spendable balance of the tx fee
@@ -47,22 +49,21 @@ func (tx *SetupAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 			"block_height":    tx.Height,
 		},
 	)
+	queries = append(queries, accountBalanceSenderQ...)
 
 	// This is Default mode, Dataset will be active as soon as block creation
-	currentTime := uint64(time.Now().Unix())
 	dataset = &model.AccountDataset{
 		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
 		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
 		Property:                tx.Body.GetProperty(),
 		Value:                   tx.Body.GetValue(),
-		TimestampStarts:         currentTime,
-		TimestampExpires:        currentTime + tx.Body.GetMuchTime(),
 		Height:                  tx.Height,
+		IsActive:                true,
 		Latest:                  true,
 	}
 
-	datasetQuery := tx.AccountDatasetQuery.AddDataset(dataset)
-	queries := append(accountBalanceSenderQ, datasetQuery...)
+	accDatasetQ, accDatasetArgs := tx.AccountDatasetQuery.InsertAccountDataset(dataset)
+	queries = append(queries, append([]interface{}{accDatasetQ}, accDatasetArgs...))
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
@@ -72,8 +73,7 @@ func (tx *SetupAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 		EventType:      model.EventType_EventSetupAccountDatasetTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
+	queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
@@ -119,7 +119,6 @@ func (tx *SetupAccountDataset) UndoApplyUnconfirmed() error {
 
 	// update account sender spendable balance
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		// TODO: transaction fee + (expiration time fee)
 		tx.Fee,
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
@@ -142,10 +141,10 @@ That specs:
 func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
+		accountDataset model.AccountDataset
+		row            *sql.Row
+		err            error
 	)
-	if tx.Body.GetMuchTime() == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
-	}
 
 	// Recipient required while property set as AccountDatasetEscrowApproval
 	_, ok := model.AccountDatasetProperty_value[tx.Body.GetProperty()]
@@ -153,9 +152,29 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientRequired")
 	}
 
+	// check existing account_dataset
+	accDatasetQ, accDatasetArgs := tx.AccountDatasetQuery.GetLatestAccountDataset(
+		tx.Body.GetSetterAccountAddress(),
+		tx.Body.GetRecipientAccountAddress(),
+		tx.Body.GetProperty(),
+	)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+	}
+	// false if err in above is sql.ErrNoRows || nil
+	if accountDataset.GetIsActive() {
+		return blocker.NewBlocker(blocker.ValidationErr, "AlreadyExists")
+	}
 	// check account balance sender
 	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err := tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -163,7 +182,6 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	// TODO: transaction fee + (expiration time fee)
 	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, user balance not enough")
 	}
@@ -172,7 +190,6 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 
 // GetAmount return Amount from TransactionBody
 func (tx *SetupAccountDataset) GetAmount() int64 {
-	// TODO: transaction fee + (expiration time fee)
 	return tx.Fee
 }
 
@@ -187,8 +204,11 @@ func (tx *SetupAccountDataset) GetSize() uint32 {
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
-	// read body bytes
-	buffer := bytes.NewBuffer(txBodyBytes)
+	var (
+		buffer = bytes.NewBuffer(txBodyBytes)
+		txBody model.SetupAccountDatasetTransactionBody
+	)
+
 	setterAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
@@ -198,6 +218,8 @@ func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transac
 	if err != nil {
 		return nil, err
 	}
+	txBody.SetterAccountAddress = string(setterAccountAddress)
+
 	recipientAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
 		return nil, err
@@ -207,6 +229,8 @@ func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transac
 	if err != nil {
 		return nil, err
 	}
+	txBody.RecipientAccountAddress = string(recipientAccountAddress)
+
 	propertyLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetPropertyLength))
 	if err != nil {
 		return nil, err
@@ -216,6 +240,8 @@ func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transac
 	if err != nil {
 		return nil, err
 	}
+	txBody.Property = string(property)
+
 	valueLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetValueLength))
 	if err != nil {
 		return nil, err
@@ -225,19 +251,9 @@ func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transac
 	if err != nil {
 		return nil, err
 	}
-	muchTimeBytes, err := util.ReadTransactionBytes(buffer, int(constant.Timestamp))
-	if err != nil {
-		return nil, err
-	}
-	muchTime := util.ConvertBytesToUint64(muchTimeBytes)
-	txBody := &model.SetupAccountDatasetTransactionBody{
-		SetterAccountAddress:    string(setterAccountAddress),
-		RecipientAccountAddress: string(recipientAccountAddress),
-		Property:                string(property),
-		Value:                   string(value),
-		MuchTime:                muchTime,
-	}
-	return txBody, nil
+	txBody.Value = string(value)
+
+	return &txBody, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation
@@ -254,8 +270,6 @@ func (tx *SetupAccountDataset) GetBodyBytes() []byte {
 
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetValue())))))
 	buffer.Write([]byte(tx.Body.GetValue()))
-
-	buffer.Write(util.ConvertUint64ToBytes(tx.Body.GetMuchTime()))
 
 	return buffer.Bytes()
 }
@@ -281,7 +295,7 @@ That specs:
 	- Checking the expiration time
 	- Checking Spendable Balance sender
 */
-func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
+func (tx *SetupAccountDataset) EscrowValidate() error {
 
 	return nil
 }
@@ -307,7 +321,7 @@ func (tx *SetupAccountDataset) EscrowUndoApplyUnconfirmed() error {
 /*
 EscrowApplyConfirmed is func that for applying Transaction SetupAccountDataset type,
 */
-func (tx *SetupAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error {
+func (tx *SetupAccountDataset) EscrowApplyConfirmed() error {
 
 	return nil
 }
@@ -316,7 +330,7 @@ func (tx *SetupAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error 
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *SetupAccountDataset) EscrowApproval(blockTimestamp int64) error {
+func (tx *SetupAccountDataset) EscrowApproval(int64) error {
 
 	return nil
 }
