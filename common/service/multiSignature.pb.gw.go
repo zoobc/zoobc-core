@@ -37,10 +37,7 @@ func request_MultisigService_GetPendingTransactions_0(ctx context.Context, marsh
 	var protoReq model.GetPendingTransactionsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetPendingTransactions_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MultisigService_GetPendingTransactions_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -57,10 +54,7 @@ func request_MultisigService_GetPendingTransactionDetailByTransactionHash_0(ctx 
 	var protoReq model.GetPendingTransactionDetailByTransactionHashRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetPendingTransactionDetailByTransactionHash_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MultisigService_GetPendingTransactionDetailByTransactionHash_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -77,10 +71,7 @@ func request_MultisigService_GetMultisignatureInfo_0(ctx context.Context, marsha
 	var protoReq model.GetMultisignatureInfoRequest
 	var metadata runtime.ServerMetadata
 
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetMultisignatureInfo_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MultisigService_GetMultisignatureInfo_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
@@ -191,11 +182,11 @@ func RegisterMultisigServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 }
 
 var (
-	pattern_MultisigService_GetPendingTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactions"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_MultisigService_GetPendingTransactions_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactions"}, ""))
 
-	pattern_MultisigService_GetPendingTransactionDetailByTransactionHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactionDetailByTransactionHash"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_MultisigService_GetPendingTransactionDetailByTransactionHash_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetPendingTransactionDetailByTransactionHash"}, ""))
 
-	pattern_MultisigService_GetMultisignatureInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetMultisignatureInfo"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_MultisigService_GetMultisignatureInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetMultisignatureInfo"}, ""))
 )
 
 var (
