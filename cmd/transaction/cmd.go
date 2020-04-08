@@ -145,8 +145,6 @@ func init() {
 	*/
 	setupAccountDatasetCmd.Flags().StringVar(&property, "property", "", "Property of dataset wanted to be set")
 	setupAccountDatasetCmd.Flags().StringVar(&value, "value", "", "Value of dataset wanted to be set")
-	// 2592000 = 30 days
-	setupAccountDatasetCmd.Flags().Uint64Var(&activeTime, "active-time", 2592000, "Active Time of dataset wanted to be set")
 
 	/*
 		RemoveAccountDataset Command
@@ -300,7 +298,8 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveNode(tx, nodeSeed)
+		nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		tx = GenerateTxRemoveNode(tx, nodePubKey)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
@@ -360,7 +359,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			println("--recipient is required while property as AccountDatasetEscrowApproval")
 			return
 		}
-		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value, activeTime)
+		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}

@@ -185,7 +185,6 @@ func GetFixturesForSetupAccountDataset() (
 		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 		Property:                "Admin",
 		Value:                   "Welcome",
-		MuchTime:                123,
 	}
 
 	sa := SetupAccountDataset{

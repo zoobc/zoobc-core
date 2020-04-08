@@ -9,8 +9,14 @@ type (
 		GetTypeInt() int32
 		// GetTablePrefix return the value of current chain table prefix in the database
 		GetTablePrefix() string
-		// GetSmithingPeriod return the value of smithing period we want
+		// GetSmithingPeriod the time since last block that blocksmith can start to smith
 		GetSmithingPeriod() int64
+		// GetBlocksmithTimeGap return the time gap one to the next blocksmith
+		GetBlocksmithTimeGap() int64
+		// GetBlocksmithBlockCreationTime return the maximum allowed time to create block
+		GetBlocksmithBlockCreationTime() int64
+		// GetBlocksmithNetworkTolerance return the maximum allowed time to broadcast block
+		GetBlocksmithNetworkTolerance() int64
 		// GetName return the name of the chain : used in parsing chaintype across node
 		GetName() string
 		// GetGenesisBlockID return the block ID of genesis block in the chain

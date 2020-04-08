@@ -42,6 +42,7 @@ type (
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlocksmithService         BlocksmithServiceInterface
 	}
 )
 
@@ -56,6 +57,7 @@ func NewBlockSpineService(
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	megablockQuery query.SpineBlockManifestQueryInterface,
+	blocksmithService BlocksmithServiceInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:          ct,
@@ -78,6 +80,7 @@ func NewBlockSpineService(
 			spineBlockQuery,
 			logger,
 		),
+		BlocksmithService: blocksmithService,
 	}
 }
 
@@ -218,9 +221,9 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
-	blocksmithTime := bs.BlocksmithStrategy.GetSmithTime(*blocksmithIndex, previousLastBlock)
-	if blocksmithTime > block.GetTimestamp() {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
+	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock, block)
+	if err != nil {
+		return err
 	}
 	if coreUtil.GetBlockID(block, bs.Chaintype) == 0 {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidID")
@@ -361,10 +364,13 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
+	if id == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
+	}
 	var (
-		block model.Block
+		block    model.Block
+		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	)
-	row, err := bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -375,16 +381,16 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
 	}
 
-	if block.ID != 0 {
-		if withAttachedData {
-			err := bs.PopulateBlockData(&block)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
-		}
-		return &block, nil
+	if block.ID == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
 	}
-	return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+	if withAttachedData {
+		err := bs.PopulateBlockData(&block)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+	}
+	return &block, nil
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -891,25 +897,29 @@ func (bs *BlockSpineService) WillSmith(
 		blockSmithStrategy.SortBlocksmiths(lastBlock, true)
 		// check if eligible to create block in this round
 		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		if blocksmithsMap[string(blocksmith.NodePublicKey)] == nil {
+		blocksmithIdx, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
+		if !ok {
 			return blockchainProcessorLastBlockID, blocksmithIndex,
 				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
 		}
 		// calculate blocksmith score for the block type
 		// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
 		blocksmithScore := constant.DefaultParticipationScore
-		err = blockSmithStrategy.CalculateSmith(
-			lastBlock,
-			*(blocksmithsMap[string(blocksmith.NodePublicKey)]),
-			blocksmith,
-			blocksmithScore,
-		)
+		err = blockSmithStrategy.CalculateScore(blocksmith, blocksmithScore)
 		if err != nil {
 			return blockchainProcessorLastBlockID, blocksmithIndex, err
 		}
-		monitoring.SetBlockchainSmithTime(bs.GetChainType(), blocksmith.SmithTime-lastBlock.Timestamp)
+		monitoring.SetBlockchainSmithIndex(bs.GetChainType(), *blocksmithIdx)
 	}
-	return blockchainProcessorLastBlockID, blocksmithIndex, nil
+	// check if it's legal to create block for current blocksmith now
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
+	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
+	if err == nil {
+		return blockchainProcessorLastBlockID, blocksmithIndex, nil
+	}
+	return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
+		blocker.SmithingErr, "NotTimeToSmithYet",
+	)
 }
 
 func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {
