@@ -80,7 +80,7 @@ func Commands() *cobra.Command {
 	return signatureCmd
 }
 
-// SignEd25519 is sign command hanlder using Ed25519 algorithm
+// SignEd25519 is sign command handler using Ed25519 algorithm
 func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	var (
 		unsignedBytes       []byte
@@ -183,7 +183,7 @@ func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 func parseBytesArgs(argsBytesString, separated string) ([]byte, error) {
 	var (
 		parsedByte    []byte
-		byteCharSlice = strings.Split(dataBytes, separated)
+		byteCharSlice = strings.Split(argsBytesString, separated)
 	)
 	for _, v := range byteCharSlice {
 		byteValue, err := strconv.Atoi(v)
