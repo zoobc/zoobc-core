@@ -13,7 +13,7 @@ import (
 )
 
 type (
-	// GeneratorCommands represent struct of siganture generator commands
+	// GeneratorCommands represent struct of signature generator commands
 	GeneratorCommands struct {
 		Signature crypto.SignatureInterface
 	}
@@ -26,7 +26,7 @@ var (
 	*/
 	signatureCmd = &cobra.Command{
 		Use:   "signature",
-		Short: "signature command is a parent command for siganture stuffs",
+		Short: "signature command is a parent command for signature stuffs",
 	}
 	signerCmd = &cobra.Command{
 		Use:   "sign",
@@ -75,7 +75,7 @@ func Commands() *cobra.Command {
 	signerCmd.Run = signatureCmdInstance.SignEd25519
 	signatureCmd.AddCommand(signerCmd)
 
-	verifyCmd.Run = signatureCmdInstance.VerySiganture
+	verifyCmd.Run = signatureCmdInstance.VerySignature
 	signatureCmd.AddCommand(verifyCmd)
 	return signatureCmd
 }
@@ -130,11 +130,11 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	fmt.Printf("signature-hex:\t%v\n", hex.EncodeToString(signature))
 }
 
-// VerySiganture is verify signature command hendler
-func (gc *GeneratorCommands) VerySiganture(*cobra.Command, []string) {
+// VerySignature is verify signature command hendler
+func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 	var (
 		unsignedBytes     []byte
-		siganture         []byte
+		signature         []byte
 		failedVerifyCause = "none"
 		isVerified        = true
 		err               error
@@ -152,18 +152,18 @@ func (gc *GeneratorCommands) VerySiganture(*cobra.Command, []string) {
 	}
 
 	if signatureHex != "" {
-		siganture, err = hex.DecodeString(signatureHex)
+		signature, err = hex.DecodeString(signatureHex)
 		if err != nil {
 			panic("failed to decode signature hex")
 		}
 	} else {
-		siganture, err = parseBytesArgs(signatureBytes, ", ")
+		signature, err = parseBytesArgs(signatureBytes, ", ")
 		if err != nil {
 			panic("failed to parse data bytes")
 		}
 	}
 
-	err = gc.Signature.VerifySignature(unsignedBytes, siganture, accountAddress)
+	err = gc.Signature.VerifySignature(unsignedBytes, signature, accountAddress)
 	if err != nil {
 		failedVerifyCause = err.Error()
 		isVerified = false
@@ -175,8 +175,8 @@ func (gc *GeneratorCommands) VerySiganture(*cobra.Command, []string) {
 	fmt.Printf("payload-bytes:\t%v\n", unsignedBytes)
 	fmt.Printf("payload-hex:\t%v\n", hex.EncodeToString(unsignedBytes))
 
-	fmt.Printf("signature-hex:\t%v\n", hex.EncodeToString(siganture))
-	fmt.Printf("signature-bytes:%v\n", siganture)
+	fmt.Printf("signature-hex:\t%v\n", hex.EncodeToString(signature))
+	fmt.Printf("signature-bytes:%v\n", signature)
 
 }
 

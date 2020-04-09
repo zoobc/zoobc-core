@@ -144,7 +144,7 @@ go run main.go generate poow --node-seed "concur vocalist rotten busload gap quo
 go run main.go rollback blockchain --to-height 10 --db-path "../resource" --db-name "zoobc.db"
 ```
 
-### Siganture Signing data using Ed25519
+### Signature Signing data using Ed25519
 ```bash
 go run main.go signature sign ed25519 --data-bytes='1, 222, 54, 12, 32' --use-slip10=true
 ```
