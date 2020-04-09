@@ -3,8 +3,20 @@ defaults: &defaults
     working_directory: ~/zoobc
     docker:
         - image: circleci/golang:1.14.0-stretch
+reset_dbs: &reset_dbs
+    name: RESET DBs
+    command: |
+        if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
+          for host in $ln1 $ln2 $ln3; do ssh root@$host 'for f in *.db; do mv -- "$f" "_$f"; done'; done
+        fi
+reset_db: &reset_db
+    name: RESET DB
+    command: |
+        if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
+          ssh root@$ln4 'for f in *.db; do mv -- "$f" "_$f"; done';
+        fi
 jobs:
-    prepare:
+  prepare:
         <<: *defaults
         steps:
             - run:
@@ -96,6 +108,7 @@ jobs:
                   name: DOWN SERVICES
                   command: |
                       for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+            - run: *reset_dbs
             - run:
                   name: DEPLOY
                   command: |
@@ -123,6 +136,7 @@ jobs:
                   name: ADD HOST
                   command: |
                       ssh-keyscan $ln4 >> ~/.ssh/known_hosts
+            - run: *reset_db
             - run:
                   name: DOWN SERVICE
                   command: |
