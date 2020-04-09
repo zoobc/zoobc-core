@@ -60,7 +60,9 @@ func (adq *AccountDatasetQuery) InsertAccountDataset(dataset *model.AccountDatas
 }
 
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
-func (adq *AccountDatasetQuery) GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{}) {
+func (adq *AccountDatasetQuery) GetLatestAccountDataset(
+	setterAccountAddress, recipientAccountAddress, property string,
+) (str string, args []interface{}) {
 	return fmt.Sprintf(
 			"SELECT %s FROM %s WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
 			strings.Join(adq.Fields, ", "),
