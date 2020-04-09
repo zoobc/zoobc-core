@@ -16,6 +16,8 @@ type (
 )
 
 var (
+	ServiceErr                TypeBlocker = "ServiceErr"
+	InternalErr               TypeBlocker = "InternalErr"
 	DBErr                     TypeBlocker = "DBErr"
 	DBRowNotFound             TypeBlocker = "DBRowNotFound"
 	BlockErr                  TypeBlocker = "BlockErr"
