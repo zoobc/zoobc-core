@@ -1430,7 +1430,7 @@ func (bs *BlockService) WillSmith(
 		}
 		if err != nil || blocksmithScore < 0 {
 			// no negative scores allowed
-			blocksmithScore = 0
+			// blocksmithScore = 0
 			bs.Logger.Errorf("Participation score calculation: %s", err)
 			return 0, 0, blocker.NewBlocker(blocker.ZeroParticipationScoreErr, "participation score = 0")
 		}
