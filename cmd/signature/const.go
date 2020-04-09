@@ -6,7 +6,7 @@ var (
 	dataHex          string
 	dataBytes        string
 	hash             bool
-	ed25519UseSpli10 bool
+	ed25519UseSlip10 bool
 
 	// verify
 	signatureBytes string

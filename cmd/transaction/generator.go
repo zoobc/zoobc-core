@@ -322,7 +322,7 @@ func GenerateSignedTxBytes(
 	tx *model.Transaction,
 	senderSeed string,
 	signatureType int32,
-	optiolSignParams ...interface{},
+	optionalSignParams ...interface{},
 ) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
@@ -340,7 +340,7 @@ func GenerateSignedTxBytes(
 		unsignedTxBytes,
 		model.SignatureType(signatureType),
 		senderSeed,
-		optiolSignParams...,
+		optionalSignParams...,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
 	return signedTxBytes
