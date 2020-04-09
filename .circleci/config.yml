@@ -15,8 +15,9 @@ reset_db: &reset_db
         if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
           ssh root@$ln4 'for f in *.db; do mv -- "$f" "_$f"; done';
         fi
+
 jobs:
-  prepare:
+    prepare:
         <<: *defaults
         steps:
             - run:
