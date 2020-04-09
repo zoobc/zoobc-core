@@ -119,11 +119,11 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 			needDownloadBlock = false
 			errCasted, ok := err.(blocker.Blocker)
 			if !ok {
-				continue
+				errCasted = blocker.NewBlocker(blocker.P2PNetworkConnectionErr, err.Error()).(blocker.Blocker)
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 4)
 			switch errCasted.Type {
-			case blocker.P2PNetworkConnectionErr:
+			case blocker.P2PPeerError:
 				// this will allow the node to start smithing if it fails to connect to the p2p network,
 				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 5)

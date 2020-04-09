@@ -93,7 +93,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	bd.PeerHasMore = true
 	peer := bd.PeerExplorer.GetAnyResolvedPeer()
 	if peer == nil {
-		return nil, blocker.NewBlocker(blocker.P2PNetworkConnectionErr, "no connected peer can be found")
+		return nil, blocker.NewBlocker(blocker.P2PPeerError, "no connected peer can be found")
 	}
 	peerCumulativeDifficultyResponse, err = bd.PeerServiceClient.GetCumulativeDifficulty(peer, bd.ChainType)
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 31)
