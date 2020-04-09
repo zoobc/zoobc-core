@@ -23,7 +23,7 @@ $(XGO):
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCILINT)
 	$(info    running linter...)
-	golangci-lint run
+	golangci-lint run --timeout=20m
 
 .PHONY: go-fmt
 go-fmt:

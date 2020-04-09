@@ -66,6 +66,7 @@ linters:
         - gochecknoglobals
         - gochecknoinits
         - gocognit
+        - ineffassign
     fast: false
 run:
     skip-dirs:
