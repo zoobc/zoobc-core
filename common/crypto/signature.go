@@ -50,6 +50,7 @@ func (*Signature) Sign(
 			useSlip10, ok     bool
 			err               error
 		)
+		// optionalParams index 0 used for flag boolean slip10
 		if len(optionalParams) != 0 {
 			useSlip10, ok = optionalParams[0].(bool)
 			if !ok {
