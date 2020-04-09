@@ -80,7 +80,7 @@ func Commands() *cobra.Command {
 	return signatureCmd
 }
 
-// SignEd25519 is sign command hanlder
+// SignEd25519 is sign command hanlder using Ed25519 algorithm
 func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	var (
 		unsignedBytes       []byte
