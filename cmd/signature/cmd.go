@@ -96,7 +96,10 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 			panic("failed to decode data hex")
 		}
 	} else {
-		unsignedBytes = parseBytesArgs(dataBytes, ", ")
+		unsignedBytes, err = parseBytesArgs(dataBytes, ", ")
+		if err != nil {
+			panic("failed to parse data bytes")
+		}
 	}
 	_, _, _, accountAddress, err = gc.Signature.GenerateAccountFromSeed(
 		model.SignatureType_DefaultSignature,
@@ -142,7 +145,10 @@ func (gc *GeneratorCommands) VerySiganture(*cobra.Command, []string) {
 			panic("failed to decode data hex")
 		}
 	} else {
-		unsignedBytes = parseBytesArgs(dataBytes, ", ")
+		unsignedBytes, err = parseBytesArgs(dataBytes, ", ")
+		if err != nil {
+			panic("failed to parse data bytes")
+		}
 	}
 
 	if signatureHex != "" {
@@ -151,7 +157,10 @@ func (gc *GeneratorCommands) VerySiganture(*cobra.Command, []string) {
 			panic("failed to decode signature hex")
 		}
 	} else {
-		siganture = parseBytesArgs(signatureBytes, ", ")
+		siganture, err = parseBytesArgs(signatureBytes, ", ")
+		if err != nil {
+			panic("failed to parse data bytes")
+		}
 	}
 
 	err = gc.Signature.VerifySignature(unsignedBytes, siganture, accountAddress)
@@ -171,7 +180,7 @@ func (gc *GeneratorCommands) VerySiganture(*cobra.Command, []string) {
 
 }
 
-func parseBytesArgs(argsBytesString, separated string) []byte {
+func parseBytesArgs(argsBytesString, separated string) ([]byte, error) {
 	var (
 		parsedByte    []byte
 		byteCharSlice = strings.Split(dataBytes, separated)
@@ -179,9 +188,9 @@ func parseBytesArgs(argsBytesString, separated string) []byte {
 	for _, v := range byteCharSlice {
 		byteValue, err := strconv.Atoi(v)
 		if err != nil {
-			panic("failed to parse data bytes")
+			return nil, err
 		}
 		parsedByte = append(parsedByte, byte(byteValue))
 	}
-	return parsedByte
+	return parsedByte, nil
 }
