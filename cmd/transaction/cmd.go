@@ -203,6 +203,7 @@ func Commands() *cobra.Command {
 func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(
+			senderAddress,
 			senderSeed,
 			senderSignatureType,
 			version,
@@ -223,6 +224,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			tx = GenerateBasicTransaction(
+				senderAddress,
 				senderSeed,
 				senderSignatureType,
 				version,
@@ -258,6 +260,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			tx = GenerateBasicTransaction(
+				senderAddress,
 				senderSeed,
 				senderSignatureType,
 				version,
@@ -293,6 +296,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(
+			senderAddress,
 			senderSeed,
 			senderSignatureType,
 			version,
@@ -314,6 +318,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			tx = GenerateBasicTransaction(
+				senderAddress,
 				senderSeed,
 				senderSignatureType,
 				version,
@@ -347,6 +352,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(
+			senderAddress,
 			senderSeed,
 			senderSignatureType,
 			version,
@@ -374,6 +380,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(
+			senderAddress,
 			senderSeed,
 			senderSignatureType,
 			version,
@@ -393,6 +400,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(
+			senderAddress,
 			senderSeed,
 			senderSignatureType,
 			version,
@@ -409,6 +417,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(
+			senderAddress,
 			senderSeed,
 			senderSignatureType,
 			version,

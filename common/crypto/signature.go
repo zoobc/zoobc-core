@@ -11,7 +11,7 @@ import (
 type (
 	// SignatureInterface represent interface of signature
 	SignatureInterface interface {
-		Sign(payload []byte, signatureType model.SignatureType, seed string) ([]byte, error)
+		Sign(payload []byte, signatureType model.SignatureType, seed string, optionalParams ...interface{}) ([]byte, error)
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature []byte, accountAddress string) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
@@ -34,16 +34,43 @@ func NewSignature() *Signature {
 
 // Sign accept account ID and payload to be signed then return the signature byte based on the
 // signature method associated with account.Type
-func (*Signature) Sign(payload []byte, signatureType model.SignatureType, seed string) ([]byte, error) {
+func (*Signature) Sign(
+	payload []byte,
+	signatureType model.SignatureType,
+	seed string,
+	optionalParams ...interface{},
+) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(signatureType)))
 	switch signatureType {
 	case model.SignatureType_DefaultSignature:
 		var (
 			ed25519Signature  = NewEd25519Signature()
-			accountPrivateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
-			signature         = ed25519Signature.Sign(accountPrivateKey, payload)
+			accountPrivateKey []byte
+			useSlip10, ok     bool
+			err               error
 		)
+		if len(optionalParams) != 0 {
+			useSlip10, ok = optionalParams[0].(bool)
+			if !ok {
+				return nil, blocker.NewBlocker(blocker.AppErr, "failedAssertType")
+			}
+		}
+		if useSlip10 {
+			accountPrivateKey, err = ed25519Signature.GetPrivateKeyFromSeedUseSlip10(seed)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
+			}
+			publicKey, err := ed25519Signature.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
+			if err != nil {
+				return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
+			}
+			accountPrivateKey = append(accountPrivateKey, publicKey...)
+		} else {
+			accountPrivateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+		}
+
+		signature := ed25519Signature.Sign(accountPrivateKey, payload)
 		buffer.Write(signature)
 		return buffer.Bytes(), nil
 	case model.SignatureType_BitcoinSignature:
