@@ -54,7 +54,7 @@ func init() {
 
 	signerCmd.PersistentFlags().StringVar(&seed, "seed", "", "your secret phrase")
 	signerCmd.PersistentFlags().BoolVar(&hash, "hash", false, "turn this flag on to hash the data before signing")
-	ed25519SignerCmd.Flags().BoolVar(&ed25519UseSpli10, "use-slip10", false, "use slip10 to generate ed25519 private key for signing")
+	ed25519SignerCmd.Flags().BoolVar(&ed25519UseSlip10, "use-slip10", false, "use slip10 to generate ed25519 private key for signing")
 
 	verifyCmd.Flags().StringVar(&signatureHex, "signature-hex", "", "hex string of the signature")
 	verifyCmd.Flags().StringVar(&signatureBytes, "signature-bytes", "", "signature bytes stseparated by `, `. eg:"+
@@ -104,7 +104,7 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	_, _, _, accountAddress, err = gc.Signature.GenerateAccountFromSeed(
 		model.SignatureType_DefaultSignature,
 		seed,
-		ed25519UseSpli10,
+		ed25519UseSlip10,
 	)
 	if err != nil {
 		panic(err.Error())
@@ -117,7 +117,7 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 		unsignedBytes,
 		model.SignatureType_DefaultSignature,
 		seed,
-		ed25519UseSpli10,
+		ed25519UseSlip10,
 	)
 	if err != nil {
 		panic(err.Error())
