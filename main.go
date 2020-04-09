@@ -47,7 +47,7 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath, profilingFilePathName string
+	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
@@ -262,7 +262,6 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
-	profilingFilePathName = viper.GetString("profilingFilePathName")
 
 	// get the node private key
 	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)

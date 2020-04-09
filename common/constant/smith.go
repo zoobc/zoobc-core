@@ -24,11 +24,18 @@ var (
 	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
 	// 0 will set node to always create empty block
 	EmptyBlockSkippedBlocksmithLimit = int64(10)
-	// Mainchain smithing
+	/*
+		Mainchain smithing
+	*/
+
 	MainSmithingBlockCreationTime = int64(30)
 	MainSmithingNetworkTolerance  = int64(15)
 	MainSmithingBlocksmithTimeGap = int64(10)
-	// Spinechain smithing
+
+	/*
+		Spinechain smithing
+	*/
+
 	SpineSmithingBlockCreationTime = int64(30)
 	SpineSmithingNetworkTolerance  = int64(15)
 	SpineSmithingBlocksmithTimeGap = int64(10)
