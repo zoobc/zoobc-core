@@ -117,7 +117,10 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 3)
 			needDownloadBlock = false
-			errCasted := err.(blocker.Blocker)
+			errCasted, ok := err.(blocker.Blocker)
+			if !ok {
+				continue
+			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 4)
 			switch errCasted.Type {
 			case blocker.P2PNetworkConnectionErr:
