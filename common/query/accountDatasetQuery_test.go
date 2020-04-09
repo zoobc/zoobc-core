@@ -155,7 +155,8 @@ func TestAccountDatasetQuery_RemoveAccountDataset(t *testing.T) {
 			args:   args{dataset: mockDataset},
 			wantStr: [][]interface{}{
 				{
-					"UPDATE account_dataset set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND is_active = ?",
+					"UPDATE account_dataset set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? " +
+						"AND is_active = ?",
 					false,
 					mockDataset.GetSetterAccountAddress(),
 					mockDataset.GetRecipientAccountAddress(),
