@@ -150,6 +150,7 @@ jobs:
                   name: UP SERVICE
                   command: |
                       ssh root@$ln4 'sudo systemctl start zoobc.service'
+
 workflows:
     version: 2
     prepare-deploy:
