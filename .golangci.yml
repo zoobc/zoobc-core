@@ -36,7 +36,7 @@ linters-settings:
             - zoobc
             - multisig
     lll:
-        line-length: 140
+        line-length: 150
     goimports:
         local-prefixes: github.com/zoobc/zoobc-core
     gocritic:
@@ -52,6 +52,7 @@ linters-settings:
             - dupImport # https://github.com/go-critic/go-critic/issues/845
             - exitAfterDefer
             - importShadow
+            - appendAssign
     funlen:
         l: 50
         s: 55
@@ -65,6 +66,7 @@ linters:
         - gochecknoglobals
         - gochecknoinits
         - gocognit
+        - ineffassign
     fast: false
 run:
     skip-dirs:
@@ -122,6 +124,9 @@ issues:
           linters:
               - godox
         - text: "G202: SQL string concatenation"
+          linters:
+              - gosec
+        - text: "G108: Profiling endpoint is automatically exposed on /debug/pprof"
           linters:
               - gosec
         - text: "is too long"

@@ -1,6 +1,6 @@
 BIN_DIR := $(GOPATH)/bin
 GOLANGCILINT := $(BIN_DIR)/golangci-lint
-GOLANGCILINT_VERSION := v1.20.0
+GOLANGCILINT_VERSION := v1.24.0
 XGO := $(BIN_DIR)/xgo
 VERSION ?= latest
 BINARY_CORE := zoobc
@@ -23,7 +23,7 @@ $(XGO):
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCILINT)
 	$(info    running linter...)
-	golangci-lint run
+	golangci-lint run --timeout=20m -v
 
 .PHONY: go-fmt
 go-fmt:

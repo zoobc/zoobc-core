@@ -26,7 +26,7 @@ var (
 	blockerCounterVector             *prometheus.CounterVec
 	statusLockGaugeVector            *prometheus.GaugeVec
 	blockchainStatusGaugeVector      *prometheus.GaugeVec
-	blockchainSmithTimeGaugeVector   *prometheus.GaugeVec
+	blockchainSmithIndexGaugeVector  *prometheus.GaugeVec
 	blockchainIDMsbGaugeVector       *prometheus.GaugeVec
 	blockchainIDLsbGaugeVector       *prometheus.GaugeVec
 	blockchainHeightGaugeVector      *prometheus.GaugeVec
@@ -121,11 +121,11 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"chaintype"})
 	prometheus.MustRegister(blockchainStatusGaugeVector)
 
-	blockchainSmithTimeGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	blockchainSmithIndexGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_blockchain_smith_time",
 		Help: "Smith time of each nodes to smith for each chain",
 	}, []string{"chaintype"})
-	prometheus.MustRegister(blockchainSmithTimeGaugeVector)
+	prometheus.MustRegister(blockchainSmithIndexGaugeVector)
 
 	nodeScore = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_node_score",
@@ -277,12 +277,12 @@ func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {
 	blockchainStatusGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(newStatus))
 }
 
-func SetBlockchainSmithTime(chainType chaintype.ChainType, newTime int64) {
+func SetBlockchainSmithIndex(chainType chaintype.ChainType, index int64) {
 	if !isMonitoringActive {
 		return
 	}
 
-	blockchainSmithTimeGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(newTime))
+	blockchainSmithIndexGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(index))
 }
 
 func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {

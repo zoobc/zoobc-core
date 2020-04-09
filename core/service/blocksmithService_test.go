@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/DATA-DOG/go-sqlmock"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -269,6 +271,7 @@ func TestNewBlocksmithService(t *testing.T) {
 		accountLedgerQuery    query.AccountLedgerQueryInterface
 		nodeRegistrationQuery query.NodeRegistrationQueryInterface
 		queryExecutor         query.ExecutorInterface
+		chaintype             chaintype.ChainType
 	}
 	tests := []struct {
 		name string
@@ -294,7 +297,7 @@ func TestNewBlocksmithService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlocksmithService(tt.args.accountBalanceQuery, tt.args.accountLedgerQuery,
-				tt.args.nodeRegistrationQuery, tt.args.queryExecutor); !reflect.DeepEqual(got, tt.want) {
+				tt.args.nodeRegistrationQuery, tt.args.queryExecutor, tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithService() = %v, want %v", got, tt.want)
 			}
 		})

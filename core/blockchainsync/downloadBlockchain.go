@@ -149,7 +149,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 41)
 	chainBlockIds := bd.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 42)
-	if len(chainBlockIds) < 2 || !bd.PeerHasMore {
+	if int32(len(chainBlockIds)) < constant.MinimumPeersBlocksToDownload || !bd.PeerHasMore {
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 43)
 		return &PeerBlockchainInfo{
 			Peer:        peer,
@@ -240,11 +240,12 @@ func (bd *BlockchainDownloader) ConfirmWithPeer(peerToCheck *model.Peer, commonM
 func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBlockIds []int64,
 	commonBlock *model.Block) (*PeerForkInfo, error) {
 	var (
-		peersTobeDeactivated []*model.Peer
-		peersSlice           []*model.Peer
-		forkBlocks           []*model.Block
-		segSize              = constant.BlockDownloadSegSize
-		stop                 = uint32(len(chainBlockIds))
+		peersTobeDeactivated   []*model.Peer
+		peersSlice             []*model.Peer
+		forkBlocks             []*model.Block
+		segSize                = constant.BlockDownloadSegSize
+		stop                   = uint32(len(chainBlockIds))
+		numberOfErrorsInACycle int
 	)
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 50)
 
@@ -257,8 +258,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	}
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 51)
-	initialNextPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
-	nextPeerIdx := initialNextPeerIdx
+	initialPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
+	nextPeerIdx := initialPeerIdx
 	peerUsed := feederPeer
 	blocksSegments := [][]*model.Block{}
 
@@ -270,6 +271,9 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			if nextPeerIdx >= len(peersSlice) {
 				nextPeerIdx = 0
 			}
+			if nextPeerIdx == initialPeerIdx {
+				numberOfErrorsInACycle = 0
+			}
 		}
 
 		// TODO: apply retry mechanism
@@ -278,13 +282,19 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			start, commonUtil.MinUint32(start+segSize, stop))
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 53)
 		if err != nil || len(nextBlocks) == 0 {
+			// counting the error in a cycle
+			numberOfErrorsInACycle++
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 54)
-			if nextPeerIdx == initialNextPeerIdx {
+			if numberOfErrorsInACycle >= (len(peersSlice)/3)*2 {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 55)
-				return nil, blocker.NewBlocker(blocker.ValidationErr, "invalid blockchain downloaded")
+				return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
+					"invalid blockchain downloaded from the feeder %v",
+					peerUsed,
+				))
 			}
 			continue
 		}
+
 		elapsedTime := time.Since(startTime)
 		if elapsedTime > constant.MaxResponseTime {
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)

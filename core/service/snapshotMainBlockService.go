@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -21,7 +22,7 @@ type (
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
 		PendingTransactionQuery    query.PendingTransactionQueryInterface
@@ -30,6 +31,7 @@ type (
 		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
 	}
 )
@@ -42,7 +44,7 @@ func NewSnapshotMainBlockService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
-	accountDatasetQuery query.AccountDatasetsQueryInterface,
+	accountDatasetQuery query.AccountDatasetQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
@@ -51,6 +53,7 @@ func NewSnapshotMainBlockService(
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
+	blocksmithSafeQueries map[string]bool,
 	derivedQueries []query.DerivedQuery,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
@@ -71,6 +74,7 @@ func NewSnapshotMainBlockService(
 		SkippedBlocksmithQuery:     skippedBlocksmithQuery,
 		BlockQuery:                 blockQuery,
 		SnapshotQueries:            snapshotQueries,
+		BlocksmithSafeQuery:        blocksmithSafeQueries,
 		DerivedQueries:             derivedQueries,
 	}
 }
@@ -98,15 +102,11 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				fromHeight uint32
 				rows       *sql.Rows
 			)
-			if qryRepoName == "block" {
-				if snapshotPayloadHeight > constant.MinRollbackBlocks {
-					fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
-				}
-			}
-			if qryRepoName == "publishedReceipt" {
-				if snapshotPayloadHeight > constant.LinkedReceiptBlocksLimit {
-					fromHeight = snapshotPayloadHeight - constant.LinkedReceiptBlocksLimit
-				}
+			// if current query repo is blocksmith safe,
+			// include more blocks to make sure we don't break smithing process due to missing data such as blocks,
+			// published receipts and node registrations
+			if ss.BlocksmithSafeQuery[qryRepoName] && snapshotPayloadHeight > constant.MinRollbackBlocks {
+				fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
 			}
 			qry := snapshotQuery.SelectDataForSnapshot(fromHeight, snapshotPayloadHeight)
 			rows, err = ss.QueryExecutor.ExecuteSelect(qry, false)
@@ -235,8 +235,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		case "accountDataset":
 			for _, rec := range payload.AccountDatasets {
-				qryArgs := ss.AccountDatasetQuery.AddDataset(rec)
-				queries = append(queries, qryArgs...)
+				qry, args := ss.AccountDatasetQuery.InsertAccountDataset(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
 			}
 		case "participationScore":
 			for _, rec := range payload.ParticipationScores {
