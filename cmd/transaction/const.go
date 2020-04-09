@@ -38,11 +38,13 @@ var (
 	nodeOwnerAccountAddress string
 	nodeAddress             string
 	lockedBalance           int64
+	proofOfOwnershipHex     string
+	databasePath            string
+	databaseName            string
 
 	// dataset transaction
-	property   string
-	value      string
-	activeTime uint64
+	property string
+	value    string
 	// escrowable
 	escrow            bool
 	esApproverAddress string

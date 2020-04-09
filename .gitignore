@@ -18,6 +18,10 @@ coverage.*
 resource/zoobc_*
 resource/snapshots*
 resource_cluster/zoobc_*
+resource/*.prof
 cmd/*.new
 accounts.txt
+.editorconfig
 .manual
+release/
+github.token

@@ -78,6 +78,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	1. ApproverAddress
 	2. Commission
 	3. Timeout
+	4. Instruction
 	*/
 	if transaction.GetEscrow() != nil {
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
@@ -110,7 +111,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 }
 
 // ParseTransactionBytes build transaction from transaction bytes
-func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
+func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
 	var (
 		chunkedBytes []byte
 		transaction  model.Transaction
@@ -177,6 +178,7 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	1. ApproverAddress
 	2. Commission
 	3. Timeout
+	4. Instruction
 	*/
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
@@ -228,7 +230,7 @@ func (tu *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*mode
 	}
 	// compute and return tx hash and ID too
 	transactionHash := sha3.Sum256(transactionBytes)
-	txID, _ := tu.GetTransactionID(transactionHash[:])
+	txID, _ := u.GetTransactionID(transactionHash[:])
 	transaction.ID = txID
 	transaction.TransactionHash = transactionHash[:]
 	return &transaction, nil
@@ -255,7 +257,7 @@ func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 }
 
 // ValidateTransaction take in transaction object and execute basic validation
-func (tu *Util) ValidateTransaction(
+func (u *Util) ValidateTransaction(
 	tx *model.Transaction,
 	queryExecutor query.ExecutorInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
@@ -339,7 +341,7 @@ func (tu *Util) ValidateTransaction(
 		)
 	}
 
-	unsignedTransactionBytes, err := tu.GetTransactionBytes(tx, false)
+	unsignedTransactionBytes, err := u.GetTransactionBytes(tx, false)
 	if err != nil {
 		return err
 	}
@@ -356,7 +358,7 @@ func (tu *Util) ValidateTransaction(
 
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
-func (tu *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
+func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
 	if info == nil {
 		return "", fmt.Errorf("params cannot be nil")
 	}
@@ -411,19 +413,26 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				BlockHeight:      txHeight,
 			})
 		}
-		q, args := mtu.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(
-			multisigAddress, model.PendingTransactionStatus_PendingTransactionPending,
-			txHeight, constant.MinRollbackBlocks,
-		)
-		pendingTxRows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+		err := func() error {
+			q, args := mtu.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(
+				multisigAddress, model.PendingTransactionStatus_PendingTransactionPending,
+				txHeight, constant.MinRollbackBlocks,
+			)
+			pendingTxRows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+			if err != nil {
+				return err
+			}
+			defer pendingTxRows.Close()
+			dbPendingTxs, err = mtu.PendingTransactionQuery.BuildModel(dbPendingTxs, pendingTxRows)
+			if err != nil {
+				return err
+			}
+			return nil
+		}()
 		if err != nil {
 			return nil, err
 		}
-		defer pendingTxRows.Close()
-		dbPendingTxs, err = mtu.PendingTransactionQuery.BuildModel(dbPendingTxs, pendingTxRows)
-		if err != nil {
-			return nil, err
-		}
+
 		pendingTxs = append(pendingTxs, dbPendingTxs...)
 		if len(pendingTxs) < 1 {
 			return nil, nil
@@ -436,23 +445,30 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				signatures            = make(map[string][]byte)
 				validSignatureCounter uint32
 			)
-			q, args := mtu.PendingSignatureQuery.GetPendingSignatureByHash(
-				v.TransactionHash,
-				txHeight, constant.MinRollbackBlocks,
-			)
-			pendingSigRows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+
+			err := func() error {
+				q, args := mtu.PendingSignatureQuery.GetPendingSignatureByHash(
+					v.TransactionHash,
+					txHeight, constant.MinRollbackBlocks,
+				)
+				pendingSigRows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+				if err != nil {
+					return err
+				}
+				pendingSigs, err = mtu.PendingSignatureQuery.BuildModel(pendingSigs, pendingSigRows)
+				if err != nil {
+					return err
+				}
+				defer pendingSigRows.Close()
+				if err != nil {
+					return err
+				}
+				return nil
+			}()
 			if err != nil {
 				return nil, err
 			}
-			pendingSigs, err = mtu.PendingSignatureQuery.BuildModel(pendingSigs, pendingSigRows)
-			if err != nil {
-				pendingSigRows.Close()
-				return nil, err
-			}
-			pendingSigRows.Close()
-			if err != nil {
-				return nil, err
-			}
+
 			for _, sig := range pendingSigs {
 				signatures[sig.AccountAddress] = sig.Signature
 			}
@@ -494,6 +510,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			multisigInfo          model.MultiSignatureInfo
 			pendingSigs           []*model.PendingSignature
 			validSignatureCounter uint32
+			err                   error
 		)
 		txHash := sha3.Sum256(body.UnsignedTransactionBytes)
 		innerTx, err := mtu.TransactionUtil.ParseTransactionBytes(body.UnsignedTransactionBytes, false)
@@ -528,19 +545,26 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			}
 		}
 		var dbPendingSigs []*model.PendingSignature
-		q, args = mtu.PendingSignatureQuery.GetPendingSignatureByHash(
-			txHash[:],
-			txHeight, constant.MinRollbackBlocks,
-		)
-		rows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+		err = func() error {
+			q, args = mtu.PendingSignatureQuery.GetPendingSignatureByHash(
+				txHash[:],
+				txHeight, constant.MinRollbackBlocks,
+			)
+			rows, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			dbPendingSigs, err = mtu.PendingSignatureQuery.BuildModel(dbPendingSigs, rows)
+			if err != nil {
+				return err
+			}
+			return nil
+		}()
 		if err != nil {
 			return nil, err
 		}
-		defer rows.Close()
-		dbPendingSigs, err = mtu.PendingSignatureQuery.BuildModel(dbPendingSigs, rows)
-		if err != nil {
-			return nil, err
-		}
+
 		pendingSigs = append(pendingSigs, dbPendingSigs...)
 		body.SignatureInfo = &model.SignatureInfo{
 			TransactionHash: txHash[:],
@@ -559,19 +583,6 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			}
 		}
 		if validSignatureCounter >= multisigInfo.MinimumSignatures {
-			// replace unsigned tx to have status executed
-			pendingTxInsertQ := mtu.PendingTransactionQuery.InsertPendingTransaction(&model.PendingTransaction{
-				SenderAddress:    innerTx.SenderAccountAddress,
-				TransactionHash:  txHash[:],
-				TransactionBytes: body.UnsignedTransactionBytes,
-				Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
-				BlockHeight:      txHeight,
-				Latest:           true,
-			})
-			err = mtu.QueryExecutor.ExecuteTransactions(pendingTxInsertQ)
-			if err != nil {
-				return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-			}
 			return []*model.MultiSignatureTransactionBody{
 				body,
 			}, nil
@@ -582,6 +593,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			pendingSigs           []*model.PendingSignature
 			multisigInfo          model.MultiSignatureInfo
 			validSignatureCounter uint32
+			err                   error
 		)
 		txHash := body.SignatureInfo.TransactionHash
 
@@ -608,19 +620,25 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				"FailToParseTransactionBytes",
 			)
 		}
-		q, args = mtu.PendingSignatureQuery.GetPendingSignatureByHash(
-			txHash,
-			txHeight, constant.MinRollbackBlocks,
-		)
-		rowsPendingSigs, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+		err = func() error {
+			q, args = mtu.PendingSignatureQuery.GetPendingSignatureByHash(
+				txHash,
+				txHeight, constant.MinRollbackBlocks,
+			)
+			rowsPendingSigs, err := mtu.QueryExecutor.ExecuteSelect(q, false, args...)
+			if err != nil {
+				return err
+			}
+			defer rowsPendingSigs.Close()
+			pendingSigs, err = mtu.PendingSignatureQuery.BuildModel(pendingSigs, rowsPendingSigs)
+			if err != nil {
+				return err
+			}
+			return nil
+		}()
 		if err != nil {
 			return nil, err
 		}
-		pendingSigs, err = mtu.PendingSignatureQuery.BuildModel(pendingSigs, rowsPendingSigs)
-		if err != nil {
-			return nil, err
-		}
-		defer rowsPendingSigs.Close()
 		for _, sig := range pendingSigs {
 			body.SignatureInfo.Signatures[sig.AccountAddress] = sig.Signature
 		}

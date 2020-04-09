@@ -7,9 +7,6 @@ import (
 var (
 	MaxNumBlocksmithRewards     = 5
 	GenerateBlockTimeoutSec     = int64(15)
-	SmithingBlockCreationTime   = int64(30)
-	SmithingNetworkTolerance    = int64(15)
-	SmithingBlocksmithTimeGap   = int64(10)
 	CumulativeDifficultyDivisor = int64(1000000)
 	// BlockPoolScanPeriod define the periodic time to scan the whole block pool for legal block to persist to the chain
 	BlockPoolScanPeriod = 5 * time.Second
@@ -19,9 +16,20 @@ var (
 	CheckTimedOutBlock        = 30 * time.Second
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
 	// SpineChainSmithingPeriod one spine block every 5 min (300 seconds)
-	// @iltoga reduce to 60 for testing locally
+	// @iltoga reduce to 60 for testing locally (300 in production)
 	SpineChainSmithingPeriod = int64(300)
 	MainChainSmithIdlePeriod = 500 * time.Millisecond
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)
+	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
+	// 0 will set node to always create empty block
+	EmptyBlockSkippedBlocksmithLimit = int64(2)
+	// Mainchain smithing
+	MainSmithingBlockCreationTime = int64(30)
+	MainSmithingNetworkTolerance  = int64(15)
+	MainSmithingBlocksmithTimeGap = int64(10)
+	// Spinechain smithing
+	SpineSmithingBlockCreationTime = int64(30)
+	SpineSmithingNetworkTolerance  = int64(15)
+	SpineSmithingBlocksmithTimeGap = int64(10)
 )

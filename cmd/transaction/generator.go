@@ -2,26 +2,24 @@ package transaction
 
 import (
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
-	rpc_model "github.com/zoobc/zoobc-core/common/model"
-	rpc_service "github.com/zoobc/zoobc-core/common/service"
-	"google.golang.org/grpc"
-
-	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/cmd/noderegistry"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
+// GenerateTxSendMoney return send money transaction based on provided basic transaction & ammunt
 func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transaction {
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendMoney"])
 	tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
@@ -34,35 +32,25 @@ func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transac
 	return tx
 }
 
+/*
+GenerateTxRegisterNode return register node transaction based on provided basic transaction &
+others specific field for generate register node transaction
+*/
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
-	nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress, nodeAddress string,
+	nodeAddress string,
 	lockedBalance int64,
-	sqliteDB *sql.DB,
+	nodePubKey []byte,
+	proofOfOwnerShip *model.ProofOfOwnership,
 ) *model.Transaction {
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
-	if err != nil {
-		panic(err)
-	}
-	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      lastBlock.BlockHash,
-		BlockHeight:    lastBlock.Height,
-	}
 
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
-	signature := (&crypto.Signature{}).SignByNode(poownMessageBytes, nodeSeed)
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 		NodeAddress: &model.NodeAddress{
 			Address: nodeAddress,
 		},
 		LockedBalance: lockedBalance,
-		Poown: &model.ProofOfOwnership{
-			MessageBytes: poownMessageBytes,
-			Signature:    signature,
-		},
+		Poown:         proofOfOwnerShip,
 	}
 	txBodyBytes := (&transaction.NodeRegistration{
 		Body:                  txBody,
@@ -79,37 +67,24 @@ func GenerateTxRegisterNode(
 	return tx
 }
 
+/*
+GenerateTxUpdateNode return update node transaction based on provided basic transaction &
+others specific field for update register node transaction
+*/
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
-	nodeOwnerAccountAddress, nodeSeed, nodeAddress string,
+	nodeAddress string,
 	lockedBalance int64,
-	sqliteDB *sql.DB,
+	nodePubKey []byte,
+	proofOfOwnerShip *model.ProofOfOwnership,
 ) *model.Transaction {
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
-	if err != nil {
-		panic(err)
-	}
-	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      lastBlock.BlockHash,
-		BlockHeight:    lastBlock.Height,
-	}
-
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
-	signature := (&crypto.Signature{}).SignByNode(
-		poownMessageBytes,
-		nodeSeed)
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 		NodeAddress: &model.NodeAddress{
 			Address: nodeAddress,
 		},
 		LockedBalance: lockedBalance,
-		Poown: &model.ProofOfOwnership{
-			MessageBytes: poownMessageBytes,
-			Signature:    signature,
-		},
+		Poown:         proofOfOwnerShip,
 	}
 	txBodyBytes := (&transaction.UpdateNodeRegistration{
 		Body:                  txBody,
@@ -125,8 +100,11 @@ func GenerateTxUpdateNode(
 	return tx
 }
 
-func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transaction {
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+/*
+GenerateTxRemoveNode return remove node transaction based on provided basic transaction &
+others specific field for remove node transaction
+*/
+func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
@@ -144,37 +122,24 @@ func GenerateTxRemoveNode(tx *model.Transaction, nodeSeed string) *model.Transac
 	return tx
 }
 
+/*
+GenerateTxClaimNode return claim node transaction based on provided basic transaction &
+others specific field for claim node transaction
+*/
 func GenerateTxClaimNode(
 	tx *model.Transaction,
-	nodeOwnerAccountAddress, nodeSeed, recipientAccountAddress string,
-	sqliteDB *sql.DB,
+	nodePubKey []byte,
+	proofOfOwnerShip *model.ProofOfOwnership,
 ) *model.Transaction {
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
-	if err != nil {
-		panic(err)
-	}
-	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
-		BlockHash:      lastBlock.BlockHash,
-		BlockHeight:    lastBlock.Height,
-	}
-
-	nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-	poownMessageBytes := util.GetProofOfOwnershipMessageBytes(poowMessage)
-	signature := (&crypto.Signature{}).SignByNode(
-		poownMessageBytes,
-		nodeSeed)
-	txBody := &model.ClaimNodeRegistrationTransactionBody{
-		NodePublicKey: nodePubKey,
-		Poown: &model.ProofOfOwnership{
-			MessageBytes: poownMessageBytes,
-			Signature:    signature,
-		},
-	}
-	txBodyBytes := (&transaction.ClaimNodeRegistration{
-		Body: txBody,
-	}).GetBodyBytes()
-
+	var (
+		txBody = &model.ClaimNodeRegistrationTransactionBody{
+			NodePublicKey: nodePubKey,
+			Poown:         proofOfOwnerShip,
+		}
+		txBodyBytes = (&transaction.ClaimNodeRegistration{
+			Body: txBody,
+		}).GetBodyBytes()
+	)
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["claimNodeRegistration"])
 	tx.TransactionBody = &model.Transaction_ClaimNodeRegistrationTransactionBody{
 		ClaimNodeRegistrationTransactionBody: txBody,
@@ -184,17 +149,37 @@ func GenerateTxClaimNode(
 	return tx
 }
 
+// GenerateProofOfOwnership generate proof of owner ship for transaction related with node registry
+func GenerateProofOfOwnership(
+	dbPath, dbname, nodeOwnerAccountAddress, nodeSeed, proofOfOwnershipHex string,
+) *model.ProofOfOwnership {
+	if proofOfOwnershipHex != "" {
+		powBytes, err := hex.DecodeString(proofOfOwnershipHex)
+		if err != nil {
+			panic(fmt.Sprintln("failed decode proofOfOwnershipHex, ", err.Error()))
+		}
+		pow, err := util.ParseProofOfOwnershipBytes(powBytes)
+		if err != nil {
+			panic(fmt.Sprintln("failed parse proofOfOwnership, ", err.Error()))
+		}
+		return pow
+	}
+	return noderegistry.GetProofOfOwnerShip(dbPath, dbname, nodeOwnerAccountAddress, nodeSeed)
+}
+
+/*
+GenerateTxSetupAccountDataset return setup account dataset transaction based on provided basic transaction &
+others specific field for setup account dataset transaction
+*/
 func GenerateTxSetupAccountDataset(
 	tx *model.Transaction,
 	senderAccountAddress, recipientAccountAddress, property, value string,
-	activeTime uint64,
 ) *model.Transaction {
 	txBody := &model.SetupAccountDatasetTransactionBody{
 		SetterAccountAddress:    senderAccountAddress,
 		RecipientAccountAddress: recipientAccountAddress,
 		Property:                property,
 		Value:                   value,
-		MuchTime:                activeTime,
 	}
 	txBodyBytes := (&transaction.SetupAccountDataset{
 		Body: txBody,
@@ -209,6 +194,10 @@ func GenerateTxSetupAccountDataset(
 	return tx
 }
 
+/*
+GenerateTxRemoveAccountDataset return remove account dataset transaction based on provided basic transaction &
+others specific field for remove account dataset transaction
+*/
 func GenerateTxRemoveAccountDataset(
 	tx *model.Transaction,
 	senderAccountAddress, recipientAccountAddress, property, value string,
@@ -232,6 +221,7 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
+// GenerateBasicTransaction return  basic transaction based on common transaction field
 func GenerateBasicTransaction(
 	senderSeed string,
 	senderSignatureType int32,
@@ -250,13 +240,25 @@ func GenerateBasicTransaction(
 			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
-				pubKey     = bitcoinSig.GetPublicKeyFromSeed(senderSeed, crypto.DefaultBitcoinPublicKeyFormat())
-				err        error
+				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
+					senderSeed,
+					crypto.DefaultBitcoinPublicKeyFormat(),
+					crypto.DefaultBitcoinPrivateKeyLength(),
+				)
 			)
-			senderAccountAddress, err = bitcoinSig.GetAddressPublicKey(pubKey)
 			if err != nil {
-				fmt.Println("GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey")
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
+			}
+			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
+			if err != nil {
+				panic(fmt.Sprintln(
+					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
+					err.Error(),
+				))
 			}
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
@@ -280,6 +282,7 @@ func GenerateBasicTransaction(
 	}
 }
 
+// PrintTx will print out the signed transaction based on provided format
 func PrintTx(signedTxBytes []byte, outputType string) {
 	var resultStr string
 	switch outputType {
@@ -301,7 +304,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 
 		c := rpc_service.NewTransactionServiceClient(conn)
 
-		response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+		response, err := c.PostTransaction(context.Background(), &model.PostTransactionRequest{
 			TransactionBytes: signedTxBytes,
 		})
 		if err != nil {
@@ -314,6 +317,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 	}
 }
 
+// GenerateSignedTxBytes retrun signed transaction bytes
 func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureType int32) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
@@ -453,5 +457,23 @@ func GeneratedMultiSignatureTransaction(
 	}).GetBodyBytes()
 	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
 	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
+	return tx
+}
+
+func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *model.Transaction {
+	txBody := &model.RemoveNodeRegistrationTransactionBody{
+		NodePublicKey: nodePubKey,
+	}
+	txBodyBytes := (&transaction.RemoveNodeRegistration{
+		Body:                  txBody,
+		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+	}).GetBodyBytes()
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"])
+	tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
+		RemoveNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
 	return tx
 }

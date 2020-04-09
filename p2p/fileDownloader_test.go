@@ -1,10 +1,10 @@
 package p2p
 
 import (
-	"github.com/pkg/errors"
 	"reflect"
 	"testing"
 
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -192,7 +192,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				BlockchainStatusService: tt.fields.BlockchainStatusService,
 				Logger:                  tt.fields.Logger,
 			}
-			if err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); (err != nil) != tt.wantErr {
+			if _, err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); (err != nil) != tt.wantErr {
 				t.Errorf("FileDownloader.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

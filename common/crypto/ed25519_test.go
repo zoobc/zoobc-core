@@ -155,7 +155,7 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "wantFail-{decode error, wrong address format/length}",
+			name: "wantFail-{decode-error-wrong-address-format/length}",
 			args: args{
 				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgt",
 			},
@@ -163,7 +163,7 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantFail:fail-{checksum error, wrong address format}",
+			name: "wantFail:fail-{checksum-error-wrong-address-format}",
 			args: args{
 				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtM",
 			},
@@ -181,6 +181,118 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Ed25519Signature.GetPublicKeyFromAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEd25519Signature_GetPublicKeyFromPrivateKey(t *testing.T) {
+	var mockPrivateKey = []byte{188, 149, 6, 52, 103, 250, 141, 133, 84, 93, 225, 77, 118, 252, 111, 71, 115, 7, 109, 188, 229, 212,
+		31, 2, 189, 96, 77, 11, 89, 44, 125, 12, 183, 227, 106, 207, 27, 80, 168, 160, 252, 110, 172, 177, 36, 171,
+		249, 50, 21, 23, 18, 168, 96, 125, 32, 72, 124, 33, 96, 51, 231, 163, 156, 224}
+	type args struct {
+		privateKey []byte
+	}
+	tests := []struct {
+		name    string
+		e       *Ed25519Signature
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				privateKey: mockPrivateKey,
+			},
+			want:    mockPrivateKey[32:],
+			wantErr: false,
+		},
+		{
+			name: "wantFailed",
+			args: args{
+				privateKey: []byte{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Ed25519Signature{}
+			got, err := e.GetPublicKeyFromPrivateKey(tt.args.privateKey)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Ed25519Signature.GetPublicKeyFromPrivateKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Ed25519Signature.GetPublicKeyFromPrivateKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEd25519Signature_GetPrivateKeyFromSeed(t *testing.T) {
+	type args struct {
+		seed string
+	}
+	tests := []struct {
+		name string
+		e    *Ed25519Signature
+		args args
+		want []byte
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				seed: ed25519MockAddress,
+			},
+			want: []byte{188, 149, 6, 52, 103, 250, 141, 133, 84, 93, 225, 77, 118, 252, 111, 71, 115, 7, 109, 188, 229, 212,
+				31, 2, 189, 96, 77, 11, 89, 44, 125, 12, 183, 227, 106, 207, 27, 80, 168, 160, 252, 110, 172, 177, 36, 171,
+				249, 50, 21, 23, 18, 168, 96, 125, 32, 72, 124, 33, 96, 51, 231, 163, 156, 224},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Ed25519Signature{}
+			if got := e.GetPrivateKeyFromSeed(tt.args.seed); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeed() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEd25519Signature_GetPrivateKeyFromSeedUseSlip10(t *testing.T) {
+	type args struct {
+		seed string
+	}
+	tests := []struct {
+		name    string
+		e       *Ed25519Signature
+		args    args
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				seed: ed25519MockSeed,
+			},
+			want: []byte{28, 187, 31, 185, 115, 15, 68, 41, 91, 146, 30, 50, 233, 74, 207, 177, 84, 58, 87,
+				180, 69, 50, 232, 116, 223, 54, 71, 100, 177, 196, 171, 106},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Ed25519Signature{}
+			got, err := e.GetPrivateKeyFromSeedUseSlip10(tt.args.seed)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeedUseSlip10() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeedUseSlip10() = %v, want %v", got, tt.want)
 			}
 		})
 	}

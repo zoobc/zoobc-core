@@ -1,6 +1,7 @@
 package monitoring
 
 import (
+	"database/sql"
 	"fmt"
 	"math"
 	"reflect"
@@ -15,26 +16,26 @@ var (
 	isMonitoringActive bool
 	nodePublicKey      []byte
 
-	receiptCounter                       prometheus.Counter
-	unresolvedPeersCounter               prometheus.Gauge
-	resolvedPeersCounter                 prometheus.Gauge
-	unresolvedPriorityPeersCounter       prometheus.Gauge
-	resolvedPriorityPeersCounter         prometheus.Gauge
-	activeRegisteredNodesGauge           prometheus.Gauge
-	nodeScore                            prometheus.Gauge
-	blockerCounterVector                 *prometheus.CounterVec
-	statusLockGaugeVector                *prometheus.GaugeVec
-	blockchainStatusGaugeVector          *prometheus.GaugeVec
-	blockchainSmithTimeGaugeVector       *prometheus.GaugeVec
-	blockchainIDMsbGaugeVector           *prometheus.GaugeVec
-	blockchainIDLsbGaugeVector           *prometheus.GaugeVec
-	blockchainHeightGaugeVector          *prometheus.GaugeVec
-	goRoutineActivityGaugeVector         *prometheus.GaugeVec
-	downloadCycleDebuggerGaugeVector     *prometheus.GaugeVec
-	apiGaugeVector                       *prometheus.GaugeVec
-	apiRunningGaugeVector                *prometheus.GaugeVec
-	snapshotDownloadRequestCounter       prometheus.Counter
-	snapshotDownloadRequestFailedCounter prometheus.Counter
+	receiptCounter                   prometheus.Counter
+	unresolvedPeersCounter           prometheus.Gauge
+	resolvedPeersCounter             prometheus.Gauge
+	unresolvedPriorityPeersCounter   prometheus.Gauge
+	resolvedPriorityPeersCounter     prometheus.Gauge
+	activeRegisteredNodesGauge       prometheus.Gauge
+	nodeScore                        prometheus.Gauge
+	blockerCounterVector             *prometheus.CounterVec
+	statusLockGaugeVector            *prometheus.GaugeVec
+	blockchainStatusGaugeVector      *prometheus.GaugeVec
+	blockchainSmithIndexGaugeVector  *prometheus.GaugeVec
+	blockchainIDMsbGaugeVector       *prometheus.GaugeVec
+	blockchainIDLsbGaugeVector       *prometheus.GaugeVec
+	blockchainHeightGaugeVector      *prometheus.GaugeVec
+	goRoutineActivityGaugeVector     *prometheus.GaugeVec
+	downloadCycleDebuggerGaugeVector *prometheus.GaugeVec
+	apiGaugeVector                   *prometheus.GaugeVec
+	apiRunningGaugeVector            *prometheus.GaugeVec
+	snapshotDownloadRequestCounter   *prometheus.CounterVec
+	dbStatGaugeVector                *prometheus.GaugeVec
 )
 
 const (
@@ -111,7 +112,7 @@ func SetMonitoringActive(isActive bool) {
 	statusLockGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_status_lock",
 		Help: "Status lock counter",
-	}, []string{"blocker_type"})
+	}, []string{"chaintype", "status_type"})
 	prometheus.MustRegister(statusLockGaugeVector)
 
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -120,11 +121,11 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"chaintype"})
 	prometheus.MustRegister(blockchainStatusGaugeVector)
 
-	blockchainSmithTimeGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	blockchainSmithIndexGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_blockchain_smith_time",
 		Help: "Smith time of each nodes to smith for each chain",
 	}, []string{"chaintype"})
-	prometheus.MustRegister(blockchainSmithTimeGaugeVector)
+	prometheus.MustRegister(blockchainSmithIndexGaugeVector)
 
 	nodeScore = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_node_score",
@@ -174,11 +175,17 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"api_name"})
 	prometheus.MustRegister(apiRunningGaugeVector)
 
-	snapshotDownloadRequestFailedCounter = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: fmt.Sprintf("zoobc_snapshot_chunk_downloads_failed"),
-		Help: fmt.Sprintf("snapshot file chunks failed to download"),
-	})
-	prometheus.MustRegister(snapshotDownloadRequestFailedCounter)
+	snapshotDownloadRequestCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "zoobc_snapshot_chunk_downloads_status",
+		Help: "snapshot file chunks to download",
+	}, []string{"status"})
+	prometheus.MustRegister(snapshotDownloadRequestCounter)
+
+	dbStatGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_stats",
+		Help: "Log the database connection status",
+	}, []string{"status"})
+	prometheus.MustRegister(dbStatGaugeVector)
 
 }
 
@@ -246,20 +253,20 @@ func IncrementBlockerMetrics(typeBlocker string) {
 	blockerCounterVector.WithLabelValues(typeBlocker).Inc()
 }
 
-func IncrementStatusLockCounter(typeStatusLock int) {
+func IncrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	statusLockGaugeVector.WithLabelValues(fmt.Sprintf("%d", typeStatusLock)).Inc()
+	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Inc()
 }
 
-func DecrementStatusLockCounter(typeStatusLock int) {
+func DecrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	statusLockGaugeVector.WithLabelValues(fmt.Sprintf("%d", typeStatusLock)).Dec()
+	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
 }
 
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {
@@ -270,12 +277,12 @@ func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {
 	blockchainStatusGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(newStatus))
 }
 
-func SetBlockchainSmithTime(chainType chaintype.ChainType, newTime int64) {
+func SetBlockchainSmithIndex(chainType chaintype.ChainType, index int64) {
 	if !isMonitoringActive {
 		return
 	}
 
-	blockchainSmithTimeGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(newTime))
+	blockchainSmithIndexGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(index))
 }
 
 func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
@@ -366,9 +373,19 @@ func IncrementSnapshotDownloadCounter(succeeded, failed int32) {
 	}
 
 	if succeeded > 0 {
-		snapshotDownloadRequestCounter.Add(float64(succeeded))
+		snapshotDownloadRequestCounter.WithLabelValues("success").Add(float64(succeeded))
 	}
 	if failed > 0 {
-		snapshotDownloadRequestFailedCounter.Add(float64(failed))
+		snapshotDownloadRequestCounter.WithLabelValues("failed").Add(float64(failed))
 	}
+}
+
+func SetDatabaseStats(dbStat sql.DBStats) {
+	if !isMonitoringActive {
+		return
+	}
+
+	dbStatGaugeVector.WithLabelValues("OpenConnections").Set(float64(dbStat.OpenConnections))
+	dbStatGaugeVector.WithLabelValues("ConnectionsInUse").Set(float64(dbStat.InUse))
+	dbStatGaugeVector.WithLabelValues("ConnectionsWaitCount").Set(float64(dbStat.WaitCount))
 }

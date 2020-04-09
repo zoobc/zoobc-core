@@ -197,10 +197,10 @@ func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]inte
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE latest = ? AND (block_height || '_' || id) IN (
-				SELECT (MAX(block_height) || '_' || id) as prev
-				FROM %s
-				GROUP BY id
+			WHERE latest = ? AND (id, block_height) IN (
+				SELECT t2.id, MAX(t2.block_height)
+				FROM %s as t2
+				GROUP BY t2.id
 			)`,
 				et.TableName,
 				et.TableName,
@@ -212,11 +212,18 @@ func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (et *EscrowTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(
-		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND latest = 1 ORDER BY block_height DESC",
-		strings.Join(et.Fields, ", "),
+	return fmt.Sprintf("SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX("+
+		"t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.id) ORDER BY block_height",
+		strings.Join(et.Fields, ","),
+		et.getTableName(),
 		et.getTableName(),
 		fromHeight,
 		toHeight,
 	)
+}
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (et *EscrowTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		et.TableName, fromHeight, toHeight)
 }

@@ -52,7 +52,7 @@ var (
 		Use:   "fake-blocks",
 		Short: "fake-blocks command used to create fake blocks",
 		Run: func(cmd *cobra.Command, args []string) {
-			generateBlocks(numberOfBlocks, blocksmithSecretPhrase, outputPath)
+			generateBlocks(numberOfBlocks, blocksmithSecretPhrase, outputPath, chainType)
 		},
 	}
 )
@@ -152,6 +152,7 @@ func initialize(
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(chainType),
 		log.New(),
+		&mockBlockchainStatusService{},
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
@@ -199,7 +200,9 @@ func initialize(
 	migration = database.Migration{Query: queryExecutor}
 }
 
-func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath string) {
+// generateBlocks used to generate dummy block for testing
+// note: now only support mainchain, will implement spinechain implementation details later.
+func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath string, ct chaintype.ChainType) {
 	fmt.Println("initializing dependency and database...")
 	initialize(blocksmithSecretPhrase, outputPath)
 	fmt.Println("done initializing database")
@@ -234,13 +237,13 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		}
 
 		fmt.Println("begin generating blocks")
-		if err := blockProcessor.FakeSmithing(numberOfBlocks, true); err != nil {
+		if err := blockProcessor.FakeSmithing(numberOfBlocks, true, ct); err != nil {
 			panic(err)
 		}
 	} else {
 		// start from last block's timestamp
 		fmt.Println("continuing from last database...")
-		if err := blockProcessor.FakeSmithing(numberOfBlocks, false); err != nil {
+		if err := blockProcessor.FakeSmithing(numberOfBlocks, false, ct); err != nil {
 			panic("error in appending block to existing database")
 		}
 	}

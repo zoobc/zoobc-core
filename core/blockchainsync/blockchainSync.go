@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -18,18 +17,24 @@ import (
 )
 
 // TODO: rename into something more specific, such as SyncService
-type Service struct {
-	// isScanningBlockchain       bool
-	ChainType               chaintype.ChainType
-	PeerServiceClient       client.PeerServiceClientInterface
-	PeerExplorer            strategy.PeerExplorerStrategyInterface
-	BlockService            service.BlockServiceInterface
-	BlockchainDownloader    BlockchainDownloadInterface
-	ForkingProcessor        ForkingProcessorInterface
-	Logger                  *log.Logger
-	TransactionUtil         transaction.UtilInterface
-	BlockchainStatusService service.BlockchainStatusServiceInterface
-}
+type (
+	BlockchainSyncServiceInterface interface {
+		GetBlockService() service.BlockServiceInterface
+		Start()
+	}
+
+	BlockchainSyncService struct {
+		ChainType               chaintype.ChainType
+		PeerServiceClient       client.PeerServiceClientInterface
+		PeerExplorer            strategy.PeerExplorerStrategyInterface
+		BlockService            service.BlockServiceInterface
+		BlockchainDownloader    BlockchainDownloadInterface
+		ForkingProcessor        ForkingProcessorInterface
+		Logger                  *log.Logger
+		TransactionUtil         transaction.UtilInterface
+		BlockchainStatusService service.BlockchainStatusServiceInterface
+	}
+)
 
 func NewBlockchainSyncService(
 	blockService service.BlockServiceInterface,
@@ -39,8 +44,8 @@ func NewBlockchainSyncService(
 	blockchainStatusService service.BlockchainStatusServiceInterface,
 	blockchainDownloader BlockchainDownloadInterface,
 	forkingProcessor ForkingProcessorInterface,
-) *Service {
-	return &Service{
+) *BlockchainSyncService {
+	return &BlockchainSyncService{
 		ChainType:               blockService.GetChainType(),
 		BlockService:            blockService,
 		PeerServiceClient:       peerServiceClient,
@@ -52,7 +57,11 @@ func NewBlockchainSyncService(
 	}
 }
 
-func (bss *Service) Start() {
+func (bss *BlockchainSyncService) GetBlockService() service.BlockServiceInterface {
+	return bss.BlockService
+}
+
+func (bss *BlockchainSyncService) Start() {
 	if bss.ChainType == nil {
 		bss.Logger.Fatal("no chaintype")
 	}
@@ -64,7 +73,7 @@ func (bss *Service) Start() {
 	bss.GetMoreBlocksThread()
 }
 
-func (bss *Service) GetMoreBlocksThread() {
+func (bss *BlockchainSyncService) GetMoreBlocksThread() {
 	defer func() {
 		bss.Logger.Info("getMoreBlocksThread stopped")
 	}()
@@ -75,7 +84,7 @@ func (bss *Service) GetMoreBlocksThread() {
 	}
 }
 
-func (bss *Service) getMoreBlocks() {
+func (bss *BlockchainSyncService) getMoreBlocks() {
 	// Pausing another process when they are using blockService.ChainWriteLock()
 	bss.BlockService.ChainWriteLock(constant.BlockchainStatusSyncingBlock)
 	defer bss.BlockService.ChainWriteUnlock(constant.BlockchainStatusSyncingBlock)

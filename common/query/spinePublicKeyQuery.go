@@ -150,10 +150,10 @@ func (spkq *SpinePublicKeyQuery) Rollback(height uint32) (multiQueries [][]inter
 		{
 			fmt.Sprintf(`
 			UPDATE %s SET latest = ?
-			WHERE latest = ? AND (height || '_' || node_public_key) IN (
-				SELECT (MAX(height) || '_' || node_public_key) as con
-				FROM %s
-				GROUP BY node_public_key
+			WHERE latest = ? AND (node_public_key, height) IN (
+				SELECT t2.node_public_key, MAX(t2.height)
+				FROM %s as t2
+				GROUP BY t2.node_public_key
 			)`,
 				spkq.TableName,
 				spkq.TableName,

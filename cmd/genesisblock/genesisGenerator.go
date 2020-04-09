@@ -257,19 +257,29 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if acc.AccountAddress == constant.MainchainGenesisAccountAddress {
 			continue
 		}
+
+		var nodeRegistrations []*model.NodeRegistration
+
 		bcEntry := new(genesisEntry)
 		bcEntry.AccountAddress = acc.AccountAddress
 		bcEntry.AccountBalance = acc.Balance
 
-		// get node registration for this account, if exists
-		qry, args := nodeRegistrationQuery.GetNodeRegistrationByAccountAddress(acc.AccountAddress)
-		nrRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return nil, err
-		}
-		defer nrRows.Close()
+		err := func() error {
+			// get node registration for this account, if exists
+			qry, args := nodeRegistrationQuery.GetNodeRegistrationByAccountAddress(acc.AccountAddress)
+			nrRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+			if err != nil {
+				return err
+			}
+			defer nrRows.Close()
 
-		nodeRegistrations, err := nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, nrRows)
+			nodeRegistrations, err = nodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, nrRows)
+			if err != nil {
+				return err
+			}
+			return nil
+		}()
+
 		if err != nil {
 			return nil, err
 		}
@@ -284,17 +294,23 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
 			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
-			// get the participation score for this node registration
-			qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
-			psRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+			err := func() error {
+				// get the participation score for this node registration
+				qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
+				psRows, err := queryExecutor.ExecuteSelect(qry, false, args...)
+				if err != nil {
+					return err
+				}
+				defer psRows.Close()
+
+				participationScores, err := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, psRows)
+				if (err != nil) || len(participationScores) > 0 {
+					bcEntry.ParticipationScore = participationScores[0].Score
+				}
+				return nil
+			}()
 			if err != nil {
 				return nil, err
-			}
-			defer psRows.Close()
-
-			participationScores, err := participationScoreQuery.BuildModel([]*model.ParticipationScore{}, psRows)
-			if (err != nil) || len(participationScores) > 0 {
-				bcEntry.ParticipationScore = participationScores[0].Score
 			}
 		}
 		bcEntries = append(bcEntries, *bcEntry)

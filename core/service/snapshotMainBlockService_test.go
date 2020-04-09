@@ -2,20 +2,20 @@ package service
 
 import (
 	"database/sql"
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/query"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 )
 
 type (
@@ -65,7 +65,7 @@ func TestSnapshotMainBlockService_IsSnapshotHeight(t *testing.T) {
 			args: args{
 				height: constant.MinRollbackBlocks,
 			},
-			want: true,
+			want: false,
 		},
 		{
 			name: "IsSnapshotHeight_{interval_lower_than_minRollback_3}:",
@@ -182,7 +182,7 @@ type (
 		success bool
 	}
 	mockSnapshotAccountDatasetQuery struct {
-		query.AccountDatasetsQueryInterface
+		query.AccountDatasetQueryInterface
 		success bool
 	}
 	mockSnapshotParticipationScoreQuery struct {
@@ -195,6 +195,26 @@ type (
 	}
 	mockSnapshotEscrowTransactionQuery struct {
 		query.EscrowTransactionQueryInterface
+		success bool
+	}
+	mockSnapshotPendingTransactionQuery struct {
+		query.PendingTransactionQueryInterface
+		success bool
+	}
+	mockSnapshotPendingSignatureQuery struct {
+		query.PendingSignatureQueryInterface
+		success bool
+	}
+	mockSnapshotMultisignatureInfoQuery struct {
+		query.MultisignatureInfoQueryInterface
+		success bool
+	}
+	mockSkippedBlocksmithQuery struct {
+		query.SkippedBlocksmithQueryInterface
+		success bool
+	}
+	mockSnapshotBlockQuery struct {
+		query.BlockQueryInterface
 		success bool
 	}
 )
@@ -276,8 +296,6 @@ var (
 		Property:                "testProp",
 		RecipientAccountAddress: bcsAddress1,
 		SetterAccountAddress:    bcsAddress2,
-		TimestampExpires:        15875392,
-		TimestampStarts:         15875000,
 		Value:                   "testVal",
 	}
 	blockForSnapshot1 = &model.Block{
@@ -285,8 +303,8 @@ var (
 		Timestamp: 15875392,
 	}
 	snapshotFullHash = []byte{
-		35, 247, 199, 251, 175, 178, 67, 125, 232, 88, 96, 242, 1, 221, 39, 114, 236, 24, 1, 74, 8, 217, 208, 166, 36, 145, 70, 40,
-		100, 40, 97, 164,
+		222, 155, 147, 46, 83, 40, 19, 208, 55, 187, 156, 164, 162, 158, 70, 249, 53, 131, 183, 153, 67, 89,
+		47, 189, 207, 38, 224, 31, 115, 124, 247, 161,
 	}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
@@ -338,6 +356,36 @@ func (*mockSnapshotPublishedReceiptQuery) BuildModel(publishedReceipts []*model.
 	return []*model.PublishedReceipt{
 		pr1,
 	}, nil
+}
+
+func (*mockSnapshotPendingTransactionQuery) BuildModel(pendingTransactions []*model.PendingTransaction,
+	rows *sql.Rows) ([]*model.PendingTransaction,
+	error) {
+	return []*model.PendingTransaction{}, nil
+}
+
+func (*mockSnapshotPendingSignatureQuery) BuildModel(pendingSignatures []*model.PendingSignature,
+	rows *sql.Rows) ([]*model.PendingSignature,
+	error) {
+	return []*model.PendingSignature{}, nil
+}
+
+func (*mockSnapshotMultisignatureInfoQuery) BuildModel(multisignatureInfo []*model.MultiSignatureInfo,
+	rows *sql.Rows) ([]*model.MultiSignatureInfo,
+	error) {
+	return []*model.MultiSignatureInfo{}, nil
+}
+
+func (*mockSkippedBlocksmithQuery) BuildModel(skippedBlocksmith []*model.SkippedBlocksmith,
+	rows *sql.Rows) ([]*model.SkippedBlocksmith,
+	error) {
+	return []*model.SkippedBlocksmith{}, nil
+}
+
+func (*mockSnapshotBlockQuery) BuildModel(blocks []*model.Block,
+	rows *sql.Rows) ([]*model.Block,
+	error) {
+	return []*model.Block{}, nil
 }
 
 func (*mockSnapshotEscrowTransactionQuery) BuildModels(*sql.Rows) ([]*model.Escrow, error) {
@@ -410,10 +458,17 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		PendingTransactionQuery    query.PendingTransactionQueryInterface
+		PendingSignatureQuery      query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
+		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
 		block *model.Block
@@ -444,7 +499,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
 				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
 				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
+				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
+				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
+				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -461,28 +523,6 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 			},
 		},
-		// {
-		// 	name: "NewSnapshotFile:fail-{GetAccountBalances}",
-		// 	fields: fields{
-		// 		chainType: &mockChainType{
-		// 			SnapshotGenerationTimeout: 1,
-		// 		},
-		// 		QueryExecutor:           &mockSnapshotQueryExecutor{success: true},
-		// 		AccountBalanceQuery:     &mockSnapshotAccountBalanceQuery{success: false},
-		// 		NodeRegistrationQuery:   &mockSnapshotNodeRegistrationQuery{success: true},
-		// 		ParticipationScoreQuery: &mockSnapshotParticipationScoreQuery{success: true},
-		// 		AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
-		// 		EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
-		// 		PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
-		// 		SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
-		// 	},
-		// 	args: args{
-		// 		block: blockForSnapshot1,
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// 	errMsg:  "AccountBalanceQueryFailed",
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -498,7 +538,14 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:        tt.fields.AccountDatasetQuery,
 				EscrowTransactionQuery:     tt.fields.EscrowTransactionQuery,
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
+				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
+				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
+				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -532,10 +579,17 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		PendingTransactionQuery    query.PendingTransactionQueryInterface
+		PendingSignatureQuery      query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
+		DerivedQueries             []query.DerivedQuery
 	}
 	type args struct {
 		block *model.Block
@@ -569,7 +623,14 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
 				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
 				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
+				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
+				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
+				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -599,7 +660,14 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:     &mockSnapshotAccountDatasetQuery{success: true},
 				EscrowTransactionQuery:  &mockSnapshotEscrowTransactionQuery{success: true},
 				PublishedReceiptQuery:   &mockSnapshotPublishedReceiptQuery{success: true},
+				PendingTransactionQuery: &mockSnapshotPendingTransactionQuery{success: true},
+				PendingSignatureQuery:   &mockSnapshotPendingSignatureQuery{success: true},
+				MultisignatureInfoQuery: &mockSnapshotMultisignatureInfoQuery{success: true},
+				SkippedBlocksmithQuery:  &mockSkippedBlocksmithQuery{success: true},
+				BlockQuery:              &mockSnapshotBlockQuery{success: true},
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -621,7 +689,14 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:        tt.fields.AccountDatasetQuery,
 				EscrowTransactionQuery:     tt.fields.EscrowTransactionQuery,
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
+				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
+				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				DerivedQueries:             tt.fields.DerivedQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -630,14 +705,14 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 			}
 			// this is the hash of encoded bynary data
 			if !reflect.DeepEqual(got.SnapshotFileHash, tt.want) {
-				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotMainBlockService.NewSnapshotFile() = \n%v, want \n%v", got.SnapshotFileHash, tt.want)
 			}
 			// remove generated files
-			s1 := "ciR_Dhn7tqSXs7QWXZlkxOEZBPDFsgMOPDve4DikIq0="
+			s1 := "3puTLlMoE9A3u5ykop5G-TWDt5lDWS-9zybgH3N896E="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s1))
-			s2 := "I_fH-6-yQ33oWGDyAd0ncuwYAUoI2dCmJJFGKGQoYaQ="
+			s2 := "jica4f9TBxknRQC_gDcd83OMRno9SkmIPBJQbyjK2F8="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s2))
-			s3 := "pMIJEXZLvM4DvzP8dDM2sBRMbD5wW_XUA6DU9ueI-T8="
+			s3 := "JWx5HOAgG11sFIAHVF-G1dtveG4iIm5K7VoZsxrBlOw="
 			_ = os.Remove(filepath.Join(tt.fields.SnapshotPath, s3))
 		})
 	}
@@ -669,10 +744,17 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetsQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
 		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
 		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		PendingTransactionQuery    query.PendingTransactionQueryInterface
+		PendingSignatureQuery      query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
+		BlockQuery                 query.BlockQueryInterface
 		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
+		DerivedQueries             []query.DerivedQuery
 	}
 	tests := []struct {
 		name    string
@@ -698,7 +780,14 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:     query.NewAccountDatasetsQuery(),
 				EscrowTransactionQuery:  query.NewEscrowTransactionQuery(),
 				PublishedReceiptQuery:   query.NewPublishedReceiptQuery(),
+				PendingTransactionQuery: query.NewPendingTransactionQuery(),
+				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
+				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
+				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 		},
 	}
@@ -716,7 +805,14 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				AccountDatasetQuery:        tt.fields.AccountDatasetQuery,
 				EscrowTransactionQuery:     tt.fields.EscrowTransactionQuery,
 				PublishedReceiptQuery:      tt.fields.PublishedReceiptQuery,
+				PendingTransactionQuery:    tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:      tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:    tt.fields.MultisignatureInfoQuery,
+				SkippedBlocksmithQuery:     tt.fields.SkippedBlocksmithQuery,
+				BlockQuery:                 tt.fields.BlockQuery,
 				SnapshotQueries:            tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
+				DerivedQueries:             tt.fields.DerivedQueries,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

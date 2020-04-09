@@ -6,10 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -24,12 +23,13 @@ type (
 		RecipientAddress    string
 		Height              uint32
 		Body                *model.SendMoneyTransactionBody
+		QueryExecutor       query.ExecutorInterface
 		Escrow              *model.Escrow
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		EscrowQuery         query.EscrowTransactionQueryInterface
 		BlockQuery          query.BlockQueryInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 		NormalFee           fee.FeeModelInterface
 		EscrowFee           fee.FeeModelInterface
 	}
@@ -88,7 +88,7 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 	// sender ledger
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -tx.GetAmount() + tx.Fee,
+		BalanceChange:  -(tx.GetAmount() + tx.Fee),
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
@@ -163,6 +163,11 @@ That specs:
 func (tx *SendMoney) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
+		accountDataset model.AccountDataset
+		accDatasetArgs []interface{}
+		accDatasetQ    string
+		row            *sql.Row
+		err            error
 	)
 
 	if tx.Body.GetAmount() <= 0 {
@@ -170,6 +175,22 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	}
 	if tx.RecipientAddress == "" {
 		return errors.New("transaction must have a valid recipient account id")
+	}
+	// checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
+	// yes would be error
+	// TODO: Move this part to `transactionCoreService` when all transaction types need this part
+	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
+	if err != nil {
+		return err
+	}
+	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	// false if err in above is sql.ErrNoRows || nil
+	if accountDataset.GetIsActive() {
+		return fmt.Errorf("RecipientRequireEscrow")
 	}
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
@@ -179,23 +200,14 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		}
 
 		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
+		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 		if err != nil {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		defer rows.Close()
-		if rows.Next() {
-			err = rows.Scan(
-				&accountBalance.AccountAddress,
-				&accountBalance.BlockHeight,
-				&accountBalance.SpendableBalance,
-				&accountBalance.Balance,
-				&accountBalance.PopRevenue,
-				&accountBalance.Latest,
-			)
-			if err != nil {
-				return err
-			}
+
+		err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+		if err != nil {
+			return err
 		}
 
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
@@ -308,7 +320,9 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetRecipientAddress() == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
 	}
-
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
+	}
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
 	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
@@ -388,7 +402,6 @@ account ledger, and escrow
 func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	var (
 		queries [][]interface{}
-		block   *model.Block
 		err     error
 	)
 
@@ -405,7 +418,7 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	// sender ledger
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission(),
+		BalanceChange:  -(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()),
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventSendMoneyTransaction,
@@ -414,12 +427,7 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 	queries = append(queries, senderAccountLedgerArgs)
 
-	// Insert Escrow
-	block, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	tx.Escrow.Timeout += uint64(block.GetHeight())
+	tx.Escrow.Timeout += uint64(tx.Height)
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
 	queries = append(queries, escrowArgs...)
 
@@ -442,7 +450,6 @@ func (tx *SendMoney) EscrowApproval(
 		queries [][]interface{}
 		err     error
 	)
-	fmt.Printf("EscrowApproval")
 
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:

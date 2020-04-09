@@ -15,6 +15,7 @@ apiRPCPort=3005
 # comment out or set to 0 to disable http proxy, only enable in dev mode
 apiHTTPPort=3035
 monitoringPort=9095
+cpuProfilingPort=6065
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"

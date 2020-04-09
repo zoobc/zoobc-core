@@ -1,11 +1,11 @@
 package smith
 
 import (
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -17,7 +17,7 @@ type (
 		Start(sleepPeriod time.Duration)
 		Stop()
 		StartSmithing() error
-		FakeSmithing(numberOfBlocks int, fromGenesis bool) error
+		FakeSmithing(numberOfBlocks int, fromGenesis bool, chainType chaintype.ChainType) error
 		GetBlockChainprocessorStatus() (isSmithing bool, err error)
 	}
 
@@ -56,7 +56,8 @@ func NewBlockchainProcessor(
 
 // FakeSmithing should only be used in testing the blockchain, it's not meant to be used in production, and could cause
 // errors
-func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool) error {
+// todo: @andy-shi need to adjust this function to newest state of smithing process.
+func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool, ct chaintype.ChainType) error {
 	// todo: if debug mode, allow, else no
 	var (
 		timeNow int64
@@ -80,20 +81,14 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			err = bp.BlockService.GetBlocksmithStrategy().CalculateSmith(lastBlock, 0, bp.Generator, 1)
+			err = bp.BlockService.GetBlocksmithStrategy().CalculateScore(bp.Generator, 1)
 			if err != nil {
 				return err
 			}
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
-		for bp.Generator.SmithTime > timeNow {
+		for timeNow < lastBlock.GetTimestamp()+ct.GetSmithingPeriod() {
 			timeNow++ // speed up bro
-		}
-		// todo: replace to smithing time >= timestamp
-		if bp.Generator.SmithTime > timeNow {
-			return blocker.NewBlocker(
-				blocker.SmithingErr, "verify seed return false",
-			)
 		}
 		previousBlock, err := bp.BlockService.GetLastBlock()
 		if err != nil {
@@ -103,6 +98,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			previousBlock,
 			bp.Generator.SecretPhrase,
 			timeNow,
+			true,
 		)
 		if err != nil {
 			return err
@@ -128,6 +124,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
 	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
+	var blocksmithIndex int64
 	lastBlock, err := bp.BlockService.GetLastBlock()
 	if err != nil {
 		return blocker.NewBlocker(
@@ -135,20 +132,18 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	// todo: move this piece of code to service layer
 	// caching: only calculate smith time once per new block
-	bp.LastBlockID, err = bp.BlockService.WillSmith(
+	bp.LastBlockID, blocksmithIndex, err = bp.BlockService.WillSmith(
 		bp.Generator, bp.LastBlockID,
 	)
 	if err != nil {
 		return err
 	}
 	timestamp := time.Now().Unix()
-	if bp.Generator.SmithTime > timestamp {
-		return nil
-	}
 	block, err := bp.BlockService.GenerateBlock(
 		lastBlock,
 		bp.Generator.SecretPhrase,
 		timestamp,
+		blocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
 	)
 	if err != nil {
 		return err
@@ -180,12 +175,15 @@ func (bp *BlockchainProcessor) Start(sleepPeriod time.Duration) {
 				return
 			case <-ticker.C:
 				// when starting a node, do not start smithing until the main blocks have been fully downloaded
-				if !bp.BlockchainStatusService.IsSmithingLocked() {
+				if !bp.BlockchainStatusService.IsSmithingLocked() && bp.BlockchainStatusService.IsBlocksmith() {
 					err := bp.StartSmithing()
 					if err != nil {
 						bp.Logger.Debugf("Smith Error for %s. %s", bp.BlockService.GetChainType().GetName(), err.Error())
 						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, false)
 						bp.smithError = err
+						if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type == blocker.ZeroParticipationScoreErr {
+							bp.BlockchainStatusService.SetIsBlocksmith(false)
+						}
 					} else {
 						bp.BlockchainStatusService.SetIsSmithing(bp.ChainType, true)
 						bp.smithError = nil

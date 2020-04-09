@@ -113,10 +113,9 @@ func (m *Migration) Init() error {
 				"recipient_account_address" VARCHAR(255),
 				"property" TEXT,
 				"value" TEXT,
-				"timestamp_starts" INTEGER,
-				"timestamp_expires" INTEGER,
-				"height" INTEGER,
+				"is_active" INTEGER,
 				"latest" INTEGER,
+				"height" INTEGER,
 				PRIMARY KEY("setter_account_address","recipient_account_address", "property", "height")
 			);`,
 			`
@@ -184,7 +183,7 @@ func (m *Migration) Init() error {
 				ADD COLUMN "timestamp" INTEGER AFTER "tree"
 			`,
 			`
-			ALTER TABLE "node_registry" 
+			ALTER TABLE "node_registry"
 				RENAME COLUMN "queued" TO "registration_status"
 			`,
 			`
@@ -260,7 +259,8 @@ func (m *Migration) Init() error {
 				"status" INTEGER,
 				"block_height" INTEGER,
 				"latest" INTEGER,
-				"instruction" TEXT
+				"instruction" TEXT,
+				PRIMARY KEY("id", "block_height")
 			)
 			`,
 			`
@@ -271,14 +271,14 @@ func (m *Migration) Init() error {
 				"manifest_reference_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
 				"chain_type" INTEGER NOT NULL,		-- chain type this spine_block_manifest reference to
 				"manifest_type" INTEGER NOT NULL,	-- type of spine_block_manifest (as of now only snapshot)
-				"manifest_timestamp" INTEGER NOT NULL,	-- timestamp that marks the end of file chunks processing 
+				"manifest_timestamp" INTEGER NOT NULL,	-- timestamp that marks the end of file chunks processing
 				PRIMARY KEY("id")
 				UNIQUE("id")
 			)
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_transaction" (
-				"sender_address" TEXT,			-- sender of transaction 
+				"sender_address" TEXT,			-- sender of transaction
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction
 				"transaction_bytes" BLOB,		-- full transaction bytes of the pending transaction
 				"status" INTEGER,			-- execution status of the pending transaction
@@ -293,14 +293,14 @@ func (m *Migration) Init() error {
 				"account_address" TEXT,			-- account address of the respective signature
 				"signature" BLOB,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
-				"latest" INTEGER,			-- latest flag for pending signature 
+				"latest" INTEGER,			-- latest flag for pending signature
 				PRIMARY KEY("account_address", "transaction_hash", "block_height")
 			)
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "multisignature_info" (
-				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info 
-				"minimum_signatures" INTEGER,		-- account address of the respective signature 
+				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info
+				"minimum_signatures" INTEGER,		-- account address of the respective signature
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
 				"addresses" TEXT,			-- list of addresses / participants of the multisig account
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
@@ -320,6 +320,9 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height")
+			`,
+			`
+			CREATE INDEX "main_block_id_idx" ON "main_block" ("id")
 			`,
 		}
 		return nil

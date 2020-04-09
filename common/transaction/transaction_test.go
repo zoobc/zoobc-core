@@ -5,11 +5,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -72,7 +71,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, constant.OneZBC/100,
 				),
-				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
+				NormalFee:           fee.NewConstantFeeModel(constant.OneZBC / 100),
+				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 			},
 		},
 		{

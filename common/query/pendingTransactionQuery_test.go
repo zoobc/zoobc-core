@@ -5,10 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -348,9 +346,9 @@ func TestPendingTransactionQuery_Rollback(t *testing.T) {
 					uint32(10),
 				},
 				{
-					"UPDATE pending_transaction SET latest = ? WHERE latest = ? AND (block_height || '_' || " +
-						"transaction_hash) IN (SELECT (MAX(block_height) || '_' || transaction_hash) as con " +
-						"FROM pending_transaction GROUP BY transaction_hash)",
+					"UPDATE pending_transaction SET latest = ? WHERE latest = ? AND (transaction_hash, " +
+						"block_height) IN (SELECT t2.transaction_hash, MAX(t2.block_height) FROM pending_transaction as t2 GROUP BY t2." +
+						"transaction_hash)",
 					1, 0,
 				},
 			},
@@ -476,6 +474,91 @@ func TestPendingTransactionQuery_getTableName(t *testing.T) {
 			}
 			if got := ptq.getTableName(); got != tt.want {
 				t.Errorf("getTableName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingTransactionQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "SelectDataForSnapshot",
+			fields: fields{
+				Fields:    mockPendingTransactionQueryInstance.Fields,
+				TableName: mockPendingTransactionQueryInstance.TableName,
+			},
+			args: args{
+				fromHeight: 1,
+				toHeight:   10,
+			},
+			want: "SELECT sender_address,transaction_hash,transaction_bytes,status,block_height," +
+				"latest FROM pending_transaction WHERE (transaction_hash, block_height) IN (SELECT t2.transaction_hash, " +
+				"MAX(t2.block_height) FROM pending_transaction as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
+				"transaction_hash) ORDER BY block_height",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ptq := &PendingTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := ptq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PendingTransactionQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "TrimDataBeforeSnapshot",
+			fields: fields{
+				Fields:    mockPendingTransactionQueryInstance.Fields,
+				TableName: mockPendingTransactionQueryInstance.TableName,
+			},
+			args: args{
+				fromHeight: 0,
+				toHeight:   10,
+			},
+			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ptq := &PendingTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := ptq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("PendingTransactionQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
 			}
 		})
 	}

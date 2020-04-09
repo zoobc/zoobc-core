@@ -23,7 +23,7 @@ import (
 type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
-		GetPeerInfo(destPeer *model.Peer) (*model.Node, error)
+		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
 		SendBlock(
@@ -188,7 +188,7 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 }
 
 // GetPeerInfo to get Peer info
-func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.Node, error) {
+func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
 
