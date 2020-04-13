@@ -356,7 +356,9 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 					monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 70)
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
-				break
+				return &PeerForkInfo{
+					FeederPeer: feederPeer,
+				}, err
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 71)
 			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
@@ -367,7 +369,9 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
 				bd.Logger.Info("failed to push block from peer:", err)
-				break
+				return &PeerForkInfo{
+					FeederPeer: feederPeer,
+				}, err
 			}
 		} else {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 73)

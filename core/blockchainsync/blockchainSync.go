@@ -144,7 +144,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 
 		monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 8)
 		newLastBlock = nil
-		if needDownloadBlock {
+		if needDownloadBlock && len(peerBlockchainInfo.ChainBlockIds) > 0 {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 9)
 			peerForkInfo, err = bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
 				peerBlockchainInfo.CommonBlock)
@@ -182,7 +182,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 				case err != nil:
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 17)
 					bss.Logger.Warn(err)
-				case len(otherPeerChainBlockIds) == 0:
+				case len(otherPeerChainBlockIds) != 0:
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 17)
 					_, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerToCheck, otherPeerChainBlockIds, peerBlockchainInfo.CommonBlock)
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 18)
