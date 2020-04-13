@@ -16,8 +16,6 @@ type (
 )
 
 var (
-	ServiceErr                TypeBlocker = "ServiceErr"
-	InternalErr               TypeBlocker = "InternalErr"
 	DBErr                     TypeBlocker = "DBErr"
 	DBRowNotFound             TypeBlocker = "DBRowNotFound"
 	BlockErr                  TypeBlocker = "BlockErr"
@@ -33,6 +31,7 @@ var (
 	SmithingErr               TypeBlocker = "SmithingErr"
 	ZeroParticipationScoreErr TypeBlocker = "ZeroParticipationScoreErr"
 	ChainValidationErr        TypeBlocker = "ChainValidationErr"
+	P2PPeerError              TypeBlocker = "P2PPeerError"
 	P2PNetworkConnectionErr   TypeBlocker = "P2PNetworkConnectionErr"
 	SmithingPending           TypeBlocker = "SmithingPending"
 	TimeoutExceeded           TypeBlocker = "TimeoutExceeded"
