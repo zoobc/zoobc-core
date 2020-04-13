@@ -324,6 +324,24 @@ func (m *Migration) Init() error {
 			`
 			CREATE INDEX "main_block_id_idx" ON "main_block" ("id")
 			`,
+			`
+			CREATE INDEX "published_receipt_rmr_linked_idx" ON "published_receipt" ("rmr_linked")
+			`,
+			`
+			CREATE INDEX "merkle_tree_id_idx" ON "merkle_tree" ("id")
+			`,
+			`
+			CREATE INDEX "merkle_tree_block_height_idx" ON "merkle_tree" ("block_height")
+			`,
+			`
+			CREATE INDEX "node_receipt_rmr_idx" ON "node_receipt" ("rmr")
+			`,
+			`
+			CREATE INDEX "node_receipt_recipient_public_key_idx" ON "node_receipt" ("recipient_public_key")
+			`,
+			`
+			CREATE INDEX "node_receipt_reference_block_height_idx" ON "node_receipt" ("reference_block_height")
+			`,
 		}
 		return nil
 	}
