@@ -1,6 +1,6 @@
 BIN_DIR := $(GOPATH)/bin
 GOLANGCILINT := $(BIN_DIR)/golangci-lint
-GOLANGCILINT_VERSION := v1.24.0
+GOLANGCILINT_VERSION := v1.23.8
 XGO := $(BIN_DIR)/xgo
 VERSION ?= latest
 BINARY_CORE := zoobc
