@@ -136,6 +136,9 @@ func TestBlockPoolService_InsertBlock(t *testing.T) {
 				BlockQueue:     tt.fields.BlockQueue,
 			}
 			bps.InsertBlock(tt.args.block, tt.args.index)
+			if got := bps.GetBlock(tt.args.index); !reflect.DeepEqual(got, tt.fields.BlockQueue[tt.args.index]) {
+				t.Errorf("BlockPoolService.InsertBlock() = %v, want %v", got, tt.fields.BlockQueue[tt.args.index])
+			}
 		})
 	}
 }
@@ -166,6 +169,9 @@ func TestBlockPoolService_ClearBlockPool(t *testing.T) {
 				BlockQueue:     tt.fields.BlockQueue,
 			}
 			bps.ClearBlockPool()
+			if len(tt.fields.BlockQueue) > 0 {
+				t.Errorf("BlockPoolService.ClearBlockPool() = %v, want %v", tt.fields.BlockQueue, make(map[int64]*model.Block))
+			}
 		})
 	}
 }
