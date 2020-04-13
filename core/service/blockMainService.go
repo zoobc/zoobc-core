@@ -303,7 +303,13 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, cur
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
 
-	err := bs.PreValidateBlock(block, previousLastBlock)
+	// check if blocksmith can smith at the time
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
+	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
+	if blocksmithIndex == nil {
+		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
+	}
+	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock, block)
 	if err != nil {
 		return err
 	}
