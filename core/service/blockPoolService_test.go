@@ -46,11 +46,11 @@ func TestBlockPoolService_GetBlocks(t *testing.T) {
 			fields: fields{
 				// BlockQueueLock: sync.RWMutex,
 				BlockQueue: map[int64]*model.Block{
-					0: &model.Block{},
+					0: {},
 				},
 			},
 			want: map[int64]*model.Block{
-				0: &model.Block{},
+				0: {},
 			},
 		},
 	}
@@ -86,7 +86,7 @@ func TestBlockPoolService_GetBlock(t *testing.T) {
 			name: "GetBlock:success",
 			fields: fields{
 				BlockQueue: map[int64]*model.Block{
-					0: &model.Block{},
+					0: {},
 				},
 			},
 			want: &model.Block{},
@@ -124,7 +124,7 @@ func TestBlockPoolService_InsertBlock(t *testing.T) {
 			name: "InsertBlock:success",
 			fields: fields{
 				BlockQueue: map[int64]*model.Block{
-					0: &model.Block{},
+					0: {},
 				},
 			},
 		},
@@ -157,7 +157,7 @@ func TestBlockPoolService_ClearBlockPool(t *testing.T) {
 			name: "ClearBlockPool:success",
 			fields: fields{
 				BlockQueue: map[int64]*model.Block{
-					0: &model.Block{},
+					0: {},
 				},
 			},
 		},
