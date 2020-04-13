@@ -342,6 +342,9 @@ func (m *Migration) Init() error {
 			`
 			CREATE INDEX "node_receipt_reference_block_height_idx" ON "node_receipt" ("reference_block_height")
 			`,
+			`
+			CREATE INDEX "published_receipt_datum_hash_idx" ON "published_receipt" ("datum_hash")
+			`,
 		}
 		return nil
 	}

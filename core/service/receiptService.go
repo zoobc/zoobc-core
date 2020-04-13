@@ -98,6 +98,7 @@ func (rs *ReceiptService) SelectReceipts(
 		pickedRecipients  = make(map[string]bool)
 		lowerBlockHeight  uint32
 		linkedReceiptTree = make(map[string][]byte)
+		err               error
 	)
 
 	if numberOfReceipt < 1 { // possible no connected node
@@ -108,38 +109,35 @@ func (rs *ReceiptService) SelectReceipts(
 		lowerBlockHeight = lastBlockHeight - constant.MinRollbackBlocks
 	}
 
-	err := func() error {
+	linkedReceiptTree, err = func() (map[string][]byte, error) {
 		treeQ := rs.MerkleTreeQuery.SelectMerkleTree(
 			lowerBlockHeight,
 			lastBlockHeight,
 			numberOfReceipt*constant.ReceiptBatchPickMultiplier)
 		linkedTreeRows, err := rs.QueryExecutor.ExecuteSelect(treeQ, false)
 		if err != nil {
-			return err
+			return linkedReceiptTree, err
 		}
 		defer linkedTreeRows.Close()
 
-		linkedReceiptTree, err = rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
-		if err != nil {
-			return err
-		}
-		return nil
+		return rs.MerkleTreeQuery.BuildTree(linkedTreeRows)
 	}()
 	if err != nil {
 		return nil, err
 	}
-
 	for linkedRoot := range linkedReceiptTree {
 		var nodeReceipts []*model.Receipt
-		nodeReceiptsQ, rootArgs := rs.NodeReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
-		rows, err := rs.QueryExecutor.ExecuteSelect(nodeReceiptsQ, false, rootArgs...)
-		if err != nil {
-			return nil, err
-		}
 
-		nodeReceipts, err = rs.NodeReceiptQuery.BuildModel(nodeReceipts, rows)
+		nodeReceipts, err = func() ([]*model.Receipt, error) {
+			nodeReceiptsQ, rootArgs := rs.NodeReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
+			rows, err := rs.QueryExecutor.ExecuteSelect(nodeReceiptsQ, false, rootArgs...)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			return rs.NodeReceiptQuery.BuildModel(nodeReceipts, rows)
+		}()
 		if err != nil {
-			rows.Close()
 			return nil, err
 		}
 		for _, rc := range nodeReceipts {
@@ -147,9 +145,6 @@ func (rs *ReceiptService) SelectReceipts(
 				pickedRecipients[string(rc.BatchReceipt.RecipientPublicKey)] = true
 				linkedReceiptList[linkedRoot] = append(linkedReceiptList[linkedRoot], rc)
 			}
-		}
-		if rows != nil {
-			rows.Close()
 		}
 	}
 	// limit the selected portion to `numberOfReceipt` receipts
@@ -210,14 +205,16 @@ func (rs *ReceiptService) pickReceipts(
 	lowerBlockHeight, upperBlockHeight uint32,
 ) ([]*model.PublishedReceipt, error) {
 	var receipts []*model.Receipt
-	receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(
-		numberOfReceipt*constant.ReceiptBatchPickMultiplier, lowerBlockHeight, upperBlockHeight)
-	rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	receipts, err = rs.NodeReceiptQuery.BuildModel(receipts, rows)
+	receipts, err := func() ([]*model.Receipt, error) {
+		receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(
+			numberOfReceipt*constant.ReceiptBatchPickMultiplier, lowerBlockHeight, upperBlockHeight)
+		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return rs.NodeReceiptQuery.BuildModel(receipts, rows)
+	}()
 	if err != nil {
 		return nil, err
 	}
