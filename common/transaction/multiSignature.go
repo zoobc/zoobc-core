@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"database/sql"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
+	"golang.org/x/crypto/sha3"
+
+	"github.com/zoobc/zoobc-core/common/query"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (

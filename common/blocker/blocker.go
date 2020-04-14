@@ -31,6 +31,7 @@ var (
 	SmithingErr               TypeBlocker = "SmithingErr"
 	ZeroParticipationScoreErr TypeBlocker = "ZeroParticipationScoreErr"
 	ChainValidationErr        TypeBlocker = "ChainValidationErr"
+	P2PPeerError              TypeBlocker = "P2PPeerError"
 	P2PNetworkConnectionErr   TypeBlocker = "P2PNetworkConnectionErr"
 	SmithingPending           TypeBlocker = "SmithingPending"
 	TimeoutExceeded           TypeBlocker = "TimeoutExceeded"

@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/auth"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
+
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"

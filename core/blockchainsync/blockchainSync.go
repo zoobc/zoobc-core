@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -116,10 +117,13 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 3)
 			needDownloadBlock = false
-			errCasted := err.(blocker.Blocker)
+			errCasted, ok := err.(blocker.Blocker)
+			if !ok {
+				errCasted = blocker.NewBlocker(blocker.P2PNetworkConnectionErr, err.Error()).(blocker.Blocker)
+			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 4)
 			switch errCasted.Type {
-			case blocker.P2PNetworkConnectionErr:
+			case blocker.P2PPeerError:
 				// this will allow the node to start smithing if it fails to connect to the p2p network,
 				// eg. he is the first node. if later on he can connect, it will try resolve the fork normally
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 5)
@@ -140,7 +144,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 
 		monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 8)
 		newLastBlock = nil
-		if needDownloadBlock {
+		if needDownloadBlock && len(peerBlockchainInfo.ChainBlockIds) > 0 {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 9)
 			peerForkInfo, err = bss.BlockchainDownloader.DownloadFromPeer(peerBlockchainInfo.Peer, peerBlockchainInfo.ChainBlockIds,
 				peerBlockchainInfo.CommonBlock)
@@ -178,7 +182,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 				case err != nil:
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 17)
 					bss.Logger.Warn(err)
-				case len(otherPeerChainBlockIds) == 0:
+				case len(otherPeerChainBlockIds) != 0:
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 17)
 					_, errDownload := bss.BlockchainDownloader.DownloadFromPeer(peerToCheck, otherPeerChainBlockIds, peerBlockchainInfo.CommonBlock)
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 18)

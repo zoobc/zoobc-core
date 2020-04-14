@@ -101,13 +101,13 @@ func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
 			name: "AddTransaction:errorLenTxsIsEmpty",
 			fields: fields{
 				BlocksQueue: map[int64]*BlockWithMetaData{
-					0: &BlockWithMetaData{Block: &model.Block{}},
+					0: {Block: &model.Block{}},
 				},
 				TransactionsRequiredMap: map[int64]BlockIDsMap{
-					0: BlockIDsMap{0: true},
+					0: {0: true},
 				},
 				BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
-					0: TransactionIDsMap{0: 1},
+					0: {0: 1},
 				},
 			},
 			args: args{
@@ -121,7 +121,7 @@ func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
 			name: "AddTransaction:success",
 			fields: fields{
 				BlocksQueue: map[int64]*BlockWithMetaData{
-					15: &BlockWithMetaData{Block: &model.Block{
+					15: {Block: &model.Block{
 						Transactions: []*model.Transaction{
 							{},
 							{},
@@ -129,11 +129,11 @@ func TestBlockIncompleteQueueService_AddTransaction(t *testing.T) {
 					}},
 				},
 				TransactionsRequiredMap: map[int64]BlockIDsMap{
-					21: BlockIDsMap{15: true},
-					22: BlockIDsMap{15: true},
+					21: {15: true},
+					22: {15: true},
 				},
 				BlockRequiringTransactionsMap: map[int64]TransactionIDsMap{
-					15: TransactionIDsMap{21: 0, 22: 1},
+					15: {21: 0, 22: 1},
 				},
 			},
 			args: args{

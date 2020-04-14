@@ -6,11 +6,14 @@ package service
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
 	model "github.com/zoobc/zoobc-core/common/model"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	math "math"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -107,6 +110,20 @@ type MultisigServiceServer interface {
 	GetPendingTransactions(context.Context, *model.GetPendingTransactionsRequest) (*model.GetPendingTransactionsResponse, error)
 	GetPendingTransactionDetailByTransactionHash(context.Context, *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error)
 	GetMultisignatureInfo(context.Context, *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error)
+}
+
+// UnimplementedMultisigServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedMultisigServiceServer struct {
+}
+
+func (*UnimplementedMultisigServiceServer) GetPendingTransactions(ctx context.Context, req *model.GetPendingTransactionsRequest) (*model.GetPendingTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPendingTransactions not implemented")
+}
+func (*UnimplementedMultisigServiceServer) GetPendingTransactionDetailByTransactionHash(ctx context.Context, req *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPendingTransactionDetailByTransactionHash not implemented")
+}
+func (*UnimplementedMultisigServiceServer) GetMultisignatureInfo(ctx context.Context, req *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMultisignatureInfo not implemented")
 }
 
 func RegisterMultisigServiceServer(s *grpc.Server, srv MultisigServiceServer) {
