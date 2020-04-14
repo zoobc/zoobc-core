@@ -223,7 +223,7 @@ func GenerateTxRemoveAccountDataset(
 
 // GenerateBasicTransaction return  basic transaction based on common transaction field
 func GenerateBasicTransaction(
-	senderSeed string,
+	senderAddress, senderSeed string,
 	senderSignatureType int32,
 	version uint32,
 	timestamp, fee int64,
@@ -318,7 +318,12 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 }
 
 // GenerateSignedTxBytes retrun signed transaction bytes
-func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureType int32) []byte {
+func GenerateSignedTxBytes(
+	tx *model.Transaction,
+	senderSeed string,
+	signatureType int32,
+	optionalSignParams ...interface{},
+) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
 		txType          transaction.TypeAction
@@ -335,6 +340,7 @@ func GenerateSignedTxBytes(tx *model.Transaction, senderSeed string, signatureTy
 		unsignedTxBytes,
 		model.SignatureType(signatureType),
 		senderSeed,
+		optionalSignParams...,
 	)
 	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
 	return signedTxBytes
