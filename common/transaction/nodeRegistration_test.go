@@ -81,23 +81,23 @@ type (
 	}
 )
 
-func (mk *mockAuthPoown) ValidateProofOfOwnership(
-	poown *model.ProofOfOwnership,
-	nodePublicKey []byte,
-	queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface,
-) error {
+func (mk *mockAuthPoown) ValidateProofOfOwnership(*model.ProofOfOwnership, []byte, query.ExecutorInterface, query.BlockQueryInterface) error {
 	if mk.success {
 		return nil
 	}
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	return nil, errors.New("mockError:selectFail")
+func (*mockExecutorValidateFailExecuteSelectFail) ExecuteSelectRow(query string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT").WillReturnError(sql.ErrNoRows)
+	row := db.QueryRow(query)
+	return row, nil
 }
 
-func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
@@ -119,6 +119,14 @@ func (*mockExecutorValidateFailBalanceNotEnough) ExecuteSelect(query string, tx 
 	return db.Query("")
 }
 
+func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT").WillReturnError(sql.ErrNoRows)
+	row := db.QueryRow(qe)
+	return row, nil
+}
 func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, tx bool,
 	args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
@@ -146,6 +154,14 @@ func (*mockExecutorValidateFailExecuteSelectNodeFail) ExecuteSelect(qe string, t
 	return nil, errors.New("mockError:nodeFail")
 }
 
+func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT").WillReturnError(sql.ErrNoRows)
+	row := db.QueryRow(qe)
+	return row, nil
+}
 func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -191,6 +207,24 @@ func (*mockExecutorValidateFailExecuteSelectNodeExist) ExecuteSelect(qe string, 
 		1,
 	))
 	return db.Query("B")
+}
+
+func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockedRow := sqlmock.NewRows(query.NewAccountBalanceQuery().Fields)
+	mockedRow.AddRow(
+		"BCZ",
+		1,
+		1000000,
+		1000000,
+		0,
+		true,
+	)
+	mock.ExpectQuery("SELECT").WillReturnRows(mockedRow)
+	row := db.QueryRow(qe)
+	return row, nil
 }
 
 func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -358,6 +392,22 @@ func (*mockExecutorValidateFailExecuteSelectAccountAlreadyOnwer) ExecuteSelect(q
 	return nil, nil
 }
 
+func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockedRow := mock.NewRows(query.NewAccountBalanceQuery().Fields)
+	mockedRow.AddRow(
+		[]byte{1},
+		1,
+		1000000,
+		1000000,
+		0,
+		true)
+	mock.ExpectQuery("SELECT").WillReturnRows(mockedRow)
+	row := db.QueryRow(qe)
+	return row, nil
+}
 func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -405,32 +455,22 @@ func (*mockExecutorValidateFailExecuteSelectNodeExistButDeleted) ExecuteSelect(q
 	return db.Query("B")
 }
 
-func (*mockExecutorValidateSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
+func (*mockExecutorValidateSuccess) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = ? AND latest = 1" {
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"AccountAddress",
-			"BlockHeight",
-			"SpendableBalance",
-			"Balance",
-			"PopRevenue",
-			"Latest",
-		}).AddRow(
-			"BCZ",
-			1,
-			1000000,
-			1000000,
-			0,
-			true,
-		))
-		return db.QueryRow(qe), nil
-	}
-	return nil, nil
+
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
+		"BCZ",
+		1,
+		1000000,
+		1000000,
+		0,
+		true,
+	))
+	return db.QueryRow(qe), nil
 }
 
-func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, _ bool, _ ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+

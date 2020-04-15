@@ -210,8 +210,9 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *NodeRegistration) Validate(dbTx bool) error {
 	var (
-		accountBalance                        model.AccountBalance
 		nodeRegistrations, nodeRegistrations2 []*model.NodeRegistration
+		accountBalance                        model.AccountBalance
+		row                                   *sql.Row
 		err                                   error
 	)
 
@@ -233,31 +234,19 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
-	err = func() error {
-		// check balance
-		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, dbTx, args...)
-		if err != nil {
+	// check balance
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		defer rows.Close()
-		if rows.Next() {
-			err = rows.Scan(
-				&accountBalance.AccountAddress,
-				&accountBalance.BlockHeight,
-				&accountBalance.SpendableBalance,
-				&accountBalance.Balance,
-				&accountBalance.PopRevenue,
-				&accountBalance.Latest,
-			)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}()
-	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.AppErr, "AccountNotFound")
 	}
 
 	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee {
