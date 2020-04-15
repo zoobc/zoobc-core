@@ -262,12 +262,13 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 
 				if unresolvedPeers[fullAddress] == nil && blacklistedPeers[fullAddress] == nil {
 					if len(unresolvedPeers) < int(constant.MaxUnresolvedPeers) {
-						if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+						if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err == nil {
 							ps.Logger.Error(err.Error())
+						} else {
+							isAddedToUnresolved = true
 						}
-						isAddedToUnresolved = true
 					} else {
-						for _, peer := range unresolvedPeers { // len == 0
+						for _, peer := range unresolvedPeers {
 							// add peer requester into unresolved and remove the old one in unresolved peers
 							// removing one of unresolved peers will do when already stayed more than max stayed
 							// and not priority peers
