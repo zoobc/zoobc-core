@@ -1,10 +1,10 @@
 package p2p
 
 import (
+	"github.com/pkg/errors"
 	"reflect"
 	"testing"
 
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"

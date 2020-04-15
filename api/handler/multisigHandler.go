@@ -3,10 +3,12 @@ package handler
 import (
 	"context"
 
-	"github.com/zoobc/zoobc-core/api/service"
-	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/zoobc/zoobc-core/api/service"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (

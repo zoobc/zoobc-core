@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/hex"
 
-	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
+
+	"github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"

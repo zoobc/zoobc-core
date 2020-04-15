@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"

@@ -155,7 +155,8 @@ func TestAccountDatasetQuery_RemoveAccountDataset(t *testing.T) {
 			args:   args{dataset: mockDataset},
 			wantStr: [][]interface{}{
 				{
-					"UPDATE account_dataset set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND is_active = ?",
+					"UPDATE account_dataset set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? " +
+						"AND is_active = ?",
 					false,
 					mockDataset.GetSetterAccountAddress(),
 					mockDataset.GetRecipientAccountAddress(),
@@ -195,7 +196,7 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		recipientAccountAddress string
+		accountAddress string
 	}
 	tests := []struct {
 		name     string
@@ -207,10 +208,11 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockDatasetQuery),
-			args:   args{recipientAccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"},
+			args:   args{accountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"},
 			wantQStr: "SELECT setter_account_address, recipient_account_address, property, value, is_active, latest, height FROM account_dataset " +
-				"WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+				"WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
 			wantArgs: []interface{}{
+				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				"AccountDatasetEscrowApproval",
 				1,
@@ -223,7 +225,7 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQStr, gotArgs := adq.GetAccountDatasetEscrowApproval(tt.args.recipientAccountAddress)
+			gotQStr, gotArgs := adq.GetAccountDatasetEscrowApproval(tt.args.accountAddress)
 			if gotQStr != tt.wantQStr {
 				t.Errorf("GetAccountDatasetEscrowApproval() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
 				return
