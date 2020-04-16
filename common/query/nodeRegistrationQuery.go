@@ -375,11 +375,9 @@ func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 	if fromHeight > 0 {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, "+
 			"MAX(t2.height) FROM %s as t2 WHERE t2.height >= 0 AND t2.height < %d GROUP BY t2.id) "+
-			"AND id NOT IN (SELECT DISTINCT t3.id FROM %s as t3 WHERE t3.height >= %d AND t3.height < %d) "+
 			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d "+
 			"ORDER BY height, id",
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
-			nrq.getTableName(), fromHeight, toHeight,
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 	}
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d ORDER BY height, id",
