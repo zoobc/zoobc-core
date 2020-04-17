@@ -327,7 +327,7 @@ func (*NodeRegistrationQuery) BuildNodeAddress(fullNodeAddress string) *model.No
 	}
 }
 
-// NodeAddressToString to build fully node address include port to NodeAddress struct
+// ExtractNodeAddress to build fully node address include port to NodeAddress struct
 func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress) string {
 
 	if nodeAddress == nil {
