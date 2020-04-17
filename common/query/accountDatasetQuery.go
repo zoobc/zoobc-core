@@ -20,9 +20,7 @@ type (
 		GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{})
 		InsertAccountDataset(dataset *model.AccountDataset) (str string, args []interface{})
 		RemoveAccountDataset(dataset *model.AccountDataset) [][]interface{}
-		GetAccountDatasetEscrowApproval(
-			recipientAccountAddress string,
-		) (qStr string, args []interface{})
+		GetAccountDatasetEscrowApproval(accountAddress string) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
@@ -107,16 +105,16 @@ func (adq *AccountDatasetQuery) RemoveAccountDataset(dataset *model.AccountDatas
 }
 
 // GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
-func (adq *AccountDatasetQuery) GetAccountDatasetEscrowApproval(
-	recipientAccountAddress string,
-) (qStr string, args []interface{}) {
+// SetterAccountAddress and RecipientAccountAddress must be the same person
+func (adq *AccountDatasetQuery) GetAccountDatasetEscrowApproval(accountAddress string) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
-			"SELECT %s FROM %s WHERE recipient_account_address = ? AND property = ? AND latest = ?",
+			"SELECT %s FROM %s WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
 			strings.Join(adq.Fields, ", "),
 			adq.getTableName(),
 		), []interface{}{
-			recipientAccountAddress,
-			"AccountDatasetEscrowApproval",
+			accountAddress,
+			accountAddress,
+			model.AccountDatasetProperty_AccountDatasetEscrowApproval.String(),
 			1,
 		}
 }
