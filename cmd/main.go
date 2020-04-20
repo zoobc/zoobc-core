@@ -8,6 +8,7 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/noderegistry"
 	"github.com/zoobc/zoobc-core/cmd/parser"
 	"github.com/zoobc/zoobc-core/cmd/rollback"
+	"github.com/zoobc/zoobc-core/cmd/scrambledNodes"
 	"github.com/zoobc/zoobc-core/cmd/signature"
 	"github.com/zoobc/zoobc-core/cmd/transaction"
 )
@@ -40,6 +41,8 @@ func main() {
 	generateCmd.AddCommand(block.Commands())
 	generateCmd.AddCommand(noderegistry.Commands())
 	parserCmd.AddCommand(parser.Commands())
+	generateCmd.AddCommand(scrambledNodes.Commands()["getScrambledNodesCmd"])
+	generateCmd.AddCommand(scrambledNodes.Commands()["getPriorityPeersCmd"])
 	_ = rootCmd.Execute()
 
 }
