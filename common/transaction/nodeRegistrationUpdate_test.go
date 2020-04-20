@@ -660,6 +660,46 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	}
 }
 
+type (
+	mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound struct {
+		query.Executor
+	}
+	mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewAccountBalanceQuery().Fields))
+	return db.QueryRow(qe), nil
+}
+
+func (*mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockedRows := mock.NewRows(query.NewNodeRegistrationQuery().Fields)
+	mockedRows.AddRow(
+		int64(10000),
+		nodePubKey1,
+		senderAddress1,
+		uint32(1),
+		"10.10.10.10",
+		int64(1000),
+		model.NodeRegistrationState_NodeRegistered,
+		true,
+		uint32(1),
+	)
+	mock.ExpectQuery("SELECT").WillReturnRows(mockedRows)
+	return db.QueryRow(qe), nil
+}
+func (*mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess) ExecuteTransactions([][]interface{}) error {
+	return nil
+}
+
 func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
 		LockedBalance: int64(10000000000),
@@ -682,29 +722,29 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "ApplyConfirmed:fail-{PreviousNodeRecordNotFound}",
+			fields: fields{
+				Body:                  txBody,
+				SenderAddress:         senderAddress1,
+				QueryExecutor:         &mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+			},
+			wantErr: true,
+		},
+		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
 				Body:                  txBody,
 				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccessRU{},
+				QueryExecutor:         &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
-		},
-		{
-			name: "ApplyConfirmed:fail-{PreviousNodeRecordNotFound}",
-			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateFailNodeNotFoundRU{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-			},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

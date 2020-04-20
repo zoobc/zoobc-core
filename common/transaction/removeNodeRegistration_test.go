@@ -191,64 +191,26 @@ func (*mockExecutorValidateRemoveNodeRegistrationFailGetRNode) ExecuteSelect(qe 
 	return nil, nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(qe string, tx bool,
-	args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
-		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
-		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"NodeID",
-			"NodePublicKey",
-			"AccountAddress",
-			"RegistrationHeight",
-			"NodeAddress",
-			"LockedBalance",
-			"RegistrationStatus",
-			"Latest",
-			"Height",
-		}).AddRow(
-			0,
-			body.NodePublicKey,
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			1,
-			"10.10.10.10",
-			1,
-			1,
-			1,
-			1,
-		))
-		return db.Query("A")
-	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
-		" locked_balance, registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 "+
-		"ORDER BY height DESC LIMIT 1" {
-		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"NodeID",
-			"NodePublicKey",
-			"AccountAddress",
-			"RegistrationHeight",
-			"NodeAddress",
-			"LockedBalance",
-			"RegistrationStatus",
-			"Latest",
-			"Height",
-		}).AddRow(
-			0,
-			body.NodePublicKey,
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-			1,
-			"10.10.10.10",
-			1,
-			1,
-			1,
-			1,
-		))
-		return db.Query("A")
-	}
-	return nil, nil
+	mockedRows := mock.NewRows(query.NewNodeRegistrationQuery().Fields)
+	mockedRows.AddRow(
+		0,
+		body.NodePublicKey,
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		1,
+		"10.10.10.10",
+		1,
+		1,
+		1,
+		1,
+	)
+	mock.ExpectQuery("SELECT").WillReturnRows(mockedRows)
+	return db.QueryRow(qe), nil
+
 }
 
 func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -263,17 +225,17 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) CommitTx() error
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransactions(queries [][]interface{}) error {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe string, tx bool,
-	args ...interface{}) (*sql.Rows, error) {
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
-		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
-		return nil, errors.New("MockedError")
-	}
-	return nil, nil
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationFail) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewNodeRegistrationQuery().Fields))
+	return db.QueryRow(qe), nil
 }
 
 func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
@@ -628,6 +590,18 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "ApplyConfirmed:fail-{nodeNotExist}",
+			fields: fields{
+				Body:                  body,
+				Fee:                   1,
+				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationFail{},
+			},
+			wantErr: true,
+		},
+		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
 				Body:                  body,
@@ -639,18 +613,6 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 			wantErr: false,
-		},
-		{
-			name: "ApplyConfirmed:fail-{nodeNotExist}",
-			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationFail{},
-			},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

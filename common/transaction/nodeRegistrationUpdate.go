@@ -50,60 +50,47 @@ func (tx *UpdateNodeRegistration) SkipMempoolTransaction(selectedTransactions []
 // ApplyConfirmed method for confirmed the transaction and store into database
 func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
-		nodeQueries          [][]interface{}
-		prevNodeRegistration *model.NodeRegistration
-		lockedBalance        int64
-		nodeAddress          *model.NodeAddress
-		nodePublicKey        []byte
+		effectiveBalanceToLock, lockedBalance int64
+		nodePublicKey                         []byte
+		nodeAddress                           *model.NodeAddress
+		nodeReg                               model.NodeRegistration
+		queries                               [][]interface{}
+		row                                   *sql.Row
+		err                                   error
 	)
+
 	// get the latest node registration by owner (sender account)
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args...)
+	row, _ = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
+	err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || len(nr) == 0 {
+		if err != sql.ErrNoRows {
+			return err
+		}
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 	}
-	prevNodeRegistration = nr[0]
 
-	if tx.Body.LockedBalance > 0 {
-		lockedBalance = tx.Body.LockedBalance
+	if tx.Body.GetLockedBalance() > 0 {
+		lockedBalance = tx.Body.GetLockedBalance()
 	} else {
-		lockedBalance = prevNodeRegistration.LockedBalance
+		lockedBalance = nodeReg.GetLockedBalance()
 	}
 
-	if tx.Body.NodeAddress != nil {
+	if tx.Body.GetNodeAddress() != nil {
 		nodeAddress = tx.Body.GetNodeAddress()
 	} else {
-		nodeAddress = prevNodeRegistration.GetNodeAddress()
+		nodeAddress = nodeReg.GetNodeAddress()
 	}
 
-	if len(tx.Body.NodePublicKey) != 0 {
+	if len(tx.Body.GetNodePublicKey()) != 0 {
 		nodePublicKey = tx.Body.NodePublicKey
 	} else {
-		nodePublicKey = prevNodeRegistration.NodePublicKey
-	}
-	nodeRegistration := &model.NodeRegistration{
-		NodeID:             prevNodeRegistration.NodeID,
-		LockedBalance:      lockedBalance,
-		Height:             tx.Height,
-		NodeAddress:        nodeAddress,
-		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
-		NodePublicKey:      nodePublicKey,
-		Latest:             true,
-		RegistrationStatus: prevNodeRegistration.RegistrationStatus,
-		// account address is the only field that can't be updated via update node registration
-		AccountAddress: prevNodeRegistration.AccountAddress,
+		nodePublicKey = nodeReg.GetNodePublicKey()
 	}
 
-	var effectiveBalanceToLock int64
 	if tx.Body.LockedBalance > 0 {
 		// delta amount to be locked
-		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeReg.GetLockedBalance()
 	}
 
 	// update sender balance by reducing his spendable balance of the tx fee
@@ -114,9 +101,21 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 			"block_height":    tx.Height,
 		},
 	)
+	queries = append(queries, accountBalanceSenderQ...)
 
-	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries := append(accountBalanceSenderQ, nodeQueries...)
+	nodeQueries := tx.NodeRegistrationQuery.UpdateNodeRegistration(&model.NodeRegistration{
+		NodeID:             nodeReg.GetNodeID(),
+		LockedBalance:      lockedBalance,
+		Height:             tx.Height,
+		NodeAddress:        nodeAddress,
+		RegistrationHeight: nodeReg.GetRegistrationHeight(),
+		NodePublicKey:      nodePublicKey,
+		Latest:             true,
+		RegistrationStatus: nodeReg.GetRegistrationStatus(),
+		// account address is the only field that can't be updated via update node registration
+		AccountAddress: nodeReg.GetAccountAddress(),
+	})
+	queries = append(queries, nodeQueries...)
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
