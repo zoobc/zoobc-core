@@ -540,3 +540,77 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 		})
 	}
 }
+
+type mockValidateTransaction_EscrowValidate struct {
+	transaction.EscrowTypeAction
+}
+
+func (*mockValidateTransaction_EscrowValidate) EscrowValidate(dbTx bool) error {
+	return nil
+}
+
+type mockValidateTransaction_EscrowableTrue struct {
+	transaction.TypeAction
+}
+
+func (*mockValidateTransaction_EscrowableTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockValidateTransaction_EscrowValidate{}, true
+}
+
+type mockValidateTransaction_EscrowableFalse struct {
+	transaction.TypeAction
+}
+
+func (*mockValidateTransaction_EscrowableFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return nil, false
+}
+
+func (*mockValidateTransaction_EscrowableFalse) Validate(dbTx bool) error {
+	return nil
+}
+
+func TestTransactionCoreService_ValidateTransaction(t *testing.T) {
+	type fields struct {
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		txAction transaction.TypeAction
+		useTX    bool
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "ValidateTransaction:EscrowableTrue",
+			args: args{
+				txAction: &mockValidateTransaction_EscrowableTrue{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ValidateTransaction:EscrowableFalse",
+			args: args{
+				txAction: &mockValidateTransaction_EscrowableFalse{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tg := &TransactionCoreService{
+				TransactionQuery:       tt.fields.TransactionQuery,
+				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tg.ValidateTransaction(tt.args.txAction, tt.args.useTX); (err != nil) != tt.wantErr {
+				t.Errorf("TransactionCoreService.ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
