@@ -394,3 +394,77 @@ func TestTransactionCoreService_UndoApplyUnconfirmedTransaction(t *testing.T) {
 		})
 	}
 }
+
+type mockApplyConfirmedTransaction_EscrowFalse struct {
+	transaction.TXEmpty
+}
+
+func (*mockApplyConfirmedTransaction_EscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return nil, false
+}
+func (*mockApplyConfirmedTransaction_EscrowFalse) ApplyConfirmed(blockTimestamp int64) error {
+	return nil
+}
+
+type mockApplyConfirmedTransaction_EscrowApplyConfirmed struct {
+	transaction.EscrowTypeAction
+}
+
+func (*mockApplyConfirmedTransaction_EscrowApplyConfirmed) EscrowApplyConfirmed(blockTimestamp int64) error {
+	return nil
+}
+
+type mockApplyConfirmedTransaction_EscrowTrue struct {
+	transaction.TXEmpty
+}
+
+func (*mockApplyConfirmedTransaction_EscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockApplyConfirmedTransaction_EscrowApplyConfirmed{}, true
+}
+
+func TestTransactionCoreService_ApplyConfirmedTransaction(t *testing.T) {
+	type fields struct {
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		txAction       transaction.TypeAction
+		blockTimestamp int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "ApplyConfirmedTransaction:EscrowFalse",
+			args: args{
+				txAction:       &mockApplyConfirmedTransaction_EscrowFalse{},
+				blockTimestamp: 0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ApplyConfirmedTransaction:EscrowTrue",
+			args: args{
+				txAction: &mockApplyConfirmedTransaction_EscrowTrue{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tg := &TransactionCoreService{
+				TransactionQuery:       tt.fields.TransactionQuery,
+				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tg.ApplyConfirmedTransaction(tt.args.txAction, tt.args.blockTimestamp); (err != nil) != tt.wantErr {
+				t.Errorf("TransactionCoreService.ApplyConfirmedTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
