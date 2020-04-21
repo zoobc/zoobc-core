@@ -143,29 +143,28 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNod
 func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 
 	var (
-		err                    error
-		prevNodeRegistration   *model.NodeRegistration
 		effectiveBalanceToLock int64
+		nodeReg                model.NodeRegistration
+		err                    error
+		row                    *sql.Row
 	)
 
 	// update sender balance by reducing his spendable balance of the tx fee + new balance to be lock
-	// (delta between old locked balance and updatee locked balance)
+	// (delta between old locked balance and update locked balance)
 	if tx.Body.LockedBalance > 0 {
-		// get the latest noderegistration by owner (sender account)
+		// get the latest node registration by owner (sender account)
 		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-		rows, err := tx.QueryExecutor.ExecuteSelect(qry, false, args...)
+		row, _ = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
+		err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-		if (err != nil) || len(nr) == 0 {
+			if err != sql.ErrNoRows {
+				return err
+			}
 			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 		}
-		prevNodeRegistration = nr[0]
 
 		// delta amount to be locked
-		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeReg.GetLockedBalance()
 	}
 
 	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
