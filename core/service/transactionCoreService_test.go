@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
 type (
@@ -317,6 +318,78 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 			}
 			if err := tg.ExpiringEscrowTransactions(tt.args.blockHeight, false); (err != nil) != tt.wantErr {
 				t.Errorf("ExpiringEscrowTransactions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type mockUndoApplyUnconfirmedTransaction_EscrowFalse struct {
+	transaction.TXEmpty
+}
+
+func (*mockUndoApplyUnconfirmedTransaction_EscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return nil, false
+}
+func (*mockUndoApplyUnconfirmedTransaction_EscrowFalse) UndoApplyUnconfirmed() error {
+	return nil
+}
+
+type mockUndoApplyUnconfirmedTransaction_EscrowUndoApplyUnconfirmed struct {
+	transaction.NodeRegistration
+}
+
+func (*mockUndoApplyUnconfirmedTransaction_EscrowUndoApplyUnconfirmed) EscrowUndoApplyUnconfirmed() error {
+	return nil
+}
+
+type mockUndoApplyUnconfirmedTransaction_EscrowTrue struct {
+	transaction.TXEmpty
+}
+
+func (*mockUndoApplyUnconfirmedTransaction_EscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockUndoApplyUnconfirmedTransaction_EscrowUndoApplyUnconfirmed{}, true
+}
+
+func TestTransactionCoreService_UndoApplyUnconfirmedTransaction(t *testing.T) {
+	type fields struct {
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		txAction transaction.TypeAction
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "UndoApplyUnconfirmedTransaction:EscrowFalse",
+			args: args{
+				txAction: &mockUndoApplyUnconfirmedTransaction_EscrowFalse{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "UndoApplyUnconfirmedTransaction:EscrowTrue",
+			args: args{
+				txAction: &mockUndoApplyUnconfirmedTransaction_EscrowTrue{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tg := &TransactionCoreService{
+				TransactionQuery:       tt.fields.TransactionQuery,
+				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tg.UndoApplyUnconfirmedTransaction(tt.args.txAction); (err != nil) != tt.wantErr {
+				t.Errorf("TransactionCoreService.UndoApplyUnconfirmedTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
