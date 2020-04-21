@@ -531,16 +531,20 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockPublishedReceipt[0].ReceiptIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height, max(height) AS max_height FROM node_registry where height <= 0 AND " +
-		"registration_status = 0 GROUP BY id ORDER BY height DESC":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+		"locked_balance, registration_status, latest, height " +
+		"FROM node_registry where registration_status = 0 AND (id,height) in " +
+		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 0 GROUP BY id) " +
+		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height, max(height) AS max_height FROM node_registry where height <= 1 " +
-		"AND registration_status = 0 GROUP BY id ORDER BY height DESC":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+		"locked_balance, registration_status, latest, height " +
+		"FROM node_registry where registration_status = 0 AND (id,height) in " +
+		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 1 GROUP BY id) " +
+		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
 			"registration_status", "latest", "height",
