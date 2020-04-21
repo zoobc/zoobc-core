@@ -55,16 +55,16 @@ func Commands() map[string]*cobra.Command {
 	getScrambledNodesCmd.Run = func(ccmd *cobra.Command, args []string) {
 		scrambledNodes := getScrambledNodesAtHeight()
 		j, _ := json.MarshalIndent(scrambledNodes.IndexNodes, "", "  ")
-		stringJson := string(j)
-		fmt.Println(stringJson)
+		stringJSON := string(j)
+		fmt.Println(stringJSON)
 		fmt.Println("scrambledNodes length ", len(scrambledNodes.IndexNodes))
 	}
 
 	getPriorityPeersCmd.Run = func(ccmd *cobra.Command, args []string) {
 		priorityPeers := getPriorityPeers()
 		j, _ := json.MarshalIndent(priorityPeers, "", "  ")
-		stringJson := string(j)
-		fmt.Println(stringJson)
+		stringJSON := string(j)
+		fmt.Println(stringJSON)
 	}
 
 	return map[string]*cobra.Command{"getScrambledNodesCmd": getScrambledNodesCmd, "getPriorityPeersCmd": getPriorityPeersCmd}
