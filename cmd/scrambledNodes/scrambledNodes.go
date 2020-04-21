@@ -1,4 +1,4 @@
-package scrambledNodes
+package scramblednodes
 
 import (
 	"database/sql"
