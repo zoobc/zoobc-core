@@ -191,9 +191,9 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registration
 
 // GetNodeRegistryAtHeight returns unique latest node registry record at specific height
 func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND registration_status = 0 "+
-		"GROUP BY id ORDER BY height DESC",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName(), height)
+	return fmt.Sprintf("SELECT %s FROM %s where registration_status = 0 AND (id,height) in (SELECT id,MAX(height) "+
+		"FROM %s WHERE height <= %d GROUP BY id) ORDER BY height DESC",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), nrq.getTableName(), height)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
