@@ -2078,6 +2078,30 @@ type (
 	}
 )
 
+func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+		query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
+		mockBlockData.GetID(),
+		mockBlockData.GetBlockHash(),
+		mockBlockData.GetPreviousBlockHash(),
+		mockBlockData.GetHeight(),
+		mockBlockData.GetTimestamp(),
+		mockBlockData.GetBlockSeed(),
+		mockBlockData.GetBlockSignature(),
+		mockBlockData.GetCumulativeDifficulty(),
+		mockBlockData.GetPayloadLength(),
+		mockBlockData.GetPayloadHash(),
+		mockBlockData.GetBlocksmithPublicKey(),
+		mockBlockData.GetTotalAmount(),
+		mockBlockData.GetTotalFee(),
+		mockBlockData.GetTotalCoinBase(),
+		mockBlockData.GetVersion(),
+	))
+	return db.QueryRow(qStr), nil
+}
 func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -2113,7 +2137,15 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 	return db.Query(qStr)
 }
 
-func (*mockQueryExecutorGetBlockByHeightFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorGetBlockByHeightFail) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields))
+	return db.QueryRow(qStr), nil
+}
+
+func (*mockQueryExecutorGetBlockByHeightFail) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
