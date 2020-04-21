@@ -468,3 +468,75 @@ func TestTransactionCoreService_ApplyConfirmedTransaction(t *testing.T) {
 		})
 	}
 }
+
+type mockApplyUnconfirmedTransaction_EscrowApplyUnconfirmed struct {
+	transaction.EscrowTypeAction
+}
+
+func (*mockApplyUnconfirmedTransaction_EscrowApplyUnconfirmed) EscrowApplyUnconfirmed() error {
+	return nil
+}
+
+type mockApplyUnconfirmedTransaction_EscrowTrue struct {
+	transaction.TypeAction
+}
+
+func (*mockApplyUnconfirmedTransaction_EscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockApplyUnconfirmedTransaction_EscrowApplyUnconfirmed{}, true
+}
+
+type mockApplyUnconfirmedTransaction_EscrowFalse struct {
+	transaction.TypeAction
+}
+
+func (*mockApplyUnconfirmedTransaction_EscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return nil, false
+}
+func (*mockApplyUnconfirmedTransaction_EscrowFalse) ApplyUnconfirmed() error {
+	return nil
+}
+
+func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
+	type fields struct {
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		txAction transaction.TypeAction
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name: "ApplyUnconfirmedTransaction:EscrowTrue",
+			args: args{
+				txAction: &mockApplyUnconfirmedTransaction_EscrowTrue{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ApplyUnconfirmedTransaction:EscrowFalse",
+			args: args{
+				txAction: &mockApplyUnconfirmedTransaction_EscrowFalse{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tg := &TransactionCoreService{
+				TransactionQuery:       tt.fields.TransactionQuery,
+				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tg.ApplyUnconfirmedTransaction(tt.args.txAction); (err != nil) != tt.wantErr {
+				t.Errorf("TransactionCoreService.ApplyUnconfirmedTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
