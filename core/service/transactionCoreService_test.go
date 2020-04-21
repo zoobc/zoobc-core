@@ -323,31 +323,31 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 	}
 }
 
-type mockUndoApplyUnconfirmedTransaction_EscrowFalse struct {
+type mockUndoApplyUnconfirmedTransactionEscrowFalse struct {
 	transaction.TXEmpty
 }
 
-func (*mockUndoApplyUnconfirmedTransaction_EscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+func (*mockUndoApplyUnconfirmedTransactionEscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
 	return nil, false
 }
-func (*mockUndoApplyUnconfirmedTransaction_EscrowFalse) UndoApplyUnconfirmed() error {
+func (*mockUndoApplyUnconfirmedTransactionEscrowFalse) UndoApplyUnconfirmed() error {
 	return nil
 }
 
-type mockUndoApplyUnconfirmedTransaction_EscrowUndoApplyUnconfirmed struct {
+type mockUndoApplyUnconfirmedTransactionEscrowUndoApplyUnconfirmed struct {
 	transaction.NodeRegistration
 }
 
-func (*mockUndoApplyUnconfirmedTransaction_EscrowUndoApplyUnconfirmed) EscrowUndoApplyUnconfirmed() error {
+func (*mockUndoApplyUnconfirmedTransactionEscrowUndoApplyUnconfirmed) EscrowUndoApplyUnconfirmed() error {
 	return nil
 }
 
-type mockUndoApplyUnconfirmedTransaction_EscrowTrue struct {
+type mockUndoApplyUnconfirmedTransactionEscrowTrue struct {
 	transaction.TXEmpty
 }
 
-func (*mockUndoApplyUnconfirmedTransaction_EscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
-	return &mockUndoApplyUnconfirmedTransaction_EscrowUndoApplyUnconfirmed{}, true
+func (*mockUndoApplyUnconfirmedTransactionEscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockUndoApplyUnconfirmedTransactionEscrowUndoApplyUnconfirmed{}, true
 }
 
 func TestTransactionCoreService_UndoApplyUnconfirmedTransaction(t *testing.T) {
@@ -369,14 +369,14 @@ func TestTransactionCoreService_UndoApplyUnconfirmedTransaction(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmedTransaction:EscrowFalse",
 			args: args{
-				txAction: &mockUndoApplyUnconfirmedTransaction_EscrowFalse{},
+				txAction: &mockUndoApplyUnconfirmedTransactionEscrowFalse{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "UndoApplyUnconfirmedTransaction:EscrowTrue",
 			args: args{
-				txAction: &mockUndoApplyUnconfirmedTransaction_EscrowTrue{},
+				txAction: &mockUndoApplyUnconfirmedTransactionEscrowTrue{},
 			},
 			wantErr: false,
 		},
@@ -395,31 +395,31 @@ func TestTransactionCoreService_UndoApplyUnconfirmedTransaction(t *testing.T) {
 	}
 }
 
-type mockApplyConfirmedTransaction_EscrowFalse struct {
+type mockApplyConfirmedTransactionEscrowFalse struct {
 	transaction.TXEmpty
 }
 
-func (*mockApplyConfirmedTransaction_EscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+func (*mockApplyConfirmedTransactionEscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
 	return nil, false
 }
-func (*mockApplyConfirmedTransaction_EscrowFalse) ApplyConfirmed(blockTimestamp int64) error {
+func (*mockApplyConfirmedTransactionEscrowFalse) ApplyConfirmed(blockTimestamp int64) error {
 	return nil
 }
 
-type mockApplyConfirmedTransaction_EscrowApplyConfirmed struct {
+type mockApplyConfirmedTransactionEscrowApplyConfirmed struct {
 	transaction.EscrowTypeAction
 }
 
-func (*mockApplyConfirmedTransaction_EscrowApplyConfirmed) EscrowApplyConfirmed(blockTimestamp int64) error {
+func (*mockApplyConfirmedTransactionEscrowApplyConfirmed) EscrowApplyConfirmed(blockTimestamp int64) error {
 	return nil
 }
 
-type mockApplyConfirmedTransaction_EscrowTrue struct {
+type mockApplyConfirmedTransactionEscrowTrue struct {
 	transaction.TXEmpty
 }
 
-func (*mockApplyConfirmedTransaction_EscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
-	return &mockApplyConfirmedTransaction_EscrowApplyConfirmed{}, true
+func (*mockApplyConfirmedTransactionEscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockApplyConfirmedTransactionEscrowApplyConfirmed{}, true
 }
 
 func TestTransactionCoreService_ApplyConfirmedTransaction(t *testing.T) {
@@ -442,7 +442,7 @@ func TestTransactionCoreService_ApplyConfirmedTransaction(t *testing.T) {
 		{
 			name: "ApplyConfirmedTransaction:EscrowFalse",
 			args: args{
-				txAction:       &mockApplyConfirmedTransaction_EscrowFalse{},
+				txAction:       &mockApplyConfirmedTransactionEscrowFalse{},
 				blockTimestamp: 0,
 			},
 			wantErr: false,
@@ -450,7 +450,7 @@ func TestTransactionCoreService_ApplyConfirmedTransaction(t *testing.T) {
 		{
 			name: "ApplyConfirmedTransaction:EscrowTrue",
 			args: args{
-				txAction: &mockApplyConfirmedTransaction_EscrowTrue{},
+				txAction: &mockApplyConfirmedTransactionEscrowTrue{},
 			},
 			wantErr: false,
 		},
@@ -469,30 +469,30 @@ func TestTransactionCoreService_ApplyConfirmedTransaction(t *testing.T) {
 	}
 }
 
-type mockApplyUnconfirmedTransaction_EscrowApplyUnconfirmed struct {
+type mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed struct {
 	transaction.EscrowTypeAction
 }
 
-func (*mockApplyUnconfirmedTransaction_EscrowApplyUnconfirmed) EscrowApplyUnconfirmed() error {
+func (*mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed) EscrowApplyUnconfirmed() error {
 	return nil
 }
 
-type mockApplyUnconfirmedTransaction_EscrowTrue struct {
+type mockApplyUnconfirmedTransactionEscrowTrue struct {
 	transaction.TypeAction
 }
 
-func (*mockApplyUnconfirmedTransaction_EscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
-	return &mockApplyUnconfirmedTransaction_EscrowApplyUnconfirmed{}, true
+func (*mockApplyUnconfirmedTransactionEscrowTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed{}, true
 }
 
-type mockApplyUnconfirmedTransaction_EscrowFalse struct {
+type mockApplyUnconfirmedTransactionEscrowFalse struct {
 	transaction.TypeAction
 }
 
-func (*mockApplyUnconfirmedTransaction_EscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+func (*mockApplyUnconfirmedTransactionEscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
 	return nil, false
 }
-func (*mockApplyUnconfirmedTransaction_EscrowFalse) ApplyUnconfirmed() error {
+func (*mockApplyUnconfirmedTransactionEscrowFalse) ApplyUnconfirmed() error {
 	return nil
 }
 
@@ -515,14 +515,14 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 		{
 			name: "ApplyUnconfirmedTransaction:EscrowTrue",
 			args: args{
-				txAction: &mockApplyUnconfirmedTransaction_EscrowTrue{},
+				txAction: &mockApplyUnconfirmedTransactionEscrowTrue{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "ApplyUnconfirmedTransaction:EscrowFalse",
 			args: args{
-				txAction: &mockApplyUnconfirmedTransaction_EscrowFalse{},
+				txAction: &mockApplyUnconfirmedTransactionEscrowFalse{},
 			},
 			wantErr: false,
 		},
@@ -541,31 +541,31 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 	}
 }
 
-type mockValidateTransaction_EscrowValidate struct {
+type mockValidateTransactionEscrowValidate struct {
 	transaction.EscrowTypeAction
 }
 
-func (*mockValidateTransaction_EscrowValidate) EscrowValidate(dbTx bool) error {
+func (*mockValidateTransactionEscrowValidate) EscrowValidate(dbTx bool) error {
 	return nil
 }
 
-type mockValidateTransaction_EscrowableTrue struct {
+type mockValidateTransactionEscrowableTrue struct {
 	transaction.TypeAction
 }
 
-func (*mockValidateTransaction_EscrowableTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
-	return &mockValidateTransaction_EscrowValidate{}, true
+func (*mockValidateTransactionEscrowableTrue) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return &mockValidateTransactionEscrowValidate{}, true
 }
 
-type mockValidateTransaction_EscrowableFalse struct {
+type mockValidateTransactionEscrowableFalse struct {
 	transaction.TypeAction
 }
 
-func (*mockValidateTransaction_EscrowableFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
+func (*mockValidateTransactionEscrowableFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
 	return nil, false
 }
 
-func (*mockValidateTransaction_EscrowableFalse) Validate(dbTx bool) error {
+func (*mockValidateTransactionEscrowableFalse) Validate(dbTx bool) error {
 	return nil
 }
 
@@ -589,14 +589,14 @@ func TestTransactionCoreService_ValidateTransaction(t *testing.T) {
 		{
 			name: "ValidateTransaction:EscrowableTrue",
 			args: args{
-				txAction: &mockValidateTransaction_EscrowableTrue{},
+				txAction: &mockValidateTransactionEscrowableTrue{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "ValidateTransaction:EscrowableFalse",
 			args: args{
-				txAction: &mockValidateTransaction_EscrowableFalse{},
+				txAction: &mockValidateTransactionEscrowableFalse{},
 			},
 			wantErr: false,
 		},
