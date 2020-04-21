@@ -60,21 +60,21 @@ func Commands() *cobra.Command {
 func rollbackBlockChain() RunCommand {
 	var (
 		chaintypeRollback = chaintype.GetChainType(0)
-		dB, err           = getSqliteDB(dBPath, dBName)
 	)
-	if err != nil {
-		fmt.Println("Failed get Db")
-		panic(err)
-	}
 
 	return func(ccmd *cobra.Command, args []string) {
 		var (
-			queryExecutor   = query.NewQueryExecutor(dB)
 			derivedQueries  = query.GetDerivedQuery(chaintypeRollback)
 			blockQuery      = query.NewBlockQuery(chaintypeRollback)
+			dB, err         = getSqliteDB(dBPath, dBName)
+			queryExecutor   = query.NewQueryExecutor(dB)
 			rowLastBlock, _ = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
 			lastBlock       model.Block
 		)
+		if err != nil {
+			fmt.Println("Failed get Db")
+			panic(err)
+		}
 
 		err = blockQuery.Scan(&lastBlock, rowLastBlock)
 		if err != nil {
