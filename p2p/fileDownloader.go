@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"fmt"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -9,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
 	"golang.org/x/crypto/sha3"
-	"sync"
 )
 
 type (
@@ -92,7 +93,7 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 		SnapshotFileHash:           spineBlockManifest.GetFullFileHash(),
 		FileChunksHashes:           fileChunkHashes,
 		ChainType:                  ct.GetTypeInt(),
-		Height:                     spineBlockManifest.SpineBlockManifestHeight,
+		Height:                     spineBlockManifest.ManifestReferenceHeight,
 		ProcessExpirationTimestamp: spineBlockManifest.ExpirationTimestamp,
 		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 	}, nil
