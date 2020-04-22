@@ -504,3 +504,34 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_GetNodeRegistryAtHeight(t *testing.T) {
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "GetNodeRegistryAtHeightQuery",
+			args: args{
+				height: 11120,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+				"locked_balance, registration_status, latest, height FROM node_registry " +
+				"where registration_status = 0 AND (id,height) in " +
+				"(SELECT id,MAX(height) FROM node_registry WHERE height <= 11120 GROUP BY id) " +
+				"ORDER BY height DESC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := NewNodeRegistrationQuery()
+			if got := nrq.GetNodeRegistryAtHeight(tt.args.height); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
