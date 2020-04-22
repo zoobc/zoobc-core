@@ -79,7 +79,7 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	// to avoid the network being start at the initial kick off / restart
 	if currentHeight == heightAfterDownload {
 		bd.firstDownloadCounter++
-		if bd.firstDownloadCounter >= constant.MaxResolvedPeers*2 {
+		if bd.firstDownloadCounter >= constant.MaxResolvedPeers {
 			bd.firstDownloadCounter = 0
 			return true
 		}
