@@ -86,8 +86,10 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	}
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
 	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+		bd.firstDownloadCounter = 0
 		return true
 	}
+	bd.firstDownloadCounter = 0
 	return false
 }
 
