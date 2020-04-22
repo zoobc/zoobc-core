@@ -153,7 +153,7 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{nodePublicKey, height}
 }
 
-// GetNodeRegistrationByAccountID returns query string to get Node Registration by account public key
+// GetNodeRegistrationByAccountAddress returns query string to get Node Registration by account public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{accountAddress}
@@ -191,9 +191,9 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registration
 
 // GetNodeRegistryAtHeight returns unique latest node registry record at specific height
 func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string {
-	return fmt.Sprintf("SELECT %s, max(height) AS max_height FROM %s where height <= %d AND registration_status = 0 "+
-		"GROUP BY id ORDER BY height DESC",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName(), height)
+	return fmt.Sprintf("SELECT %s FROM %s where registration_status = 0 AND (id,height) in (SELECT id,MAX(height) "+
+		"FROM %s WHERE height <= %d GROUP BY id) ORDER BY height DESC",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), nrq.getTableName(), height)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
@@ -327,7 +327,7 @@ func (*NodeRegistrationQuery) BuildNodeAddress(fullNodeAddress string) *model.No
 	}
 }
 
-// NodeAddressToString to build fully node address include port to NodeAddress struct
+// ExtractNodeAddress to build fully node address include port to NodeAddress struct
 func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress) string {
 
 	if nodeAddress == nil {
@@ -375,11 +375,9 @@ func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 	if fromHeight > 0 {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, "+
 			"MAX(t2.height) FROM %s as t2 WHERE t2.height >= 0 AND t2.height < %d GROUP BY t2.id) "+
-			"AND id NOT IN (SELECT DISTINCT t3.id FROM %s as t3 WHERE t3.height >= %d AND t3.height < %d) "+
 			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d "+
 			"ORDER BY height, id",
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
-			nrq.getTableName(), fromHeight, toHeight,
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 	}
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d ORDER BY height, id",

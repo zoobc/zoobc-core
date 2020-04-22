@@ -1,6 +1,8 @@
 package service
 
 import (
+	"database/sql"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"google.golang.org/grpc/codes"
@@ -28,27 +30,23 @@ func NewAccountBalanceService(executor query.ExecutorInterface,
 
 func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error) {
 	var (
-		err             error
-		accountBalances []*model.AccountBalance
+		accountBalance model.AccountBalance
+		row            *sql.Row
+		err            error
 	)
 
 	qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(request.AccountAddress)
-	rows, err := abs.Executor.ExecuteSelect(qry, false, args...)
+	row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
+	err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	defer rows.Close()
-
-	accountBalances, err = abs.AccountBalanceQuery.BuildModel(accountBalances, rows)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	if len(accountBalances) == 0 {
+		if err != sql.ErrNoRows {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		return nil, status.Error(codes.NotFound, "account not found")
+
 	}
 
 	return &model.GetAccountBalanceResponse{
-		AccountBalance: accountBalances[0],
+		AccountBalance: &accountBalance,
 	}, nil
 }
