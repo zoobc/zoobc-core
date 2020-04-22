@@ -34,6 +34,7 @@ type (
 		PeerExplorer            strategy.PeerExplorerStrategyInterface
 		Logger                  *log.Logger
 		BlockchainStatusService service.BlockchainStatusServiceInterface
+		firstDownloadCounter    int32
 	}
 
 	PeerBlockchainInfo struct {
@@ -75,10 +76,20 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 		return false
 	}
 	heightAfterDownload := afterDownloadLastBlock.Height
+	// to avoid the network being start at the initial kick off / restart
+	if currentHeight == heightAfterDownload {
+		bd.firstDownloadCounter++
+		if bd.firstDownloadCounter >= constant.MaxResolvedPeers {
+			bd.firstDownloadCounter = 0
+			return true
+		}
+	}
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
 	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+		bd.firstDownloadCounter = 0
 		return true
 	}
+	bd.firstDownloadCounter = 0
 	return false
 }
 
