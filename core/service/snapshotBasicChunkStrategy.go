@@ -113,8 +113,8 @@ func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, f
 
 // DeleteFileByChunkHashes take in the concatenated file hashes (file name) and delete them.
 func (ss *SnapshotBasicChunkStrategy) DeleteFileByChunkHashes(fileChunkHashes []byte, filePath string) error {
-	fileChunks := util.SplitByteSliceByChunkSize(fileChunkHashes, ss.ChunkSize)
-	err := ss.FileService.DeleteFilesByHash(filePath, fileChunks)
+	fileChunks, err := ss.FileService.ParseFileChunkHashes(fileChunkHashes, sha3.New256().Size())
+	err = ss.FileService.DeleteFilesByHash(filePath, fileChunks)
 	if err != nil {
 		return err
 	}
