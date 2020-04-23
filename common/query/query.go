@@ -35,12 +35,12 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewPendingTransactionQuery(),
 			NewPendingSignatureQuery(),
 			NewMultisignatureInfoQuery(),
-			NewSpineBlockManifestQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
 		spinechainDerivedQuery := []DerivedQuery{
 			NewSpinePublicKeyQuery(),
+			NewSpineBlockManifestQuery(),
 		}
 		derivedQuery = append(derivedQuery, spinechainDerivedQuery...)
 	}

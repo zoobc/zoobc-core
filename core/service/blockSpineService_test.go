@@ -859,12 +859,12 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       1,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      1,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},
@@ -927,12 +927,12 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       1,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      1,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},
@@ -1313,6 +1313,22 @@ func (ss *mockSpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(
 	return spineBlockManifests, err
 }
 
+func (ss *mockSpineBlockManifestService) GetSpineBlockManifestBySpineBlockHeight(
+	spineHeight uint32,
+) ([]*model.SpineBlockManifest, error) {
+	var (
+		spineBlockManifests = make([]*model.SpineBlockManifest, 0)
+		err                 error
+	)
+	if ss.ResSpineBlockManifests != nil {
+		spineBlockManifests = ss.ResSpineBlockManifests
+	}
+	if ss.ResError != nil {
+		err = ss.ResError
+	}
+	return spineBlockManifests, err
+}
+
 func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(int64, uint32, uint32) ([]*model.PublishedReceipt, error) {
 	return []*model.PublishedReceipt{}, nil
 }
@@ -1448,12 +1464,12 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       1,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      1,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},
@@ -3396,6 +3412,57 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, 
 	return db.QueryRow(qStr), nil
 }
 
+type (
+	// mock PopOffToBlock
+	mockSnapshotMainBlockServiceDeleteFail struct {
+		SnapshotMainBlockService
+	}
+	mockSnapshotMainBlockServiceDeleteSuccess struct {
+		SnapshotMainBlockService
+	}
+
+	mockSpineBlockManifestServiceFailGetManifestFromHeight struct {
+		SpineBlockManifestServiceInterface
+	}
+
+	mockSpineBlockManifestServiceSuccesGetManifestFromHeight struct {
+		SpineBlockManifestServiceInterface
+	}
+)
+
+func (*mockSnapshotMainBlockServiceDeleteFail) DeleteFileByChunkHashes([]byte) error {
+	return errors.New("mockedError")
+}
+
+func (*mockSnapshotMainBlockServiceDeleteSuccess) DeleteFileByChunkHashes([]byte) error {
+	return nil
+}
+
+func (*mockSpineBlockManifestServiceFailGetManifestFromHeight) GetSpineBlockManifestsFromSpineBlockHeight(
+	uint32,
+) ([]*model.SpineBlockManifest, error) {
+	return []*model.SpineBlockManifest{}, errors.New("mockedError")
+}
+
+func (*mockSpineBlockManifestServiceFailGetManifestFromHeight) GetSpineBlockManifestBySpineBlockHeight(uint32) (
+	[]*model.SpineBlockManifest, error,
+) {
+	return make([]*model.SpineBlockManifest, 0), nil
+}
+
+func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockManifestsFromSpineBlockHeight(
+	uint32,
+) ([]*model.SpineBlockManifest, error) {
+	return []*model.SpineBlockManifest{
+		ssMockSpineBlockManifest,
+	}, nil
+}
+
+func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockManifestBySpineBlockHeight(uint32) (
+	[]*model.SpineBlockManifest, error,
+) {
+	return make([]*model.SpineBlockManifest, 0), nil
+}
 func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	type fields struct {
 		RWMutex                   sync.RWMutex
@@ -3421,6 +3488,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		SnapshotMainBlockService  SnapshotBlockServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3540,7 +3608,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Success",
+			name: "GetManifestFromSpineBlockHeight-Success",
 			fields: fields{
 				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.SpineChain{},
@@ -3567,7 +3635,8 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
+				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3588,6 +3657,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				Logger:                    tt.fields.Logger,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				SnapshotMainBlockService:  tt.fields.SnapshotMainBlockService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
@@ -3824,12 +3894,12 @@ func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
 					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       12345678,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      12345678,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},

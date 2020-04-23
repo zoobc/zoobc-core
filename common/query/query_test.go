@@ -36,7 +36,6 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewPendingTransactionQuery(),
 				NewPendingSignatureQuery(),
 				NewMultisignatureInfoQuery(),
-				NewSpineBlockManifestQuery(),
 			},
 		},
 		{
@@ -45,6 +44,7 @@ func TestGetDerivedQuery(t *testing.T) {
 			want: []DerivedQuery{
 				NewBlockQuery(spinechain),
 				NewSpinePublicKeyQuery(),
+				NewSpineBlockManifestQuery(),
 			},
 		},
 	}
