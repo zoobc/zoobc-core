@@ -1775,32 +1775,37 @@ type (
 	}
 )
 
+func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mockSpine, _ := sqlmock.New()
+	defer db.Close()
+
+	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+		query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+		mockSpineBlockData.GetID(),
+		mockSpineBlockData.GetBlockHash(),
+		mockSpineBlockData.GetPreviousBlockHash(),
+		mockSpineBlockData.GetHeight(),
+		mockSpineBlockData.GetTimestamp(),
+		mockSpineBlockData.GetBlockSeed(),
+		mockSpineBlockData.GetBlockSignature(),
+		mockSpineBlockData.GetCumulativeDifficulty(),
+		mockSpineBlockData.GetPayloadLength(),
+		mockSpineBlockData.GetPayloadHash(),
+		mockSpineBlockData.GetBlocksmithPublicKey(),
+		mockSpineBlockData.GetTotalAmount(),
+		mockSpineBlockData.GetTotalFee(),
+		mockSpineBlockData.GetTotalCoinBase(),
+		mockSpineBlockData.GetVersion(),
+	))
+	return db.QueryRow(qStr), nil
+}
+
 func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
-		"total_coinbase, version FROM spine_block WHERE height = 0":
-		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
-			query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
-			mockSpineBlockData.GetID(),
-			mockSpineBlockData.GetBlockHash(),
-			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
-			mockSpineBlockData.GetTimestamp(),
-			mockSpineBlockData.GetBlockSeed(),
-			mockSpineBlockData.GetBlockSignature(),
-			mockSpineBlockData.GetCumulativeDifficulty(),
-			mockSpineBlockData.GetPayloadLength(),
-			mockSpineBlockData.GetPayloadHash(),
-			mockSpineBlockData.GetBlocksmithPublicKey(),
-			mockSpineBlockData.GetTotalAmount(),
-			mockSpineBlockData.GetTotalFee(),
-			mockSpineBlockData.GetTotalCoinBase(),
-			mockSpineBlockData.GetVersion(),
-		))
+
 	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 0 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
@@ -1817,7 +1822,16 @@ func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string,
 	return db.Query(qStr)
 }
 
-func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mockSpine, _ := sqlmock.New()
+	defer db.Close()
+
+	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+		query.NewBlockQuery(&chaintype.SpineChain{}).Fields))
+	return db.QueryRow(qStr), nil
+}
+
+func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 

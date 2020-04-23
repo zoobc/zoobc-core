@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -85,16 +86,11 @@ func (*mockExecutorValidateFailNodeDeleted) ExecuteSelect(qe string, tx bool, ar
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address,"+
-		" locked_balance, registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 "+
-		"ORDER BY height DESC LIMIT 1" {
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
-		return db.Query("")
-	}
-	return nil, nil
+	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewNodeRegistrationQuery().Fields))
+	return db.QueryRow(qe), nil
 }
 
 func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -306,22 +302,36 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...
 
 func (*mockExecutorValidateSuccessRU) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
-		WillReturnRows(sqlmock.NewRows([]string{
-			"account_address",
-			"block_height",
-			"spendable_balance",
-			"balance",
-			"pop_revenue",
-			"latest",
-		}).AddRow(
+	defer db.Close()
+
+	var mockedRows *sqlmock.Rows
+	switch {
+	case strings.Contains(qStr, "account_balance"):
+		mockedRows = mock.NewRows(query.NewAccountBalanceQuery().Fields)
+		mockedRows.AddRow(
 			senderAddress1,
 			uint32(1),
 			int64(1000000000000),
 			int64(1000000000000),
 			int64(100000000),
 			true,
-		))
+		)
+	default:
+		mockedRows = mock.NewRows(query.NewNodeRegistrationQuery().Fields)
+		mockedRows.AddRow(
+			int64(10000),
+			nodePubKey1,
+			senderAddress1,
+			uint32(1),
+			"10.10.10.10",
+			int64(1000),
+			model.NodeRegistrationState_NodeRegistered,
+			true,
+			uint32(1),
+		)
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(mockedRows)
 	return db.QueryRow(qStr), nil
 }
 

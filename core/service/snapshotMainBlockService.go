@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -192,7 +193,8 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 // InsertSnapshotPayloadToDB insert snapshot data to db
 func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.SnapshotPayload, height uint32) error {
 	var (
-		queries [][]interface{}
+		queries      [][]interface{}
+		highestBlock *model.Block
 	)
 
 	err := ss.QueryExecutor.BeginTx()
@@ -212,6 +214,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		case "block":
 			for _, rec := range payload.Blocks {
 				qry, args := ss.BlockQuery.InsertBlock(rec)
+				if highestBlock == nil || highestBlock.Height < rec.Height {
+					highestBlock = rec
+				}
 				queries = append(queries,
 					append(
 						[]interface{}{qry}, args...),
@@ -317,6 +322,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	if err != nil {
 		return err
 	}
+	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }
 

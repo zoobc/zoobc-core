@@ -150,24 +150,29 @@ func (tx *RemoveNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	var (
-		nodeRegistrations []*model.NodeRegistration
+		nodeReg model.NodeRegistration
+		err     error
+		row     *sql.Row
 	)
+
 	// check for duplication
-	nodeRow, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.NodePublicKey)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.GetNodePublicKey())
 	if err != nil {
 		return err
 	}
-	defer nodeRow.Close()
-	nodeRegistrations, err = tx.NodeRegistrationQuery.BuildModel(nodeRegistrations, nodeRow)
-	if (err != nil) || len(nodeRegistrations) == 0 {
+	err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
-	nr := nodeRegistrations[0]
+
 	// sender must be node owner
-	if tx.SenderAddress != nr.AccountAddress {
+	if tx.SenderAddress != nodeReg.GetAccountAddress() {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountNotNodeOwner")
 	}
-	if nr.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+	if nodeReg.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyDeleted")
 	}
 	return nil
