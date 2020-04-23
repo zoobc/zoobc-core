@@ -853,7 +853,10 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 	for _, manifest := range poppedManifests {
 		// ignore error, file deletion can fail
-		_ = bs.SnapshotMainBlockService.DeleteFileByChunkHashes(manifest.FileChunkHashes)
+		deleteErr := bs.SnapshotMainBlockService.DeleteFileByChunkHashes(manifest.FileChunkHashes)
+		if deleteErr != nil {
+			log.Warnf("fail deleting snapshot during rollback: %v\n", deleteErr)
+		}
 	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil {
