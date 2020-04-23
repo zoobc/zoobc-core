@@ -841,27 +841,28 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 			return []*model.Block{}, err
 		}
 	}
-	// post rollback action:
-	// - clean snapshot data
-	poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
-	if err != nil {
-		rollbackErr := bs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			bs.Logger.Warn(rollbackErr)
-		}
-		return []*model.Block{}, err
-	}
-	for _, manifest := range poppedManifests {
-		// ignore error, file deletion can fail
-		deleteErr := bs.SnapshotMainBlockService.DeleteFileByChunkHashes(manifest.FileChunkHashes)
-		if deleteErr != nil {
-			log.Warnf("fail deleting snapshot during rollback: %v\n", deleteErr)
-		}
-	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		// post rollback action:
+		// - clean snapshot data
+		poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				bs.Logger.Warn(rollbackErr)
+			}
+		}
+		for _, manifest := range poppedManifests {
+			// ignore error, file deletion can fail
+			deleteErr := bs.SnapshotMainBlockService.DeleteFileByChunkHashes(manifest.FileChunkHashes)
+			if deleteErr != nil {
+				log.Warnf("fail deleting snapshot during rollback: %v\n", deleteErr)
+			}
+		}
+	}()
 
 	return poppedBlocks, nil
 }
