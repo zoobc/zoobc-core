@@ -18,144 +18,29 @@ type (
 
 func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
-	mockRow.AddRow(
-		block1.GetID(),
-		block1.GetBlockHash(),
-		block1.GetPreviousBlockHash(),
-		block1.GetHeight(),
-		block1.GetTimestamp(),
-		block1.GetBlockSeed(),
-		block1.GetBlockSignature(),
-		block1.GetCumulativeDifficulty(),
-		block1.GetPayloadLength(),
-		block1.GetPayloadHash(),
-		block1.GetBlocksmithPublicKey(),
-		block1.GetTotalAmount(),
-		block1.GetTotalFee(),
-		block1.GetTotalCoinBase(),
-		block1.GetVersion(),
-	)
-	mock.ExpectQuery(qStr).WillReturnRows(mockRow)
-	return db.QueryRow(qStr), nil
-}
-func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM account_balance WHERE "+
-		"account_address = ? AND latest = 1" {
-		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"AccountAddress",
-			"BlockHeight",
-			"SpendableBalance",
-			"Balance",
-			"PopRevenue",
-			"Latest",
-		}).AddRow(
-			"BCZ",
-			1,
-			1000000,
-			1000000,
-			0,
-			true,
-		))
-		return db.Query("A")
-	}
-	if qe == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
-		" FROM main_block ORDER BY height DESC LIMIT 1" {
-		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"id",
-			"block_hash",
-			"previous_block_hash",
-			"height",
-			"timestamp",
-			"block_seed",
-			"block_signature",
-			"cumulative_difficulty",
-			"payload_length",
-			"payload_hash",
-			"blocksmith_public_key",
-			"total_amount",
-			"total_fee",
-			"total_coinbase",
-			"version",
-		}).AddRow(
-			0,
-			[]byte{171, 30, 155, 89, 1, 225, 53, 99, 25, 254, 37, 124, 190, 197, 187, 95, 102, 101, 185, 136, 166, 218, 170,
-				156, 49, 43, 208, 228, 157, 166, 224, 91},
-			[]byte{},
-			1,
-			1562806389280,
-			[]byte{},
-			[]byte{},
-			100000000,
-			0,
-			[]byte{},
-			nodePubKey1,
-			100000000,
-			10000000,
-			1,
-			0,
-		))
-		return db.Query("A")
-	}
-	if qe == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
-		" payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
-		" FROM main_block WHERE height = 0" {
-		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"id",
-			"block_hash",
-			"previous_block_hash",
-			"height",
-			"timestamp",
-			"block_seed",
-			"block_signature",
-			"cumulative_difficulty",
-			"payload_length",
-			"payload_hash",
-			"blocksmith_public_key",
-			"total_amount",
-			"total_fee",
-			"total_coinbase",
-			"version",
-		}).AddRow(
-			0,
-			[]byte{171, 30, 155, 89, 1, 225, 53, 99, 25, 254, 37, 124, 190, 197, 187, 95, 102, 101, 185, 136, 166, 218, 170,
-				156, 49, 43, 208, 228, 157, 166, 224, 91},
-			[]byte{},
-			1,
-			1562806389280,
-			[]byte{},
-			[]byte{},
-			100000000,
-			0,
-			[]byte{},
-			nodePubKey1,
-			100000000,
-			10000000,
-			1,
-			0,
-		))
-		return db.Query("A")
-	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
-		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1" {
-		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
-			"id",
-			"node_public_key",
-			"account_address",
-			"registration_height",
-			"node_address",
-			"locked_balance",
-			"registration_status",
-			"latest",
-			"height",
-		}))
-		return db.Query("A")
-	}
-	return nil, nil
+	mockedRows := mock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields)
+	mockedRows.AddRow(
+		0,
+		[]byte{171, 30, 155, 89, 1, 225, 53, 99, 25, 254, 37, 124, 190, 197, 187, 95, 102, 101, 185, 136, 166, 218, 170,
+			156, 49, 43, 208, 228, 157, 166, 224, 91},
+		[]byte{},
+		1,
+		1562806389280,
+		[]byte{},
+		[]byte{},
+		100000000,
+		0,
+		[]byte{},
+		nodePubKey1,
+		100000000,
+		10000000,
+		1,
+		0,
+	)
+	mock.ExpectQuery("SELECT").WillReturnRows(mockedRows)
+	return db.QueryRow(qStr), nil
 }
 
 func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
