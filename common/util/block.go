@@ -88,34 +88,31 @@ func GetLastBlock(
 	return &block, nil
 }
 
-// GetBlockByHeight TODO: this should be used by services instead of blockService.GetLastBlock
+// GetBlockByHeight  get block at the height provided
+// TODO: this should be used by services instead of blockService.GetLastBlock
 func GetBlockByHeight(
 	height uint32,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 ) (*model.Block, error) {
 	var (
-		blocks []*model.Block
-		rows   *sql.Rows
-		qry    = blockQuery.GetBlockByHeight(height)
-		err    error
+		block model.Block
+		row   *sql.Row
+		err   error
 	)
 
-	rows, err = queryExecutor.ExecuteSelect(qry, false)
+	row, err = queryExecutor.ExecuteSelectRow(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-
-	blocks, err = blockQuery.BuildModel(blocks, rows)
+	err = blockQuery.Scan(&block, row)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
+		if err != sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
+		}
+		return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
 	}
-
-	if len(blocks) == 0 {
-		return nil, blocker.NewBlocker(blocker.DBErr, "BlockNotFound")
-	}
-	return blocks[0], nil
+	return &block, nil
 }
 
 func GetMinRollbackHeight(currentHeight uint32) uint32 {
