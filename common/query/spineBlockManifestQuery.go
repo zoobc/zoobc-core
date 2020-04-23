@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -164,7 +162,7 @@ func (mbl *SpineBlockManifestQuery) Rollback(height uint32) (multiQueries [][]in
 	return [][]interface{}{
 		{
 			fmt.Sprintf("DELETE FROM %s WHERE manifest_spine_block_height > ?", mbl.getTableName()),
-			height - constant.MinRollbackBlocks,
+			height,
 		},
 	}
 }
