@@ -129,7 +129,9 @@ func (rs *ReceiptService) SelectReceipts(
 		var nodeReceipts []*model.Receipt
 
 		nodeReceipts, err = func() ([]*model.Receipt, error) {
-			nodeReceiptsQ, rootArgs := rs.NodeReceiptQuery.GetReceiptByRoot([]byte(linkedRoot))
+			lowerHeight := lowerBlockHeight
+			upperHeight := lastBlockHeight
+			nodeReceiptsQ, rootArgs := rs.NodeReceiptQuery.GetReceiptByRoot(lowerBlockHeight, upperHeight, []byte(linkedRoot))
 			rows, err := rs.QueryExecutor.ExecuteSelect(nodeReceiptsQ, false, rootArgs...)
 			if err != nil {
 				return nil, err
