@@ -3696,7 +3696,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 	type args struct {
 		block             *model.Block
 		previousLastBlock *model.Block
-		curTime           int64
 	}
 	tests := []struct {
 		name    string
@@ -3710,7 +3709,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				block: &model.Block{
 					Timestamp: 1572246820 + constant.GenerateBlockTimeoutSec + 1,
 				},
-				curTime: 1572246820,
 			},
 			fields:  fields{},
 			wantErr: true,
@@ -3723,7 +3721,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 					BlockSignature:      []byte{},
 					BlocksmithPublicKey: []byte{},
 				},
-				curTime: 1572246820,
 			},
 			fields: fields{
 				Signature:          &mockSignatureFail{},
@@ -3734,8 +3731,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 		{
 			name: "ValidateBlock:fail-{InvalidSignature}",
 			args: args{
-				block:   mockValidateBadBlockInvalidBlockHash,
-				curTime: 1572246820,
+				block: mockValidateBadBlockInvalidBlockHash,
 			},
 			fields: fields{
 				Signature:          &mockSignatureFail{},
@@ -3748,7 +3744,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 			args: args{
 				block:             mockValidateBadBlockInvalidBlockHash,
 				previousLastBlock: &model.Block{},
-				curTime:           1572246820,
 			},
 			fields: fields{
 				Signature:          &mockSignature{},
@@ -3768,7 +3763,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 					CumulativeDifficulty: "10",
 				},
 				previousLastBlock: &model.Block{},
-				curTime:           1572246820,
 			},
 			fields: fields{
 				Signature:          &mockSignature{},
@@ -3783,7 +3777,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 			args: args{
 				block:             mockValidateBlockSuccess,
 				previousLastBlock: &model.Block{},
-				curTime:           mockValidateBlockSuccess.Timestamp,
 			},
 			fields: fields{
 				Signature:          &mockSignature{},
@@ -3814,7 +3807,7 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 				Observer:                tt.fields.Observer,
 				Logger:                  tt.fields.Logger,
 			}
-			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock, tt.args.curTime); (err != nil) != tt.wantErr {
+			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.ValidateBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

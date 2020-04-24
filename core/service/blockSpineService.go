@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -208,16 +207,12 @@ func (bs *BlockSpineService) ValidatePayloadHash(block *model.Block) error {
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
-func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block) error {
 	// validate block's payload data
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
 	}
 
-	// todo: validate previous time
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
-	}
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
 	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
@@ -716,7 +711,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 				if err != nil {
 					return err
 				}
-				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+				err = bs.ValidateBlock(block, previousBlock)
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
@@ -760,7 +755,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 			)
 		}
 		// Validate incoming block
-		err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+		err = bs.ValidateBlock(block, lastBlock)
 		if err != nil {
 			return status.Error(codes.InvalidArgument, "InvalidBlock")
 		}

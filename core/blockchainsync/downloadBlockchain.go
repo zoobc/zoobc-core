@@ -359,7 +359,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 67)
 		if lastBlock.ID == previousBlockID {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 68)
-			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			err := bd.BlockService.ValidateBlock(block, lastBlock)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 69)
 				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
