@@ -76,21 +76,18 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 		return false
 	}
 	heightAfterDownload := afterDownloadLastBlock.Height
-	// to avoid the network being start at the initial kick off / restart
-	if currentHeight == heightAfterDownload {
-		bd.firstDownloadCounter++
-		if bd.firstDownloadCounter >= constant.MaxResolvedPeers {
-			bd.firstDownloadCounter = 0
-			return true
-		}
-		return false
-	}
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
-	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+	if currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+		if currentHeight == 0 {
+			bd.firstDownloadCounter++
+			if bd.firstDownloadCounter >= constant.MaxResolvedPeers {
+				bd.firstDownloadCounter = 0
+				return true
+			}
+		}
 		bd.firstDownloadCounter = 0
 		return true
 	}
-	bd.firstDownloadCounter = 0
 	return false
 }
 
@@ -362,7 +359,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 69)
-				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+				bd.Logger.Warnf("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
 					monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 70)
@@ -380,7 +377,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				if blacklistErr != nil {
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
-				bd.Logger.Info("failed to push block from peer:", err)
+				bd.Logger.Warn("failed to push block from peer:", err)
 				return &PeerForkInfo{
 					FeederPeer: feederPeer,
 				}, err
