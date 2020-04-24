@@ -105,7 +105,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			return err
 		}
 		// validate
-		err = bp.BlockService.ValidateBlock(block, previousBlock, timeNow) // err / !err
+		err = bp.BlockService.ValidateBlock(block, previousBlock) // err / !err
 		if err != nil {
 			return err
 		}
@@ -150,7 +150,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// validate
-	err = bp.BlockService.ValidateBlock(block, lastBlock, timestamp)
+	err = bp.BlockService.ValidateBlock(block, lastBlock)
 	if err != nil {
 		return err
 	}

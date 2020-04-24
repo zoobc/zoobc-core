@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
@@ -293,14 +292,9 @@ func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) 
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
-func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) error {
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
-	}
-
-	// check block timestamp
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
 
 	// check if blocksmith can smith at the time
@@ -1491,7 +1485,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 					"fail to get last block",
 				)
 			}
-			err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+			err = bs.ValidateBlock(block, previousBlock)
 			if err != nil {
 				return status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
@@ -1517,7 +1511,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 		)
 	}
 	// Validate incoming block
-	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+	err = bs.ValidateBlock(block, lastBlock)
 	if err != nil {
 		return status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
