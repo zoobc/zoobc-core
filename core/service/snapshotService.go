@@ -2,13 +2,14 @@ package service
 
 import (
 	"fmt"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/observer"
-	"time"
 )
 
 type (
@@ -79,7 +80,7 @@ func (ss *SnapshotService) StopSnapshotGeneration(ct chaintype.ChainType) error 
 	}
 	stopSnapshotGeneration[ct.GetTypeInt()] <- true
 	// TODO implement error handling for abrupt snapshot termination. for now we just wait a few seconds and return
-	time.Sleep(2 * time.Second)
+	time.Sleep(2 * time.Second) // todo: move the constant
 	return nil
 }
 

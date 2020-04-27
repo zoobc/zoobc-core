@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"database/sql"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -22,6 +21,12 @@ type (
 			ct chaintype.ChainType, mbType model.SpineBlockManifestType) (*model.SpineBlockManifest, error)
 		GetSpineBlockManifestBytes(spineBlockManifest *model.SpineBlockManifest) []byte
 		InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error
+		GetSpineBlockManifestBySpineBlockHeight(spineBlockHeight uint32) (
+			[]*model.SpineBlockManifest, error,
+		)
+		GetSpineBlockManifestsFromSpineBlockHeight(spineBlockHeight uint32) (
+			[]*model.SpineBlockManifest, error,
+		)
 	}
 
 	SpineBlockManifestService struct {
@@ -44,6 +49,46 @@ func NewSpineBlockManifestService(
 		SpineBlockQuery:         spineBlockQuery,
 		Logger:                  logger,
 	}
+}
+
+// GetSpineBlockManifestBySpineBlockHeight return all manifests published in spine block
+func (ss *SpineBlockManifestService) GetSpineBlockManifestBySpineBlockHeight(spineBlockHeight uint32) (
+	[]*model.SpineBlockManifest, error,
+) {
+	var (
+		spineBlockManifests = make([]*model.SpineBlockManifest, 0)
+	)
+	qry := ss.SpineBlockManifestQuery.GetManifestBySpineBlockHeight(spineBlockHeight)
+	rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	spineBlockManifests, err = ss.SpineBlockManifestQuery.BuildModel(spineBlockManifests, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return spineBlockManifests, err
+}
+
+// GetSpineBlockManifestsFromSpineBlockHeight return all manifest where height > spineBlockHeight
+func (ss *SpineBlockManifestService) GetSpineBlockManifestsFromSpineBlockHeight(spineBlockHeight uint32) (
+	[]*model.SpineBlockManifest, error,
+) {
+	var (
+		spineBlockManifests = make([]*model.SpineBlockManifest, 0)
+	)
+	qry := ss.SpineBlockManifestQuery.GetManifestsFromSpineBlockHeight(spineBlockHeight)
+	rows, err := ss.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	spineBlockManifests, err = ss.SpineBlockManifestQuery.BuildModel(spineBlockManifests, rows)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return spineBlockManifests, err
 }
 
 // GetSpineBlockManifestsForSpineBlock retrieve all spineBlockManifests for a given spine height
@@ -79,10 +124,7 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(spineHe
 	defer rows.Close()
 	spineBlockManifests, err = ss.SpineBlockManifestQuery.BuildModel(spineBlockManifests, rows)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		return nil, nil
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 
 	return spineBlockManifests, nil
@@ -134,12 +176,12 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 	spineBlockManifest := &model.SpineBlockManifest{
 		// we store SpineBlockManifest ID as little endian of fullFileHash so that we can join the spineBlockManifest and
 		// FileChunks tables if needed
-		FullFileHash:             fullFileHash,
-		FileChunkHashes:          megablockFileHashes,
-		SpineBlockManifestHeight: megablockHeight,
-		ChainType:                ct.GetTypeInt(),
-		SpineBlockManifestType:   mbType,
-		ExpirationTimestamp:      expirationTimestamp,
+		FullFileHash:            fullFileHash,
+		FileChunkHashes:         megablockFileHashes,
+		ManifestReferenceHeight: megablockHeight,
+		ChainType:               ct.GetTypeInt(),
+		SpineBlockManifestType:  mbType,
+		ExpirationTimestamp:     expirationTimestamp,
 	}
 	megablockID, err := ss.GetSpineBlockManifestID(spineBlockManifest)
 	if err != nil {
@@ -184,7 +226,8 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestBytes(spineBlockManife
 	buffer.Write(spineBlockManifest.FullFileHash)
 	// spineBlockManifest payload = all file chunks' entities bytes
 	buffer.Write(spineBlockManifest.FileChunkHashes)
-	buffer.Write(util.ConvertUint32ToBytes(spineBlockManifest.SpineBlockManifestHeight))
+	buffer.Write(util.ConvertUint32ToBytes(spineBlockManifest.ManifestReferenceHeight))
+	buffer.Write(util.ConvertUint32ToBytes(spineBlockManifest.ManifestSpineBlockHeight))
 	buffer.Write(util.ConvertUint32ToBytes(uint32(spineBlockManifest.ChainType)))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(spineBlockManifest.ExpirationTimestamp)))
 	return buffer.Bytes()

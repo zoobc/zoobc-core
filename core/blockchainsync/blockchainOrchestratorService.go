@@ -103,14 +103,14 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 		}
 		bos.Logger.Infof("found a Snapshot Spine Block Manifest for chaintype %s, "+
 			"at height is %d. Start downloading...\n", ct.GetName(),
-			lastSpineBlockManifest.SpineBlockManifestHeight)
+			lastSpineBlockManifest.ManifestReferenceHeight)
 		snapshotFileInfo, err := bos.FileDownloader.DownloadSnapshot(ct, lastSpineBlockManifest)
 		if err != nil {
 			bos.Logger.Warning(err)
 			return err
 		} else if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
 			bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d: %s\n", ct.GetName(),
-				lastSpineBlockManifest.SpineBlockManifestHeight, err.Error())
+				lastSpineBlockManifest.ManifestReferenceHeight, err.Error())
 			return err
 		}
 
