@@ -651,7 +651,12 @@ func (bs *BlockService) ScanBlockPool() error {
 			err := func(block *model.Block) error {
 				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
 				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				err := bs.PushBlock(previousBlock, block, true, true)
+				err := bs.ValidateBlock(block, previousBlock)
+				if err != nil {
+					bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", err)
+					return err
+				}
+				err = bs.PushBlock(previousBlock, block, true, true)
 				return err
 			}(block)
 			if err != nil {
