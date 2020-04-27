@@ -14,7 +14,7 @@ type (
 		InsertReceipt(receipt *model.Receipt) (str string, args []interface{})
 		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
-		GetReceiptByRoot(root []byte) (str string, args []interface{})
+		GetReceiptByRoot(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
 		RemoveReceipts(blockHeight, limit uint32) (string, []interface{})
@@ -99,12 +99,14 @@ func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(
 
 // GetReceiptByRoot return sql query to fetch receipts by its merkle root, the datum_hash should not already exists in
 // published_receipt table
-func (rq *NodeReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
+func (rq *NodeReceiptQuery) GetReceiptByRoot(
+	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) "+
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key AND "+
+		"block_height BETWEEN %d AND %d) "+
 		"GROUP BY recipient_public_key",
-		strings.Join(rq.Fields, ", "), rq.getTableName())
+		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight)
 	return query, []interface{}{
 		root,
 	}

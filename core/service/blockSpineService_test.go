@@ -859,12 +859,12 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       1,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      1,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},
@@ -927,12 +927,12 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       1,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      1,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},
@@ -1313,6 +1313,22 @@ func (ss *mockSpineBlockManifestService) GetSpineBlockManifestsForSpineBlock(
 	return spineBlockManifests, err
 }
 
+func (ss *mockSpineBlockManifestService) GetSpineBlockManifestBySpineBlockHeight(
+	spineHeight uint32,
+) ([]*model.SpineBlockManifest, error) {
+	var (
+		spineBlockManifests = make([]*model.SpineBlockManifest, 0)
+		err                 error
+	)
+	if ss.ResSpineBlockManifests != nil {
+		spineBlockManifests = ss.ResSpineBlockManifests
+	}
+	if ss.ResError != nil {
+		err = ss.ResError
+	}
+	return spineBlockManifests, err
+}
+
 func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(int64, uint32, uint32) ([]*model.PublishedReceipt, error) {
 	return []*model.PublishedReceipt{}, nil
 }
@@ -1448,12 +1464,12 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       1,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      1,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},
@@ -1759,32 +1775,37 @@ type (
 	}
 )
 
+func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mockSpine, _ := sqlmock.New()
+	defer db.Close()
+
+	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+		query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+		mockSpineBlockData.GetID(),
+		mockSpineBlockData.GetBlockHash(),
+		mockSpineBlockData.GetPreviousBlockHash(),
+		mockSpineBlockData.GetHeight(),
+		mockSpineBlockData.GetTimestamp(),
+		mockSpineBlockData.GetBlockSeed(),
+		mockSpineBlockData.GetBlockSignature(),
+		mockSpineBlockData.GetCumulativeDifficulty(),
+		mockSpineBlockData.GetPayloadLength(),
+		mockSpineBlockData.GetPayloadHash(),
+		mockSpineBlockData.GetBlocksmithPublicKey(),
+		mockSpineBlockData.GetTotalAmount(),
+		mockSpineBlockData.GetTotalFee(),
+		mockSpineBlockData.GetTotalCoinBase(),
+		mockSpineBlockData.GetVersion(),
+	))
+	return db.QueryRow(qStr), nil
+}
+
 func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
-		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
-		"total_coinbase, version FROM spine_block WHERE height = 0":
-		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
-			query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
-			mockSpineBlockData.GetID(),
-			mockSpineBlockData.GetBlockHash(),
-			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
-			mockSpineBlockData.GetTimestamp(),
-			mockSpineBlockData.GetBlockSeed(),
-			mockSpineBlockData.GetBlockSignature(),
-			mockSpineBlockData.GetCumulativeDifficulty(),
-			mockSpineBlockData.GetPayloadLength(),
-			mockSpineBlockData.GetPayloadHash(),
-			mockSpineBlockData.GetBlocksmithPublicKey(),
-			mockSpineBlockData.GetTotalAmount(),
-			mockSpineBlockData.GetTotalFee(),
-			mockSpineBlockData.GetTotalCoinBase(),
-			mockSpineBlockData.GetVersion(),
-		))
+
 	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 0 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
@@ -1801,7 +1822,16 @@ func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string,
 	return db.Query(qStr)
 }
 
-func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mockSpine, _ := sqlmock.New()
+	defer db.Close()
+
+	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
+		query.NewBlockQuery(&chaintype.SpineChain{}).Fields))
+	return db.QueryRow(qStr), nil
+}
+
+func (*mockSpineQueryExecutorGetBlockByHeightFail) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("MockedError")
 }
 
@@ -2873,7 +2903,6 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 	type args struct {
 		block             *model.Block
 		previousLastBlock *model.Block
-		curTime           int64
 	}
 	tests := []struct {
 		name    string
@@ -2887,7 +2916,6 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 				block: &model.Block{
 					Timestamp: 1572246820 + constant.GenerateBlockTimeoutSec + 1,
 				},
-				curTime: 1572246820,
 			},
 			fields:  fields{},
 			wantErr: true,
@@ -2900,7 +2928,6 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 					BlockSignature:      []byte{},
 					BlocksmithPublicKey: []byte{},
 				},
-				curTime: 1572246820,
 			},
 			fields: fields{
 				Signature:          &mockSpineSignatureFail{},
@@ -2911,8 +2938,7 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 		{
 			name: "ValidateBlock:fail-{InvalidSignature}",
 			args: args{
-				block:   mockSpineValidateBadBlockInvalidBlockHash,
-				curTime: 1572246820,
+				block: mockSpineValidateBadBlockInvalidBlockHash,
 			},
 			fields: fields{
 				Signature:          &mockSpineSignatureFail{},
@@ -2925,7 +2951,6 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 			args: args{
 				block:             mockSpineValidateBadBlockInvalidBlockHash,
 				previousLastBlock: &model.Block{},
-				curTime:           1572246820,
 			},
 			fields: fields{
 				Signature:          &mockSpineSignature{},
@@ -2945,7 +2970,6 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 					CumulativeDifficulty: "10",
 				},
 				previousLastBlock: &model.Block{},
-				curTime:           1572246820,
 			},
 			fields: fields{
 				Signature:          &mockSpineSignature{},
@@ -2960,7 +2984,6 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 			args: args{
 				block:             mockSpineValidateBlockSuccess,
 				previousLastBlock: &model.Block{},
-				curTime:           mockSpineValidateBlockSuccess.Timestamp,
 			},
 			fields: fields{
 				Signature:          &mockSpineSignature{},
@@ -2981,7 +3004,7 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 				Observer:           tt.fields.Observer,
 				Logger:             tt.fields.Logger,
 			}
-			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock, tt.args.curTime); (err != nil) != tt.wantErr {
+			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.ValidateBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -3382,6 +3405,57 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, 
 	return db.QueryRow(qStr), nil
 }
 
+type (
+	// mock PopOffToBlock
+	mockSnapshotMainBlockServiceDeleteFail struct {
+		SnapshotMainBlockService
+	}
+	mockSnapshotMainBlockServiceDeleteSuccess struct {
+		SnapshotMainBlockService
+	}
+
+	mockSpineBlockManifestServiceFailGetManifestFromHeight struct {
+		SpineBlockManifestServiceInterface
+	}
+
+	mockSpineBlockManifestServiceSuccesGetManifestFromHeight struct {
+		SpineBlockManifestServiceInterface
+	}
+)
+
+func (*mockSnapshotMainBlockServiceDeleteFail) DeleteFileByChunkHashes([]byte) error {
+	return errors.New("mockedError")
+}
+
+func (*mockSnapshotMainBlockServiceDeleteSuccess) DeleteFileByChunkHashes([]byte) error {
+	return nil
+}
+
+func (*mockSpineBlockManifestServiceFailGetManifestFromHeight) GetSpineBlockManifestsFromSpineBlockHeight(
+	uint32,
+) ([]*model.SpineBlockManifest, error) {
+	return []*model.SpineBlockManifest{}, errors.New("mockedError")
+}
+
+func (*mockSpineBlockManifestServiceFailGetManifestFromHeight) GetSpineBlockManifestBySpineBlockHeight(uint32) (
+	[]*model.SpineBlockManifest, error,
+) {
+	return make([]*model.SpineBlockManifest, 0), nil
+}
+
+func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockManifestsFromSpineBlockHeight(
+	uint32,
+) ([]*model.SpineBlockManifest, error) {
+	return []*model.SpineBlockManifest{
+		ssMockSpineBlockManifest,
+	}, nil
+}
+
+func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockManifestBySpineBlockHeight(uint32) (
+	[]*model.SpineBlockManifest, error,
+) {
+	return make([]*model.SpineBlockManifest, 0), nil
+}
 func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	type fields struct {
 		RWMutex                   sync.RWMutex
@@ -3407,6 +3481,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		SnapshotMainBlockService  SnapshotBlockServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3526,7 +3601,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Success",
+			name: "GetManifestFromSpineBlockHeight-Success",
 			fields: fields{
 				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.SpineChain{},
@@ -3553,7 +3628,8 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					Signature:             nil,
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
-				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
+				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3574,6 +3650,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				Logger:                    tt.fields.Logger,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				SnapshotMainBlockService:  tt.fields.SnapshotMainBlockService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
@@ -3810,12 +3887,12 @@ func TestBlockSpineService_ValidateSpineBlockManifest(t *testing.T) {
 					ResSpineBlockManifestBytes: []byte{1, 1, 1, 1, 1, 1, 1, 1},
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
-							ID:                       12345678,
-							FullFileHash:             make([]byte, 64),
-							FileChunkHashes:          make([]byte, 0),
-							SpineBlockManifestHeight: 720,
-							SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-							ExpirationTimestamp:      int64(1000),
+							ID:                      12345678,
+							FullFileHash:            make([]byte, 64),
+							FileChunkHashes:         make([]byte, 0),
+							ManifestReferenceHeight: 720,
+							SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+							ExpirationTimestamp:     int64(1000),
 						},
 					},
 				},

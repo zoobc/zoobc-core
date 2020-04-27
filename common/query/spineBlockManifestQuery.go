@@ -3,7 +3,6 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -15,6 +14,8 @@ type (
 	SpineBlockManifestQueryInterface interface {
 		InsertSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) (str string, args []interface{})
 		GetSpineBlockManifestTimeInterval(fromTimestamp, toTimestamp int64) string
+		GetManifestBySpineBlockHeight(spineBlockHeight uint32) string
+		GetManifestsFromSpineBlockHeight(spineBlockHeight uint32) string
 		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string
 		ExtractModel(mb *model.SpineBlockManifest) []interface{}
 		BuildModel(spineBlockManifests []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
@@ -34,9 +35,10 @@ func NewSpineBlockManifestQuery() *SpineBlockManifestQuery {
 			"full_file_hash",
 			"file_chunk_hashes",
 			"manifest_reference_height",
+			"manifest_spine_block_height",
 			"chain_type",
 			"manifest_type",
-			"manifest_timestamp",
+			"expiration_timestamp",
 		},
 		TableName: "spine_block_manifest",
 	}
@@ -72,9 +74,23 @@ func (mbl *SpineBlockManifestQuery) GetLastSpineBlockManifest(ct chaintype.Chain
 // GetSpineBlockManifestTimeInterval retrieve all spineBlockManifests within a time frame
 // Note: it is used to get all entities that have expired between spine blocks
 func (mbl *SpineBlockManifestQuery) GetSpineBlockManifestTimeInterval(fromTimestamp, toTimestamp int64) string {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_timestamp > %d AND manifest_timestamp <= %d "+
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE expiration_timestamp > %d AND expiration_timestamp <= %d "+
 		"ORDER BY manifest_type, chain_type, manifest_reference_height",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), fromTimestamp, toTimestamp)
+	return query
+}
+
+// GetManifestBySpineBlockHeight retrieve manifests of binded to a spineblock height
+func (mbl *SpineBlockManifestQuery) GetManifestBySpineBlockHeight(spineBlockHeight uint32) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_spine_block_height = %d "+
+		"ORDER BY manifest_type, chain_type, manifest_reference_height",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName(), spineBlockHeight)
+	return query
+}
+
+func (mbl *SpineBlockManifestQuery) GetManifestsFromSpineBlockHeight(spineBlockHeight uint32) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_spine_block_height > %d ",
+		strings.Join(mbl.Fields, ", "), mbl.getTableName(), spineBlockHeight)
 	return query
 }
 
@@ -84,7 +100,8 @@ func (mbl *SpineBlockManifestQuery) ExtractModel(mb *model.SpineBlockManifest) [
 		mb.ID,
 		mb.FullFileHash,
 		mb.FileChunkHashes,
-		mb.SpineBlockManifestHeight,
+		mb.ManifestReferenceHeight,
+		mb.ManifestSpineBlockHeight,
 		mb.ChainType,
 		mb.SpineBlockManifestType,
 		mb.ExpirationTimestamp,
@@ -106,7 +123,8 @@ func (mbl *SpineBlockManifestQuery) BuildModel(
 			&mb.ID,
 			&mb.FullFileHash,
 			&mb.FileChunkHashes,
-			&mb.SpineBlockManifestHeight,
+			&mb.ManifestReferenceHeight,
+			&mb.ManifestSpineBlockHeight,
 			&mb.ChainType,
 			&mb.SpineBlockManifestType,
 			&mb.ExpirationTimestamp,
@@ -125,7 +143,8 @@ func (mbl *SpineBlockManifestQuery) Scan(mb *model.SpineBlockManifest, row *sql.
 		&mb.ID,
 		&mb.FullFileHash,
 		&mb.FileChunkHashes,
-		&mb.SpineBlockManifestHeight,
+		&mb.ManifestReferenceHeight,
+		&mb.ManifestSpineBlockHeight,
 		&mb.ChainType,
 		&mb.SpineBlockManifestType,
 		&mb.ExpirationTimestamp,
@@ -142,8 +161,8 @@ func (mbl *SpineBlockManifestQuery) Scan(mb *model.SpineBlockManifest, row *sql.
 func (mbl *SpineBlockManifestQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
-			fmt.Sprintf("DELETE FROM %s WHERE manifest_reference_height > ?", mbl.getTableName()),
-			height - constant.MinRollbackBlocks,
+			fmt.Sprintf("DELETE FROM %s WHERE manifest_spine_block_height > ?", mbl.getTableName()),
+			height,
 		},
 	}
 }

@@ -91,7 +91,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 92)
 			if bytes.Equal(lastBlockHash, block.PreviousBlockHash) {
 				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 93)
-				err := fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+				err := fp.BlockService.ValidateBlock(block, lastBlock)
 				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 94)
 				if err != nil {
 					monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 95)
@@ -161,7 +161,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 109)
 				return err
 			}
-			err = fp.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			err = fp.BlockService.ValidateBlock(block, lastBlock)
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 110)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 111)

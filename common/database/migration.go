@@ -269,9 +269,10 @@ func (m *Migration) Init() error {
 				"full_file_hash" BLOB,			-- hash of the (snapshot) file content
 				"file_chunk_hashes" BLOB,		-- sorted sequence file chunks hashes referenced by the spine_block_manifest
 				"manifest_reference_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
+				"manifest_spine_block_height" INTEGER NOT NULL,	-- height at which the snapshot was taken on the (main)chain
 				"chain_type" INTEGER NOT NULL,		-- chain type this spine_block_manifest reference to
 				"manifest_type" INTEGER NOT NULL,	-- type of spine_block_manifest (as of now only snapshot)
-				"manifest_timestamp" INTEGER NOT NULL,	-- timestamp that marks the end of file chunks processing
+				"expiration_timestamp" INTEGER NOT NULL,	-- timestamp that marks the end of file chunks processing
 				PRIMARY KEY("id")
 				UNIQUE("id")
 			)
@@ -344,6 +345,12 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "published_receipt_datum_hash_idx" ON "published_receipt" ("datum_hash")
+			`,
+			`
+			CREATE INDEX "spine_block_manifest_spine_block_height_idx" ON "spine_block_manifest" ("manifest_spine_block_height")
+			`,
+			`
+			CREATE INDEX "spine_block_manifest_reference_height_idx" ON "spine_block_manifest" ("manifest_reference_height")
 			`,
 		}
 		return nil
