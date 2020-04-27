@@ -40,8 +40,6 @@ type (
 			timestamp, totalAmount, totalFee, totalCoinBase int64,
 			transactions []*model.Transaction,
 			blockReceipts []*model.PublishedReceipt,
-			payloadHash []byte,
-			payloadLength uint32,
 			secretPhrase string,
 		) (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
