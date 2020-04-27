@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -70,7 +71,10 @@ func GetPublicIPDYNDNS() (net.IP, error) {
 	// unfortunately the response is <html> tag, need to get the ip only via regexp
 	ipStr := rgx.FindAllString(string(bt), -1)
 	ip := net.ParseIP(ipStr[0])
-	return ip, nil
+	if ip != nil {
+		return ip, nil
+	}
+	return nil, fmt.Errorf("invalid ip address")
 }
 
 func IsDomain(address string) bool {
