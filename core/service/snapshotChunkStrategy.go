@@ -9,5 +9,6 @@ type (
 		GenerateSnapshotChunks(snapshotPayload *model.SnapshotPayload, filePath string) (fullHash []byte,
 			fileChunkHashes [][]byte, err error)
 		BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte, filePath string) (*model.SnapshotPayload, error)
+		DeleteFileByChunkHashes(concatenatedFileChunks []byte, filePath string) error
 	}
 )

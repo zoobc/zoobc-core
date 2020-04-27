@@ -325,3 +325,8 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }
+
+// DeleteFileByChunkHashes delete the files included in the file chunk hashes.
+func (ss *SnapshotMainBlockService) DeleteFileByChunkHashes(fileChunkHashes []byte) error {
+	return ss.SnapshotBasicChunkStrategy.DeleteFileByChunkHashes(fileChunkHashes, ss.SnapshotPath)
+}

@@ -648,6 +648,7 @@ func startSpinechain() {
 		loggerCoreService,
 		query.NewSpineBlockManifestQuery(),
 		spinechainBlocksmithService,
+		snapshotBlockServices[mainchain.GetTypeInt()],
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

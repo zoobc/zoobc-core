@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -43,6 +42,7 @@ type (
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlocksmithService         BlocksmithServiceInterface
+		SnapshotMainBlockService  SnapshotBlockServiceInterface
 	}
 )
 
@@ -58,6 +58,7 @@ func NewBlockSpineService(
 	logger *log.Logger,
 	megablockQuery query.SpineBlockManifestQueryInterface,
 	blocksmithService BlocksmithServiceInterface,
+	snapshotMainblockService SnapshotBlockServiceInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:          ct,
@@ -80,7 +81,8 @@ func NewBlockSpineService(
 			spineBlockQuery,
 			logger,
 		),
-		BlocksmithService: blocksmithService,
+		BlocksmithService:        blocksmithService,
+		SnapshotMainBlockService: snapshotMainblockService,
 	}
 }
 
@@ -205,16 +207,12 @@ func (bs *BlockSpineService) ValidatePayloadHash(block *model.Block) error {
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
-func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block) error {
 	// validate block's payload data
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
 	}
 
-	// todo: validate previous time
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
-	}
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
 	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
@@ -497,12 +495,11 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
 	}
 	block.SpinePublicKeys = spinePublicKeys
-	spineBlockManifests, err := bs.SpineBlockManifestService.GetSpineBlockManifestsForSpineBlock(block.Height, block.Timestamp)
+	spineBlockManifests, err := bs.SpineBlockManifestService.GetSpineBlockManifestBySpineBlockHeight(block.Height)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spineBlockManifests")
 	}
 	block.SpineBlockManifests = spineBlockManifests
-
 	return nil
 }
 
@@ -563,7 +560,10 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-
+	// assign spine block height to every manifests
+	for _, spm := range spineBlockManifests {
+		spm.ManifestSpineBlockHeight = newBlockHeight
+	}
 	// loop through transaction to build block hash
 	digest.Reset() // reset the digest
 	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
@@ -711,7 +711,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 				if err != nil {
 					return err
 				}
-				err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+				err = bs.ValidateBlock(block, previousBlock)
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
@@ -755,7 +755,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 			)
 		}
 		// Validate incoming block
-		err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+		err = bs.ValidateBlock(block, lastBlock)
 		if err != nil {
 			return status.Error(codes.InvalidArgument, "InvalidBlock")
 		}
@@ -805,7 +805,10 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	var poppedBlocks []*model.Block
+	var (
+		poppedBlocks    []*model.Block
+		poppedManifests []*model.SpineBlockManifest
+	)
 	block := lastBlock
 
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
@@ -826,15 +829,35 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = bs.QueryExecutor.RollbackTx()
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				bs.Logger.Warnf("spineblock-rollback-err: %v", rollbackErr)
+			}
 			return []*model.Block{}, err
 		}
 	}
-
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil {
 		return nil, err
 	}
+	go func() {
+		// post rollback action:
+		// - clean snapshot data
+		poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				bs.Logger.Warn(rollbackErr)
+			}
+		}
+		for _, manifest := range poppedManifests {
+			// ignore error, file deletion can fail
+			deleteErr := bs.SnapshotMainBlockService.DeleteFileByChunkHashes(manifest.FileChunkHashes)
+			if deleteErr != nil {
+				log.Warnf("fail deleting snapshot during rollback: %v\n", deleteErr)
+			}
+		}
+	}()
 
 	return poppedBlocks, nil
 }

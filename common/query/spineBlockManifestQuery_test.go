@@ -18,8 +18,8 @@ func TestSpineBlockManifestQuery_InsertSpineBlockManifest(t *testing.T) {
 	}
 
 	mb1 := &model.SpineBlockManifest{
-		FullFileHash:             make([]byte, 64), // sha3-512
-		SpineBlockManifestHeight: 720,
+		FullFileHash:            make([]byte, 64), // sha3-512
+		ManifestReferenceHeight: 720,
 	}
 	tests := []struct {
 		name   string
@@ -37,8 +37,8 @@ func TestSpineBlockManifestQuery_InsertSpineBlockManifest(t *testing.T) {
 				spineBlockManifest: mb1,
 			},
 			want: "INSERT OR REPLACE INTO spine_block_manifest (id,full_file_hash,file_chunk_hashes,manifest_reference_height," +
-				"chain_type,manifest_type," +
-				"manifest_timestamp) VALUES(? , ?, ?, ?, ?, ?, ?)",
+				"manifest_spine_block_height,chain_type,manifest_type," +
+				"expiration_timestamp) VALUES(? , ?, ?, ?, ?, ?, ?, ?)",
 		},
 	}
 	for _, tt := range tests {
@@ -79,9 +79,9 @@ func TestSpineBlockManifestQuery_GetLastSpineBlockManifest(t *testing.T) {
 				ct:     &chaintype.MainChain{},
 				mbType: model.SpineBlockManifestType_Snapshot,
 			},
-			want: "SELECT id, full_file_hash, file_chunk_hashes, manifest_reference_height, chain_type, manifest_type, " +
-				"manifest_timestamp FROM spine_block_manifest WHERE chain_type = 0 AND manifest_type = 0 ORDER BY manifest_reference_height" +
-				" DESC LIMIT 1",
+			want: "SELECT id, full_file_hash, file_chunk_hashes, manifest_reference_height, manifest_spine_block_height, " +
+				"chain_type, manifest_type, expiration_timestamp FROM spine_block_manifest WHERE chain_type = 0 AND " +
+				"manifest_type = 0 ORDER BY manifest_reference_height DESC LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
@@ -122,9 +122,9 @@ func TestSpineBlockManifestQuery_GetSpineBlockManifestsInTimeInterval(t *testing
 				fromTimestamp: 10,
 				toTimestamp:   20,
 			},
-			want: "SELECT id, full_file_hash, file_chunk_hashes, manifest_reference_height, chain_type, manifest_type, " +
-				"manifest_timestamp FROM spine_block_manifest WHERE manifest_timestamp > 10 AND manifest_timestamp <= 20 ORDER" +
-				" BY manifest_type, chain_type, manifest_reference_height",
+			want: "SELECT id, full_file_hash, file_chunk_hashes, manifest_reference_height, manifest_spine_block_height, " +
+				"chain_type, manifest_type, expiration_timestamp FROM spine_block_manifest WHERE expiration_timestamp > 10 " +
+				"AND expiration_timestamp <= 20 ORDER BY manifest_type, chain_type, manifest_reference_height",
 		},
 	}
 	for _, tt := range tests {
