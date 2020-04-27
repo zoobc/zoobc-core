@@ -637,6 +637,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 	previousBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
@@ -646,18 +648,16 @@ func (bs *BlockService) ScanBlockPool() error {
 	for index, block := range blocks {
 		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), previousBlock)
 		if err == nil {
-			err := func(block *model.Block) error {
-				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				err := bs.ValidateBlock(block, previousBlock)
-				if err != nil {
-					bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", err)
-					return err
-				}
-				err = bs.PushBlock(previousBlock, block, true, true)
-				return err
-			}(block)
+			err := bs.ValidateBlock(block, previousBlock)
 			if err != nil {
+				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", err)
+				return blocker.NewBlocker(
+					blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
+				)
+			}
+			err = bs.PushBlock(previousBlock, block, true, true)
+			if err != nil {
+				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", err)
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
 				)
