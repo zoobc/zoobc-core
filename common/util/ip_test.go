@@ -91,3 +91,26 @@ func TestIsDomain(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPublicIPDYNDNS(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetPublicIPDYNDNS()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPublicIPDYNDNS() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !IsPublicIP(got) { // perhaps is public ip
+				t.Errorf("GetPublicIPDYNDNS() got = %v", got)
+			}
+		})
+	}
+}

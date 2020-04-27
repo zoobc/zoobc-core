@@ -2,7 +2,10 @@ package util
 
 import (
 	"errors"
+	"io/ioutil"
 	"net"
+	"net/http"
+	"regexp"
 )
 
 // GetPublicIP allowing to get own external/public ip,
@@ -43,6 +46,31 @@ func GetPublicIP() (net.IP, error) {
 		}
 	}
 	return nil, errors.New("fail caused the internet connection")
+}
+
+// GetPublicIPDYNDNS allowing to get own public ip via http://checkip.dyndns.org
+func GetPublicIPDYNDNS() (net.IP, error) {
+	var (
+		err  error
+		bt   []byte
+		resp *http.Response
+		rgx  = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
+	)
+	resp, err = http.Get("http://checkip.dyndns.org")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bt, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// unfortunately the response is <html> tag, need to get the ip only via regexp
+	ipStr := rgx.FindAllString(string(bt), -1)
+	ip := net.ParseIP(ipStr[0])
+	return ip, nil
 }
 
 func IsDomain(address string) bool {
