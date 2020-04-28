@@ -35,7 +35,7 @@ func main() {
 		AccountAddresses: []string{
 			"OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
 			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			"iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxbxxx",
+			"iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
 		},
 	})
 
