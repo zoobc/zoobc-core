@@ -16,12 +16,13 @@ func TestGetPublicIP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetPublicIP()
+			ipu := &IPUtil{}
+			got, err := ipu.GetPublicIP()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetPublicIP() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if IsPublicIP(got) {
+			if ipu.IsPublicIP(got) {
 				t.Errorf("GetPublicIP() got = %v ", got)
 			}
 		})
@@ -53,7 +54,8 @@ func TestIsPublicIP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsPublicIP(tt.args.IP); got != tt.want {
+			ipu := &IPUtil{}
+			if got := ipu.IsPublicIP(tt.args.IP); got != tt.want {
 				t.Errorf("IsPublicIP() = %v, want %v", got, tt.want)
 			}
 		})
@@ -85,7 +87,8 @@ func TestIsDomain(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsDomain(tt.args.address); got != tt.want {
+			ipu := &IPUtil{}
+			if got := ipu.IsDomain(tt.args.address); got != tt.want {
 				t.Errorf("IsDomain() = %v, want %v", got, tt.want)
 			}
 		})
@@ -103,12 +106,13 @@ func TestGetPublicIPDYNDNS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GetPublicIPDYNDNS()
+			ipu := &IPUtil{}
+			got, err := ipu.GetPublicIPDYNDNS()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetPublicIPDYNDNS() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !IsPublicIP(got) { // perhaps is public ip
+			if !ipu.IsPublicIP(got) { // perhaps is public ip
 				t.Errorf("GetPublicIPDYNDNS() got = %v", got)
 			}
 		})

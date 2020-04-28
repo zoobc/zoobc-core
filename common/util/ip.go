@@ -9,10 +9,15 @@ import (
 	"regexp"
 )
 
+type (
+	IPUtil struct {
+	}
+)
+
 // GetPublicIP allowing to get own external/public ip,
 // Work perfectly on server not on local machine / laptop / PC
 // more accurate if getting from request header https://golangcode.com/get-the-request-ip-addr/
-func GetPublicIP() (net.IP, error) {
+func (ipu *IPUtil) GetPublicIP() (net.IP, error) {
 	faces, err := net.Interfaces()
 	if err != nil {
 		return nil, err
@@ -50,7 +55,7 @@ func GetPublicIP() (net.IP, error) {
 }
 
 // GetPublicIPDYNDNS allowing to get own public ip via http://checkip.dyndns.org
-func GetPublicIPDYNDNS() (net.IP, error) {
+func (ipu *IPUtil) GetPublicIPDYNDNS() (net.IP, error) {
 	var (
 		err  error
 		bt   []byte
@@ -77,13 +82,13 @@ func GetPublicIPDYNDNS() (net.IP, error) {
 	return nil, fmt.Errorf("invalid ip address")
 }
 
-func IsDomain(address string) bool {
+func (ipu *IPUtil) IsDomain(address string) bool {
 	addr := net.ParseIP(address)
 	return addr == nil
 }
 
 // IsPublicIP make sure that ip is a public ip or not
-func IsPublicIP(ip net.IP) bool {
+func (ipu *IPUtil) IsPublicIP(ip net.IP) bool {
 	if ip.IsLoopback() || ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() {
 		return false
 	}
