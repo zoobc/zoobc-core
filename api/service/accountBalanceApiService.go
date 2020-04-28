@@ -59,15 +59,13 @@ func (abs *AccountBalanceService) GetAccountBalances(request *model.GetAccountBa
 		row             *sql.Row
 		err             error
 	)
-	// fmt.Println("2. request.AccountAddresses::", request.AccountAddresses)
 
-	for _, accountAddress := range request.AccountAddresses {
+	for i, accountAddress := range request.AccountAddresses {
 		qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(accountAddress)
 		row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
 		err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
 		if err != nil {
-			accountBalance := model.AccountBalance{}
-			accountBalance.AccountAddress = accountAddress
+			accountBalance = model.AccountBalance{AccountAddress: accountAddress}
 		}
 
 		accountBalances = append(accountBalances, &accountBalance)

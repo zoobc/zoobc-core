@@ -165,3 +165,38 @@ func TestNewAccountBalanceService(t *testing.T) {
 		})
 	}
 }
+
+func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
+	type fields struct {
+		AccountBalanceQuery query.AccountBalanceQueryInterface
+		Executor            query.ExecutorInterface
+	}
+	type args struct {
+		request *model.GetAccountBalancesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetAccountBalancesResponse
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			abs := &AccountBalanceService{
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				Executor:            tt.fields.Executor,
+			}
+			got, err := abs.GetAccountBalances(tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AccountBalanceService.GetAccountBalances() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountBalanceService.GetAccountBalances() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

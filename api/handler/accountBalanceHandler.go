@@ -27,7 +27,7 @@ func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context,
 	request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
 
 	if len(request.AccountAddresses) == 0 {
-		return nil, errors.New("Error: at least 1 address is required")
+		return nil, errors.New("error: at least 1 address is required")
 	}
 
 	accountBalances, err := abh.Service.GetAccountBalances(request)
