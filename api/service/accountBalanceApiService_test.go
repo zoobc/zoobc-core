@@ -181,7 +181,6 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 		want    *model.GetAccountBalancesResponse
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "GetAccountBalances:AccountAddressesIsEmpty",
 			args: args{
@@ -190,20 +189,31 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
-		// {
-		// 	name: "GetAccountBalances:Success",
-		// 	args: args{
-		// 		request: &model.GetAccountBalancesRequest{
-		// 			AccountAddresses: []string{
-		// 				"OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
-		// 				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		// 				"iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxbxxx",
-		// 			},
-		// 		},
-		// 	},
-		// 	want:    &model.GetAccountBalancesResponse{},
-		// 	wantErr: false,
-		// },
+		{
+			name: "GetAccountBalances:Success",
+			fields: fields{
+				AccountBalanceQuery: mockAccountBalanceQuery,
+				Executor:            &mockExecutorGetAccountBalanceSuccess{},
+			},
+			args: args{
+				request: &model.GetAccountBalancesRequest{
+					AccountAddresses: []string{"\001"},
+				},
+			},
+			want: &model.GetAccountBalancesResponse{
+				AccountBalance: []*model.AccountBalance{
+					{
+						AccountAddress:   "\001",
+						BlockHeight:      1,
+						SpendableBalance: 10000,
+						Balance:          10000,
+						PopRevenue:       0,
+						Latest:           true,
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
