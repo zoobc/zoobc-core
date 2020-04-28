@@ -181,23 +181,6 @@ func (m *GetAccountBalanceResponse) GetAccountBalance() *AccountBalance {
 
 type GetAccountBalancesRequest struct {
 	AccountAddresses []string `protobuf:"bytes,1,opt,name=AccountAddresses,proto3" json:"AccountAddresses,omitempty"`
-	// Fetch AccountBalance by its balance (account balance <  BalanceLowerThan)
-	BalanceLowerThan uint32 `protobuf:"varint,1,opt,name=BalanceLowerThan,proto3" json:"BalanceLowerThan,omitempty"`
-	// Fetch AccountBalance by its balance (account balance >  BalanceHigherThan)
-	BalanceHigherThan uint32 `protobuf:"varint,2,opt,name=BalanceHigherThan,proto3" json:"BalanceHigherThan,omitempty"`
-	// Fetch AccountBalance by its spendablebalance (account spendablebalance <  BalanceLowerThan)
-	SpendableBalanceLowerThan uint32 `protobuf:"varint,3,opt,name=SpendableBalanceLowerThan,proto3" json:"SpendableBalanceLowerThan,omitempty"`
-	// Fetch AccountBalance by its spendablebalance (account spendablebalance >  BalanceHigherThan)
-	SpendableBalanceHigherThan uint32 `protobuf:"varint,4,opt,name=SpendableBalanceHigherThan,proto3" json:"SpendableBalanceHigherThan,omitempty"`
-	// Fetch AccountBalance by its spendablebalance (account spendablebalance <  BalanceLowerThan)
-	PopRevenueBalanceLowerThan uint32 `protobuf:"varint,5,opt,name=PopRevenueBalanceLowerThan,proto3" json:"PopRevenueBalanceLowerThan,omitempty"`
-	// Fetch AccountBalance by its popRevenuebalance (account popRevenuebalance >  BalanceHigherThan)
-	PopRevenueBalanceHigherThan uint32 `protobuf:"varint,6,opt,name=PopRevenueBalanceHigherThan,proto3" json:"PopRevenueBalanceHigherThan,omitempty"`
-	// Fetch AccountBalance by its Block height
-	BlockHeight          uint32   `protobuf:"varint,7,opt,name=BlockHeight,proto3" json:"BlockHeight,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *GetAccountBalancesRequest) Reset()         { *m = GetAccountBalancesRequest{} }
