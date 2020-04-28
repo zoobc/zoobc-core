@@ -1399,7 +1399,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// clear block pool
 	bs.BlockPoolService.ClearBlockPool()
 
-	// Need to sort descending since was ascended in above by Height
+	// Need to sort ascending since was descended in above by Height
 	sort.Slice(poppedBlocks, func(i, j int) bool {
 		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
 	})
