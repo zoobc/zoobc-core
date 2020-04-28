@@ -67,16 +67,16 @@ func (abs *AccountBalanceService) GetAccountBalances(
 		err             error
 	)
 
-	caseQ.Select(abs.AccountBalancesQuery.TableName, abs.AccountBalancesQuery.Fields...)
-	if len(request.AccountAddresses) > 0 {
-		var accountAddresses []interface{}
-		for _, v := range request.AccountAddresses {
-			accountAddresses = append(accountAddresses, v)
-		}
-		caseQ.And(caseQ.In("account_address", accountAddresses...))
-	} else {
+	if len(request.AccountAddresses) == 0 {
 		return nil, errors.New("error: at least 1 address is required")
 	}
+
+	caseQ.Select(abs.AccountBalancesQuery.TableName, abs.AccountBalancesQuery.Fields...)
+	var accountAddresses []interface{}
+	for _, v := range request.AccountAddresses {
+		accountAddresses = append(accountAddresses, v)
+	}
+	caseQ.And(caseQ.In("account_address", accountAddresses...))
 
 	selectQ, args := caseQ.Build()
 	rows, err = abs.QueryExecutor.ExecuteSelect(selectQ, false, args...)
