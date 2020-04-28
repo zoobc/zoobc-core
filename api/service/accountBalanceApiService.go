@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -18,15 +17,19 @@ type (
 
 	AccountBalanceService struct {
 		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Executor            query.ExecutorInterface
+		QueryExecutor       query.ExecutorInterface
+
+		AccountBalancesQuery *query.AccountBalanceQuery
 	}
 )
 
 func NewAccountBalanceService(executor query.ExecutorInterface,
-	accountBalanceQuery query.AccountBalanceQueryInterface) *AccountBalanceService {
+	accountBalanceQuery query.AccountBalanceQueryInterface,
+	accountBalancesQuery *query.AccountBalanceQuery) *AccountBalanceService {
 	return &AccountBalanceService{
-		AccountBalanceQuery: accountBalanceQuery,
-		Executor:            executor,
+		AccountBalanceQuery:  accountBalanceQuery,
+		QueryExecutor:        executor,
+		AccountBalancesQuery: accountBalancesQuery,
 	}
 }
 
@@ -38,7 +41,7 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 	)
 
 	qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(request.AccountAddress)
-	row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
+	row, _ = abs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -53,31 +56,31 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 	}, nil
 }
 
-func (abs *AccountBalanceService) GetAccountBalances(request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
-
-	if len(request.AccountAddresses) == 0 {
-		return nil, errors.New("error: at least 1 address is required")
-	}
-
+func (abs *AccountBalanceService) GetAccountBalances(
+	request *model.GetAccountBalancesRequest,
+) (*model.GetAccountBalancesResponse, error) {
 	var (
-		accountBalance  model.AccountBalance
 		accountBalances []*model.AccountBalance
-		row             *sql.Row
+		caseQ           = query.NewCaseQuery()
+		rows            *sql.Rows
 		err             error
 	)
 
-	for _, accountAddress := range request.AccountAddresses {
-		qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(accountAddress)
-		row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
-		err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
-		if err != nil {
-			accountBalance = model.AccountBalance{AccountAddress: accountAddress}
-		}
+	caseQ.Select(abs.AccountBalancesQuery.TableName, abs.AccountBalancesQuery.Fields...)
 
-		accountBalances = append(accountBalances, &accountBalance)
+	selectQ, args := caseQ.Build()
+	rows, err = abs.QueryExecutor.ExecuteSelect(selectQ, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+
+	accountBalances, err = abs.AccountBalancesQuery.BuildModel([]*model.AccountBalance{}, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &model.GetAccountBalancesResponse{
-		AccountBalance: accountBalances,
+		AccountBalances: accountBalances,
 	}, nil
 }

@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -212,7 +213,7 @@ type GetAccountBalancesResponse struct {
 	// Number of accounts returned
 	AccountBalanceSize uint32 `protobuf:"varint,1,opt,name=AccountBalanceSize,proto3" json:"AccountBalanceSize,omitempty"`
 	// AccountBalances returned
-	AccountBalance       []*AccountBalance `protobuf:"bytes,2,rep,name=AccountBalance,proto3" json:"AccountBalance,omitempty"`
+	AccountBalances      []*AccountBalance `protobuf:"bytes,2,rep,name=AccountBalance,proto3" json:"AccountBalance,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -250,9 +251,9 @@ func (m *GetAccountBalancesResponse) GetAccountBalanceSize() uint32 {
 	return 0
 }
 
-func (m *GetAccountBalancesResponse) GetAccountBalance() []*AccountBalance {
+func (m *GetAccountBalancesResponse) GetAccountBalances() []*AccountBalance {
 	if m != nil {
-		return m.AccountBalance
+		return m.AccountBalances
 	}
 	return nil
 }
