@@ -80,10 +80,7 @@ func (mpsu *MempoolServiceUtil) ValidateMempoolTransaction(mpTx *model.MempoolTr
 
 	// check for duplication in mempool table
 	mempoolQ := mpsu.MempoolQuery.GetMempoolTransaction()
-	row, err = mpsu.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
+	row, _ = mpsu.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
 	err = mpsu.MempoolQuery.Scan(&mempoolTx, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -121,7 +118,7 @@ func (mpsu *MempoolServiceUtil) AddMempoolTransaction(mpTx *model.MempoolTransac
 	)
 	// check maximum mempool
 	if constant.MaxMempoolTransactions > 0 {
-		count, err := mpsu.MempoolGetter.GetTotalMempoolTransactions()
+		var count, err = mpsu.MempoolGetter.GetTotalMempoolTransactions()
 		if err != nil {
 			return err
 		}
@@ -131,7 +128,7 @@ func (mpsu *MempoolServiceUtil) AddMempoolTransaction(mpTx *model.MempoolTransac
 	}
 
 	// NOTE: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
-	row, err = mpsu.QueryExecutor.ExecuteSelectRow(mpsu.BlockQuery.GetLastBlock(), false)
+	row, err = mpsu.QueryExecutor.ExecuteSelectRow(mpsu.BlockQuery.GetLastBlock(), true)
 	if err != nil {
 		return err
 	}
