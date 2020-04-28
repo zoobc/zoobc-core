@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -25,10 +24,6 @@ func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
 
 func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context,
 	request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
-
-	if len(request.AccountAddresses) == 0 {
-		return nil, errors.New("error: at least 1 address is required")
-	}
 
 	accountBalances, err := abh.Service.GetAccountBalances(request)
 	if err != nil {

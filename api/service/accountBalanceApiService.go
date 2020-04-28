@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -53,6 +54,11 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 }
 
 func (abs *AccountBalanceService) GetAccountBalances(request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
+
+	if len(request.AccountAddresses) == 0 {
+		return nil, errors.New("error: at least 1 address is required")
+	}
+
 	var (
 		accountBalance  model.AccountBalance
 		accountBalances []*model.AccountBalance
@@ -60,7 +66,7 @@ func (abs *AccountBalanceService) GetAccountBalances(request *model.GetAccountBa
 		err             error
 	)
 
-	for i, accountAddress := range request.AccountAddresses {
+	for _, accountAddress := range request.AccountAddresses {
 		qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(accountAddress)
 		row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
 		err = abs.AccountBalanceQuery.Scan(&accountBalance, row)

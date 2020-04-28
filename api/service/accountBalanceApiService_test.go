@@ -182,6 +182,28 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 		wantErr bool
 	}{
 		// TODO: Add test cases.
+		{
+			name: "GetAccountBalances:AccountAddressesIsEmpty",
+			args: args{
+				request: &model.GetAccountBalancesRequest{AccountAddresses: []string{}},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		// {
+		// 	name: "GetAccountBalances:Success",
+		// 	args: args{
+		// 		request: &model.GetAccountBalancesRequest{
+		// 			AccountAddresses: []string{
+		// 				"OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+		// 				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		// 				"iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxbxxx",
+		// 			},
+		// 		},
+		// 	},
+		// 	want:    &model.GetAccountBalancesResponse{},
+		// 	wantErr: false,
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
