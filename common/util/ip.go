@@ -12,6 +12,12 @@ import (
 type (
 	IPUtil struct {
 	}
+	IPUtilInterface interface {
+		GetPublicIP() (ip net.IP, err error)
+		GetPublicIPDYNDNS() (ip net.IP, err error)
+		IsDomain(address string) bool
+		IsPublicIP(ip net.IP) bool
+	}
 )
 
 // GetPublicIP allowing to get own external/public ip,
@@ -82,6 +88,7 @@ func (ipu *IPUtil) GetPublicIPDYNDNS() (net.IP, error) {
 	return nil, fmt.Errorf("invalid ip address")
 }
 
+// IsDomain willing to check what kinda address given
 func (ipu *IPUtil) IsDomain(address string) bool {
 	addr := net.ParseIP(address)
 	return addr == nil
