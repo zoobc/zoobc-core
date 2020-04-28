@@ -1281,24 +1281,25 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	var (
 		mempoolsBackupBytes *bytes.Buffer
 		mempoolsBackup      []*model.MempoolTransaction
+		publishedReceipts   []*model.PublishedReceipt
 		err                 error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
-		return []*model.Block{}, err
+		return nil, err
 	}
 	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
 		bs.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
-		return []*model.Block{}, nil
+		return nil, nil
 	}
 
 	_, err = bs.GetBlockByID(commonBlock.ID, false)
 	if err != nil {
-		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
 	var poppedBlocks []*model.Block
@@ -1307,7 +1308,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// TODO:
 	// Need to refactor this codes with better solution in the future
 	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1319,7 +1320,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		if err != nil {
 			return nil, err
 		}
-		publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+		publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
@@ -1335,7 +1336,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
 	err = bs.QueryExecutor.BeginTx()
 	if err != nil {
-		return []*model.Block{}, err
+		return nil, err
 	}
 
 	for _, dQuery := range derivedQueries {
@@ -1343,7 +1344,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			_ = bs.QueryExecutor.RollbackTx()
-			return []*model.Block{}, err
+			return nil, err
 		}
 	}
 
