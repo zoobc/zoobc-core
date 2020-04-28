@@ -208,55 +208,6 @@ func (m *GetAccountBalancesRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetAccountBalancesRequest proto.InternalMessageInfo
 
-func (m *GetAccountBalancesRequest) GetBalanceLowerThan() uint32 {
-	if m != nil {
-		return m.BalanceLowerThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetBalanceHigherThan() uint32 {
-	if m != nil {
-		return m.BalanceHigherThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetSpendableBalanceLowerThan() uint32 {
-	if m != nil {
-		return m.SpendableBalanceLowerThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetSpendableBalanceHigherThan() uint32 {
-	if m != nil {
-		return m.SpendableBalanceHigherThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetPopRevenueBalanceLowerThan() uint32 {
-	if m != nil {
-		return m.PopRevenueBalanceLowerThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetPopRevenueBalanceHigherThan() uint32 {
-	if m != nil {
-		return m.PopRevenueBalanceHigherThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetBlockHeight() uint32 {
-	if m != nil {
-		return m.BlockHeight
-	}
-	return 0
-}
-
 type GetAccountBalancesResponse struct {
 	// Number of accounts returned
 	AccountBalanceSize uint32 `protobuf:"varint,1,opt,name=AccountBalanceSize,proto3" json:"AccountBalanceSize,omitempty"`

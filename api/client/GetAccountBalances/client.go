@@ -30,17 +30,13 @@ func main() {
 	defer conn.Close()
 
 	c := rpc_service.NewAccountBalanceServiceClient(conn)
-	fmt.Println("LEWATTTT 1")
-
-	accountAddresses := []string{
-		"iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
-	}
-	fmt.Println("accountAddresses::", accountAddresses)
 
 	response, err := c.GetAccountBalances(context.Background(), &rpc_model.GetAccountBalancesRequest{
-		AccountAddresses: accountAddresses,
+		AccountAddresses: []string{
+			"OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			"iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxbxxx",
+		},
 	})
 
 	if err != nil {

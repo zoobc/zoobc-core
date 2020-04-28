@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -63,18 +62,14 @@ func (abs *AccountBalanceService) GetAccountBalances(request *model.GetAccountBa
 	// fmt.Println("2. request.AccountAddresses::", request.AccountAddresses)
 
 	for _, accountAddress := range request.AccountAddresses {
-		fmt.Println("accountAddress::", accountAddress)
-
 		qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(accountAddress)
 		row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
 		err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
 		if err != nil {
-			if err != sql.ErrNoRows {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			return nil, status.Error(codes.NotFound, "account not found")
-
+			accountBalance := model.AccountBalance{}
+			accountBalance.AccountAddress = accountAddress
 		}
+
 		accountBalances = append(accountBalances, &accountBalance)
 	}
 
