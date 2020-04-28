@@ -7,9 +7,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-type AccountBalanceHandler struct {
-	Service service.AccountBalanceServiceInterface
-}
+type (
+	AccountBalanceHandler struct {
+		Service service.AccountBalanceServiceInterface
+	}
+)
 
 func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
 	request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error) {
@@ -22,6 +24,12 @@ func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
 
 func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context,
 	request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
-	// todo: implement this after have filter
-	return nil, nil
+
+	fmt.Println("1. request.AccountAddresses::", request.AccountAddresses)
+
+	accountBalances, err := abh.Service.GetAccountBalances(request)
+	if err != nil {
+		return nil, err
+	}
+	return accountBalances, nil
 }

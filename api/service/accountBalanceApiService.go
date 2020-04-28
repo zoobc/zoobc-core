@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -12,6 +13,7 @@ import (
 type (
 	AccountBalanceServiceInterface interface {
 		GetAccountBalance(request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error)
+		GetAccountBalances(request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error)
 	}
 
 	AccountBalanceService struct {
@@ -48,5 +50,35 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 
 	return &model.GetAccountBalanceResponse{
 		AccountBalance: &accountBalance,
+	}, nil
+}
+
+func (abs *AccountBalanceService) GetAccountBalances(request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
+	var (
+		accountBalance  model.AccountBalance
+		accountBalances []*model.AccountBalance
+		row             *sql.Row
+		err             error
+	)
+	// fmt.Println("2. request.AccountAddresses::", request.AccountAddresses)
+
+	for _, accountAddress := range request.AccountAddresses {
+		fmt.Println("accountAddress::", accountAddress)
+
+		qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(accountAddress)
+		row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
+		err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return nil, status.Error(codes.NotFound, "account not found")
+
+		}
+		accountBalances = append(accountBalances, &accountBalance)
+	}
+
+	return &model.GetAccountBalancesResponse{
+		AccountBalance: accountBalances,
 	}, nil
 }

@@ -180,6 +180,7 @@ func (m *GetAccountBalanceResponse) GetAccountBalance() *AccountBalance {
 }
 
 type GetAccountBalancesRequest struct {
+	AccountAddresses []string `protobuf:"bytes,1,opt,name=AccountAddresses,proto3" json:"AccountAddresses,omitempty"`
 	// Fetch AccountBalance by its balance (account balance <  BalanceLowerThan)
 	BalanceLowerThan uint32 `protobuf:"varint,1,opt,name=BalanceLowerThan,proto3" json:"BalanceLowerThan,omitempty"`
 	// Fetch AccountBalance by its balance (account balance >  BalanceHigherThan)
