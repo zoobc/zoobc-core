@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -180,23 +181,7 @@ func (m *GetAccountBalanceResponse) GetAccountBalance() *AccountBalance {
 }
 
 type GetAccountBalancesRequest struct {
-	// Fetch AccountBalance by its balance (account balance <  BalanceLowerThan)
-	BalanceLowerThan uint32 `protobuf:"varint,1,opt,name=BalanceLowerThan,proto3" json:"BalanceLowerThan,omitempty"`
-	// Fetch AccountBalance by its balance (account balance >  BalanceHigherThan)
-	BalanceHigherThan uint32 `protobuf:"varint,2,opt,name=BalanceHigherThan,proto3" json:"BalanceHigherThan,omitempty"`
-	// Fetch AccountBalance by its spendablebalance (account spendablebalance <  BalanceLowerThan)
-	SpendableBalanceLowerThan uint32 `protobuf:"varint,3,opt,name=SpendableBalanceLowerThan,proto3" json:"SpendableBalanceLowerThan,omitempty"`
-	// Fetch AccountBalance by its spendablebalance (account spendablebalance >  BalanceHigherThan)
-	SpendableBalanceHigherThan uint32 `protobuf:"varint,4,opt,name=SpendableBalanceHigherThan,proto3" json:"SpendableBalanceHigherThan,omitempty"`
-	// Fetch AccountBalance by its spendablebalance (account spendablebalance <  BalanceLowerThan)
-	PopRevenueBalanceLowerThan uint32 `protobuf:"varint,5,opt,name=PopRevenueBalanceLowerThan,proto3" json:"PopRevenueBalanceLowerThan,omitempty"`
-	// Fetch AccountBalance by its popRevenuebalance (account popRevenuebalance >  BalanceHigherThan)
-	PopRevenueBalanceHigherThan uint32 `protobuf:"varint,6,opt,name=PopRevenueBalanceHigherThan,proto3" json:"PopRevenueBalanceHigherThan,omitempty"`
-	// Fetch AccountBalance by its Block height
-	BlockHeight          uint32   `protobuf:"varint,7,opt,name=BlockHeight,proto3" json:"BlockHeight,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	AccountAddresses []string `protobuf:"bytes,1,opt,name=AccountAddresses,proto3" json:"AccountAddresses,omitempty"`
 }
 
 func (m *GetAccountBalancesRequest) Reset()         { *m = GetAccountBalancesRequest{} }
@@ -224,60 +209,11 @@ func (m *GetAccountBalancesRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetAccountBalancesRequest proto.InternalMessageInfo
 
-func (m *GetAccountBalancesRequest) GetBalanceLowerThan() uint32 {
-	if m != nil {
-		return m.BalanceLowerThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetBalanceHigherThan() uint32 {
-	if m != nil {
-		return m.BalanceHigherThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetSpendableBalanceLowerThan() uint32 {
-	if m != nil {
-		return m.SpendableBalanceLowerThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetSpendableBalanceHigherThan() uint32 {
-	if m != nil {
-		return m.SpendableBalanceHigherThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetPopRevenueBalanceLowerThan() uint32 {
-	if m != nil {
-		return m.PopRevenueBalanceLowerThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetPopRevenueBalanceHigherThan() uint32 {
-	if m != nil {
-		return m.PopRevenueBalanceHigherThan
-	}
-	return 0
-}
-
-func (m *GetAccountBalancesRequest) GetBlockHeight() uint32 {
-	if m != nil {
-		return m.BlockHeight
-	}
-	return 0
-}
-
 type GetAccountBalancesResponse struct {
 	// Number of accounts returned
 	AccountBalanceSize uint32 `protobuf:"varint,1,opt,name=AccountBalanceSize,proto3" json:"AccountBalanceSize,omitempty"`
 	// AccountBalances returned
-	AccountBalance       []*AccountBalance `protobuf:"bytes,2,rep,name=AccountBalance,proto3" json:"AccountBalance,omitempty"`
+	AccountBalances      []*AccountBalance `protobuf:"bytes,2,rep,name=AccountBalance,proto3" json:"AccountBalance,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
 	XXX_unrecognized     []byte            `json:"-"`
 	XXX_sizecache        int32             `json:"-"`
@@ -315,9 +251,9 @@ func (m *GetAccountBalancesResponse) GetAccountBalanceSize() uint32 {
 	return 0
 }
 
-func (m *GetAccountBalancesResponse) GetAccountBalance() []*AccountBalance {
+func (m *GetAccountBalancesResponse) GetAccountBalances() []*AccountBalance {
 	if m != nil {
-		return m.AccountBalance
+		return m.AccountBalances
 	}
 	return nil
 }

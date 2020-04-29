@@ -2,14 +2,17 @@ package handler
 
 import (
 	"context"
+	"errors"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-type AccountBalanceHandler struct {
-	Service service.AccountBalanceServiceInterface
-}
+type (
+	AccountBalanceHandler struct {
+		Service service.AccountBalanceServiceInterface
+	}
+)
 
 func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
 	request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error) {
@@ -22,6 +25,10 @@ func (abh *AccountBalanceHandler) GetAccountBalance(ctx context.Context,
 
 func (abh *AccountBalanceHandler) GetAccountBalances(ctx context.Context,
 	request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
-	// todo: implement this after have filter
-	return nil, nil
+
+	if len(request.AccountAddresses) == 0 {
+		return nil, errors.New("error: at least 1 address is required")
+	}
+
+	return abh.Service.GetAccountBalances(request)
 }
