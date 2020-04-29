@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -3421,6 +3422,9 @@ type (
 	mockSpineBlockManifestServiceSuccesGetManifestFromHeight struct {
 		SpineBlockManifestServiceInterface
 	}
+	mockSpineExecutorBlockPopSuccessPoppedBlocks struct {
+		query.Executor
+	}
 )
 
 func (*mockSnapshotMainBlockServiceDeleteFail) DeleteFileByChunkHashes([]byte) error {
@@ -3456,6 +3460,70 @@ func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockMa
 ) {
 	return make([]*model.SpineBlockManifest, 0), nil
 }
+
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) BeginTx() error {
+	return nil
+}
+
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) CommitTx() error {
+	return nil
+}
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteTransactions([][]interface{}) error {
+	return nil
+}
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) RollbackTx() error {
+	return nil
+}
+
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	mockedRows := mock.NewRows(blockQ.Fields)
+	switch {
+	case strings.Contains(qStr, "WHERE height ="):
+		mockedRows.AddRow(
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+		)
+	default:
+		mockedRows.AddRow(
+			int64(100),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+		)
+
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
+	return db.QueryRow(qStr), nil
+}
+
 func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	type fields struct {
 		RWMutex                   sync.RWMutex
@@ -3637,6 +3705,49 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			want:    nil,
 			wantErr: false,
 		},
+		{
+			name: "GetManifestFromSpineBlockHeightPoppedOffBlocks",
+			fields: fields{
+				RWMutex:                 sync.RWMutex{},
+				Chaintype:               &chaintype.SpineChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockSpineExecutorBlockPopSuccessPoppedBlocks{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockSpineMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockSpineReceiptSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				Observer:                nil,
+				Logger:                  log.New(),
+				SpinePublicKeyService: &BlockSpinePublicKeyService{
+					Logger:                log.New(),
+					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+					QueryExecutor:         &mockSpineExecutorBlockPopSuccess{},
+					Signature:             nil,
+					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
+				},
+				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
+				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
+			},
+			args: args{
+				commonBlock: mockSpineGoodCommonBlock,
+			},
+			want: []*model.Block{
+				{
+					ID:                  int64(100),
+					Height:              mockGoodBlock.GetHeight(),
+					SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -3658,7 +3769,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PopOffToBlock() got = %v, want %v", got, tt.want)
+				t.Errorf("PopOffToBlock() got = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

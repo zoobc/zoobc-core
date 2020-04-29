@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -4243,6 +4244,75 @@ func (*mockPopOffToBlockTransactionCoreService) GetTransactionsByBlockID(blockID
 
 func (*mockBlockPoolServicePopOffToBlockSuccess) ClearBlockPool() {}
 
+type (
+	mockedExecutorPopOffToBlockSuccessPopping struct {
+		query.Executor
+	}
+)
+
+func (*mockedExecutorPopOffToBlockSuccessPopping) BeginTx() error {
+	return nil
+}
+
+func (*mockedExecutorPopOffToBlockSuccessPopping) CommitTx() error {
+	return nil
+}
+func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteTransactions([][]interface{}) error {
+	return nil
+}
+func (*mockedExecutorPopOffToBlockSuccessPopping) RollbackTx() error {
+	return nil
+}
+
+func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	mockedRows := mock.NewRows(blockQ.Fields)
+	switch {
+	case strings.Contains(qStr, "WHERE height ="):
+		mockedRows.AddRow(
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+		)
+	default:
+		mockedRows.AddRow(
+			int64(100),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+		)
+
+	}
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
+	return db.QueryRow(qStr), nil
+}
+
 func TestBlockService_PopOffToBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -4304,7 +4374,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			args: args{
 				commonBlock: mockGoodCommonBlock,
 			},
-			want:    make([]*model.Block, 0),
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -4335,7 +4405,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			args: args{
 				commonBlock: mockBadCommonBlockHardFork,
 			},
-			want:    make([]*model.Block, 0),
+			want:    nil,
 			wantErr: false,
 		},
 		{
@@ -4366,7 +4436,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			args: args{
 				commonBlock: mockGoodCommonBlock,
 			},
-			want:    make([]*model.Block, 0),
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -4462,6 +4532,57 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			want:    nil,
 			wantErr: false,
 		},
+		{
+			name: "SuccessWithPoppingBlocks",
+			fields: fields{
+				Chaintype:               &chaintype.MainChain{},
+				KVExecutor:              nil,
+				QueryExecutor:           &mockedExecutorPopOffToBlockSuccessPopping{},
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:            nil,
+				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:         nil,
+				PublishedReceiptQuery:   nil,
+				SkippedBlocksmithQuery:  nil,
+				Signature:               nil,
+				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
+				ReceiptService:          &mockReceiptSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
+				ActionTypeSwitcher:      nil,
+				AccountBalanceQuery:     nil,
+				ParticipationScoreQuery: nil,
+				NodeRegistrationQuery:   nil,
+				Observer:                nil,
+				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
+				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
+				Logger:                  log.New(),
+			},
+			args: args{
+				commonBlock: mockGoodCommonBlock,
+			},
+			want: []*model.Block{
+				{
+					ID:                   int64(100),
+					BlockHash:            mockGoodBlock.GetBlockHash(),
+					PreviousBlockHash:    mockGoodBlock.GetPreviousBlockHash(),
+					Height:               mockGoodBlock.GetHeight(),
+					Timestamp:            mockGoodBlock.GetTimestamp(),
+					BlockSeed:            mockGoodBlock.GetBlockSeed(),
+					BlockSignature:       mockGoodBlock.GetBlockSignature(),
+					CumulativeDifficulty: mockGoodBlock.GetCumulativeDifficulty(),
+					PayloadLength:        mockGoodBlock.GetPayloadLength(),
+					PayloadHash:          mockGoodBlock.GetPayloadHash(),
+					BlocksmithPublicKey:  mockGoodBlock.GetBlocksmithPublicKey(),
+					TotalAmount:          mockGoodBlock.GetTotalAmount(),
+					TotalFee:             mockGoodBlock.GetTotalFee(),
+					TotalCoinBase:        mockGoodBlock.GetTotalCoinBase(),
+					Version:              mockGoodBlock.GetVersion(),
+					PublishedReceipts:    make([]*model.PublishedReceipt, 0),
+					Transactions:         make([]*model.Transaction, 0),
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -4494,7 +4615,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PopOffToBlock() got = %v, want %v", got, tt.want)
+				t.Errorf("PopOffToBlock() got = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
