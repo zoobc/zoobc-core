@@ -176,7 +176,9 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 
 	// append to preRegistered nodes/accounts previous entries from a blockchain db file
 	outPath := "../resource/generated/genesis"
-	os.MkdirAll(outPath, os.ModePerm)
+	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
+		log.Fatalf("can't create folder %s. error: %s", outPath, err)
+	}
 	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath))
 	clusterConfig := generateClusterConfigFile(bcState, fmt.Sprintf("%s/cluster_config.json", outPath))
 	// generate a bash script to init consul key/value data store in case we automatically deploy all nodes in genesis
