@@ -141,7 +141,6 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 }
 
 func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
-
 	return mps.MempoolServiceUtil.ValidateMempoolTransaction(mpTx)
 }
 
@@ -236,8 +235,8 @@ func (mps *MempoolService) ReceivedTransaction(
 		SenderAccountAddress:    receivedTx.SenderAccountAddress,
 		RecipientAccountAddress: receivedTx.RecipientAccountAddress,
 	}
-
-	if err := mps.QueryExecutor.BeginTx(); err != nil {
+	err = mps.QueryExecutor.BeginTx()
+	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
@@ -260,12 +259,11 @@ func (mps *MempoolService) ReceivedTransaction(
 		}
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-
-	if err = mps.QueryExecutor.CommitTx(); err != nil {
+	err = mps.QueryExecutor.CommitTx()
+	if err != nil {
 		mps.Logger.Warnf("error committing db transaction: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-
 	mps.Observer.Notify(observer.TransactionAdded, receivedTxBytes, mps.Chaintype)
 	return batchReceipt, nil
 }

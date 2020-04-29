@@ -143,7 +143,7 @@ func (qe *Executor) ExecuteSelectRow(query string, tx bool, args ...interface{})
 		} else {
 			return nil, blocker.NewBlocker(
 				blocker.DBErr,
-				"transaction need to be begun before read the transaction state",
+				"ExecuteSelectRow, transaction need to be begun before read the transaction state",
 			)
 		}
 	} else {
@@ -155,7 +155,13 @@ func (qe *Executor) ExecuteSelectRow(query string, tx bool, args ...interface{})
 // ExecuteTransaction execute a single transaction without committing it to database
 // ExecuteTransaction should only be called after BeginTx and before CommitTx
 func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
-	stmt, err := qe.Tx.Prepare(qStr)
+	if qe.Tx == nil {
+		return blocker.NewBlocker(
+			blocker.DBErr,
+			"ExecuteTransaction, transaction need to be begun before read the transaction state",
+		)
+	}
+	var stmt, err = qe.Tx.Prepare(qStr)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -193,13 +199,19 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 func (qe *Executor) CommitTx() error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	err := qe.Tx.Commit()
-
 	defer func() {
-		qe.Unlock() // either success or not struct access should be unlocked once done
 		qe.Tx = nil
+		qe.Unlock() // either success or not struct access should be unlocked once done
+
 	}()
 	if err != nil {
-		_ = qe.Tx.Rollback()
+		var errRollback = qe.Tx.Rollback()
+		if errRollback != nil {
+			return blocker.NewBlocker(
+				blocker.DBErr,
+				fmt.Sprintf("error Commit: %s; err Rollback: %s", err.Error(), errRollback.Error()),
+			)
+		}
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
@@ -208,9 +220,11 @@ func (qe *Executor) CommitTx() error {
 // RollbackTx rollback and unlock executor in case any single tx fail
 func (qe *Executor) RollbackTx() error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
-	err := qe.Tx.Rollback()
-	qe.Tx = nil
-	defer qe.Unlock()
+	var err = qe.Tx.Rollback()
+	defer func() {
+		qe.Tx = nil
+		qe.Unlock()
+	}()
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
