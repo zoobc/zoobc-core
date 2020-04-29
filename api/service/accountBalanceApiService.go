@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"errors"
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -66,10 +65,6 @@ func (abs *AccountBalanceService) GetAccountBalances(
 		rows            *sql.Rows
 		err             error
 	)
-
-	if len(request.AccountAddresses) == 0 {
-		return nil, errors.New("error: at least 1 address is required")
-	}
 
 	caseQ.Select(abs.AccountBalancesQuery.TableName, abs.AccountBalancesQuery.Fields...)
 	var accountAddresses []interface{}
