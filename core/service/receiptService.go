@@ -451,7 +451,7 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 		return err
 	}
 
-	limiter := int(lastBlock.GetHeight()) - (constant.NodeReceiptExpiryBlockHeight + int(constant.MinRollbackBlocks))
+	limiter := lastBlock.GetHeight() + (2 * constant.MinRollbackBlocks)
 	if limiter > 0 {
 		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
 			uint32(limiter),
