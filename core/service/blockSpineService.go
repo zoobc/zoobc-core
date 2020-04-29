@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -858,6 +859,11 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 			}
 		}
 	}()
+
+	// Need to sort ascending since was descended in above by Height
+	sort.Slice(poppedBlocks, func(i, j int) bool {
+		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
+	})
 
 	return poppedBlocks, nil
 }

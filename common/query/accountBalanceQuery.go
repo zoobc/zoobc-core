@@ -180,10 +180,18 @@ func (q *AccountBalanceQuery) Rollback(height uint32) (multiQueries [][]interfac
 }
 
 func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	snapshotField := []string{
+		"account_address",
+		"block_height",
+		"balance",
+		"balance",
+		"pop_revenue",
+		"latest",
+	}
 	return fmt.Sprintf("SELECT %s FROM %s WHERE (account_address, block_height) IN (SELECT t2.account_address, "+
 		"MAX(t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.account_address) ORDER BY"+
 		" block_height",
-		strings.Join(q.Fields, ","), q.TableName, q.TableName, fromHeight, toHeight)
+		strings.Join(snapshotField, ","), q.TableName, q.TableName, fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
