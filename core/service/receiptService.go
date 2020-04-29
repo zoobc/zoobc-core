@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -454,11 +453,11 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	limiter := lastBlock.GetHeight() + (2 * constant.MinRollbackBlocks)
 	if limiter > 0 {
 		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-			uint32(limiter),
+			limiter,
 			constant.PruningChunkedSize,
 		)
 		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-			uint32(limiter),
+			limiter,
 			constant.PruningChunkedSize,
 		)
 		err = rs.QueryExecutor.BeginTx()
