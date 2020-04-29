@@ -185,14 +185,7 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 		want    *model.GetAccountBalancesResponse
 		wantErr bool
 	}{
-		{
-			name: "GetAccountBalances:AccountAddressesIsEmpty",
-			args: args{
-				request: &model.GetAccountBalancesRequest{AccountAddresses: []string{}},
-			},
-			want:    nil,
-			wantErr: true,
-		},
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
