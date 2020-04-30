@@ -7,15 +7,22 @@ reset_dbs: &reset_dbs
     name: RESET DBs
     command: |
         if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
-          for host in $ln1 $ln2 $ln3; do ssh root@$host 'for f in *.db; do mv -- "$f" "_$f"; done'; done
+          for host in $ln1 $ln2 $ln3; do
+            echo "Trying to reset db on $host"
+            ssh root@$host 'cd /root/zoobc/resource && for f in *.db; do mv -- "$f" "_$f"; done && rm -rf snapshots* *_kv';
+          done;
+        else
+          echo "All good without reset db";
         fi
 reset_db: &reset_db
     name: RESET DB
     command: |
         if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
-          ssh root@$ln4 'for f in *.db; do mv -- "$f" "_$f"; done';
+          echo "Trying to reset db on ${ln4}"
+          ssh root@$ln4 'cd /root/zoobc/resource && for f in *.db; do mv -- "$f" "_$f"; done && rm -rf snapsnots* *_kv';
+        else
+         echo "All good without reset db"
         fi
-
 jobs:
     prepare:
         <<: *defaults

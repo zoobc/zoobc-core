@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -47,56 +48,55 @@ func (tx *ClaimNodeRegistration) SkipMempoolTransaction(selectedTransactions []*
 
 func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
-		nodeQueries          [][]interface{}
-		prevNodeRegistration *model.NodeRegistration
+		nodeReg model.NodeRegistration
+		row     *sql.Row
+		err     error
+		queries [][]interface{}
 	)
 
-	rows, err := tx.QueryExecutor.ExecuteSelect(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.NodePublicKey)
+	row, _ = tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.GetNodePublicKey())
+	err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 	if err != nil {
+		if err != sql.ErrNoRows {
 		return err
 	}
-	defer rows.Close()
-
-	nr, err := tx.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || (len(nr) == 0) {
 		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
 	}
-	prevNodeRegistration = nr[0]
 
-	// tag the node as deleted
-	nodeRegistration := &model.NodeRegistration{
-		NodeID:             prevNodeRegistration.NodeID,
-		LockedBalance:      0,
-		Height:             tx.Height,
-		NodeAddress:        nil,
-		RegistrationHeight: prevNodeRegistration.RegistrationHeight,
-		NodePublicKey:      tx.Body.NodePublicKey,
-		Latest:             true,
-		RegistrationStatus: uint32(model.NodeRegistrationState_NodeDeleted),
-		// We can't just set accountAddress to an empty string,
-		// otherwise it could trigger an error when parsing the transaction from its bytes
-		AccountAddress: prevNodeRegistration.AccountAddress,
-	}
 	// update sender balance by claiming the locked balance
 	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		prevNodeRegistration.LockedBalance-tx.Fee,
+		nodeReg.GetLockedBalance()-tx.Fee,
 		map[string]interface{}{
 			"account_address": tx.SenderAddress,
 			"block_height":    tx.Height,
 		},
 	)
-	nodeQueries = tx.NodeRegistrationQuery.UpdateNodeRegistration(nodeRegistration)
-	queries := append(accountBalanceSenderQ, nodeQueries...)
+	queries = append(queries, accountBalanceSenderQ...)
+
+	// tag the node as deleted
+	nodeQueries := tx.NodeRegistrationQuery.UpdateNodeRegistration(&model.NodeRegistration{
+		NodeID:             nodeReg.GetNodeID(),
+		LockedBalance:      0,
+		Height:             tx.Height,
+		NodeAddress:        nil,
+		RegistrationHeight: nodeReg.GetRegistrationHeight(),
+		NodePublicKey:      tx.Body.NodePublicKey,
+		Latest:             true,
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeDeleted),
+		// We can't just set accountAddress to an empty string,
+		// otherwise it could trigger an error when parsing the transaction from its bytes
+		AccountAddress: nodeReg.GetAccountAddress(),
+	})
+	queries = append(queries, nodeQueries...)
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
-		BalanceChange:  prevNodeRegistration.LockedBalance - tx.Fee,
+		BalanceChange:  nodeReg.GetLockedBalance() - tx.Fee,
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
 		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
-
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 	queries = append(queries, senderAccountLedgerArgs)
 

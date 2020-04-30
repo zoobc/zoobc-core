@@ -93,7 +93,7 @@ func (ss *FileDownloader) DownloadSnapshot(ct chaintype.ChainType, spineBlockMan
 		SnapshotFileHash:           spineBlockManifest.GetFullFileHash(),
 		FileChunksHashes:           fileChunkHashes,
 		ChainType:                  ct.GetTypeInt(),
-		Height:                     spineBlockManifest.SpineBlockManifestHeight,
+		Height:                     spineBlockManifest.ManifestReferenceHeight,
 		ProcessExpirationTimestamp: spineBlockManifest.ExpirationTimestamp,
 		SpineBlockManifestType:     model.SpineBlockManifestType_Snapshot,
 	}, nil

@@ -487,8 +487,7 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
 				"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) FROM node_registry as t2 WHERE t2." +
-				"height >= 0 AND t2.height < 720 GROUP BY t2.id) AND id NOT IN (SELECT DISTINCT t3.id FROM node_registry as t3 WHERE t3." +
-				"height >= 720 AND t3.height < 1440) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
+				"height >= 0 AND t2.height < 720 GROUP BY t2.id) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
 				"locked_balance,registration_status,latest," +
 				"height FROM node_registry WHERE height >= 720 AND height <= 1440 ORDER BY height, id",
 		},
@@ -501,6 +500,37 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 			}
 			if got := nrq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("NodeRegistrationQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationQuery_GetNodeRegistryAtHeight(t *testing.T) {
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "GetNodeRegistryAtHeightQuery",
+			args: args{
+				height: 11120,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+				"locked_balance, registration_status, latest, height FROM node_registry " +
+				"where registration_status = 0 AND (id,height) in " +
+				"(SELECT id,MAX(height) FROM node_registry WHERE height <= 11120 GROUP BY id) " +
+				"ORDER BY height DESC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := NewNodeRegistrationQuery()
+			if got := nrq.GetNodeRegistryAtHeight(tt.args.height); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
 			}
 		})
 	}

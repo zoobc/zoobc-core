@@ -109,20 +109,6 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "AddMempoolTransaction:DuplicateTransaction",
-			fields: fields{
-				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:      &mockMempoolQueryExecutorFail{},
-				ActionTypeSwitcher: &transaction.TypeSwitcher{},
-			},
-			args: args{
-				mpTx: transaction.GetFixturesForSignedMempoolTransaction(3, 1562893303,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false),
-			},
-			wantErr: true,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

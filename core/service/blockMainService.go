@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/dgraph-io/badger"
 	log "github.com/sirupsen/logrus"
@@ -41,8 +41,6 @@ type (
 			timestamp, totalAmount, totalFee, totalCoinBase int64,
 			transactions []*model.Transaction,
 			blockReceipts []*model.PublishedReceipt,
-			payloadHash []byte,
-			payloadLength uint32,
 			secretPhrase string,
 		) (*model.Block, error)
 		RemoveMempoolTransactions(transactions []*model.Transaction) error
@@ -293,14 +291,9 @@ func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) 
 }
 
 // ValidateBlock validate block to be pushed into the blockchain
-func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error {
+func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) error {
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
-	}
-
-	// check block timestamp
-	if block.GetTimestamp() > curTime+constant.GenerateBlockTimeoutSec {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidTimestamp")
 	}
 
 	// check if blocksmith can smith at the time
@@ -645,6 +638,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 	previousBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
@@ -654,13 +649,16 @@ func (bs *BlockService) ScanBlockPool() error {
 	for index, block := range blocks {
 		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), previousBlock)
 		if err == nil {
-			err := func(block *model.Block) error {
-				bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-				defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
-				err := bs.PushBlock(previousBlock, block, true, true)
-				return err
-			}(block)
+			err := bs.ValidateBlock(block, previousBlock)
 			if err != nil {
+				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", err)
+				return blocker.NewBlocker(
+					blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
+				)
+			}
+			err = bs.PushBlock(previousBlock, block, true, true)
+			if err != nil {
+				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", err)
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
 				)
@@ -1283,24 +1281,25 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	var (
 		mempoolsBackupBytes *bytes.Buffer
 		mempoolsBackup      []*model.MempoolTransaction
+		publishedReceipts   []*model.PublishedReceipt
 		err                 error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
-		return []*model.Block{}, err
+		return nil, err
 	}
 	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
 		bs.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
-		return []*model.Block{}, nil
+		return nil, nil
 	}
 
 	_, err = bs.GetBlockByID(commonBlock.ID, false)
 	if err != nil {
-		return []*model.Block{}, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
 	var poppedBlocks []*model.Block
@@ -1309,7 +1308,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// TODO:
 	// Need to refactor this codes with better solution in the future
 	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1321,7 +1320,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		if err != nil {
 			return nil, err
 		}
-		publishedReceipts, err := bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+		publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
@@ -1337,7 +1336,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
 	err = bs.QueryExecutor.BeginTx()
 	if err != nil {
-		return []*model.Block{}, err
+		return nil, err
 	}
 
 	for _, dQuery := range derivedQueries {
@@ -1345,7 +1344,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			_ = bs.QueryExecutor.RollbackTx()
-			return []*model.Block{}, err
+			return nil, err
 		}
 	}
 
@@ -1399,6 +1398,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	bs.NodeRegistrationService.ResetScrambledNodes()
 	// clear block pool
 	bs.BlockPoolService.ClearBlockPool()
+
+	// Need to sort ascending since was descended in above by Height
+	sort.Slice(poppedBlocks, func(i, j int) bool {
+		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
+	})
+
 	return poppedBlocks, nil
 }
 
@@ -1491,7 +1496,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 					"fail to get last block",
 				)
 			}
-			err = bs.ValidateBlock(block, previousBlock, time.Now().Unix())
+			err = bs.ValidateBlock(block, previousBlock)
 			if err != nil {
 				return status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
@@ -1517,7 +1522,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 		)
 	}
 	// Validate incoming block
-	err = bs.ValidateBlock(block, lastBlock, time.Now().Unix())
+	err = bs.ValidateBlock(block, lastBlock)
 	if err != nil {
 		return status.Error(codes.InvalidArgument, "InvalidBlock")
 	}

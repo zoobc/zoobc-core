@@ -9,5 +9,6 @@ type (
 		NewSnapshotFile(block *model.Block) (*model.SnapshotFileInfo, error)
 		ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error
 		IsSnapshotHeight(height uint32) bool
+		DeleteFileByChunkHashes(fileChunkHashes []byte) error
 	}
 )

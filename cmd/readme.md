@@ -22,23 +22,25 @@ Command line interface to as a utility tools to develop the zoobc system.
 - `go run main {command} {subcommand} --help` to see to see available subcommands and flags of subcommand
 
 ### Transaction general flag 
-  - `--output` to provide generated ouput type. Example: `--ouput bytes`
-  - `--version` to provide version of transaction. Example: `--version 1`
-  - `--timestamp` to provide timestamp of trasaction. Example: `--timestamp 1234567`
-  - `--sender-seed` to provide the seed of sender transaction. Example: `--sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"`
-  - `--recipient` provide recepient transaction. Example `--recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM`
-  - `--fee` to provide fee transaction, Example `--fee 1`
-  - `--post` to define automate post transaction or not. Example: `-post true`
-  - `--post-host` to provide where the transaction will post. Example: `--post-host "127.0.0.1:7000"`
-  - `--sender-signature-type` to provide type of transaction signature and effected to the type of the sender account. Example: `--sender-signature-type 1`
 
+- `--output` to provide generated ouput type. Example: `--ouput bytes`
+- `--version` to provide version of transaction. Example: `--version 1`
+- `--timestamp` to provide timestamp of trasaction. Example: `--timestamp 1234567`
+- `--sender-seed` to provide the seed of sender transaction. Example: `--sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"`
+- `--recipient` provide recepient transaction. Example `--recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM`
+- `--fee` to provide fee transaction, Example `--fee 1`
+- `--post` to define automate post transaction or not. Example: `-post true`
+- `--post-host` to provide where the transaction will post. Example: `--post-host "127.0.0.1:7000"`
+- `--sender-signature-type` to provide type of transaction signature and effected to the type of the sender account. Example: `--sender-signature-type 1`
 
 ### Transaction Send Money
 
 ```
 go run main.go generate transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --amount 5000000000
 ```
+
 #### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
+
 ```bash
 go run main.go generate transaction send-money --escrow true --approver-address BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd
 ```
@@ -79,6 +81,7 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
 ```
 
 ### Transaction Escrow Approval
+
 ```bash
  go run main.go generate transaction escrow-approval --transaction-id -2546596465476625657 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 111
 ```
@@ -150,6 +153,19 @@ go run main.go signature sign ed25519 --data-bytes='1, 222, 54, 12, 32' --use-sl
 ```
 
 ### Signature Verifying data
+
 ```bash
 go run main.go signature verify --data-bytes='1, 222, 54, 12, 32' --signature-hex=0000000063851d61318eaf923ff72457fd9b5716db9904aacbe53eb1bc25cd8a7bf2816c61402b0c52d4324e1336bae4ea28194d6f5c531292fd266e63a293519f20c20b --account-address=WI-u0jyKMGsPHk6K7eT1Utnxc6WiKehkIEs87Zf3fIsH
+```
+
+### Scrambled Nodes
+
+```
+go run main.go generate scrambledNodes --db-name zoobc_2.db --height 11153
+```
+
+### Priority Peers
+
+```
+go run main.go generate priorityPeers --db-name zoobc_2.db --height 11153 --sender-full-address "n56.alpha.proofofparticipation.network:8001"
 ```
