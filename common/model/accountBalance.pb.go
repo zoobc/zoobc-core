@@ -153,9 +153,18 @@ It has these top-level messages:
 */
 package model
 
+<<<<<<< HEAD
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
+=======
+import (
+	fmt "fmt"
+	math "math"
+
+	proto "github.com/golang/protobuf/proto"
+)
+>>>>>>> 3dde21ee3bf58a2382b331229199032ce36c331e
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -294,9 +303,9 @@ func (m *GetAccountBalancesResponse) GetAccountBalanceSize() uint32 {
 	return 0
 }
 
-func (m *GetAccountBalancesResponse) GetAccountBalance() []*AccountBalance {
+func (m *GetAccountBalancesResponse) GetAccountBalances() []*AccountBalance {
 	if m != nil {
-		return m.AccountBalance
+		return m.AccountBalances
 	}
 	return nil
 }
