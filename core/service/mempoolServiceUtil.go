@@ -82,7 +82,6 @@ func (mpsu *MempoolServiceUtil) ValidateMempoolTransaction(mpTx *model.MempoolTr
 	mempoolQ := mpsu.MempoolQuery.GetMempoolTransaction()
 	row, _ = mpsu.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
 	err = mpsu.MempoolQuery.Scan(&mempoolTx, row)
-
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -109,14 +108,17 @@ func (mpsu *MempoolServiceUtil) ValidateMempoolTransaction(mpTx *model.MempoolTr
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
-
 	return nil
 }
 
 func (mpsu *MempoolServiceUtil) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+	var (
+		err error
+		row *sql.Row
+	)
 	// check maximum mempool
 	if constant.MaxMempoolTransactions > 0 {
-		count, err := mpsu.MempoolGetter.GetTotalMempoolTransactions()
+		var count, err = mpsu.MempoolGetter.GetTotalMempoolTransactions()
 		if err != nil {
 			return err
 		}
@@ -125,19 +127,8 @@ func (mpsu *MempoolServiceUtil) AddMempoolTransaction(mpTx *model.MempoolTransac
 		}
 	}
 
-	// check if already in db
-	mempool, err := mpsu.MempoolGetter.GetMempoolTransaction(mpTx.ID)
-	if err != nil {
-		if blockErr, ok := err.(blocker.Blocker); ok && blockErr.Type != blocker.DBRowNotFound {
-			return blocker.NewBlocker(blocker.ValidationErr, blockErr.Message)
-		}
-	}
-	if mempool != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedRecordAttempted")
-	}
-
-	// note: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
-	row, err := mpsu.QueryExecutor.ExecuteSelectRow(mpsu.BlockQuery.GetLastBlock(), true)
+	// NOTE: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
+	row, err = mpsu.QueryExecutor.ExecuteSelectRow(mpsu.BlockQuery.GetLastBlock(), true)
 	if err != nil {
 		return err
 	}
@@ -177,10 +168,14 @@ func NewMempoolGetter(queryExecutor query.ExecutorInterface, mempoolQuery query.
 }
 
 func (mg *MempoolGetter) GetTotalMempoolTransactions() (int, error) {
-	var count int
-	sqlStr := mg.MempoolQuery.GetMempoolTransactions()
+	var (
+		count  int
+		err    error
+		row    *sql.Row
+		sqlStr = mg.MempoolQuery.GetMempoolTransactions()
+	)
 	// note: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
-	row, err := mg.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr), true)
+	row, err = mg.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(sqlStr), true)
 	if err != nil {
 		return count, err
 	}
