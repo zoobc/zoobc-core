@@ -451,37 +451,39 @@ func (rs *ReceiptService) PruningNodeReceipts() error {
 	}
 
 	limiter := lastBlock.GetHeight() - (2 * constant.MinRollbackBlocks)
-	removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-		limiter,
-		constant.PruningChunkedSize,
-	)
-	removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-		limiter,
-		constant.PruningChunkedSize,
-	)
-	err = rs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
-	if err != nil {
-		rollbackErr = rs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			return rollbackErr
+	if lastBlock.GetHeight() > 2*constant.MinRollbackBlocks {
+		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
+			limiter,
+			constant.PruningChunkedSize,
+		)
+		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
+			limiter,
+			constant.PruningChunkedSize,
+		)
+		err = rs.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
 		}
-		return err
-	}
-	err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
-	if err != nil {
-		rollbackErr = rs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			return rollbackErr
+		err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
+		if err != nil {
+			rollbackErr = rs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
 		}
-		return err
-	}
-	err = rs.QueryExecutor.CommitTx()
-	if err != nil {
-		return err
+		err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
+		if err != nil {
+			rollbackErr = rs.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				return rollbackErr
+			}
+			return err
+		}
+		err = rs.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
