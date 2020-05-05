@@ -12,7 +12,7 @@ type (
 	PendingTransactionQueryInterface interface {
 		GetPendingTransactionByHash(
 			txHash []byte,
-			status []model.PendingTransactionStatus,
+			statuses []model.PendingTransactionStatus,
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		GetPendingTransactionsBySenderAddress(
