@@ -77,12 +77,31 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		}
 		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
 		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
-			txHash[:], model.PendingTransactionStatus_PendingTransactionExecuted,
+			txHash[:], []model.PendingTransactionStatus{
+				model.PendingTransactionStatus_PendingTransactionPending,
+				model.PendingTransactionStatus_PendingTransactionExecuted,
+			},
 			tx.Height, constant.MinRollbackBlocks,
 		)
 		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
 		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
 		if err == sql.ErrNoRows {
+			// apply-unconfirmed on pending transaction
+			innerTa, err := tx.TypeSwitcher.GetTransactionType(innerTx)
+			if err != nil {
+				return blocker.NewBlocker(
+					blocker.ValidationErr,
+					"ApplyConfirmed:FailToCastInnerTransaction",
+				)
+			}
+			err = innerTa.ApplyUnconfirmed()
+			if err != nil {
+				return blocker.NewBlocker(
+					blocker.ValidationErr,
+					"ApplyConfirmed:FailToApplyUnconfirmedInnerTx",
+				)
+			}
+			// save the pending transaction
 			pendingTxInsertQ := tx.PendingTransactionQuery.InsertPendingTransaction(&model.PendingTransaction{
 				SenderAddress:    innerTx.SenderAccountAddress,
 				TransactionHash:  txHash[:],
@@ -96,9 +115,11 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 				return blocker.NewBlocker(blocker.DBErr, err.Error())
 			}
 		} else {
-			return blocker.NewBlocker(blocker.ValidationErr, "PendingTransactionAlreadyExecuted")
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"PendingTransactionDuplicateOrAlreadyExecuted",
+			)
 		}
-
 	}
 	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
 	if tx.Body.SignatureInfo != nil {
@@ -244,6 +265,30 @@ func (tx *MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 	if err != nil {
 		return err
 	}
+	if len(tx.Body.UnsignedTransactionBytes) > 0 {
+		// parse and apply unconfirmed
+		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToParseTransactionBytes",
+			)
+		}
+		innerTa, err := tx.TypeSwitcher.GetTransactionType(innerTx)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToCastInnerTransaction",
+			)
+		}
+		err = innerTa.UndoApplyUnconfirmed()
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"FailToUndoApplyUnconfirmedInnerTx",
+			)
+		}
+	}
 	return nil
 }
 
@@ -296,13 +341,19 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
 
 		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
-			txHash[:], model.PendingTransactionStatus_PendingTransactionExecuted,
+			txHash[:], []model.PendingTransactionStatus{
+				model.PendingTransactionStatus_PendingTransactionExecuted,
+				model.PendingTransactionStatus_PendingTransactionPending,
+			},
 			tx.Height, constant.MinRollbackBlocks,
 		)
 		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
 		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
 		if err != sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, "PendingTransactionAlreadyExecuted")
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"DuplicateOrPendingTransactionAlreadyExecuted",
+			)
 		}
 	}
 	if body.SignatureInfo != nil {
