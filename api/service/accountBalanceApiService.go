@@ -12,19 +12,20 @@ import (
 type (
 	AccountBalanceServiceInterface interface {
 		GetAccountBalance(request *model.GetAccountBalanceRequest) (*model.GetAccountBalanceResponse, error)
+		GetAccountBalances(request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error)
 	}
 
 	AccountBalanceService struct {
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Executor            query.ExecutorInterface
+		AccountBalanceQuery *query.AccountBalanceQuery
+		QueryExecutor       query.ExecutorInterface
 	}
 )
 
 func NewAccountBalanceService(executor query.ExecutorInterface,
-	accountBalanceQuery query.AccountBalanceQueryInterface) *AccountBalanceService {
+	accountBalanceQuery *query.AccountBalanceQuery) *AccountBalanceService {
 	return &AccountBalanceService{
 		AccountBalanceQuery: accountBalanceQuery,
-		Executor:            executor,
+		QueryExecutor:       executor,
 	}
 }
 
@@ -36,7 +37,7 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 	)
 
 	qry, args := abs.AccountBalanceQuery.GetAccountBalanceByAccountAddress(request.AccountAddress)
-	row, _ = abs.Executor.ExecuteSelectRow(qry, false, args...)
+	row, _ = abs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	err = abs.AccountBalanceQuery.Scan(&accountBalance, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
@@ -48,5 +49,39 @@ func (abs *AccountBalanceService) GetAccountBalance(request *model.GetAccountBal
 
 	return &model.GetAccountBalanceResponse{
 		AccountBalance: &accountBalance,
+	}, nil
+}
+
+func (abs *AccountBalanceService) GetAccountBalances(
+	request *model.GetAccountBalancesRequest,
+) (*model.GetAccountBalancesResponse, error) {
+	var (
+		accountBalances []*model.AccountBalance
+		caseQ           = query.NewCaseQuery()
+		rows            *sql.Rows
+		err             error
+	)
+
+	caseQ.Select(abs.AccountBalanceQuery.TableName, abs.AccountBalanceQuery.Fields...)
+	var accountAddresses []interface{}
+	for _, v := range request.AccountAddresses {
+		accountAddresses = append(accountAddresses, v)
+	}
+	caseQ.And(caseQ.In("account_address", accountAddresses...))
+
+	selectQ, args := caseQ.Build()
+	rows, err = abs.QueryExecutor.ExecuteSelect(selectQ, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+
+	accountBalances, err = abs.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &model.GetAccountBalancesResponse{
+		AccountBalances: accountBalances,
 	}, nil
 }
