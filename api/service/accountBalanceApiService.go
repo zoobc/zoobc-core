@@ -16,7 +16,6 @@ type (
 	}
 
 	AccountBalanceService struct {
-		// AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountBalanceQuery *query.AccountBalanceQuery
 		QueryExecutor       query.ExecutorInterface
 	}
