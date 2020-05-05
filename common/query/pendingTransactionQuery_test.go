@@ -204,7 +204,7 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 	}
 	type args struct {
 		txHash               []byte
-		status               model.PendingTransactionStatus
+		status               []model.PendingTransactionStatus
 		currentHeight, limit uint32
 	}
 	tests := []struct {
@@ -221,16 +221,20 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 				TableName: mockPendingTransactionQueryInstance.TableName,
 			},
 			args: args{
-				txHash:        make([]byte, 32),
-				status:        model.PendingTransactionStatus_PendingTransactionPending,
+				txHash: make([]byte, 32),
+				status: []model.PendingTransactionStatus{
+					model.PendingTransactionStatus_PendingTransactionPending,
+					model.PendingTransactionStatus_PendingTransactionExecuted,
+				},
 				currentHeight: 0,
 				limit:         constant.MinRollbackBlocks,
 			},
 			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
-				"WHERE transaction_hash = ? AND status = ? AND block_height >= ? AND latest = true",
+				"WHERE transaction_hash = ? AND status IN (?, ?) AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{
 				make([]byte, 32),
 				model.PendingTransactionStatus_PendingTransactionPending,
+				model.PendingTransactionStatus_PendingTransactionExecuted,
 				uint32(0),
 			},
 		},
