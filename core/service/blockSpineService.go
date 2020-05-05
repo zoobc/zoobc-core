@@ -150,9 +150,9 @@ func (bs *BlockSpineService) ChainWriteLock(actionType int) {
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockSpineService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
-	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Unlock()
+	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
