@@ -16,20 +16,17 @@ type (
 	}
 
 	AccountBalanceService struct {
-		AccountBalanceQuery query.AccountBalanceQueryInterface
+		// AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountBalanceQuery *query.AccountBalanceQuery
 		QueryExecutor       query.ExecutorInterface
-
-		AccountBalancesQuery *query.AccountBalanceQuery
 	}
 )
 
 func NewAccountBalanceService(executor query.ExecutorInterface,
-	accountBalanceQuery query.AccountBalanceQueryInterface,
-	accountBalancesQuery *query.AccountBalanceQuery) *AccountBalanceService {
+	accountBalanceQuery *query.AccountBalanceQuery) *AccountBalanceService {
 	return &AccountBalanceService{
-		AccountBalanceQuery:  accountBalanceQuery,
-		QueryExecutor:        executor,
-		AccountBalancesQuery: accountBalancesQuery,
+		AccountBalanceQuery: accountBalanceQuery,
+		QueryExecutor:       executor,
 	}
 }
 
@@ -66,7 +63,7 @@ func (abs *AccountBalanceService) GetAccountBalances(
 		err             error
 	)
 
-	caseQ.Select(abs.AccountBalancesQuery.TableName, abs.AccountBalancesQuery.Fields...)
+	caseQ.Select(abs.AccountBalanceQuery.TableName, abs.AccountBalanceQuery.Fields...)
 	var accountAddresses []interface{}
 	for _, v := range request.AccountAddresses {
 		accountAddresses = append(accountAddresses, v)
@@ -80,7 +77,7 @@ func (abs *AccountBalanceService) GetAccountBalances(
 	}
 	defer rows.Close()
 
-	accountBalances, err = abs.AccountBalancesQuery.BuildModel([]*model.AccountBalance{}, rows)
+	accountBalances, err = abs.AccountBalanceQuery.BuildModel([]*model.AccountBalance{}, rows)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

@@ -121,7 +121,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
-		Service: service.NewAccountBalanceService(queryExecutor, query.NewAccountBalanceQuery(), query.NewAccountBalanceQuery()),
+		Service: service.NewAccountBalanceService(queryExecutor, query.NewAccountBalanceQuery()),
 	})
 	// Set GRPC handler for mempool requests
 	rpcService.RegisterMempoolServiceServer(grpcServer, &handler.MempoolTransactionHandler{
