@@ -56,9 +56,40 @@ func (*mockExecutorGetAccountBalanceNotFound) ExecuteSelectRow(qe string, _ bool
 	return row, nil
 }
 
+func TestNewAccountBalanceService(t *testing.T) {
+	type args struct {
+		executor            query.ExecutorInterface
+		accountBalanceQuery *query.AccountBalanceQuery
+	}
+	tests := []struct {
+		name string
+		args args
+		want *AccountBalanceService
+	}{
+		{
+			name: "NewAccountBalanceService:success",
+			args: args{
+				executor:            nil,
+				accountBalanceQuery: nil,
+			},
+			want: &AccountBalanceService{
+				AccountBalanceQuery: nil,
+				QueryExecutor:       nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewAccountBalanceService(tt.args.executor, tt.args.accountBalanceQuery); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewAccountBalanceService() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 	type fields struct {
-		AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountBalanceQuery *query.AccountBalanceQuery
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
@@ -125,45 +156,11 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 			}
 			got, err := abs.GetAccountBalance(tt.args.request)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetAccountBalance() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AccountBalanceService.GetAccountBalance() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetAccountBalance() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNewAccountBalanceService(t *testing.T) {
-	type args struct {
-		executor             query.ExecutorInterface
-		accountBalanceQuery  query.AccountBalanceQueryInterface
-		accountBalancesQuery *query.AccountBalanceQuery
-	}
-	tests := []struct {
-		name string
-		args args
-		want *AccountBalanceService
-	}{
-		{
-			name: "NewAccountBalanceService:success",
-			args: args{
-				executor:             nil,
-				accountBalanceQuery:  nil,
-				accountBalancesQuery: nil,
-			},
-			want: &AccountBalanceService{
-				AccountBalanceQuery:  nil,
-				QueryExecutor:        nil,
-				AccountBalancesQuery: nil,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewAccountBalanceService(tt.args.executor, tt.args.accountBalanceQuery, tt.args.accountBalancesQuery); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewAccountBalanceService() = %v, want %v", got, tt.want)
+				t.Errorf("AccountBalanceService.GetAccountBalance() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -171,9 +168,8 @@ func TestNewAccountBalanceService(t *testing.T) {
 
 func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 	type fields struct {
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		QueryExecutor        query.ExecutorInterface
-		AccountBalancesQuery *query.AccountBalanceQuery
+		AccountBalanceQuery *query.AccountBalanceQuery
+		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
 		request *model.GetAccountBalancesRequest
@@ -190,9 +186,8 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			abs := &AccountBalanceService{
-				AccountBalanceQuery:  tt.fields.AccountBalanceQuery,
-				QueryExecutor:        tt.fields.QueryExecutor,
-				AccountBalancesQuery: tt.fields.AccountBalancesQuery,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			got, err := abs.GetAccountBalances(tt.args.request)
 			if (err != nil) != tt.wantErr {
