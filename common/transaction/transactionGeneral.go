@@ -598,7 +598,9 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 		txHash := body.SignatureInfo.TransactionHash
 
 		q, args := mtu.PendingTransactionQuery.GetPendingTransactionByHash(
-			txHash, model.PendingTransactionStatus_PendingTransactionPending,
+			txHash, []model.PendingTransactionStatus{
+				model.PendingTransactionStatus_PendingTransactionPending,
+			},
 			txHeight, constant.MinRollbackBlocks,
 		)
 		row, err := mtu.QueryExecutor.ExecuteSelectRow(q, false, args...)
