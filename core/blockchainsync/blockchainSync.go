@@ -138,7 +138,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 					errCasted.Message)
 			default:
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 7)
-				bss.Logger.Infof("failed to getPeerBlockchainInfo: %v", err)
+				bss.Logger.Infof("ChainSync: failed to getPeerBlockchainInfo: %v", err)
 			}
 		}
 
@@ -151,7 +151,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 10)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 11)
-				bss.Logger.Warnf("\nfailed to DownloadFromPeer: %v\n\n", err)
+				bss.Logger.Warnf("ChainSync: failed to DownloadFromPeer: %v\n\n", err)
 				break
 			}
 

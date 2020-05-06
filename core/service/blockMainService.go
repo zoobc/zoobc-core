@@ -217,9 +217,9 @@ func (bs *BlockService) ChainWriteLock(actionType int) {
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
-	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Unlock()
+	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -638,8 +638,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
-	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockScanBlockPool)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockScanBlockPool)
 	previousBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
@@ -1478,8 +1478,8 @@ func (bs *BlockService) WillSmith(
 
 // ProcessCompletedBlock to process block that already having all needed transactions
 func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
-	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
