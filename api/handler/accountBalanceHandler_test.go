@@ -87,3 +87,75 @@ func TestAccountBalanceHandler_GetAccountBalance(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetAccountBalancesSuccess struct {
+		service.AccountBalanceServiceInterface
+	}
+)
+
+func (*mockGetAccountBalancesSuccess) GetAccountBalances(request *model.GetAccountBalancesRequest) (*model.GetAccountBalancesResponse, error) {
+	return &model.GetAccountBalancesResponse{
+		AccountBalances: []*model.AccountBalance{},
+	}, nil
+}
+
+func TestAccountBalanceHandler_GetAccountBalances(t *testing.T) {
+	type fields struct {
+		Service service.AccountBalanceServiceInterface
+	}
+	type args struct {
+		ctx     context.Context
+		request *model.GetAccountBalancesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetAccountBalancesResponse
+		wantErr bool
+	}{
+		{
+			name: "GetAccountBalancesHandler:fail",
+			args: args{
+				request: &model.GetAccountBalancesRequest{
+					AccountAddresses: []string{},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetAccountBalancesHandler:success",
+			args: args{
+				request: &model.GetAccountBalancesRequest{
+					AccountAddresses: []string{
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					},
+				},
+			},
+			fields: fields{
+				Service: &mockGetAccountBalancesSuccess{},
+			},
+			want: &model.GetAccountBalancesResponse{
+				AccountBalances: []*model.AccountBalance{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			abh := &AccountBalanceHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := abh.GetAccountBalances(tt.args.ctx, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AccountBalanceHandler.GetAccountBalances() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountBalanceHandler.GetAccountBalances() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
