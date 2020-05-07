@@ -1339,15 +1339,6 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, err
 	}
 
-	for _, dQuery := range derivedQueries {
-		queries := dQuery.Rollback(commonBlock.Height)
-		err = bs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = bs.QueryExecutor.RollbackTx()
-			return nil, err
-		}
-	}
-
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
 
 	for _, mempool := range mempoolsBackup {
@@ -1376,6 +1367,15 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
 		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
 		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
+	}
+
+	for _, dQuery := range derivedQueries {
+		queries := dQuery.Rollback(commonBlock.Height)
+		err = bs.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			_ = bs.QueryExecutor.RollbackTx()
+			return nil, err
+		}
 	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil {
