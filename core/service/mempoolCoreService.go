@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"sort"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
@@ -44,6 +46,7 @@ type (
 		) ([]*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
+		BackupMempols(commonBlock *model.Block) (*bytes.Buffer, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -460,4 +463,70 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 	}
 
 	return mempools, nil
+}
+
+func (mps *MempoolService) BackupMempols(commonBlock *model.Block) (*bytes.Buffer, error) {
+
+	var (
+		mempoolsBackupBytes *bytes.Buffer
+		mempoolsBackup      []*model.MempoolTransaction
+		err                 error
+	)
+
+	mempoolsBackup, err = mps.GetMempoolTransactionsWantToBackup(commonBlock.Height)
+	if err != nil {
+		return nil, err
+	}
+	mps.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
+	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
+	err = mps.QueryExecutor.BeginTx()
+	if err != nil {
+		return nil, err
+	}
+
+	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
+
+	for _, mempool := range mempoolsBackup {
+		var (
+			tx     *model.Transaction
+			txType transaction.TypeAction
+		)
+		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
+		if err != nil {
+			return nil, err
+		}
+		txType, err = mps.ActionTypeSwitcher.GetTransactionType(tx)
+		if err != nil {
+			return nil, err
+		}
+
+		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
+		if err != nil {
+			_ = mps.QueryExecutor.RollbackTx()
+			return nil, err
+		}
+
+		/*
+			mempoolsBackupBytes format is
+			[...{4}byteSize,{bytesSize}transactionBytes]
+		*/
+		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
+		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
+		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
+	}
+
+	for _, dQuery := range derivedQueries {
+		queries := dQuery.Rollback(commonBlock.Height)
+		err = mps.QueryExecutor.ExecuteTransactions(queries)
+		if err != nil {
+			_ = mps.QueryExecutor.RollbackTx()
+			return nil, err
+		}
+	}
+	err = mps.QueryExecutor.CommitTx()
+	if err != nil {
+		return nil, err
+	}
+
+	return mempoolsBackupBytes, nil
 }
