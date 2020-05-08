@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"errors"
 	"reflect"
 	"regexp"
 	"testing"
@@ -166,6 +167,46 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 	}
 }
 
+// mock GetAccountBalances
+type (
+	mockGetAccountBalancesExecutorError struct {
+		query.ExecutorInterface
+	}
+	mockGetAccountBalancesQueryError struct {
+		query.ExecutorInterface
+	}
+	mockGetAccountBalancesQuerySuccess struct {
+		query.ExecutorInterface
+	}
+)
+
+func (*mockGetAccountBalancesExecutorError) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("ExecuteSelect Fail")
+}
+
+func (*mockGetAccountBalancesQueryError) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total"}).AddRow(1))
+	return db.Query("")
+}
+
+func (*mockGetAccountBalancesQuerySuccess) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockRows := mock.NewRows(query.NewAccountBalanceQuery().Fields)
+	mockRows.AddRow(
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		0,
+		100000000000,
+		101666666666,
+		0,
+		true,
+	)
+	mock.ExpectQuery("").WillReturnRows(mockRows)
+	return db.Query("")
+}
+
 func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 	type fields struct {
 		AccountBalanceQuery *query.AccountBalanceQuery
@@ -181,7 +222,65 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 		want    *model.GetAccountBalancesResponse
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "GetAccountBalances:ExecutorError",
+			fields: fields{
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       &mockGetAccountBalancesExecutorError{},
+			},
+			args: args{
+				request: &model.GetAccountBalancesRequest{
+					AccountAddresses: []string{
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetAccountBalances:QueryError",
+			fields: fields{
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       &mockGetAccountBalancesQueryError{},
+			},
+			args: args{
+				request: &model.GetAccountBalancesRequest{
+					AccountAddresses: []string{
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetAccountBalances:QuerySuccess",
+			fields: fields{
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				QueryExecutor:       &mockGetAccountBalancesQuerySuccess{},
+			},
+			args: args{
+				request: &model.GetAccountBalancesRequest{
+					AccountAddresses: []string{
+						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					},
+				},
+			},
+			want: &model.GetAccountBalancesResponse{
+				AccountBalances: []*model.AccountBalance{
+					{
+						AccountAddress:   "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						BlockHeight:      0,
+						SpendableBalance: 100000000000,
+						Balance:          101666666666,
+						PopRevenue:       0,
+						Latest:           true,
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
