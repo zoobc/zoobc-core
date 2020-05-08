@@ -103,8 +103,8 @@ func (rq *NodeReceiptQuery) GetReceiptByRoot(
 	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key AND "+
-		"block_height BETWEEN %d AND %d) "+
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND "+
+		"block_height BETWEEN %d AND %d "+
 		"GROUP BY recipient_public_key",
 		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight)
 	return query, []interface{}{
