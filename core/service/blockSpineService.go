@@ -653,7 +653,7 @@ func (bs *BlockSpineService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
+		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushBlockErr, err.Error(), block))
 	}
 	return nil
 }
@@ -714,9 +714,11 @@ func (bs *BlockSpineService) ReceiveBlock(
 				}
 				err = bs.ValidateBlock(block, previousBlock)
 				if err != nil {
+					bs.Logger.Warnf("ReceiveBlock:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateBlockErr, err.Error(), block, previousBlock))
+
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v", blocker.NewBlocker(blocker.PushBlockErr, err.Error(), block, lastBlock))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 
@@ -727,7 +729,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v", blocker.NewBlocker(blocker.PushBlockErr, err.Error(), block, lastBlock))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 					bs.Logger.Info("pushing back popped off block")
@@ -758,10 +760,12 @@ func (bs *BlockSpineService) ReceiveBlock(
 		// Validate incoming block
 		err = bs.ValidateBlock(block, lastBlock)
 		if err != nil {
+			bs.Logger.Warnf("ReceiveBlock:blockValidationFail2: %v\n", blocker.NewBlocker(blocker.ValidateBlockErr, err.Error(), block, lastBlock))
 			return status.Error(codes.InvalidArgument, "InvalidBlock")
 		}
 		err = bs.PushBlock(lastBlock, block, true, true)
 		if err != nil {
+			bs.Logger.Errorf("receiveBlock pushBlock fail: %v", blocker.NewBlocker(blocker.PushBlockErr, err.Error(), block, lastBlock))
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		return nil
