@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
+	badger "github.com/dgraph-io/badger/v2"
 )
 
 type (

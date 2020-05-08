@@ -7,7 +7,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/database"
 
-	"github.com/dgraph-io/badger"
+	badger "github.com/dgraph-io/badger/v2"
 )
 
 func getMockedKVDb() *badger.DB {
