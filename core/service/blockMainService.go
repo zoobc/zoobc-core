@@ -651,14 +651,14 @@ func (bs *BlockService) ScanBlockPool() error {
 		if err == nil {
 			err := bs.ValidateBlock(block, previousBlock)
 			if err != nil {
-				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", err)
+				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
 				)
 			}
 			err = bs.PushBlock(previousBlock, block, true, true)
 			if err != nil {
-				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", err)
+				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
 				)
@@ -1087,7 +1087,7 @@ func (bs *BlockService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
+		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block))
 	}
 	return nil
 }
@@ -1498,6 +1498,8 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			}
 			err = bs.ValidateBlock(block, previousBlock)
 			if err != nil {
+				bs.Logger.Warnf("ProcessCompletedBlock:blockValidationFail: %v\n",
+					blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
 				return status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
 			lastBlocks, err := bs.PopOffToBlock(previousBlock)
@@ -1507,9 +1509,12 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 
 			err = bs.PushBlock(previousBlock, block, true, true)
 			if err != nil {
+				bs.Logger.Warn("Push ProcessCompletedBlock:fail ",
+					blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 				errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 				if errPushBlock != nil {
-					bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+					bs.Logger.Errorf("ProcessCompletedBlock pushing back popped off block fail: %v",
+						blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
 				bs.Logger.Info("pushing back popped off block")
@@ -1524,10 +1529,12 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock)
 	if err != nil {
+		bs.Logger.Warnf("ProcessCompletedBlock2:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, lastBlock))
 		return status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
+		bs.Logger.Errorf("ProcessCompletedBlock2 push Block fail: %v", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, lastBlock))
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil

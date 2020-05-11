@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -794,6 +795,7 @@ func main() {
 
 	if isDebugMode {
 		startNodeMonitoring()
+		blocker.SetIsDebugMode(true)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)
