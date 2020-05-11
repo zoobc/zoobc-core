@@ -17,12 +17,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dgraph-io/badger"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -424,7 +424,7 @@ func startNodeMonitoring() {
 	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
 	go func() {
 		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
+		mux.Handle("/metrics", database.InstrumentBadgerMetrics(monitoring.Handler()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), mux)
 		if err != nil {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
@@ -795,6 +795,7 @@ func main() {
 
 	if isDebugMode {
 		startNodeMonitoring()
+		blocker.SetIsDebugMode(true)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)
