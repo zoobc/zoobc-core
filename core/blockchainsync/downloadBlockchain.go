@@ -363,7 +363,8 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				if chaintype.IsSpineChain(bd.ChainType) {
 					blockerUsed = blocker.ValidateSpineBlockErr
 				}
-				bd.Logger.Warnf("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\nvalidateBlock fail: %v\n", block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+				bd.Logger.Warnf("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\nvalidateBlock fail: %v\n",
+					block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
 					monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 70)

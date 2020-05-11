@@ -714,11 +714,10 @@ func (bs *BlockSpineService) ReceiveBlock(
 				}
 				err = bs.ValidateBlock(block, previousBlock)
 				if err != nil {
-					// bs.Logger.Warnf("ReceiveBlock:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateSpineBlockErr, err.Error(), block, previousBlock))
-
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
-						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 
@@ -729,7 +728,8 @@ func (bs *BlockSpineService) ReceiveBlock(
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
-						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 					bs.Logger.Info("pushing back popped off block")
@@ -760,7 +760,6 @@ func (bs *BlockSpineService) ReceiveBlock(
 		// Validate incoming block
 		err = bs.ValidateBlock(block, lastBlock)
 		if err != nil {
-			// bs.Logger.Warnf("ReceiveBlock:blockValidationFail2: %v\n", blocker.NewBlocker(blocker.ValidateSpineBlockErr, err.Error(), block, lastBlock))
 			return status.Error(codes.InvalidArgument, "InvalidBlock")
 		}
 		err = bs.PushBlock(lastBlock, block, true, true)

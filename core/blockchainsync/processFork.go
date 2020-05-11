@@ -181,7 +181,8 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if chaintype.IsSpineChain(fp.ChainType) {
 					blockerUsed = blocker.ValidateSpineBlockErr
 				}
-				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\ndownloadBlockchain validateBlock fail: %v\n", block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\nvalidateBlock fail: %v\n",
+					block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 				return err
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 112)
