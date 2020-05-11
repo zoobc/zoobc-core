@@ -1279,9 +1279,8 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		mempoolsBackupBytes *bytes.Buffer
-		publishedReceipts   []*model.PublishedReceipt
-		err                 error
+		publishedReceipts []*model.PublishedReceipt
+		err               error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1327,7 +1326,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	// Backup existing transactions from mempool before rollback
-	mempoolsBackupBytes, err = bs.MempoolService.BackupMempools(commonBlock)
+	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -1337,13 +1336,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	//  - before rolling back derived queries, select all spine block manifest records from commonBlock.Height till last
 	//  - delete all snapshots referenced by them
 	//
-	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
-		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	// remove peer memoization
 	bs.NodeRegistrationService.ResetScrambledNodes()
 	// clear block pool

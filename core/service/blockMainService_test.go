@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -4110,8 +4109,8 @@ func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
 	return make([]*model.MempoolTransaction, 0), nil
 }
 
-func (*mockMempoolServiceBlockPopSuccess) BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error) {
-	return &bytes.Buffer{}, nil
+func (*mockMempoolServiceBlockPopSuccess) BackupMempools(commonBlock *model.Block) error {
+	return nil
 }
 
 func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
@@ -4120,8 +4119,8 @@ func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
 	return nil, errors.New("mockedError")
 }
 
-func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error) {
-	return nil, errors.New("error BackupMempools")
+func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) error {
+	return errors.New("error BackupMempools")
 }
 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {

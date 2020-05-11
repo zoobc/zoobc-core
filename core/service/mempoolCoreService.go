@@ -46,7 +46,7 @@ type (
 		) ([]*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
-		BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error)
+		BackupMempools(commonBlock *model.Block) error
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -69,6 +69,7 @@ type (
 		ReceiptUtil            coreUtil.ReceiptUtilInterface
 		ReceiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
+		BlockService           BlockService
 	}
 )
 
@@ -465,7 +466,7 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 	return mempools, nil
 }
 
-func (mps *MempoolService) BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error) {
+func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
 		mempoolsBackupBytes *bytes.Buffer
@@ -475,13 +476,13 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) (*bytes.Buff
 
 	mempoolsBackup, err = mps.GetMempoolTransactionsWantToBackup(commonBlock.Height)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	mps.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
 	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
@@ -493,17 +494,17 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) (*bytes.Buff
 		)
 		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		txType, err = mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			_ = mps.QueryExecutor.RollbackTx()
-			return nil, err
+			return err
 		}
 
 		/*
@@ -520,13 +521,21 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) (*bytes.Buff
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			_ = mps.QueryExecutor.RollbackTx()
-			return nil, err
+			return err
 		}
 	}
 	err = mps.QueryExecutor.CommitTx()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return mempoolsBackupBytes, nil
+	if mempoolsBackupBytes.Len() > 0 {
+		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(mps.BlockService.GetChainType())
+		err = mps.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
