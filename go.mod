@@ -9,7 +9,6 @@ require (
 	github.com/btcsuite/btcutil v1.0.1
 	github.com/dgraph-io/badger v1.6.0
 	github.com/go-ole/go-ole v1.2.4 // indirect
-	github.com/golang/mock v1.3.1-0.20190508161146-9fa652df1129
 	github.com/golang/protobuf v1.3.3
 	github.com/google/go-cmp v0.3.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
