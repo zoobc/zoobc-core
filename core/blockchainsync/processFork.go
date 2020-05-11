@@ -99,8 +99,12 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if blacklistErr != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 					}
-					fp.Logger.Warnf("[pushing fork block] failed to verify block %v from peer %v: %s\nwith previous: %v\n",
-						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID)
+					blockerUsed := blocker.ValidateMainBlockErr
+					if chaintype.IsSpineChain(fp.ChainType) {
+						blockerUsed = blocker.ValidateSpineBlockErr
+					}
+					fp.Logger.Warnf("[ProcessFork] failed to verify block %v from peer %v: %s\nwith previous: %v\ndownloadBlockchain validateBlock fail: %v\n",
+						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 					break
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false, true)
@@ -110,7 +114,11 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if blacklistErr != nil {
 						fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 					}
-					fp.Logger.Warnf("\n\nPushBlock of fork blocks err %v\n\n", err)
+					blockerUsed := blocker.PushMainBlockErr
+					if chaintype.IsSpineChain(fp.ChainType) {
+						blockerUsed = blocker.PushSpineBlockErr
+					}
+					fp.Logger.Warnf("\n\n[ProcessFork] PushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 					break
 				}
 
@@ -169,7 +177,12 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if blacklistErr != nil {
 					fp.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
-				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\n", block.ID, err, lastBlock.ID)
+				blockerUsed := blocker.ValidateMainBlockErr
+				if chaintype.IsSpineChain(fp.ChainType) {
+					blockerUsed = blocker.ValidateSpineBlockErr
+				}
+				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\nvalidateBlock fail: %v\n",
+					block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 				return err
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 112)
@@ -177,6 +190,11 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 113)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 114)
+				blockerUsed := blocker.PushMainBlockErr
+				if chaintype.IsSpineChain(fp.ChainType) {
+					blockerUsed = blocker.PushSpineBlockErr
+				}
+				fp.Logger.Warnf("\n\nPushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
 		}
@@ -308,7 +326,8 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}
 		err = fp.MempoolService.ValidateMempoolTransaction(mempoolTX)
 		if err != nil {
-			return err
+			// no need to break the process in this case
+			fp.Logger.Warnf("Invalid mempool want to restore with ID: %d", tx.GetID())
 		}
 
 		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
@@ -337,6 +356,11 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			return err
 		}
 		err = fp.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+		// remove restored mempools from badger
+		err = fp.KVExecutor.Delete(commonUtil.GetKvDbMempoolDBKey(fp.ChainType))
 		if err != nil {
 			return err
 		}
