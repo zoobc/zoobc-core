@@ -38,9 +38,12 @@ var (
 	P2PPeerError              TypeBlocker = "P2PPeerError"
 	P2PNetworkConnectionErr   TypeBlocker = "P2PNetworkConnectionErr"
 	SmithingPending           TypeBlocker = "SmithingPending"
+	InvalidBlockTimestamp     TypeBlocker = "InvalidBlockTimestamp"
 	TimeoutExceeded           TypeBlocker = "TimeoutExceeded"
-	PushBlockErr              TypeBlocker = "PushBlockErr"
-	ValidateBlockErr          TypeBlocker = "ValidateBlockErr"
+	PushMainBlockErr          TypeBlocker = "PushMainBlockErr"
+	ValidateMainBlockErr      TypeBlocker = "ValidateMainBlockErr"
+	PushSpineBlockErr         TypeBlocker = "PushSpineBlockErr"
+	ValidateSpineBlockErr     TypeBlocker = "ValidateSpineBlockErr"
 )
 
 func SetIsDebugMode(val bool) {

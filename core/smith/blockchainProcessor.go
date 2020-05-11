@@ -107,13 +107,21 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// validate
 		err = bp.BlockService.ValidateBlock(block, previousBlock) // err / !err
 		if err != nil {
-			bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blocker.ValidateBlockErr, err.Error(), block, previousBlock))
+			blockerUsed := blocker.ValidateMainBlockErr
+			if chaintype.IsSpineChain(bp.ChainType) {
+				blockerUsed = blocker.ValidateSpineBlockErr
+			}
+			bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, previousBlock))
 			return err
 		}
 		// if validated push
 		err = bp.BlockService.PushBlock(previousBlock, block, false, true)
 		if err != nil {
-			bp.Logger.Errorf("FakeSmithing pushBlock fail: %v", blocker.NewBlocker(blocker.PushBlockErr, err.Error(), block, previousBlock))
+			blockerUsed := blocker.PushMainBlockErr
+			if chaintype.IsSpineChain(bp.ChainType) {
+				blockerUsed = blocker.PushSpineBlockErr
+			}
+			bp.Logger.Errorf("FakeSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, previousBlock))
 			return err
 		}
 	}
@@ -154,13 +162,24 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	// validate
 	err = bp.BlockService.ValidateBlock(block, lastBlock)
 	if err != nil {
-		bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blocker.ValidateBlockErr, err.Error(), block, lastBlock))
+		blockerErr, ok := err.(blocker.Blocker)
+		if ok && blockerErr.Type != blocker.InvalidBlockTimestamp {
+			blockerUsed := blocker.ValidateMainBlockErr
+			if chaintype.IsSpineChain(bp.ChainType) {
+				blockerUsed = blocker.ValidateSpineBlockErr
+			}
+			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+		}
 		return err
 	}
 	// if validated push
 	err = bp.BlockService.PushBlock(lastBlock, block, true, false)
 	if err != nil {
-		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blocker.PushBlockErr, err.Error(), block, lastBlock))
+		blockerUsed := blocker.PushMainBlockErr
+		if chaintype.IsSpineChain(bp.ChainType) {
+			blockerUsed = blocker.PushSpineBlockErr
+		}
+		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 		return err
 	}
 	return nil

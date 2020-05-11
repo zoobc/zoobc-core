@@ -191,7 +191,7 @@ func (bss *BlocksmithStrategySpine) IsBlockTimestampValid(
 		elapsedFromLastBlock = blocksmithIndex*ct.GetBlocksmithTimeGap() + ct.GetSmithingPeriod()
 	}
 	if currentBlock.GetTimestamp() < previousBlock.GetTimestamp()+elapsedFromLastBlock {
-		return blocker.NewBlocker(blocker.SmithingErr, "InvalidBlockTimestamp")
+		return blocker.NewBlocker(blocker.InvalidBlockTimestamp, "InvalidBlockTimestamp")
 	}
 	return nil
 }

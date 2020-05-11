@@ -23,3 +23,9 @@ func GetChainTypes() map[int32]ChainType {
 		spinechain.GetTypeInt(): spinechain,
 	}
 }
+
+// IsSpineChain validates whether a chaintype is a spinechain
+func IsSpineChain(ct ChainType) bool {
+	_, ok := ct.(*SpineChain)
+	return ok
+}
