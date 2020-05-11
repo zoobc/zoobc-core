@@ -326,7 +326,8 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}
 		err = fp.MempoolService.ValidateMempoolTransaction(mempoolTX)
 		if err != nil {
-			return err
+			// no need to break the process in this case
+			fp.Logger.Warnf("Invalid mempool want to restore with ID: %d", tx.GetID())
 		}
 
 		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
@@ -355,6 +356,11 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			return err
 		}
 		err = fp.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+		// remove restored mempools from badger
+		err = fp.KVExecutor.Delete(commonUtil.GetKvDbMempoolDBKey(fp.ChainType))
 		if err != nil {
 			return err
 		}
