@@ -17,8 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dgraph-io/badger"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
@@ -424,7 +423,7 @@ func startNodeMonitoring() {
 	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
 	go func() {
 		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
+		mux.Handle("/metrics", database.InstrumentBadgerMetrics(monitoring.Handler()))
 		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), mux)
 		if err != nil {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))

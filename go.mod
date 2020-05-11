@@ -7,7 +7,7 @@ require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btcutil v1.0.1
-	github.com/dgraph-io/badger v1.6.0
+	github.com/dgraph-io/badger/v2 v2.0.3
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/golang/protobuf v1.3.3
 	github.com/google/go-cmp v0.3.1

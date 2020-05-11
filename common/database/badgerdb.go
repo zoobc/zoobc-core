@@ -1,13 +1,19 @@
 package database
 
 import (
+	"expvar"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
-	"github.com/dgraph-io/badger"
-	"github.com/dgraph-io/badger/options"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+
+	badger "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2/options"
 )
 
 var (
@@ -24,6 +30,24 @@ type (
 	}
 	BadgerDB struct{}
 )
+
+func InstrumentBadgerMetrics(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		badgerMetrics := make(map[string]float64)
+
+		expvar.Do(func(kv expvar.KeyValue) {
+			isBadger := strings.Contains(kv.Key, "badger")
+			if isBadger {
+				parsedValue, err := strconv.ParseFloat(kv.Value.String(), 64)
+				if err == nil {
+					badgerMetrics[kv.Key] = parsedValue
+				}
+			}
+		})
+		monitoring.SetBadgerMetrics(badgerMetrics)
+		next.ServeHTTP(w, r)
+	})
+}
 
 // NewBadgerDB create new / fetch existing singleton BadgerDB instance.
 func NewBadgerDB() *BadgerDB {
