@@ -4110,7 +4110,7 @@ func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
 	return make([]*model.MempoolTransaction, 0), nil
 }
 
-func (*mockMempoolServiceBlockPopSuccess) BackupMempols(commonBlock *model.Block) (*bytes.Buffer, error) {
+func (*mockMempoolServiceBlockPopSuccess) BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error) {
 	return &bytes.Buffer{}, nil
 }
 
@@ -4120,8 +4120,8 @@ func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
 	return nil, errors.New("mockedError")
 }
 
-func (*mockMempoolServiceBlockPopFail) BackupMempols(commonBlock *model.Block) (*bytes.Buffer, error) {
-	return nil, errors.New("error BackupMempols")
+func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error) {
+	return nil, errors.New("error BackupMempools")
 }
 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
