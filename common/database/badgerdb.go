@@ -22,7 +22,7 @@ var (
 )
 
 type (
-	// SqliteDBInstance as public interface that should implemented
+	// BadgerDBInstance as public interface that should implemented
 	BadgerDBInstance interface {
 		InitializeBadgerDB(dbPath, dbName string) error
 		OpenBadgerDB(dbPath, dbName string) (*badger.DB, error)
@@ -58,7 +58,7 @@ func NewBadgerDB() *BadgerDB {
 }
 
 /*
-InitializeDB initialize badger database file from given dbPath and dbName
+InitializeBadgerDB initialize badger database file from given dbPath and dbName
 if dbPath not exist create given dbPath
 if dbName / file not exist, create file with given dbName
 return nil if dbPath/dbName exist
@@ -78,6 +78,7 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 	return nil
 }
 
+// OpenBadgerDB will open badger db connection
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
 	opts := badger.DefaultOptions(filepath.Join(dbPath, dbName))
 	// avoid memory-mapping log files

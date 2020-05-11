@@ -1,6 +1,4 @@
-/**
-kvdb is key-value database abstraction of badger db implementation
-*/
+// Package kvdb is key-value database abstraction of badger db implementation /**
 package kvdb
 
 import (
@@ -18,6 +16,7 @@ type (
 		BatchInsert(updates map[string][]byte) error
 		Get(key string) ([]byte, error)
 		GetByPrefix(prefix string) (map[string][]byte, error)
+		Delete(key string) error
 	}
 	KVExecutor struct {
 		Db *badger.DB
@@ -162,4 +161,11 @@ func (kve *KVExecutor) Rollback(latestBlock, forkingPoint string) error {
 	}
 
 	return nil
+}
+
+// Delete allowing to delete a key with transaction has been wrapped
+func (kve *KVExecutor) Delete(key string) error {
+	return kve.Db.Update(func(txn *badger.Txn) error {
+		return txn.Delete([]byte(key))
+	})
 }

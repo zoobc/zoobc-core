@@ -5,9 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/database"
-
 	badger "github.com/dgraph-io/badger/v2"
+	"github.com/zoobc/zoobc-core/common/database"
 )
 
 func getMockedKVDb() *badger.DB {
@@ -169,6 +168,43 @@ func TestNewKVExecutor(t *testing.T) {
 			if got := NewKVExecutor(tt.args.db); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewKVExecutor() = %v, want %v", got, tt.want)
 			}
+		})
+	}
+}
+
+func TestKVExecutor_Delete(t *testing.T) {
+
+	type fields struct {
+		Db *badger.DB
+	}
+	type args struct {
+		key string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				Db: getMockedKVDb(),
+			},
+			args: args{
+				key: "mempool_backup",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kve := &KVExecutor{
+				Db: tt.fields.Db,
+			}
+			if err := kve.Delete(tt.args.key); (err != nil) != tt.wantErr {
+				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			defer cleanUpTestData()
 		})
 	}
 }
