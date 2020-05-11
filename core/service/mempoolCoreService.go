@@ -46,7 +46,7 @@ type (
 		) ([]*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
-		BackupMempols(commonBlock *model.Block) (*bytes.Buffer, error)
+		BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error)
 	}
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
@@ -465,7 +465,7 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 	return mempools, nil
 }
 
-func (mps *MempoolService) BackupMempols(commonBlock *model.Block) (*bytes.Buffer, error) {
+func (mps *MempoolService) BackupMempools(commonBlock *model.Block) (*bytes.Buffer, error) {
 
 	var (
 		mempoolsBackupBytes *bytes.Buffer

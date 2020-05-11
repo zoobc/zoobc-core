@@ -1327,7 +1327,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	// Backup existing transactions from mempool before rollback
-	mempoolsBackupBytes, err = bs.MempoolService.BackupMempols(commonBlock)
+	mempoolsBackupBytes, err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
 		return nil, err
 	}
