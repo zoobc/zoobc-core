@@ -100,3 +100,89 @@ func TestAccountDatasetHandler_GetAccountDatasets(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetAccountDatasetError struct {
+		service.AccountDatasetServiceInterface
+	}
+	mockGetAccountDatasetSuccess struct {
+		service.AccountDatasetServiceInterface
+	}
+)
+
+func (*mockGetAccountDatasetError) GetAccountDataset(request *model.GetAccountDatasetRequest) (*model.AccountDataset, error) {
+	return nil, errors.New("Error GetAccountDataset")
+}
+func (*mockGetAccountDatasetSuccess) GetAccountDataset(request *model.GetAccountDatasetRequest) (*model.AccountDataset, error) {
+	return &model.AccountDataset{}, nil
+}
+
+func TestAccountDatasetHandler_GetAccountDataset(t *testing.T) {
+	type fields struct {
+		Service service.AccountDatasetServiceInterface
+	}
+	type args struct {
+		in0     context.Context
+		request *model.GetAccountDatasetRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.AccountDataset
+		wantErr bool
+	}{
+		{
+			name: "GetAccountDataset:InvalidRequest",
+			args: args{
+				request: &model.GetAccountDatasetRequest{
+					RecipientAccountAddress: "",
+					Property:                "",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetAccountDataset:Error",
+			fields: fields{
+				Service: &mockGetAccountDatasetError{},
+			},
+			args: args{
+				request: &model.GetAccountDatasetRequest{
+					RecipientAccountAddress: "H1ftvv3n6CF5NDzdjmZKLRrBg6yPKHXpmatVUhQ5NWYx",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetAccountDataset:Success",
+			fields: fields{
+				Service: &mockGetAccountDatasetSuccess{},
+			},
+			args: args{
+				request: &model.GetAccountDatasetRequest{
+					RecipientAccountAddress: "H1ftvv3n6CF5NDzdjmZKLRrBg6yPKHXpmatVUhQ5NWYx",
+				},
+			},
+			want:    &model.AccountDataset{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adh := &AccountDatasetHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := adh.GetAccountDataset(tt.args.in0, tt.args.request)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AccountDatasetHandler.GetAccountDataset() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AccountDatasetHandler.GetAccountDataset() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
