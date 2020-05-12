@@ -106,11 +106,11 @@ type (
 	}
 )
 
-func (*mockGetBlocksError) GetBlocks(chainType chaintype.ChainType, count uint32, height uint32) (*model.GetBlocksResponse, error) {
+func (*mockGetBlocksError) GetBlocks(chainType chaintype.ChainType, count, height uint32) (*model.GetBlocksResponse, error) {
 	return nil, errors.New("Error GetBlocks")
 }
 
-func (*mockGetBlocksSucess) GetBlocks(chainType chaintype.ChainType, count uint32, height uint32) (*model.GetBlocksResponse, error) {
+func (*mockGetBlocksSucess) GetBlocks(chainType chaintype.ChainType, count, height uint32) (*model.GetBlocksResponse, error) {
 	return &model.GetBlocksResponse{}, nil
 }
 
