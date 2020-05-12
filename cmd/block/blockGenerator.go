@@ -187,7 +187,10 @@ func initialize(
 		publishedReceiptUtil,
 		service.NewTransactionCoreService(
 			queryExecutor,
+			nil,
+			nil,
 			query.NewTransactionQuery(chainType),
+			nil,
 			nil,
 		),
 		nil,

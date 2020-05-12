@@ -212,8 +212,13 @@ func init() {
 
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		queryExecutor,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		&transaction.Util{},
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
 	)
 
 	defaultSignatureType = crypto.NewEd25519Signature()
@@ -603,8 +608,13 @@ func startMainchain() {
 		TransactionUtil:    transactionUtil,
 		TransactionCorService: service.NewTransactionCoreService(
 			queryExecutor,
+			&transaction.TypeSwitcher{
+				Executor: queryExecutor,
+			},
+			&transaction.Util{},
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
+			query.NewPendingTransactionQuery(),
 		),
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
@@ -692,8 +702,13 @@ func startSpinechain() {
 		TransactionUtil:    transactionUtil,
 		TransactionCorService: service.NewTransactionCoreService(
 			queryExecutor,
+			&transaction.TypeSwitcher{
+				Executor: queryExecutor,
+			},
+			&transaction.Util{},
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
+			query.NewPendingTransactionQuery(),
 		),
 	}
 	spinechainSynchronizer = blockchainsync.NewBlockchainSyncService(

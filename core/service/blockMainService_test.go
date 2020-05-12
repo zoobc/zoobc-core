@@ -577,6 +577,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockTransaction.GetSenderAccountAddress(),
 			mockTransaction.GetRecipientAccountAddress(),
 		))
+	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
+		"WHERE block_height = ? AND status = ? AND latest = ?":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
 	// which is escrow expiration process
 	default:
 		mockRows := sqlmock.NewRows(query.NewEscrowTransactionQuery().Fields)
@@ -935,11 +938,7 @@ func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(blocks
 	return []string{}, nil
 }
 
-func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses(
-	blocksmithAccountAddresses []string,
-	totalReward, blockTimestamp int64,
-	height uint32,
-) error {
+func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([]string, int64, int64, uint32) error {
 	return nil
 }
 
@@ -1057,8 +1056,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1117,8 +1121,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1177,8 +1186,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1237,8 +1251,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1901,8 +1920,13 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				Logger:                  log.New(),
 				TransactionCoreService: NewTransactionCoreService(
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
 			},

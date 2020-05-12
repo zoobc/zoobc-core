@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -18,24 +19,34 @@ type (
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
 		ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error
+		ExpiringPendingTransactions(blockHeight uint32, useTX bool) error
 	}
 
 	TransactionCoreService struct {
-		TransactionQuery       query.TransactionQueryInterface
-		EscrowTransactionQuery query.EscrowTransactionQueryInterface
-		QueryExecutor          query.ExecutorInterface
+		QueryExecutor           query.ExecutorInterface
+		TypeActionSwitcher      transaction.TypeActionSwitcher
+		TransactionUtil         transaction.UtilInterface
+		TransactionQuery        query.TransactionQueryInterface
+		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
 	}
 )
 
 func NewTransactionCoreService(
 	queryExecutor query.ExecutorInterface,
+	typeActionSwitcher transaction.TypeActionSwitcher,
+	transactionUtil transaction.UtilInterface,
 	transactionQuery query.TransactionQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
+	pendingTransactionQuery query.PendingTransactionQueryInterface,
 ) TransactionCoreServiceInterface {
 	return &TransactionCoreService{
-		TransactionQuery:       transactionQuery,
-		EscrowTransactionQuery: escrowTransactionQuery,
-		QueryExecutor:          queryExecutor,
+		QueryExecutor:           queryExecutor,
+		TypeActionSwitcher:      typeActionSwitcher,
+		TransactionUtil:         transactionUtil,
+		TransactionQuery:        transactionQuery,
+		EscrowTransactionQuery:  escrowTransactionQuery,
+		PendingTransactionQuery: pendingTransactionQuery,
 	}
 }
 
@@ -128,6 +139,77 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
 				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// ExpiringPendingTransactions will set status to be expired caused by current block height
+func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32, useTX bool) error {
+	var (
+		pendingTransactions []*model.PendingTransaction
+		innerTransaction    *model.Transaction
+		typeAction          transaction.TypeAction
+		rows                *sql.Rows
+		err                 error
+	)
+
+	qy, qArgs := tg.PendingTransactionQuery.GetPendingTransactionsExpireByHeight(blockHeight + constant.MinRollbackBlocks)
+	rows, err = tg.QueryExecutor.ExecuteSelect(qy, useTX, qArgs)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	pendingTransactions, err = tg.PendingTransactionQuery.BuildModel(pendingTransactions, rows)
+	if err != nil {
+		return err
+	}
+
+	if len(pendingTransactions) > 0 {
+		if !useTX {
+			err = tg.QueryExecutor.BeginTx()
+			if err != nil {
+				return err
+			}
+		}
+		for _, pendingTransaction := range pendingTransactions {
+
+			/**
+			SET PendingTransaction
+			1. block height = current block height
+			2. status = expired
+			*/
+			nPendingTransaction := pendingTransaction
+			nPendingTransaction.BlockHeight = blockHeight
+			nPendingTransaction.Status = model.PendingTransactionStatus_PendingTransactionExpired
+			q := tg.PendingTransactionQuery.InsertPendingTransaction(nPendingTransaction)
+			err = tg.QueryExecutor.ExecuteTransactions(q)
+			if err != nil {
+				return err
+			}
+			// Do UndoApplyConfirmed
+			innerTransaction, err = tg.TransactionUtil.ParseTransactionBytes(nPendingTransaction.GetTransactionBytes(), false)
+			if err != nil {
+				return err
+			}
+			typeAction, err = tg.TypeActionSwitcher.GetTransactionType(innerTransaction)
+			if err != nil {
+				return err
+			}
+			err = typeAction.UndoApplyUnconfirmed()
+			if err != nil {
+				return err
+			}
+		}
+
+		if !useTX {
+			err = tg.QueryExecutor.CommitTx()
+			if err != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					return err
 				}
 			}
