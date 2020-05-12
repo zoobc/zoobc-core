@@ -2,13 +2,12 @@ package handler
 
 import (
 	"context"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
-
 	"github.com/zoobc/zoobc-core/common/model"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -28,8 +27,15 @@ func (msh *MultisigHandler) GetPendingTransactions(
 		req.Pagination.OrderField = "block_height"
 		req.Pagination.OrderBy = model.OrderBy_DESC
 	}
-	result, err := msh.MultisigService.GetPendingTransactions(req)
-	return result, err
+
+	var notAllowedStatuses = map[model.PendingTransactionStatus]bool{
+		model.PendingTransactionStatus_PendingTransactionPending: false,
+		model.PendingTransactionStatus_PendingTransactionExpired: false,
+	}
+	if s, ok := notAllowedStatuses[req.GetStatus()]; ok {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Getting by status: %v denied", s))
+	}
+	return msh.MultisigService.GetPendingTransactions(req)
 }
 
 func (msh *MultisigHandler) GetPendingTransactionDetailByTransactionHash(
