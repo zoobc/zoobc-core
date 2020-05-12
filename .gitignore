@@ -26,3 +26,5 @@ accounts.txt
 .manual
 release/
 github.token
+*.back
+*.bak
