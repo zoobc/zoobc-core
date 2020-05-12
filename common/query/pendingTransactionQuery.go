@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -105,14 +107,15 @@ func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
 }
 
 // GetPendingTransactionsExpireByHeight presents query to get pending_transactions that was expire by block_height
-func (ptq *PendingTransactionQuery) GetPendingTransactionsExpireByHeight(blockHeight uint32) (str string, args []interface{}) {
+func (ptq *PendingTransactionQuery) GetPendingTransactionsExpireByHeight(currentHeight uint32) (str string, args []interface{}) {
 	return fmt.Sprintf(
-			"SELECT %s FROM %s WHERE block_height = ? AND status = ? AND latest = ?",
+			"SELECT %s FROM %s WHERE (block_height+?) = ? AND status = ? AND latest = ?",
 			strings.Join(ptq.Fields, ", "),
 			ptq.getTableName(),
 		),
 		[]interface{}{
-			blockHeight,
+			constant.MinRollbackBlocks,
+			currentHeight,
 			model.PendingTransactionStatus_PendingTransactionPending,
 			true,
 		}

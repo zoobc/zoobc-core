@@ -335,10 +335,10 @@ func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
 
 func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
 
-func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+func (*mockQueryExecutorSuccess) ExecuteTransaction(string, ...interface{}) error {
 	return nil
 }
-func (*mockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) error {
+func (*mockQueryExecutorSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
@@ -578,7 +578,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockTransaction.GetRecipientAccountAddress(),
 		))
 	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
-		"WHERE block_height = ? AND status = ? AND latest = ?":
+		"WHERE (block_height+?) = ? AND status = ? AND latest = ?":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
 	// which is escrow expiration process
 	default:
@@ -4217,6 +4217,9 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 		"transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(transactionQ.Fields))
+	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
+		"WHERE (block_height+?) = ? AND status = ? AND latest = ?":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
 	}
 
 	return db.Query(qStr)

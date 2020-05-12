@@ -2,9 +2,9 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -157,8 +157,8 @@ func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32
 		err                 error
 	)
 
-	qy, qArgs := tg.PendingTransactionQuery.GetPendingTransactionsExpireByHeight(blockHeight + constant.MinRollbackBlocks)
-	rows, err = tg.QueryExecutor.ExecuteSelect(qy, useTX, qArgs)
+	qy, qArgs := tg.PendingTransactionQuery.GetPendingTransactionsExpireByHeight(blockHeight)
+	rows, err = tg.QueryExecutor.ExecuteSelect(qy, useTX, qArgs...)
 	if err != nil {
 		return err
 	}
@@ -189,31 +189,42 @@ func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32
 			q := tg.PendingTransactionQuery.InsertPendingTransaction(nPendingTransaction)
 			err = tg.QueryExecutor.ExecuteTransactions(q)
 			if err != nil {
-				return err
+				break
 			}
 			// Do UndoApplyConfirmed
 			innerTransaction, err = tg.TransactionUtil.ParseTransactionBytes(nPendingTransaction.GetTransactionBytes(), false)
 			if err != nil {
-				return err
+				break
 			}
 			typeAction, err = tg.TypeActionSwitcher.GetTransactionType(innerTransaction)
 			if err != nil {
-				return err
+				break
 			}
 			err = typeAction.UndoApplyUnconfirmed()
 			if err != nil {
-				return err
+				break
 			}
 		}
 
 		if !useTX {
-			err = tg.QueryExecutor.CommitTx()
+			/*
+				Check the latest error is not nil, otherwise need to aborting the whole query transactions safety with rollBack.
+				And automatically unlock mutex
+			*/
 			if err != nil {
 				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					return err
 				}
 			}
+			err = tg.QueryExecutor.CommitTx()
+			if err != nil {
+				fmt.Println("Expiring Pending Transactions err CommitTx: ", err.Error())
+				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					return err
+				}
+			}
 		}
+		return err
 	}
 	return nil
 }

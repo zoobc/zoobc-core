@@ -574,7 +574,7 @@ func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing
 		TableName string
 	}
 	type args struct {
-		blockHeight uint32
+		currentHeight uint32
 	}
 	tests := []struct {
 		name     string
@@ -587,11 +587,12 @@ func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing
 			name:   "WantSuccess",
 			fields: fields(*NewPendingTransactionQuery()),
 			args: args{
-				blockHeight: 100,
+				currentHeight: 100,
 			},
 			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
-				"WHERE block_height = ? AND status = ? AND latest = ?",
+				"WHERE (block_height+?) = ? AND status = ? AND latest = ?",
 			wantArgs: []interface{}{
+				constant.MinRollbackBlocks,
 				uint32(100),
 				model.PendingTransactionStatus_PendingTransactionPending,
 				true,
@@ -604,7 +605,7 @@ func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := ptq.GetPendingTransactionsExpireByHeight(tt.args.blockHeight)
+			gotStr, gotArgs := ptq.GetPendingTransactionsExpireByHeight(tt.args.currentHeight)
 			if gotStr != tt.wantStr {
 				t.Errorf("GetPendingTransactionsExpireByHeight() gotStr = %v, want %v", gotStr, tt.wantStr)
 				return

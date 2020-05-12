@@ -408,9 +408,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 
+	// TODO: derived transaction expire https://github.com/zoobc/zoobc-core/issues/826
 	/*
 		Expiring Process: expiring the the transactions that affected by current block height.
-		Respecting Expiring escrow before push block process
+		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), true)
 	if err != nil {
