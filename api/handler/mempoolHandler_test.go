@@ -20,11 +20,13 @@ type (
 	}
 )
 
-func (*MockGetMempoolTransactionError) GetMempoolTransaction(chainType chaintype.ChainType, params *model.GetMempoolTransactionRequest) (*model.GetMempoolTransactionResponse, error) {
+func (*MockGetMempoolTransactionError) GetMempoolTransaction(chainType chaintype.ChainType, params *model.GetMempoolTransactionRequest,
+) (*model.GetMempoolTransactionResponse, error) {
 	return nil, errors.New("Error GetMempoolTransaction")
 }
 
-func (*MockGetMempoolTransactionSuccess) GetMempoolTransaction(chainType chaintype.ChainType, params *model.GetMempoolTransactionRequest) (*model.GetMempoolTransactionResponse, error) {
+func (*MockGetMempoolTransactionSuccess) GetMempoolTransaction(chainType chaintype.ChainType, params *model.GetMempoolTransactionRequest,
+) (*model.GetMempoolTransactionResponse, error) {
 	return &model.GetMempoolTransactionResponse{}, nil
 }
 
@@ -86,11 +88,13 @@ type (
 	}
 )
 
-func (*MockGetMempoolTransactionsError) GetMempoolTransactions(chainType chaintype.ChainType, params *model.GetMempoolTransactionsRequest) (*model.GetMempoolTransactionsResponse, error) {
+func (*MockGetMempoolTransactionsError) GetMempoolTransactions(chainType chaintype.ChainType, params *model.GetMempoolTransactionsRequest,
+) (*model.GetMempoolTransactionsResponse, error) {
 	return nil, errors.New("Error GetMempoolTransactions")
 }
 
-func (*MockGetMempoolTransactionsSuccess) GetMempoolTransactions(chainType chaintype.ChainType, params *model.GetMempoolTransactionsRequest) (*model.GetMempoolTransactionsResponse, error) {
+func (*MockGetMempoolTransactionsSuccess) GetMempoolTransactions(chainType chaintype.ChainType, params *model.GetMempoolTransactionsRequest,
+) (*model.GetMempoolTransactionsResponse, error) {
 	return &model.GetMempoolTransactionsResponse{}, nil
 }
 
