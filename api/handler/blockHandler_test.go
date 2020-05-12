@@ -15,24 +15,24 @@ type (
 	mockGetBlockError struct {
 		service.BlockServiceInterface
 	}
-	mockGetBlockSucess struct {
+	mockGetBlockSuccess struct {
 		service.BlockServiceInterface
 	}
 )
 
-func (*mockGetBlockError) GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.BlockExtendedInfo, error) {
+func (*mockGetBlockError) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.BlockExtendedInfo, error) {
 	return nil, errors.New("Error GetBlockByID")
 }
 
-func (*mockGetBlockError) GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.BlockExtendedInfo, error) {
+func (*mockGetBlockError) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.BlockExtendedInfo, error) {
 	return nil, errors.New("Error GetBlockByHeight")
 }
 
-func (*mockGetBlockSucess) GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.BlockExtendedInfo, error) {
+func (*mockGetBlockSuccess) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.BlockExtendedInfo, error) {
 	return &model.BlockExtendedInfo{}, nil
 }
 
-func (*mockGetBlockSucess) GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.BlockExtendedInfo, error) {
+func (*mockGetBlockSuccess) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.BlockExtendedInfo, error) {
 	return &model.BlockExtendedInfo{}, nil
 }
 
@@ -66,9 +66,9 @@ func TestBlockHandler_GetBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetBlock:Sucess",
+			name: "GetBlock:Success",
 			fields: fields{
-				Service: &mockGetBlockSucess{},
+				Service: &mockGetBlockSuccess{},
 			},
 			args: args{
 				req: &model.GetBlockRequest{
@@ -106,11 +106,11 @@ type (
 	}
 )
 
-func (*mockGetBlocksError) GetBlocks(chainType chaintype.ChainType, Count uint32, Height uint32) (*model.GetBlocksResponse, error) {
+func (*mockGetBlocksError) GetBlocks(chainType chaintype.ChainType, count uint32, height uint32) (*model.GetBlocksResponse, error) {
 	return nil, errors.New("Error GetBlocks")
 }
 
-func (*mockGetBlocksSucess) GetBlocks(chainType chaintype.ChainType, Count uint32, Height uint32) (*model.GetBlocksResponse, error) {
+func (*mockGetBlocksSucess) GetBlocks(chainType chaintype.ChainType, count uint32, height uint32) (*model.GetBlocksResponse, error) {
 	return &model.GetBlocksResponse{}, nil
 }
 
