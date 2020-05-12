@@ -167,3 +167,107 @@ func TestMultisigHandler_GetPendingTransactionDetailByTransactionHash(t *testing
 		})
 	}
 }
+
+type (
+	mockGetMultisignatureInfoError struct {
+		service.MultisigServiceInterface
+	}
+	mockGetMultisignatureInfoSuccess struct {
+		service.MultisigServiceInterface
+	}
+)
+
+func (*mockGetMultisignatureInfoError) GetMultisignatureInfo(param *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error) {
+	return nil, errors.New("Error GetMultisignatureInfo")
+}
+
+func (*mockGetMultisignatureInfoSuccess) GetMultisignatureInfo(param *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error) {
+	return &model.GetMultisignatureInfoResponse{}, nil
+}
+
+func TestMultisigHandler_GetMultisignatureInfo(t *testing.T) {
+	type fields struct {
+		MultisigService service.MultisigServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetMultisignatureInfoRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetMultisignatureInfoResponse
+		wantErr bool
+	}{
+		{
+			name: "GetMultisignatureInfo:ErrorPageLessThanOne",
+			args: args{
+				req: &model.GetMultisignatureInfoRequest{
+					Pagination: &model.Pagination{
+						Page: 0,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo:ErrorLimitMoreThan30",
+			args: args{
+				req: &model.GetMultisignatureInfoRequest{
+					Pagination: &model.Pagination{
+						Page: 31,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo:Error",
+			args: args{
+				req: &model.GetMultisignatureInfoRequest{
+					Pagination: &model.Pagination{
+						Page: 1,
+					},
+				},
+			},
+			fields: fields{
+				MultisigService: &mockGetMultisignatureInfoError{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureInfo:Success",
+			args: args{
+				req: &model.GetMultisignatureInfoRequest{
+					Pagination: &model.Pagination{
+						Page: 1,
+					},
+				},
+			},
+			fields: fields{
+				MultisigService: &mockGetMultisignatureInfoSuccess{},
+			},
+			want:    &model.GetMultisignatureInfoResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msh := &MultisigHandler{
+				MultisigService: tt.fields.MultisigService,
+			}
+			got, err := msh.GetMultisignatureInfo(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MultisigHandler.GetMultisignatureInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MultisigHandler.GetMultisignatureInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
