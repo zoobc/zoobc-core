@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -22,6 +23,7 @@ type (
 	}
 
 	TransactionCoreService struct {
+		Log                     *logrus.Logger
 		QueryExecutor           query.ExecutorInterface
 		TypeActionSwitcher      transaction.TypeActionSwitcher
 		TransactionUtil         transaction.UtilInterface
@@ -32,6 +34,7 @@ type (
 )
 
 func NewTransactionCoreService(
+	log *logrus.Logger,
 	queryExecutor query.ExecutorInterface,
 	typeActionSwitcher transaction.TypeActionSwitcher,
 	transactionUtil transaction.UtilInterface,
@@ -40,6 +43,7 @@ func NewTransactionCoreService(
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
 ) TransactionCoreServiceInterface {
 	return &TransactionCoreService{
+		Log:                     log,
 		QueryExecutor:           queryExecutor,
 		TypeActionSwitcher:      typeActionSwitcher,
 		TransactionUtil:         transactionUtil,
@@ -148,15 +152,15 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 			*/
 			if err != nil {
 				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					return rollbackErr
+					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
 
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
-				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
-					return errRollback
+				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
@@ -237,14 +241,14 @@ func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32
 			*/
 			if err != nil {
 				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					return rollbackErr
+					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
 				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					return rollbackErr
+					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}

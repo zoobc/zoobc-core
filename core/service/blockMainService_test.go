@@ -1055,6 +1055,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
 					&transaction.TypeSwitcher{
 						Executor: &mockQueryExecutorSuccess{},
@@ -1120,10 +1121,9 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
-					&transaction.TypeSwitcher{
-						Executor: &mockQueryExecutorSuccess{},
-					},
+					&transaction.TypeSwitcher{Executor: &mockQueryExecutorSuccess{}},
 					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
@@ -1185,6 +1185,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
 					&transaction.TypeSwitcher{
 						Executor: &mockQueryExecutorSuccess{},
@@ -1250,6 +1251,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
 					&transaction.TypeSwitcher{
 						Executor: &mockQueryExecutorSuccess{},
@@ -1919,6 +1921,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
 					&transaction.TypeSwitcher{
 						Executor: &mockQueryExecutorSuccess{},

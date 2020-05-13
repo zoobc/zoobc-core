@@ -211,6 +211,7 @@ func init() {
 	)
 
 	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
 		queryExecutor,
 		&transaction.TypeSwitcher{
 			Executor: queryExecutor,
@@ -607,6 +608,7 @@ func startMainchain() {
 		Logger:             loggerCoreService,
 		TransactionUtil:    transactionUtil,
 		TransactionCorService: service.NewTransactionCoreService(
+			loggerCoreService,
 			queryExecutor,
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
@@ -701,6 +703,7 @@ func startSpinechain() {
 		Logger:             loggerCoreService,
 		TransactionUtil:    transactionUtil,
 		TransactionCorService: service.NewTransactionCoreService(
+			loggerCoreService,
 			queryExecutor,
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
