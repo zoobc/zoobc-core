@@ -109,13 +109,12 @@ func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
 // GetPendingTransactionsExpireByHeight presents query to get pending_transactions that was expire by block_height
 func (ptq *PendingTransactionQuery) GetPendingTransactionsExpireByHeight(currentHeight uint32) (str string, args []interface{}) {
 	return fmt.Sprintf(
-			"SELECT %s FROM %s WHERE (block_height+?) = ? AND status = ? AND latest = ?",
+			"SELECT %s FROM %s WHERE block_height = ? AND status = ? AND latest = ?",
 			strings.Join(ptq.Fields, ", "),
 			ptq.getTableName(),
 		),
 		[]interface{}{
-			constant.MinRollbackBlocks,
-			currentHeight,
+			currentHeight - constant.MinRollbackBlocks,
 			model.PendingTransactionStatus_PendingTransactionPending,
 			true,
 		}

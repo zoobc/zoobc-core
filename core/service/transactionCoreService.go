@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -97,21 +96,28 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 		err     error
 	)
 
-	escrowQ, escrowArgs := tg.EscrowTransactionQuery.GetEscrowTransactions(map[string]interface{}{
-		"timeout": blockHeight,
-		"status":  model.EscrowStatus_Pending,
-		"latest":  1,
-	})
-	rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, useTX, escrowArgs...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+	err = func() error {
+		escrowQ, escrowArgs := tg.EscrowTransactionQuery.GetEscrowTransactions(map[string]interface{}{
+			"timeout": blockHeight,
+			"status":  model.EscrowStatus_Pending,
+			"latest":  1,
+		})
+		rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, useTX, escrowArgs...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
 
-	escrows, err = tg.EscrowTransactionQuery.BuildModels(rows)
+		escrows, err = tg.EscrowTransactionQuery.BuildModels(rows)
+		if err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
 		return err
 	}
+
 	if len(escrows) > 0 {
 		if !useTX {
 			err = tg.QueryExecutor.BeginTx()
@@ -131,16 +137,28 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 			q := tg.EscrowTransactionQuery.InsertEscrowTransaction(escrow)
 			err = tg.QueryExecutor.ExecuteTransactions(q)
 			if err != nil {
-				return err
+				break
 			}
 		}
 
 		if !useTX {
+			/*
+				Check the latest error is not nil, otherwise need to aborting the whole query transactions safety with rollBack.
+				And automatically unlock mutex
+			*/
+			if err != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					return rollbackErr
+				}
+				return err
+			}
+
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
 				if errRollback := tg.QueryExecutor.RollbackTx(); errRollback != nil {
-					return err
+					return errRollback
 				}
+				return err
 			}
 		}
 	}
@@ -157,14 +175,20 @@ func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32
 		err                 error
 	)
 
-	qy, qArgs := tg.PendingTransactionQuery.GetPendingTransactionsExpireByHeight(blockHeight)
-	rows, err = tg.QueryExecutor.ExecuteSelect(qy, useTX, qArgs...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+	err = func() error {
+		qy, qArgs := tg.PendingTransactionQuery.GetPendingTransactionsExpireByHeight(blockHeight)
+		rows, err = tg.QueryExecutor.ExecuteSelect(qy, useTX, qArgs...)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
 
-	pendingTransactions, err = tg.PendingTransactionQuery.BuildModel(pendingTransactions, rows)
+		pendingTransactions, err = tg.PendingTransactionQuery.BuildModel(pendingTransactions, rows)
+		if err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
 		return err
 	}
@@ -213,15 +237,16 @@ func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32
 			*/
 			if err != nil {
 				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					return err
+					return rollbackErr
 				}
+				return err
 			}
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
-				fmt.Println("Expiring Pending Transactions err CommitTx: ", err.Error())
 				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					return err
+					return rollbackErr
 				}
+				return err
 			}
 		}
 		return err

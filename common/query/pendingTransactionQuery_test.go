@@ -587,13 +587,12 @@ func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing
 			name:   "WantSuccess",
 			fields: fields(*NewPendingTransactionQuery()),
 			args: args{
-				currentHeight: 100,
+				currentHeight: 1000,
 			},
-			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
-				"WHERE (block_height+?) = ? AND status = ? AND latest = ?",
+			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest " +
+				"FROM pending_transaction WHERE block_height = ? AND status = ? AND latest = ?",
 			wantArgs: []interface{}{
-				constant.MinRollbackBlocks,
-				uint32(100),
+				uint32(1000) - constant.MinRollbackBlocks,
 				model.PendingTransactionStatus_PendingTransactionPending,
 				true,
 			},

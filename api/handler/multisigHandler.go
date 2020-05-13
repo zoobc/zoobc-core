@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -28,13 +27,6 @@ func (msh *MultisigHandler) GetPendingTransactions(
 		req.Pagination.OrderBy = model.OrderBy_DESC
 	}
 
-	var notAllowedStatuses = map[model.PendingTransactionStatus]bool{
-		model.PendingTransactionStatus_PendingTransactionPending: false,
-		model.PendingTransactionStatus_PendingTransactionExpired: false,
-	}
-	if s, ok := notAllowedStatuses[req.GetStatus()]; ok {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Getting by status: %v denied", s))
-	}
 	return msh.MultisigService.GetPendingTransactions(req)
 }
 

@@ -577,8 +577,8 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockTransaction.GetSenderAccountAddress(),
 			mockTransaction.GetRecipientAccountAddress(),
 		))
-	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
-		"WHERE (block_height+?) = ? AND status = ? AND latest = ?":
+	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest " +
+		"FROM pending_transaction WHERE block_height = ? AND status = ? AND latest = ?":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
 	// which is escrow expiration process
 	default:
