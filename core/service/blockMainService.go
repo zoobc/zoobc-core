@@ -604,9 +604,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				if broadcast {
+					// create copy of the block to avoid reference update on block pool
+					blockToBroadcast := *block
 					// add transactionIDs and remove transaction before broadcast
-					block.TransactionIDs = transactionIDs
-					block.Transactions = []*model.Transaction{}
+					blockToBroadcast.TransactionIDs = transactionIDs
+					blockToBroadcast.Transactions = []*model.Transaction{}
 					bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 				}
 				return nil
@@ -657,6 +659,7 @@ func (bs *BlockService) ScanBlockPool() error {
 				)
 			}
 			err = bs.PushBlock(previousBlock, block, true, true)
+
 			if err != nil {
 				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 				return blocker.NewBlocker(
