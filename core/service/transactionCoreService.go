@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"strconv"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -62,18 +63,52 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 
 // GetTransactionsByBlockID get transactions of the block
 func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
-	var transactions []*model.Transaction
+	var (
+		transactions []*model.Transaction
+		escrows      []*model.Escrow
+		txIdsStr     []string
+		err          error
+	)
 
 	// get transaction of the block
-	transactionQ, transactionArg := tg.TransactionQuery.GetTransactionsByBlockID(blockID)
-	rows, err := tg.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
-
+	transactions, err = func() ([]*model.Transaction, error) {
+		transactionQ, transactionArg := tg.TransactionQuery.GetTransactionsByBlockID(blockID)
+		rows, err := tg.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		defer rows.Close()
+		return tg.TransactionQuery.BuildModel(transactions, rows)
+	}()
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	defer rows.Close()
-
-	return tg.TransactionQuery.BuildModel(transactions, rows)
+	// fetch escrow if exist
+	for _, tx := range transactions {
+		txIdsStr = append(txIdsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
+	}
+	if len(txIdsStr) > 0 {
+		escrows, err = func() ([]*model.Escrow, error) {
+			escrowQ := tg.EscrowTransactionQuery.GetPendingEscrowTransactionsByTransactionIds(txIdsStr)
+			rows, err := tg.QueryExecutor.ExecuteSelect(escrowQ, false)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			return tg.EscrowTransactionQuery.BuildModels(rows)
+		}()
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		for _, escrow := range escrows {
+			for _, tx := range transactions {
+				if tx.ID == escrow.ID {
+					tx.Escrow = escrow
+				}
+			}
+		}
+	}
+	return transactions, nil
 }
 
 // ExpiringEscrowTransactions push an observer event that is ExpiringEscrowTransactions,
