@@ -63,7 +63,7 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	}
 }
 
-// InsertPendingSignature inserts a new pending transaction into DB
+// InsertMultisignatureInfo inserts a new pending transaction into DB
 func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{} {
 	var queries [][]interface{}
 	insertQuery := fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES(%s)",

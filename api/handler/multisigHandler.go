@@ -3,12 +3,10 @@ package handler
 import (
 	"context"
 
+	"github.com/zoobc/zoobc-core/api/service"
+	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/zoobc/zoobc-core/api/service"
-
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 type (
@@ -28,8 +26,8 @@ func (msh *MultisigHandler) GetPendingTransactions(
 		req.Pagination.OrderField = "block_height"
 		req.Pagination.OrderBy = model.OrderBy_DESC
 	}
-	result, err := msh.MultisigService.GetPendingTransactions(req)
-	return result, err
+
+	return msh.MultisigService.GetPendingTransactions(req)
 }
 
 func (msh *MultisigHandler) GetPendingTransactionDetailByTransactionHash(
