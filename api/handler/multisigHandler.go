@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,6 +46,7 @@ func (msh *MultisigHandler) GetMultisignatureInfo(
 	req *model.GetMultisignatureInfoRequest,
 ) (*model.GetMultisignatureInfoResponse, error) {
 	if req.GetPagination().GetPage() < 1 {
+		fmt.Println("PageCannotBeLessThanOne")
 		return nil, status.Error(codes.InvalidArgument, "PageCannotBeLessThanOne")
 	}
 	if req.GetPagination().GetOrderField() == "" {
@@ -52,6 +54,7 @@ func (msh *MultisigHandler) GetMultisignatureInfo(
 		req.Pagination.OrderBy = model.OrderBy_DESC
 	}
 	if req.GetPagination().GetPage() > 30 {
+		fmt.Println("LimitCannotBeMoreThan30")
 		return nil, status.Error(codes.InvalidArgument, "LimitCannotBeMoreThan30")
 	}
 	result, err := msh.MultisigService.GetMultisignatureInfo(req)

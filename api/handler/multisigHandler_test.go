@@ -19,11 +19,13 @@ type (
 	}
 )
 
-func (*mockGetPendingTransactionsError) GetPendingTransactions(param *model.GetPendingTransactionsRequest) (*model.GetPendingTransactionsResponse, error) {
+func (*mockGetPendingTransactionsError) GetPendingTransactions(param *model.GetPendingTransactionsRequest,
+) (*model.GetPendingTransactionsResponse, error) {
 	return nil, errors.New("Error GetPendingTransactions")
 }
 
-func (*mockGetPendingTransactionsSuccess) GetPendingTransactions(param *model.GetPendingTransactionsRequest) (*model.GetPendingTransactionsResponse, error) {
+func (*mockGetPendingTransactionsSuccess) GetPendingTransactions(param *model.GetPendingTransactionsRequest,
+) (*model.GetPendingTransactionsResponse, error) {
 	return &model.GetPendingTransactionsResponse{}, nil
 }
 
@@ -111,11 +113,13 @@ type (
 	}
 )
 
-func (*mockGetPendingTransactionDetailByTransactionHashError) GetPendingTransactionDetailByTransactionHash(param *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
+func (*mockGetPendingTransactionDetailByTransactionHashError) GetPendingTransactionDetailByTransactionHash(param *model.GetPendingTransactionDetailByTransactionHashRequest,
+) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
 	return nil, errors.New("Error GetPendingTransactionDetailByTransactionHash")
 }
 
-func (*mockGetPendingTransactionDetailByTransactionHashSuccess) GetPendingTransactionDetailByTransactionHash(param *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
+func (*mockGetPendingTransactionDetailByTransactionHashSuccess) GetPendingTransactionDetailByTransactionHash(param *model.GetPendingTransactionDetailByTransactionHashRequest,
+) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
 	return &model.GetPendingTransactionDetailByTransactionHashResponse{}, nil
 }
 
@@ -177,11 +181,13 @@ type (
 	}
 )
 
-func (*mockGetMultisignatureInfoError) GetMultisignatureInfo(param *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error) {
+func (*mockGetMultisignatureInfoError) GetMultisignatureInfo(param *model.GetMultisignatureInfoRequest,
+) (*model.GetMultisignatureInfoResponse, error) {
 	return nil, errors.New("Error GetMultisignatureInfo")
 }
 
-func (*mockGetMultisignatureInfoSuccess) GetMultisignatureInfo(param *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error) {
+func (*mockGetMultisignatureInfoSuccess) GetMultisignatureInfo(param *model.GetMultisignatureInfoRequest,
+) (*model.GetMultisignatureInfoResponse, error) {
 	return &model.GetMultisignatureInfoResponse{}, nil
 }
 
