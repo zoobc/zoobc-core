@@ -1279,10 +1279,8 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		mempoolsBackupBytes *bytes.Buffer
-		mempoolsBackup      []*model.MempoolTransaction
-		publishedReceipts   []*model.PublishedReceipt
-		err                 error
+		publishedReceipts []*model.PublishedReceipt
+		err               error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1328,72 +1326,17 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	// Backup existing transactions from mempool before rollback
-	mempoolsBackup, err = bs.MempoolService.GetMempoolTransactionsWantToBackup(commonBlock.Height)
-	if err != nil {
-		return nil, err
-	}
-	bs.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
-	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
 		return nil, err
 	}
 
-	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-
-	for _, mempool := range mempoolsBackup {
-		var (
-			tx     *model.Transaction
-			txType transaction.TypeAction
-		)
-		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
-		if err != nil {
-			return nil, err
-		}
-		txType, err = bs.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			return nil, err
-		}
-
-		err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
-		if err != nil {
-			return nil, err
-		}
-
-		/*
-			mempoolsBackupBytes format is
-			[...{4}byteSize,{bytesSize}transactionBytes]
-		*/
-		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
-		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
-		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
-	}
-
-	for _, dQuery := range derivedQueries {
-		queries := dQuery.Rollback(commonBlock.Height)
-		err = bs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = bs.QueryExecutor.RollbackTx()
-			return nil, err
-		}
-	}
-	err = bs.QueryExecutor.CommitTx()
-	if err != nil {
-		return nil, err
-	}
-	//
 	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
 	//  rollback. Something like this:
 	//  - before rolling back derived queries, select all spine block manifest records from commonBlock.Height till last
 	//  - delete all snapshots referenced by them
 	//
-	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
-		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	// remove peer memoization
 	bs.NodeRegistrationService.ResetScrambledNodes()
 	// clear block pool
