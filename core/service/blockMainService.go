@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/mohae/deepcopy"
+
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -612,7 +614,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				}
 				if broadcast {
 					// create copy of the block to avoid reference update on block pool
-					blockToBroadcast := *block
+					b := deepcopy.Copy(block)
+					blockToBroadcast, ok := b.(*model.Block)
+					if !ok {
+						if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+							bs.Logger.Error(rollbackErr.Error())
+						}
+						return blocker.NewBlocker(blocker.AppErr, "FailCopyingBlock")
+					}
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
 					blockToBroadcast.Transactions = []*model.Transaction{}
