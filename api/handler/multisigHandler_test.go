@@ -113,13 +113,13 @@ type (
 	}
 )
 
-func (*mockGetPendingTransactionDetailByTransactionHashError) GetPendingTransactionDetailByTransactionHash(param *model.GetPendingTransactionDetailByTransactionHashRequest,
-) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
+func (*mockGetPendingTransactionDetailByTransactionHashError) GetPendingTransactionDetailByTransactionHash(
+	param *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
 	return nil, errors.New("Error GetPendingTransactionDetailByTransactionHash")
 }
 
-func (*mockGetPendingTransactionDetailByTransactionHashSuccess) GetPendingTransactionDetailByTransactionHash(param *model.GetPendingTransactionDetailByTransactionHashRequest,
-) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
+func (*mockGetPendingTransactionDetailByTransactionHashSuccess) GetPendingTransactionDetailByTransactionHash(
+	param *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error) {
 	return &model.GetPendingTransactionDetailByTransactionHashResponse{}, nil
 }
 
