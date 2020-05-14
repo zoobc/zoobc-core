@@ -609,7 +609,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
 					blockToBroadcast.Transactions = []*model.Transaction{}
-					bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
+					bs.Observer.Notify(observer.BroadcastBlock, blockToBroadcast, bs.Chaintype)
 				}
 				return nil
 			}
