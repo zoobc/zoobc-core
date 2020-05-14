@@ -48,13 +48,14 @@ func (mk *mockAuthPoownClaimNR) ValidateProofOfOwnership(
 	return errors.New("MockedError")
 }
 
-func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
+
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	return nil, nil
 }
@@ -63,9 +64,10 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteTransactions(queries [][
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
+
 	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
@@ -89,7 +91,7 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelect(qe string, tx boo
 			true,
 			uint32(1),
 		))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	return nil, nil
 }

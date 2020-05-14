@@ -20,13 +20,13 @@ type (
 
 var (
 	ssMockSpineBlockManifest = &model.SpineBlockManifest{
-		ID:                       1,
-		FullFileHash:             ssMockFullHash,
-		SpineBlockManifestHeight: 720,
-		FileChunkHashes:          []byte{},
-		ChainType:                0,
-		SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-		ExpirationTimestamp:      1000,
+		ID:                      1,
+		FullFileHash:            ssMockFullHash,
+		ManifestReferenceHeight: 720,
+		FileChunkHashes:         []byte{},
+		ChainType:               0,
+		SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+		ExpirationTimestamp:     1000,
 	}
 )
 
@@ -98,13 +98,13 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 			},
 			wantErr: false,
 			want: &model.SpineBlockManifest{
-				ID:                       int64(-446833005029263155),
-				FullFileHash:             make([]byte, 32),
-				SpineBlockManifestHeight: ssMockMainBlock.Height,
-				ExpirationTimestamp:      int64(1562117286),
-				FileChunkHashes:          make([]byte, 0),
-				SpineBlockManifestType:   model.SpineBlockManifestType_Snapshot,
-				ChainType:                0,
+				ID:                      int64(-4442731824309358759),
+				FullFileHash:            make([]byte, 32),
+				ManifestReferenceHeight: ssMockMainBlock.Height,
+				ExpirationTimestamp:     int64(1562117286),
+				FileChunkHashes:         make([]byte, 0),
+				SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
+				ChainType:               0,
 			},
 		},
 	}
@@ -151,9 +151,9 @@ func TestSnapshotService_GetSpineBlockManifestBytes(t *testing.T) {
 			args: args{
 				spineBlockManifest: ssMockSpineBlockManifest,
 			},
-			want: []byte{1, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-				3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-				3, 3, 208, 2, 0, 0, 0, 0, 0, 0, 232, 3, 0, 0, 0, 0, 0, 0},
+			want: []byte{1, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+				3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+				3, 3, 3, 3, 3, 3, 3, 208, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 232, 3, 0, 0, 0, 0, 0, 0},
 		},
 	}
 	for _, tt := range tests {

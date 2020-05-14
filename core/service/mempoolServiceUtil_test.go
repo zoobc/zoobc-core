@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -108,20 +110,6 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false),
 			},
 			wantErr: false,
-		},
-		{
-			name: "AddMempoolTransaction:DuplicateTransaction",
-			fields: fields{
-				MempoolQuery:       query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:      &mockMempoolQueryExecutorFail{},
-				ActionTypeSwitcher: &transaction.TypeSwitcher{},
-			},
-			args: args{
-				mpTx: transaction.GetFixturesForSignedMempoolTransaction(3, 1562893303,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false),
-			},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -259,8 +247,11 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: NewTransactionCoreService(
-					&mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					logrus.New(), &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					nil,
+					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 					nil,
 				),
 			},

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -12,7 +14,7 @@ type (
 	PendingTransactionQueryInterface interface {
 		GetPendingTransactionByHash(
 			txHash []byte,
-			status model.PendingTransactionStatus,
+			statuses []model.PendingTransactionStatus,
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		GetPendingTransactionsBySenderAddress(
@@ -22,6 +24,7 @@ type (
 		) (
 			str string, args []interface{},
 		)
+		GetPendingTransactionsExpireByHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) [][]interface{}
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
@@ -55,22 +58,31 @@ func (ptq *PendingTransactionQuery) getTableName() string {
 
 func (ptq *PendingTransactionQuery) GetPendingTransactionByHash(
 	txHash []byte,
-	status model.PendingTransactionStatus,
+	statuses []model.PendingTransactionStatus,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {
 	var (
 		blockHeight uint32
+		query       string
 	)
 	if currentHeight > limit {
 		blockHeight = currentHeight - limit
 	}
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? AND status = ? AND block_height >= ? "+
-		"AND latest = true", strings.Join(ptq.Fields, ", "), ptq.getTableName())
-	return query, []interface{}{
+	args = []interface{}{
 		txHash,
-		status,
-		blockHeight,
 	}
+	if len(statuses) > 0 {
+		var statusesFilter = fmt.Sprintf("AND status IN (?%s)", strings.Repeat(", ?", len(statuses)-1))
+		query = fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? %s AND block_height >= ? "+
+			"AND latest = true", strings.Join(ptq.Fields, ", "), ptq.getTableName(), statusesFilter)
+		for _, status := range statuses {
+			args = append(args, status)
+		}
+	} else {
+		query = fmt.Sprintf("SELECT %s FROM %s WHERE transaction_hash = ? AND block_height >= ? "+
+			"AND latest = true", strings.Join(ptq.Fields, ", "), ptq.getTableName())
+	}
+	return query, append(args, blockHeight)
 }
 
 func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
@@ -92,6 +104,20 @@ func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
 		status,
 		blockHeight,
 	}
+}
+
+// GetPendingTransactionsExpireByHeight presents query to get pending_transactions that was expire by block_height
+func (ptq *PendingTransactionQuery) GetPendingTransactionsExpireByHeight(currentHeight uint32) (str string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE block_height = ? AND status = ? AND latest = ?",
+			strings.Join(ptq.Fields, ", "),
+			ptq.getTableName(),
+		),
+		[]interface{}{
+			currentHeight - constant.MinRollbackBlocks,
+			model.PendingTransactionStatus_PendingTransactionPending,
+			true,
+		}
 }
 
 // InsertPendingTransaction inserts a new pending transaction into DB

@@ -22,7 +22,7 @@ type (
 			timestamp int64,
 			empty bool,
 		) (*model.Block, error)
-		ValidateBlock(block, previousLastBlock *model.Block, curTime int64) error
+		ValidateBlock(block, previousLastBlock *model.Block) error
 		ValidatePayloadHash(block *model.Block) error
 		GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error)
 		PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error

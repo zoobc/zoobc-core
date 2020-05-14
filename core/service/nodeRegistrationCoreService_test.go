@@ -181,9 +181,11 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"participation_score",
 		},
 		).AddRow(1, nrsNodePubKey1, 8000))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
-		"latest, height, max(height) AS max_height FROM node_registry where height <= 1 AND registration_status = 0 " +
-		"GROUP BY id ORDER BY height DESC":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+		"locked_balance, registration_status, latest, height " +
+		"FROM node_registry where registration_status = 0 AND (id,height) in " +
+		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 1 GROUP BY id) " +
+		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -194,10 +196,9 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"registration_status",
 			"latest",
 			"height",
-			"max_height",
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000,
-			uint32(model.NodeRegistrationState_NodeRegistered), true, 200, 200))
+			uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
 	default:
 		return nil, errors.New("InvalidQuery")
 	}

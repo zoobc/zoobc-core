@@ -2,12 +2,13 @@ package service
 
 import (
 	"bytes"
+	"io/ioutil"
+	"path/filepath"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
-	"io/ioutil"
-	"path/filepath"
 )
 
 type (
@@ -108,4 +109,17 @@ func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, f
 		return nil, err
 	}
 	return snapshotPayload, nil
+}
+
+// DeleteFileByChunkHashes take in the concatenated file hashes (file name) and delete them.
+func (ss *SnapshotBasicChunkStrategy) DeleteFileByChunkHashes(fileChunkHashes []byte, filePath string) error {
+	fileChunks, err := ss.FileService.ParseFileChunkHashes(fileChunkHashes, sha3.New256().Size())
+	if err != nil {
+		return err
+	}
+	err = ss.FileService.DeleteFilesByHash(filePath, fileChunks)
+	if err != nil {
+		return err
+	}
+	return nil
 }

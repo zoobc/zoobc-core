@@ -230,7 +230,10 @@ func (ps *PriorityStrategy) ValidateRangePriorityPeers(peerIndex, hostStartPeerI
 // ValidateRequest to validate incoming request based on metadata in context and Priority strategy
 func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 	if ctx != nil {
-		md, _ := metadata.FromIncomingContext(ctx)
+		md, ok := metadata.FromIncomingContext(ctx) // check ok
+		if !ok {
+			return false
+		}
 		// Check have default context
 		if len(md.Get(p2pUtil.DefaultConnectionMetadata)) != 0 {
 			// get scramble node
@@ -258,6 +261,13 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				)
 
 				if unresolvedPeers[fullAddress] == nil && blacklistedPeers[fullAddress] == nil {
+					if len(unresolvedPeers) < int(constant.MaxUnresolvedPeers) {
+						if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+							ps.Logger.Error(err.Error())
+						} else {
+							isAddedToUnresolved = true
+						}
+					} else {
 					for _, peer := range unresolvedPeers {
 						// add peer requester into unresolved and remove the old one in unresolved peers
 						// removing one of unresolved peers will do when already stayed more than max stayed
@@ -274,6 +284,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 							}
 						}
 					}
+				}
 				}
 
 				// Check host is in priority peer list of requester

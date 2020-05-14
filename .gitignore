@@ -19,9 +19,12 @@ resource/zoobc_*
 resource/snapshots*
 resource_cluster/zoobc_*
 resource/*.prof
+resource/generated
 cmd/*.new
 accounts.txt
 .editorconfig
 .manual
 release/
 github.token
+*.back
+*.bak

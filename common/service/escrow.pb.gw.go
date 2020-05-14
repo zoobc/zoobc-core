@@ -37,7 +37,7 @@ func request_EscrowTransactionService_GetEscrowTransactions_0(ctx context.Contex
 	var protoReq model.GetEscrowTransactionsRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_EscrowTransactionService_GetEscrowTransactions_0); err != nil {
+	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_EscrowTransactionService_GetEscrowTransactions_0); err != nil {

@@ -34,6 +34,7 @@ type (
 		PeerExplorer            strategy.PeerExplorerStrategyInterface
 		Logger                  *log.Logger
 		BlockchainStatusService service.BlockchainStatusServiceInterface
+		firstDownloadCounter    int32
 	}
 
 	PeerBlockchainInfo struct {
@@ -76,7 +77,15 @@ func (bd *BlockchainDownloader) IsDownloadFinish(currentLastBlock *model.Block) 
 	}
 	heightAfterDownload := afterDownloadLastBlock.Height
 	cumulativeDifficultyAfterDownload := afterDownloadLastBlock.CumulativeDifficulty
-	if currentHeight > 0 && currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+	if currentHeight == heightAfterDownload && currentCumulativeDifficulty == cumulativeDifficultyAfterDownload {
+		if currentHeight == 0 {
+			bd.firstDownloadCounter++
+			if bd.firstDownloadCounter >= constant.MaxResolvedPeers {
+				bd.firstDownloadCounter = 0
+				return true
+			}
+		}
+		bd.firstDownloadCounter = 0
 		return true
 	}
 	return false
@@ -347,10 +356,15 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 67)
 		if lastBlock.ID == previousBlockID {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 68)
-			err := bd.BlockService.ValidateBlock(block, lastBlock, time.Now().Unix())
+			err := bd.BlockService.ValidateBlock(block, lastBlock)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 69)
-				bd.Logger.Infof("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\n", block.ID, err, lastBlock.ID)
+				blockerUsed := blocker.ValidateMainBlockErr
+				if chaintype.IsSpineChain(bd.ChainType) {
+					blockerUsed = blocker.ValidateSpineBlockErr
+				}
+				bd.Logger.Warnf("[download blockchain] failed to verify block %v from peer: %s\nwith previous: %v\nvalidateBlock fail: %v\n",
+					block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
 					monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 70)
@@ -368,7 +382,11 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				if blacklistErr != nil {
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
-				bd.Logger.Info("failed to push block from peer:", err)
+				blockerUsed := blocker.PushMainBlockErr
+				if chaintype.IsSpineChain(bd.ChainType) {
+					blockerUsed = blocker.PushSpineBlockErr
+				}
+				bd.Logger.Warn("[DownloadBlockchain] failed to push block from peer:", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
 				return &PeerForkInfo{
 					FeederPeer: feederPeer,
 				}, err

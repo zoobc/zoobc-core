@@ -204,7 +204,7 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 	}
 	type args struct {
 		txHash               []byte
-		status               model.PendingTransactionStatus
+		status               []model.PendingTransactionStatus
 		currentHeight, limit uint32
 	}
 	tests := []struct {
@@ -221,16 +221,20 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 				TableName: mockPendingTransactionQueryInstance.TableName,
 			},
 			args: args{
-				txHash:        make([]byte, 32),
-				status:        model.PendingTransactionStatus_PendingTransactionPending,
+				txHash: make([]byte, 32),
+				status: []model.PendingTransactionStatus{
+					model.PendingTransactionStatus_PendingTransactionPending,
+					model.PendingTransactionStatus_PendingTransactionExecuted,
+				},
 				currentHeight: 0,
 				limit:         constant.MinRollbackBlocks,
 			},
 			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
-				"WHERE transaction_hash = ? AND status = ? AND block_height >= ? AND latest = true",
+				"WHERE transaction_hash = ? AND status IN (?, ?) AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{
 				make([]byte, 32),
 				model.PendingTransactionStatus_PendingTransactionPending,
+				model.PendingTransactionStatus_PendingTransactionExecuted,
 				uint32(0),
 			},
 		},
@@ -559,6 +563,54 @@ func TestPendingTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 			if got := ptq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("PendingTransactionQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		currentHeight uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPendingTransactionQuery()),
+			args: args{
+				currentHeight: 1000,
+			},
+			wantStr: "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest " +
+				"FROM pending_transaction WHERE block_height = ? AND status = ? AND latest = ?",
+			wantArgs: []interface{}{
+				uint32(1000) - constant.MinRollbackBlocks,
+				model.PendingTransactionStatus_PendingTransactionPending,
+				true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ptq := &PendingTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ptq.GetPendingTransactionsExpireByHeight(tt.args.currentHeight)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetPendingTransactionsExpireByHeight() gotStr = %v, want %v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetPendingTransactionsExpireByHeight() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
