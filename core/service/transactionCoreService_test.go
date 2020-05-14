@@ -42,6 +42,12 @@ type (
 	mockGetTransactionsByBlockIDTransactionQueryBuildSuccess struct {
 		query.TransactionQuery
 	}
+	mockGetTransactionsByBlockIDEscrowTransactionQueryBuildSuccessOne struct {
+		query.EscrowTransactionQuery
+	}
+	mockGetTransactionsByBlockIDEscrowTransactionQueryBuildSuccessEmpty struct {
+		query.EscrowTransactionQuery
+	}
 	// GetTransactionsByBlockID mocks
 )
 
@@ -57,6 +63,18 @@ var (
 			TransactionHash: make([]byte, 32),
 		},
 	}
+	mockGetTransactionsByBlockIDResultWithEscrow = []*model.Transaction{
+		{
+			TransactionHash: make([]byte, 32),
+			Escrow:          mockGetTransactionByBlockIDEscrowTransactionResultOne[0],
+		},
+	}
+	mockGetTransactionByBlockIDEscrowTransactionResultOne = []*model.Escrow{
+		{
+			ID: 0,
+		},
+	}
+	mockGetTransactionByBlockIDEscrowTransactionResultEmpty = make([]*model.Escrow, 0)
 )
 
 func (*mockGetTransactionsByIdsExecutorFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -100,6 +118,16 @@ func (*mockGetTransactionsByBlockIDExecutorSuccess) ExecuteSelect(query string, 
 func (*mockGetTransactionsByBlockIDTransactionQueryBuildFail) BuildModel(
 	txs []*model.Transaction, rows *sql.Rows) ([]*model.Transaction, error) {
 	return nil, errors.New("mockedError")
+}
+
+func (*mockGetTransactionsByBlockIDEscrowTransactionQueryBuildSuccessOne) BuildModels(
+	rows *sql.Rows) ([]*model.Escrow, error) {
+	return mockGetTransactionByBlockIDEscrowTransactionResultOne, nil
+}
+
+func (*mockGetTransactionsByBlockIDEscrowTransactionQueryBuildSuccessEmpty) BuildModels(
+	rows *sql.Rows) ([]*model.Escrow, error) {
+	return mockGetTransactionByBlockIDEscrowTransactionResultEmpty, nil
 }
 
 func (*mockGetTransactionsByBlockIDTransactionQueryBuildSuccess) BuildModel(
@@ -179,8 +207,9 @@ func TestTransactionCoreService_GetTransactionsByIds(t *testing.T) {
 
 func TestTransactionCoreService_GetTransactionsByBlockID(t *testing.T) {
 	type fields struct {
-		TransactionQuery query.TransactionQueryInterface
-		QueryExecutor    query.ExecutorInterface
+		TransactionQuery       query.TransactionQueryInterface
+		EscrowTransactionQuery query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
 		blockID int64
@@ -217,10 +246,24 @@ func TestTransactionCoreService_GetTransactionsByBlockID(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetTransactionsByBlockID-BuildModel-Success",
+			name: "GetTransactionsByBlockID-BuildModel-Success-EscrowOneResult",
 			fields: fields{
-				TransactionQuery: &mockGetTransactionsByBlockIDTransactionQueryBuildSuccess{},
-				QueryExecutor:    &mockGetTransactionsByBlockIDExecutorSuccess{},
+				TransactionQuery:       &mockGetTransactionsByBlockIDTransactionQueryBuildSuccess{},
+				EscrowTransactionQuery: &mockGetTransactionsByBlockIDEscrowTransactionQueryBuildSuccessOne{},
+				QueryExecutor:          &mockGetTransactionsByBlockIDExecutorSuccess{},
+			},
+			args: args{
+				blockID: 1,
+			},
+			want:    mockGetTransactionsByBlockIDResultWithEscrow,
+			wantErr: false,
+		},
+		{
+			name: "GetTransactionsByBlockID-BuildModel-Success-EscrowEmptyResult",
+			fields: fields{
+				TransactionQuery:       &mockGetTransactionsByBlockIDTransactionQueryBuildSuccess{},
+				EscrowTransactionQuery: &mockGetTransactionsByBlockIDEscrowTransactionQueryBuildSuccessEmpty{},
+				QueryExecutor:          &mockGetTransactionsByBlockIDExecutorSuccess{},
 			},
 			args: args{
 				blockID: 1,
@@ -232,8 +275,9 @@ func TestTransactionCoreService_GetTransactionsByBlockID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tg := &TransactionCoreService{
-				TransactionQuery: tt.fields.TransactionQuery,
-				QueryExecutor:    tt.fields.QueryExecutor,
+				TransactionQuery:       tt.fields.TransactionQuery,
+				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
 			}
 			got, err := tg.GetTransactionsByBlockID(tt.args.blockID)
 			if (err != nil) != tt.wantErr {
