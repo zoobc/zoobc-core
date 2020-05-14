@@ -536,10 +536,10 @@ func TestEscrowTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	}
 }
 
-func TestEscrowTransactionQuery_GetPendingEscrowTransactionsByTransactionIds(t *testing.T) {
+func TestEscrowTransactionQuery_GetEscrowTransactionsByTransactionIdsAndStatus(t *testing.T) {
 	t.Run("GetPendingEscrowTransactionsByTransactionIds", func(t *testing.T) {
 		escrowQuery := NewEscrowTransactionQuery()
-		query := escrowQuery.GetPendingEscrowTransactionsByTransactionIds([]string{"1", "2"})
+		query := escrowQuery.GetEscrowTransactionsByTransactionIdsAndStatus([]string{"1", "2"}, model.EscrowStatus_Pending)
 		expect := fmt.Sprintf("SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, "+
 			"block_height, latest, instruction FROM escrow_transaction WHERE id IN (1, 2) AND status = %d", model.EscrowStatus_Pending)
 		if query != expect {

@@ -89,7 +89,9 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 	}
 	if len(txIdsStr) > 0 {
 		escrows, err = func() ([]*model.Escrow, error) {
-			escrowQ := tg.EscrowTransactionQuery.GetPendingEscrowTransactionsByTransactionIds(txIdsStr)
+			escrowQ := tg.EscrowTransactionQuery.GetEscrowTransactionsByTransactionIdsAndStatus(
+				txIdsStr, model.EscrowStatus_Pending,
+			)
 			rows, err := tg.QueryExecutor.ExecuteSelect(escrowQ, false)
 			if err != nil {
 				return nil, err

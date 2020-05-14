@@ -20,7 +20,9 @@ type (
 		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		GetEscrowTransactions(fields map[string]interface{}) (string, []interface{})
-		GetPendingEscrowTransactionsByTransactionIds(transactionIds []string) string
+		GetEscrowTransactionsByTransactionIdsAndStatus(
+			transactionIds []string, status model.EscrowStatus,
+		) string
 		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
@@ -124,15 +126,15 @@ func (et *EscrowTransactionQuery) ExpiringEscrowTransactions(blockHeight uint32)
 		}
 }
 
-func (et *EscrowTransactionQuery) GetPendingEscrowTransactionsByTransactionIds(
-	transactionIds []string,
+func (et *EscrowTransactionQuery) GetEscrowTransactionsByTransactionIdsAndStatus(
+	transactionIds []string, status model.EscrowStatus,
 ) string {
 	return fmt.Sprintf(
 		"SELECT %s FROM %s WHERE id IN (%s) AND status = %d",
 		strings.Join(et.Fields, ", "),
 		et.getTableName(),
 		strings.Join(transactionIds, ", "),
-		model.EscrowStatus_Pending,
+		status,
 	)
 }
 
