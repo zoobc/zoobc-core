@@ -226,10 +226,10 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(
 	previousBlock *model.Block,
 ) error {
 	var (
-		err                                         error
-		ct                                          = &chaintype.MainChain{}
-		currentTime                                 = time.Now().Unix()
-		remainder, prevRoundBegin, prevRoundExpired int64
+		err                                                                             error
+		ct                                                                              = &chaintype.MainChain{}
+		currentTime                                                                     = time.Now().Unix()
+		remainder, prevRoundBegin, prevRoundExpired, prevRound2Begin, prevRound2Expired int64
 	)
 	// always return true for the first block | keeping in mind genesis block's timestamps is far behind, let fork processor
 	// handle to get highest cum-diff block
@@ -260,13 +260,20 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(
 		prevRoundExpired = prevRoundBegin + ct.GetBlocksmithBlockCreationTime() +
 			ct.GetBlocksmithNetworkTolerance()
 	}
+	if timeRound > 1 { // handle small network, go one more round
+		prevRound2Start := nearestRoundBeginning - 2*timeForOneRound
+		prevRound2Begin = prevRound2Start + blocksmithIndex*ct.GetBlocksmithTimeGap()
+		prevRound2Expired = prevRound2Begin + ct.GetBlocksmithBlockCreationTime() +
+			ct.GetBlocksmithNetworkTolerance()
+	}
 	// calculate current round begin and expiry time
 	allowedBeginTime := blocksmithIndex*ct.GetBlocksmithTimeGap() + nearestRoundBeginning
 	expiredTime := allowedBeginTime + ct.GetBlocksmithBlockCreationTime() +
 		ct.GetBlocksmithNetworkTolerance()
 	// check if current time is in {(expire-timeGap) < x < (expire)} in either previous round or current round
 	if (currentTime > (expiredTime-ct.GetBlocksmithTimeGap()) && currentTime <= expiredTime) ||
-		(currentTime > (prevRoundExpired-ct.GetBlocksmithTimeGap()) && currentTime <= prevRoundExpired) {
+		(currentTime > (prevRoundExpired-ct.GetBlocksmithTimeGap()) && currentTime <= prevRoundExpired) ||
+		(currentTime > (prevRound2Expired-ct.GetBlocksmithTimeGap()) && currentTime <= prevRound2Expired) {
 		return nil
 	}
 	return blocker.NewBlocker(blocker.BlockErr, "CannotPersistBlock")
