@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -245,8 +247,11 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: NewTransactionCoreService(
-					&mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					logrus.New(), &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					nil,
+					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 					nil,
 				),
 			},
