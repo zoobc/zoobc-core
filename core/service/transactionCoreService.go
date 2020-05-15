@@ -136,12 +136,8 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 	)
 
 	err = func() error {
-		escrowQ, escrowArgs := tg.EscrowTransactionQuery.GetEscrowTransactions(map[string]interface{}{
-			"timeout": blockHeight,
-			"status":  model.EscrowStatus_Pending,
-			"latest":  1,
-		})
-		rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, useTX, escrowArgs...)
+		escrowQ := tg.EscrowTransactionQuery.GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight)
+		rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, useTX)
 		if err != nil {
 			return err
 		}
