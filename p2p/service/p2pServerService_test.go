@@ -48,6 +48,10 @@ var (
 )
 
 type (
+	mockNodeRegistrationServiceGetNodeAddressesInfoSuccess struct {
+		nodeaddressesInfo []*model.NodeAddressInfo
+		coreService.NodeRegistrationServiceInterface
+	}
 	mockPeerExplorerStrategySuccess struct {
 		strategy.PriorityStrategy
 	}
@@ -66,6 +70,9 @@ type (
 	}
 )
 
+func (mock *mockNodeRegistrationServiceGetNodeAddressesInfoSuccess) GetNodeAddressesInfo(nodeIDs []int64) []*model.NodeAddressInfo {
+	return mock.nodeaddressesInfo
+}
 func (*mockPeerExplorerStrategySuccess) GetHostInfo() *model.Node {
 	return &mockNode
 }
@@ -99,12 +106,13 @@ func (*mockBlockServiceGetLastBlockFailed) GetLastBlock() (*model.Block, error) 
 
 func TestNewP2PServerService(t *testing.T) {
 	type args struct {
-		fileService      coreService.FileServiceInterface
-		peerExplorer     strategy.PeerExplorerStrategyInterface
-		blockServices    map[int32]coreService.BlockServiceInterface
-		mempoolServices  map[int32]coreService.MempoolServiceInterface
-		nodeSecretPhrase string
-		observer         *observer.Observer
+		nodeRegistrationService coreService.NodeRegistrationServiceInterface
+		fileService             coreService.FileServiceInterface
+		peerExplorer            strategy.PeerExplorerStrategyInterface
+		blockServices           map[int32]coreService.BlockServiceInterface
+		mempoolServices         map[int32]coreService.MempoolServiceInterface
+		nodeSecretPhrase        string
+		observer                *observer.Observer
 	}
 	tests := []struct {
 		name string
@@ -114,12 +122,13 @@ func TestNewP2PServerService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				fileService:      nil,
-				peerExplorer:     nil,
-				blockServices:    make(map[int32]coreService.BlockServiceInterface),
-				mempoolServices:  make(map[int32]coreService.MempoolServiceInterface),
-				nodeSecretPhrase: "",
-				observer:         nil,
+				nodeRegistrationService: nil,
+				fileService:             nil,
+				peerExplorer:            nil,
+				blockServices:           make(map[int32]coreService.BlockServiceInterface),
+				mempoolServices:         make(map[int32]coreService.MempoolServiceInterface),
+				nodeSecretPhrase:        "",
+				observer:                nil,
 			},
 			want: &P2PServerService{
 				BlockServices:    make(map[int32]coreService.BlockServiceInterface),
@@ -130,7 +139,8 @@ func TestNewP2PServerService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewP2PServerService(tt.args.fileService, tt.args.peerExplorer, tt.args.blockServices, tt.args.mempoolServices,
+			if got := NewP2PServerService(tt.args.nodeRegistrationService, tt.args.fileService, tt.args.peerExplorer, tt.args.blockServices,
+				tt.args.mempoolServices,
 				tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}
@@ -1844,6 +1854,86 @@ func TestP2PServerService_RequestDownloadFile(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("P2PServerService.RequestDownloadFile() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
+	type fields struct {
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		FileService             coreService.FileServiceInterface
+		PeerExplorer            strategy.PeerExplorerStrategyInterface
+		BlockServices           map[int32]coreService.BlockServiceInterface
+		MempoolServices         map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase        string
+		Observer                *observer.Observer
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetNodeAddressesInfoRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetNodeAddressesInfoResponse
+		wantErr bool
+	}{
+		{
+			name: "GetNodeAddressesInfo:fail-{ValidateRequest}",
+			fields: fields{
+				PeerExplorer: &mockPeerExplorerStrategyValidateRequestFail{},
+			},
+			args:    args{},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "wantFail:GetBlockByID",
+			fields: fields{
+				PeerExplorer: &mockPeerExplorerStrategySuccess{},
+				NodeRegistrationService: mockNodeRegistrationServiceGetNodeAddressesInfoSuccess{
+					nodeaddressesInfo: []*model.NodeAddressInfo{
+						{
+							NodeID:      int64(111),
+							Signature:   make([]byte, 64),
+							BlockHash:   make([]byte, 32),
+							BlockHeight: 1,
+							Port:        8080,
+							Address:     "192.168.1.1",
+						},
+					},
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				req: &model.GetNodeAddressesInfoRequest{
+					NodeIDs: []int64{111},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &P2PServerService{
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				FileService:             tt.fields.FileService,
+				PeerExplorer:            tt.fields.PeerExplorer,
+				BlockServices:           tt.fields.BlockServices,
+				MempoolServices:         tt.fields.MempoolServices,
+				NodeSecretPhrase:        tt.fields.NodeSecretPhrase,
+				Observer:                tt.fields.Observer,
+			}
+			got, err := ps.GetNodeAddressesInfo(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerService.GetNodeAddressesInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerService.GetNodeAddressesInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}

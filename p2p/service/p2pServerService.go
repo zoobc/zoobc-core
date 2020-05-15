@@ -2,7 +2,8 @@ package service
 
 import (
 	"context"
-
+	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -19,6 +20,8 @@ import (
 type (
 	// P2PServerServiceInterface interface that contains registered methods of P2P Server Service
 	P2PServerServiceInterface interface {
+		GetNodeAddressesInfo(ctx context.Context, req *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error)
+		SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error)
 		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error)
 		SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error)
@@ -75,17 +78,19 @@ type (
 	}
 	// P2PServerService represent of P2P server service
 	P2PServerService struct {
-		FileService      coreService.FileServiceInterface
-		PeerExplorer     strategy.PeerExplorerStrategyInterface
-		BlockServices    map[int32]coreService.BlockServiceInterface
-		MempoolServices  map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase string
-		Observer         *observer.Observer
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		FileService             coreService.FileServiceInterface
+		PeerExplorer            strategy.PeerExplorerStrategyInterface
+		BlockServices           map[int32]coreService.BlockServiceInterface
+		MempoolServices         map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase        string
+		Observer                *observer.Observer
 	}
 )
 
 // NewP2PServerService return new instance of P2P server service
 func NewP2PServerService(
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	fileService coreService.FileServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
@@ -94,13 +99,60 @@ func NewP2PServerService(
 	observer *observer.Observer,
 ) *P2PServerService {
 	return &P2PServerService{
-		FileService:      fileService,
-		PeerExplorer:     peerExplorer,
-		BlockServices:    blockServices,
-		MempoolServices:  mempoolServices,
-		NodeSecretPhrase: nodeSecretPhrase,
-		Observer:         observer,
+		NodeRegistrationService: nodeRegistrationService,
+		FileService:             fileService,
+		PeerExplorer:            peerExplorer,
+		BlockServices:           blockServices,
+		MempoolServices:         mempoolServices,
+		NodeSecretPhrase:        nodeSecretPhrase,
+		Observer:                observer,
 	}
+}
+
+// GetNodeAddressesInfo responds to the request of peers a node address info
+func (ps *P2PServerService) GetNodeAddressesInfo(
+	ctx context.Context,
+	req *model.GetNodeAddressesInfoRequest,
+) (*model.GetNodeAddressesInfoResponse, error) {
+	// STEF not sure if we should validate this request. ask @alhiee
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		// get a slice of node address info by node IDs
+		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfo(req.NodeIDs); err == nil {
+			return &model.GetNodeAddressesInfoResponse{
+				NodeAddressesInfo: nodeAddressesInfo,
+			}, nil
+		}
+		return nil, status.Error(codes.Internal, "Internal Server Error")
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+// GetNodeAddressesInfo responds to the request of peers a node address info
+func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
+	var (
+		nodeAddressInfo = req.NodeAddressInfoMessage
+	)
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		// validate node address info message and signature
+		if !ps.NodeRegistrationService.ValidateNodeAddressInfoSignature(nodeAddressInfo) {
+			return nil, blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
+				"SendNodeAddressInfo api server: a peer sent an invalid node address signature for node with ID: %d",
+				nodeAddressInfo.NodeID))
+		} else if !ps.NodeRegistrationService.ValidateNodeAddressInfoMessage(nodeAddressInfo) {
+			// TODO: blacklist peers that send invalid data
+			return nil, blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
+				"SendNodeAddressInfo api server: a peer sent an invalid node address info message for node with ID: %d",
+				nodeAddressInfo.NodeID))
+		}
+		// add it to nodeAddressInfo table
+		err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		// - re-broadcast to all node's peers but the one who send the address
+		return &model.Empty{}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // GetPeerInfo responds to the request of peers a node info

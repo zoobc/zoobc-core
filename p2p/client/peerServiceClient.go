@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"math"
 	"sync"
 	"time"
@@ -23,6 +25,7 @@ import (
 type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
+		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
@@ -62,17 +65,18 @@ type (
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
-		Dialer              Dialer
-		Logger              *log.Logger
-		QueryExecutor       query.ExecutorInterface
-		NodeReceiptQuery    query.NodeReceiptQueryInterface
-		BatchReceiptQuery   query.BatchReceiptQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ReceiptService      coreService.ReceiptServiceInterface
-		NodePublicKey       []byte
-		Host                *model.Host
-		PeerConnections     map[string]*grpc.ClientConn
-		PeerConnectionsLock sync.RWMutex
+		Dialer                  Dialer
+		Logger                  *log.Logger
+		QueryExecutor           query.ExecutorInterface
+		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		BatchReceiptQuery       query.BatchReceiptQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		ReceiptService          coreService.ReceiptServiceInterface
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		NodePublicKey           []byte
+		Host                    *model.Host
+		PeerConnections         map[string]*grpc.ClientConn
+		PeerConnectionsLock     sync.RWMutex
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -83,6 +87,7 @@ func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
 	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	nodePublicKey []byte,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
@@ -109,15 +114,16 @@ func NewPeerServiceClient(
 			}
 			return conn, nil
 		},
-		QueryExecutor:     queryExecutor,
-		NodeReceiptQuery:  nodeReceiptQuery,
-		BatchReceiptQuery: batchReceiptQuery,
-		MerkleTreeQuery:   merkleTreeQuery,
-		ReceiptService:    receiptService,
-		NodePublicKey:     nodePublicKey,
-		Logger:            logger,
-		Host:              host,
-		PeerConnections:   make(map[string]*grpc.ClientConn),
+		QueryExecutor:           queryExecutor,
+		NodeReceiptQuery:        nodeReceiptQuery,
+		BatchReceiptQuery:       batchReceiptQuery,
+		MerkleTreeQuery:         merkleTreeQuery,
+		ReceiptService:          receiptService,
+		NodeRegistrationService: nodeRegistrationService,
+		NodePublicKey:           nodePublicKey,
+		Logger:                  logger,
+		Host:                    host,
+		PeerConnections:         make(map[string]*grpc.ClientConn),
 	}
 }
 
@@ -185,6 +191,51 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 		ctxWithDeadline, cancelFunc = context.WithDeadline(context.Background(), clientDeadline)
 	)
 	return metadata.NewOutgoingContext(ctxWithDeadline, header), cancelFunc
+}
+
+// GetNodeAddressesInfo to get a list of node addresses from a peer
+func (psc *PeerServiceClient) GetNodeAddressesInfo(
+	destPeer *model.Peer,
+	nodeRegistrations []*model.NodeRegistration,
+) (*model.GetNodeAddressesInfoResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+
+	// add a copy to avoid pointer delete
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		nodeIDs        []int64
+	)
+	defer func() {
+		cancelReq()
+	}()
+
+	for _, nr := range nodeRegistrations {
+		nodeIDs = append(nodeIDs, nr.NodeID)
+	}
+
+	// context still not use ctx := cs.buildContext()
+	res, err := p2pClient.GetNodeAddressesInfo(
+		ctx,
+		&model.GetNodeAddressesInfoRequest{
+			NodeIDs: nodeIDs,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if res.NodeAddressesInfo == nil {
+		return nil, blocker.NewBlocker(blocker.P2PPeerError, fmt.Sprintf(
+			"GetNodeAddressesInfo client: this peer returned an empty node address list %v",
+			destPeer.GetInfo()))
+	}
+
+	return res, err
 }
 
 // GetPeerInfo to get Peer info

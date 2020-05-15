@@ -615,10 +615,18 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		// block is in first place continue to persist block to database ignoring the `persist` flag
 	}
+
+	// STEF: nodeAddressInfo
+	// TODO: add logic for nodeAddressInfo
+	//		if new block contains an update node registration transaction where sender is node owner
+	// 		- insert or update new nodeAddressInfo to own table (must be part of pushblock main db tx)
+	// 		- broadcast node address info
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)

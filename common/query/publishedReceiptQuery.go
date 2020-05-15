@@ -49,7 +49,7 @@ func (prq *PublishedReceiptQuery) getTableName() string {
 	return prq.TableName
 }
 
-// InsertPublishedReceipt inserts a new receipts into DB
+// InsertPublishedReceipt inserts a new pas into DB
 func (prq *PublishedReceiptQuery) InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{}) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",

@@ -147,6 +147,7 @@ func init() {
 
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
@@ -339,6 +340,7 @@ func initP2pInstance() {
 		queryExecutor,
 		query.NewNodeReceiptQuery(),
 		nodePublicKey,
+		nodeRegistrationService,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		receiptService,
@@ -362,6 +364,7 @@ func initP2pInstance() {
 		loggerP2PService,
 		transactionUtil,
 		fileService,
+		nodeRegistrationService,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
@@ -395,6 +398,7 @@ func startServices() {
 		blockServices,
 		mempoolServices,
 		fileService,
+		nodeRegistrationService,
 		observerInstance,
 	)
 	api.Start(

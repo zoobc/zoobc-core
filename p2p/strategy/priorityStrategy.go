@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"os"
 	"os/signal"
 	"sync"
@@ -105,26 +106,26 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		if i >= constant.NumberOfPriorityPeersToBeAdded {
 			break
 		}
-		priorityPeerAddress := p2pUtil.GetFullAddressPeer(peer)
+		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
 
-		if unresolvedPeers[priorityPeerAddress] == nil &&
-			resolvedPeers[priorityPeerAddress] == nil &&
-			blacklistedPeers[priorityPeerAddress] == nil &&
-			hostAddress != priorityPeerAddress {
+		if unresolvedPeers[priorityNodeAddress] == nil &&
+			resolvedPeers[priorityNodeAddress] == nil &&
+			blacklistedPeers[priorityNodeAddress] == nil &&
+			hostAddress != priorityNodeAddress {
 
 			newPeer := *peer
 
 			// removing non priority peers and replacing if no space
 			if exceedMaxUnresolvedPeers >= 0 {
 				for _, unresolvedPeer := range unresolvedPeers {
-					unresolvedPeerAddress := p2pUtil.GetFullAddressPeer(unresolvedPeer)
-					if priorityPeers[unresolvedPeerAddress] == nil {
+					unresolvedNodeAddress := p2pUtil.GetFullAddressPeer(unresolvedPeer)
+					if priorityPeers[unresolvedNodeAddress] == nil {
 						err := ps.RemoveUnresolvedPeer(unresolvedPeer)
 						if err != nil {
 							ps.Logger.Error(err.Error())
 							continue
 						}
-						delete(unresolvedPeers, unresolvedPeerAddress)
+						delete(unresolvedPeers, unresolvedNodeAddress)
 						break
 					}
 				}
@@ -135,7 +136,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			if err != nil {
 				ps.Logger.Error(err)
 			}
-			unresolvedPeers[priorityPeerAddress] = &newPeer
+			unresolvedPeers[priorityNodeAddress] = &newPeer
 			exceedMaxUnresolvedPeers++
 			i++
 		}
@@ -144,11 +145,11 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	// metrics monitoring
 	if monitoring.IsMonitoringActive() {
 		for _, peer := range priorityPeers {
-			priorityPeerAddress := p2pUtil.GetFullAddressPeer(peer)
-			if unresolvedPeers[priorityPeerAddress] != nil {
+			priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
+			if unresolvedPeers[priorityNodeAddress] != nil {
 				unresolvedPriorityPeersCount++
 			}
-			if resolvedPeers[priorityPeerAddress] != nil {
+			if resolvedPeers[priorityNodeAddress] != nil {
 				resolvedPriorityPeersCount++
 			}
 		}
@@ -798,6 +799,28 @@ func (ps *PriorityStrategy) GetAnyKnownPeer() *model.Peer {
 	return nil
 }
 
+// GetRandomPeerWithoutRepetition get a random peer from a list. the returned peer is removed from the list (peer parameter) so that,
+// when the function is called again, the same peer wont' be selected.
+// NOTE: this function is thread-safe and can be used with concurrent goroutines
+func (ps *PriorityStrategy) GetRandomPeerWithoutRepetition(peers map[string]*model.Peer, mutex *sync.Mutex) *model.Peer {
+	var (
+		peer *model.Peer
+	)
+	randomIdx := int(util.GetSecureRandom()) % len(peers)
+	idx := 0
+	for _, knownPeer := range peers {
+		if idx == randomIdx {
+			peer = knownPeer
+			break
+		}
+		idx++
+	}
+	mutex.Lock()
+	defer mutex.Unlock()
+	delete(peers, p2pUtil.GetFullAddressPeer(peer))
+	return peer
+}
+
 // GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
 func (ps *PriorityStrategy) GetExceedMaxUnresolvedPeers() int32 {
 	return int32(len(ps.GetUnresolvedPeers())) - ps.MaxUnresolvedPeers + 1
@@ -852,4 +875,55 @@ func (ps *PriorityStrategy) DisconnectPeer(peer *model.Peer) {
 			ps.Logger.Error(err.Error())
 		}
 	}
+}
+
+// GetNodeAddressesInfo
+func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error) {
+	if len(ps.Host.GetResolvedPeers()) < 1 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "GetNodeAddressesInfo: No resolved peers found")
+	}
+	var (
+		mutex             = &sync.Mutex{}
+		peer              *model.Peer
+		finished          bool
+		nodeAddressesInfo []*model.NodeAddressInfo
+	)
+
+	// Copy map to not interfere with it
+	peers := make(map[string]*model.Peer)
+	for key, value := range ps.Host.GetResolvedPeers() {
+		peers[key] = value
+	}
+
+	for len(peers) > 0 || finished {
+		peer = ps.GetRandomPeerWithoutRepetition(peers, mutex)
+		res, err := ps.PeerServiceClient.GetNodeAddressesInfo(peer, nodeRegistrations)
+		if err != nil {
+			return nil, err
+		}
+
+		// validate downloaded address list
+		for _, nodeAddressInfo := range res.NodeAddressesInfo {
+			if !ps.NodeRegistrationService.ValidateNodeAddressInfoSignature(nodeAddressInfo) {
+				// TODO: send updated nodeAddressInfo to
+				ps.Logger.Warnf("%v", blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
+					"GetNodeAddressesInfo api client: this peer returned an invalid node address signature %v for node with ID: %d. "+
+						"maybe an outdated record in its node_address_info",
+					peer.GetInfo(), nodeAddressInfo.NodeID)))
+				continue
+			}
+			if !ps.NodeRegistrationService.ValidateNodeAddressInfoMessage(nodeAddressInfo) {
+				// TODO: blacklist peers that send invalid data
+				return nil, blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
+					"GetNodeAddressesInfo api client: this peer returned an invalid node address signature %v for node with ID: %d",
+					peer.GetInfo(), nodeAddressInfo.NodeID))
+			}
+			nodeAddressesInfo = append(nodeAddressesInfo, nodeAddressInfo)
+		}
+		// all address info have been fetched
+		if len(nodeAddressesInfo) == len(nodeRegistrations) {
+			finished = true
+		}
+	}
+	return nodeAddressesInfo, nil
 }

@@ -31,6 +31,26 @@ func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 	return ss.Service.GetPeerInfo(ctx, req)
 }
 
+// GetNodeAddressesInfo to return info of this host
+func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model.GetNodeAddressesInfoRequest) (*model.
+	GetNodeAddressesInfoResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+
+	return ss.Service.GetNodeAddressesInfo(ctx, req)
+	return nil, nil
+}
+
+// SendNodeAddressInfo send/broadcast (usually own) NodeAddressInfo to other peers
+func (ss *P2PServerHandler) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+
+	// STEF TODO implement server service method (P2PServerServiceInterface) to send get node addresses
+	// return ss.Service.SendNodeAddressInfo(ctx, req)
+	return nil, nil
+}
+
 // GetMorePeers contains info other peers
 func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersServer)

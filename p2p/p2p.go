@@ -32,6 +32,7 @@ type (
 			blockServices map[int32]coreService.BlockServiceInterface,
 			mempoolServices map[int32]coreService.MempoolServiceInterface,
 			fileService coreService.FileServiceInterface,
+			nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 			observer *observer.Observer,
 		)
 		// exposed api list
@@ -48,12 +49,13 @@ type (
 		DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error)
 	}
 	Peer2PeerService struct {
-		Host              *model.Host
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		PeerServiceClient client.PeerServiceClientInterface
-		Logger            *log.Logger
-		TransactionUtil   transaction.UtilInterface
-		FileService       coreService.FileServiceInterface
+		Host                    *model.Host
+		PeerExplorer            strategy.PeerExplorerStrategyInterface
+		PeerServiceClient       client.PeerServiceClientInterface
+		Logger                  *log.Logger
+		TransactionUtil         transaction.UtilInterface
+		FileService             coreService.FileServiceInterface
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
 	}
 )
 
@@ -65,14 +67,16 @@ func NewP2PService(
 	logger *log.Logger,
 	transactionUtil transaction.UtilInterface,
 	fileService coreService.FileServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
-		Host:              host,
-		PeerServiceClient: peerServiceClient,
-		Logger:            logger,
-		PeerExplorer:      peerExplorer,
-		TransactionUtil:   transactionUtil,
-		FileService:       fileService,
+		Host:                    host,
+		PeerServiceClient:       peerServiceClient,
+		Logger:                  logger,
+		PeerExplorer:            peerExplorer,
+		TransactionUtil:         transactionUtil,
+		FileService:             fileService,
+		NodeRegistrationService: nodeRegistrationService,
 	}, nil
 }
 
@@ -85,10 +89,12 @@ func (s *Peer2PeerService) StartP2P(
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	fileService coreService.FileServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	observer *observer.Observer,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
+		nodeRegistrationService,
 		fileService,
 		s.PeerExplorer,
 		blockServices,

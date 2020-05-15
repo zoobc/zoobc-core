@@ -26,10 +26,12 @@ type (
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
+		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
+		// STEF ExtractNodeAddress must be moved in ipUtils or some other util package
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
 	}
@@ -194,6 +196,27 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string 
 	return fmt.Sprintf("SELECT %s FROM %s where registration_status = 0 AND (id,height) in (SELECT id,MAX(height) "+
 		"FROM %s WHERE height <= %d GROUP BY id) ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), nrq.getTableName(), height)
+}
+
+// GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.
+// Note: this query is to be used during node scrambling. Only nodes that have a peerAddress will be selected
+func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeightWithNodeAddress(height uint32) string {
+	joinedFields := []string{
+		"id",
+		"node_public_key",
+		"account_address",
+		"registration_height",
+		"t2.address || t2.port AS node_address",
+		"locked_balance",
+		"registration_status",
+		"latest",
+		"height",
+	}
+	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
+		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) "+
+		"FROM %s AS t1 WHERE t1.height <= %d GROUP BY t1.id) "+
+		"ORDER BY height DESC",
+		strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName, nrq.getTableName(), height)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields

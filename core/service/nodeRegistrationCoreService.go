@@ -33,11 +33,16 @@ type (
 		) (*model.ScrambledNodes, error)
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
+		GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
+		UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
+		ValidateNodeAddressInfoMessage(nodeAddressMessage *model.NodeAddressInfo) bool
+		ValidateNodeAddressInfoSignature(nodeAddressMessage *model.NodeAddressInfo) bool
 	}
 
 	// NodeRegistrationService mockable service methods
 	NodeRegistrationService struct {
 		QueryExecutor                query.ExecutorInterface
+		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
 		AccountBalanceQuery          query.AccountBalanceQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
@@ -54,6 +59,7 @@ type (
 
 func NewNodeRegistrationService(
 	queryExecutor query.ExecutorInterface,
+	nodeAddressInfoQuery query.NodeAddressInfoQueryInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -63,6 +69,7 @@ func NewNodeRegistrationService(
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:           queryExecutor,
+		NodeAddressInfoQuery:    nodeAddressInfoQuery,
 		AccountBalanceQuery:     accountBalanceQuery,
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		ParticipationScoreQuery: participationScoreQuery,
@@ -107,7 +114,7 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(height)
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress(height)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -217,6 +224,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
+		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
 		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
 		// Checking port of address,
 		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
@@ -253,7 +261,7 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	var nodeRegistries []*model.NodeRegistration
 	// get node registry list
 	rows, err := nrs.QueryExecutor.ExecuteSelect(
-		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
+		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress(block.GetHeight()),
 		false,
 	)
 	if err != nil {
@@ -300,6 +308,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 	}
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
+		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
 		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
 		// Checking port of address,
 		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
@@ -425,4 +434,58 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 // being admitted and can start unlock smithing process
 func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 	nrs.CurrentNodePublicKey = publicKey
+}
+
+// GetNodeAddressesInfo returns a list of node address info messages given a list of nodeIDs
+func (nrs *NodeRegistrationService) GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
+	qry, args := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return nodeAddressesInfo, nil
+}
+
+// STEF TODO: add unit test
+// UpdateNodeAddressInfo adds a node address info record to db
+// NOTE: nodeAddressMessage is supposed to have been already validated
+func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error {
+	// check if already exist and if new one is more recent
+	nodeAddressesInfo, err := nrs.GetNodeAddressesInfo([]int64{nodeAddressMessage.NodeID})
+	if err != nil {
+		return err
+	}
+	if len(nodeAddressesInfo) > 0 {
+		prevNodeAddressInfo := nodeAddressesInfo[0]
+		if prevNodeAddressInfo.Address == nodeAddressMessage.Address &&
+			prevNodeAddressInfo.Port == nodeAddressMessage.Port &&
+			bytes.Equal(prevNodeAddressInfo.Signature, nodeAddressMessage.Signature) {
+			return nil
+		}
+		qryArgs := nrs.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressMessage)
+		err = nrs.QueryExecutor.ExecuteTransactions(qryArgs)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// STEF TODO: implement this method
+// ValidateNodeAddressInfoMessage validate message data against main blocks (block height and hash)
+func (nrs *NodeRegistrationService) ValidateNodeAddressInfoMessage(nodeAddressMessage *model.NodeAddressInfo) bool {
+	return true
+}
+
+// STEF TODO: implement this method
+// ValidateNodeAddressInfoSignature validate against node registry (verify signature against node public key)
+func (nrs *NodeRegistrationService) ValidateNodeAddressInfoSignature(nodeAddressMessage *model.NodeAddressInfo) bool {
+	return true
 }

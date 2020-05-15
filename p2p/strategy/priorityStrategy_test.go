@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -1349,6 +1350,80 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 				QueryExecutor:           &mockQueryExecutorSuccess{},
 			}
 			ps.ConnectPriorityPeersGradually()
+		})
+	}
+}
+
+func TestPriorityStrategy_GetRandomPeerWithoutRepetition(t *testing.T) {
+	type fields struct {
+		Host                    *model.Host
+		PeerServiceClient       client.PeerServiceClientInterface
+		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		ResolvedPeersLock       sync.RWMutex
+		UnresolvedPeersLock     sync.RWMutex
+		BlacklistedPeersLock    sync.RWMutex
+		MaxUnresolvedPeers      int32
+		MaxResolvedPeers        int32
+		Logger                  *log.Logger
+	}
+	type args struct {
+		peers map[string]*model.Peer
+		mutex *sync.Mutex
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+	}{
+		{
+			name: "GetRandomPeerWithoutRepetition:success",
+			args: args{
+				peers: map[string]*model.Peer{
+					"127.0.0.1:8000": {
+						Info: &model.Node{
+							Address: "127.0.0.1",
+							Port:    8000,
+						},
+					},
+					"127.0.0.2:8000": {
+						Info: &model.Node{
+							Address: "127.0.0.2",
+							Port:    8000,
+						},
+					},
+					"127.0.0.3:8000": {
+						Info: &model.Node{
+							Address: "127.0.0.3",
+							Port:    8000,
+						},
+					},
+				},
+				mutex: &sync.Mutex{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				Host:                    tt.fields.Host,
+				PeerServiceClient:       tt.fields.PeerServiceClient,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				ResolvedPeersLock:       tt.fields.ResolvedPeersLock,
+				UnresolvedPeersLock:     tt.fields.UnresolvedPeersLock,
+				BlacklistedPeersLock:    tt.fields.BlacklistedPeersLock,
+				MaxUnresolvedPeers:      tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:        tt.fields.MaxResolvedPeers,
+				Logger:                  tt.fields.Logger,
+			}
+			got := ps.GetRandomPeerWithoutRepetition(tt.args.peers, tt.args.mutex)
+			fullAddress := p2pUtil.GetFullAddressPeer(got)
+			if _, ok := tt.args.peers[fullAddress]; ok {
+				t.Error("PriorityStrategy.GetRandomPeerWithoutRepetition() = peer not removed from peer list")
+			}
 		})
 	}
 }

@@ -26,5 +26,6 @@ type (
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
 		ValidateRequest(ctx context.Context) bool
+		GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error)
 	}
 )

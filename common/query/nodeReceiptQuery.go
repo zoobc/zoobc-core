@@ -52,7 +52,7 @@ func (rq *NodeReceiptQuery) getTableName() string {
 	return rq.TableName
 }
 
-// GetReceipts get a set of receipts that satisfies the params from DB
+// GetReceipts get a set of pas that satisfies the params from DB
 func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
 
 	query := fmt.Sprintf(
@@ -97,7 +97,7 @@ func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(
 	return query
 }
 
-// GetReceiptByRoot return sql query to fetch receipts by its merkle root, the datum_hash should not already exists in
+// GetReceiptByRoot return sql query to fetch pas by its merkle root, the datum_hash should not already exists in
 // published_receipt table
 func (rq *NodeReceiptQuery) GetReceiptByRoot(
 	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
@@ -124,7 +124,7 @@ func (rq *NodeReceiptQuery) SelectReceipt(
 	return query
 }
 
-// InsertReceipts inserts a new receipts into DB
+// InsertReceipts inserts a new pas into DB
 func (rq *NodeReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args []interface{}) {
 
 	return fmt.Sprintf(
@@ -135,7 +135,7 @@ func (rq *NodeReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, a
 	), rq.ExtractModel(receipt)
 }
 
-// InsertReceipts build query for bulk store receipts
+// InsertReceipts build query for bulk store pas
 func (rq *NodeReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, args []interface{}) {
 
 	var (

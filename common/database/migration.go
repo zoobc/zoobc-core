@@ -352,6 +352,21 @@ func (m *Migration) Init() error {
 			`
 			CREATE INDEX "spine_block_manifest_reference_height_idx" ON "spine_block_manifest" ("manifest_reference_height")
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_address_info" (
+				"node_id"		INTEGER,		-- node_id relative to this node address
+				"address"		VARCHAR(255),	-- peer/node address
+				"port"			INTEGER,		-- peer rpc port
+				"block_height"	INTEGER,		-- last blockchain height when broadcasting the address
+				"block_hash"	BLOB,			-- hash of last block when broadcasting the address
+				"signature"		BLOB,			-- signature of above fields (signed using node private key)
+				PRIMARY KEY("node_id"),			-- primary key
+				UNIQUE(address, port)			-- address + port must be unique too
+			)
+			`,
+			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
+			`,
 		}
 		return nil
 	}

@@ -500,3 +500,9 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 func (ns *NativeStrategy) ValidateRequest(context.Context) bool {
 	return true
 }
+
+// STEF TODO implement this method
+// GetNodeAddressesInfo get a list of node addresses from peers
+func (ns *NativeStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error) {
+	return nil, nil
+}
