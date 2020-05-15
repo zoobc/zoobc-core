@@ -78,10 +78,11 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 // GetTransactionsByBlockID get transactions of the block
 func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
 	var (
-		transactions []*model.Transaction
-		escrows      []*model.Escrow
-		txIdsStr     []string
-		err          error
+		transactionsMap = make(map[int64]*model.Transaction)
+		transactions    []*model.Transaction
+		escrows         []*model.Escrow
+		txIdsStr        []string
+		err             error
 	)
 
 	// get transaction of the block
@@ -100,6 +101,7 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 	// fetch escrow if exist
 	for _, tx := range transactions {
 		txIdsStr = append(txIdsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
+		transactionsMap[tx.ID] = tx
 	}
 	if len(txIdsStr) > 0 {
 		escrows, err = func() ([]*model.Escrow, error) {
@@ -117,11 +119,7 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		for _, escrow := range escrows {
-			for _, tx := range transactions {
-				if tx.ID == escrow.ID {
-					tx.Escrow = escrow
-				}
-			}
+			transactionsMap[escrow.ID].Escrow = escrow
 		}
 	}
 	return transactions, nil
