@@ -6,6 +6,8 @@ import (
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TransactionHandler handles requests related to transactions
@@ -40,6 +42,10 @@ func (th *TransactionHandler) GetTransactions(
 		response *model.GetTransactionsResponse
 		err      error
 	)
+
+	if req.Pagination == nil {
+		return nil, status.Error(codes.InvalidArgument, "Pagination can't be empty")
+	}
 
 	chainType := chaintype.GetChainType(0)
 	response, err = th.Service.GetTransactions(chainType, req)
