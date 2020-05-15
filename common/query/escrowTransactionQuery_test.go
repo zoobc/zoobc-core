@@ -547,3 +547,73 @@ func TestEscrowTransactionQuery_GetEscrowTransactionsByTransactionIdsAndStatus(t
 		}
 	})
 }
+
+func TestEscrowTransactionQuery_GetEscrowTransactionsByIDs(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		ids        []int64
+		additional map[string]interface{}
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantQStr string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewEscrowTransactionQuery()),
+			args: args{
+				ids: []int64{1, 2, 3, 4},
+			},
+			wantQStr: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, block_height, " +
+				"latest, instruction FROM escrow_transaction WHERE id IN(?, ?, ?, ?)",
+			wantArgs: []interface{}{
+				int64(1),
+				int64(2),
+				int64(3),
+				int64(4),
+			},
+		},
+		{
+			name:   "WantSuccess:Additional",
+			fields: fields(*NewEscrowTransactionQuery()),
+			args: args{
+				ids: []int64{1, 2, 3, 4},
+				additional: map[string]interface{}{
+					"status": model.EscrowStatus_Pending,
+					"latest": true,
+				},
+			},
+			wantQStr: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, block_height, " +
+				"latest, instruction FROM escrow_transaction WHERE id IN(?, ?, ?, ?) AND status = ? AND latest = ?",
+			wantArgs: []interface{}{
+				int64(1),
+				int64(2),
+				int64(3),
+				int64(4),
+				model.EscrowStatus_Pending,
+				true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotQStr, gotArgs := et.GetEscrowTransactionsByIDs(tt.args.ids, tt.args.additional)
+			if gotQStr != tt.wantQStr {
+				t.Errorf("GetEscrowTransactionsByIDs() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
+			}
+			if len(gotArgs) != len(tt.wantArgs) {
+				t.Errorf("GetEscrowTransactionsByIDs() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

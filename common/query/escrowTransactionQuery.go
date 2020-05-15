@@ -23,6 +23,7 @@ type (
 		GetEscrowTransactionsByTransactionIdsAndStatus(
 			transactionIds []string, status model.EscrowStatus,
 		) string
+		GetEscrowTransactionsByIDs(ids []int64, additional map[string]interface{}) (string, []interface{})
 		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
@@ -136,6 +137,27 @@ func (et *EscrowTransactionQuery) GetEscrowTransactionsByTransactionIdsAndStatus
 		strings.Join(transactionIds, ", "),
 		status,
 	)
+}
+
+// GetEscrowTransactionsByIDs represents query to get escrows by multiple id and with additional clause
+func (et *EscrowTransactionQuery) GetEscrowTransactionsByIDs(ids []int64, additional map[string]interface{}) (qStr string, args []interface{}) {
+	qStr = fmt.Sprintf(
+		"SELECT %s FROM %s WHERE id IN(?%s)",
+		strings.Join(et.Fields, ", "),
+		et.getTableName(),
+		strings.Repeat(", ?", len(ids)-1),
+	)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+
+	if len(additional) > 0 {
+		for column, value := range additional {
+			qStr += fmt.Sprintf(" AND %s = ?", column)
+			args = append(args, value)
+		}
+	}
+	return qStr, args
 }
 
 // ExtractModel will extract values of escrow as []interface{}
