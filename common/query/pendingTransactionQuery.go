@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -22,6 +24,7 @@ type (
 		) (
 			str string, args []interface{},
 		)
+		GetPendingTransactionsExpireByHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) [][]interface{}
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
@@ -101,6 +104,20 @@ func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
 		status,
 		blockHeight,
 	}
+}
+
+// GetPendingTransactionsExpireByHeight presents query to get pending_transactions that was expire by block_height
+func (ptq *PendingTransactionQuery) GetPendingTransactionsExpireByHeight(currentHeight uint32) (str string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE block_height = ? AND status = ? AND latest = ?",
+			strings.Join(ptq.Fields, ", "),
+			ptq.getTableName(),
+		),
+		[]interface{}{
+			currentHeight - constant.MinRollbackBlocks,
+			model.PendingTransactionStatus_PendingTransactionPending,
+			true,
+		}
 }
 
 // InsertPendingTransaction inserts a new pending transaction into DB
