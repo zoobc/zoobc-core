@@ -35,6 +35,10 @@ type (
 		Height              uint32
 		BlockID             int64
 		MultisigUtil        MultisigTransactionUtilInterface
+		// multisig helper
+		SignatureInfoHelper      SignatureInfoHelperInterface
+		MultisignatureInfoHelper MultisignatureInfoHelperInterface
+		PendingTransactionHelper PendingTransactionHelperInterface
 		// pending services
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
@@ -42,7 +46,165 @@ type (
 		TransactionQuery        query.TransactionQueryInterface
 		AccountLedgerQuery      query.AccountLedgerQueryInterface
 	}
+	// multisignature helpers
+	SignatureInfoHelperInterface interface {
+		ValidateSignatureInfo(
+			info *model.SignatureInfo, blockHeight uint32,
+		) error
+	}
+	MultisignatureInfoHelperInterface interface {
+		ValidateMultisignatureInfo(info *model.MultiSignatureInfo) error
+	}
+	PendingTransactionHelperInterface interface {
+		ValidatePendingTransactionBytes(
+			unsignedTxBytes []byte, blockHeight uint32, dbTx bool,
+		) (model.PendingTransaction, error)
+
+		GetPendingTransactionByHash(
+			pendingTransactionHash []byte, blockHeight uint32, dbTx bool,
+		) (model.PendingTransaction, error)
+	}
+	SignatureInfoHelper struct {
+		PendingSignatureQuery   query.PendingSignatureQueryInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		Signature               crypto.SignatureInterface
+	}
+
+	MultisignatureInfoHelper struct {
+		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
+		QueryExecutor           query.ExecutorInterface
+	}
+
+	PendingTransactionHelper struct {
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		TransactionUtil         UtilInterface
+		TypeSwitcher            TypeActionSwitcher
+		QueryExecutor           query.ExecutorInterface
+	}
 )
+
+func (pth *PendingTransactionHelper) ValidatePendingTransactionBytes(
+	unsignedTxBytes []byte, blockHeight uint32, dbTx bool) (model.PendingTransaction, error) {
+	var (
+		pendingTx model.PendingTransaction
+	)
+	innerTx, err := pth.TransactionUtil.ParseTransactionBytes(unsignedTxBytes, false)
+	if err != nil {
+		return pendingTx, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailToParseTransactionBytes",
+		)
+	}
+	innerTa, err := pth.TypeSwitcher.GetTransactionType(innerTx)
+	if err != nil {
+		return pendingTx, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailToCastInnerTransaction",
+		)
+	}
+	err = innerTa.Validate(dbTx)
+	if err != nil {
+		return pendingTx, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailToValidateInnerTa",
+		)
+	}
+	txHash := sha3.Sum256(unsignedTxBytes)
+
+	q, args := pth.PendingTransactionQuery.GetPendingTransactionByHash(
+		txHash[:], []model.PendingTransactionStatus{
+			model.PendingTransactionStatus_PendingTransactionExecuted,
+			model.PendingTransactionStatus_PendingTransactionPending,
+		},
+		blockHeight, constant.MinRollbackBlocks,
+	)
+	row, _ := pth.QueryExecutor.ExecuteSelectRow(q, false, args...)
+	err = pth.PendingTransactionQuery.Scan(&pendingTx, row)
+	if err != sql.ErrNoRows {
+		return pendingTx, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"DuplicateOrPendingTransactionAlreadyExecuted",
+		)
+	}
+	return pendingTx, nil
+}
+
+func (pth *PendingTransactionHelper) GetPendingTransactionByHash(
+	pendingTransactionHash []byte, blockHeight uint32, dbTx bool,
+) (model.PendingTransaction, error) {
+	var (
+		pendingTx model.PendingTransaction
+		err       error
+	)
+	q, args := pth.PendingTransactionQuery.GetPendingTransactionByHash(
+		pendingTransactionHash, []model.PendingTransactionStatus{
+			model.PendingTransactionStatus_PendingTransactionExecuted,
+			model.PendingTransactionStatus_PendingTransactionPending,
+		},
+		blockHeight, constant.MinRollbackBlocks,
+	)
+	row, _ := pth.QueryExecutor.ExecuteSelectRow(q, false, args...)
+	err = pth.PendingTransactionQuery.Scan(&pendingTx, row)
+	if err != sql.ErrNoRows {
+		return pendingTx, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"DuplicateOrPendingTransactionAlreadyExecuted",
+		)
+	}
+	return pendingTx, nil
+}
+
+func (sih *SignatureInfoHelper) ValidateSignatureInfo(
+	signatureInfo *model.SignatureInfo,
+	blockHeight uint32,
+) error {
+	// check for pending transaction first
+	if signatureInfo.TransactionHash == nil { // transaction hash has to come with at least one signature
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TransactionHashRequiredInSignatureInfo",
+		)
+	}
+	if len(signatureInfo.Signatures) < 1 {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"MinimumOneSignatureRequiredInSignatureInfo",
+		)
+	}
+	for addr, sig := range signatureInfo.Signatures {
+		if sig == nil {
+			return blocker.NewBlocker(
+				blocker.ValidationErr,
+				"SignatureMissing",
+			)
+		}
+		err := sih.Signature.VerifySignature(signatureInfo.TransactionHash, sig, addr)
+		if err != nil {
+			signatureType := util.ConvertBytesToUint32(sig)
+			if model.SignatureType(signatureType) != model.SignatureType_MultisigSignature {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (*MultisignatureInfoHelper) ValidateMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) error {
+	if len(multisigInfo.Addresses) < 2 {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"AtLeastTwoParticipantRequiredForMultisig",
+		)
+	}
+	if multisigInfo.MinimumSignatures < 1 {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"AtLeastOneMinimumSignatures",
+		)
+	}
+	return nil
+}
 
 func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error {
 	var (
@@ -294,94 +456,56 @@ func (tx *MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 
 // Validate dbTx specify whether validation should read from transaction state or db state
 func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
-	body := tx.Body
+	var (
+		body = tx.Body
+	)
 	if body.MultiSignatureInfo == nil && body.SignatureInfo == nil && body.UnsignedTransactionBytes == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastTxBytesSignatureInfoOrMultisignatureInfoMustBe"+
 			"Provided")
 	}
+
 	if body.MultiSignatureInfo != nil {
-		if len(body.MultiSignatureInfo.Addresses) < 2 {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"AtLeastTwoParticipantRequiredForMultisig",
-			)
+		err := tx.MultisignatureInfoHelper.ValidateMultisignatureInfo(body.MultiSignatureInfo)
+		if err != nil {
+			return err
 		}
-		if body.MultiSignatureInfo.MinimumSignatures < 1 {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"AtLeastOneSignatureRequiredNeedToBeSet",
-			)
+		if len(body.UnsignedTransactionBytes) > 0 {
+			_, err := tx.PendingTransactionHelper.ValidatePendingTransactionBytes(
+				body.UnsignedTransactionBytes, tx.Height, dbTx)
+			if err != nil {
+				return err
+			}
 		}
-	}
-	if len(body.UnsignedTransactionBytes) > 0 {
+		if body.SignatureInfo != nil {
+			err = tx.SignatureInfoHelper.ValidateSignatureInfo(body.SignatureInfo, tx.Height)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
 		var (
+			err       error
 			pendingTx model.PendingTransaction
 		)
-		innerTx, err := tx.TransactionUtil.ParseTransactionBytes(tx.Body.UnsignedTransactionBytes, false)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"FailToParseTransactionBytes",
-			)
-		}
-		innerTa, err := tx.TypeSwitcher.GetTransactionType(innerTx)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"FailToCastInnerTransaction",
-			)
-		}
-		err = innerTa.Validate(dbTx)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"FailToValidateInnerTa",
-			)
-		}
-		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
-
-		q, args := tx.PendingTransactionQuery.GetPendingTransactionByHash(
-			txHash[:], []model.PendingTransactionStatus{
-				model.PendingTransactionStatus_PendingTransactionExecuted,
-				model.PendingTransactionStatus_PendingTransactionPending,
-			},
-			tx.Height, constant.MinRollbackBlocks,
-		)
-		row, _ := tx.QueryExecutor.ExecuteSelectRow(q, false, args...)
-		err = tx.PendingTransactionQuery.Scan(&pendingTx, row)
-		if err != sql.ErrNoRows {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"DuplicateOrPendingTransactionAlreadyExecuted",
-			)
-		}
-	}
-	if body.SignatureInfo != nil {
-		if body.SignatureInfo.TransactionHash == nil { // transaction hash has to come with at least one signature
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"TransactionHashRequiredInSignatureInfo",
-			)
-		}
-		if len(body.SignatureInfo.Signatures) < 1 {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"MinimumOneSignatureRequiredInSignatureInfo",
-			)
-		}
-		for addr, sig := range body.SignatureInfo.Signatures {
-			if sig == nil {
-				return blocker.NewBlocker(
-					blocker.ValidationErr,
-					"SignatureMissing",
-				)
-			}
-			err := tx.Signature.VerifySignature(body.SignatureInfo.TransactionHash, sig, addr)
+		if len(body.UnsignedTransactionBytes) > 0 {
+			pendingTx, err = tx.PendingTransactionHelper.ValidatePendingTransactionBytes(
+				body.UnsignedTransactionBytes, tx.Height, dbTx)
 			if err != nil {
-				signatureType := util.ConvertBytesToUint32(sig)
-				if model.SignatureType(signatureType) != model.SignatureType_MultisigSignature {
-					return err
+				return err
+			}
+		}
+		if body.SignatureInfo != nil {
+			if len(pendingTx.TransactionBytes) == 0 {
+				pendingTx, err = tx.PendingTransactionHelper.GetPendingTransactionByHash(
+					body.SignatureInfo.TransactionHash, tx.Height, dbTx,
+				)
+				if len(pendingTx.TransactionBytes) == 0 {
+					return blocker.NewBlocker(blocker.ValidationErr, "NoPendingTransactionWithProvidedTransactionHash")
 				}
+			}
+			err = tx.SignatureInfoHelper.ValidateSignatureInfo(body.SignatureInfo, tx.Height)
+			if err != nil {
+				return err
 			}
 		}
 	}
