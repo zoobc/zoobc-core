@@ -5,6 +5,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,8 +44,17 @@ func (th *TransactionHandler) GetTransactions(
 		err      error
 	)
 
-	if req.Pagination == nil {
-		return nil, status.Error(codes.InvalidArgument, "Pagination can't be empty")
+	pagination := req.GetPagination()
+	if pagination == nil {
+		pagination = &model.Pagination{
+			OrderField: "timestamp",
+			OrderBy:    model.OrderBy_DESC,
+			Page:       0,
+			Limit:      constant.MaxAPILimitPerPage,
+		}
+	}
+	if pagination.GetLimit() > constant.MaxAPILimitPerPage {
+		return nil, status.Errorf(codes.OutOfRange, "Limit exceeded, max. %d", constant.MaxAPILimitPerPage)
 	}
 
 	chainType := chaintype.GetChainType(0)
