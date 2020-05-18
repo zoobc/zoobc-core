@@ -78,15 +78,15 @@ func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) (
 		return nil, err
 	}
 
-	var ids []int64
+	var ids []string
 	for _, tx := range transactions {
 		txMap[tx.GetID()] = tx
-		ids = append(ids, tx.GetID())
+		ids = append(ids, strconv.FormatInt(tx.GetID(), 10))
 	}
 	if len(ids) > 0 {
 		escrows, err = func() ([]*model.Escrow, error) {
-			escrowQ, escrowArgs := tg.EscrowTransactionQuery.GetEscrowTransactionsByIDs(ids, nil)
-			rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, false, escrowArgs...)
+			escrowQ := tg.EscrowTransactionQuery.GetEscrowTransactionsByTransactionIdsAndStatus(ids, model.EscrowStatus_Pending)
+			rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, false)
 			if err != nil {
 				return nil, err
 			}
