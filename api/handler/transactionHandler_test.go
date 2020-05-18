@@ -51,7 +51,7 @@ func TestTransactionHandler_GetTransaction(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetTransaction:Sucess",
+			name: "GetTransaction:Success",
 			fields: fields{
 				Service: &mockGetTransactionSuccess{},
 			},
@@ -117,7 +117,7 @@ func TestTransactionHandler_GetTransactions(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetTransactions:Sucess",
+			name: "GetTransactions:Success",
 			fields: fields{
 				Service: &mockGetTransactionsSuccess{},
 			},
@@ -182,7 +182,7 @@ func TestTransactionHandler_PostTransaction(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "PostTransaction:Sucess",
+			name: "PostTransaction:Success",
 			fields: fields{
 				Service: &mockPostTransactionSuccess{},
 			},
@@ -218,10 +218,12 @@ type (
 	}
 )
 
-func (*mockGetTransactionMinimumFeeError) GetTransactionMinimumFee(request *model.GetTransactionMinimumFeeRequest) (*model.GetTransactionMinimumFeeResponse, error) {
+func (*mockGetTransactionMinimumFeeError) GetTransactionMinimumFee(request *model.GetTransactionMinimumFeeRequest,
+) (*model.GetTransactionMinimumFeeResponse, error) {
 	return nil, errors.New("Error GetTransactionMinimumFee")
 }
-func (*mockGetTransactionMinimumFeeSuccess) GetTransactionMinimumFee(request *model.GetTransactionMinimumFeeRequest) (*model.GetTransactionMinimumFeeResponse, error) {
+func (*mockGetTransactionMinimumFeeSuccess) GetTransactionMinimumFee(request *model.GetTransactionMinimumFeeRequest,
+) (*model.GetTransactionMinimumFeeResponse, error) {
 	return &model.GetTransactionMinimumFeeResponse{}, nil
 }
 
@@ -250,7 +252,7 @@ func TestTransactionHandler_GetTransactionMinimumFee(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GetTransactionMinimumFee:Sucess",
+			name: "GetTransactionMinimumFee:Success",
 			fields: fields{
 				Service: &mockGetTransactionMinimumFeeSuccess{},
 			},
