@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -544,6 +546,19 @@ func TestEscrowTransactionQuery_GetEscrowTransactionsByTransactionIdsAndStatus(t
 			"block_height, latest, instruction FROM escrow_transaction WHERE id IN (1, 2) AND status = %d", model.EscrowStatus_Pending)
 		if query != expect {
 			t.Errorf("expect: %v\ngot: %v\n", expect, query)
+		}
+	})
+}
+
+func TestEscrowTransactionQuery_GetExpiredEscrowTransactionsAtCurrentBlock(t *testing.T) {
+	t.Run("GetExpiredEscrowTransactionAtCurrentBlockQuery", func(t *testing.T) {
+		escrowTransactionQuery := NewEscrowTransactionQuery()
+		qry := escrowTransactionQuery.GetExpiredEscrowTransactionsAtCurrentBlock(constant.MinRollbackBlocks)
+		expect := "SELECT id, sender_address, recipient_address, approver_address, amount, commission, " +
+			"timeout, status, block_height, latest, instruction FROM escrow_transaction WHERE " +
+			"timeout + block_height = 720 AND latest = true AND status = 0"
+		if qry != expect {
+			t.Errorf("expect: %s\ngot: %v", expect, qry)
 		}
 	})
 }
