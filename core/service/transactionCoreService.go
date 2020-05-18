@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
@@ -56,22 +57,56 @@ func NewTransactionCoreService(
 
 func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error) {
 	var (
-		rows *sql.Rows
-		err  error
+		transactions []*model.Transaction
+		escrows      []*model.Escrow
+		txMap        = make(map[int64]*model.Transaction)
+		rows         *sql.Rows
+		err          error
 	)
-	txQuery, _ := tg.TransactionQuery.GetTransactionsByIds(transactionIds)
-	rows, err = tg.QueryExecutor.ExecuteSelect(txQuery, false)
+
+	transactions, err = func() ([]*model.Transaction, error) {
+		txQuery, args := tg.TransactionQuery.GetTransactionsByIds(transactionIds)
+		rows, err = tg.QueryExecutor.ExecuteSelect(txQuery, false, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		return tg.TransactionQuery.BuildModel(transactions, rows)
+	}()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var transactions []*model.Transaction
-	transactions, err = tg.TransactionQuery.BuildModel(transactions, rows)
-	if err != nil {
-		return nil, err
+	var ids []string
+	for _, tx := range transactions {
+		txMap[tx.GetID()] = tx
+		ids = append(ids, strconv.FormatInt(tx.GetID(), 10))
 	}
+	if len(ids) > 0 {
+		escrows, err = func() ([]*model.Escrow, error) {
+			escrowQ := tg.EscrowTransactionQuery.GetEscrowTransactionsByTransactionIdsAndStatus(ids, model.EscrowStatus_Pending)
+			rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, false)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
 
+			return tg.EscrowTransactionQuery.BuildModels(rows)
+
+		}()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, escrow := range escrows {
+			if _, ok := txMap[escrow.GetID()]; ok {
+				txMap[escrow.GetID()].Escrow = escrow
+			} else {
+				return nil, fmt.Errorf("escrow ID and Transaction ID Did not match")
+			}
+		}
+	}
 	return transactions, nil
 }
 
