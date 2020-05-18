@@ -15,6 +15,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/mattn/go-sqlite3 v1.11.0
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/pelletier/go-toml v1.5.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.1.0

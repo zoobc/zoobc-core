@@ -22,12 +22,14 @@ Command line interface to as a utility tools to develop the zoobc system.
 - `go run main {command} --help` to see to see available subcommands and flags
 - `go run main {command} {subcommand} --help` to see to see available subcommands and flags of subcommand
 
+## Transaction Commands
 ### Transaction general flag
 
 - `--output` to provide generated ouput type. Example: `--ouput bytes`
 - `--version` to provide version of transaction. Example: `--version 1`
 - `--timestamp` to provide timestamp of trasaction. Example: `--timestamp 1234567`
 - `--sender-seed` to provide the seed of sender transaction. Example: `--sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"`
+- `--sender-address` transaction's sender address
 - `--recipient` provide recepient transaction. Example `--recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM`
 - `--fee` to provide fee transaction, Example `--fee 1`
 - `--post` to define automate post transaction or not. Example: `-post true`
@@ -40,7 +42,7 @@ Command line interface to as a utility tools to develop the zoobc system.
 go run main.go generate transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --amount 5000000000
 ```
 
-#### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
+### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
 
 ```bash
 go run main.go generate transaction send-money --escrow true --approver-address BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd
@@ -88,12 +90,34 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
  go run main.go generate transaction escrow-approval --transaction-id -2546596465476625657 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 111
 ```
 
+### Transaction Multi Signatures
+```bash
+Flags:
+      --address-signatures stringToString   address:signature list --address1='signature1' --address2='signature2' (default [])
+      --addresses strings                   list of participants --addresses='address1,address2'
+  -h, --help                                help for multi-signature
+      --min-signature uint32                minimum number of signature required for the transaction to be valid
+      --nonce int                           random number / access code for the multisig info
+      --transaction-hash string             hash of transaction being signed by address-signature list hex
+      --unsigned-transaction string         hex string of the unsigned transaction bytes
+```
+For the multi signature transaction let say want to send money with multisig account, need to do this steps:
+1. Generate transaction send money, make sure with argument `--hash`. It will be `--unsigned-transaction` value on multi signature generator.
+2. Sign the transaction to get the transaction hash, and it will be `--transcation-has` and the last the `signature-hex` will be as `--address-signatures` value on multi signature generator. <br>
+
+So the completed comment it will be:
+```bash
+go run main.go generate transaction  multi-signature --sender-seed="execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --unsigned-transaction="01000000012ba5ba5e000000002c000000486c5a4c683356636e4e6c764279576f417a584f51326a416c77464f69794f395f6e6a49336f7135596768612c000000486c38393154655446784767574f57664f4f464b59725f586468584e784f384a4b38576e4d4a56366738614c41420f0000000000080000000600000000000000000000000000000000000000000000000000000000000000" --transaction-hash="21ddbdada9903da81bf17dba6569ff7e2665fec38760c7f6636419ee30da65b0" --address-signatures="HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha=00000000b4efe21822c9d63818d8d19f6c608d917b2237426d1157b4e6689b22ce6c256ccf8ec8e2c1016ab09dd4ef2b01191fe2df70b7a123fec7115d7afd5a938f9b0a"
+```
+
+## Block Commands
 ### Block Generating Fake Blocks
 
 ```bash
 go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecretPhrase='sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness' --out='../resource/zoobc.db'
 ```
 
+## Account Commands
 ### Account Generate Using Ed25519 Algorithm
 
 ```bash
@@ -114,30 +138,28 @@ go run main.go generate account bitcoin --seed "concur vocalist rotten busload g
 go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN" --addresses "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" --addresses "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J" —-min-sigs=2 --nonce=3
 ```
 
+## Other Commands
+```bash
 go run main.go genesis generate
+```
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
 ```bash
-
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db
 
 ```
-
+```bash
 go run main.go genesis generate -w
+```
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
-```bash
+
 
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db, plus n random nodes registrations
-
-```
-
+```bash
 go run main.go genesis generate -w -n 10
+```
 outputs cmd/genesis.go.new and cmd/cluster_config.json
-
-```
-
-```
 
 ### Generate Proof of Ownership Node Registry
 
