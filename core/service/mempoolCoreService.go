@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	badger "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -232,7 +231,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 
 	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
+		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
@@ -288,7 +287,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
+		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
