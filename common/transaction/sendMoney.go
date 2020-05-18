@@ -427,7 +427,6 @@ func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
 	queries = append(queries, senderAccountLedgerArgs)
 
-	tx.Escrow.Timeout += uint64(tx.Height)
 	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
 	queries = append(queries, escrowArgs...)
 
