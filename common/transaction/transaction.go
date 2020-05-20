@@ -41,6 +41,9 @@ type (
 // GetTransactionType assert transaction to TypeAction
 func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
 	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
+	accountBalanceHelper := NewAccountBalanceHelper(query.NewAccountBalanceQuery(), ts.Executor)
+	accountLedgerHelper := NewAccountLedgerHelper(query.NewAccountLedgerQuery(), ts.Executor)
+	transactionHelper := NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
 	switch buf[0] {
 	case 0:
 		switch buf[1] {
@@ -230,38 +233,50 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		switch buf[1] {
 		case 0:
 			// initialize service for pending_tx, pending_sig and multisig_info
-			multisigUtil := NewMultisigTransactionUtil(
-				ts.Executor,
-				query.NewPendingTransactionQuery(),
-				query.NewPendingSignatureQuery(),
-				query.NewMultisignatureInfoQuery(),
-				&Util{},
-			)
+			typeSwitcher := &TypeSwitcher{
+				Executor: ts.Executor,
+			}
+
+			pendingTransactionHelper := &PendingTransactionHelper{
+				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
+				PendingTransactionQuery: query.NewPendingTransactionQuery(),
+				TransactionUtil:         &Util{},
+				TypeSwitcher:            typeSwitcher,
+				QueryExecutor:           nil,
+			}
+			multisignatureInfoHelper := &MultisignatureInfoHelper{
+				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
+				QueryExecutor:           ts.Executor,
+			}
+			signatureInfoHelper := &SignatureInfoHelper{
+				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
+				PendingTransactionQuery: query.NewPendingTransactionQuery(),
+				QueryExecutor:           ts.Executor,
+				Signature:               &crypto.Signature{},
+			}
+			multisigUtil := NewMultisigTransactionUtil()
 			multiSigTransactionBody, err := new(MultiSignatureTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
 			return &MultiSignatureTransaction{
-				ID:              tx.ID,
-				Body:            multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
-				Fee:             tx.GetFee(),
-				SenderAddress:   tx.GetSenderAccountAddress(),
-				NormalFee:       fee.NewConstantFeeModel(constant.OneZBC / 100),
-				TransactionUtil: &Util{},
-				TypeSwitcher: &TypeSwitcher{
-					Executor: ts.Executor,
-				},
-				Signature:               &crypto.Signature{},
-				Height:                  tx.Height,
-				BlockID:                 tx.BlockID,
-				MultisigUtil:            multisigUtil,
-				QueryExecutor:           ts.Executor,
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
-				PendingTransactionQuery: query.NewPendingTransactionQuery(),
-				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				ID:                       tx.ID,
+				Body:                     multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
+				Fee:                      tx.GetFee(),
+				SenderAddress:            tx.GetSenderAccountAddress(),
+				NormalFee:                fee.NewConstantFeeModel(constant.OneZBC / 100),
+				TransactionUtil:          &Util{},
+				TypeSwitcher:             typeSwitcher,
+				Signature:                &crypto.Signature{},
+				Height:                   tx.Height,
+				BlockID:                  tx.BlockID,
+				TransactionHelper:        transactionHelper,
+				AccountBalanceHelper:     accountBalanceHelper,
+				AccountLedgerHelper:      accountLedgerHelper,
+				MultisigUtil:             multisigUtil,
+				SignatureInfoHelper:      signatureInfoHelper,
+				PendingTransactionHelper: pendingTransactionHelper,
+				MultisignatureInfoHelper: multisignatureInfoHelper,
 			}, nil
 		default:
 			return nil, nil
