@@ -201,6 +201,8 @@ func init() {
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
+		transactionUtil,
+		&transaction.TypeSwitcher{Executor: queryExecutor},
 	)
 
 	snapshotService = service.NewSnapshotService(
