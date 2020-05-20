@@ -194,7 +194,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 		return err
 	}
 
-	ss.Logger.Infof("With %d pending transactions", len(snapshotPayload.GetPendingTransactions()))
+	ss.Logger.Infof("Need Re-ApplyUnconfirmed in %d pending transactions", len(snapshotPayload.GetPendingTransactions()))
 	/*
 		Need to manually ApplyUnconfirmed the pending transaction
 		after finished insert snapshot payload into DB
@@ -209,13 +209,13 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 			txType  transaction.TypeAction
 		)
 		if pendingTX.GetStatus() == model.PendingTransactionStatus_PendingTransactionPending {
-			tx := pendingTX
-			tx.BlockHeight = currentBlock.GetHeight()
 
-			innerTX, err = ss.TransactionUtil.ParseTransactionBytes(tx.GetTransactionBytes(), false)
+			innerTX, err = ss.TransactionUtil.ParseTransactionBytes(pendingTX.GetTransactionBytes(), false)
 			if err != nil {
 				return err
 			}
+
+			innerTX.Height = currentBlock.GetHeight()
 			txType, err = ss.TypeActionSwitcher.GetTransactionType(innerTX)
 			if err != nil {
 				return err
