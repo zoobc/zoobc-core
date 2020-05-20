@@ -1604,3 +1604,559 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedFail struct {
+		PendingTransactionHelperInterface
+	}
+	mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedSuccess struct {
+		PendingTransactionHelperInterface
+	}
+)
+
+func (*mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedFail) ApplyUnconfirmedPendingTransaction(
+	pendingTransactionBytes []byte) error {
+	return errors.New("mockedError")
+}
+
+func (*mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedSuccess) ApplyUnconfirmedPendingTransaction(
+	pendingTransactionBytes []byte) error {
+	return nil
+}
+
+func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		ID                       int64
+		SenderAddress            string
+		Fee                      int64
+		Body                     *model.MultiSignatureTransactionBody
+		NormalFee                fee.FeeModelInterface
+		TransactionUtil          UtilInterface
+		TypeSwitcher             TypeActionSwitcher
+		Signature                crypto.SignatureInterface
+		Height                   uint32
+		BlockID                  int64
+		MultisigUtil             MultisigTransactionUtilInterface
+		SignatureInfoHelper      SignatureInfoHelperInterface
+		MultisignatureInfoHelper MultisignatureInfoHelperInterface
+		PendingTransactionHelper PendingTransactionHelperInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		AccountLedgerHelper      AccountLedgerHelperInterface
+		TransactionHelper        TransactionHelperInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "ApplyUnconfirmed - AddAccountSpendableBalance-Fail",
+			fields: fields{
+				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceFail{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ApplyUnconfirmed - AddAccountSpendableBalance-Success",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					UnsignedTransactionBytes: make([]byte, 0),
+				},
+				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceSuccess{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "ApplyUnconfirmed - ApplyUnconfirmedPendingTransactionFail",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					UnsignedTransactionBytes: make([]byte, 32),
+				},
+				AccountBalanceHelper:     &mockAccountBalanceHelperAddAccountSpendableBalanceSuccess{},
+				PendingTransactionHelper: &mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedFail{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ApplyUnconfirmed - ApplyUnconfirmedPendingTransactionSuccess",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					UnsignedTransactionBytes: make([]byte, 32),
+				},
+				AccountBalanceHelper:     &mockAccountBalanceHelperAddAccountSpendableBalanceSuccess{},
+				PendingTransactionHelper: &mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedSuccess{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &MultiSignatureTransaction{
+				ID:                       tt.fields.ID,
+				SenderAddress:            tt.fields.SenderAddress,
+				Fee:                      tt.fields.Fee,
+				Body:                     tt.fields.Body,
+				NormalFee:                tt.fields.NormalFee,
+				TransactionUtil:          tt.fields.TransactionUtil,
+				TypeSwitcher:             tt.fields.TypeSwitcher,
+				Signature:                tt.fields.Signature,
+				Height:                   tt.fields.Height,
+				BlockID:                  tt.fields.BlockID,
+				MultisigUtil:             tt.fields.MultisigUtil,
+				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
+				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
+				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
+				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
+				TransactionHelper:        tt.fields.TransactionHelper,
+			}
+			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// here
+
+type (
+	// mock pendingTransactionHelperApplyUnconfirmedPendingTransaction
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseSuccess struct {
+		Util
+	}
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseFail struct {
+		Util
+	}
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherFail struct {
+		TypeSwitcher
+	}
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherSuccessTypeActionFail struct {
+		TypeSwitcher
+	}
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherSuccessTypeActionSuccess struct {
+		TypeSwitcher
+	}
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionActionTypeFail struct {
+		TypeAction
+	}
+	pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionActionTypeSuccess struct {
+		TypeAction
+	}
+	// mock pendingTransactionHelperApplyUnconfirmedPendingTransaction
+)
+
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseFail) ParseTransactionBytes(
+	transactionBytes []byte, sign bool,
+) (*model.Transaction, error) {
+	return nil, errors.New("mockedError")
+}
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseSuccess) ParseTransactionBytes(
+	transactionBytes []byte, sign bool,
+) (*model.Transaction, error) {
+	return pendingTransactionHelperApplyUnconfirmedPendingTransactionTransaction, nil
+}
+
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherFail) GetTransactionType(
+	tx *model.Transaction) (TypeAction, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherSuccessTypeActionFail) GetTransactionType(
+	tx *model.Transaction) (TypeAction, error) {
+	return &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionActionTypeFail{}, nil
+}
+
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherSuccessTypeActionSuccess) GetTransactionType(
+	tx *model.Transaction) (TypeAction, error) {
+	return &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionActionTypeSuccess{}, nil
+}
+
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionActionTypeSuccess) UndoApplyUnconfirmed() error {
+	return nil
+}
+func (*pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionActionTypeFail) UndoApplyUnconfirmed() error {
+	return errors.New("mockedError")
+}
+
+func TestPendingTransactionHelper_UndoApplyUnconfirmedPendingTransaction(t *testing.T) {
+	type fields struct {
+		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
+		PendingTransactionQuery query.PendingTransactionQueryInterface
+		TransactionUtil         UtilInterface
+		TypeSwitcher            TypeActionSwitcher
+		QueryExecutor           query.ExecutorInterface
+	}
+	type args struct {
+		pendingTransactionBytes []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "UndoApplyUnconfirmedPendingTransaction - parseFail",
+			fields: fields{
+				TransactionUtil: &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseFail{},
+			},
+			args: args{
+				pendingTransactionBytes: make([]byte, 32),
+			},
+			wantErr: true,
+		},
+		{
+			name: "UndoApplyUnconfirmedPendingTransaction - getTransactionTypeFail",
+			fields: fields{
+				TypeSwitcher:    &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherFail{},
+				TransactionUtil: &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseSuccess{},
+			},
+			args: args{
+				pendingTransactionBytes: make([]byte, 32),
+			},
+			wantErr: true,
+		},
+		{
+			name: "UndoApplyUnconfirmedPendingTransaction - undoApplyUnconfirmedFail",
+			fields: fields{
+				TypeSwitcher:    &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherSuccessTypeActionFail{},
+				TransactionUtil: &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseSuccess{},
+			},
+			args: args{
+				pendingTransactionBytes: make([]byte, 32),
+			},
+			wantErr: true,
+		},
+		{
+			name: "UndoApplyUnconfirmedPendingTransaction - applyUnconfirmedSuccess",
+			fields: fields{
+				TypeSwitcher:    &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTypeSwitcherSuccessTypeActionSuccess{},
+				TransactionUtil: &pendingTransactionhelperUndoApplyUnconfirmedPendingTransactionTransactionUtilParseSuccess{},
+			},
+			args: args{
+				pendingTransactionBytes: make([]byte, 32),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pth := &PendingTransactionHelper{
+				MultisignatureInfoQuery: tt.fields.MultisignatureInfoQuery,
+				PendingTransactionQuery: tt.fields.PendingTransactionQuery,
+				TransactionUtil:         tt.fields.TransactionUtil,
+				TypeSwitcher:            tt.fields.TypeSwitcher,
+				QueryExecutor:           tt.fields.QueryExecutor,
+			}
+			if err := pth.UndoApplyUnconfirmedPendingTransaction(tt.args.pendingTransactionBytes); (err != nil) != tt.wantErr {
+				t.Errorf("UndoApplyUnconfirmedPendingTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
+	type fields struct {
+		ID                       int64
+		SenderAddress            string
+		Fee                      int64
+		Body                     *model.MultiSignatureTransactionBody
+		NormalFee                fee.FeeModelInterface
+		TransactionUtil          UtilInterface
+		TypeSwitcher             TypeActionSwitcher
+		Signature                crypto.SignatureInterface
+		Height                   uint32
+		BlockID                  int64
+		MultisigUtil             MultisigTransactionUtilInterface
+		SignatureInfoHelper      SignatureInfoHelperInterface
+		MultisignatureInfoHelper MultisignatureInfoHelperInterface
+		PendingTransactionHelper PendingTransactionHelperInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		AccountLedgerHelper      AccountLedgerHelperInterface
+		TransactionHelper        TransactionHelperInterface
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   []byte
+	}{
+		{
+			name: "GetMultisignatureBodyBytes - success",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo: &model.MultiSignatureInfo{
+						MinimumSignatures: 2,
+						Nonce:             1,
+						Addresses: []string{
+							"a", "b", "c",
+						},
+						MultisigAddress: "ABC",
+						BlockHeight:     720,
+						Latest:          true,
+					},
+					UnsignedTransactionBytes: make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						TransactionHash: make([]byte, 32),
+						Signatures: map[string][]byte{
+							"a": make([]byte, 32),
+						},
+					},
+				},
+			},
+			want: []byte{
+				1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 97, 1, 0, 0, 0, 98, 1, 0, 0, 0,
+				99, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 1, 0, 0, 0, 1, 0, 0, 0, 97, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		},
+		{
+			name: "GetMultisignatureBodyBytes - success - multisigInfo missing",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo:       nil,
+					UnsignedTransactionBytes: make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						TransactionHash: make([]byte, 32),
+						Signatures: map[string][]byte{
+							"a": make([]byte, 32),
+						},
+					},
+				},
+			},
+			want: []byte{
+				0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 97, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			},
+		},
+		{
+			name: "GetMultisignatureBodyBytes - success - signatureInfo missing",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo: &model.MultiSignatureInfo{
+						MinimumSignatures: 2,
+						Nonce:             1,
+						Addresses: []string{
+							"a", "b", "c",
+						},
+						MultisigAddress: "ABC",
+						BlockHeight:     720,
+						Latest:          true,
+					},
+					UnsignedTransactionBytes: make([]byte, 64),
+					SignatureInfo:            nil,
+				},
+			},
+			want: []byte{
+				1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 97, 1, 0, 0, 0, 98, 1, 0, 0, 0,
+				99, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &MultiSignatureTransaction{
+				ID:                       tt.fields.ID,
+				SenderAddress:            tt.fields.SenderAddress,
+				Fee:                      tt.fields.Fee,
+				Body:                     tt.fields.Body,
+				NormalFee:                tt.fields.NormalFee,
+				TransactionUtil:          tt.fields.TransactionUtil,
+				TypeSwitcher:             tt.fields.TypeSwitcher,
+				Signature:                tt.fields.Signature,
+				Height:                   tt.fields.Height,
+				BlockID:                  tt.fields.BlockID,
+				MultisigUtil:             tt.fields.MultisigUtil,
+				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
+				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
+				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
+				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
+				TransactionHelper:        tt.fields.TransactionHelper,
+			}
+			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+//
+
+func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
+	type fields struct {
+		ID                       int64
+		SenderAddress            string
+		Fee                      int64
+		Body                     *model.MultiSignatureTransactionBody
+		NormalFee                fee.FeeModelInterface
+		TransactionUtil          UtilInterface
+		TypeSwitcher             TypeActionSwitcher
+		Signature                crypto.SignatureInterface
+		Height                   uint32
+		BlockID                  int64
+		MultisigUtil             MultisigTransactionUtilInterface
+		SignatureInfoHelper      SignatureInfoHelperInterface
+		MultisignatureInfoHelper MultisignatureInfoHelperInterface
+		PendingTransactionHelper PendingTransactionHelperInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		AccountLedgerHelper      AccountLedgerHelperInterface
+		TransactionHelper        TransactionHelperInterface
+	}
+	type args struct {
+		txBodyBytes []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
+	}{
+		{
+			name:   "parseBodyBytes - complete",
+			fields: fields{},
+			args: args{
+				txBodyBytes: []byte{
+					1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 97, 1, 0, 0, 0, 98, 1, 0, 0, 0,
+					99, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 1, 0, 0, 0, 1, 0, 0, 0, 97, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				},
+			},
+			want: &model.MultiSignatureTransactionBody{
+				MultiSignatureInfo: &model.MultiSignatureInfo{
+					MinimumSignatures: 2,
+					Nonce:             1,
+					Addresses: []string{
+						"a", "b", "c",
+					},
+				},
+				UnsignedTransactionBytes: make([]byte, 64),
+				SignatureInfo: &model.SignatureInfo{
+					TransactionHash: make([]byte, 32),
+					Signatures: map[string][]byte{
+						"a": make([]byte, 32),
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &MultiSignatureTransaction{
+				ID:                       tt.fields.ID,
+				SenderAddress:            tt.fields.SenderAddress,
+				Fee:                      tt.fields.Fee,
+				Body:                     tt.fields.Body,
+				NormalFee:                tt.fields.NormalFee,
+				TransactionUtil:          tt.fields.TransactionUtil,
+				TypeSwitcher:             tt.fields.TypeSwitcher,
+				Signature:                tt.fields.Signature,
+				Height:                   tt.fields.Height,
+				BlockID:                  tt.fields.BlockID,
+				MultisigUtil:             tt.fields.MultisigUtil,
+				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
+				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
+				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
+				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
+				TransactionHelper:        tt.fields.TransactionHelper,
+			}
+			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseBodyBytes() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultiSignatureTransaction_GetSize(t *testing.T) {
+	type fields struct {
+		ID                       int64
+		SenderAddress            string
+		Fee                      int64
+		Body                     *model.MultiSignatureTransactionBody
+		NormalFee                fee.FeeModelInterface
+		TransactionUtil          UtilInterface
+		TypeSwitcher             TypeActionSwitcher
+		Signature                crypto.SignatureInterface
+		Height                   uint32
+		BlockID                  int64
+		MultisigUtil             MultisigTransactionUtilInterface
+		SignatureInfoHelper      SignatureInfoHelperInterface
+		MultisignatureInfoHelper MultisignatureInfoHelperInterface
+		PendingTransactionHelper PendingTransactionHelperInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		AccountLedgerHelper      AccountLedgerHelperInterface
+		TransactionHelper        TransactionHelperInterface
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   uint32
+	}{
+		{
+			name: "GetSizeComplete",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo: &model.MultiSignatureInfo{
+						MinimumSignatures: 2,
+						Nonce:             1,
+						Addresses: []string{
+							"a", "b", "c",
+						},
+					},
+					UnsignedTransactionBytes: make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						TransactionHash: make([]byte, 32),
+						Signatures: map[string][]byte{
+							"a": make([]byte, 32),
+						},
+					},
+				},
+			},
+			want: 184,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &MultiSignatureTransaction{
+				ID:                       tt.fields.ID,
+				SenderAddress:            tt.fields.SenderAddress,
+				Fee:                      tt.fields.Fee,
+				Body:                     tt.fields.Body,
+				NormalFee:                tt.fields.NormalFee,
+				TransactionUtil:          tt.fields.TransactionUtil,
+				TypeSwitcher:             tt.fields.TypeSwitcher,
+				Signature:                tt.fields.Signature,
+				Height:                   tt.fields.Height,
+				BlockID:                  tt.fields.BlockID,
+				MultisigUtil:             tt.fields.MultisigUtil,
+				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
+				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
+				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
+				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
+				TransactionHelper:        tt.fields.TransactionHelper,
+			}
+			if got := tx.GetSize(); got != tt.want {
+				t.Errorf("GetSize() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
