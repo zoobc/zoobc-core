@@ -478,11 +478,13 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 		)
 	}
 	// check if multisignatureInfo has been submitted
-	err = multisigInfoHelper.GetMultisigInfoByAddress(
-		multisigInfo, innerTx.SenderAccountAddress, blockHeight,
-	)
-	if err != nil {
-		return err
+	if len(multisigInfo.Addresses) == 0 {
+		err = multisigInfoHelper.GetMultisigInfoByAddress(
+			multisigInfo, innerTx.SenderAccountAddress, blockHeight,
+		)
+		if err != nil {
+			return err
+		}
 	}
 	// check if tx.Sender is participant in submitted multisignatureInfo
 	for _, address := range multisigInfo.Addresses {
@@ -549,7 +551,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				BlockHeight:      txHeight,
 			})
 		}
-		err := pendingTransactionHelper.GetPendingTransactionBySenderAddress(pendingTxs, multisigAddress, txHeight)
+		dbPendingTxs, err := pendingTransactionHelper.GetPendingTransactionBySenderAddress(multisigAddress, txHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -566,18 +568,13 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				signatures            = make(map[string][]byte)
 				validSignatureCounter uint32
 			)
-			err := signatureInfoHelper.GetPendingSignatureByTransactionHash(
-				pendingSigs, v.TransactionHash, txHeight,
-			)
+			pendingSigs, err := signatureInfoHelper.GetPendingSignatureByTransactionHash(v.TransactionHash, txHeight)
 			if err != nil {
 				return nil, err
 			}
 
 			for _, sig := range pendingSigs {
 				signatures[sig.AccountAddress] = sig.Signature
-			}
-			if len(pendingSigs) < 1 {
-				return nil, nil
 			}
 			if body.SignatureInfo != nil {
 				if bytes.Equal(v.TransactionHash, body.SignatureInfo.TransactionHash) {
@@ -586,8 +583,11 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 					}
 				}
 			}
+			if len(signatures) < 1 {
+				continue
+			}
 			sigInfo = &model.SignatureInfo{
-				TransactionHash: pendingSigs[0].TransactionHash,
+				TransactionHash: v.TransactionHash,
 				Signatures:      signatures,
 			}
 			for _, addr := range body.MultiSignatureInfo.Addresses {
@@ -600,10 +600,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				cpTx := &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       body.MultiSignatureInfo,
 					UnsignedTransactionBytes: v.TransactionBytes,
-					SignatureInfo: &model.SignatureInfo{
-						TransactionHash: v.TransactionHash,
-						Signatures:      signatures,
-					},
+					SignatureInfo:            sigInfo,
 				}
 				readyTxs = append(readyTxs, cpTx)
 			}
@@ -648,9 +645,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			}
 		}
 		var dbPendingSigs []*model.PendingSignature
-		err = signatureInfoHelper.GetPendingSignatureByTransactionHash(
-			dbPendingSigs, txHash[:], txHeight,
-		)
+		dbPendingSigs, err = signatureInfoHelper.GetPendingSignatureByTransactionHash(txHash[:], txHeight)
 		if err != nil {
 			return nil, err
 		}
@@ -708,9 +703,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				"FailToParseTransactionBytes",
 			)
 		}
-		err = signatureInfoHelper.GetPendingSignatureByTransactionHash(
-			pendingSigs, txHash, txHeight,
-		)
+		pendingSigs, err = signatureInfoHelper.GetPendingSignatureByTransactionHash(txHash, txHeight)
 		if err != nil {
 			return nil, err
 		}
